@@ -2,6 +2,8 @@
 
 Date: 2026-10-07. Status: source comparison and implementation-selection recommendations.
 
+Presentation update: the current [spaces contract](2026-10-07-feria-dots-ui-contract-draft.md) and [granular audit/prototype brief](2026-10-07-dots-feria-inspection-brief.md) supersede this report's session-group taskbar and Pop out/Return presentation assumptions. Keep the 52 category numbers stable. Source findings and selected donors below are historical candidates to re-evaluate per batch, not an approved current UI or a mandate to preserve existing backend code.
+
 This is research for the combined Feria browser/shared-taskbar design, not the approved design or an implementation plan. It compares the supplied versions of all five donors against the same capability catalog. A feature being present is not sufficient for selection. There is no requirement to take code from every donor.
 
 ## Evidence and limits

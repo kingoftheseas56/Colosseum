@@ -1,115 +1,89 @@
-# Feria browser machinery and presentation: draft ownership contract
+# Feria browser: shared behavior and app-specific spaces
 
-Status: reviewable design draft, not an implementation plan or dispatched Dots assignment.
+Updated: 2026-10-07. Status: current reference for donor audits and branch prototypes, not an adopted production implementation. Preparation does not mean dispatch.
 
-Phase update: Hemanth subsequently assigned Dots an independent source/integration inspection first. Backend implementation is a separate later assignment after review of that inspection. See `2026-10-07-dots-feria-inspection-brief.md` for the current phase contract.
+This revision supersedes the earlier taskbar session groups, session chooser, session terminology and visible Pop out/Return menu in this file. It also supersedes those presentation assumptions in Dots' report at `01cc5a48dfd9b69176380d8749d576ab1d35a661`. Preserve that report as source evidence; revise its proposed FRONTEND-INTERFACE against this contract.
 
-## Source and purpose
+## Purpose and ownership
 
-Colosseum source basis: `https://github.com/kingoftheseas56/Colosseum.git`, commit `022864eb52de908606e074827d3cd1a3a9fca8fd`.
+Hemanth wants a complete functional browser inside Feria's site-as-app experience. Dots compares donor implementations and produces working backend prototypes on a Colosseum task branch. Codex reshapes production QML presentation and independently reviews returned commits and evidence. Nonvisual QML belongs to the behavior lane when needed; this is not a C++-only versus QML-only division.
 
-Donor decisions and source evidence: `docs/research/2026-10-07-feria-browser-donor-quality-comparison.md` at that commit. The comparison selects individual implementations or principles; it does not authorize copying entire donor applications or adding every catalogued capability to V1.
+The main goal is a strong browser foundation with Chrome-like correctness and reliability over a narrower Feria scope. QtWebEngine/Chromium remains the engine basis under evaluation; the task strengthens its application integration, not merely the visual shell. Supported browsing needs dependable navigation, independent pages, request ownership, privacy, lifecycle and recovery. A mock or source-copy count is not completion evidence. These prototypes should become reviewable functional candidates toward that foundation.
 
-Hemanth's division of work: Dots develops browser machinery on a Colosseum task branch; Codex reshapes the QML presentation to fit Feria's existing appearance and independently reviews returned commits, diffs and evidence. Ownership follows behavior versus presentation, rather than C++ versus QML.
-
-## Ground truth
-
-Present in the inspected source: retained browser entries in `FeriaSessionDeck.qml`; normal/private profiles; native account-owned history, bookmarks, preferences and download authorization; browser tools, download and permission presentation; navigation/find/zoom controls; a text session chooser in the shared taskbar.
-
-Partial or missing: real taskbar-managed Feria desktop windows; same-live-page Pop out/Return; consistent browser close handshake through taskbar and desktop-window paths; renderer recovery; new-session provider start pages; the agreed app-icon minimize/restore behavior. Current site dialog windows are not equivalent to complete taskbar-managed desktop browser windows. Presence in source does not establish runtime correctness.
-
-Primary current seams: `native/SessionStore.h`, native Feria account/policy owners, `qml/feria/FeriaSessionDeck.qml`, `FeriaQtWebEngine.qml`, `FeriaBrowserRequests.qml`, `FeriaBrowserDownloads.qml`, `PorticoDiscoveryHostView.qml`, `FeriaBrowserMenu.qml`, `qml/Taskbar.qml` and `qml/Main.qml`. Preserve unrelated account/activity work.
+Standardize observable behavior, actions and lifetime ownership, not a generic Browser Tools drawer. A simple reference frontend proves the shared interface; app skins can change afterward. See the [current assignment](2026-10-07-dots-feria-inspection-brief.md) for baseline and batch scope. Keep category numbers from the [donor comparison](2026-10-07-feria-browser-donor-quality-comparison.md); old winners are candidates, not mandatory selections.
 
 ## Locked
 
-- Each Feria provider is its own app. Its sessions use the existing shared Colosseum taskbar, with no new Chrome-style tab strip.
-- Single-session app-icon activation toggles foreground/minimized state. Multiple sessions use an exact-session chooser; a detached session selection raises its own desktop window.
-- Minimize parks a session and reveals the world underneath; close ends only that session. Closing the active embedded browser does not promote a parked neighbor.
-- Real Feria browser windows are V1. Pop out/Return keeps the same live page, session identity and privacy/profile relationship. Closing that desktop window closes its session; returning changes placement without closing it.
-- Explicit new sessions open the provider's start page. Site requests and ordinary links preserve their actual requested destination and request context.
-- Pause on minimize and world switch. Resume only playback Colosseum automatically paused; manually paused playback stays paused. Vinyl is the future deliberate play-across-world feature.
-- Normal startup is fresh. Continue surfaces remain the main return path; browser restore is an explicit action.
-- Use the provider's display name in actions: "New YouTube session", "New private YouTube session", "Reopen closed YouTube session". A multi-provider restore action is "Restore previous app sessions".
-- Keep existing navigation, app identity, options/browser tools and window controls. Put placement in the menu, not a new permanent header button: "Open in separate window" inside, "Return to Colosseum" outside. Only the relevant placement action appears.
-- Address/find interfaces appear when invoked; permissions appear when requested. Site-specific controls use the existing provider policy, with remaining capabilities reachable through tools/shortcuts.
-- Keep the surrounding controls visually integrated into the app. Use the browser's default wallpaper behind browser chrome rather than the Universes carousel.
+- Each provider/site is its own Feria app. The Colosseum taskbar represents apps only, with no individual spaces or grouped session chooser/previews. Selecting an app restores its selected space; selecting its already foregrounded icon minimizes it and reveals the world underneath. Feria home launches/restores the app.
+- Tabs live inside each app's retractable sidebar. Presentation categories are **watchspaces** for video, **readspaces** for reading and **soundspaces** for audio. Add actions are `watchspaces+`, `readspaces+` and `soundspaces+`, as appropriate. Shared tab machinery must not be duplicated into three implementations. No top tab bar.
+- Rows show app/site icon and page title, with at most a slight active shade/glass response. No chunky capsules, obvious borders or heavy tab backgrounds. Exact layout, icons and skin belong to the app.
+- Preserve the header: return-to-Feria, app identity, Back/Forward/Reload, URL button, Min/Max/X. Remove settings/sliders from that layer. Settings, extensions and spaces belong in the sidebar.
+- The URL button unfolds an address row vertically below the header, integrated into the chrome rather than a detached floating panel. It must not cover the website.
+- The docked sidebar may resize the website viewport when expanding/retracting. The normal outer embedded browser frame stays stable. No sidebar, settings or Colosseum-managed request UI overlays the website. Content authored by the remote website is separate from Colosseum chrome.
+- Max presents the current live space full-size; Restore returns it to the prior embedded position and dimensions, retaining identity/live page state. Do not implement Max by changing the browser's normal Feria layout size. This presentation mode is distinct from site-requested media fullscreen.
+- History and Downloads are full app pages with thumbnails and app-like presentation. They replace the content surface while selected; returning restores the selected live website space. Their layout does not authorize a preview-cache backend in batch 1-5.
+- YouTube, Netflix, Manga Plus and other apps have their own sidebar skin, icons and navigation vocabulary over shared capabilities. Useful provider destinations can appear there instead of duplicating native site navigation. Provider adaptation is separate from the generic browser controller.
+- Explicit new spaces open the provider start page. Site-requested destinations retain original semantics/context, including opener/form state. App identity is separate from current page origin, including during login redirects.
+- Pause on app minimize/world switch; resume only media Colosseum automatically paused. Manually paused media stays paused. Vinyl remains the future deliberate play-across-world feature.
+- Startup is fresh. Continue Watching/Reading/Listening remain the main return paths; browser restoration is explicit. Private spaces never enter normal history, closed-space records or persisted restore data.
+- Browser default wallpaper sits behind the glass chrome rather than the Universes carousel. Controls should visually merge with Colosseum's skin.
 
 ## Constraints
 
-- Preserve Colosseum's canonical session/account/policy authority and privacy behavior. Current backend implementation is not privileged: replace it when the independent inspection establishes a stronger Qt/Chromium/donor solution, identifying migration and frontend compatibility. Introduce no competing simultaneous tab, account, history, download or preference store.
-- The original five-donor selections are provisional inspection evidence. Check existing Qt APIs, Qt's integration and upstream Chromium, and compare wider relevant donors before choosing backend implementations. The original selections may be retained, corrected or superseded from source evidence.
-- Every adapted component records donor repository, commit, source path, retained notices and significant changes. Correct identified donor defects. If none of the donors provides a suitable component, identify the gap and the existing Colosseum owner to extend.
-- Donor behaviors do not override Colosseum product choices. Do not bring in whole donor shells, implicit session restore, automatic device/certificate selection or donor-global account state.
-- Private sessions never enter normal browsing history or persisted restore state. Delayed work and outstanding requests remain fenced to the originating session/account/page generation.
-- Pending permission, authentication, download and close requests survive or cancel deliberately through moves and closures; they must not become orphaned or target the selected neighbor.
-- Shared C++/QML source is not proof of matching Windows/Linux behavior. Installed Qt's missing proprietary codecs and unverified DRM remain separate qualifications.
-- Codex's presentation changes and Dots' behavior changes must be reviewable independently. Shared files may need coordinated changes; do not prohibit required QML behavior work merely because it shares a presentation file.
+- Inspect existing owners of canonical SessionStore identity, account/profile isolation, history, progress, bookmarks, downloads and preferences. Extend or replace them with migration/compatibility evidence; create no competing simultaneous registry/database just to match new vocabulary.
+- Existing backend receives no sunk-effort preference. Choose stronger usable Qt/Chromium/donor machinery when evidence supports it. Distinguish direct source port, supported API wiring and behavioral adaptation.
+- Compare relevant code in all five supplied donors; record absent/default/unsuitable cases honestly. Inspect wider donors when concretely relevant, without claiming comprehensive Chromium/Brave/CEF/Firefox inspection from searches. Vulkan is a graphics API, not a browser donor.
+- Retain original request objects within supported adoption/deferral lifetime. Every asynchronous result is fenced to stable originating space/account/page generation, not whichever row is now selected.
+- Per-space navigation, close, errors and recovery are observable. App selection, sidebar layout and focus cannot become engine ownership. Preserve original-page request identity through host/mode changes.
+- Remove visible Pop out/Return and Open in separate window actions from this reference UI. That does not settle legitimate site-requested windows/dialogs/authentication hosting or disable the engine capability; report that seam.
+- Do not hide a site's own navigation until equivalent destinations and fallback are established. Do not rebuild provider feeds/subscriptions/login/account truth in a parallel system.
+- Record exact source revisions/paths, copied versus adapted code, retained notices, dependencies and file-specific licensing implications. No blanket donor license clearance is implied.
+- Linux qualification does not prove Windows correctness. Codec-enabled Qt availability, DRM/protected providers, hardware authentication and audible output require their own actual evidence.
 
 ## Deferred
 
-- Cached thumbnails, hover peek, live previews, preview playback controls and visual polish.
-- Generic Tankoban/Biblio/Theatre desktop pop-outs.
-- General-browser entry and extensions.
-- Additional donor catalog items such as article extraction, adblock, rich system printing, mobile sharing and web-app installation remain separately scoped; this contract does not silently add them to V1.
+- General browser entry and extension implementation/management. Sidebar placement is a future seam; a mock affordance is not an extension runtime.
+- Cached taskbar thumbnails, live hover peek, preview playback controls and polish. Old V2 session-preview ideas do not restore a grouped taskbar.
+- Generic Tankoban/Biblio/Theatre desktop pop-outs, extra tab pinning/reorder/multi-select and unselected systems such as reader extraction, adblock or a new password vault.
+- Final custom skins/provider DOM adapters for every site. The contract must permit them without requiring every adaptation before backend work.
 
 ## Open
 
-No additional product choice is introduced by this ownership split. This draft still needs Hemanth's review and approval before implementation dispatch. API signatures and the concrete cross-window lifetime solution are engineering decisions to establish against the live source and runtime, not unanswered product questions.
+These do not block the authorized audit and bounded prototype. Do not lock them through fixture behavior.
 
-## Dots-owned browser machinery
-
-Dots owns functional behavior through implementation and the strongest available build/test/Linux runtime qualification. That includes native services and nonvisual QML request/lifecycle/window glue needed for the agreed browser sessions.
-
-The functional surface comprises provider-scoped new/private/reopen actions; exact-session selection and window activation; placement/move ownership; originating-page close handshake; site-requested destinations; per-view recovery; automatic-pause tracking; and preservation of profile/account/request cleanup. Keep existing working browser/account features, filling the identified V1 gaps through their owners.
-
-Dots may construct the functional desktop-window host necessary to prove moves, requests and closing. It should use existing Colosseum presentation where practical and expose a usable host/content seam for the receiving UI. Final wallpaper, spacing, header/menu arrangement, labels and visual treatment belong to Codex's presentation work.
-
-## Codex-owned presentation and receiving review
-
-Codex owns Feria's QML visual composition: wallpaper/backdrop integration, browser header, app-named menu actions, contextual placement action, session chooser presentation, compact status/recovery feedback, dialog styling and responsive keyboard/controller-accessible interaction. Preserve the existing house components and provider identity.
-
-Browser "Tabs" becomes "Sessions" in presentation; provider names qualify session actions. Existing bookmarks/history/downloads/settings remain reachable through the compact tools surface. The taskbar is the main switching surface; no parallel donor tab bar is introduced.
-
-Codex inspects Dots' exact commits/diff and evidence, reproduces decisive Windows checks, and connects the visual surfaces to the agreed behavior interface. Source integration, production adoption and release states remain distinct.
+- Header X: close the whole app/all spaces or close the selected space? Row close targets only its named space. Expose distinct app-close and space-close semantics; app-wide close eventually honors each originating page's close handshake.
+- Playback on switching spaces: whether departure pauses and return auto-resumes. This differs from locked app minimize/world-switch behavior. Keep suspension reasons/provenance separable; do not change background-space playback in navigation prototypes.
+- Whether incoming requests automatically expand a retracted sidebar. Requests need origin identity, cancellation and accessible presentation outside the website regardless. Mock auto-reveal is illustrative.
+- Site-requested window/dialog hosting after removal of visible Pop out controls; required platform-owned picker/auth UI versus the no-overlay rule. Audit interception/lifetime and report actual platform/API restrictions rather than assuming default Qt dialogs satisfy the presentation contract.
 
 ## Shared behavior interface
 
-The interface must let presentation read session identity, provider display name, title, privacy, location (inside/separate window), minimized/foreground state, request-close progress, error/recovery status and which actions are available.
+Names below describe semantics, not mandatory new classes/method spelling. Map them to live owners and return concrete prototype signatures.
 
-Presentation must be able to request new/private/reopen, explicit restore, activate, minimize, close, move out and return for a named session. State updates must be observable and come from the existing owners. Final method/property names should follow current code rather than create a second model solely to satisfy this draft's vocabulary.
+| Surface | Observable state | Actions / ownership |
+|---|---|---|
+| App | Stable app/provider ID, display name, category, capabilities, selected space ID, visible/minimized state | Launch/restore/minimize; select space; app-scoped taskbar projection |
+| Spaces | Stable space ID mapped to SessionStore identity, owning app/account/profile generation, privacy, title/icon/URL, selection | Create normal/private, select, request exact-space close, reopen normal, explicit restore |
+| Navigation | Per-space native state, loading/progress, available Back/Forward, history entries, committed URL/page generation | Validated navigate, Back/Forward/Reload/Stop, history-offset for named space |
+| Presentation host | Bound space ID, embedded/full-size mode, prior embedded geometry, host/transfer progress/capabilities | Full-size/restore without reload; viewport geometry changes without changing ownership |
+| Requests | ID/type, originating space/page/account, origin, supported choices, pending/cancelled/resolved state | Resolve/cancel exact request within engine lifetime; summaries for sidebar presentation |
+| Tools / app pages | Find/zoom/settings capabilities; canonical history/download models and record actions | Exact-space tools; history/download queries; app-page route separate from website navigation |
+| Media / lifecycle | Observable playback/manual pause, suspension reasons, recovery/error state | Provenance-aware pause/resume; freeze/wake distinct from pause; bounded exact-view recovery/cancellation |
+| Provider adaptation | Category/start page, destination IDs, capability exposure | Validated destination navigation, separately scoped site adaptation; no canonical account/history ownership |
 
-A desktop host must let the same visual browser controls bind to its own session, without selecting whichever embedded session happens to be active. Engine fullscreen and desktop maximize/restore must keep their distinct behavior even if presentation uses existing compact controls.
+Commands/callbacks use stable IDs. Reordering or reskinning cannot change their target. Row index, label, selected neighbor, sidebar width or panel location is never durable request identity. Relabeling the UI does not rename persisted IDs.
 
-## Observable acceptance
+Per-page navigation history (category 3) is distinct from global account History. App presentation mode, native-window placement and website fullscreen are distinct. Batch 1-5 establishes necessary seams; detailed requests/downloads/recovery remain in their later category batches.
 
-- Two sessions of one provider remain independently selectable and closable; a background page's close request cannot close the foreground page.
-- Pop out/Return preserves a local fixture's page state and live script state without reloading or creating a duplicate SessionStore record. Former-host lifetime, focus, dialogs and window closure are exercised on the real WebEngine view.
-- Foreground/background/tab/window/dialog requests reach the right destination while retaining the original request; an opener/form fixture supplies evidence beyond a URL-only navigation test.
-- Taskbar/menu/native-window close routes respect before-unload acceptance/cancellation and close only the requested session. A canceled close leaves it available.
-- New provider sessions use its start page; reopening a closed normal session preserves its intended descriptor. Private sessions are excluded from closed/restore persistence.
-- Minimize/world switch pause playing fixture media; restoration resumes automatically paused media and leaves manually paused media paused. Cross-frame/provider restrictions are reported explicitly rather than replaced with an unconditional play call.
-- Renderer recovery targets the affected view, is bounded, exposes a failure/retry state and cannot fire after session/account replacement.
-- Existing download/auth/permission/account-switch cleanup remains correct when the requesting session closes or changes window placement.
-- Normal restart opens no browser sessions automatically; manual restoration is deliberate.
-- Visible controls retain Feria's compact composition, provider-specific labels and context-dependent actions. No permanent Pop out/Return button or V1 preview cache is added.
+## Observable acceptance and reference limits
 
-## Eventual Dots dispatch and evidence contract
+- Two spaces of one app preserve independent live fixture and native navigation state, without reload or duplicate canonical records; selection/actions target exact IDs.
+- App-only taskbar projection and app-specific sidebar bind to shared state. Relabeling/reskinning needs no browser backend rewrite.
+- Navigation/history-offset target the named space. Input follows Colosseum URL policy without unrestricted local-file acceptance or JavaScript history reconstruction.
+- Foreground/background requests preserve original object/context; background creation does not steal selection. Window/dialog destinations and any hosting dependency are classified honestly.
+- Managed controls remain outside the website viewport. Sidebar resizes viewport without changing outer frame; full-size/restore preserves fixture/geometry when that seam is prototyped.
+- Account/private fences remain intact; no new persistence registry, automatic startup restore or extension runtime is introduced.
 
-Once the design is approved, use the exact source pin above or explicitly replace it with a newer agreed pin and record that change. Dots may create its own Colosseum task branch, push, run Actions, or use the connected alternate fork/cache when practical. Production-main adoption is not part of the assignment.
+The [portable spaces reference](2026-10-07-feria-spaces-reference.html) is disposable simulated presentation, not production QML, engine verification or authority for Open choices. URLs, thumbnails, records and provider actions are fixtures. Header X and request auto-reveal illustrate proposals only. Its UI does not prove native close acceptance, media suspension or engine lifetime.
 
-Donor source inputs are obtainable from these recorded upstreams, not from a user-machine path:
-
-- `https://github.com/qt/qtwebengine.git`, `a7a7106bc839974d9172c19707da15c21a8a7126`, `examples/webenginequick/quicknanobrowser` and `examples/webenginequick/lifecycle`.
-- `https://github.com/KDE/angelfish.git`, `40c6dc69b93f93197cc7b1216224e7e52c491635`.
-- `https://github.com/arnav-kr/nicol.git`, `abdc8db83989376a06642dd15ec647ba9ce45408`.
-- `https://gitlab.com/ubports/development/core/morph-browser.git`, `39175d1346e6da48ac331b6a8f293bbe66a722eb`.
-
-Remote availability of those exact objects was not verified here. If a required input is inaccessible, report the specific block; use a bounded source packet only when Git cannot supply it.
-
-Return the working repository/fork, branch, exact commits/tip, actual checks and CI runs, donor provenance, and one concise `kingoftheseas56/Dots-Colosseum` delivery entry pointing to the implementation and evidence. No duplicate source ZIP or second report is required.
-
-Record actual OS/architecture, Qt/WebEngine versions, matching executable/source identity and artifact checksum for runtime claims. Use real Lanista protocol replies and runtime interactions where available. Separate modeled tests, component tests and assembled-app evidence with PASS/FAIL/BLOCKED/NOT RUN. Distinguish native app, curl/provider and WebEngine networking. Hardware auth, live-provider/media/DRM and Windows qualification stay unverified until exercised.
-
-## Draft self-review
-
-The split preserves the agreed product behavior, existing owners and deferred scope. It assigns QML behavior to the machinery lane and QML presentation to the UI lane, exposes the shared-file seam, and gives observable cases rather than adding test-only product expectations. Cross-window feasibility and platform/runtime claims remain explicitly unverified. No implementation has been started or dispatched under this draft.
+Reference verification: 18 focused headless Windows Edge checks passed, with no JavaScript errors. Checked category labels, add/select/close identity, mock navigation targeting, docked sidebar/address/settings/request geometry, full-size restoration of fixture state, app-page routes and 360px fit; desktop/narrow screenshots were inspected. This qualifies the simulated reference only. No Colosseum native build, QML runtime or WebEngine behavior was tested by these checks.
