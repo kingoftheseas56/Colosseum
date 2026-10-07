@@ -4466,6 +4466,57 @@
         "Frame intervals are meaningful as jank evidence only when samples are bounded to an active journey.",
         "Poster request-time visibility remains unknown unless it is sampled at the request boundary."
       ]
+    },
+    {
+      "id": "vinyl",
+      "display_name": "Vinyl pages prototype",
+      "aliases": [
+        "vinyl-pages"
+      ],
+      "source_roots": [
+        "qml/vinyl/"
+      ],
+      "entry_points": [
+        "qml/vinyl/VinylPagesPrototype.qml"
+      ],
+      "owners": [
+        {
+          "name": "VinylPageData",
+          "path": "qml/vinyl/VinylPageData.qml",
+          "confidence": "observed",
+          "responsibility": "Single fixture data and action interface for album and song pages.",
+          "provenance": [
+            {
+              "path": "qml/vinyl/VinylPageData.qml",
+              "contains": "objectName: \"vinylPageData\""
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.qml",
+          "labels": [
+            "qml",
+            "windows"
+          ]
+        }
+      ],
+      "checks": [
+        "tests/qml/tst_vinyl_page_data.qml",
+        "tests/qml/tst_vinyl_album_page.qml",
+        "tests/qml/tst_vinyl_song_page.qml",
+        "tests/qml/tst_vinyl_note_picker.qml"
+      ],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/vinyl_album_journey.json",
+        "tests/lanista_scenarios/vinyl_song_journey.json"
+      ],
+      "context": [],
+      "platform_constraints": [
+        "Fixture-only prototype; Linux component evidence does not close Windows receiving qualification."
+      ],
+      "relations": []
     }
   ]
 }
