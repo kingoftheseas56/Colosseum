@@ -85,7 +85,7 @@ WebEngineView {
         // Release focus while the retained owner's scope is still alive,
         // before deferred parent/Loader destruction reaches the native view.
         focus = false
-        documentCheck.stop(); navigationRefresh.stop(); cleanupPoll.stop()
+        documentCheck.stop(); cleanupPoll.stop()
         if (pendingJavaScript === 0) { stop(); safeToDestroy() }
     }
     property string providerId: ""
@@ -200,85 +200,12 @@ WebEngineView {
     readonly property bool loadActive: loading
     property bool stopRequested: false
     function stopLoad() { if (loading) { stopRequested = true; stop() } }
-    // Website history state. Qt 6.11's view-level history surfaces — the
-    // canGoBack/canGoForward properties, goBack()/goForward() and the state of
-    // action(WebEngineView.Back/Forward) — only refresh after view-initiated
-    // navigations: after an in-page link they keep the last assignment's
-    // snapshot, and after crossing origins they stay disabled even though
-    // traversal still works. The page's Navigation API is exact within the
-    // current origin but origin-limited: cross-origin and error-page entries
-    // are invisible to it. The shell state therefore reconciles engine-backed
-    // inputs only: the page's history length (covers every origin), the
-    // Navigation API's same-origin index, and a count of cross-origin entries
-    // known to sit ahead (crossOriginAhead, maintained from engine traversal
-    // events; a new navigation clears it with the forward entries). No URLs
-    // and no history contents are recorded.
-    property bool navCanGoBack: false
-    property bool navCanGoForward: false
-    property int crossOriginAhead: 0
-    property string pendingTraversal: ""
-    property string previousOrigin: ""
-    property int bookkeptGeneration: -1
-    function refreshNavigationState(bookkeep) {
-        if (clearingSession) return
-        var generation = navigationGeneration
-        evaluateJavaScript("(function(){var n=window.navigation,c=n&&n.currentEntry;"
-            + "return JSON.stringify({len:history.length,origin:location.origin,"
-            + "idx:c?c.index:null,entries:n?n.entries().length:null,"
-            + "nav:(performance.getEntriesByType('navigation')[0]||{}).type||''})})()",
-            function(result) {
-                if (generation !== navigationGeneration || result === undefined) return
-                var info
-                try { info = JSON.parse(result) } catch (e) { return }
-                if (typeof info.len !== "number" || typeof info.origin !== "string") return
-                if (bookkeep && bookkeptGeneration !== generation) {
-                    bookkeptGeneration = generation
-                    if (info.nav === "back_forward") {
-                        var crossed = info.origin !== previousOrigin
-                        if (pendingTraversal === "forward") {
-                            if (crossed) crossOriginAhead = Math.max(0, crossOriginAhead - 1)
-                        } else if (crossed) {
-                            // Our own back traversal, or a page-initiated one.
-                            crossOriginAhead += 1
-                        }
-                    } else {
-                        // A new navigation clears whatever sat ahead of it.
-                        crossOriginAhead = 0
-                    }
-                    pendingTraversal = ""
-                    previousOrigin = info.origin
-                }
-                if (typeof info.idx === "number" && typeof info.entries === "number") {
-                    var crossBehind = Math.max(0, info.len - info.entries - crossOriginAhead)
-                    var jointIndex = info.idx + crossBehind
-                    navCanGoBack = jointIndex > 0
-                    navCanGoForward = info.len - 1 > jointIndex
-                } else {
-                    // Error pages (and documents without a Navigation API)
-                    // expose no same-origin index; the newest-entry assumption
-                    // matches what the engine's own actions report.
-                    navCanGoBack = info.len - 1 - crossOriginAhead > 0
-                    navCanGoForward = crossOriginAhead > 0
-                }
-            })
-    }
-    Timer {
-        id: navigationRefresh
-        interval: 400
-        onTriggered: browser.refreshNavigationState(false)
-    }
-    function pageBack() {
-        if (!navCanGoBack) return
-        pendingTraversal = "back"
-        evaluateJavaScript("history.back()")
-        navigationRefresh.restart()
-    }
-    function pageForward() {
-        if (!navCanGoForward) return
-        pendingTraversal = "forward"
-        evaluateJavaScript("history.forward()")
-        navigationRefresh.restart()
-    }
+    readonly property alias navigation: navigationController
+    FeriaNavigation { id: navigationController; browser: browser }
+    readonly property bool navCanGoBack: navigationController.canGoBack
+    readonly property bool navCanGoForward: navigationController.canGoForward
+    function pageBack() { return navigationController.back() }
+    function pageForward() { return navigationController.forward() }
     signal started(string location)
     signal completed(string location, bool success)
     signal failed(string reason)
@@ -338,7 +265,6 @@ WebEngineView {
             // A completed listener may begin cleanup synchronously. Inspect the
             // current load before notifying it, so about:blank is never cleaned.
             completed(String(info.url), true)
-            refreshNavigationState(true)
         } else if (info.status === WebEngineView.LoadStoppedStatus) {
             // stop() ends the load as "stopped" (errorCode -3 observed), not as
             // a failure: the previous page — or the initial blank document —
@@ -352,7 +278,6 @@ WebEngineView {
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             completed(String(info.url), true)
-            refreshNavigationState(true)
         } else if (info.status === WebEngineView.LoadFailedStatus) {
             ++navigationGeneration
             documentCheck.stop()
@@ -382,7 +307,6 @@ WebEngineView {
                 browser.documentReady = true
                 browser.applyAppMode()
                 browser.completed(String(browser.url), true)
-                browser.refreshNavigationState(true)
             })
         }
     }
@@ -390,7 +314,8 @@ WebEngineView {
     onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
     onNewWindowRequested: function(request) {
         if (!request.userInitiated) { message("Popup blocked"); return }
-        if (sharedProfile && request.destination !== WebEngineNewWindowRequest.InNewDialog)
+        if (sharedProfile && (request.destination === WebEngineNewWindowRequest.InNewTab
+            || request.destination === WebEngineNewWindowRequest.InNewBackgroundTab))
             tabRequested(request)
         else openPopup(request)
     }
@@ -456,3 +381,4 @@ WebEngineView {
         }
     }
 }
+

@@ -106,6 +106,59 @@ public:
                 result.append(value);
         return result;
     }
+    // Read-only app/space projections over the canonical activity registry.
+    // No parallel tab IDs, URL identity, account store or persisted selection.
+    Q_INVOKABLE QVariantList browserSpaces(const QString &provider) const {
+        QVariantList result;
+        for (const QVariant &value : browsers()) {
+            const QVariantMap rec = value.toMap();
+            if (rec.value(QStringLiteral("target")).toMap()
+                    .value(QStringLiteral("providerId")).toString() == provider)
+                result.append(rec);
+        }
+        return result;
+    }
+    Q_INVOKABLE QString selectedBrowser(const QString &provider) const {
+        QString selected;
+        quint64 latest = 0;
+        for (const QVariant &value : browserSpaces(provider)) {
+            const QVariantMap rec = value.toMap();
+            const QString id = rec.value(QStringLiteral("id")).toString();
+            if (id == m_activeId) return id;
+            const quint64 order = rec.value(QStringLiteral("browserUseOrder")).toULongLong();
+            if (selected.isEmpty() || order > latest) {
+                selected = id;
+                latest = order;
+            }
+        }
+        return selected;
+    }
+    Q_INVOKABLE QVariantList browserApps() const {
+        QVariantList result;
+        QStringList seen;
+        for (const QVariant &value : browsers()) {
+            const QVariantMap rec = value.toMap();
+            const QVariantMap target = rec.value(QStringLiteral("target")).toMap();
+            const QString provider = target.value(QStringLiteral("providerId")).toString();
+            if (seen.contains(provider)) continue;
+            seen.append(provider);
+            const QString selected = selectedBrowser(provider);
+            result.append(QVariantMap{
+                {QStringLiteral("providerId"), provider},
+                {QStringLiteral("title"), rec.value(QStringLiteral("groupTitle"))},
+                {QStringLiteral("icon"), rec.value(QStringLiteral("groupIcon"))},
+                {QStringLiteral("mode"), target.value(QStringLiteral("mode"))},
+                {QStringLiteral("selectedSpaceId"), selected},
+                {QStringLiteral("foreground"), selected == m_activeId}});
+        }
+        return result;
+    }
+    Q_INVOKABLE bool activateBrowserApp(const QString &provider) {
+        const QString selected = selectedBrowser(provider);
+        if (selected.isEmpty()) return false;
+        setActive(selected == m_activeId ? QString{} : selected);
+        return true;
+    }
     Q_INVOKABLE void closeBrowserSessions() {
         const QVariantList records = browsers();
         for (const QVariant &value : records)
@@ -431,3 +484,4 @@ private:
     QString m_browserProfile;
     quint64 m_browserUseOrder = 0;
 };
+

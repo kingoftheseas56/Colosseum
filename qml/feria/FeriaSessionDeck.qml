@@ -1,5 +1,6 @@
 import QtQuick
 import QtWebEngine
+import "PorticoData.js" as ProviderData
 
 // Retained browser objects live under the shared shell, outside FeriaWorld's
 // visual Loader. SessionStore remains the single open-activity registry.
@@ -85,11 +86,47 @@ Item {
         snapshotRoot = policy.storageRoot
         snapshotTimer.restart()
     }
+    function browserForSession(id) {
+        var entry = entries[id]
+        return ready && !quiescing && entry && !entry.retiring ? entry.browser : null
+    }
+    function navigationForSession(id) {
+        var browser = browserForSession(id)
+        return browser ? browser.navigation : null
+    }
+    function back(id) { var nav = navigationForSession(id); return nav ? nav.back() : false }
+    function forward(id) { var nav = navigationForSession(id); return nav ? nav.forward() : false }
+    function reload(id) { var nav = navigationForSession(id); return nav ? nav.reload() : false }
+    function stop(id) { var nav = navigationForSession(id); return nav ? nav.stop() : false }
+    function historyOffset(id, offset, revision) {
+        var nav = navigationForSession(id)
+        return nav ? nav.goToOffset(offset, revision) : false
+    }
+    function navigateInput(id, text, searchEngine) {
+        var url = String(policy.omniboxUrl(text, searchEngine || "duckduckgo"))
+        return url.length > 0 && navigateSession(id, url, 0, null, null)
+    }
+    function newSpace(sourceId, privateBrowsing, activate) {
+        var source = entries[sourceId]
+        if (!source || source.retiring || !ready) return ""
+        var descriptor = Object.assign({}, source.descriptor)
+        var provider = ProviderData.P[descriptor.providerId]
+        // Explicit fixture/integration startUrl is validated, never a page URL.
+        var start = String(descriptor.startUrl || (provider ? "https://" + provider.d : ""))
+        if (!start || !policy.navigationUrl(start).toString().length) return ""
+        descriptor.url = start
+        descriptor.title = descriptor.providerName || descriptor.providerId
+        descriptor.privateBrowsing = Boolean(privateBrowsing)
+        delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
+        return sessions.openBrowser(descriptor, true, false, activate !== false)
+    }
+    // Compatibility facade; new presentation supplies an explicit source ID.
     function newTab(privateBrowsing, url, activate) {
-        if (!activeEntry || !ready) return ""
+        if (!activeEntry) return ""
+        if (!url) return newSpace(activeEntry.sessionId, privateBrowsing, activate)
+        if (!ready || !policy.allowsNavigation(url)) return ""
         var descriptor = Object.assign({}, activeEntry.descriptor)
-        descriptor.url = url || "about:blank"
-        descriptor.title = privateBrowsing ? "Private tab" : "New tab"
+        descriptor.url = url
         descriptor.privateBrowsing = Boolean(privateBrowsing)
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
         return sessions.openBrowser(descriptor, true, false, activate !== false)
@@ -101,7 +138,13 @@ Item {
     }
     function openWindow(sourceId, request) {
         var source = entries[sourceId]
-        if (!source || !ready || !request.userInitiated) return
+        if (!source || source.retiring || !source.browser || !ready || !request.userInitiated) return
+        if (request.destination !== WebEngineNewWindowRequest.InNewTab
+            && request.destination !== WebEngineNewWindowRequest.InNewBackgroundTab) {
+            source.browser.openPopup(request)
+            return
+        }
+        var originProfile = source.browser.profile
         var destination = String(request.requestedUrl || "about:blank")
         if (!policy.allowsNavigation(destination)) return
         var descriptor = Object.assign({}, source.descriptor)
@@ -116,7 +159,7 @@ Item {
         var entry = entries[id]
         // Adopt the original request synchronously: preserving opener/form/SSO
         // state requires openIn(), rather than reopening just its URL.
-        if (entry && entry.browser) {
+        if (entry && entry.browser && entry.browser.profile === originProfile) {
             request.openIn(entry.browser)
             entry.browser.adoptingWindowRequest = false
         }
@@ -430,3 +473,4 @@ Item {
         }
     }
 }
+

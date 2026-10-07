@@ -6,24 +6,45 @@
 #include <qqml.h>
 #endif
 
+namespace {
+bool invalidAddressInput(const QString &text) {
+    if (text.size() > 8192) return true;
+    for (const QChar c : text)
+        if (c.category() == QChar::Other_Control) return true;
+    return false;
+}
+bool hostWithPort(const QString &text) {
+    static const QRegularExpression hostPort(
+        QStringLiteral(R"(^(?:localhost|[^\s/:]+\.[^\s/:]+|\[[0-9a-fA-F:]+\]):[0-9]+(?:[/?#]|$))"),
+        QRegularExpression::CaseInsensitiveOption);
+    return hostPort.match(text).hasMatch();
+}
+}
+
 QUrl FeriaBrowserPolicy::navigationUrl(const QString &text) const
 {
-    if (text.trimmed().isEmpty()) return {};
-    // Nano Browser uses QUrl::fromUserInput; Feria's address field keeps the
-    // existing remote-page boundary instead of accepting local files/scripts.
-    const QUrl url = QUrl::fromUserInput(text.trimmed());
+    if (invalidAddressInput(text)) return {};
+    const QString input = text.trimmed();
+    if (input.isEmpty() || input.startsWith('/') || input.startsWith('\\')) return {};
+    // Qt parsing, with no QFileInfo/fromLocalFile shortcut from the examples.
+    // Host:port must be classified before a generic scheme (localhost:8123).
+    const QUrl url = QUrl::fromUserInput(hostWithPort(input)
+        ? QStringLiteral("http://") + input : input);
     const QString scheme = url.scheme().toLower();
-    return (scheme == "http" || scheme == "https") && allows(url) ? url : QUrl{};
+    return (scheme == "http" || scheme == "https") && allows(url)
+        && url.userInfo().isEmpty() ? url : QUrl{};
 }
 
 QUrl FeriaBrowserPolicy::omniboxUrl(const QString &text, const QString &searchEngine) const
 {
+    if (invalidAddressInput(text)) return {};
     const QString input = text.trimmed();
-    if (input.isEmpty() || input.size() > 8192) return {};
+    if (input.isEmpty() || input.startsWith('/') || input.startsWith('\\')) return {};
     static const QRegularExpression scheme(QStringLiteral("^[a-zA-Z][a-zA-Z0-9+.-]*:"));
-    if (scheme.match(input).hasMatch()) return navigationUrl(input);
+    if (hostWithPort(input) || scheme.match(input).hasMatch()) return navigationUrl(input);
     if (!input.contains(QRegularExpression(QStringLiteral("\\s")))
-        && (input.contains('.') || input.startsWith(QStringLiteral("localhost")) || input.startsWith('['))) {
+        && (input.contains('.') || input.compare("localhost", Qt::CaseInsensitive) == 0
+            || input.startsWith('['))) {
         const QUrl address = navigationUrl(input);
         if (address.isValid() && !address.isEmpty()) return address;
     }
@@ -31,9 +52,9 @@ QUrl FeriaBrowserPolicy::omniboxUrl(const QString &text, const QString &searchEn
         : searchEngine == QStringLiteral("bing") ? QStringLiteral("https://www.bing.com/search")
         : QStringLiteral("https://duckduckgo.com/");
     QUrl url(endpoint);
-    QUrlQuery query;
-    query.addQueryItem(QStringLiteral("q"), input);
-    url.setQuery(query);
+    // Encode the complete value, including literal + (form-query servers
+    // otherwise interpret it as space). QUrlQuery alone preserves +.
+    url.setQuery(QStringLiteral("q=") + QString::fromLatin1(QUrl::toPercentEncoding(input)));
     return url;
 }
 
@@ -191,3 +212,4 @@ int FeriaBrowserPolicy::clearQtCookies(const QString &profilePath, const QString
     retry->start();
     return request;
 }
+
