@@ -76,6 +76,41 @@ Item {
             verify(!deck.back(c))
             verify(!deck.navigateInput(c, FixtureUrl + "/b"))
         }
+        function test_namedTargetAndNoopener() {
+            var a = open("/a"), page = deck.entries[a].browser
+            js(page, "document.querySelector('button').onclick=function(){window.open('/named','feria-target')}")
+            mouseClick(page, 80, 220)
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { return deck.entries[b].browser.documentReady }, 10000)
+            var target = deck.entries[b].browser
+            compare(js(target, "window.name"), "feria-target")
+            Sessions.switchTo(a)
+            js(page, "document.querySelector('button').onclick=function(){window.open('/named-again','feria-target')}")
+            mouseClick(page, 80, 220)
+            tryVerify(function() { return target.title === "Fixture /named-again" && target.documentReady }, 10000)
+            compare(Sessions.browsers().length, 2)
+            compare(deck.entries[b].browser, target)
+            Sessions.switchTo(a)
+            js(page, "document.querySelector('button').onclick=function(){window.open('/isolated','_blank','noopener')}")
+            mouseClick(page, 80, 220)
+            tryVerify(function() { return Sessions.browsers().length === 3 }, 10000)
+            var c = Sessions.browsers().filter(function(r) { return r.id !== a && r.id !== b })[0].id
+            tryVerify(function() { return deck.entries[c].browser.documentReady }, 10000)
+            compare(js(deck.entries[c].browser, "window.opener === null"), true)
+        }
+        function test_siteWindowKeepsExistingHost() {
+            var a = open("/a"), page = deck.entries[a].browser
+            js(page, "document.querySelector('button').onclick=function(){window.open('/dialog','fixture-dialog','width=420,height=300')}")
+            mouseClick(page, 80, 220)
+            tryVerify(function() { return page.popups.length === 1 }, 10000)
+            var popup = page.popups[0]
+            tryCompare(popup.view, "title", "Fixture /dialog", 10000)
+            compare(popup.view.profile, page.profile)
+            compare(Sessions.browsers().length, 1)
+            popup.close()
+            tryVerify(function() { return page.popups.length === 0 }, 5000)
+        }
         function test_captureRealEngine() {
             if (!Fixture.evidenceRoot.length) skip("No explicit capture directory")
             var a = open("/a")
@@ -123,11 +158,14 @@ Item {
         }
         function test_nativeNavigationTargetsBackgroundSpace() {
             var a = open("/a"), page = deck.entries[a].browser
-            js(page, "location.href='/b'")
+            // Toolbar Back follows Chromium's user-interaction skip policy.
+            // Navigate with a real user click, not a renderer-script redirect.
+            mouseClick(page, 45, 80)
             tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady }, 10000)
             var b = open("/other")
             var nav = deck.navigationForSession(a)
             verify(nav !== null)
+            console.log("USER_NAV", page.canGoBack, nav.canGoBack, nav.backCount)
             tryCompare(nav, "canGoBack", true)
             verify(deck.back(a))
             tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady }, 10000)
@@ -137,6 +175,18 @@ Item {
             verify(deck.forward(a))
             tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady }, 10000)
             verify(!deck.back("missing"))
+        }
+        function test_scriptNavigationKeepsNativeSkipSemantics() {
+            var a = open("/a"), page = deck.entries[a].browser
+            js(page, "location.href='/b'")
+            tryVerify(function() { return page.title === "Fixture /b" && page.documentReady }, 10000)
+            var nav = deck.navigationForSession(a)
+            tryVerify(function() { return nav.backCount > 0 })
+            console.log("SCRIPT_NAV", page.canGoBack, nav.canGoBack, nav.backCount)
+            compare(nav.canGoBack, page.canGoBack)
+            // An explicit chooser may traverse an entry the toolbar skips.
+            verify(deck.historyOffset(a, -1, nav.historyRevision))
+            tryVerify(function() { return page.title === "Fixture /a" && page.documentReady }, 10000)
         }
         function test_historyOffsetAndStaleToken() {
             var a = open("/a"), page = deck.entries[a].browser
