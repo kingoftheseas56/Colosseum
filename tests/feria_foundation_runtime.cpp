@@ -94,8 +94,12 @@ public slots:
                         socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"
                             "Content-Disposition: attachment; filename=browser-fixture.txt\r\nContent-Length: "
                             + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n");
+                        // Chromium can defer exposing a download until body data
+                        // arrives. Start the transfer now, delay only its remainder.
+                        socket->write(body.left(1));
+                        socket->flush();
                         QTimer::singleShot(1500, socket, [socket, body] {
-                            socket->write(body);
+                            socket->write(body.mid(1));
                             socket->disconnectFromHost();
                         });
                         return;
@@ -169,4 +173,3 @@ int main(int argc, char **argv) {
     return quick_test_main_with_setup(argc, argv, "feria_foundation", nullptr, &setup);
 }
 #include "feria_foundation_runtime.moc"
-
