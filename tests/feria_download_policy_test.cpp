@@ -36,6 +36,26 @@ public:
     Q_INVOKABLE void receive(const QUrl &url) { urls.append(url); }
 };
 
+// Chromium can report a reason that the receiving Qt enum does not expose.
+// Its native text getter must only be called for reasons in that Qt enum.
+class DownloadReasonFixture final : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(DownloadInterruptReason interruptReason READ interruptReason)
+    Q_PROPERTY(QString interruptReasonString READ interruptReasonString)
+public:
+    enum DownloadInterruptReason { NoReason = 0, NetworkFailed = 20 };
+    Q_ENUM(DownloadInterruptReason)
+    int reason = 0;
+    mutable int formatterCalls = 0;
+    DownloadInterruptReason interruptReason() const {
+        return static_cast<DownloadInterruptReason>(reason);
+    }
+    QString interruptReasonString() const {
+        ++formatterCalls;
+        return QStringLiteral("Native translated network failure");
+    }
+};
+
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     QTemporaryDir temp;
@@ -55,6 +75,28 @@ int main(int argc, char **argv) {
     FeriaBrowserPolicy policy;
     policy.setStorageRoot(temp.filePath("profile"));
     policy.setDownloadAccountStore(&store);
+    const auto interruptionText = [&](QObject *request) {
+        QString result;
+        check(QMetaObject::invokeMethod(&policy, "downloadInterruptionText", Q_RETURN_ARG(QString, result),
+                                       Q_ARG(QObject *, request)), "Safe native interruption formatter exists");
+        return result;
+    };
+    DownloadReasonFixture reasonFixture;
+    reasonFixture.reason = 20;
+    check(interruptionText(&reasonFixture) == QStringLiteral("Native translated network failure")
+          && reasonFixture.formatterCalls == 1, "Known Qt reasons preserve native translated text");
+    for (const int reason : {38, 41, 50, -1, 999}) {
+        reasonFixture.reason = reason;
+        check(interruptionText(&reasonFixture).contains(QString::number(reason))
+              && reasonFixture.formatterCalls == 1, "Unknown reasons retain their code without reading the unsafe native formatter");
+    }
+    check(interruptionText(nullptr).isEmpty(), "Absent request has no interruption text");
+    QObject missingEnum;
+    missingEnum.setProperty("interruptReason", 38);
+    missingEnum.setProperty("interruptReasonString", "Untrusted formatter text");
+    check(interruptionText(&missingEnum).contains("38"), "Missing enum uses numeric fallback rather than native formatter");
+    QObject missingReason;
+    check(interruptionText(&missingReason).isEmpty(), "Missing reason does not invent an interruption");
     check(store.metaObject()->indexOfMethod("recordBrowserDownloadResult(QVariantMap)") >= 0,
           "Typed metadata outcome must exist, rather than treating all false results as retryable");
     QObject profileOne, profileTwo;
@@ -103,6 +145,7 @@ int main(int argc, char **argv) {
     auto *crossThreadRequest = new QObject(foreignProfile);
     foreignProfile->moveToThread(&foreignThread);
     foreignThread.start();
+    check(interruptionText(crossThreadRequest).isEmpty(), "Formatter rejects cross-thread native property access");
     lifetimeOwner.setProperty("profile", QVariant::fromValue<QObject *>(foreignProfile));
     check(!observeLifetime(&lifetimeOwner, crossThreadRequest, "thread"), "Lifetime observer rejects cross-thread object access");
     QMetaObject::invokeMethod(foreignProfile, [foreignProfile] { delete foreignProfile; }, Qt::BlockingQueuedConnection);

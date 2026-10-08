@@ -4,6 +4,7 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QWindow>
+#include <QMetaEnum>
 #include <algorithm>
 #ifdef FERIA_HAS_WEBVIEW2
 #include "provider-host/FeriaHostItem.h"
@@ -260,6 +261,24 @@ int FeriaBrowserPolicy::clearQtCookies(const QString &profilePath, const QString
 #include <QFileInfo>
 #include <QJSValue>
 #include <QThread>
+
+QString FeriaBrowserPolicy::downloadInterruptionText(QObject *request) const
+{
+    if (!request || request->thread() != QThread::currentThread()) return {};
+    bool validReason = false;
+    const int reason = request->property("interruptReason").toInt(&validReason);
+    if (!validReason) return {};
+
+    // Chromium can emit newer reason codes than Qt's public enum exposes.
+    // Qt 6.11.1's native formatter declares unknown values unreachable, which
+    // aborts the Windows process. Consult the receiving Qt enum before calling
+    // that getter; do not duplicate its version-specific list of codes here.
+    const QMetaObject *meta = request->metaObject();
+    const int enumIndex = meta->indexOfEnumerator("DownloadInterruptReason");
+    if (enumIndex >= 0 && meta->enumerator(enumIndex).valueToKey(reason))
+        return request->property("interruptReasonString").toString();
+    return reason == 0 ? QString{} : tr("Download interrupted (reason %1).").arg(reason);
+}
 #if defined(Q_OS_UNIX)
 #include <sys/stat.h>
 #elif defined(Q_OS_WIN)

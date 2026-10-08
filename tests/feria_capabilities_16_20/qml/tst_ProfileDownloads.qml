@@ -59,7 +59,9 @@ Item {
             var name = "case-" + serial + "-" + suffix + ".bin"
             var url = Fixture.baseUrl + "/download?name=" + encodeURIComponent(name)
                 + (gate ? "&gate=" + encodeURIComponent(gate) : "") + (extra || "")
-            evaluate(view, "location.href=" + JSON.stringify(url) + ";true")
+            // Navigation retires this document's JavaScript callback. Admission
+            // of the actual native request is the dispatch acknowledgement.
+            verify(view.evaluateJavaScript("location.href=" + JSON.stringify(url) + ";true"))
             tryVerify(function() { return owner.items.some(function(entry) { return entry.name === name }) }, 15000)
             var entry = owner.items.filter(function(item) { return item.name === name })[0]
             return {owner:owner,entry:entry,name:name,path:Fixture.downloadsDirectory + "/" + name}

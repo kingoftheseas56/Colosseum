@@ -78,6 +78,7 @@ public:
     }
     Q_INVOKABLE QVariantMap admitDownloadDestination(const QString &directory, const QString &fileName) const;
     Q_INVOKABLE QVariantMap completedDownloadFile(const QVariantMap &admission) const;
+    Q_INVOKABLE QString downloadInterruptionText(QObject *request) const;
     Q_INVOKABLE bool registerDownloadOwner(QObject *owner, QObject *accountStore);
     Q_INVOKABLE bool unregisterDownloadOwner(QObject *owner);
     Q_INVOKABLE QVariantMap downloadOwnerScope(QObject *owner) const;

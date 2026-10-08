@@ -59,6 +59,14 @@ Item {
     function openPanel() { panelOpen = true }
     function cancelActive() { retire("account-retired") }
     function requestAvailable(request) { return !!request && Qt.isQtObject(request) }
+    function interruptionText(request) {
+        if (policy && typeof policy.downloadInterruptionText === "function")
+            return policy.downloadInterruptionText(request)
+        // Without the native guard, never read Qt's unsafe string getter.
+        var reason = Number(request.interruptReason)
+        return isFinite(reason) && reason !== 0
+            ? qsTr("Download interrupted (reason %1).").arg(reason) : ""
+    }
     function nativeRequestDestroyed(id) {
         for (var entry of items.concat(draining)) {
             if (entry.downloadId !== id) continue
@@ -627,7 +635,7 @@ Item {
                 state = cancelledTerminal ? WebEngineDownloadRequest.DownloadCancelled : nativeState
                 paused = request.isPaused
                 finished = nativeFinished
-                interruption = String(request.interruptReasonString || "")
+                interruption = root.interruptionText(request)
                 if (invalidated || owningProfile !== root.profile || metadataStore !== root.accountStore || root.retired) {
                     releaseAuthorization()
                     metadataState = "invalidated"

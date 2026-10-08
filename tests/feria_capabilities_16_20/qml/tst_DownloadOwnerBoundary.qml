@@ -72,6 +72,7 @@ Item {
             property bool isSavePageDownload: false
             property int savePageFormat: WebEngineDownloadRequest.UnknownSaveFormat
             property string interruptReasonString: ""
+            property int interruptReason: 0
             property real receivedBytes: 16
             property real totalBytes: 100
             function accept() { state = WebEngineDownloadRequest.DownloadInProgress }
@@ -127,6 +128,12 @@ Item {
             pageRequest.state=WebEngineDownloadRequest.DownloadCompleted;pageRequest.isFinished=true
             tryCompare(owner,"pageSaveIntent",null,1000)
             browser.destroy()
+        }
+        function test_unknownInterruptionReasonUsesSafeFallbackWithoutNativePolicy() {
+            var request = offer({interruptReason:38,interruptReasonString:"Unsafe native getter text"})
+            tryCompare(owner.items[0],"interruption",qsTr("Download interrupted (reason %1).").arg(38),1000)
+            request.interruptReason = 0
+            tryCompare(owner.items[0],"interruption","",1000)
         }
         function test_postDispatchRehostKeepsOriginalDocumentSource() {
             var browser=browserFactory.createObject(surface), token=pageIntent(browser)

@@ -73,10 +73,14 @@ function entryRuntime(overrides={}) {
         recordBrowserDownloadResult(row){this.attempts++;if(this.outcome==='recorded')this.rows.push(row);return {status:this.outcome};},
         cancelBrowserDownload(){this.releases++;}};
     const root={profile:{},accountStore:store,active:true,retired:false,policy:null,publish(){},pruneFinished(){},settleNativeSave(){},message(){},requestAvailable:r=>!!r};
+    const formatter=vm.createContext({get policy(){return root.policy;},
+        qsTr:s=>({arg:value=>s.replace('%1',String(value))})});
+    vm.runInContext(ownerFunction('interruptionText'),formatter);
+    root.interruptionText=formatter.interruptionText;
     const e={request,root,metadataStore:store,owningProfile:root.profile,invalidated:false,recorded:false,completed:false,
         cancelledTerminal:false,nativeState:1,nativeFinished:false,admission:{},metadataReason:'',metadataState:'pending',downloadToken:'grant',privateDownload:false,downloadId:'p1:7',profileId:'p1',nativeId:'7',sourceUrl:'http://fixture/file',
         path:'/fixture/file',name:'file',sessionId:'space-a',visitToken:'visit-a',fileSnapshot:{},notified:true,settlePending:false,
-        state:1,canPause:true,canResume:false,canCancel:true,actionResults:{},cancellationRequested:false,...overrides};
+        state:1,interruption:'',canPause:true,canResume:false,canCancel:true,actionResults:{},cancellationRequested:false,...overrides};
     const ctx=vm.createContext({root,entry:e,Qt:{callLater:fn=>scheduled.push(fn)},qsTr:s=>s,WebEngineDownloadRequest:{DownloadRequested:0,DownloadInProgress:1,DownloadCompleted:2,DownloadCancelled:3,DownloadInterrupted:4}});
     for(const key of Object.keys(e))Object.defineProperty(ctx,key,{get:()=>e[key],set:v=>{e[key]=v;},configurable:true});
     for(const name of ['releaseAuthorization','observeNativeState','acceptDecision','destinationMatchesAdmission','commitMetadata','update','scheduleUpdate','performAction']) {
@@ -84,6 +88,25 @@ function entryRuntime(overrides={}) {
     }
     return {e,request,store,root,scheduled,flush(){while(scheduled.length)scheduled.shift()();}};
 }
+
+test('unguarded owner never reads the native interruption text getter',()=>{
+    const r=entryRuntime();
+    Object.defineProperty(r.request,'interruptReasonString',{get(){throw new Error('UNSAFE_REASON_FORMATTER');}});
+    r.request.interruptReason=38;
+    r.e.update();
+    assert.match(r.e.interruption,/38/);
+    r.request.interruptReason=0;
+    r.e.update();
+    assert.equal(r.e.interruption,'');
+});
+
+test('owner delegates known and unknown text to the receiving native guard',()=>{
+    const r=entryRuntime();
+    r.root.policy={downloadInterruptionText(request){assert.equal(request,r.request);return 'Native guarded text';}};
+    Object.defineProperty(r.request,'interruptReasonString',{get(){throw new Error('UNSAFE_REASON_FORMATTER');}});
+    r.e.update();
+    assert.equal(r.e.interruption,'Native guarded text');
+});
 test('completion signal coalesces final native byte counters before one-use history write',()=>{
     const r=entryRuntime();r.e.completed=true;r.e.scheduleUpdate();
     assert.equal(r.store.attempts,0);
