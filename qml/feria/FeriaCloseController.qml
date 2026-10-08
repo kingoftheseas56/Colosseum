@@ -198,7 +198,7 @@ Item {
     }
     function finishRetiredBarrier() {
         if (retiredAttempt) operations().settleOperation(retiredIdentity, retiredAttempt,
-            "invalidated", "retired-barrier", {})
+            "invalidated", "retired-barrier", "", {})
         retiredBarrier = false; retiredIdentity = null; retiredAttempt = ""; failure = ""
         staleAcknowledgementFence = false
         rejectionDeadline.stop()
@@ -274,7 +274,7 @@ Item {
         if (pending && matches()) operations().settleOperation(identity, attempt, "failed",
             "renderer-terminated", "renderer-process-terminated", {})
         if (retiredAttempt) operations().settleOperation(retiredIdentity, retiredAttempt,
-            "invalidated", "renderer-terminated-retired", {})
+            "invalidated", "renderer-terminated-retired", "", {})
         var dialog = request
         clearLocal()
         externalAccepted = null; externalRejection = null; externalRecoveryOnly = false

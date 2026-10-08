@@ -45,6 +45,7 @@ Item {
         try { return String(new URL(uri).host) } catch (e) { return String(uri) }
     }
     function clearClose() {
+        departureDeadline.stop()
         attempt = ""; identity = null; consent = null; nativeToken = ""
         requestId = ""; capturedDescriptor = null; awaitingDeparture = false
         changed()
@@ -85,12 +86,16 @@ Item {
         if (consent.kind === "close") {
             var check = operations().answerRequest(requestId, consent.identity)
             if (!check.valid) {
-                browser.respondCloseRequest(nativeToken, false)
+                var staleToken = nativeToken
+                consent = null; nativeToken = ""; requestId = ""
+                changed()
+                browser.respondCloseRequest(staleToken, false)
                 return false
             }
             consent = null
             if (leave) {
                 awaitingDeparture = true
+                departureDeadline.restart()
                 browser.respondCloseRequest(nativeToken, true)
             } else {
                 browser.respondCloseRequest(nativeToken, false)
@@ -101,7 +106,13 @@ Item {
         }
         var externalCheck = operations().answerRequest(consent.attempt, consent.identity)
         if (!externalCheck.valid) {
-            browser.respondUnloadRequest(nativeToken, false)
+            // Stale/duplicate answer: clear the presented consent so no busy
+            // or chrome state survives, then deny the native request so the
+            // renderer is never left waiting.
+            var staleToken = nativeToken
+            consent = null; nativeToken = ""
+            changed()
+            browser.respondUnloadRequest(staleToken, false)
             return false
         }
         consent = null
@@ -149,12 +160,29 @@ Item {
     }
     function hostTransferred(key) { /* canTransfer gates transfers to idle */ }
     function canTransfer() { return !busy }
+    // An accepted Leave has no synthetic terminal: a real correlated
+    // departure is the only success. If the native callback never arrives,
+    // the operation settles blocked after this bounded deadline and the
+    // space is preserved for recovery; native drain stays with the host.
+    property int departureDeadlineMs: 30000
+    function departBlocked() {
+        if (!awaitingDeparture) return
+        var key = identity, op = attempt
+        clearClose()
+        operations().settleOperation(key, op, "blocked",
+            "departure-terminal-not-observed", "deadline-elapsed-no-departure", {})
+        failure = "The page's departure was not confirmed. The space is unchanged; try closing again."
+        changed()
+    }
     function rendererLost(kind) {
         // The host drained its native dialogs; settle truthfully and keep the
-        // canonical space alive for recovery.
+        // canonical space alive for recovery. A browser-process exit killed
+        // the whole runtime (blocked, adapter unusable); a renderer loss is a
+        // page failure the user can recover from.
         if (pending)
-            operations().settleOperation(identity, attempt, "failed",
-                "renderer-lost-" + kind, "renderer-process-failed")
+            operations().settleOperation(identity, attempt,
+                kind === "browser" ? "blocked" : "failed",
+                "process-lost-" + kind, "renderer-process-failed", {})
         sessions.advanceBrowserDocument(sessionId)
         clearClose()
         clearExternal()
@@ -163,6 +191,11 @@ Item {
         // A successful user-facing replacement document retires external
         // unload state; consent for that navigation is not space permission.
         if (externalLeaveActive) clearExternal()
+    }
+    Timer {
+        id: departureDeadline
+        interval: controller.departureDeadlineMs
+        onTriggered: controller.departBlocked()
     }
     Connections {
         target: controller.browser
@@ -177,7 +210,7 @@ Item {
             if (!opened.opened) {
                 controller.browser.respondCloseRequest(token, false)
                 controller.operations().settleOperation(controller.identity, controller.attempt,
-                    "invalidated", "request-not-opened", "")
+                    "invalidated", "request-not-opened", "", {})
                 controller.clearClose()
                 return
             }
@@ -201,7 +234,7 @@ Item {
                 // The Stay belonged to a superseded close intent: record the
                 // invalidation, then let the deck's pending navigation run.
                 controller.operations().settleOperation(key, op, "invalidated",
-                    "competing-navigation", {}, {})
+                    "competing-navigation", "", {})
                 controller.cancellationSettled()
                 return
             }

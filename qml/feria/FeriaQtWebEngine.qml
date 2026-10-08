@@ -14,6 +14,70 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     property var sharedProfile: null
+    // Canonical ownership for shared navigation fencing; optional so
+    // standalone harnesses keep driving the raw wrapper.
+    property var sessions: null
+    property var pendingNavOps: ({})
+    property var navOpAdmittedAt: ({})
+    property int navigationDeadlineMs: 45000
+    function operations() { return sessions ? sessions.browserOperations() : null }
+    function admitNavigation(kind) {
+        var ops = operations()
+        if (!ops || !accountSessionId.length) return null
+        var identity = sessions.browserIdentity(accountSessionId)
+        if (!identity.spaceId) return null
+        var admitted = ops.beginOperation(identity, "qtwebengine", kind)
+        if (!admitted.admitted) return null
+        // Dispatching a new navigation supersedes earlier in-flight attempts
+        // on this engine; their admitted operations settle once now rather
+        // than waiting for trailing abort callbacks.
+        var ids = Object.keys(pendingNavOps)
+        for (var i = 0; i < ids.length; ++i)
+            settleNavOperation(ids[i], "cancelled", "superseded-load",
+                "superseded-by-navigation", {})
+        var updated = Object.assign({}, pendingNavOps)
+        updated[admitted.operationId] = {operationId: admitted.operationId,
+            kind: kind, identity: identity}
+        pendingNavOps = updated
+        var times = Object.assign({}, navOpAdmittedAt)
+        times[admitted.operationId] = Date.now()
+        navOpAdmittedAt = times
+        navDeadline.restart()
+        return admitted.operationId
+    }
+    function settleNavOperation(operationId, outcome, reason, evidence, extra) {
+        if (!operationId || !pendingNavOps[operationId]) return null
+        var record = pendingNavOps[operationId]
+        var ops = Object.assign({}, pendingNavOps)
+        delete ops[operationId]
+        pendingNavOps = ops
+        var times = Object.assign({}, navOpAdmittedAt)
+        delete times[operationId]
+        navOpAdmittedAt = times
+        var result = operations().settleOperation(record.identity, operationId,
+            outcome, reason, evidence, extra || {})
+        if (Object.keys(pendingNavOps).length === 0) navDeadline.stop()
+        return result
+    }
+    function settleNewestNavigation(outcome, reason, evidence) {
+        var ids = Object.keys(pendingNavOps)
+        if (ids.length === 0) return null
+        return settleNavOperation(ids[ids.length - 1], outcome, reason, evidence, {})
+    }
+    Timer {
+        id: navDeadline
+        interval: 1000; repeat: true
+        onTriggered: {
+            var now = Date.now()
+            var ids = Object.keys(browser.pendingNavOps)
+            for (var i = 0; i < ids.length; ++i)
+                if (now - browser.navOpAdmittedAt[ids[i]] > browser.navigationDeadlineMs)
+                    browser.settleNavOperation(ids[i], "blocked",
+                        "navigation-terminal-not-observed", "deadline-elapsed-no-terminal", {})
+        }
+    }
+    onUrlChanged: if (!closingSession && !adoptingWindowRequest && !clearingSession)
+        admitNavigation("navigate")
     readonly property alias pageTools: pageToolsController
     FeriaPageTools { id: pageToolsController; browser: browser }
     readonly property alias browserRequests: requestsController
@@ -259,7 +323,12 @@ WebEngineView {
     // Engine load state for the shell; WebEngineView reports real loadProgress.
     readonly property bool loadActive: loading
     property bool stopRequested: false
-    function stopLoad() { if (loading) { stopRequested = true; stop() } }
+    function stopLoad() {
+        if (!loading) return
+        admitNavigation("stop")
+        stopRequested = true
+        stop()
+    }
     readonly property alias navigation: navigationController
     FeriaNavigation { id: navigationController; browser: browser }
     readonly property bool navCanGoBack: navigationController.canGoBack
@@ -267,6 +336,9 @@ WebEngineView {
     function pageBack() { return navigationController.back() }
     function pageForward() { return navigationController.forward() }
     signal started(string location)
+    // Emitted before a stopped load's completed(location,false): the page
+    // remains usable, so the shell must not raise a load-failure error.
+    signal stopped(string location)
     signal completed(string location, bool success)
     signal failed(string reason)
     signal exitRequested()
@@ -337,6 +409,7 @@ WebEngineView {
             // Qt's DidStartNavigation excludes same-document navigation. Only
             // its successful main-document completion releases old barriers.
             replacementLoadPending = false
+            settleNewestNavigation("succeeded", "native-history", "navigation-completed")
             documentReplaced(navigationGeneration)
             mainDocumentLoaded(String(info.url))
             applyPresentationActivity()
@@ -351,6 +424,7 @@ WebEngineView {
             // replacing load's state.
             if (!stopRequested && loading) return
             replacementLoadPending = false
+            settleNewestNavigation("cancelled", "load-stopped", "user-stop-requested")
             stopRequested = false
             ++navigationGeneration
             ++javascriptEpoch
@@ -358,7 +432,11 @@ WebEngineView {
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             documentLoadUnsuccessful(navigationGeneration, String(info.url))
-            completed(String(info.url), true)
+            // A stopped load is a cancellation, never a successful
+            // intended-document load: report false with a distinct stopped
+            // signal so the shell keeps the usable-page UX.
+            stopped(String(info.url))
+            completed(String(info.url), false)
         } else if (info.status === WebEngineView.LoadFailedStatus) {
             // An older aborted request can trail a newer main-frame start.
             // Preserve that newer load's gate, without treating the abort as success.
@@ -370,6 +448,10 @@ WebEngineView {
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             documentLoadUnsuccessful(navigationGeneration, String(info.url))
+            settleNewestNavigation(info.errorCode === 3 || info.errorCode === -3
+                ? "cancelled" : "failed", "load-unsuccessful",
+                info.errorCode === 3 || info.errorCode === -3
+                    ? "superseded-by-navigation" : "navigation-failed")
             if (info.errorCode === 3 || info.errorCode === -3) {
                 // ERR_ABORTED: a superseded navigation or a deliberate stop.
                 // A superseded load must not overwrite the state of the load
@@ -466,8 +548,11 @@ WebEngineView {
     }
     Component.onDestruction: {
         invalidateJavaScriptTickets()
+        var ids = Object.keys(pendingNavOps)
+        for (var i = 0; i < ids.length; ++i)
+            settleNavOperation(ids[i], "invalidated", "teardown", "", {})
         var windows = popups.slice()
-        for (var i = 0; i < windows.length; ++i) windows[i].destroy()
+        for (var j = 0; j < windows.length; ++j) windows[j].destroy()
     }
     Component {
         id: popupComponent

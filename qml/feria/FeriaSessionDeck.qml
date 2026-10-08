@@ -178,6 +178,15 @@ Item {
     function back(id) { return dispatchNavigation(id, "back") }
     function forward(id) { return dispatchNavigation(id, "forward") }
     function reload(id) { return dispatchNavigation(id, "reload") }
+    function replayLoaderNavigation(forEntry) {
+        if (!forEntry) return
+        Qt.callLater(function() {
+            if (deck.entries[forEntry.sessionId] !== forEntry) return
+            var pending = forEntry.pendingNavigation
+            if (pending) deck.navigateSession(forEntry.sessionId, pending.url,
+                pending.position, pending.locator, pending.context)
+        })
+    }
     function resumePendingNavigation(id) {
         var entry = entries[id]
         if (!entry || entry.retiring || entry.closePending) return
@@ -218,9 +227,18 @@ Item {
         var url = String(policy.omniboxUrl(text, searchEngine || "duckduckgo"))
         return url.length > 0 && navigateSession(id, url, 0, null, null)
     }
+    function engineAdmitted(engineId) {
+        // Engine selection is explicit and validated before allocation; an
+        // unavailable engine is a visible blocked state, never a fallback.
+        return engineId !== "webview2" || policy.webView2Available
+    }
     function newSpace(sourceId, privateBrowsing, activate) {
         var source = entries[sourceId]
         if (!source || source.retiring || !ready) return ""
+        if (!engineAdmitted(source.descriptor.engineId)) {
+            message(sourceId, "The WebView2 engine is not available in this build.")
+            return ""
+        }
         var descriptor = Object.assign({}, source.descriptor)
         var provider = ProviderData.P[descriptor.providerId]
         // Explicit fixture/integration startUrl is validated, never a page URL.
@@ -239,6 +257,10 @@ Item {
         if (!activeEntry) return ""
         if (!url) return newSpace(activeEntry.sessionId, privateBrowsing, activate)
         if (!ready || !policy.allowsNavigation(url)) return ""
+        if (!engineAdmitted(activeEntry.descriptor.engineId)) {
+            message(activeEntry.sessionId, "The WebView2 engine is not available in this build.")
+            return ""
+        }
         var descriptor = Object.assign({}, activeEntry.descriptor)
         descriptor.url = url
         descriptor.privateBrowsing = Boolean(privateBrowsing)
@@ -455,6 +477,10 @@ Item {
         if (!ready || !provider) return ""
         var record = sessions.prepareBrowserReopen(provider)
         if (!record.recordId || !record.descriptor || !policy.allowsNavigation(record.descriptor.url)) return ""
+        if (!engineAdmitted(record.descriptor.engineId)) {
+            message("", "That space was saved for the WebView2 engine, which is not available in this build.")
+            return ""
+        }
         var id = sessions.openBrowser(record.descriptor, true, false, true)
         var entry = entries[id]
         if (!entry || !entry.browser) {
@@ -687,8 +713,12 @@ Item {
             // Explicit, validated engine selection: an admitted webview2
             // preference uses the Windows adapter; anything else keeps the
             // working QtWebEngine path unchanged.
-            readonly property bool usesWebView2: descriptor.engineId === "webview2"
-                && deck.policy.webView2Available
+            readonly property bool wantsWebView2: descriptor.engineId === "webview2"
+            readonly property bool usesWebView2: wantsWebView2 && deck.policy.webView2Available
+            // An explicitly requested engine that is unavailable on this
+            // build blocks the space visibly: no silent fallback to another
+            // engine, and the descriptor/partition request is preserved.
+            readonly property bool engineBlocked: wantsWebView2 && !deck.policy.webView2Available
             property var visitContext: descriptor.visitContext || ({ title: descriptor.title || "", cover: "" })
             property string token: ""
             property bool retiring: false
@@ -719,6 +749,7 @@ Item {
             property string reopenRecordId: ""
             property string restoreOfferId: ""
             property bool mainLoadSucceeded: false
+            property bool loadWasStopped: false
             function rollbackReopen(recordId) {
                 if (retiring || !recordId || reopenRecordId !== recordId
                     || deck.entries[sessionId] !== entry) return
@@ -785,7 +816,11 @@ Item {
                 id: closeControllerLoader
                 sourceComponent: entry.usesWebView2 ? webView2CloseFactory : qtCloseFactory
             }
-            property string errorText: ""
+            property string errorText: engineBlocked
+                ? "The WebView2 engine is not available in this build. This space stays closed to protect its saved engine partition."
+                : ""
+            onEngineBlockedChanged: if (engineBlocked) errorText =
+                "The WebView2 engine is not available in this build. This space stays closed to protect its saved engine partition."
             property var pendingNavigation: null
             readonly property var browser: browserLoader.item
             anchors.fill: parent
@@ -832,6 +867,7 @@ Item {
                     adoptingWindowRequest: entry.initialWindowRequest
                     managedBeforeUnload: true
                     profilePath: deck.policy.storageRoot
+                    sessions: deck.sessions
                     sharedProfile: entry.descriptor.privateBrowsing ? deck.privateProfile : deck.sharedProfile
                     providerId: entry.descriptor.providerId
                     accountVisitToken: entry.token
@@ -852,7 +888,8 @@ Item {
                 id: browserLoader
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 anchors.top: consentDock.bottom
-                active: entry.token.length > 0 && (entry.descriptor.privateBrowsing
+                active: !entry.engineBlocked && entry.token.length > 0
+                    && (entry.descriptor.privateBrowsing
                     ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
                     : deck.sharedProfile !== null)
                 // The WebView2 view loads by URL so Qt-only harnesses never
@@ -861,30 +898,29 @@ Item {
                 source: entry.usesWebView2 ? "FeriaWebView2.qml" : ""
                 sourceComponent: entry.usesWebView2 ? null : qtViewFactory
                 onStatusChanged: if (status === Loader.Error) entry.errorText = "The browser could not start."
-                onLoaded: if (entry.usesWebView2) {
-                    // Initial values and live bindings are applied here; the
-                    // native host defers its first navigation until ready.
-                    item.sourceUrl = entry.initialWindowRequest ? "" : entry.descriptor.url
-                    item.profilePath = entry.descriptor.privateBrowsing
-                        ? deck.policy.storageRoot + "/webview2-private-" + entry.sessionId
-                        : deck.policy.storageRoot
-                    item.providerId = Qt.binding(function() { return entry.descriptor.providerId })
-                    item.accountVisitToken = Qt.binding(function() { return entry.token })
-                    item.accountSessionId = Qt.binding(function() { return entry.sessionId })
-                    item.sessions = Qt.binding(function() { return deck.sessions })
-                    item.observationMode = Qt.binding(function() { return entry.descriptor.mode || "watch" })
-                    item.observationEnabled = Qt.binding(function() {
-                        return deck.accountStore.recording && !entry.descriptor.privateBrowsing })
-                    item.resumePosition = Qt.binding(function() { return Number(entry.descriptor.position || 0) })
-                    item.resumeLocator = Qt.binding(function() { return entry.descriptor.locator || null })
-                    item.suppressed = Qt.binding(function() { return !entry.visible })
-                }
-                else {
-                    Qt.callLater(function() {
-                        if (deck.entries[entry.sessionId] !== entry) return
-                        var pending = entry.pendingNavigation
-                        if (pending) deck.navigateSession(entry.sessionId, pending.url, pending.position, pending.locator, pending.context)
-                    })
+                onLoaded: {
+                    if (entry.usesWebView2) {
+                        // Immutable profile/identity bindings are applied
+                        // before the initial URL so the native partition is
+                        // configured ahead of the first navigation.
+                        item.profilePath = entry.descriptor.privateBrowsing
+                            ? deck.policy.storageRoot + "/webview2-private-" + entry.sessionId
+                            : deck.policy.storageRoot
+                        item.accountSessionId = Qt.binding(function() { return entry.sessionId })
+                        item.sessions = Qt.binding(function() { return deck.sessions })
+                        item.suppressed = Qt.binding(function() { return !entry.visible })
+                        item.sourceUrl = entry.initialWindowRequest ? "" : entry.descriptor.url
+                        item.providerId = Qt.binding(function() { return entry.descriptor.providerId })
+                        item.accountVisitToken = Qt.binding(function() { return entry.token })
+                        item.observationMode = Qt.binding(function() { return entry.descriptor.mode || "watch" })
+                        item.observationEnabled = Qt.binding(function() {
+                            return deck.accountStore.recording && !entry.descriptor.privateBrowsing })
+                        item.resumePosition = Qt.binding(function() { return Number(entry.descriptor.position || 0) })
+                        item.resumeLocator = Qt.binding(function() { return entry.descriptor.locator || null })
+                    }
+                    // A navigation queued while the loader was creating the
+                    // view is replayed for either engine once it exists.
+                    deck.replayLoaderNavigation(entry)
                 }
             }
             Connections {
@@ -902,11 +938,17 @@ Item {
                     if (!entry.descriptor.privateBrowsing) deck.policy.rememberOrigin(entry.descriptor.providerId, location)
                     deck.sessions.updateBrowser(entry.sessionId, location, "")
                 }
+                function onStopped(location) {
+                    // A cancelled/stopped load leaves the previous page
+                    // usable: no failure error for its terminal.
+                    entry.loadWasStopped = true
+                }
                 function onCompleted(location, success) {
                     if (entry.retiring) return
                     entry.observeAdoption()
                     if (entry.browser.rendererLost) entry.errorText = "The browser page stopped responding. Reload to recover; unsaved page state may be lost."
-                    else if (!success) entry.errorText = closeController.failure || "Could not open the page. Try Reload."
+                    else if (!success && !entry.loadWasStopped) entry.errorText = closeController.failure || "Could not open the page. Try Reload."
+                    entry.loadWasStopped = false
                     deck.sessions.updateBrowser(entry.sessionId, location,
                                                 entry.browser ? entry.browser.title : "")
                 }
