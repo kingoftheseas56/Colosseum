@@ -69,7 +69,7 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
     connect(m_host, &FeriaProviderHost::initializationFailed,
             this, &FeriaHostItem::initializationFailed);
     connect(m_host, &FeriaProviderHost::navigationStarted,
-            this, [this](const QString &uri) {
+            this, [this](const QString &uri, qulonglong navigationId) {
         // Track the live document URL so native history traversals and
         // in-page navigations are reflected without re-dispatching Navigate.
         const QUrl live(uri);
@@ -77,8 +77,12 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
             m_url = live;
             emit urlChanged();
         }
-        emit navigationStarted(uri);
+        emit navigationStarted(uri, navigationId);
     });
+    connect(m_host, &FeriaProviderHost::loadCancelled,
+            this, &FeriaHostItem::loadCancelled);
+    connect(m_host, &FeriaProviderHost::navigationSuperseded,
+            this, &FeriaHostItem::navigationSuperseded);
     connect(m_host, &FeriaProviderHost::documentReady,
             this, &FeriaHostItem::documentReady);
     connect(m_host, &FeriaProviderHost::navigationCompleted,
@@ -438,4 +442,9 @@ void FeriaHostItem::cancelCloseOperation()
 void FeriaHostItem::dispatchTrustedClick(int x, int y)
 {
     m_host->dispatchTrustedClick(x, y);
+}
+
+void FeriaHostItem::simulateProcessFailureForTest(const QString &kind)
+{
+    m_host->simulateProcessFailureForTest(kind);
 }

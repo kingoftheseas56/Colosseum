@@ -54,10 +54,14 @@ public:
     Q_INVOKABLE void respondUnloadRequest(const QString &nativeToken, bool leave);
     Q_INVOKABLE void cancelCloseOperation();
     Q_INVOKABLE void dispatchTrustedClick(int x, int y);
+    // Test-build-only process-failure injection through the real handler.
+    Q_INVOKABLE void simulateProcessFailureForTest(const QString &kind);
 
 signals:
     void initializationFailed(const QString &reason);
-    void navigationStarted(const QString &uri);
+    void navigationStarted(const QString &uri, qulonglong navigationId);
+    void loadCancelled(qulonglong navigationId, const QString &uri);
+    void navigationSuperseded(qulonglong navigationId);
     void documentReady(const QString &uri);
     void userDataFolderChanged();
     void urlChanged();

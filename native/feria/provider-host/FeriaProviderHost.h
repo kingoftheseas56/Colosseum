@@ -55,10 +55,23 @@ public:
     // Complete every retained script-dialog deferral without Accept so the
     // renderer is never left waiting on a torn-down host.
     void drainPendingNativeRequests();
+    // Test-build-only (FERIA_TEST_CONTROLS): run the real process-failure
+    // handler for the given kind ("renderer" or "browser") so retained-
+    // deferral retirement can be integration-tested without killing the
+    // shared runtime's browser process.
+    void simulateProcessFailureForTest(const QString &kind);
 
 signals:
     void initializationFailed(const QString &reason);
-    void navigationStarted(const QString &uri);
+    // navigationId is the native attempt id (0 when the event carried none).
+    void navigationStarted(const QString &uri, qulonglong navigationId);
+    // A stop or in-page cancellation terminated this attempt; emitted before
+    // the coerced navigationCompleted so proof consumers can distinguish a
+    // cancelled load from a successful intended-document load.
+    void loadCancelled(qulonglong navigationId, const QString &uri);
+    // A newer navigation replaced this attempt: its terminal is not a load
+    // outcome for the shell, but its admitted operation still settles once.
+    void navigationSuperseded(qulonglong navigationId);
     void documentReady(const QString &uri);
     void readyChanged(bool ready);
     void navigationBlocked(const QString &uri);
@@ -91,7 +104,8 @@ signals:
     void closeInvalidated(const QString &reason);
     // An external unload request was answered (leave false = Stay).
     void unloadSettled(int nativeToken, bool leave);
-    // A render process failed; retained dialogs were drained.
+    // A render process failed; retained dialogs were drained. kind is
+    // "renderer" or "browser" — the latter means the whole runtime is gone.
     void rendererLost(const QString &kind);
 
 private:
