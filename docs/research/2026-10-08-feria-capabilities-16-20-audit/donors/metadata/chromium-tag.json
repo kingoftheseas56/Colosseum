@@ -1,0 +1,30 @@
+)]}'
+{
+  "commit": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+  "tree": "c7bc082a0df8288424679f8e70ab5d98c4a269f5",
+  "parents": [
+    "62e67f120175c9d64a52624decf7e74d2b95fcc3"
+  ],
+  "author": {
+    "name": "David Bienvenu",
+    "email": "davidbienvenu@chromium.org",
+    "time": "Tue Oct 28 00:43:50 2025"
+  },
+  "committer": {
+    "name": "Chromium LUCI CQ",
+    "email": "chromium-scoped@luci-project-accounts.iam.gserviceaccount.com",
+    "time": "Tue Oct 28 00:43:50 2025"
+  },
+  "message": "M140 Fix handling of touch state in EnvInputStateController\n\n(cherry picked from commit 083cac2c44a50242c7ac100f8fed5fc66ead9958)\n\nChange-Id: I7357dff83de347207e6f0016429b3314daf2d5a1\nBug: 447172715\nReviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/7032454\nReviewed-by: Nico Weber \u003cthakis@chromium.org\u003e\nCommit-Queue: David Bienvenu \u003cdavidbienvenu@chromium.org\u003e\nReviewed-by: Mustaq Ahmed \u003cmustaq@chromium.org\u003e\nCr-Original-Commit-Position: refs/heads/main@{#1531080}\nReviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/7087573\nReviewed-by: Mitsuru Oshima \u003coshima@chromium.org\u003e\nCr-Commit-Position: refs/branch-heads/7339@{#3803}\nCr-Branched-From: 27be8b77710f4405fdfeb4ee946fcabb0f6c92b2-refs/heads/main@{#1496484}\n",
+  "tree_diff": [
+    {
+      "type": "modify",
+      "old_id": "75da8658455b657895dda7c660e4975eafb377e9",
+      "old_mode": 33188,
+      "old_path": "ui/aura/env_input_state_controller.cc",
+      "new_id": "93714887b0b6407d8b45c5a4cdcd9baa0f4796ec",
+      "new_mode": 33188,
+      "new_path": "ui/aura/env_input_state_controller.cc"
+    }
+  ]
+}

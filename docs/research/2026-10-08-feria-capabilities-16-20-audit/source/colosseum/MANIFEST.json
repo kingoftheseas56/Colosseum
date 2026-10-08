@@ -1,0 +1,695 @@
+{
+  "schema_version": 1,
+  "repository": "kingoftheseas56/Colosseum",
+  "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+  "retrieval": "GitHub fetch_file connector, exact revision",
+  "authority": "Only root AGENTS.md present in exact recursive repository tree. No Preflight or Memory Bridge used. Proposed contract is requirements only.",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/AGENTS.md",
+      "github_blob_sha": "4cffb2d7829a717debc8bcfa83fc9f58605a23f4",
+      "computed_git_blob_sha": "4cffb2d7829a717debc8bcfa83fc9f58605a23f4",
+      "git_blob_matches": true,
+      "sha256": "28b68afb24d3f3cc7b9fcc54d2744d3c1abf5af67876f2d5bdecd0e6b5d1b372",
+      "bytes": 5205,
+      "lines": 68,
+      "cache_path": "AGENTS.md",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "docs/feria-browser-engine-contract-v1.md",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/docs/feria-browser-engine-contract-v1.md",
+      "github_blob_sha": "bcabfe0d066bc73081d882d851bf5b0d5468cf44",
+      "computed_git_blob_sha": "bcabfe0d066bc73081d882d851bf5b0d5468cf44",
+      "git_blob_matches": true,
+      "sha256": "7ae247ae7bc3697d301c59659eb196f760ddbedc0a5066f4e4d89bb1d0966e74",
+      "bytes": 17081,
+      "lines": 138,
+      "cache_path": "docs/feria-browser-engine-contract-v1.md",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/CMakeLists.txt",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/CMakeLists.txt",
+      "github_blob_sha": "a591014e1a060f970d1ffb659b721eb56bf8e67a",
+      "computed_git_blob_sha": "a591014e1a060f970d1ffb659b721eb56bf8e67a",
+      "git_blob_matches": true,
+      "sha256": "49028379882da78602c04ad2f0533d1c0c578cc698220e0bf8b53c6af2ff5729",
+      "bytes": 129861,
+      "lines": 2788,
+      "cache_path": "native/CMakeLists.txt",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/SessionStore.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/SessionStore.h",
+      "github_blob_sha": "d5950a74667e2168c08d60494dfdf1b5e94ba3c3",
+      "computed_git_blob_sha": "d5950a74667e2168c08d60494dfdf1b5e94ba3c3",
+      "git_blob_matches": true,
+      "sha256": "f92f3ff2c76b7b0895e6198ba3c1db51cec353cb2d80c08df63be0622a67f16a",
+      "bytes": 37154,
+      "lines": 701,
+      "cache_path": "native/SessionStore.h",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/account/DownloadIntentStore.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/account/DownloadIntentStore.cpp",
+      "github_blob_sha": "833b333bcb12fe383b08b92ef05bfe3cd34f01c9",
+      "computed_git_blob_sha": "833b333bcb12fe383b08b92ef05bfe3cd34f01c9",
+      "git_blob_matches": true,
+      "sha256": "873935dbf3169eb0c466b3b17497c803aa5b94516b465f5741b3afad672aa429",
+      "bytes": 18388,
+      "lines": 483,
+      "cache_path": "native/account/DownloadIntentStore.cpp",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/account/DownloadIntentStore.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/account/DownloadIntentStore.h",
+      "github_blob_sha": "f00c70897009223eaa0851312dbeb384be43ace5",
+      "computed_git_blob_sha": "f00c70897009223eaa0851312dbeb384be43ace5",
+      "git_blob_matches": true,
+      "sha256": "e68c4da12018e06ce0f009c1de22911b345fbe89be414068a5f8e0783403942c",
+      "bytes": 2734,
+      "lines": 100,
+      "cache_path": "native/account/DownloadIntentStore.h",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/engine/DownloadFileOps.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/DownloadFileOps.h",
+      "github_blob_sha": "a800c26171645a39b8a6b09195159893c9dd961f",
+      "computed_git_blob_sha": "a800c26171645a39b8a6b09195159893c9dd961f",
+      "git_blob_matches": true,
+      "sha256": "bed4ad274058bc7887ae18b183537c242985ff1bb451b79956e3532b5452749f",
+      "bytes": 1244,
+      "lines": 48,
+      "cache_path": "native/engine/DownloadFileOps.h",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/engine/LocalDownloads.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalDownloads.cpp",
+      "github_blob_sha": "04c8901fd9499b8f5b1c4d6d63bd90f44c1bafe3",
+      "computed_git_blob_sha": "04c8901fd9499b8f5b1c4d6d63bd90f44c1bafe3",
+      "git_blob_matches": true,
+      "sha256": "6ab91aeb91ce21015fbfd746cc4bbd338e8b1352606fecddce38f23f50a7a5f3",
+      "bytes": 37813,
+      "lines": 815,
+      "cache_path": "native/engine/LocalDownloads.cpp",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/engine/LocalDownloads.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalDownloads.h",
+      "github_blob_sha": "db762b627c2a3d2e2eb09a5820c9a5d180074c7f",
+      "computed_git_blob_sha": "db762b627c2a3d2e2eb09a5820c9a5d180074c7f",
+      "git_blob_matches": true,
+      "sha256": "df562c3f38124ae61adcf477a039506e3c4a876bfa08bfb85dab0d0577e34364",
+      "bytes": 4224,
+      "lines": 94,
+      "cache_path": "native/engine/LocalDownloads.h",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/engine/LocalLaunch.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalLaunch.cpp",
+      "github_blob_sha": "b84ed2341046b6134b8185052877a4f1d05670cf",
+      "computed_git_blob_sha": "b84ed2341046b6134b8185052877a4f1d05670cf",
+      "git_blob_matches": true,
+      "sha256": "3a2840b285bf7c7a1bb241c49ecf4e3436cfbfc1918707c6a95d421b2d8a90cc",
+      "bytes": 17416,
+      "lines": 432,
+      "cache_path": "native/engine/LocalLaunch.cpp",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/engine/LocalLaunch.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalLaunch.h",
+      "github_blob_sha": "86fc80011dbb2f3b63c070e0fb3a06c86e5e1798",
+      "computed_git_blob_sha": "86fc80011dbb2f3b63c070e0fb3a06c86e5e1798",
+      "git_blob_matches": true,
+      "sha256": "ae5f6c17c6569cbb10aeee9b17d53875c61b5bacc58e64b7e65505f59044617f",
+      "bytes": 6203,
+      "lines": 130,
+      "cache_path": "native/engine/LocalLaunch.h",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/engine/VaultDownloadsRoot.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/VaultDownloadsRoot.h",
+      "github_blob_sha": "e865d9f59e6557e4467e88a54deb2a3abc8b5aac",
+      "computed_git_blob_sha": "e865d9f59e6557e4467e88a54deb2a3abc8b5aac",
+      "git_blob_matches": true,
+      "sha256": "8919605a6c42089ad4449fc70041555397d4d2f65c548a69970af767c3eeb1af",
+      "bytes": 3656,
+      "lines": 68,
+      "cache_path": "native/engine/VaultDownloadsRoot.h",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp",
+      "github_blob_sha": "d897878bed2373123cb5a05ae174a0fc6f247801",
+      "computed_git_blob_sha": "d897878bed2373123cb5a05ae174a0fc6f247801",
+      "git_blob_matches": true,
+      "sha256": "6bc8727539726955abfeb06247d483964ec84eb71fc467f3d6e5d0c1ab5e6fbe",
+      "bytes": 31309,
+      "lines": 597,
+      "cache_path": "native/feria/FeriaAccountStore.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/FeriaAccountStore.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.h",
+      "github_blob_sha": "4712f26762475ecba90a61e85ef47b20d57051d3",
+      "computed_git_blob_sha": "4712f26762475ecba90a61e85ef47b20d57051d3",
+      "git_blob_matches": true,
+      "sha256": "6907656f3e77b9000a49ee23ab1203879e05e2bf310e299949d12280492ac37c",
+      "bytes": 4567,
+      "lines": 91,
+      "cache_path": "native/feria/FeriaAccountStore.h",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/FeriaBrowserPolicy.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaBrowserPolicy.cpp",
+      "github_blob_sha": "934839055dde6399326e35a8891b659d4cd8918f",
+      "computed_git_blob_sha": "934839055dde6399326e35a8891b659d4cd8918f",
+      "git_blob_matches": true,
+      "sha256": "1e7c151012b8dc7d8c073ef95dce7848cf8acb9724614a5a841e2394a2513d96",
+      "bytes": 12362,
+      "lines": 256,
+      "cache_path": "native/feria/FeriaBrowserPolicy.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/FeriaBrowserPolicy.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaBrowserPolicy.h",
+      "github_blob_sha": "c80be149f74b3cfb55ee0a96dbb9883553543f33",
+      "computed_git_blob_sha": "c80be149f74b3cfb55ee0a96dbb9883553543f33",
+      "git_blob_matches": true,
+      "sha256": "0c44e1f8df2a545893dfe3bfa80e920cdaac71311d0ca4ead8cab4147a495ce9",
+      "bytes": 5152,
+      "lines": 120,
+      "cache_path": "native/feria/FeriaBrowserPolicy.h",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/PorticoComposition.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/PorticoComposition.cpp",
+      "github_blob_sha": "15c92ff0868d1c28b26bd0a07e60f4b7eb3d0862",
+      "computed_git_blob_sha": "15c92ff0868d1c28b26bd0a07e60f4b7eb3d0862",
+      "git_blob_matches": true,
+      "sha256": "62f86b3f9c4a7079292d3adfb6c828c612a8c12c4c6d2261e2891375d67a3a37",
+      "bytes": 1591,
+      "lines": 33,
+      "cache_path": "native/feria/PorticoComposition.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/provider-host/FeriaHostItem.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/provider-host/FeriaHostItem.cpp",
+      "github_blob_sha": "ee84ed344b88acf90fa21acbea32d2001d1c385b",
+      "computed_git_blob_sha": "ee84ed344b88acf90fa21acbea32d2001d1c385b",
+      "git_blob_matches": true,
+      "sha256": "6e5393d1efcd5861634942dc905dc90b0c6ababd3fa4cf048c27d21169d664fc",
+      "bytes": 11151,
+      "lines": 375,
+      "cache_path": "native/feria/provider-host/FeriaHostItem.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/provider-host/FeriaHostItem.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/provider-host/FeriaHostItem.h",
+      "github_blob_sha": "3f2bf2826c79e483bebebc44a54d624eb0490e75",
+      "computed_git_blob_sha": "3f2bf2826c79e483bebebc44a54d624eb0490e75",
+      "git_blob_matches": true,
+      "sha256": "68645392355a5a259d247069efad20fbf1f795ee18b787d5904ce8944b9d33a1",
+      "bytes": 3061,
+      "lines": 92,
+      "cache_path": "native/feria/provider-host/FeriaHostItem.h",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/provider-host/FeriaProviderHost.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/provider-host/FeriaProviderHost.cpp",
+      "github_blob_sha": "0be4c6201c36e51513e4b23d9e800f7f8af37891",
+      "computed_git_blob_sha": "0be4c6201c36e51513e4b23d9e800f7f8af37891",
+      "git_blob_matches": true,
+      "sha256": "b88b4bb43622e4a97ca1cae43e582396dbf0a879a1852f8879647362bf4980b8",
+      "bytes": 39505,
+      "lines": 926,
+      "cache_path": "native/feria/provider-host/FeriaProviderHost.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/feria/provider-host/FeriaProviderHost.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/provider-host/FeriaProviderHost.h",
+      "github_blob_sha": "c72b27a07387478c50791c12408863dbaa1aa0cb",
+      "computed_git_blob_sha": "c72b27a07387478c50791c12408863dbaa1aa0cb",
+      "git_blob_matches": true,
+      "sha256": "77cc88374f94e1cc23166325f48e7e41e8233ec00cdde6c3f512c49699c7a6e4",
+      "bytes": 1881,
+      "lines": 62,
+      "cache_path": "native/feria/provider-host/FeriaProviderHost.h",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/main.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/main.cpp",
+      "github_blob_sha": "1b1a01be3edb51154390453593c9cce6b8cdea0b",
+      "computed_git_blob_sha": "1b1a01be3edb51154390453593c9cce6b8cdea0b",
+      "git_blob_matches": true,
+      "sha256": "98984718bc4f2d1a3b86bbb8007700db6063d8b3f0c567228f818cfabf40e0d0",
+      "bytes": 122516,
+      "lines": 2102,
+      "cache_path": "native/main.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "native/player/downloadstore.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/player/downloadstore.cpp",
+      "github_blob_sha": "a358fb6d4abbfe06f5621e1276f142ff22eb0e7d",
+      "computed_git_blob_sha": "a358fb6d4abbfe06f5621e1276f142ff22eb0e7d",
+      "git_blob_matches": true,
+      "sha256": "3036455d9e14cd5a566ad0db07c8aa32497b3616025aef2c7efd66365ed271c0",
+      "bytes": 34742,
+      "lines": 814,
+      "cache_path": "native/player/downloadstore.cpp",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "native/player/downloadstore.h",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/player/downloadstore.h",
+      "github_blob_sha": "0087843b0301fe5460d14e1046bbcd9d54150253",
+      "computed_git_blob_sha": "0087843b0301fe5460d14e1046bbcd9d54150253",
+      "git_blob_matches": true,
+      "sha256": "7b203eda3da79d69ea7722465db4e513cd2b4e32d1abc4407b78523df61b2d6f",
+      "bytes": 5691,
+      "lines": 130,
+      "cache_path": "native/player/downloadstore.h",
+      "inspection_scope": "Bounded canonical local-file/download-owner applicability check; relevant definitions and callers only."
+    },
+    {
+      "path": "qml/Main.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/Main.qml",
+      "github_blob_sha": "fb911c5eaf7cb1292cf30404dabed96c24bb5f24",
+      "computed_git_blob_sha": "fb911c5eaf7cb1292cf30404dabed96c24bb5f24",
+      "git_blob_matches": true,
+      "sha256": "4974168bba8c6f44afb5000156d98c589aabc0b2003f59b9728dd6c9fefda472",
+      "bytes": 274900,
+      "lines": 5376,
+      "cache_path": "qml/Main.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaBrowserDownloads.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserDownloads.qml",
+      "github_blob_sha": "521038bd3a812c7fff405db1b21a0d1637cb85ce",
+      "computed_git_blob_sha": "521038bd3a812c7fff405db1b21a0d1637cb85ce",
+      "git_blob_matches": true,
+      "sha256": "8fdbd9aed732567c1a17212804301260fe353eb343ae86d52ca805b9c9c0c1c7",
+      "bytes": 12354,
+      "lines": 231,
+      "cache_path": "qml/feria/FeriaBrowserDownloads.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaBrowserMenu.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserMenu.qml",
+      "github_blob_sha": "05c1747f3c37a3b9689a1e40db51ef36cbdf16c5",
+      "computed_git_blob_sha": "05c1747f3c37a3b9689a1e40db51ef36cbdf16c5",
+      "git_blob_matches": true,
+      "sha256": "5c88d4e975cdb62e56dc858a8adb7d34a17a2d40e89416cf88ddfdc59d1eed82",
+      "bytes": 19620,
+      "lines": 419,
+      "cache_path": "qml/feria/FeriaBrowserMenu.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaBrowserRequests.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserRequests.qml",
+      "github_blob_sha": "c7659f9ee6c52dd645e072365833068ddbd4f93b",
+      "computed_git_blob_sha": "c7659f9ee6c52dd645e072365833068ddbd4f93b",
+      "git_blob_matches": true,
+      "sha256": "325c139e28b4d93c6eaedeb0202b6675e25a5e3acc72acf592cdd5a5be1d1130",
+      "bytes": 23560,
+      "lines": 453,
+      "cache_path": "qml/feria/FeriaBrowserRequests.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaBrowserToolbar.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserToolbar.qml",
+      "github_blob_sha": "b486bb9aace74be97512944f0d281672bb01c2d0",
+      "computed_git_blob_sha": "b486bb9aace74be97512944f0d281672bb01c2d0",
+      "git_blob_matches": true,
+      "sha256": "54cae665aa0253e90150ba797ae76b3714ed7253b8c1e7b89244f462a7f38192",
+      "bytes": 6451,
+      "lines": 162,
+      "cache_path": "qml/feria/FeriaBrowserToolbar.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaMediaSession.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaMediaSession.qml",
+      "github_blob_sha": "4b8496ca36ecbb4df2d48a0ca25c1c857c7289d6",
+      "computed_git_blob_sha": "4b8496ca36ecbb4df2d48a0ca25c1c857c7289d6",
+      "git_blob_matches": true,
+      "sha256": "c4e0da936699cc97a878745f2426aa7ac6cbd7a1abe613afc177a0c544386a1b",
+      "bytes": 5757,
+      "lines": 133,
+      "cache_path": "qml/feria/FeriaMediaSession.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaPageTools.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaPageTools.qml",
+      "github_blob_sha": "f923216fa07db3eebcb410de0f2b548d14b65d2e",
+      "computed_git_blob_sha": "f923216fa07db3eebcb410de0f2b548d14b65d2e",
+      "git_blob_matches": true,
+      "sha256": "3f1c214f627980f051db775576f9f2e3202cb78ac0da5cd5d670b24caffef69a",
+      "bytes": 6400,
+      "lines": 141,
+      "cache_path": "qml/feria/FeriaPageTools.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaPlayback.js",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaPlayback.js",
+      "github_blob_sha": "dedc174bac916e3771ff31e1c1e1a912f7aa9d4d",
+      "computed_git_blob_sha": "dedc174bac916e3771ff31e1c1e1a912f7aa9d4d",
+      "git_blob_matches": true,
+      "sha256": "32a8602bbdf9787147e602c79982e0377871b3155cf211669b7081b811c3b83d",
+      "bytes": 19364,
+      "lines": 298,
+      "cache_path": "qml/feria/FeriaPlayback.js",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaQtWebEngine.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaQtWebEngine.qml",
+      "github_blob_sha": "784dc355387f403a527c41f2bc4a44c7e85a24ac",
+      "computed_git_blob_sha": "784dc355387f403a527c41f2bc4a44c7e85a24ac",
+      "git_blob_matches": true,
+      "sha256": "26498a03120ac313a84fd20ba7f8427759f13df8a6b367c06e2a32001f32bd48",
+      "bytes": 24839,
+      "lines": 508,
+      "cache_path": "qml/feria/FeriaQtWebEngine.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaSessionCleaner.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionCleaner.qml",
+      "github_blob_sha": "7a04734843a73a53d4f68fbaf3d09483013040e9",
+      "computed_git_blob_sha": "7a04734843a73a53d4f68fbaf3d09483013040e9",
+      "git_blob_matches": true,
+      "sha256": "30a030aea43732562fd54ba6b164aa75a43a7858aa53d7c210dc938710724093",
+      "bytes": 2565,
+      "lines": 66,
+      "cache_path": "qml/feria/FeriaSessionCleaner.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml",
+      "github_blob_sha": "ed9632150310b008827672bcc05d43aa41bcc52c",
+      "computed_git_blob_sha": "ed9632150310b008827672bcc05d43aa41bcc52c",
+      "git_blob_matches": true,
+      "sha256": "4140f09333c66d5de1985a25166537697f51410afb599eba35cb5fe52c118109",
+      "bytes": 45922,
+      "lines": 905,
+      "cache_path": "qml/feria/FeriaSessionDeck.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaWebView2.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaWebView2.qml",
+      "github_blob_sha": "1601441d0cab890ed09033e4abd8411d92600e84",
+      "computed_git_blob_sha": "1601441d0cab890ed09033e4abd8411d92600e84",
+      "git_blob_matches": true,
+      "sha256": "38dbade9f7a4feca4a7f362e94bdaff1c5a8c219dc605f9abe8a09c669acfbc8",
+      "bytes": 6300,
+      "lines": 125,
+      "cache_path": "qml/feria/FeriaWebView2.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/FeriaWorld.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaWorld.qml",
+      "github_blob_sha": "956b755f5b9272b76b6daa209afbac48c08151d8",
+      "computed_git_blob_sha": "956b755f5b9272b76b6daa209afbac48c08151d8",
+      "git_blob_matches": true,
+      "sha256": "987293d9e5406a3bb3ef86d4d6fa9498449231a0fa2425143f445318458d5c81",
+      "bytes": 56906,
+      "lines": 1147,
+      "cache_path": "qml/feria/FeriaWorld.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/PorticoDiscoveryHostView.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/PorticoDiscoveryHostView.qml",
+      "github_blob_sha": "98f2f6e833a21abc8f363d86b64cb336a46075ab",
+      "computed_git_blob_sha": "98f2f6e833a21abc8f363d86b64cb336a46075ab",
+      "git_blob_matches": true,
+      "sha256": "e31bd51fe6cf7a7b3b56588cc43056786de465322e851a79981075f236fa8284",
+      "bytes": 32658,
+      "lines": 669,
+      "cache_path": "qml/feria/PorticoDiscoveryHostView.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "qml/feria/PorticoHostView.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/PorticoHostView.qml",
+      "github_blob_sha": "3df5eb2904705f25286969c96f2fd161e97f86d4",
+      "computed_git_blob_sha": "3df5eb2904705f25286969c96f2fd161e97f86d4",
+      "git_blob_matches": true,
+      "sha256": "1b0d10feee59a69d8cd67401f68a6e202a0458103260353440b63745f978bce7",
+      "bytes": 3029,
+      "lines": 85,
+      "cache_path": "qml/feria/PorticoHostView.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/CMakeLists.txt",
+      "github_blob_sha": "de15721d1e022170a01eaeee06396dd2966e0325",
+      "computed_git_blob_sha": "de15721d1e022170a01eaeee06396dd2966e0325",
+      "git_blob_matches": true,
+      "sha256": "97534a7870f261423dd7e6fd36b3f969bf7ded83d22604f1111a523789687d71",
+      "bytes": 243393,
+      "lines": 4426,
+      "cache_path": "tests/CMakeLists.txt",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_account_store_test.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_account_store_test.cpp",
+      "github_blob_sha": "28006a9e642ad9593b8234ffa630d05dc1db3afd",
+      "computed_git_blob_sha": "28006a9e642ad9593b8234ffa630d05dc1db3afd",
+      "git_blob_matches": true,
+      "sha256": "4b97e3f24a5c88867311246cf92cf4fbdf651b775e5f223d8ae3c64eab495de6",
+      "bytes": 44366,
+      "lines": 579,
+      "cache_path": "tests/feria_account_store_test.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "github_blob_sha": "d61ef627bd9d2f6a3faeb4cc269dafb151330ec5",
+      "computed_git_blob_sha": "d61ef627bd9d2f6a3faeb4cc269dafb151330ec5",
+      "git_blob_matches": true,
+      "sha256": "667f63c6003f09338cbc0e0c7a17368b64df6c3d5101b747caa98a432e9bc763",
+      "bytes": 22489,
+      "lines": 396,
+      "cache_path": "tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_download_metadata_probe/tst_Metadata.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_download_metadata_probe/tst_Metadata.qml",
+      "github_blob_sha": "28b6144c5aeb33464abe2475d7c22c7c7860c7f7",
+      "computed_git_blob_sha": "28b6144c5aeb33464abe2475d7c22c7c7860c7f7",
+      "git_blob_matches": true,
+      "sha256": "7a1e6cbe0a58f81a37556f1f3f86dc01196c5c961be8b4f5e8b080a5e1ec37f4",
+      "bytes": 4006,
+      "lines": 90,
+      "cache_path": "tests/feria_download_metadata_probe/tst_Metadata.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_hosting_probe/tst_Hosting.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_hosting_probe/tst_Hosting.qml",
+      "github_blob_sha": "718eeb95c65077e78af57bfd64301a8597ff73b8",
+      "computed_git_blob_sha": "718eeb95c65077e78af57bfd64301a8597ff73b8",
+      "git_blob_matches": true,
+      "sha256": "45c3982c2f3a158ab55e02828239ecddac1f5b9af747bd814c0c6a1575f5b645",
+      "bytes": 56472,
+      "lines": 878,
+      "cache_path": "tests/feria_hosting_probe/tst_Hosting.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_lifecycle_probe/tst_Lifecycle.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_lifecycle_probe/tst_Lifecycle.qml",
+      "github_blob_sha": "a1c2612e5f8ad77ff1598f4881652ba5e6a8c285",
+      "computed_git_blob_sha": "a1c2612e5f8ad77ff1598f4881652ba5e6a8c285",
+      "git_blob_matches": true,
+      "sha256": "8a125e6e7f0cb83528aa5cbcf6ffd8c7065e08c75a39b929ccb4dd6501c8a6f3",
+      "bytes": 14382,
+      "lines": 275,
+      "cache_path": "tests/feria_lifecycle_probe/tst_Lifecycle.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_page_tools_probe/tst_PageTools.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_page_tools_probe/tst_PageTools.qml",
+      "github_blob_sha": "0d07ceb8fb61083ace51f921bc04ea1a2ae59ec2",
+      "computed_git_blob_sha": "0d07ceb8fb61083ace51f921bc04ea1a2ae59ec2",
+      "git_blob_matches": true,
+      "sha256": "2650d7302df815bbccbea629c34a688a6cdc78bdaf993204a05d10aec08b832f",
+      "bytes": 18572,
+      "lines": 340,
+      "cache_path": "tests/feria_page_tools_probe/tst_PageTools.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_playback_test.mjs",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_playback_test.mjs",
+      "github_blob_sha": "2e3e2cb63fa42a68ddbda56614567f85550f1141",
+      "computed_git_blob_sha": "2e3e2cb63fa42a68ddbda56614567f85550f1141",
+      "git_blob_matches": true,
+      "sha256": "2599b12197779751be31aec7b1e48b20dcc474f59f1d307911c4db2f46a16bd6",
+      "bytes": 8275,
+      "lines": 121,
+      "cache_path": "tests/feria_playback_test.mjs",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_session_probe/tst_RetainedSessions.qml",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_session_probe/tst_RetainedSessions.qml",
+      "github_blob_sha": "314f2a64c8f22c8d690a3f6b9631f38b68848352",
+      "computed_git_blob_sha": "314f2a64c8f22c8d690a3f6b9631f38b68848352",
+      "git_blob_matches": true,
+      "sha256": "35933b1e80c48073f45e3a993582bae904ab2a4ae4c6f0859a6547e67674a01f",
+      "bytes": 13405,
+      "lines": 247,
+      "cache_path": "tests/feria_session_probe/tst_RetainedSessions.qml",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    },
+    {
+      "path": "tests/feria_session_runtime_test.cpp",
+      "source_url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_session_runtime_test.cpp",
+      "github_blob_sha": "99cae7507cde5290abb9c2ea74e9896298c51020",
+      "computed_git_blob_sha": "99cae7507cde5290abb9c2ea74e9896298c51020",
+      "git_blob_matches": true,
+      "sha256": "5c4c0b01e4ad86ce8062cc0146d0605142315f69cb5436b599dbe7e36f7af825",
+      "bytes": 7202,
+      "lines": 131,
+      "cache_path": "tests/feria_session_runtime_test.cpp",
+      "inspection_scope": "Relevant category 16\u201320 paths/regions only; full fetched file retained for exact-line provenance."
+    }
+  ],
+  "not_found_lookups": [
+    {
+      "path": "qml/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "native/feria/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "tests/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "docs/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "native/feria/provider-host/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "native/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "qml/feria/AGENTS.md",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "qml/feria/FeriaBrowser.qml",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    },
+    {
+      "path": "qml/feria/FeriaShellControls.qml",
+      "error": true,
+      "error_code": "NOT_FOUND",
+      "error_data": {
+        "message": "Not Found",
+        "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content",
+        "status": "404"
+      }
+    }
+  ],
+  "checks": {
+    "product_tests_executed": false,
+    "builds_executed": false,
+    "json_parse": true,
+    "all_cached_git_blob_hashes_match": true
+  }
+}

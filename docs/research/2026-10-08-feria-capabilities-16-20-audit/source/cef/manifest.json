@@ -1,0 +1,519 @@
+{
+  "repository": "https://bitbucket.org/chromiumembedded/cef.git",
+  "official_mirror": "https://github.com/chromiumembedded/cef",
+  "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+  "files": [
+    {
+      "path": "LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/LICENSE.txt",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 1662,
+      "sha256": "058c3827ffb827ff3edda471ae7e1bb1d1aa5931985f0126043ccd33409e792f",
+      "status": "retrieved"
+    },
+    {
+      "path": "CHROMIUM_BUILD_COMPATIBILITY.txt",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/CHROMIUM_BUILD_COMPATIBILITY.txt",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 480,
+      "sha256": "7092ee659f8421500fc67829ca701e6fe07c45c1d0842731f0851041e61cdfd8",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_browser.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_browser.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 43810,
+      "sha256": "caec78464c2abca0e27b511a239a51ffff1f1118a1baeb5f77375d73cdd21167",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_frame.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_frame.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 8328,
+      "sha256": "a35c6985118a514c0cd77a3047b3bb4e4a8ceb5295ac8b6c27b513d499c85eec",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_client.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_client.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 6959,
+      "sha256": "2ac33d0f5b11cbd2ca70a58d0c07d5f0ba75e8f7833949291e47dc58c5c17020",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_display_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_display_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 8719,
+      "sha256": "f8263c782fb1402f0efee2cd11c92b73feb9b6a0717c1a1a102eec6594c478c4",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_request_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_request_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 13484,
+      "sha256": "df5fab205222ccff563b7b7709cd7f8194fb6af1a851e63b0196ae1a918e445a",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/internal/cef_types.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/internal/cef_types.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 116844,
+      "sha256": "42d6d96ae8d3c3242ef9643541fa933518ad666b0dd53f888cd03bf677ae76a9",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_life_span_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_life_span_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 15398,
+      "sha256": "47c87f002a54e57ecdd78161964cfd2f9e1f9ddcf1dd87b85d48eca3880411c1",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/frame_host_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/frame_host_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 24712,
+      "sha256": "9fe758bab522fb04ae63f78549e5206142b36876719acdd0ac12818238b74453",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/frame_host_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/frame_host_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 8386,
+      "sha256": "d48be69d1e14d54abb132ea961befc1451d820310134b16340109c0810bb6c51",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/renderer/frame_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/renderer/frame_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 32206,
+      "sha256": "7a815e2f498f9a6a6e614a2a79081b7e5aef93edcf4e34e63e95811002758d7b",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/cefclient/browser/client_handler.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/cefclient/browser/client_handler.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 56401,
+      "sha256": "3bec0eeea3957c58982e644b4fc77d504f9829436556b3d88ce558f04161b261",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/cefclient/browser/client_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/cefclient/browser/client_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 17428,
+      "sha256": "d70d00e1075ac559cff7d210b71e4e655c8b07f4b216a3127993abd24f904d3c",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_context_menu_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_context_menu_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 12178,
+      "sha256": "788af60af421a699a529a4a42b345dea5e64da030cafc3650c0acdb22e1c2a5e",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_download_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_download_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 5383,
+      "sha256": "c90571add8ddd436a23734322d73e46b07a34c86b66b506a178be81f9193f612",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_download_item.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_download_item.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 4575,
+      "sha256": "6aa265fb90d9c2ff71cfdc6c1ceee459fb018534658b8d45cdd8f7d51907fb77",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_request_context.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_request_context.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 15412,
+      "sha256": "f13b5e5bc3c61b5d18d49eca7a64d1186a27afbfcf487fe851d65e6d6f50144b",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_request_context_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_request_context_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 4473,
+      "sha256": "a99021ce489e8335234e0e1f295484e5426ed44a3c93b1e7c9021e39331bf0f2",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/alloy/alloy_browser_host_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/alloy/alloy_browser_host_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 46199,
+      "sha256": "181769efb10384c7178adff37d6f5960c2ec4349557415b4810639137899fe1a",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/alloy/alloy_browser_host_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/alloy/alloy_browser_host_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 15576,
+      "sha256": "fd89844768d92aa470d853bce3305135c5ba90c41fefcb9d6de2e8b2f432c705",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_context.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_context.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 11684,
+      "sha256": "de2335d7f9d16bd08d9682af6876d101e3346606c284e08c008150561430fbe3",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_context.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_context.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 9570,
+      "sha256": "090e4e9d9c5af0838fe65de96d13d2da34bab4100593981cea9d8a08fbd5392f",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_host_base.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_host_base.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 44269,
+      "sha256": "dd61e3a9bc2e83d28d7fed16e879269075926702ad84ede9c204fa3de6b52c11",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_host_base.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_host_base.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 21130,
+      "sha256": "6641549b259a3873794a68cb2860015c15b919a23ae3b46309e4c679d46b841d",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_host_create.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_host_create.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 9419,
+      "sha256": "6eacf94c20978f2e4d3a05225d6c1a45d78cdab0c8742444e8e29287b56afe78",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/chrome/chrome_browser_context.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_context.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 7698,
+      "sha256": "5a423ad45a2b5d9786f5aee3fb000eff03b7f5651ac10cde303a9f2b572351d2",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/chrome/chrome_browser_context.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_context.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 2328,
+      "sha256": "eb21e6f66c669fa06f8dadcdc8fa9bfd710a75f61deca3ca908c5dd21933e103",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/chrome/chrome_browser_host_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_host_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 20530,
+      "sha256": "a06b2fd789f316d6b1015a1009dfeac8eda5e346cbad63d57283b2b8b8020779",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/chrome/chrome_browser_host_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_host_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 7683,
+      "sha256": "61dbb7dc596eef44ab6a5899bafd0220dd4a739d7985f13201c882d16d43cdc0",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/chrome/chrome_context_menu_handler.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_context_menu_handler.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 11804,
+      "sha256": "976c268e78902421b773d50f3b47d888af6f374306b15326570801938f14422b",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/chrome/chrome_context_menu_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_context_menu_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 848,
+      "sha256": "ead926fccafc4b6d1eb220621a8aab6e8a8183308bc2d4f7ef06fc98050bcb68",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/context_menu_params_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/context_menu_params_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 4688,
+      "sha256": "1aadf8b86af2aa5eedc89060d1987eb353c41620f10ca03f0155d0007700015b",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/context_menu_params_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/context_menu_params_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 1763,
+      "sha256": "e77ff2a711f4bc7908b8cfcf3175eefd3bef60e8c67d4da9058a09a090a4c2d4",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/download_item_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_item_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 3421,
+      "sha256": "6e1bdb0ae345e10ed8031c62a0c855b9d47358969410cea0bf31c953178c3779",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/download_item_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_item_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 1556,
+      "sha256": "44b9fbdcab5929509d6ec9289bbf7e8e01984d231dd2f86b7ca1b41b30b20c7b",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/download_manager_delegate.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 598,
+      "sha256": "f9db8e8e31c65d048dbd65b37b1218ada59df65ac9d3a25c0d1151876c55c637",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/download_manager_delegate.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 1016,
+      "sha256": "3a12db428e14ae28d6245b5f5c225941b45af03b132aca5b04e97cfa45c79f32",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/download_manager_delegate_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 16200,
+      "sha256": "62c9f5a94d5cadad63b1f9f6f46cfa2bcdc4d87af781d57a435f1b1bb3767749",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/download_manager_delegate_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 2754,
+      "sha256": "871c13e47fc6a815eec5afec46eaa264a7531183b58aa1ebf3aa154ed71e83e6",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/request_context_handler_map.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/request_context_handler_map.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 1694,
+      "sha256": "a3645590312b302cfae243cf8d37c49c5b2f5a0dea1a3b4e849b573ae3ab909b",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/request_context_handler_map.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/request_context_handler_map.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 2216,
+      "sha256": "02a3d370d962c25f5bce1e2a4c213c5673c679bfaadaae4a3a26503eda77d65a",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/request_context_impl.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/request_context_impl.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 36106,
+      "sha256": "57ade7d459f33de6658ede63d67a76ff6df618ebc4a3001d7488bcfa95aa3570",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/request_context_impl.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/request_context_impl.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 10319,
+      "sha256": "7ec14b1a6825f879493c2bfd14b058d876264feaae1f90d9b6036ba7743d70c0",
+      "status": "retrieved"
+    },
+    {
+      "path": "patch/patches/chrome_browser_context_menus.patch",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/patch/patches/chrome_browser_context_menus.patch",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 19878,
+      "sha256": "cee0bfa9f3be0f7fc06b78c1dc1a190981cefc41b3b72f9ce34e20e7cd6b1f39",
+      "status": "retrieved"
+    },
+    {
+      "path": "patch/patches/chrome_browser_download.patch",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/patch/patches/chrome_browser_download.patch",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 4218,
+      "sha256": "2615ddffd84608165f676c5ec7262dfc114a519c8d3c766565d9f3cbfed7e7e1",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/download_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/download_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 20281,
+      "sha256": "9165afb56f9de6970fab422a4b046809be81656a7d756dbdaef6a5b0c3434c76",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/frame_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/frame_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 75000,
+      "sha256": "c45cb2b1311df0ba9311d6beb4ace65564c01b2f06378567c7dd71d4ac041089",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/life_span_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/life_span_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 11782,
+      "sha256": "f8154e76115d5d5eeb8457685137d8c7011910df1ff785514962a74e7615d991",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/request_context_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/request_context_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 36377,
+      "sha256": "cc0ff5827b0644d11015d01c4e5502e43f76faafc57ce3d9308d147cceae2257",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_contents_delegate.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_contents_delegate.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 26468,
+      "sha256": "98a41229802736def04a66650e15e9105c12e0a1b93207cd1938957375ce03af",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/browser_contents_delegate.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_contents_delegate.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 8560,
+      "sha256": "2faca047a48e7d95b734da3d959c12b5ad45ad1e1d78a53f8205ce3cfe775b23",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_command_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_command_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 4933,
+      "sha256": "c12054e92862705be91c2b01df74a19f19e44b5611733f0bd359fef6334da9f9",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_frame_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_frame_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 10119,
+      "sha256": "319dc6a57dc22695fadfebf0ba48ca74081607deca455ff25930e5f5b68bbf52",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/audio_output_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/audio_output_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 74452,
+      "sha256": "110616719a57724228311550bc6c96627db29341c10c6168c5fd02d71bd1b347",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/frame_handler_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/frame_handler_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 58271,
+      "sha256": "db70cc8489af61a4825dd1f7b52cd56be6fa9e2c3932d0c18f35e87164e471df",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/test_util.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/test_util.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 11207,
+      "sha256": "68e127c1d862aa95e39889dd8970a706e04b8c2974c8a55149e486ba0bf4af88",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/test_util.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/test_util.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 15826,
+      "sha256": "b01d5c090124e3342a23999bf8a53e4b78338cf6591ed9abdd0a6a1dcf64fe7d",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/menu_manager.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/menu_manager.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 17978,
+      "sha256": "494ec9e0ec169b94590e0a0c09be06a19052bba5d2715bb203a2bf90155abef2",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/menu_manager.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/menu_manager.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 2973,
+      "sha256": "456c828bac780d06dd37be20057a089c4ed0cf74bce9e3bc908953329bb9bb72",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/file_dialog_manager.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/file_dialog_manager.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 20785,
+      "sha256": "abf1dda97aff1557e1e938ce2ce6a2af9bcd824ada04a7c7ff217d92cefc8b66",
+      "status": "retrieved"
+    },
+    {
+      "path": "libcef/browser/file_dialog_manager.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/file_dialog_manager.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 4270,
+      "sha256": "5b98910a099577fba3204177c3b5239c02bc8d8e14b5db0e2577bb38b593240f",
+      "status": "retrieved"
+    },
+    {
+      "path": "include/cef_dialog_handler.h",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_dialog_handler.h",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 5137,
+      "sha256": "767e0cb44fe2d48c4ee8f2090eb042bab3f25f94732a197b0126030d2ca0659e",
+      "status": "retrieved"
+    },
+    {
+      "path": "tests/ceftests/dialog_unittest.cc",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/dialog_unittest.cc",
+      "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 13398,
+      "sha256": "3495204b7fdc7f2ea5dd0d2f94af8cc96a448ad8983ce3e4a77a665b4a94dd8d",
+      "status": "retrieved"
+    }
+  ]
+}

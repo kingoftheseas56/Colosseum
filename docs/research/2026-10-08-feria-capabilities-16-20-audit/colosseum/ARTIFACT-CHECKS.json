@@ -1,0 +1,10 @@
+{
+  "line_citations_checked": 53,
+  "source_hashes_checked": 49,
+  "errors": [],
+  "product_tests_executed": false,
+  "builds_executed": false,
+  "upstream_cross_check_files": 3,
+  "upstream_cross_check_revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+  "upstream_cross_check_hashes_match": true
+}

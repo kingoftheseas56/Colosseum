@@ -1,0 +1,697 @@
+{
+  "schema_version": 1,
+  "repository": "kingoftheseas56/Colosseum",
+  "baseline": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+  "scope": [
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "audit_date": "2026-10-08",
+  "evidence_status": "source_inspected_tests_not_executed",
+  "production_changes": false,
+  "builds_executed": false,
+  "product_tests_executed": false,
+  "source_provenance_manifest": "../source/colosseum/MANIFEST.json",
+  "sources": {
+    "identity": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/SessionStore.h",
+      "symbol": "setBrowserProfile / browserIdentity allocation",
+      "line_start": 96,
+      "line_end": 107,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/SessionStore.h#L96-L107"
+    },
+    "canonical": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/SessionStore.h",
+      "symbol": "openBrowser browserIdentity",
+      "line_start": 232,
+      "line_end": 250,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/SessionStore.h#L232-L250"
+    },
+    "composition": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/main.cpp",
+      "symbol": "bindFeriaProfile / storesAboutToChange",
+      "line_start": 1980,
+      "line_end": 2001,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/main.cpp#L1980-L2001"
+    },
+    "oneDeck": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/Main.qml",
+      "symbol": "feriaSessionDeck",
+      "line_start": 4712,
+      "line_end": 4729,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/Main.qml#L4712-L4729"
+    },
+    "pause": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaPlayback.js",
+      "symbol": "presentationMediaSource / presentationMedia",
+      "line_start": 219,
+      "line_end": 298,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaPlayback.js#L219-L298"
+    },
+    "dispatch": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaQtWebEngine.qml",
+      "symbol": "applyPresentationActivity / freezeTimer",
+      "line_start": 36,
+      "line_end": 76,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaQtWebEngine.qml#L36-L76"
+    },
+    "activity": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "symbol": "browserLoader sourceComponent activitySuspended",
+      "line_start": 803,
+      "line_end": 822,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml#L803-L822"
+    },
+    "mediaGate": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaMediaSession.qml",
+      "symbol": "poll / acceptResult",
+      "line_start": 73,
+      "line_end": 123,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaMediaSession.qml#L73-L123"
+    },
+    "listener": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "symbol": "regularDownloads / privateDownloads",
+      "line_start": 90,
+      "line_end": 106,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml#L90-L106"
+    },
+    "profile": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "symbol": "profileFactory",
+      "line_start": 476,
+      "line_end": 486,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml#L476-L486"
+    },
+    "admission": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaBrowserDownloads.qml",
+      "symbol": "receive",
+      "line_start": 34,
+      "line_end": 58,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserDownloads.qml#L34-L58"
+    },
+    "retire": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaBrowserDownloads.qml",
+      "symbol": "retire / profile Connections",
+      "line_start": 59,
+      "line_end": 79,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserDownloads.qml#L59-L79"
+    },
+    "states": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaBrowserDownloads.qml",
+      "symbol": "downloadEntry / update / action methods",
+      "line_start": 80,
+      "line_end": 145,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserDownloads.qml#L80-L145"
+    },
+    "open": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaBrowserDownloads.qml",
+      "symbol": "download presentation and Open",
+      "line_start": 174,
+      "line_end": 219,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserDownloads.qml#L174-L219"
+    },
+    "grant": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "symbol": "authorizeBrowserDownload / cancelBrowserDownload / recordBrowserDownload",
+      "line_start": 257,
+      "line_end": 315,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp#L257-L315"
+    },
+    "grantType": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.h",
+      "symbol": "DownloadAuthorization",
+      "line_start": 76,
+      "line_end": 79,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.h#L76-L79"
+    },
+    "write": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "symbol": "commit",
+      "line_start": 359,
+      "line_end": 377,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp#L359-L377"
+    },
+    "endVisit": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "symbol": "endSessionVisit / visitFor",
+      "line_start": 393,
+      "line_end": 404,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp#L393-L404"
+    },
+    "load": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "symbol": "setStoragePath / browserDownloadHistory",
+      "line_start": 138,
+      "line_end": 176,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp#L138-L176"
+    },
+    "privateRetire": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "symbol": "releasePrivateProfile / syncSessions",
+      "line_start": 505,
+      "line_end": 539,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml#L505-L539"
+    },
+    "quiesce": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "symbol": "startQuiescence / advanceQuiescence",
+      "line_start": 566,
+      "line_end": 603,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml#L566-L603"
+    },
+    "changed": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaSessionDeck.qml",
+      "symbol": "policy Connections",
+      "line_start": 654,
+      "line_end": 667,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaSessionDeck.qml#L654-L667"
+    },
+    "url": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "symbol": "browserUrl",
+      "line_start": 28,
+      "line_end": 53,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp#L28-L53"
+    },
+    "preferences": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaAccountStore.cpp",
+      "symbol": "setBrowserPreference",
+      "line_start": 213,
+      "line_end": 221,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaAccountStore.cpp#L213-L221"
+    },
+    "navigationPolicy": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/FeriaBrowserPolicy.h",
+      "symbol": "allows",
+      "line_start": 88,
+      "line_end": 107,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/FeriaBrowserPolicy.h#L88-L107"
+    },
+    "print": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaBrowserRequests.qml",
+      "symbol": "requestPrint / savePrint / FileDialog",
+      "line_start": 213,
+      "line_end": 280,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserRequests.qml#L213-L280"
+    },
+    "entry": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/PorticoDiscoveryHostView.qml",
+      "symbol": "FeriaBrowserMenu / Ctrl+J / Ctrl+P",
+      "line_start": 13,
+      "line_end": 63,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/PorticoDiscoveryHostView.qml#L13-L63"
+    },
+    "webview": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/provider-host/FeriaProviderHost.cpp",
+      "symbol": "pauseMedia",
+      "line_start": 858,
+      "line_end": 867,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/provider-host/FeriaProviderHost.cpp#L858-L867"
+    },
+    "webviewResume": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/feria/provider-host/FeriaHostItem.cpp",
+      "symbol": "returnToQml / resumeWebView",
+      "line_start": 265,
+      "line_end": 296,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/feria/provider-host/FeriaHostItem.cpp#L265-L296"
+    },
+    "webviewWrapper": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "qml/feria/FeriaWebView2.qml",
+      "symbol": "wrapper",
+      "line_start": 1,
+      "line_end": 125,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaWebView2.qml#L1-L125"
+    },
+    "lifecycleTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_lifecycle_probe/tst_Lifecycle.qml",
+      "symbol": "presentation/lifecycle tests",
+      "line_start": 48,
+      "line_end": 172,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_lifecycle_probe/tst_Lifecycle.qml#L48-L172"
+    },
+    "retainedTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_session_probe/tst_RetainedSessions.qml",
+      "symbol": "world-away/inactive tab tests",
+      "line_start": 82,
+      "line_end": 108,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_session_probe/tst_RetainedSessions.qml#L82-L108"
+    },
+    "privateTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_session_probe/tst_RetainedSessions.qml",
+      "symbol": "profile/private tests",
+      "line_start": 130,
+      "line_end": 179,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_session_probe/tst_RetainedSessions.qml#L130-L179"
+    },
+    "actualDownloadTest": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_session_probe/tst_RetainedSessions.qml",
+      "symbol": "test_downloadContinuesAfterTabCloses",
+      "line_start": 231,
+      "line_end": 244,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_session_probe/tst_RetainedSessions.qml#L231-L244"
+    },
+    "server": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_session_runtime_test.cpp",
+      "symbol": "FeriaRuntimeFixture download server",
+      "line_start": 64,
+      "line_end": 73,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_session_runtime_test.cpp#L64-L73"
+    },
+    "requestTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "symbol": "download boundary tests",
+      "line_start": 287,
+      "line_end": 394,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_browser_requests_probe/tst_browser_requests.qml#L287-L394"
+    },
+    "retryTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_download_metadata_probe/tst_Metadata.qml",
+      "symbol": "metadata projection/retry/retirement tests",
+      "line_start": 60,
+      "line_end": 87,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_download_metadata_probe/tst_Metadata.qml#L60-L87"
+    },
+    "nativeTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_account_store_test.cpp",
+      "symbol": "transient download authorization tests",
+      "line_start": 490,
+      "line_end": 572,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_account_store_test.cpp#L490-L572"
+    },
+    "printTests": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "symbol": "test_print_destination_is_fenced_after_navigation",
+      "line_start": 227,
+      "line_end": 237,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_browser_requests_probe/tst_browser_requests.qml#L227-L237"
+    },
+    "staleTest": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/feria_browser_requests_probe/tst_browser_requests.qml",
+      "symbol": "test_download_old_account_authorization_cannot_record_in_new_account",
+      "line_start": 339,
+      "line_end": 346,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/feria_browser_requests_probe/tst_browser_requests.qml#L339-L346"
+    },
+    "build": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "tests/CMakeLists.txt",
+      "symbol": "explicit real-engine fixture target",
+      "line_start": 27,
+      "line_end": 46,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/tests/CMakeLists.txt#L27-L46"
+    },
+    "contract": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "docs/feria-browser-engine-contract-v1.md",
+      "symbol": "proposed playback/download/privacy behavior",
+      "line_start": 85,
+      "line_end": 101,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/docs/feria-browser-engine-contract-v1.md#L85-L101"
+    },
+    "localDownloadsOwner": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/LocalDownloads.h",
+      "symbol": "LocalDownloads owner/API scope",
+      "line_start": 3,
+      "line_end": 64,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalDownloads.h#L3-L64"
+    },
+    "localDownloadWiring": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/main.cpp",
+      "symbol": "LocalLaunch and LocalDownloads wiring",
+      "line_start": 1123,
+      "line_end": 1135,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/main.cpp#L1123-L1135"
+    },
+    "localLaunchRoute": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/LocalLaunch.cpp",
+      "symbol": "LocalLaunch::route",
+      "line_start": 99,
+      "line_end": 153,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalLaunch.cpp#L99-L153"
+    },
+    "localLaunchIdentity": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/LocalLaunch.cpp",
+      "symbol": "LocalLaunch::routeMap",
+      "line_start": 185,
+      "line_end": 211,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalLaunch.cpp#L185-L211"
+    },
+    "localLaunchRecent": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/LocalLaunch.cpp",
+      "symbol": "LocalLaunch::openSingle / openNextToOpen",
+      "line_start": 375,
+      "line_end": 405,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalLaunch.cpp#L375-L405"
+    },
+    "videoReveal": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/player/downloadstore.cpp",
+      "symbol": "DownloadStore::revealDownload",
+      "line_start": 409,
+      "line_end": 420,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/player/downloadstore.cpp#L409-L420"
+    },
+    "videoAvailability": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/player/downloadstore.cpp",
+      "symbol": "DownloadStore::downloadedVideos",
+      "line_start": 643,
+      "line_end": 660,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/player/downloadstore.cpp#L643-L660"
+    },
+    "intentFields": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/account/DownloadIntentStore.cpp",
+      "symbol": "portableFields / portableRecord",
+      "line_start": 15,
+      "line_end": 31,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/account/DownloadIntentStore.cpp#L15-L31"
+    },
+    "intentProjection": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/LocalDownloads.cpp",
+      "symbol": "portableDownloadIntents",
+      "line_start": 185,
+      "line_end": 211,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/LocalDownloads.cpp#L185-L211"
+    },
+    "fileOps": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/DownloadFileOps.h",
+      "symbol": "removeFile / removeTree",
+      "line_start": 18,
+      "line_end": 39,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/DownloadFileOps.h#L18-L39"
+    },
+    "vaultProjection": {
+      "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+      "path": "native/engine/VaultDownloadsRoot.h",
+      "symbol": "VaultDownloadsRoot owner scope",
+      "line_start": 2,
+      "line_end": 43,
+      "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/native/engine/VaultDownloadsRoot.h#L2-L43"
+    }
+  },
+  "categories": [
+    {
+      "category": 16,
+      "name": "Pause on app minimize/world-away; resume only media paused by Colosseum",
+      "existing_status": "implemented_with_limits",
+      "contract_status": "partial",
+      "recommendation": "Keep existing Colosseum implementation; adapt explicit identity/reason and capability reporting into existing owners.",
+      "owner": "SessionStore -> retained FeriaSessionDeck entry -> FeriaQtWebEngine presentation command -> volatile document-owned FeriaPlayback ledger",
+      "implemented": [
+        "Aggregate activitySuspended is derived from world/app display state and main/auxiliary window minimized state, not ordinary inactive-tab visibility.",
+        "Per-element WeakMap captures media object, ownerDocument, currentSrc/src, original play/pause methods; owned flag is set only when Colosseum's pause leaves playing element paused.",
+        "Navigation epoch and presentation serial fence stale presentation commands; source/document/connected/ended checks gate resume; explicit page pause/play and input revoke ownership.",
+        "Optional freeze observes engine recommendedState, recentlyAudible, close blocker and physical pendingJavaScript count."
+      ],
+      "gaps": [
+        "Reason is an aggregate suspended boolean, not a typed per-reason ledger; canonical SessionStore identity is not explicitly carried in presentation script.",
+        "Same-origin/open shadow DOM traversal is bounded; cross-origin frames, later-added frame/shadow roots, closed shadow roots and non-HTML-media players are not universal control.",
+        "applyPresentationActivity does not consume a script result; play promise rejection is swallowed, so pause/resume success is not acknowledged to shared owner.",
+        "Explicit freeze blocker binds closeController.busy, not every permission/licence/request lifetime.",
+        "Page-world element monkeypatching/provider-held native methods limit guarantees; exact same-origin frame removal/replacement must be qualified, not presumed broken."
+      ],
+      "evidence": [
+        "pause",
+        "dispatch",
+        "activity",
+        "oneDeck",
+        "canonical",
+        "lifecycleTests",
+        "retainedTests"
+      ],
+      "tests_execution": "not_run"
+    },
+    {
+      "category": 17,
+      "name": "Download request ownership and admission",
+      "existing_status": "implemented_core",
+      "contract_status": "partial",
+      "recommendation": "Keep profile listener, request identity capture and metadata grants; resolve product auto-save/destination policy and extend request provenance without a second store.",
+      "owner": "FeriaSessionDeck profile-scoped FeriaBrowserDownloads; native engine owns request mechanism; FeriaAccountStore owns metadata authorization",
+      "implemented": [
+        "Exactly one receiver per regular/private shared profile in the production deck; source view session/visit captured during signal, never read from later selection.",
+        "Synchronous receive creates a per-request entry, uses Qt's default/collision-resolved destination unchanged and immediately accepts; inactive/entry-creation failure cancels.",
+        "Private/profile/store identities are captured. The QML boundary-double fallback accepts a null-view/unowned request and omits history, but real Qt originless/stale-view getter handling is unqualified.",
+        "Native grant is UUID, current non-private visit checked at minting, profile path and provider captured; history-write permission is separate from transfer admission."
+      ],
+      "gaps": [
+        "No inspected product ask/download-directory preference or independent user-consent record; default auto-save is current behavior, not by itself a demonstrated defect.",
+        "Originating frame/origin, canonical account/space/page/document identity and native request ID are not captured by receiver; request.url is transfer URL, not source-frame identity.",
+        "Grant binds profile/provider but does not bind transfer ID, source URL, destination/file identity; trusted descriptor path is accepted.",
+        "Multiple transfers are modeled but real multi-space/multi-window same-profile concurrency/one-listener proof remains a fixture gap.",
+        "Pinned Qt Quick view() unconditionally dereferences adapterClient although its profile can set adapterClient=nullptr. The QML null-view fallback cannot prove real native originless safety; no post-close re-read should be introduced."
+      ],
+      "evidence": [
+        "listener",
+        "profile",
+        "admission",
+        "grant",
+        "grantType",
+        "preferences",
+        "requestTests",
+        "nativeTests"
+      ],
+      "tests_execution": "not_run"
+    },
+    {
+      "category": 18,
+      "name": "Download progress/pause/resume/cancel/open",
+      "existing_status": "implemented_core",
+      "contract_status": "partial",
+      "recommendation": "Keep native request state/actions; adapt typed capability/action results and verified file Open in the existing owner.",
+      "owner": "Live native WebEngineDownloadRequest projected by FeriaBrowserDownloads.downloadEntry",
+      "implemented": [
+        "receivedBytes/totalBytes/state/isPaused/isFinished are native-bound; unknown/zero total is indeterminate while active.",
+        "Completed is exact DownloadCompleted; cancelled is separately labeled and releases grant.",
+        "Pause/resume/cancel route to native request; interruption retains metadata grant and is exposed as Resume.",
+        "Native path/name is used; renderer-supplied text is not interpolated into script."
+      ],
+      "gaps": [
+        "All interrupted entries expose Resume without a separate resumability/reason capability or native action outcome.",
+        "Open/Open folder calls Qt.openUrlExternally with path strings; no file existence, current account authorization or completed-file identity validation at action time.",
+        "History Open ignores persisted state and reload validation; metadata strings are not proof a file exists.",
+        "Live entries are not pruned until retirement; cancelled/completed rows may accumulate.",
+        "No inspected real-native interruption, zero-byte/unknown-length, cancel/completion-race, missing/replaced-file or safe Open fixture.",
+        "Source-inferred stale-final-byte-count risk: pinned Qt emits Completed stateChanged before updating received/total bytes, while QML immediately commits once and recorded prevents refresh at later isFinishedChanged."
+      ],
+      "evidence": [
+        "states",
+        "open",
+        "requestTests",
+        "actualDownloadTest"
+      ],
+      "tests_execution": "not_run"
+    },
+    {
+      "category": 19,
+      "name": "Download persistence and private cleanup",
+      "existing_status": "implemented_core",
+      "contract_status": "partial",
+      "recommendation": "Keep FeriaAccountStore history/grants and profile retirement; preserve private profile through valid dependent transfers and distinguish metadata rejection from write failure.",
+      "owner": "FeriaAccountStore persistent browserDownloadHistory; FeriaBrowserDownloads transient entries; FeriaSessionDeck profile lifecycle",
+      "implemented": [
+        "Accepted ordinary transfer grant survives endSessionVisit/source navigation, while new grants require live visit.",
+        "Private downloads cannot mint ordinary grants; QML private projection omits ordinary history; ordinary rows capped at 100 on commit.",
+        "Successful commit consumes grant once, reentrant commit is blocked, failed atomic QSaveFile write preserves grant/in-memory state for retry.",
+        "Account path switch clears all visits/grants; production account binding then triggers profile quiescence and cancellation.",
+        "No native transfer restart/resume data is serialized; clearing history affects metadata, not saved files."
+      ],
+      "gaps": [
+        "Last private-space retirement waits on views only then cancels private downloads; does not preserve last dependent valid transfer as proposed contract requires.",
+        "Profile teardown calls cancel then destroys entries/profiles without explicit terminal transfer-drain acknowledgement; native cancellation lifetime requires engine qualification.",
+        "Any failed recordBrowserDownload is treated as retryable, including invalidated grant or permanently inadmissible source URL.",
+        "Reload imports browserDownloadHistory without path/state revalidation; active transfer state and current filesystem availability are not reconciled.",
+        "One boundary test's old-account token-clear assertion disagrees with retry-retaining current QML; no tests executed.",
+        "Persisted completed history can retain preterminal byte counts when the final native update changes state and bytes together; existing double sets bytes before state and does not cover the native order."
+      ],
+      "evidence": [
+        "grant",
+        "write",
+        "load",
+        "endVisit",
+        "privateRetire",
+        "quiesce",
+        "composition",
+        "url",
+        "retryTests",
+        "nativeTests",
+        "actualDownloadTest",
+        "staleTest"
+      ],
+      "tests_execution": "not_run"
+    },
+    {
+      "category": 20,
+      "name": "Save page/link/image/media through native download pipeline",
+      "existing_status": "partial",
+      "contract_status": "missing_explicit_shared_save_interface",
+      "recommendation": "Use supported public engine APIs through existing profile download owner; retain separate Print/PDF semantics. Default engine save exposure is donor-dependent/unqualified here.",
+      "owner": "Current FeriaPageTools handles Find/zoom; FeriaBrowserRequests owns Print/PDF; no custom typed Save context owner found",
+      "implemented": [
+        "Print/PDF invokes public browser.printToPdf after FileDialog destination and generation/browser/active checks.",
+        "Ordinary native attachment download reaches existing profile pipeline and has a real-engine local fixture.",
+        "Retained view has no custom onContextMenuRequested interception in inspected files, so native default-menu capability must be assessed from engine source rather than assumed absent."
+      ],
+      "gaps": [
+        "No explicit savePage/saveLink/saveImage/saveMedia action, context capability snapshot, source frame/native context token or shared Save operation found in inspected production entry path.",
+        "Print/PDF is a separate native API with path completion signal, not FeriaBrowserDownloads transfer/history pipeline.",
+        "No inspected page-save format, frame/context-staleness, unsafe filename, blob/media or destination-cancel integration fixture.",
+        "No app-controlled WebView2 download/Save adapter found in the bounded host/wrapper; do not infer parity from engine defaults."
+      ],
+      "evidence": [
+        "print",
+        "entry",
+        "printTests",
+        "admission",
+        "webviewWrapper"
+      ],
+      "tests_execution": "not_run"
+    }
+  ],
+  "negative_controls_proposed": [
+    "Break owned-media flag and verify manually paused element wrongly resumes; control must fail.",
+    "Replace source-space with active selection on request completion; concurrent A/B fixture must fail.",
+    "Consume grant before failing metadata disk write; same-grant retry fixture must fail.",
+    "Retain account A grant on setStoragePath(B); stale completion fixture must fail.",
+    "Allow last private-view teardown before private transfer finishes; transfer-survival fixture must fail.",
+    "Open replaced/missing/arbitrary descriptor path; file-identity and authorization fixture must reject.",
+    "Retain context-save ticket across navigation/frame destruction; stale Save fixture must reject.",
+    "Drive a real Qt originless download path; prove request.view handling is safe or report blocked. A mock view:null is insufficient; do not manufacture an origin from active selection.",
+    "Deliver one final native download update containing Completed plus changed receivedBytes/totalBytes, in Qt state-before-bytes-before-isFinished order; assert one history row with exact final byte counts and one consumed grant. A first-stateChanged snapshot-only implementation must fail."
+  ],
+  "canonical_file_owner_check": {
+    "evidence_status": "source_inspected_tests_not_executed",
+    "bounded_search": "Followed current Feria direct Qt.openUrlExternally calls; inspected pinned repository filename inventory for generic file/download owners, native/main.cpp wiring, and only relevant owner APIs/definitions. Did not audit medium-specific network/decode pipelines.",
+    "conclusion": "No inspected owner provides a general Feria-account/profile/private/transfer-authorized arbitrary-file Open/reveal boundary. Extend existing FeriaAccountStore and FeriaBrowserPolicy; do not create a parallel registry or migrate browser transfers to independent media download engines.",
+    "reuse_candidates": [
+      {
+        "owner": "LocalLaunch",
+        "reuse": "Explicit in-app opening of supported media after Feria admission may reuse existence/family/backend validation and canonical Vault identity, rather than inventing media identity.",
+        "limits": "Not arbitrary-file external Open; no Feria grant/profile binding; routeMap/openSingle can write Vault identity/recent state."
+      },
+      {
+        "owner": "LocalDownloads",
+        "reuse": "Existing cross-world presentation patterns, only if separately needed.",
+        "limits": "Read model delegates to media backbones; no Feria integration, files, network or general Open/reveal authority."
+      },
+      {
+        "owner": "DownloadStore",
+        "reuse": "Existing missing-file projection pattern.",
+        "limits": "Theatre-specific transfer and reveal path; not browser-profile aware."
+      },
+      {
+        "owner": "DownloadIntentStore",
+        "reuse": "None required for Feria transfer-bound authorization.",
+        "limits": "Portable desired-content intent, not live transfer/file capability; fields omit paths and URLs."
+      },
+      {
+        "owner": "DownloadFileOps / VaultDownloadsRoot",
+        "reuse": "No direct safe-Open reuse.",
+        "limits": "Deletion utility / media-container projection respectively; neither supplies Feria admission."
+      }
+    ],
+    "evidence": [
+      "localDownloadsOwner",
+      "localDownloadWiring",
+      "localLaunchRoute",
+      "localLaunchIdentity",
+      "localLaunchRecent",
+      "videoReveal",
+      "videoAvailability",
+      "intentFields",
+      "intentProjection",
+      "fileOps",
+      "vaultProjection"
+    ]
+  },
+  "upstream_cross_checks": {
+    "quickDownloadView": {
+      "repository": "https://code.qt.io/qt/qtwebengine.git",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "path": "src/webenginequick/api/qquickwebenginedownloadrequest.cpp",
+      "symbol": "QQuickWebEngineDownloadRequest::view",
+      "line_start": 23,
+      "line_end": 32,
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n23",
+      "sha256": "96a7b8368ed55fe50f88d174f512a000ef82e9b9c6f9aaafc479c7c09afb06ba",
+      "source_manifest": "../donors/qtwebengine/source-manifest.json",
+      "evidence_status": "source_inspected_not_runtime_qualified"
+    },
+    "quickDownloadOrigin": {
+      "repository": "https://code.qt.io/qt/qtwebengine.git",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "path": "src/webenginequick/api/qquickwebengineprofile.cpp",
+      "symbol": "QQuickWebEngineProfilePrivate::downloadRequested adapterClient binding",
+      "line_start": 279,
+      "line_end": 290,
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n279",
+      "sha256": "5f150c0586e50a9d4bd7bdd87dec0d34f548ff307b87828a8de19a7ec49a4311",
+      "source_manifest": "../donors/qtwebengine/source-manifest.json",
+      "evidence_status": "source_inspected_not_runtime_qualified"
+    },
+    "completionOrdering": {
+      "repository": "https://code.qt.io/qt/qtwebengine.git",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "path": "src/core/api/qwebenginedownloadrequest.cpp",
+      "symbol": "QWebEngineDownloadRequestPrivate::update / setFinished",
+      "line_start": 133,
+      "line_end": 174,
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n133",
+      "sha256": "61334cf43c2b0fc8ad056e36bd6959ffe10846cefb77d907490344ca565852c8",
+      "source_manifest": "../donors/qtwebengine/source-manifest.json",
+      "evidence_status": "source_inspected_not_runtime_qualified"
+    }
+  }
+}

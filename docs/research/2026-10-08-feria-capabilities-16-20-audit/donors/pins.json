@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "audit": "Feria original categories 16\u201320; source-only donor revision resolution",
+  "retrieved_date_utc": "2026-10-08",
+  "colosseum_baseline": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+  "receiving_target": {
+    "platform": "Windows",
+    "qt_version": "6.11.1",
+    "source": "ASSIGNMENT.md; target supplied by user, no installed Windows binaries inspected"
+  },
+  "qtwebengine": {
+    "canonical_repository": "https://code.qt.io/qt/qtwebengine.git",
+    "tag": "v6.11.1",
+    "tag_object": "7aa0d2a34896cfbe88ce0e9ea69bb4e943e1c998",
+    "commit": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+    "tree": "3377f952474f5bbe38974e987107427438ad1589",
+    "commit_url": "https://code.qt.io/cgit/qt/qtwebengine.git/commit/?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+    "metadata": [
+      ".gitmodules",
+      "src/3rdparty gitlink",
+      "CHROMIUM_VERSION",
+      ".cmake.conf"
+    ],
+    "vendored_repository": "https://code.qt.io/qt/qtwebengine-chromium.git",
+    "vendored_gitlink": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "vendored_tree": "7ef30355f87038a8e4d911959b6482a585668fb6",
+    "declared_base_version": "140.0.7339.264",
+    "declared_security_patch_level": "148.0.7778.96",
+    "vendored_chrome_VERSION": "140.0.7339.225",
+    "import_baseline_commit": "92193973ffad825f3f86604d8de8b1c15d51a619",
+    "import_missing_files_commit": "95f28a5bb7cf7b8df708d288a2dc3acfbe45d667",
+    "relationship": "Exact vendor gitlink is authoritative for bundled source. Qt metadata declares .264 and security backports, but chrome/VERSION and import log remain .225. Not byte-identical vanilla upstream, and not a Chromium 148 API baseline."
+  },
+  "chromium": {
+    "canonical_repository": "https://chromium.googlesource.com/chromium/src",
+    "tag": "140.0.7339.264",
+    "commit": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "commit_url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "selection": "Standalone upstream comparison matching Qt top-level declared base; exact Qt-bundled behavior requires checking vendor gitlink.",
+    "vendor_import_upstream_reference": {
+      "tag": "140.0.7339.225",
+      "commit": "aa324b3754009b927f7db643b2e837d6a5383b04"
+    }
+  },
+  "cef": {
+    "canonical_repository": "https://bitbucket.org/chromiumembedded/cef.git",
+    "branch": "7339",
+    "commit": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+    "commit_url": "https://bitbucket.org/chromiumembedded/cef/commits/49f5d095ac0c84b2da64d06fec866f22531b331d",
+    "compatibility_path": "CHROMIUM_BUILD_COMPATIBILITY.txt",
+    "chromium_checkout": "refs/tags/140.0.7339.214",
+    "chromium_commit": "754bf56217050dfc97f626926b8dbc6f22b12634",
+    "relationship": "Same M140/7339 source family, not exact patch match. Metadata defines supported Chromium checkout; no binary/API portability into Qt asserted.",
+    "exact_match_found": false,
+    "absence_scope": "No .264 or .225 compatibility entry on branch 7339 history from its M140 inception through inspected head; history inspected back through first earlier M139 record. Not a claim about every uninspected ref."
+  },
+  "cloud_qt": {
+    "status": "not used / unverified",
+    "evidence": "donors/metadata/cloud-qt-check.txt",
+    "difference": "Cannot assert a cloud Qt version. A qtchooser wrapper exists but target qmake executable is missing."
+  },
+  "official_mirror_access": [
+    {
+      "repository": "https://github.com/qt/qtwebengine",
+      "purpose": "Cross-check exact release tag, after authoritative code.qt.io source retrieved; not source authority replacement."
+    },
+    {
+      "repository": "https://github.com/qt/qtwebengine-chromium",
+      "purpose": "Commit metadata for exact vendor gitlink after code.qt.io commit HTTP 503; SHA independently established by code.qt.io gitlink."
+    },
+    {
+      "repository": "https://github.com/chromiumembedded/cef",
+      "purpose": "Read current project README only to identify official source/mirror. No capability or compatibility claims use unpinned master."
+    }
+  ],
+  "checks_executed": [
+    "Read-only git ls-remote for Qt release tag",
+    "Read-only HTTPS source/metadata retrieval",
+    "SHA-256 and Git blob SHA-1 calculation for saved evidence",
+    "Bounded Qt version discovery commands; no product execution"
+  ],
+  "not_executed": [
+    "No engine build",
+    "No product build/test",
+    "No browser/runtime qualification",
+    "No API/ABI equivalence test",
+    "No full Qt vendor-to-upstream tree diff"
+  ],
+  "retrieval_limitations": [
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/?h=v6.11.1",
+      "route": "web.open",
+      "result": "Tool reported inaccessible. Direct HTTPS urllib retrieval succeeded; no access denial was bypassed."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/tree/chromium?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "route": "direct HTTPS",
+      "result": "HTTP 503; root tree and raw chromium/chrome/VERSION succeeded."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/commit/?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "route": "direct HTTPS",
+      "result": "HTTP 503; exact same SHA metadata retrieved from official qt GitHub mirror."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/commit/?h=6.11.1&id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "route": "direct HTTPS",
+      "result": "HTTP 404; submodule repository does not use the parent repository branch name at this path."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/tree/chromium?h=6.11.1&id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "route": "direct HTTPS",
+      "result": "HTTP 404."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/plain/chromium/README.chromium?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "route": "direct HTTPS",
+      "result": "HTTP 404; not used as evidence of absence beyond this path."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/plain/chromium/README.qt?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "route": "direct HTTPS",
+      "result": "HTTP 503; not inspected."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/commit/?id=92193973ffad825f3f86604d8de8b1c15d51a619&dt=2",
+      "route": "direct HTTPS",
+      "result": "Timed out; pinned log supplies import commit and subject, not full import diff."
+    },
+    {
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/commit/?id=247dd2295e4913e7049624d73f70b643fa67b1fb",
+      "route": "direct HTTPS",
+      "result": "HTTP 503; no conclusion based on uninspected diff."
+    }
+  ],
+  "evidence_manifest": [
+    {
+      "path": "donors/metadata/cef-7339-branch.json",
+      "url": "https://api.bitbucket.org/2.0/repositories/chromiumembedded/cef/refs/branches/7339",
+      "bytes": 3865,
+      "sha256": "e78652941c5fd162eb937febbd98fe54c3cfb632447eb6bfd4d029bbc94b8752",
+      "git_blob_sha1_of_saved_bytes": "659a6da9c8c71d74d0a9de9a0c366fdfe837a528",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/cef-7339-compatibility-history-pinned.json",
+      "url": "https://api.bitbucket.org/2.0/repositories/chromiumembedded/cef/commits/49f5d095ac0c84b2da64d06fec866f22531b331d?path=CHROMIUM_BUILD_COMPATIBILITY.txt&pagelen=50",
+      "bytes": 168097,
+      "sha256": "e39069a45d1b9d8c9dff80f7e873c2f0f9e0399020944885d7181f6c288fb985",
+      "git_blob_sha1_of_saved_bytes": "30170a6e82a8ecf8ff7f62c51eb15efd649874bb",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/cef-7339-compatibility-history.json",
+      "url": "https://api.bitbucket.org/2.0/repositories/chromiumembedded/cef/commits/7339?path=CHROMIUM_BUILD_COMPATIBILITY.txt&pagelen=50",
+      "bytes": 168061,
+      "sha256": "ff9525f1597ea18c609442827db192bf70dbb74a3c63640c3e5ce9f05ae6d250",
+      "git_blob_sha1_of_saved_bytes": "0040ab216562a10b802497ac56d7d3e6fa7cb279",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/cef-7339-compatibility.txt",
+      "url": "https://bitbucket.org/chromiumembedded/cef/raw/7339/CHROMIUM_BUILD_COMPATIBILITY.txt",
+      "bytes": 480,
+      "sha256": "7092ee659f8421500fc67829ca701e6fe07c45c1d0842731f0851041e61cdfd8",
+      "git_blob_sha1_of_saved_bytes": "048efefbf8266c8721f1d5270de48dabee7b5ce3",
+      "representation": "source bytes"
+    },
+    {
+      "path": "donors/metadata/cef-commit-pinned.json",
+      "url": "https://api.bitbucket.org/2.0/repositories/chromiumembedded/cef/commit/49f5d095ac0c84b2da64d06fec866f22531b331d",
+      "bytes": 6280,
+      "sha256": "d6b1917d3c730f74a4fa95ca4e25bcc713aecf331ecf02f136f41ed46685167f",
+      "git_blob_sha1_of_saved_bytes": "93cec225ac312b2b5331407186463c575281ffe1",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/cef-compatibility-pinned.txt",
+      "url": "https://bitbucket.org/chromiumembedded/cef/raw/49f5d095ac0c84b2da64d06fec866f22531b331d/CHROMIUM_BUILD_COMPATIBILITY.txt",
+      "bytes": 480,
+      "sha256": "7092ee659f8421500fc67829ca701e6fe07c45c1d0842731f0851041e61cdfd8",
+      "git_blob_sha1_of_saved_bytes": "048efefbf8266c8721f1d5270de48dabee7b5ce3",
+      "representation": "source bytes"
+    },
+    {
+      "path": "donors/metadata/cef-official-mirror.md",
+      "url": "https://raw.githubusercontent.com/chromiumembedded/cef/master/README.md",
+      "bytes": 7012,
+      "sha256": "9fcc29a4b855a8495b58c14eb5613a34c888d7684f2460ffb3446a9fa39c8e3b",
+      "git_blob_sha1_of_saved_bytes": "8134d97a5447b14aaf094b1843327b0794eb9f75",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/chromium-cef-tag.json",
+      "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/140.0.7339.214?format=JSON",
+      "bytes": 1453,
+      "sha256": "e1085fa73e839f2fee2ff5e8a5edd67812395f3fe11f951a07a20adaf842a746",
+      "git_blob_sha1_of_saved_bytes": "3b6a7f43b5255763614ac9b70e6e9172a27032db",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/chromium-import-tag.json",
+      "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/140.0.7339.225?format=JSON",
+      "bytes": 2159,
+      "sha256": "a3986bd6f6b91490440e4121715227cd5eaa943bf681c78b727e4ea90c11289c",
+      "git_blob_sha1_of_saved_bytes": "01f21548420fccbbe16a23782045953dd85ea209",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/chromium-qt-VERSION",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/VERSION?format=TEXT",
+      "bytes": 39,
+      "sha256": "cbe6f41cc3ba01347fbf11157f2b502acb08f6f5273738f9af8ee9b9b29b10d7",
+      "git_blob_sha1_of_saved_bytes": "6678e520a111fd9dc0eb76170edc8383d5ac2278",
+      "representation": "decoded source bytes"
+    },
+    {
+      "path": "donors/metadata/chromium-qt-VERSION.base64",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/VERSION?format=TEXT",
+      "bytes": 52,
+      "sha256": "84fc25576116bca522926ab994bcf1181bf5a444420490b4d8324d6dcb3e503c",
+      "git_blob_sha1_of_saved_bytes": "a685b438bb2993d92bb4188bfe821348c3fb53ca",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/chromium-tag.json",
+      "url": "https://chromium.googlesource.com/chromium/src/+/refs/tags/140.0.7339.264?format=JSON",
+      "bytes": 1656,
+      "sha256": "0c94212d91db334026b2be6d8d95733f5f84e757dbc0443d180728936ab7a706",
+      "git_blob_sha1_of_saved_bytes": "550b1dc49ba353649ab3da3738948ffd7147652c",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/cloud-qt-check.txt",
+      "url": null,
+      "bytes": 544,
+      "sha256": "dce8754aab8fe4982134a5f3894c9517413c61724fa5aaa88d6e59549233fb7d",
+      "git_blob_sha1_of_saved_bytes": "2e09753c6918ea9bd7bdad87bf38269545ae34f7",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-CHROMIUM_VERSION",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/CHROMIUM_VERSION?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "bytes": 157,
+      "sha256": "32b5acc38afc2b8870b01b7770bd0cc6da31fbe9f1878cdbda9fd8f80ac5d5f1",
+      "git_blob_sha1_of_saved_bytes": "9d250bd8f761fb85ad337859cd328ee12eb70c44",
+      "representation": "source bytes"
+    },
+    {
+      "path": "donors/metadata/qt-CHROMIUM_VERSION-log.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/log/CHROMIUM_VERSION?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "bytes": 24785,
+      "sha256": "1c83a0cc7dcb824eb97970546889c563a3694bc6cc02500ad4b6f3c57bffc9ae",
+      "git_blob_sha1_of_saved_bytes": "ed159cf47a110128bdc9148a08046776dd5ef59c",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-cmake.conf",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/.cmake.conf?h=v6.11.1",
+      "bytes": 346,
+      "sha256": "e393875a1430d10d286cb0c2690bba73174e0d7c92803643f5378516c16f2baf",
+      "git_blob_sha1_of_saved_bytes": "da3c86bda750996ab186975c76dedd70bfbfd807",
+      "representation": "source bytes"
+    },
+    {
+      "path": "donors/metadata/qt-commit.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/commit/?h=v6.11.1",
+      "bytes": 14086,
+      "sha256": "c2094593960bb7b5bc37844b2c2f0559f7db81710c1be92d692181d416fa98a4",
+      "git_blob_sha1_of_saved_bytes": "a368612b1747e8a5f83a205deaf5062cef5d94bb",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-github-tag.json",
+      "url": "https://api.github.com/repos/qt/qtwebengine/git/tags/7aa0d2a34896cfbe88ce0e9ea69bb4e943e1c998",
+      "bytes": 659,
+      "sha256": "53d12ebba0678d88c204b9ccadffe3e311270f4e0b0d08c10c85f51ead30fe47",
+      "git_blob_sha1_of_saved_bytes": "aa4920f476fd0915bf8f00db616ad90a17ae4442",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-gitmodules",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/.gitmodules?h=v6.11.1",
+      "bytes": 128,
+      "sha256": "82c41c7f71a71b48ba2278fc29bc092337a173717b395fef7740fff9f0e843bb",
+      "git_blob_sha1_of_saved_bytes": "be62b2203e73b04459a4951cdbdd9dac9422361a",
+      "representation": "source bytes"
+    },
+    {
+      "path": "donors/metadata/qt-ls-remote.txt",
+      "url": "https://code.qt.io/qt/qtwebengine.git",
+      "bytes": 221,
+      "sha256": "4b612a394e589894b68c77a7c0a6dc27de9d1183b9970450386760a5a6a927e5",
+      "git_blob_sha1_of_saved_bytes": "c4f68dc5c867df1ec6017c93359682565471401b",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-src-tree.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src?h=v6.11.1",
+      "bytes": 11191,
+      "sha256": "c7fe4edf592e33382153a93aa0f8bb3bab246cf5a158e3b9e52892a0d3124b75",
+      "git_blob_sha1_of_saved_bytes": "2796fba5c276f20b2ea79b07b57016dfea5afbd4",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-tag.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tag/?h=v6.11.1",
+      "bytes": 6532,
+      "sha256": "9fdae7736d4a54add7b037c13f4e11f9f6b8c8786de38f56fdaa6eb4c2fa900c",
+      "git_blob_sha1_of_saved_bytes": "2df68a34ac9b005a27bc514f19253ec636f6f82e",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qt-upgrade-140-commit.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/commit/?id=ffcb86d7259a85fbd69907fb105d5684c7809693",
+      "bytes": 11205,
+      "sha256": "2731743868180eb226aa29e47769e6829b109d2e5b4ad149438d5c802d920d8e",
+      "git_blob_sha1_of_saved_bytes": "045fa39f7d0256467d7e8a3438babf3b8e631b10",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qtchromium-VERSION",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/plain/chromium/chrome/VERSION?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "bytes": 39,
+      "sha256": "ce3a513eaf4c8b8574f8512e64b0e51d66cae4ce1649cf17c2638910ae96a485",
+      "git_blob_sha1_of_saved_bytes": "793acfe7c74120aae3ae65440ec2242ab28ce5d2",
+      "representation": "source bytes"
+    },
+    {
+      "path": "donors/metadata/qtchromium-github-commit.json",
+      "url": "https://api.github.com/repos/qt/qtwebengine-chromium/git/commits/58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "bytes": 2288,
+      "sha256": "6b6a12b7564dccfa4ae609725bff64b250b33098fd2225b1e3ec3f62e77d30ce",
+      "git_blob_sha1_of_saved_bytes": "3de153cef6412814ea6193c129d6d48416d48eb7",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qtchromium-log.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/log/?id=58c11ad487f8a237cf0ac71cc3e818b52db150df&qt=grep&q=140.0.7339",
+      "bytes": 6917,
+      "sha256": "2a07cb46421e737b899ed4446e64651240e6aedc8588267bc978da4832cb93f6",
+      "git_blob_sha1_of_saved_bytes": "cbf9e0ab86352831ffc271ee79e22f0339a13572",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qtchromium-tree.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/tree/?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "bytes": 7661,
+      "sha256": "4df90e72daa6624b0050cfdde5b02ec77cb24d2d26c9ff9391061a4dde588110",
+      "git_blob_sha1_of_saved_bytes": "4f1d09c8c44aa545451437aba78de7bbd71a3a11",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    },
+    {
+      "path": "donors/metadata/qtchromium-version-log.html",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine-chromium.git/log/chromium/chrome/VERSION?id=58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "bytes": 26489,
+      "sha256": "336fa1ce45019ef9d476e20d7ab3d20ea2aa33ab355c9fac3ce1a677e587461d",
+      "git_blob_sha1_of_saved_bytes": "f633679ee86a7b77d00f8d631dfd48380b18719f",
+      "representation": "retrieval metadata, HTML, or command transcript; not a source blob"
+    }
+  ]
+}

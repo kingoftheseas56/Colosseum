@@ -1,0 +1,7 @@
+Audit cloud environment only, 2026-10-08 UTC. No product or build was run.
+command -v qmake6 || command -v qmake: /usr/bin/qmake
+qmake -query QT_VERSION: qmake: could not exec '/usr/lib/qt5/bin/qmake': No such file or directory
+readlink -f /usr/bin/qmake: /usr/bin/qtchooser
+command -v qtpaths6: no output
+dpkg-query -W for *qt*webengine*, qtbase5-dev*, qt6-base-dev*: no installed package output
+Conclusion: usable cloud Qt/QtWebEngine version not verified and not used. These are bounded checks, not proof that no Qt exists anywhere on disk.

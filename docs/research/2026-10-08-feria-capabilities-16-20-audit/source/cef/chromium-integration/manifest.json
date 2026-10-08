@@ -1,0 +1,87 @@
+{
+  "repository": "https://chromium.googlesource.com/chromium/src",
+  "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+  "purpose": "Trace CEF Chrome-style delegation into its exact targeted Chromium revision; shared dependency, not independent corroboration",
+  "files": [
+    {
+      "path": "chrome/browser/ui/browser_commands.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/ui/browser_commands.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 98286,
+      "sha256": "0fbb76456594ab083531df39aa85348aa046a3735f5375f9b9ad81afce07abe8",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/ui/browser_command_controller.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/ui/browser_command_controller.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 86374,
+      "sha256": "26f270056709155e8685aea987e64b7d328f1685eaa84fe4616058d25f20ce22",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/renderer_context_menu/render_view_context_menu.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 188865,
+      "sha256": "ec0c32e670485e3a02582418a57abf08020e77186371b5597fbe2f2548250e1d",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/app/chrome_command_ids.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/app/chrome_command_ids.h?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 25744,
+      "sha256": "e7594463506be2a0dba4ae71fc3b18e9f451116c859543ffc09daa70fc5726dd",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 152942,
+      "sha256": "e8b9490b2ae93da80d273fbfc8b954899774c414f685bbd6fb99b4cc07816515",
+      "status": "retrieved"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/LICENSE?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 1536,
+      "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/download/download_core_service_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_core_service_impl.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 6591,
+      "sha256": "2847aa9ef5233673c5d83e54b0da6ad46b0f6a0e23391bd6bf78249c78b7a79b",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/download/download_history.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 26562,
+      "sha256": "c435e1910c064152cbc1b63dff2ae03e080546d4ec7a549ccd3014d2952e3e6d",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/download/download_history.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history.h?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 6318,
+      "sha256": "df8c5868d0f23d69ddb4bcacff0cc8c28ec85dfcaa4701a6e4f7a3f9240980f2",
+      "status": "retrieved"
+    },
+    {
+      "path": "chrome/browser/download/download_history_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history_unittest.cc?format=TEXT",
+      "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+      "bytes": 40761,
+      "sha256": "bc0a35e6542643bb3cb31ba394572926cd06026f1b08e7de3fd11646862dd9de",
+      "status": "retrieved"
+    }
+  ]
+}

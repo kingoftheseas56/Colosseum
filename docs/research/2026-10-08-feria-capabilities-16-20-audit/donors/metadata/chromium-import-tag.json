@@ -1,0 +1,30 @@
+)]}'
+{
+  "commit": "aa324b3754009b927f7db643b2e837d6a5383b04",
+  "tree": "d0b5c6f843baef48497046f8622e275900acc636",
+  "parents": [
+    "1fc0ff94bfad35231f8dc972eb62839acf3744d0"
+  ],
+  "author": {
+    "name": "Chrome Release Autoroll",
+    "email": "chromium-release-autoroll@skia-public.iam.gserviceaccount.com",
+    "time": "Wed Sep 24 23:45:28 2025"
+  },
+  "committer": {
+    "name": "Chromium LUCI CQ",
+    "email": "chromium-scoped@luci-project-accounts.iam.gserviceaccount.com",
+    "time": "Wed Sep 24 23:45:28 2025"
+  },
+  "message": "Roll Chrome Android ARM64 Orderfile from JvMAyJudbf-IjZ75j... to -AfXnPhSs9xCHOAOK...\n\nIf this roll has caused a breakage, revert this CL and stop the roller\nusing the controls here:\nhttps://autoroll.skia.org/r/orderfile-android-arm64-chromium-stable\nPlease CC clank-build@google.com,clank-library-failures@google.com on the revert to ensure that a human\nis aware of the problem.\n\nTo file a bug in Chromium stable branch: https://bugs.chromium.org/p/chromium/issues/entry\n\nTo report a problem with the AutoRoller itself, please file a bug:\nhttps://issues.skia.org/issues/new?component\u003d1389291\u0026template\u003d1850622\n\nDocumentation for the AutoRoller is here:\nhttps://skia.googlesource.com/buildbot/+doc/main/autoroll/README.md\n\nTbr: clank-library-failures@google.com\nMerge-Approval-Bypass: Chrome autoroller\nChange-Id: I4b54094273f7482564494f56eb64dee7bb259d55\nReviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6981241\nCommit-Queue: Chrome Release Autoroll \u003cchromium-release-autoroll@skia-public.iam.gserviceaccount.com\u003e\nBot-Commit: Chrome Release Autoroll \u003cchromium-release-autoroll@skia-public.iam.gserviceaccount.com\u003e\nCr-Commit-Position: refs/branch-heads/7339@{#2521}\nCr-Branched-From: 27be8b77710f4405fdfeb4ee946fcabb0f6c92b2-refs/heads/main@{#1496484}\n",
+  "tree_diff": [
+    {
+      "type": "modify",
+      "old_id": "ce45b76efe3b0621ab37299199433537f7fc676a",
+      "old_mode": 33188,
+      "old_path": "DEPS",
+      "new_id": "5ddc12f9db54a09a238d4b9c7263c37e0e3ae5b9",
+      "new_mode": 33188,
+      "new_path": "DEPS"
+    }
+  ]
+}

@@ -1,0 +1,999 @@
+{
+  "schema_version": 1,
+  "donor": "chromium",
+  "scope": [
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "revisions": {
+    "upstream": {
+      "repository": "https://chromium.googlesource.com/chromium/src",
+      "tag": "140.0.7339.264",
+      "commit": "56ca847e9ea70a5c56fa3d634361da1002fb284b"
+    },
+    "qt_vendor": {
+      "repository": "https://code.qt.io/qt/qtwebengine-chromium.git",
+      "commit": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "mirror_used": "https://github.com/qt/qtwebengine-chromium",
+      "qt_release": "6.11.1",
+      "qt_commit": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "import_version": "140.0.7339.225",
+      "declared_base": "140.0.7339.264",
+      "security_backports_through": "148.0.7778.96",
+      "relationship": "Exact vendor tree authoritative; neither byte-identical upstream .264 nor Chromium148 API baseline."
+    }
+  },
+  "source_manifest": "source/chromium/MANIFEST.json",
+  "license_inventory": "donors/chromium/LICENSE-INVENTORY.json",
+  "fork_comparison": "source/chromium/vendor-vs-upstream.diff",
+  "tests_executed": false,
+  "builds_executed": false,
+  "production_changes": false,
+  "cells": [
+    {
+      "category": 16,
+      "name": "Pause on app minimize/world-away; resume only media paused by Colosseum",
+      "evidence_status": "source_inspected; exact vendor internals plus matching tests; internal_reference_only",
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Adapt donor behavior into an existing Colosseum owner",
+        "Internal reference only / engine patch required / unsupported / unresolved"
+      ],
+      "conclusion": "Keep the existing app-owned per-element pause ledger. Adapt the negative-control semantics and identity retirement, not Chromium MediaSessionImpl or browser UI Play/Pause as a new Qt control surface.",
+      "sources": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_impl.cc",
+          "symbol": "Resume / Suspend",
+          "line_start": 664,
+          "line_end": 712,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl.cc#L664-L712",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "System resume is conditional on prior kSystem reason; UI actions can route to site play/pause handlers. This is one session-level reason, not app-specific per-element authorization."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_impl.cc",
+          "symbol": "OnSuspendInternal / OnResumeInternal",
+          "line_start": 932,
+          "line_end": 966,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl.cc#L932-L966",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Only active sessions acquire suspend_type_; only normal players receive suspend/resume, with one-shot-only sessions excluded; system resume rejects different reason."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_impl.cc",
+          "symbol": "RemovePlayer / OnPlayerPaused",
+          "line_start": 518,
+          "line_end": 598,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl.cc#L518-L598",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Players are keyed by observer/player ID; explicit content pause removes one of multiple players or marks sole normal player content-suspended."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/media_web_contents_observer.cc",
+          "symbol": "RenderFrameDeleted",
+          "line_start": 182,
+          "line_end": 244,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/media_web_contents_observer.cc#L182-L244",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Frame global routing ID is used to retire player maps/remotes before publishing MediaDestroyed; two-step removal avoids reentrant container access."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_controller.cc",
+          "symbol": "OnSuspend / OnResume",
+          "line_start": 50,
+          "line_end": 64,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_controller.cc#L50-L64",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "OnSuspend sends RequestPause(triggered_by_user=true); source TODO warns this activates the frame even when not actually user-triggered. Resume sends native RequestPlay."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/web_contents/web_contents_impl.cc",
+          "symbol": "SetPageFrozen",
+          "line_start": 4077,
+          "line_end": 4085,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/web_contents/web_contents_impl.cc#L4077-L4085",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Hidden-page render views receive SetIsFrozen. No app-owned pause ledger is created; freezing is a distinct mechanism."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+          "symbol": "IsDocumentAllowedToPlay",
+          "line_start": 85,
+          "line_end": 119,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/third_party/blink/renderer/core/html/media/autoplay_policy.cc#L85-L119",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Document user activation, ancestor policy and engagement are involved; script fallback cannot promise cross-origin permission or universal playback."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+          "symbol": "RequestPlay",
+          "line_start": 289,
+          "line_end": 310,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/third_party/blink/renderer/core/html/media/autoplay_policy.cc#L289-L310",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "DOM play can fail with NotAllowedError for hidden playback policy or missing gesture. This is not evidence that native media-session RequestPlay has identical policy handling."
+        }
+      ],
+      "tests_inspected": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_impl_browsertest.cc",
+          "symbol": "DontResumeBySystemUISuspendedSessions / AllowUIResumeForSystemSuspend",
+          "line_start": 1862,
+          "line_end": 1896,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl_browsertest.cc#L1862-L1896",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "UI-suspended session remains inactive on system resume; explicit UI resume may resume a system pause.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_impl_unittest.cc",
+          "symbol": "SuspendContent_WithAction / SuspendSystem_WithAction / SuspendUI_WithAction",
+          "line_start": 377,
+          "line_end": 422,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl_unittest.cc#L377-L422",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Content/system suspend do not dispatch site Pause action; UI suspend with registered handler does.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_controller_unittest.cc",
+          "symbol": "NoAudioNoSession / TransientNoControllableSession / BasicControls",
+          "line_start": 396,
+          "line_end": 439,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_controller_unittest.cc#L396-L439",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Silent player excluded, transient not controllable; controller suspend emits user-triggered pause, resume emits play, destruction removes session.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_impl_service_routing_unittest.cc",
+          "symbol": "PreferTopMostFrame / RoutedServiceUpdatedAfterRemovingPlayer",
+          "line_start": 362,
+          "line_end": 382,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl_service_routing_unittest.cc#L362-L382",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Action routing selects topmost eligible service and changes after its player is removed; not a per-frame public control token.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/media/session/media_session_browsertest.cc",
+          "symbol": "MultipleTabsPlayPause",
+          "line_start": 327,
+          "line_end": 363,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_browsertest.cc#L327-L363",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Separate WebContents sessions pause/resume independently. Fixture disables autoplay gesture policy at line107.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "kSystem is shared with system/audio-focus behavior and does not identify Colosseum app/world-away ownership or exact document generation. The controller activation TODO is a concrete reason not to transplant it.",
+        "Session aggregation and routed site handlers do not control every HTML media element, silent video, one-shot/ambient player, WebAudio or third-party player. Cross-origin frame internals are available to Chromium, not necessarily to a Qt script adapter.",
+        "Inspected browser fixtures configure no-user-gesture autoplay. They do not qualify production autoplay, provider licences, DRM or consent lifetimes.",
+        "App display/minimize reasons and ordinary inactive-tab policy are embedder policy, not established by these classes; preserve current app semantics. Freeze is optional and needs all pending-operation blockers, not merely inaudibility."
+      ],
+      "comparison": {
+        "correctness": "Useful source-of-pause negative control, but coarse session ownership and frame activation hazard.",
+        "targeting": "Native frame/player identity and retirement are stronger than selected-tab retargeting; no portable Qt exposure.",
+        "privacy": "Session bound to WebContents/BrowserContext; no Colosseum account/space token.",
+        "concurrency": "Multiple players and WebContents sessions; topmost site-service action routing is aggregate.",
+        "resource_cost": "Existing engine media sessions already exist; a second polling/control service adds needless work. Freeze changes task execution, not just CPU policy.",
+        "portability_maintainability": "Engine-internal Mojo, audio-focus delegates, content/Blink dependencies. Behavior adaptation is maintainable; copying/patching is not justified."
+      },
+      "tests_executed": false,
+      "builds_executed": false
+    },
+    {
+      "category": 17,
+      "name": "Download request ownership and admission",
+      "evidence_status": "source_inspected; exact vendor manager/identity path; Chrome policy reference-only",
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner"
+      ],
+      "conclusion": "Keep the existing profile-level admission owner and native request. Capture immutable source/account/profile/private/space/document identity at request time and retain it independently of later WebContents lookup; metadata authorization remains an app-owned, separate one-use grant.",
+      "sources": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "CreateActiveItem",
+          "line_start": 325,
+          "line_end": 351,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L325-L351",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Manager owns items in ID/GUID maps; item receives BrowserContext, source WebContents and GlobalRenderFrameHostId. These are not current-selection lookups."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_item_utils.cc",
+          "symbol": "DownloadItemData::PrimaryPageChanged / WebContentsDestroyed / GetWebContents",
+          "line_start": 78,
+          "line_end": 119,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_item_utils.cc#L78-L119",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Primary-page change invalidates frame ID, causing GetWebContents to return null; destruction detaches observer. Original WebContents is separately obtainable until destroyed."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "StartDownloadItem / CreateNewDownloadItemToStart",
+          "line_start": 687,
+          "line_end": 807,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L687-L807",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "GUID collision rejected; asynchronous ID lookup uses weak manager; new-item observers notified only after file binding so cancellation works."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "InterceptNavigation / BeginDownloadInternal",
+          "line_start": 1015,
+          "line_end": 1045,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L1015-L1045",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Navigation-download checks pass a frame-tree-specific WebContents getter and request initiator to embedder delegate."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "BeginDownloadInternal",
+          "line_start": 1514,
+          "line_end": 1599,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L1514-L1599",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Renderer request URL checked through child-process security policy; storage partition captured; inactive/fenced-frame content downloads dropped; async check callback owns parameters/partition and weak manager."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_request_utils.cc",
+          "symbol": "IsURLSafe",
+          "line_start": 29,
+          "line_end": 38,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_request_utils.cc#L29-L38",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Checks ChildProcessSecurityPolicy::CanRequestURL. This does not substitute for user destination consent or metadata-write authorization."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "DetermineDownloadTarget",
+          "line_start": 475,
+          "line_end": 488,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L475-L488",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Embedding delegate determines target; default fallback uses forced path, not a Chrome file picker or complete filename policy."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_target_determiner.cc",
+          "symbol": "ReserveVirtualPathDone / RequestConfirmationDone",
+          "line_start": 478,
+          "line_end": 547,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_target_determiner.cc#478",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Chrome-specific path conflicts/unwritable/too-long cases map to confirmation reasons; source-equals-destination is rejected. Not bundled Qt behavior."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_target_determiner.cc",
+          "symbol": "RequestConfirmationDone",
+          "line_start": 644,
+          "line_end": 673,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_target_determiner.cc#644",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Destination cancellation records user-canceled; continue-without-confirmation explicitly clears consent reason. No app metadata grant exists."
+        }
+      ],
+      "tests_inspected": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl_unittest.cc",
+          "symbol": "StartDownload / StartDownloadWithoutHistoryDB",
+          "line_start": 616,
+          "line_end": 685,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl_unittest.cc#L616-L685",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Observer fires and download exists even when history DB returns invalid ID; transfer viability is separate from persistence.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl_unittest.cc",
+          "symbol": "DetermineDownloadTarget_True / DetermineDownloadTarget_False",
+          "line_start": 688,
+          "line_end": 722,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl_unittest.cc#L688-L722",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Delegate can retain callback; fallback uses exact forced path and target callback.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_target_determiner_unittest.cc",
+          "symbol": "InactiveDownload / ReservationFailed_Confirmation / LocalPathFailed",
+          "line_start": 1170,
+          "line_end": 1293,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_target_determiner_unittest.cc#1170",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Canceled items do not prompt/reserve; unwritable/conflict/long path prompts; local-path failure cancels.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "Chromium manager supports multiple observers; it does not enforce Colosseum single-admission-listener invariant. Current QML owner must remain authoritative.",
+        "Captured engine frame IDs are not a complete app account/space/document grant. Some navigation-download completion logic re-resolves current frame-tree state; record app provenance before asynchronous UI and never retarget from selection.",
+        "Chrome policy/target classes are absent at vendor paths. Their Safe Browsing, DLP, prefs, UI and extension integrations cannot be claimed for QtWebEngine by inheritance.",
+        "No inspected Chromium mechanism implements Colosseum one-use metadata authorization, consent/destination product policy, or grant replay protection."
+      ],
+      "comparison": {
+        "correctness": "Native per-item lifetime and async callbacks are useful; transfer acceptance and persistence must be separate.",
+        "targeting": "Originating frame/browser context captured; association deliberately retires on new primary page.",
+        "privacy": "BrowserContext and StoragePartition preserve engine isolation; account identity is outside Chromium.",
+        "concurrency": "Manager ID/GUID maps support many transfers; originless items/history imports exist and must not be assigned to selected space.",
+        "resource_cost": "Reuse native manager and one application admission listener; no duplicate transfer registry.",
+        "portability_maintainability": "Qt public downloadRequested/request APIs are the receiving boundary, not content::DownloadManager or Chrome target determiner."
+      },
+      "tests_executed": false,
+      "builds_executed": false
+    },
+    {
+      "category": 18,
+      "name": "Download progress/pause/resume/cancel/open",
+      "evidence_status": "source_inspected; exact vendor item states, race handling and tests; upstream Open integration reference-only",
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner"
+      ],
+      "conclusion": "Keep native states/actions and unknown-total semantics. Adapt capability/result reporting and verified completed-file Open into the existing owner; do not equate isFinished, CanOpenDownload, or a path string with an available completed file.",
+      "sources": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "Pause / Resume / Cancel",
+          "line_start": 608,
+          "line_end": 705,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L608-L705",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Pause ignored for terminal/completing states; resume is state-specific, bounded automatic retry differs from user retry; cancel records user-canceled or shutdown reason."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "CanResume",
+          "line_start": 846,
+          "line_end": 875,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L846-L875",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Interrupted resume only permitted for user-restart/user-continue modes; not every interrupted download is resumable."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "PercentComplete",
+          "line_start": 1122,
+          "line_end": 1129,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L1122-L1129",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Returns -1 for unknown/zero total or delegate-delayed completion; received bytes are independent."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "OpenDownload / ShowDownloadInShell",
+          "line_start": 718,
+          "line_end": 764,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L718-L764",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Open requires COMPLETE and not externally removed, otherwise active call toggles open-when-complete; file-removal check is asynchronous and does not gate external open. Windows no-extension path opens folder instead."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "CanShowInFolder / CanOpenDownload",
+          "line_start": 1160,
+          "line_end": 1174,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L1160-L1174",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "CanOpenDownload includes expected-to-complete downloads because it also enables open-when-complete; not a finished-file predicate."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "DestinationUpdate / DestinationError / DestinationCompleted",
+          "line_start": 1485,
+          "line_end": 1554,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L1485-L1554",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Native progress/completion callbacks distinguish all-data-saved from final state; canceled/interrupted callback lifetime relies on weak-pointer invalidation."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "symbol": "ReleaseDownloadFile",
+          "line_start": 2311,
+          "line_end": 2342,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc#L2311-L2342",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Cancel/delete/detach posted to download task runner, partial path cleared on destruction, weak refs invalidated to fence late callbacks."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "CheckForFileRemoval / OnFileExistenceChecked",
+          "line_start": 862,
+          "line_end": 895,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L862-L895",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Existence is queried asynchronously by trusted native target path and GUID with weak manager and per-GUID deduplication; removed file changes availability, not historical completion."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/chrome_download_manager_delegate.cc",
+          "symbol": "OpenDownload / IsMostRecentDownloadItemAtFilePath / ShowDownloadInShell",
+          "line_start": 1203,
+          "line_end": 1283,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/chrome_download_manager_delegate.cc#1203",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Chrome uses native item path, CanOpen/CanShow and blocks opening while another original/private-profile item is downloading to same target path. This is not a cryptographic file-identity or synchronous existence guarantee."
+        }
+      ],
+      "tests_inspected": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl_unittest.cc",
+          "symbol": "EnabledActionsForInterruptedDownload / EnabledActionsForCancelledDownload",
+          "line_start": 1804,
+          "line_end": 1836,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl_unittest.cc#L1804-L1836",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Interrupted item can expose CanOpenDownload for future completion while canceled cannot; supports stricter app completed-file action gate.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl_unittest.cc",
+          "symbol": "DownloadItemDestinationUpdateRaceTest.DownloadCancelledByUser",
+          "line_start": 2334,
+          "line_end": 2374,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl_unittest.cc#L2334-L2374",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Schedules destination events across initialization/target/rename boundaries, cancels at target determination, expects CANCELED and canceled request.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl_unittest.cc",
+          "symbol": "NotificationAfterCancel / NotificationAfterComplete / NotificationAfterDownloadedFileRemoved",
+          "line_start": 434,
+          "line_end": 470,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl_unittest.cc#L434-L470",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Observer events distinguish cancel, completion and external file removal.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_item_impl_unittest.cc",
+          "symbol": "UnresumableInterrupt",
+          "line_start": 780,
+          "line_end": 819,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl_unittest.cc#L780-L819",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Final rename FILE_BLOCKED error triggers exactly one interruption and no automatic resumption.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "Qt exposed properties may not include every Chromium internal resume mode; receiving adapter must report unsupported/failed resume rather than manufacture native capability.",
+        "Chromium existence check runs alongside Open; stronger app requirement needs an action-time native file-owner check and authorized file identity, with residual filesystem TOCTOU acknowledged.",
+        "Canceled item must never become completed solely because a completion callback arrived late or a byte count reached total.",
+        "Safe Browsing/quarantine/platform Open behavior in Chrome is not proof of Qt or WebView2 behavior. No tests were executed and actual platform Open was not exercised."
+      ],
+      "comparison": {
+        "correctness": "Well-defined native states and weak callback retirement; capability names have subtle broader semantics.",
+        "targeting": "Actions address native item/GUID and trusted native file path, not renderer-selected text.",
+        "privacy": "Chrome Open checks original plus OTR sibling managers only for colliding active target paths; this is not Colosseum account authorization.",
+        "concurrency": "Per-item state machines and asynchronous file operations; app must reconcile cancel/completion and removal races.",
+        "resource_cost": "Progress updates and filesystem existence work should be coalesced; avoid per-frame duplicate observers or unbounded UI retention.",
+        "portability_maintainability": "Adapt semantics atop Qt public request operations and canonical native file owner. No direct Chromium class copy."
+      },
+      "tests_executed": false,
+      "builds_executed": false
+    },
+    {
+      "category": 19,
+      "name": "Download persistence and private cleanup",
+      "evidence_status": "source_inspected; exact vendor native lifetime/DB internals; Chrome history reference-only",
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Adapt donor behavior into an existing Colosseum owner",
+        "Internal reference only / engine patch required / unsupported / unresolved"
+      ],
+      "conclusion": "Keep existing FeriaAccountStore history and replay-safe grants. Preserve source-independent transfer ownership, explicit profile retirement, and distinct transfer/history/file availability. Chromium DB/Chrome history are behavior references, not a second store or a Qt restart-resume API.",
+      "sources": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "DownloadManagerImpl constructor",
+          "line_start": 285,
+          "line_end": 318,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L285-L318",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Takes optional embedder in-progress manager; fallback creates one with empty DB path. Presence of source DB code does not prove Qt durable transfers."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/in_progress_download_manager.cc",
+          "symbol": "Initialize / ShutDown",
+          "line_start": 380,
+          "line_end": 405,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/in_progress_download_manager.cc#L380-L405",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Empty path uses no-op DownloadDB, nonempty path uses DownloadDBImpl/LevelDB; shutdown clears URL handlers."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/in_progress_download_manager.cc",
+          "symbol": "StartDownloadWithItem",
+          "line_start": 548,
+          "line_end": 592,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/in_progress_download_manager.cc#L548-L592",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Resume after removal/cancel rejects null item and cancels request; nonpersistent GUIDs omitted from DB cache."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_item_utils.cc",
+          "symbol": "PrimaryPageChanged / WebContentsDestroyed",
+          "line_start": 78,
+          "line_end": 90,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_item_utils.cc#L78-L90",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Source-page association retires without canceling manager-owned item; valid transfer may outlive tab."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl.cc",
+          "symbol": "Shutdown",
+          "line_start": 542,
+          "line_end": 578,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc#L542-L578",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "ManagerGoingDown emitted, IN_PROGRESS items canceled with shutdown reason, maps cleared, handlers/delegate shut down. Completed saved files are not removed by this loop."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_db_cache.cc",
+          "symbol": "CleanUpInProgressEntry / OnDownloadDBUpdated",
+          "line_start": 78,
+          "line_end": 102,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache.cc#L78-L102",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Crash-load IN_PROGRESS becomes INTERRUPTED/CRASH and untrusted hash cleared. Failed writes only log; TODO remains for handling failure."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_db_cache.cc",
+          "symbol": "AddOrReplaceEntry / RemoveEntry / UpdateDownloadDB",
+          "line_start": 144,
+          "line_end": 195,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache.cc#L144-L195",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Mutable active data cached and writes batched; updates removed from pending set at dispatch; not an app-level replay-proof metadata transaction."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_core_service_impl.cc",
+          "symbol": "GetDownloadManagerDelegate",
+          "line_start": 45,
+          "line_end": 79,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_core_service_impl.cc#45",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Ordinary DownloadHistory created only if profile is not off the record. This is Chrome application behavior, absent at vendor path."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_history.cc",
+          "symbol": "MaybeAddToHistory / ItemAdded",
+          "line_start": 477,
+          "line_end": 547,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history.cc#477",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "History tracks NOT_PERSISTED/PERSISTING/PERSISTED; removal during insert is reconciled; failed insert retries on next update without infinite loop."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_history.cc",
+          "symbol": "NeedToUpdateDownloadHistory",
+          "line_start": 658,
+          "line_end": 676,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history.cc#658",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Non-transient terminal/save-package rows go to history while active/resumable interrupted transfers use separate in-progress DB."
+        }
+      ],
+      "tests_inspected": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/download_manager_impl_unittest.cc",
+          "symbol": "OnDownloadCanceledAtShutdownCalledForInProgressDownload / OnDownloadCanceledAtShutdownNotCalledForCompleteDownload",
+          "line_start": 975,
+          "line_end": 1011,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl_unittest.cc#L975-L1011",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Cancel(false) occurs exactly for IN_PROGRESS; completed item is not canceled.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_db_cache_unittest.cc",
+          "symbol": "InitializeAndRetrieve",
+          "line_start": 121,
+          "line_end": 141,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache_unittest.cc#L121-L141",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Loaded entries cleaned to crash-interrupted state and not left in update cache.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_db_cache_unittest.cc",
+          "symbol": "FilePathChange",
+          "line_start": 211,
+          "line_end": 245,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache_unittest.cc#L211-L245",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Native path change is immediately written.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "components/download/internal/common/download_db_cache_unittest.cc",
+          "symbol": "RemoveWhileModifyExistingEntry",
+          "line_start": 274,
+          "line_end": 309,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache_unittest.cc#L274-L309",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Pending delayed update cannot recreate removed DB entry.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_history_unittest.cc",
+          "symbol": "DownloadHistoryTest_RemoveWhileAdding",
+          "line_start": 672,
+          "line_end": 706,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history_unittest.cc#672",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Late successful insert for removed item schedules removal.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_history_unittest.cc",
+          "symbol": "DownloadHistoryTest_CreateFailed / DownloadHistoryTest_UpdateWhileAdding",
+          "line_start": 739,
+          "line_end": 794,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history_unittest.cc#739",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Failed insert stays unpersisted and retries next update; mutation during insertion triggers reconciliation.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/download/download_history_unittest.cc",
+          "symbol": "CreateInProgressDownload",
+          "line_start": 849,
+          "line_end": 863,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history_unittest.cc#849",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Active transfer omitted from ordinary history.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "Chrome history exclusion is not evidence that Qt automatically persists or excludes application metadata; app private/account grant checks remain required.",
+        "Off-the-record is not automatic deletion of user-chosen completed files. Cancel may remove incomplete files; user-saved completed files need separate explicit deletion policy.",
+        "Profile/account teardown really cancels active native items; closing just a source tab does not. App should either retain profile until dependent transfers finish or explicitly cancel/drain safely.",
+        "No Colosseum grant mint/replay/account-switch mechanism exists in Chromium; adapt late-write rejection and transactional retry in existing store, not native DB internals.",
+        "Metadata reload is not resumption. Chromium durable resume requires native request/state/storage/network machinery and embedder initialization not supplied by a JSON row.",
+        "DB cache write-failure TODO prevents claiming robust retry from this component. App current QSaveFile and grant-retention behavior may already be stronger for its narrower metadata role."
+      ],
+      "comparison": {
+        "correctness": "Three distinct layers: active request, historical metadata, current file; handle late completion/removal with identity.",
+        "targeting": "Manager owns by native GUID; restored items intentionally have no source WebContents/frame.",
+        "privacy": "BrowserContext isolates engine transfers; ordinary Chrome history omitted for OTR, but explicit app privacy remains authoritative.",
+        "concurrency": "Asynchronous DB and shutdown callbacks need fences; one-use app grants have independent lifecycle.",
+        "resource_cost": "Do not import LevelDB/history/ProfileKeyedService graph into app already using bounded native account store.",
+        "portability_maintainability": "Behavior adaptation only. Native restart resume and Chrome history are not public Qt APIs or a separable copy."
+      },
+      "tests_executed": false,
+      "builds_executed": false
+    },
+    {
+      "category": 20,
+      "name": "Save page/link/image/media through native download pipeline",
+      "evidence_status": "source_inspected; exact vendor SavePackage/WebContents/Blink capabilities; Chrome menu reference-only",
+      "recommendation_classification": [
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner",
+        "Internal reference only / engine patch required / unsupported / unresolved"
+      ],
+      "conclusion": "Use supported Qt save/download/native context actions through the existing profile download owner. Adapt immutable context capabilities and retirement. Chromium proves distinct native page serialization and resource-download paths, not a universal URL downloader.",
+      "sources": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/web_contents/web_contents_impl.cc",
+          "symbol": "OnSavePage / SavePage",
+          "line_start": 6672,
+          "line_end": 6704,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/web_contents/web_contents_impl.cc#L6672-L6704",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Savable page uses Page-bound SavePackage; unsavable page falls back to SaveFrame. Direct SavePage is documented as bypassing filename sanitation/path prompt for automated testing; embedders must choose valid destination."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/web_contents/web_contents_impl.cc",
+          "symbol": "SaveFrameWithHeaders",
+          "line_start": 6714,
+          "line_end": 6816,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/web_contents/web_contents_impl.cc#L6714-L6816",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Source RenderFrameHost creates parameters with referrer, POST/cache state, prompt, suggested name, headers and isolation. Native manager is reached, not an independent ad hoc HTTP client."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/save_package.cc",
+          "symbol": "InternalInit / Init / InitWithDownloadItem",
+          "line_start": 294,
+          "line_end": 385,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package.cc#L294-L385",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Bound to Page/main document BrowserContext; creates native save-package DownloadItem with source frame IDs and weak cancel/init callbacks; HTML-only, complete HTML and MHTML paths differ."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/save_package.cc",
+          "symbol": "ContinueGetSaveInfo / OnPathPicked",
+          "line_start": 1476,
+          "line_end": 1538,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package.cc#L1476-L1538",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Async destination flow verifies page/delegate survive; selected path is made safe with net::GenerateSafeFileName; complete HTML derives sibling resource folder."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/save_package.cc",
+          "symbol": "OnMHTMLGenerated",
+          "line_start": 387,
+          "line_end": 406,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package.cc#L387-L406",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Nonpositive serialization output cancels; completion passes delegate gate. MHTML not arbitrary media extraction."
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "third_party/blink/renderer/core/page/context_menu_controller.cc",
+          "symbol": "Context menu media capability population",
+          "line_start": 549,
+          "line_end": 574,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/third_party/blink/renderer/core/page/context_menu_controller.cc#L549-L574",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Native hit-test media snapshot derives kMediaCanSave from HTMLMediaElement::SupportsSave, not source-URL presence alone."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+          "symbol": "IsSaveImageAsEnabled / IsSaveAsEnabled",
+          "line_start": 3765,
+          "line_end": 3789,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu.cc#3765",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Chrome gates media save by actual media capability, valid/handled URL and policy; image requires available image contents."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+          "symbol": "ExecSaveLinkAs",
+          "line_start": 4160,
+          "line_end": 4206,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu.cc#4160",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Captured context link/referrer/charset/suggested name with source frame IDs and prompt feeds BrowserContext download manager; source TODO notes initiator is derived from frame URL rather than actual origin."
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+          "symbol": "ExecSaveAs",
+          "line_start": 4208,
+          "line_end": 4263,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu.cc#4208",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Canvas/large-data image uses frame SaveImageAt; ordinary image/media goes through source-frame SaveFrameWithHeaders and image Accept header; PDF handling is build-specific."
+        }
+      ],
+      "tests_inspected": [
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/save_package_browsertest.cc",
+          "symbol": "RunAndCancelSavePackageDownload / DownloadItemDestroyed / DownloadItemCanceled / Reload",
+          "line_start": 165,
+          "line_end": 276,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package_browsertest.cc#L165-L276",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Delete/cancel package download then run another save to flush stale callbacks; reload exercises retired Page during asynchronous path work.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/save_package_browsertest.cc",
+          "symbol": "IgnoreFencedFrameInMHTML",
+          "line_start": 291,
+          "line_end": 358,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package_browsertest.cc#L291-L358",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "MHTML contains ordinary iframe title but excludes fenced-frame document text.",
+          "executed": false
+        },
+        {
+          "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+          "family": "vendor",
+          "path": "content/browser/download/save_package_unittest.cc",
+          "symbol": "TestSuccessfullyGenerateSavePackageFilename / TestUnSuccessfullyGenerateSavePackageFilename",
+          "line_start": 146,
+          "line_end": 218,
+          "url": "https://github.com/qt/qtwebengine-chromium/blob/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package_unittest.cc#L146-L218",
+          "api_layer": "Chromium content/components/Blink; internal to QtWebEngine, not Qt public API",
+          "finding": "Duplicate and case-insensitive resource names uniquified; overlong-directory setup fails generation. Long-path test separately disabled on Windows.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+          "symbol": "SuggestedFileName / SuggestedFileNameCrossOrigin",
+          "line_start": 1813,
+          "line_end": 1848,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc#1813",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Same-origin context preserves download-attribute suggestion.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+          "symbol": "SuggestedFileNameCrossOrigin",
+          "line_start": 2043,
+          "line_end": 2079,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc#2043",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Cross-origin download-attribute filename ignored.",
+          "executed": false
+        },
+        {
+          "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+          "family": "upstream",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+          "symbol": "SaveImageAsEntryIsDisabledForBlockedUrls / SaveVideoAsEntryIsDisabledForBlockedUrls",
+          "line_start": 791,
+          "line_end": 823,
+          "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc#791",
+          "api_layer": "Chrome application orchestration; absent at vendor path; upstream reference only",
+          "finding": "Policy-blocked image/video retains disabled command instead of pretending save is supported.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "Chrome render-context-menu orchestration is absent from exact Qt vendor tree; Qt adapter/default menu must be inspected separately. This report does not expose Chromium internals as Qt APIs.",
+        "Native save capability is contextual, frame-bound and can retire during navigation; snapshot tokens must not be recreated from current selection or interpolated into JavaScript URL scraping.",
+        "No claim that encrypted, MediaSource, streamed, blob, fenced-frame or arbitrary provider media is universally saveable; use native capability and supported formats. Blink SupportsSave implementation itself was not traced, so exclusions are not an exhaustive format list.",
+        "Direct Chromium SavePage path bypasses its normal dialog sanitation; a copied call is not a safe user-facing destination flow.",
+        "Page-bound SavePackage may cease on Page retirement, unlike accepted ordinary resource download. App teardown must not conflate those lifetimes.",
+        "Print/PDF is a different API/operation and is not proof of native Save download history integration; receiving Qt build and WebView2 parity remain separate."
+      ],
+      "comparison": {
+        "correctness": "Native source-frame request/isolation and per-context flags are preferable to URL scraping.",
+        "targeting": "Snapshot source frame and Page, retain valid token only; reject stale source instead of targeting selected view.",
+        "privacy": "Same BrowserContext/manager means profile cookies/storage available; app metadata/private ownership still enforced.",
+        "concurrency": "Page serialization, download item and async picker have distinct lifetimes; late callbacks and reload tested at engine layer.",
+        "resource_cost": "Complete HTML collects subresources/serializes frames and MHTML writes archive; avoid duplicating network fetch/serialization in QML.",
+        "portability_maintainability": "Adapt behavior through supported Qt save/context API. Chrome menu graph and SavePackage cannot be lifted as small app components."
+      },
+      "tests_executed": false,
+      "builds_executed": false
+    }
+  ],
+  "shared_evidence": "Vendor Chromium internals are shared beneath QtWebEngine and lineage-related to CEF; not three independent confirmations. Chrome application orchestration is separately labeled upstream reference-only.",
+  "copy_decision": "No separable source component selected. Adapt ownership/state/retirement/test behavior into existing app owners; public Qt interface selected by cross-family audit.",
+  "checks_performed": [
+    "Fetched exact pinned source files from Chromium Gitiles and Qt official GitHub mirror",
+    "SHA256 byte comparison of all successfully fetched corresponding vendor/upstream files",
+    "Read named implementation bodies and named test bodies; line-bound evidence validation",
+    "No build, product test, browser runtime, provider or Windows qualification"
+  ]
+}

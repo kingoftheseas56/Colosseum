@@ -1,0 +1,490 @@
+{
+  "donor": "qtwebengine",
+  "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+  "retrieved_date": "2026-10-08",
+  "authoritative_source": "https://code.qt.io/cgit/qt/qtwebengine.git",
+  "files": [
+    {
+      "path": "configure.cmake",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/configure.cmake?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "8a5176991038c64e46d5c180a903416c0a367695403095ff28574954a587f8e3",
+      "bytes": 32503,
+      "lines": 924,
+      "spdx": "BSD-3-Clause"
+    },
+    {
+      "path": "src/core/CMakeLists.txt",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/CMakeLists.txt?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "cb9a29cbbc82489beac2d96d0b622a2858a471f546846ff733d000cd11f5aec8",
+      "bytes": 33815,
+      "lines": 739,
+      "spdx": "BSD-3-Clause"
+    },
+    {
+      "path": "src/core/api/CMakeLists.txt",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/CMakeLists.txt?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "93049629b244e5016f13d365accf3fa479b26977a93e3e6a14d4ba86560cffff",
+      "bytes": 9968,
+      "lines": 258,
+      "spdx": "BSD-3-Clause"
+    },
+    {
+      "path": "src/core/api/configure.cmake",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/configure.cmake?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "6ee3312488be08592b9bb6678692d16c1cb517dd4d3ead6d25ebf01ecd736e1e",
+      "bytes": 8676,
+      "lines": 265,
+      "spdx": "BSD-3-Clause"
+    },
+    {
+      "path": "src/core/api/qwebenginecontextmenurequest.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginecontextmenurequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "a858aa125906dc70e3ba2d316698382cca5e0d2f8def651f0ee08e2319bcae8e",
+      "bytes": 7364,
+      "lines": 274,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginecontextmenurequest.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginecontextmenurequest.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "cece08c3874343729be7eb338a9bd6e6e63ab228191aeb79de9ff8a2da5be8b9",
+      "bytes": 4229,
+      "lines": 137,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginecontextmenurequest_p.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginecontextmenurequest_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "c23b899d087f5fd2542db7570a91c287b9271e6b1715ba556d6aaf21d96b9773",
+      "bytes": 1571,
+      "lines": 58,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginedownloadrequest.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "61334cf43c2b0fc8ad056e36bd6959ffe10846cefb77d907490344ca565852c8",
+      "bytes": 23157,
+      "lines": 651,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginedownloadrequest.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginedownloadrequest.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "6f77aae7ea8b86b1d1273a3db6a705adb0bc0b3a07bf894070badc81995b37b3",
+      "bytes": 4720,
+      "lines": 140,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginedownloadrequest_p.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginedownloadrequest_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "ca878b028cc2a074acdaaa225db74672757ae0413ad18f9d2aa409f92ea35749",
+      "bytes": 2355,
+      "lines": 74,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebengineframe.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebengineframe.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "fefbf5e8c81ef6d493afc78bb9c04ba73dc01eaa03681e689515fecef653bcc2",
+      "bytes": 11425,
+      "lines": 297,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebengineframe.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebengineframe.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "2afde0c16f9c4b5495a8f1b139e16b9493ef20f59f4092c4cf174134eba52d11",
+      "bytes": 3499,
+      "lines": 94,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginepage.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginepage.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "6d7a5ae1e68959a3d30b11474292212af7f7a61ba3d729225c7f3d149e2c4262",
+      "bytes": 88978,
+      "lines": 2575,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginepage.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginepage.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "fdd2cc2ea2184c0c63faa9ba6eb1e093d0d30c5a4bc804a5db575e8bf1233af4",
+      "bytes": 16378,
+      "lines": 440,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebengineprofile.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "a180b32707610a646fc8e6046c0c8e29739d4ce52bdd6aef193ece2d37816fd6",
+      "bytes": 38915,
+      "lines": 1125,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebengineprofile.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebengineprofile.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "fcf76af48214499a0d439afa668d81cc28cf123d08922de30798216f9d5a2720",
+      "bytes": 5410,
+      "lines": 157,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginescript.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginescript.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "15ca2418f81c73cb8d77cf3209b123756b0c422db201a7acb051312519461951",
+      "bytes": 8029,
+      "lines": 288,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/api/qwebenginesettings.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/api/qwebenginesettings.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "bf259337b45e754f33d32d03b8792eccf6c5687129d8fa791074473035bf1bd8",
+      "bytes": 3274,
+      "lines": 122,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/download_manager_delegate_qt.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/download_manager_delegate_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "dd60a9ca52c7f283499de7deeaa9f8afeda68c597d943182f2f7bc79a6649958",
+      "bytes": 16425,
+      "lines": 393,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/download_manager_delegate_qt.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/download_manager_delegate_qt.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "41d72fff3cf27e1127c3de6a8ad9c0e047be7b080accd94ba554a71018feffd6",
+      "bytes": 2777,
+      "lines": 80,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/profile_adapter.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/profile_adapter.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "4edab34077cac795c9ea21031168acf00b21f5d05ac1dee38661a63028b5be1a",
+      "bytes": 39159,
+      "lines": 1062,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/profile_adapter.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/profile_adapter.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "08a75479861d417c61989425080156f7e6e138acec347a76a651193a8da5bf4b",
+      "bytes": 10364,
+      "lines": 284,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/profile_qt.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/profile_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "d74f4a8ff1cc66d9ab8e560b450ef41f0e575273f16ca5a08ffe42ec0482cf84",
+      "bytes": 11676,
+      "lines": 341,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/profile_qt.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/profile_qt.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "f27bc1833ca866f25af32b58fb937c497e50d09d7498ed94af81a0761693c9ba",
+      "bytes": 3690,
+      "lines": 98,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/render_view_context_menu_qt.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/render_view_context_menu_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "221e215a953cbb24a58a79ba83c8e700a5057a4c362b54145b9ce543c8985072",
+      "bytes": 7921,
+      "lines": 194,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/render_view_context_menu_qt.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/render_view_context_menu_qt.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "5c7dd0b303fea56eb6f72b4c7d65958ef69dc3bc7e5db9b5c48fc2030fc41d82",
+      "bytes": 2242,
+      "lines": 98,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/renderer/user_resource_controller.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/renderer/user_resource_controller.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "c6b5e8214eebb87288b869d726b3674392f769473b78b954823aa1f7ee07cedc",
+      "bytes": 13639,
+      "lines": 370,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_contents_adapter.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_contents_adapter.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "5dc8234d594c9c3690fad613db8320b739b6e25e70a57db046adc020a199b27c",
+      "bytes": 85269,
+      "lines": 2306,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_contents_adapter.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_contents_adapter.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "41d341b7548640cc21bc6daeafbd7c8cb2895ec5de6c8dfba4cd7126f92a538b",
+      "bytes": 10644,
+      "lines": 295,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_contents_adapter_client.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_contents_adapter_client.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "8d62f1c0b7af25cdc877f9aac90bb80643d4954cc0dda86101f91fc51111bc62",
+      "bytes": 10036,
+      "lines": 239,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_contents_delegate_qt.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_contents_delegate_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "f87086c4330d20be79c26d64cd39d7d2ad3bd110632e4e229280d398707e0954",
+      "bytes": 46588,
+      "lines": 1105,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_contents_delegate_qt.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_contents_delegate_qt.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "6a29b11774b001d56b01a130d0fe58150747cdc73b70403d7de90b8fed9339db",
+      "bytes": 11230,
+      "lines": 227,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_contents_view_qt.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_contents_view_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "6cd7f3207704e3e9983d647a13ef34564b2dfe9429880f349b66bfd68d0cf52a",
+      "bytes": 11819,
+      "lines": 286,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/core/web_engine_settings.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/core/web_engine_settings.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "16e934c67fdfb6cc5147cd4e4207f9455c2fdac3867ac1cfa20ab5275b7a0d8f",
+      "bytes": 23528,
+      "lines": 514,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/CMakeLists.txt",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/CMakeLists.txt?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "68d3b3404c6d2e57b7e36836725d9911a37de7c77496894a5aea4e1577e6cb5b",
+      "bytes": 3148,
+      "lines": 83,
+      "spdx": "BSD-3-Clause"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebenginedownloadrequest.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "96a7b8368ed55fe50f88d174f512a000ef82e9b9c6f9aaafc479c7c09afb06ba",
+      "bytes": 1183,
+      "lines": 37,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebenginedownloadrequest.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebenginedownloadrequest.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "9620565c7445a1b5ef4286e5cd98ec85a808d53350a4f7d015f640ce7b2bf5cf",
+      "bytes": 1135,
+      "lines": 36,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebengineframe.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebengineframe.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "df6286423008c6103c930232718e59119f5de6a48df8efc4e014377786131856",
+      "bytes": 3225,
+      "lines": 88,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebengineframe_p.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebengineframe_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "b69e1e46f6e4f6c7d3704a141ee1e244528e462d0891d41efee44c32bcd7304f",
+      "bytes": 1953,
+      "lines": 56,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebengineprofile.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "5f150c0586e50a9d4bd7bdd87dec0d34f548ff307b87828a8de19a7ec49a4311",
+      "bytes": 50673,
+      "lines": 1349,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebengineview.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebengineview.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "c66d61aed5a07ad4493e14430cf1e3a48937742110f92b34dedf3d294b879e74",
+      "bytes": 99347,
+      "lines": 2643,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/api/qquickwebengineview_p.h",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/api/qquickwebengineview_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "e68ed5ba98c185c21c41ff30deae5b56b13daa6457fd9d9c492ffb90d22f7e06",
+      "bytes": 21892,
+      "lines": 607,
+      "spdx": "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    },
+    {
+      "path": "src/webenginequick/doc/src/webengineframe.qdoc",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/doc/src/webengineframe.qdoc?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "2b47d5c81600c11d41f6f4ffa5c24843ae01b9fa69dae19cc9158056f2675ca3",
+      "bytes": 5066,
+      "lines": 139,
+      "spdx": "LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only"
+    },
+    {
+      "path": "src/webenginequick/doc/src/webengineview_lgpl.qdoc",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/src/webenginequick/doc/src/webengineview_lgpl.qdoc?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "0dd33a73c9373f9089c61ddbd301b13003be42559098e297a39aef1a71eb8ab7",
+      "bytes": 59980,
+      "lines": 1659,
+      "spdx": "LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only"
+    },
+    {
+      "path": "tests/auto/quick/qmltests/data/tst_contextMenu.qml",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/quick/qmltests/data/tst_contextMenu.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "50e48122841d57de41179bfefbe85b0aedacd126623afbec9b3f5871a02b8f79",
+      "bytes": 5326,
+      "lines": 143,
+      "spdx": "LicenseRef-Qt-Commercial OR GPL-3.0-only"
+    },
+    {
+      "path": "tests/auto/quick/qmltests/data/tst_download.qml",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/quick/qmltests/data/tst_download.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "1a227c2fa8128d87ee941ef08d0de2b41a1031eea3a9523109323c2c6d64ca91",
+      "bytes": 13511,
+      "lines": 314,
+      "spdx": "LicenseRef-Qt-Commercial OR GPL-3.0-only"
+    },
+    {
+      "path": "tests/auto/quick/qmltests/data/tst_frames.qml",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/quick/qmltests/data/tst_frames.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "7469b624c1aa5205085039a8169b957f180c7eb61916f641d20f81172eee01d5",
+      "bytes": 4099,
+      "lines": 95,
+      "spdx": "LicenseRef-Qt-Commercial OR GPL-3.0-only"
+    },
+    {
+      "path": "tests/auto/quick/qmltests/data/tst_save.qml",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/quick/qmltests/data/tst_save.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "24bf77d79b7469e006c675abbee6490f8ebe8684381b5bd9a29e8cc80c47460d",
+      "bytes": 6602,
+      "lines": 185,
+      "spdx": "No file-level SPDX header found; do not infer a copy license. No copying recommended."
+    },
+    {
+      "path": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "881e1c489c60b6249f6fb8eed4a4b64d96232814b0e8efa0f7880b53504e4105",
+      "bytes": 63655,
+      "lines": 1446,
+      "spdx": "LicenseRef-Qt-Commercial OR GPL-3.0-only"
+    },
+    {
+      "path": "tests/auto/widgets/qwebenginepage/resources/lifecycle.html",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/widgets/qwebenginepage/resources/lifecycle.html?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "a283d5bb4ecd7a0f794af3ecc059b85350ac3691468dd90206304b9a4e2aba79",
+      "bytes": 376,
+      "lines": 17,
+      "spdx": "No file-level SPDX header found; do not infer a copy license. No copying recommended."
+    },
+    {
+      "path": "tests/auto/widgets/qwebenginepage/tst_qwebenginepage.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/widgets/qwebenginepage/tst_qwebenginepage.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "f6929d861a342188e61d825b4ca042a3c7d1ba96727af3edc28a3bdd830fe558",
+      "bytes": 217695,
+      "lines": 5488,
+      "spdx": "No file-level SPDX header found; do not infer a copy license. No copying recommended."
+    },
+    {
+      "path": "tests/auto/widgets/qwebengineprofile/tst_qwebengineprofile.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/widgets/qwebengineprofile/tst_qwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "4ab44d0fe8ce382f5a2c331c850cb8e9c0d9780cd5617cd6f3695cde68ccd07b",
+      "bytes": 36916,
+      "lines": 1049,
+      "spdx": "LicenseRef-Qt-Commercial OR GPL-3.0-only"
+    },
+    {
+      "path": "tests/auto/widgets/qwebenginescript/tst_qwebenginescript.cpp",
+      "revision": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "url": "https://code.qt.io/cgit/qt/qtwebengine.git/plain/tests/auto/widgets/qwebenginescript/tst_qwebenginescript.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "sha256": "c8d6cf22e7cc58fa441f33cdaf19a1d4fc29be57e6141d6f4b76ae1ab292b3ee",
+      "bytes": 33881,
+      "lines": 811,
+      "spdx": "No file-level SPDX header found; do not infer a copy license. No copying recommended."
+    }
+  ],
+  "retrieval_notes": [
+    "Public web open failed; source retrieved directly from authoritative code.qt.io plain endpoints by Python urllib.",
+    "404 path guesses replaced with cgit-discovered valid paths. No sources taken from search snippets.",
+    "Source cache is an audit artifact, not production incorporation; retained source headers preserved."
+  ]
+}

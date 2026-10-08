@@ -1,0 +1,906 @@
+{
+  "schema_version": 1,
+  "donor": "qtwebengine",
+  "scope": [
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "revisions": {
+    "qtwebengine": {
+      "canonical_repository": "https://code.qt.io/qt/qtwebengine.git",
+      "tag": "v6.11.1",
+      "tag_object": "7aa0d2a34896cfbe88ce0e9ea69bb4e943e1c998",
+      "commit": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "tree": "3377f952474f5bbe38974e987107427438ad1589",
+      "commit_url": "https://code.qt.io/cgit/qt/qtwebengine.git/commit/?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+      "metadata": [
+        ".gitmodules",
+        "src/3rdparty gitlink",
+        "CHROMIUM_VERSION",
+        ".cmake.conf"
+      ],
+      "vendored_repository": "https://code.qt.io/qt/qtwebengine-chromium.git",
+      "vendored_gitlink": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "vendored_tree": "7ef30355f87038a8e4d911959b6482a585668fb6",
+      "declared_base_version": "140.0.7339.264",
+      "declared_security_patch_level": "148.0.7778.96",
+      "vendored_chrome_VERSION": "140.0.7339.225",
+      "import_baseline_commit": "92193973ffad825f3f86604d8de8b1c15d51a619",
+      "import_missing_files_commit": "95f28a5bb7cf7b8df708d288a2dc3acfbe45d667",
+      "relationship": "Exact vendor gitlink is authoritative for bundled source. Qt metadata declares .264 and security backports, but chrome/VERSION and import log remain .225. Not byte-identical vanilla upstream, and not a Chromium 148 API baseline."
+    },
+    "cloud_qt": {
+      "status": "not used / unverified",
+      "evidence": "donors/metadata/cloud-qt-check.txt",
+      "difference": "Cannot assert a cloud Qt version. A qtchooser wrapper exists but target qmake executable is missing."
+    }
+  },
+  "source_manifest_path": "donors/qtwebengine/source-manifest.json",
+  "source_cache_path": "source/qtwebengine",
+  "tests_executed": false,
+  "checks_performed": [
+    "Retrieved immutable authoritative sources",
+    "Read source/API declarations and implementation paths",
+    "Inspected relevant upstream test assertions and feature guards",
+    "Read corresponding Colosseum ownership touchpoints for recommendation context; separate current-source audit determines implemented/partial/missing",
+    "Generated source hashes and license header manifest; parsed report JSON"
+  ],
+  "not_performed": [
+    "No product build, compiler, test, runtime harness, prototype implementation, binary/API/DRM qualification, engine rebuild or public external write"
+  ],
+  "shared_implementation_note": "Qt delegates to the bundled Chromium engine. This cell set proves Qt embedding API/ownership exposure, not an independent replication of Chromium correctness. Internal Qt/Chromium classes are not application-callable Qt APIs.",
+  "cells": [
+    {
+      "category": 16,
+      "title": "Pause on app minimize/world-away; resume only media paused by Colosseum",
+      "evidence_status": "Source/API path and relevant lifecycle/script tests inspected; exact media pause provenance is application-owned, not supplied by Qt. Cross-origin media/autoplay behavior unqualified.",
+      "tests_executed": false,
+      "source_api_paths": [
+        {
+          "file": "src/webenginequick/api/qquickwebengineview_p.h",
+          "symbol": "lifecycleState/recommendedState; mainFrame/findFrameByName; runJavaScript",
+          "lines": [
+            83,
+            97
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineview_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n83",
+          "layer": "private C++ declaration of public QML API",
+          "finding": "Public QML properties for muting/audibility/lifecycle and frame traversal, declared in a private C++ implementation header. This does not authorize public C++ access to QQuickWebEngineView internals. No per-element pause-owner API."
+        },
+        {
+          "file": "src/core/web_contents_adapter.cpp",
+          "symbol": "setLifecycleState/determineRecommendedState/freeze/unfreeze",
+          "lines": [
+            2066,
+            2215
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/web_contents_adapter.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n2066",
+          "layer": "internal reference",
+          "finding": "Visible/DevTools pages cannot freeze; recommendation stays Active while loading, audible, capturing, crashed or related active contents. Freeze calls SetPageFrozen, not an application-owned media pause receipt. Not an automatic browser-tab policy."
+        },
+        {
+          "file": "src/core/api/qwebengineframe.cpp",
+          "symbol": "QWebEngineFrame::isValid/children/runJavaScript",
+          "lines": [
+            22,
+            183
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebengineframe.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n22",
+          "layer": "public API and internal implementation",
+          "finding": "Public since 6.8; weak adapter/frame handles, invalid frames, plain-data callbacks only; Promise results unsupported. Frame validity does not establish document identity."
+        },
+        {
+          "file": "src/core/web_contents_adapter.cpp",
+          "symbol": "mainFrameId/frameChildren/hasFrame",
+          "lines": [
+            1934,
+            2007
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/web_contents_adapter.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n1934",
+          "layer": "internal reference",
+          "finding": "Underlying frame identity is FrameTreeNodeId and current_frame_host; pair with a document nonce/generation for navigation-safe media commands."
+        },
+        {
+          "file": "src/core/api/qwebenginescript.cpp",
+          "symbol": "ApplicationWorld/runsOnSubFrames",
+          "lines": [
+            43,
+            65
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginescript.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n43",
+          "layer": "public API and internal implementation",
+          "finding": "Isolated application world is public; runsOnSubFrames definition at 237\u2013249 allows injection into each frame."
+        },
+        {
+          "file": "src/core/renderer/user_resource_controller.cpp",
+          "symbol": "runScripts/DidCommitProvisionalLoad/WillDetach",
+          "lines": [
+            153,
+            246
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/renderer/user_resource_controller.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n153",
+          "layer": "internal reference",
+          "finding": "Scripts filtered by injection point/subframe option and URL; each frame executes in its isolated world; per-navigation Runner weak callbacks retired on detach. This is renderer implementation, not a callable application component."
+        },
+        {
+          "file": "src/core/web_engine_settings.cpp",
+          "symbol": "PlaybackRequiresUserGesture mapping",
+          "lines": [
+            397,
+            401
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/web_engine_settings.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n397",
+          "layer": "internal reference",
+          "finding": "Autoplay policy may require a gesture; do not turn it off to promise resume or treat calling play() as confirmed success."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineview.cpp",
+          "symbol": "ToggleMediaPlayPause",
+          "lines": [
+            2161,
+            2170
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineview.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n2161",
+          "layer": "public API and internal implementation",
+          "finding": "Context-position toggle depends on current context snapshot, not stable media identity or pause provenance; unsuitable as app-wide owned-pause mechanism."
+        }
+      ],
+      "ownership_and_behavior": "Keep space/document/element pause records in existing Colosseum playback ownership. App visibility/world-away policy must remain distinct from normal tab selection and Qt optimization. Resume only the exact living element/document that an app command observed playing and successfully paused; revoke on explicit user pause, source replacement, document/frame retirement, user override, and app epoch change. Per-frame injection can extend coverage without cross-origin DOM traversal from the parent. Qt frame handle alone is not a document token.",
+      "tests_inspected": [
+        {
+          "file": "tests/auto/widgets/qwebenginepage/tst_qwebenginepage.cpp",
+          "symbol": "setLifecycleState; setVisible",
+          "lines": [
+            3842,
+            4025
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginepage/tst_qwebenginepage.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n3842",
+          "layer": "test source inspected only",
+          "finding": "Checks freeze/resume events and discard reload; refuses visible freeze/discard. Does not prove selective media resume.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginepage/tst_qwebenginepage.cpp",
+          "symbol": "discardAbortsPendingLoad",
+          "lines": [
+            4240,
+            4270
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginepage/tst_qwebenginepage.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n4240",
+          "layer": "test source inspected only",
+          "finding": "Discard during pending navigation produces failed load and no restored committed page.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginescript/tst_qwebenginescript.cpp",
+          "symbol": "scriptsInNestedIframes",
+          "lines": [
+            440,
+            492
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginescript/tst_qwebenginescript.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n440",
+          "layer": "test source inspected only",
+          "finding": "ApplicationWorld script with runsOnSubFrames modifies nested same-origin frame DOM.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/quick/qmltests/data/tst_frames.qml",
+          "symbol": "test_mainFrame/test_findFrame/test_runJavaScript",
+          "lines": [
+            28,
+            93
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/quick/qmltests/data/tst_frames.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n28",
+          "layer": "test source inspected only",
+          "finding": "QML frame traversal and JavaScript execution; fixture uses about:blank child frames, not protected cross-origin media.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "No public Qt media-session resume provenance, stable media-element IDs, or user-versus-application pause reason. recentlyAudible is a page aggregate and mute is not pause.",
+        "Top-frame document.querySelectorAll cannot control cross-origin child DOM. Per-frame injection/frame execution is a candidate, not a universal guarantee for sandboxed/opaque/remote/provider-controlled media, shadow roots, WebAudio or protected playback.",
+        "A JavaScript callback may arrive at destruction; frame object can outlive document. Promise-returning play() requires explicit later observation/acknowledgement rather than unsupported Promise result serialization.",
+        "recommendedState does not know Colosseum pending consent/licence/admission lifetimes. Preserve its stronger lifecycleBlocked and pending-command gates.",
+        "No runtime or Windows Qt 6.11.1 qualification performed."
+      ],
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner",
+        "Internal reference only / unsupported / unresolved"
+      ],
+      "recommendation": "Keep existing activitySuspended/presentationMedia and callback/lifecycle blockers. Harden scoped per-document/per-frame/per-element owned-pause acknowledgements as needed; optionally use public isolated scripts and Qt 6.8 frame API. Do not replace policy with freeze, audible, mute or context toggle.",
+      "negative_control_fixtures": [
+        "A playing element and a user-paused element in the same space; minimize then restore resumes only first.",
+        "Same live app, switch inactive tab: established playback policy remains unchanged.",
+        "Navigate same URL, replace media source/element, replace a cross-origin iframe, or deliver old pause/play ACK after an app epoch change: no stale resume.",
+        "User pauses while away, autoplay rejects play(), or page script restarts media: ownership/result remains conservative.",
+        "Pending consent/licence/request and JavaScript ACK when freeze timer fires: page stays active; discard never used as pause."
+      ]
+    },
+    {
+      "category": 17,
+      "title": "Download request ownership and admission",
+      "evidence_status": "Public profile/request APIs, native callback maps, C++ delayed-answer/destruction tests and QML admission tests inspected. Document-origin precision and QML delayed UI lifetime remain bounded limitations.",
+      "tests_executed": false,
+      "source_api_paths": [
+        {
+          "file": "src/webenginequick/api/qquickwebengineprofile.cpp",
+          "symbol": "downloadRequested/downloadDestroyed/cleanDownloads",
+          "lines": [
+            230,
+            295
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n230",
+          "layer": "public API and internal implementation",
+          "finding": "One profile receives request; request parent is profile, tracked with QPointer; QML JavaScriptOwnership; no post-signal immediate delete in inspected code. Autoaccepted saves answered after emission."
+        },
+        {
+          "file": "src/core/api/qwebengineprofile.cpp",
+          "symbol": "downloadRequested documentation and implementation",
+          "lines": [
+            145,
+            155
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n145",
+          "layer": "public API and internal implementation",
+          "finding": "Docs prohibit queued connection and say immediate deletion if not accepted; actual implementation at224\u2013264 lacks that immediate deletion. Keep documentation/source distinction explicit."
+        },
+        {
+          "file": "src/core/download_manager_delegate_qt.cpp",
+          "symbol": "DetermineDownloadTarget/downloadTargetDetermined",
+          "lines": [
+            108,
+            247
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/download_manager_delegate_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n108",
+          "layer": "internal reference",
+          "finding": "Native item observer -> DownloadItemInfo -> profile-bound zero-delay callback, per-ID pending DownloadTargetCallback. First profile client receives event. Answer consumes pending callback once, rejects missing item, and cancels if directory creation fails."
+        },
+        {
+          "file": "src/core/api/qwebenginedownloadrequest_p.h",
+          "symbol": "profileAdapter/adapterClient/answered",
+          "lines": [
+            41,
+            70
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n41",
+          "layer": "internal reference",
+          "finding": "QPointer profileAdapter, raw adapterClient and one-shot answered flag. Capture page/view identity at admission and avoid later dereference after page retirement."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebenginedownloadrequest.cpp",
+          "symbol": "QQuickWebEngineDownloadRequest::view",
+          "lines": [
+            22,
+            32
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n22",
+          "layer": "public API and internal implementation",
+          "finding": "QML public view property implemented by raw adapterClient dereference; it does not supply frame/document/initiator-origin snapshot."
+        },
+        {
+          "file": "src/core/api/qwebenginedownloadrequest.cpp",
+          "symbol": "QWebEngineDownloadRequest::accept/answer",
+          "lines": [
+            176,
+            210
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n176",
+          "layer": "public API and internal implementation",
+          "finding": "accept changes Requested to InProgress then consumes answer once; directory/fileName must be set before accept. Metadata authorization is not native acceptance or user destination consent."
+        }
+      ],
+      "ownership_and_behavior": "Use exactly one authoritative listener per shared profile, with multiple originating spaces/windows mapped by the request view immediately and immutable app-generated transfer identity (profile generation + native ID + app identity). Profile owns native request; source tab is attribution, not transfer lifetime owner. Capture account/profile/private and origin provenance once; never substitute current selected tab or current account. A missing/stale origin is unresolved/rejected rather than silently reassigned. Native resource URL is not initiating-page origin. App metadata grant must be one-use and independent from file/destination acceptance.",
+      "tests_inspected": [
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadAnswerLater",
+          "lines": [
+            787,
+            839
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n787",
+          "layer": "test source inspected only",
+          "finding": "Retains profile-parented QPointer after emission; accepts or cancels later, and ignore row survives until explicit deletion. C++ evidence contradicts immediate-delete documentation.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadDeleted/downloadDeletedByProfile",
+          "lines": [
+            865,
+            917
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n865",
+          "layer": "test source inspected only",
+          "finding": "Request deleteLater causes finish and destruction; page+profile deleteLater retires download object. Does not isolate page-only closure behavior.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadTwoLinks",
+          "lines": [
+            525,
+            612
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n525",
+          "layer": "test source inspected only",
+          "finding": "Two downloads from one page complete separately; no multiple-window/account isolation test.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/quick/qmltests/data/tst_download.qml",
+          "symbol": "onDownloadRequested/test_downloadRequest/test_downloadCancelled",
+          "lines": [
+            53,
+            187
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/quick/qmltests/data/tst_download.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n53",
+          "layer": "test source inspected only",
+          "finding": "QML explicit accept/cancel and native state propagation; no delayed destination fixture.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "Docs explicitly forbid queued signal delivery; receive directly even if later decision UI is asynchronous. Actual pinned C++ delayed-answer behavior is test-backed; equivalent QML delayed dialog/GC/profile teardown needs a dedicated receiving test.",
+        "Normal request without receivers goes directly to native acceptDownload with accepted=false, without creating an item; saves carrying accepted=true bypass default rejection.",
+        "Download request API exposes native ID, resource URL, view/page, not stable initiating frame/document ID or initiator origin. Native DownloadItemInfo including raw adapterClient is queued to profile; source destruction before the public signal is not proved safe by inspected tests. Capturing at first public delivery cannot repair an already stale native pointer. Exact origin captured only after navigation may already be stale.",
+        "Public page()/view() is not a durable lease. Originless/non-page requests may have a null adapterClient (QML profile lines 279\u2013282 explicitly assigns nullptr); C++ page() can return nullptr. QML view() documentation permits null but its implementation asserts and dereferences adapterClient without a null/liveness guard. Do not assume that merely evaluating request.view to test for null is a safe originless or post-close check. This remains a source-inspected API lifetime risk requiring a receiving fixture, not a reproduced failure.",
+        "Profile-scoped IDs are not durable cross-process/account transfer keys; native delegate begins currentId at0. No evidence of globally unique/stable persisted IDs.",
+        "Destination/source filenames and Qt URL isValid are not admission policy; constrain scheme, filename leaf, parent directory, overwrite and private/account ownership."
+      ],
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner"
+      ],
+      "recommendation": "Retain FeriaBrowserDownloads profile-level listener and FeriaAccountStore metadata authority; harden captured provenance, destination consent and teardown, rather than adding a second transfer registry. Use direct profile signal and supported request methods; a C++ owner can retain QPointer with profile-owned lifetime. Refuse ambiguous attribution and expired consent.",
+      "negative_control_fixtures": [
+        "Two windows/spaces share profile and download concurrently; change selection during delayed consent: no reassignment or duplicate accept.",
+        "Normal and private profiles emit equal numeric native IDs: entries/account grants stay distinct.",
+        "Destroy the source page between native request determination and public signal delivery: receiving fixture must establish safe attribution or identify an engine-lifetime blocker.",
+        "Hold destination consent, destroy tab then profile/account owner, answer afterward: no dereference, transfer retarget, metadata write or stale accept.",
+        "No listener: normal attachment rejected; explicit-path Save operation separately tested because it autoaccepts.",
+        "Grant replay, canceled grant and wrong-account late completion: metadata write rejected while native destination choice remains a separate decision."
+      ]
+    },
+    {
+      "category": 18,
+      "title": "Download progress/pause/resume/cancel/open",
+      "evidence_status": "Native states/actions and Qt update mapping inspected with relevant progress/pause/cancel/failure tests. OS Open/Show is not a QtWebEngine download API and requires Colosseum file authority.",
+      "tests_executed": false,
+      "source_api_paths": [
+        {
+          "file": "src/core/api/qwebenginedownloadrequest.cpp",
+          "symbol": "update/setFinished/accept/cancel/pause/resume",
+          "lines": [
+            133,
+            295
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n133",
+          "layer": "public API and internal implementation",
+          "finding": "update maps native state but the wrapper also synthesizes cancellation: cancel226\u2013252 calls native cancelDownload only while InProgress; Interrupted instead sets wrapper Cancelled/isFinished locally. Pause only InProgress; resume requires !isFinished and InProgress/Interrupted. Completed cancel is a no-op. isFinished is normally set from native info.done in update, but cancel can set it locally."
+        },
+        {
+          "file": "src/core/api/qwebenginedownloadrequest.cpp",
+          "symbol": "totalBytes/isFinished",
+          "lines": [
+            401,
+            543
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n401",
+          "layer": "public API and internal implementation",
+          "finding": "Unknown total=-1; zero is valid. isFinished includes Completed, Cancelled or non-resumable Interrupted. A progress ratio does not establish completion."
+        },
+        {
+          "file": "src/core/download_manager_delegate_qt.cpp",
+          "symbol": "pauseDownload/resumeDownload/cancelDownload/OnDownloadUpdated",
+          "lines": [
+            77,
+            105
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/download_manager_delegate_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n77",
+          "layer": "internal reference",
+          "finding": "Native operations by profile ID; update 353\u2013383 passes native bytes, paused and IsDone. No native CanResume property exported by request."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineprofile.cpp",
+          "symbol": "downloadUpdated",
+          "lines": [
+            297,
+            315
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n297",
+          "layer": "public API and internal implementation",
+          "finding": "QML profile downloadFinished emitted for every non-InProgress state, including Interrupted; this is not a completion-success signal."
+        },
+        {
+          "file": "src/core/api/qwebenginedownloadrequest.h",
+          "symbol": "public properties/methods/slots",
+          "lines": [
+            19,
+            125
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n19",
+          "layer": "public API and internal implementation",
+          "finding": "No open/show-in-folder, file existence/revalidation or restart-resume method. Public isFinished + state are necessary guards; explicit CanResume absent."
+        }
+      ],
+      "ownership_and_behavior": "Keep per-entry request observation in existing profile-level owner. Treat public request state/pause/finished as the application control surface, while distinguishing native updates from wrapper-synthesized cancellation. An Interrupted request canceled in Qt is not proof that the underlying DownloadItem received Cancel or its temporary file was cleaned. Reconcile retirement and late native updates explicitly; never convert a canceled/retired transaction into completed history. Persist completion only from a settled, identity-valid final snapshot, not the first Completed stateChanged callback. On request loss retire actions and retain only historical metadata; do not invent completion. Guard Open/Show through trusted completed transfer identity, re-resolve canonical recorded path and verify authorized file/directory existence before native shell handoff. A renderer string must not become a path-opening authority.",
+      "tests_inspected": [
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "pauseDownload",
+          "lines": [
+            1396,
+            1443
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n1396",
+          "layer": "test source inspected only",
+          "finding": "512MiB local HTTP fixture pauses on first byte, resumes on isPausedChanged and verifies bytes after finish; no restart/crash resume test.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadToReadOnlyDir",
+          "lines": [
+            1134,
+            1193
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n1134",
+          "layer": "test source inspected only",
+          "finding": "Expects Interrupted + FileAccessDenied + isFinished=false; no downloadFinished from isFinishedChanged; explicitly skipped on Windows.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadFileCancel/downloadDeleted",
+          "lines": [
+            841,
+            888
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n841",
+          "layer": "test source inspected only",
+          "finding": "Requested cancel and deferred deletion terminal handling.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadLink data empty-file and result assertions",
+          "lines": [
+            212,
+            222
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n212",
+          "layer": "test source inspected only",
+          "finding": "Empty file is a valid native download; result verification at455\u2013522 includes zero total/received and actual bytes.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/quick/qmltests/data/tst_download.qml",
+          "symbol": "test_downloadSucceeded/test_downloadCancelled",
+          "lines": [
+            160,
+            187
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/quick/qmltests/data/tst_download.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n160",
+          "layer": "test source inspected only",
+          "finding": "Native Requested / InProgress / Completed and cancellation states; cancellation is not success.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "The public resume() method requests an attempt, not guaranteed resumability or eventual success. A resumable-looking Interrupted state is not a guarantee that server range/retry will succeed; no public Qt CanResume reason/detail property. Use resume only when !isFinished and supported native states; show failure honestly.",
+        "Do not disable cancel by bytes==total or treat downloadFinished/isFinished as successful completion. Native completion may win an InProgress cancellation race. For Interrupted cancellation, Qt lines 226\u2013252 synthesizes Cancelled/isFinished without calling the native cancel route; answered=true makes answer() a no-op. update() lines 133\u2013165 has no terminal-state exclusion for later native notifications. Profile downloadDestroyed() lines 230\u2013235 uses removeDownload, but wrapper Cancelled alone does not establish native retirement or partial-file cleanup.",
+        "Exact update ordering is interruptReasonChanged at 141\u2013143, stateChanged at 145\u2013147, receivedBytesChanged at 149\u2013151, totalBytesChanged at 153\u2013155, then isFinishedChanged via lines 158\u2013159. A synchronous Completed stateChanged handler can read previous byte totals and isFinished=false. Colosseum currently records metadata from this signal and may consume its one-use grant before the final bytes arrive; this is a source-derived ordering hazard, not an executed reproduction. Use one settled final snapshot after the update, gated by identity/retirement and completion, with idempotent persistence.",
+        "No download-opening or trusted-file-identity API in QtWebEngine. Existing Colosseum file owner must verify existence/type/authorization; ordinary saved metadata can outlive the file.",
+        "FileAccessDenied test excluded on Windows; no run here. Public-path collision/overwrite defense remains app-owned."
+      ],
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner"
+      ],
+      "recommendation": "Keep existing native request controls; distinguish wrapper Interrupted cancellation from native cancellation, reconcile native cleanup/late callbacks, and commit metadata only from a settled final byte snapshot. Tighten resume/terminal guards and safe Open/Show in the canonical file owner. Do not replace engine download scheduling with an ad hoc downloader or import Chromium DownloadItem internals.",
+      "negative_control_fixtures": [
+        "Unknown total(-1), zero-length completed file, total changing mid-transfer and bytes reaching total before completion.",
+        "Interrupted+!isFinished versus Interrupted+isFinished; refused server range; repeat resume and network retry.",
+        "Interrupted+!isFinished -> cancel: assert wrapper Cancelled/isFinished, separately establish native request retirement and temporary-file cleanup, deliver later native Interrupted/Completed notifications, and prove no resume, reopen or completed history for the retired app transaction. Deletion/profile teardown must reconcile underlying item safely.",
+        "Final native update from received=7,total=-1,isFinished=false to Completed,received=11,total=11,done=true: observe Completed stateChanged before byte updates, but persist exactly one completed history row with 11/11 only after settled terminal snapshot; duplicate notifications/retry consume one grant.",
+        "Cancel just before/after completion, duplicate terminal notifications and request destruction while controls visible.",
+        "Completed metadata pointing to missing/replaced/unauthorized file, renderer-supplied ../ path, UNC/path-scheme confusion: no arbitrary Open/Show."
+      ],
+      "receiving_source_touchpoints": [
+        {
+          "revision": "62057bfbdaa2305a05d2d3fb02b870bc9e826638",
+          "file": "qml/feria/FeriaBrowserDownloads.qml",
+          "symbol": "entry.update / onStateChanged / onIsFinishedChanged",
+          "lines": [
+            108,
+            144
+          ],
+          "url": "https://github.com/kingoftheseas56/Colosseum/blob/62057bfbdaa2305a05d2d3fb02b870bc9e826638/qml/feria/FeriaBrowserDownloads.qml#L108-L144",
+          "finding": "onStateChanged143 invokes update immediately; Completed branch111 records request.receivedBytes/totalBytes115\u2013118 and can set recorded=true, then releaseAuthorization126. Qt stateChanged precedes those final property assignments. A later isFinishedChanged144 cannot correct a successful already-recorded row. Source-derived ordering hazard; no test executed."
+        }
+      ]
+    },
+    {
+      "category": 19,
+      "title": "Download persistence and private cleanup",
+      "evidence_status": "Profile ownership/destruction and private configuration inspected; no public API to persist/reconstitute native downloads or delete user-saved private files. Application persistence/replay/write retry is outside Qt API.",
+      "tests_executed": false,
+      "source_api_paths": [
+        {
+          "file": "src/webenginequick/api/qquickwebengineprofile.cpp",
+          "symbol": "cleanDownloads/destructor",
+          "lines": [
+            237,
+            249
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n237",
+          "layer": "public API and internal implementation",
+          "finding": "Profile destructor457\u2013460 cleans every tracked unfinished request, removes native item and clears map. There is no per-tab cancellation owner here."
+        },
+        {
+          "file": "src/core/profile_adapter.cpp",
+          "symbol": "~ProfileAdapter",
+          "lines": [
+            146,
+            162
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/profile_adapter.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n146",
+          "layer": "internal reference",
+          "finding": "Profile teardown notifies destruction, releases webcontents clients, shuts down native DownloadManager and drops delegate. Keep profile alive or explicitly retire transfers before teardown."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineprofile.cpp",
+          "symbol": "offTheRecord documentation",
+          "lines": [
+            363,
+            370
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n363",
+          "layer": "public API and internal implementation",
+          "finding": "Off-record profile forces normal browser cookies/cache/persistent data into memory; this is not a user-chosen downloaded-file deletion promise."
+        },
+        {
+          "file": "src/core/download_manager_delegate_qt.cpp",
+          "symbol": "DetermineDownloadTarget/downloadTargetDetermined",
+          "lines": [
+            137,
+            247
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/download_manager_delegate_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n137",
+          "layer": "internal reference",
+          "finding": "Actual output path and write pipeline do not branch on offTheRecord; saved bytes can be written under private profiles too."
+        },
+        {
+          "file": "src/core/api/qwebenginedownloadrequest.cpp",
+          "symbol": "cancel/destructor",
+          "lines": [
+            212,
+            253
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n212",
+          "layer": "public API and internal implementation",
+          "finding": "Cancel ignores completed downloads; Interrupted cancellation sets wrapper Cancelled/isFinished without native cancelDownload. Item destruction641\u2013647 skips cancel if wrapper finished; profile downloadDestroyed/removeDownload handles item removal separately. Wrapper finished alone is not proof of native temporary-file cleanup, and no completed user-file deletion path is shown here."
+        },
+        {
+          "file": "src/core/api/qwebengineprofile.h",
+          "symbol": "public profile API",
+          "lines": [
+            51,
+            143
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebengineprofile.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n51",
+          "layer": "public API and internal implementation",
+          "finding": "No public persisted-download enumeration/import/restore API. Download request public slots are only accept/cancel/pause/resume; metadata is not an engine restart checkpoint."
+        }
+      ],
+      "ownership_and_behavior": "Active transfer, saved history and actual file availability are three different states. Native transfer is bound to profile lifetime, not source tab. Reuse existing ordinary-history owner; private rows stay ephemeral and cannot invoke ordinary metadata persistence. Account switch must not retarget a live request or reuse a prior one-use grant; either retain the original profile/account owner until resolution or retire it explicitly under existing policy. Late callbacks after retirement must fail closed. Private cleanup must establish native retirement/temporary-data handling separately from wrapper-synthesized Cancelled, and retire private metadata; it must not silently delete files the user explicitly saved.",
+      "tests_inspected": [
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadDeletedByProfile",
+          "lines": [
+            890,
+            917
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n890",
+          "layer": "test source inspected only",
+          "finding": "Profile teardown destroys outstanding request. Test closes page and profile together, so it does not prove accepted network transfer survives page-only closure.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadRequestedWithoutHandler",
+          "lines": [
+            760,
+            785
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n760",
+          "layer": "test source inspected only",
+          "finding": "A default-constructed off-record profile still writes a page.save explicit destination to disk without a listener.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadPage",
+          "lines": [
+            614,
+            706
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n614",
+          "layer": "test source inspected only",
+          "finding": "Default test profile receives/completes all save formats and output file exists; no application private-history purge assertion.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebengineprofile/tst_qwebengineprofile.cpp",
+          "symbol": "downloadItem",
+          "lines": [
+            855,
+            863
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebengineprofile/tst_qwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n855",
+          "layer": "test source inspected only",
+          "finding": "New profile can receive file download requests; narrow ownership coverage, not persistence.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "No public Qt API rehydrates native DownloadItem from history or resumes after app restart. Resume() operates the living request only.",
+        "No evidence that off-record shutdown removes completed user-saved files. Native cancellation partial-file cleanup and history privacy are distinct.",
+        "Qt owns neither Colosseum metadata grants nor account write retries; replay/late/write-failure correctness must stay in existing account store.",
+        "Page-only network-download survival is supported by profile ownership path, but not directly covered by inspected Qt test. Save packages may depend on live source document/resources until finished; retain/retire explicitly.",
+        "Public original page/view pointer must not be read to recalculate origin after source page closes.",
+        "No cloud/Windows binary/runtime proof; tested-source assertions are not executed tests."
+      ],
+      "recommendation_classification": [
+        "Keep existing Colosseum implementation",
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner",
+        "Internal reference only / unsupported / unresolved"
+      ],
+      "recommendation": "Keep FeriaAccountStore ordinary download metadata and FeriaBrowserDownloads active ownership. Gate every persistence attempt by immutable original account/profile/private binding and one-use grant; treat write failure/retry in that owner. Expose historical file availability separately. Do not claim restart-resume or private saved-file erasure.",
+      "negative_control_fixtures": [
+        "Source tab closes during accepted download while profile remains; network transfer continues and origin history remains original.",
+        "Private download completes before/after private owner retirement: no ordinary row; user-saved file retained unless explicitly deleted by separate authorized action.",
+        "Account switch or profile generation replacement before completion: no late row written into new account.",
+        "Metadata write fails once then succeeds on authorized retry; replay and duplicate terminal callbacks create no duplicate rows. Completion metadata uses the settled final-byte snapshot, not the first Completed stateChanged event.",
+        "Restart displays historical record with file-availability check and no false Resume control; removed file shows unavailable."
+      ]
+    },
+    {
+      "category": 20,
+      "title": "Save page/link/image/media through the native download pipeline",
+      "evidence_status": "C++/QML save/context download paths and tests inspected. Public native pipeline supported with material admission/context/frame limitations; no universal arbitrary QML URL download or frame-exact Save API claimed.",
+      "tests_executed": false,
+      "source_api_paths": [
+        {
+          "file": "src/core/api/qwebenginepage.cpp",
+          "symbol": "QWebEnginePage::save/download",
+          "lines": [
+            1117,
+            1139
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginepage.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n1117",
+          "layer": "public API and internal implementation",
+          "finding": "C++ save(path,format) since 5.8 delegates to adapter; C++ download(url,suggestedName) at1912\u20131930 since 5.10. The latter is not a public WebEngineView QML method."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineview_p.h",
+          "symbol": "WebEngineView::save/triggerWebAction",
+          "lines": [
+            480,
+            510
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineview_p.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n480",
+          "layer": "private C++ declaration of public QML API",
+          "finding": "QML save(path,format) since 6.6; mainFrame since 6.8. This private C++ header declares those public QML APIs; it is not a supported C++ adapter API. Public QML slot list has no download(url)."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineview.cpp",
+          "symbol": "DownloadLinkToDisk/DownloadImageToDisk/DownloadMediaToDisk/SavePage/save",
+          "lines": [
+            2076,
+            2117
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineview.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n2076",
+          "layer": "public API and internal implementation",
+          "finding": "Context native actions use current private filtered link/media URL, filename and sanitized referrer pipeline; SavePage2191\u20132193 has no path, while save2633\u20132637 forwards explicit path."
+        },
+        {
+          "file": "src/core/web_contents_adapter.cpp",
+          "symbol": "save/download",
+          "lines": [
+            773,
+            779
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/web_contents_adapter.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n773",
+          "layer": "internal reference",
+          "finding": "save stores one SavePageInfo and calls WebContents::OnSavePage. download1150\u20131197 calls profile BrowserContext DownloadManager using CreateDownloadForWebContentsMainFrame and sanitized referrer; no independent network client."
+        },
+        {
+          "file": "src/core/download_manager_delegate_qt.cpp",
+          "symbol": "DetermineDownloadTarget/ChooseSavePath/savePathDetermined",
+          "lines": [
+            137,
+            161
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/download_manager_delegate_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n137",
+          "layer": "internal reference",
+          "finding": "Explicit path sets acceptedByDefault; ChooseSavePath258\u2013345 defaults MHTML, starts with total=-1, ignores can_save_as_complete/default_extension arguments, maps per-ID save callback. Empty-path SavePage action stays requested."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineprofile.cpp",
+          "symbol": "downloadRequested autoaccept answer",
+          "lines": [
+            252,
+            295
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineprofile.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n252",
+          "layer": "public API and internal implementation",
+          "finding": "Explicit-path save delivered already InProgress; after directly connected listeners run, answer() starts write unless canceled. With no listener accepted=true passes directly to native."
+        },
+        {
+          "file": "src/core/web_contents_view_qt.cpp",
+          "symbol": "ShowContextMenu/update",
+          "lines": [
+            167,
+            216
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/web_contents_view_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n167",
+          "layer": "internal reference",
+          "finding": "Native RenderFrameHost input is ignored by ShowContextMenu. Private context keeps page/frame URL but no stable source frame/document handle."
+        },
+        {
+          "file": "src/core/render_view_context_menu_qt.cpp",
+          "symbol": "appendImageItems/appendLinkItems/appendMediaItems/appendPageItems",
+          "lines": [
+            144,
+            175
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/render_view_context_menu_qt.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n144",
+          "layer": "public API and internal implementation",
+          "finding": "Built-in native menu already adds Save image/link/media/page. With QML request not accepted, view405\u2013434 builds this default menu; custom Colosseum save integration must not be confused with absent engine capability."
+        },
+        {
+          "file": "src/webenginequick/api/qquickwebengineview.cpp",
+          "symbol": "contextMenuRequested/isMenuItemEnabled",
+          "lines": [
+            405,
+            434
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/webenginequick/api/qquickwebengineview.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n405",
+          "layer": "public API and internal implementation",
+          "finding": "QML emitted request is a copied snapshot, whereas triggerWebAction uses current mutable internal request. isMenuItemEnabled2559\u20132596 returns true for Save actions; not a capability/permission guarantee."
+        },
+        {
+          "file": "src/core/api/qwebenginecontextmenurequest.h",
+          "symbol": "public and private context fields",
+          "lines": [
+            56,
+            122
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginecontextmenurequest.h?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n56",
+          "layer": "public API and internal implementation",
+          "finding": "Public mediaFlags/MediaCanSave and URLs; filteredLinkUrl, referrerUrl/policy, hasImageContent, suggested filename private. Public linkUrl is unfiltered (cpp118\u2013126)."
+        },
+        {
+          "file": "src/core/api/qwebenginedownloadrequest.cpp",
+          "symbol": "SavePageFormat/setDownloadFileName",
+          "lines": [
+            338,
+            348
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/src/core/api/qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n338",
+          "layer": "public API and internal implementation",
+          "finding": "SingleHTML, CompleteHTML, MHTML only; fileName setter505\u2013517 accepts nonempty string without path-leaf sanitation. App cannot treat renderer filename as safe. PDF printing is separate from this pipeline."
+        }
+      ],
+      "ownership_and_behavior": "Prefer native SavePage action to obtain a Requested item and perform destination consent through the canonical profile-level owner; call explicit-path save only after destination consent and trusted path selection. Existing context snapshot must be bound to original view, document generation and a monotonically retired context serial; new context/menu/navigation invalidates old operation. Dispatch action while that native context is still current, then keep the resulting request through destination UI. Use public MediaCanSave/mediaType/URL admission, not action.enabled alone. Serialize initial page-save admission per source because native SavePageInfo is one per WebContents. Actual transfer still belongs to profile. Do not scrape URL strings via interpolated JS or build a replacement downloader.",
+      "tests_inspected": [
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadPage",
+          "lines": [
+            614,
+            706
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n614",
+          "layer": "test source inspected only",
+          "finding": "All three formats; action produces Requested and requires accept; explicit path produces InProgress automatically. Checks output existence.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadRequestedWithoutHandler",
+          "lines": [
+            760,
+            785
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n760",
+          "layer": "test source inspected only",
+          "finding": "Explicit-path save writes even without listener.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/quick/qmltests/data/tst_save.qml",
+          "symbol": "test_savePage/test_saveImage/test_saveWebAction",
+          "lines": [
+            88,
+            183
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/quick/qmltests/data/tst_save.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n88",
+          "layer": "test source inspected only",
+          "finding": "QML all formats roundtrip; explicit image save autoaccept/cancel; empty-path SavePage action stays Requested.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp",
+          "symbol": "downloadLink",
+          "lines": [
+            396,
+            523
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/widgets/qwebenginedownloadrequest/tst_qwebenginedownloadrequest.cpp?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n396",
+          "layer": "test source inspected only",
+          "finding": "Native Save link with attachment/download attribute variants, exact page pointer, referrer and file bytes including empty file.",
+          "executed": false
+        },
+        {
+          "file": "tests/auto/quick/qmltests/data/tst_contextMenu.qml",
+          "symbol": "test_contextMenuLinkAndSelectedText/test_contextMenuMediaType",
+          "lines": [
+            70,
+            140
+          ],
+          "url": "https://code.qt.io/cgit/qt/qtwebengine.git/tree/tests/auto/quick/qmltests/data/tst_contextMenu.qml?id=eb0793cc4b76e93cf669f586fd68c76019f40ec9#n70",
+          "layer": "test source inspected only",
+          "finding": "Snapshot link/media data and native action availability; no stale-menu, iframe-origin, authenticated/blob media or protected-provider save coverage.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "Explicit-path C++ and QML save is autoaccepted, not an unanswered normal download. First direct request handler may cancel, but path setters reject InProgress; later asynchronous consent is too late.",
+        "Public context request cannot recover stable originating RenderFrameHost/document. Native context download uses main frame plus context referrer; exact original-frame fidelity remains unsupported/unresolved for sandbox, opaque/blob or authenticated subframe contexts.",
+        "Keeping a QML snapshot does not preserve underlying native action target; subsequent context updates can retarget triggerWebAction. Retire stale snapshot and fail closed.",
+        "QML arbitrary download(url) is absent. Do not invent browser.download or reach through private QQuick adapter as public API; C++ page.download is only directly supported when the application actually owns a public QWebEnginePage.",
+        "Canvas context has invalid mediaUrl; native download image action checks valid mediaUrl. Do not promise canvas saving from menu presence. MediaCanSave false, empty/unsupported URL, MSE/DRM/protected-stream export remain unsupported or require explicit qualification.",
+        "Only SingleHTML/CompleteHTML/MHTML belong to page-save formats. printToPdf is a separate printing path with webengine_printing_and_pdf build guard; no native downloadRequested ownership is established for PDF printing.",
+        "Normal save/download public paths inspected have no printing/PDF feature guard; PDF viewer requires extensions and printing/PDF configuration. Proprietary codecs build option defaults off; media format/provider playback support is not established here.",
+        "No default-filename path traversal bug is established by this audit. Qt derives native suggestions and collision-adjusts its proposed path; the concrete unsanitized setter boundary is caller-supplied setDownloadFileName override. Native target disposition is overwrite; profile GetUniquePath is filesystem-name selection, not an atomic privacy/overwrite/destination grant. Sanitize leaf, check collisions/overwrite intent, canonicalize destination, and avoid claiming suggested names are safe.",
+        "Single SavePageInfo per WebContents means back-to-back explicit saves before target choice require a concurrency fixture/serialization; not proved safe by separate download maps."
+      ],
+      "recommendation_classification": [
+        "Use a supported public engine API",
+        "Adapt donor behavior into an existing Colosseum owner",
+        "Internal reference only / unsupported / unresolved"
+      ],
+      "recommendation": "The default Qt context menu already appends Save page/link/image/media when its context allows; this is engine-owned behavior, not proof that Colosseum shared page-tool integration is implemented. Add only missing save actions to existing FeriaPageTools and route every admitted request to existing FeriaBrowserDownloads/FeriaAccountStore. Native Qt actions are preferred to extracted URLs, with snapshot retirement and capability checks. Keep arbitrary QML URL download, exact originating-frame guarantees, canvas/stream export, and PDF-via-download claims out of supported scope until resolved.",
+      "negative_control_fixtures": [
+        "SavePage action pauses at Requested during destination UI; cancel creates no saved file. Explicit-path save is called only after consent; no-listener autoaccept negative control.",
+        "Open context A then context B or navigate same URL before choosing Save from A: operation rejected, not B download. Switch selected space: original view remains target.",
+        "Subframe authenticated resource/referrer, opaque blob, sandboxed frame and MediaCanSave=false: correctness proven individually or unavailable explicitly.",
+        "Canvas/empty mediaUrl, malformed or disallowed URL scheme, filename ../absolute/separator/reserved name and destination collision: safe rejection/explicit overwrite path.",
+        "Two page.save calls to distinct destinations before first request resolves: serialized or exact attribution proven.",
+        "Save format roundtrip SingleHTML/CompleteHTML/MHTML; PDF print must not masquerade as same download transaction."
+      ]
+    }
+  ],
+  "copy_recommendations": [],
+  "dependency_and_license_boundary": {
+    "strategy": "Use installed supported Qt public APIs and existing app owners; no separable Qt component copy is recommended.",
+    "why_not_copy": [
+      "DownloadManagerDelegateQt depends on Chromium content/download, ProfileQt/ProfileAdapter, Qt event ownership, native item observers and SavePackage callbacks.",
+      "WebContentsAdapter and UserResourceController depend on Chromium/Blink renderer/browser internals, Mojo and private Qt wrappers; not small independent implementations.",
+      "Public QML WebEngineView functionality has private C++ implementation headers; use QML APIs without importing their private C++ ABI."
+    ],
+    "file_specific_notices": "source-manifest.json records each retrieved file\u2019s exact SPDX header. Most runtime source is LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only. Test source often has commercial OR GPL-3.0-only; tst_save.qml has no inspected per-file SPDX header. No blanket BSD attribution, no copied test implementation."
+  }
+}

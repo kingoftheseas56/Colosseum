@@ -1,0 +1,30 @@
+)]}'
+{
+  "commit": "754bf56217050dfc97f626926b8dbc6f22b12634",
+  "tree": "62ed85807204a30815caf55db938168884742e37",
+  "parents": [
+    "e2e6becc9eb74f73aa250b790c4e42ea9da82089"
+  ],
+  "author": {
+    "name": "Chrome Release Bot (LUCI)",
+    "email": "chrome-official-brancher@chops-service-accounts.iam.gserviceaccount.com",
+    "time": "Wed Sep 24 17:25:09 2025"
+  },
+  "committer": {
+    "name": "Chrome Release Bot (LUCI)",
+    "email": "chrome-official-brancher@chops-service-accounts.iam.gserviceaccount.com",
+    "time": "Wed Sep 24 17:25:09 2025"
+  },
+  "message": "Incrementing VERSION to 140.0.7339.214\n\nMerge-Approval-Bypass: Chrome release infra\nChange-Id: I86845e28b1264b98755bafac4da2c882cab68716\nReviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6978969\nBot-Commit: Chrome Release Bot (LUCI) \u003cchrome-official-brancher@chops-service-accounts.iam.gserviceaccount.com\u003e\nCr-Commit-Position: refs/branch-heads/7339_207@{#4}\nCr-Branched-From: 17230b545fd18b35aad49122e5af97a463bc7a9c-refs/branch-heads/7339@{#2364}\nCr-Branched-From: 27be8b77710f4405fdfeb4ee946fcabb0f6c92b2-refs/heads/main@{#1496484}\n",
+  "tree_diff": [
+    {
+      "type": "modify",
+      "old_id": "a916a74705fa1cb8d20c5364333089dc1f4ac3c2",
+      "old_mode": 33188,
+      "old_path": "chrome/VERSION",
+      "new_id": "579d4f704cf889f36772ce8c77bff1d40ca777e2",
+      "new_mode": 33188,
+      "new_path": "chrome/VERSION"
+    }
+  ]
+}

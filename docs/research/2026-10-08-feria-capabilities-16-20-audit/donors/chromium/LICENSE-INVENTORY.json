@@ -1,0 +1,266 @@
+[
+  {
+    "path": "LICENSE",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2015 The Chromium Authors\n//\n// Redistribution and use in source and binary forms, with or without\n// modification, are permitted provided that the following conditions are\n// met:\n//\n//    * Redistributions of source code must retain the above copyright\n// notice, this list of conditions and the following disclaimer.\n//    * Redistributions in binary form must reproduce the above\n// copyright notice, this list of conditions and the following disclaimer\n// in the documentation and/or other materials provided with the\n// distribution.\n//    * Neither the name of Google LLC nor the names of its\n// contributors may be used to endorse or promote products derived from\n// this software without specific prior written permission.\n//\n// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n// \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\n// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\n// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\n// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\n// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/public/browser/web_contents.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/web_contents/web_contents_impl.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_impl.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2015 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_impl.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2015 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_impl_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_browsertest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2017 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/media_web_contents_observer.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2014 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/download_manager_impl.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/download_manager_impl.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/download_manager_impl_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/public/browser/download_manager.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.\n//\n// The DownloadManager object manages the process of downloading, including\n// updates to the history system and providing the information for displaying\n// the downloads view in the Destinations tab. There is one DownloadManager per\n// active browser context in Chrome.\n//\n// Download observers:\n// Objects that are interested in notifications about new downloads, or progress\n// updates for a given download must implement one of the download observer\n// interfaces:\n//   DownloadManager::Observer:\n//     - allows observers, primarily views, to be notified when changes to the\n//       set of all downloads (such as new downloads, or deletes) occur\n// Use AddObserver() / RemoveObserver() on the appropriate download object to\n// receive state updates.\n//\n// Download state persistence:\n// The DownloadManager uses the history service for storing persistent\n// information about the state of all downloads. The history system maintains a\n// separate table for this called 'downloads'. At the point that the\n// DownloadManager is constructed, we query the history service for the state of\n// all persisted downloads.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/public/common/download_item.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.\n//\n// Each download is represented by a DownloadItem, and all DownloadItems\n// are owned by the DownloadManager which maintains a global list of all\n// downloads. DownloadItems are created when a user initiates a download,\n// and exist for the duration of the browser life time.\n//\n// Download observers:\n//   DownloadItem::Observer:\n//     - allows observers to receive notifications about one download from start\n//       to completion\n// Use AddObserver() / RemoveObserver() on the appropriate download object to\n// receive state updates.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/internal/common/download_item_impl.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.\n\n// File method ordering: Methods in this file are in the same order as\n// in download_item_impl.h, with the following exception: The public\n// interface Start is placed in chronological order with the other\n// (private) routines that together define a DownloadItem's state\n// transitions as the download progresses.  See \"Download progression\n// cascade\" later in this file.\n\n// A regular DownloadItem (created for a download in this session of\n// the browser) normally goes through the following states:\n//      * Created (when download starts)\n//      * Destination filename determined\n//      * Entered into the history database.\n//      * Made visible in the download shelf.\n//      * All the data is saved.  Note that the actual data download occurs\n//        in parallel with the above steps, but until those steps are\n//        complete, the state of the data save will be ignored.\n//      * Download file is renamed to its final name, and possibly\n//        auto-opened.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/internal/common/download_item_impl_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/internal/common/in_progress_download_manager.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/save_package.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/save_package_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/save_package_browsertest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2011 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/chrome_download_manager_delegate.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/chrome_download_manager_delegate_unittest.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/download_history.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.\n\n// DownloadHistory manages persisting DownloadItems to the history service by\n// observing a single DownloadManager and all its DownloadItems using an\n// AllDownloadItemNotifier.\n//\n// DownloadHistory decides whether and when to add items to, remove items from,\n// and update items in the database. DownloadHistory uses DownloadHistoryData to\n// store per-DownloadItem data such as whether the item is persisted or being\n// persisted, and the last history::DownloadRow that was passed to the database.\n// When the DownloadManager and its delegate (ChromeDownloadManagerDelegate) are\n// initialized, DownloadHistory is created and queries the HistoryService. When\n// the HistoryService calls back from QueryDownloads() to QueryCallback(),\n// DownloadHistory will then wait for DownloadManager to call\n// LoadHistoryDownloads(), and uses DownloadManager::CreateDownloadItem() to\n// inform DownloadManager of these persisted DownloadItems. CreateDownloadItem()\n// internally calls OnDownloadCreated(), which normally adds items to the\n// database, so LoadHistoryDownloads() uses |loading_id_| to disable adding\n// these items to the database.  If a download is removed via\n// OnDownloadRemoved() while the item is still being added to the database,\n// DownloadHistory uses |removed_while_adding_| to remember to remove the item\n// when its ItemAdded() callback is called.  All callbacks are bound with a weak\n// pointer to DownloadHistory to prevent use-after-free bugs.\n// ChromeDownloadManagerDelegate owns DownloadHistory, and deletes it in\n// Shutdown(), which is called by DownloadManagerImpl::Shutdown() after all\n// DownloadItems are destroyed.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/download_history_unittest.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/download_core_service_factory.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/download_core_service_impl.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2015 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/download_target_determiner.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2013 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/download/download_target_determiner_unittest.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2012 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.\n\n#ifdef UNSAFE_BUFFERS_BUILD\n// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.\n#pragma allow_unsafe_buffers\n#endif",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2014 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+    "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+    "header": "// Copyright 2014 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/download_item_utils.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/public/browser/download_item_utils.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_controller.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2016 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_impl_browsertest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2015 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_controller_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2016 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_impl_service_routing_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2016 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/media/session/media_session_controllers_manager.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2016 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "content/public/browser/media_session.h",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2016 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2017 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/internal/common/download_db_cache.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/internal/common/download_db_cache_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "third_party/blink/renderer/core/page/context_menu_controller.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "/*\n * Copyright (C) 2006, 2007 Apple Inc. All rights reserved.\n * Copyright (C) 2010 Igalia S.L\n *\n * Redistribution and use in source and binary forms, with or without\n * modification, are permitted provided that the following conditions\n * are met:\n * 1. Redistributions of source code must retain the above copyright\n *    notice, this list of conditions and the following disclaimer.\n * 2. Redistributions in binary form must reproduce the above copyright\n *    notice, this list of conditions and the following disclaimer in the\n *    documentation and/or other materials provided with the distribution.\n *\n * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY\n * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR\n * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR\n * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,\n * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\n * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR\n * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY\n * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n */",
+    "copy_selected": false
+  },
+  {
+    "path": "content/browser/download/download_request_utils.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/database/download_db_impl.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  },
+  {
+    "path": "components/download/database/download_db_impl_unittest.cc",
+    "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "header": "// Copyright 2018 The Chromium Authors\n// Use of this source code is governed by a BSD-style license that can be\n// found in the LICENSE file.",
+    "copy_selected": false
+  }
+]

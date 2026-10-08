@@ -1,0 +1,1092 @@
+{
+  "fetched_source_files": [
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/LICENSE",
+      "bytes": 1536,
+      "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b",
+      "status": 200,
+      "local_path": "source/chromium/vendor/LICENSE"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/public/browser/web_contents.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/public/browser/web_contents.h",
+      "bytes": 87402,
+      "sha256": "8aa2efb1beaa418cdc9170aaa5e6da0de61e3d8a3936190163b59185b80a2b83",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/public/browser/web_contents.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/web_contents/web_contents_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/web_contents/web_contents_impl.cc",
+      "bytes": 480822,
+      "sha256": "c0e1a8400f6b7ae1c3368575cfe2140955ed9e8c07f89e00fa4f6b9f5ecdf09a",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/web_contents/web_contents_impl.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl.cc",
+      "bytes": 77617,
+      "sha256": "e4467e71d528457155be86138c8d563caaae8b729a27e5816d6aabdb20df8b2a",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_impl.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_impl.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl.h",
+      "bytes": 29332,
+      "sha256": "5d4512771dc4070c9d69b9fd396fcf0d5a5f9a14f61b5f519eec1d092319f988",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_impl.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_impl_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl_unittest.cc",
+      "bytes": 47020,
+      "sha256": "5a472e9e771b4f1b46c360800eed15e84d19adb4852eb534ddea43e540178bb6",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_impl_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_browsertest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_browsertest.cc",
+      "bytes": 17592,
+      "sha256": "aa775090b1c4dbe7b3ffef4c662aa902f16906e67c1278b182f2eeab9c773be0",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_browsertest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/media_web_contents_observer.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/media_web_contents_observer.cc",
+      "bytes": 29974,
+      "sha256": "cb6782c841b4be3a1eafa66a889767ee1edb652b2f12c9c59333a81eb2fae8e9",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/media_web_contents_observer.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_manager_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.cc",
+      "bytes": 63226,
+      "sha256": "638d245dd4ae145fbc6bc93f0e607543fccaed58608a121493820ec02153a6b4",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/download_manager_impl.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_manager_impl.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl.h",
+      "bytes": 17955,
+      "sha256": "9340d6cc46772e074192fd8244ea507110fa7636f97d91a789aab73beb752b2a",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/download_manager_impl.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_manager_impl_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_manager_impl_unittest.cc",
+      "bytes": 41175,
+      "sha256": "adbb1fe3ca25c0e8d50cdba5ca5b3ada29e5df02dd6eda5c27a9b1c9786f84a2",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/download_manager_impl_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/public/browser/download_manager.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/public/browser/download_manager.h",
+      "bytes": 10507,
+      "sha256": "7378098fa03669365662fefbf62ad6e4db86dd80aa1ce9a344955d8399021fd5",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/public/browser/download_manager.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/public/browser/download_item_utils.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/public/browser/download_item_utils.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/public/common/download_item.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/public/common/download_item.h",
+      "bytes": 24187,
+      "sha256": "509ba7eb683f8005aaa6ba935891d47f180f2ed25025e53da1507b34524a32de",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/public/common/download_item.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/download_item_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl.cc",
+      "bytes": 103116,
+      "sha256": "e3d327c49a7b5671972e0cae7884d119cbdcf5fd9f00896e7b1134e2c548e66b",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/internal/common/download_item_impl.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/download_item_impl_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_item_impl_unittest.cc",
+      "bytes": 107123,
+      "sha256": "9458c459f6f4bb9fb9b688129bebf18c4ccdae443aa0232cced0d55567153f3e",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/internal/common/download_item_impl_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/in_progress_download_manager.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/in_progress_download_manager.cc",
+      "bytes": 28250,
+      "sha256": "47988b60e8fc2f4d531177a2d9484c6256190b3ca9ed31ba1878a4df35f52d50",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/internal/common/in_progress_download_manager.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/in_progress_download_manager_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/in_progress_download_manager_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/chrome_download_manager_delegate.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/chrome_download_manager_delegate.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/chrome_download_manager_delegate_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/chrome_download_manager_delegate_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/download_history.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/download_history.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/download_history_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/download_history_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/download_core_service_factory.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/download_core_service_factory.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/download_core_service_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/download_core_service_impl.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/download_target_determiner.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/download_target_determiner.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/download/download_target_determiner_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/download/download_target_determiner_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/save_package.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package.cc",
+      "bytes": 58891,
+      "sha256": "7fbd731738cfe8cc0166d1a18c602e6a1bc822828c050fa1619a7d1552525ef0",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/save_package.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/save_package_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package_unittest.cc",
+      "bytes": 13600,
+      "sha256": "e3e077d697ceff708662219201915b75d5125410563994012df7142bad974838",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/save_package_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/save_package_browsertest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/save_package_browsertest.cc",
+      "bytes": 14039,
+      "sha256": "ffcb0dea5192fd1d1fe0b927fce0d78e66cdbe1695ab39500035907ff29582eb",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/save_package_browsertest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "LICENSE",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/LICENSE?format=TEXT",
+      "bytes": 1536,
+      "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b",
+      "status": 200,
+      "local_path": "source/chromium/upstream/LICENSE"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/public/browser/web_contents.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/public/browser/web_contents.h?format=TEXT",
+      "bytes": 87305,
+      "sha256": "2854ed1d2586d394311e9c4473a4c2cc5d9b1b5130985666dbffbfdbca8c0542",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/public/browser/web_contents.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/web_contents/web_contents_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/web_contents/web_contents_impl.cc?format=TEXT",
+      "bytes": 477545,
+      "sha256": "1f0e27c268cc1540664fcf94aab0b6f2bf1231683a39dd70a7ae3bf0198d4542",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/web_contents/web_contents_impl.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_impl.cc?format=TEXT",
+      "bytes": 75821,
+      "sha256": "37831ff3eba970c9333a2ae64e2d31e73b91676935c83b0ff24b6d03440e7656",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_impl.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_impl.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_impl.h?format=TEXT",
+      "bytes": 29332,
+      "sha256": "5d4512771dc4070c9d69b9fd396fcf0d5a5f9a14f61b5f519eec1d092319f988",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_impl.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_impl_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_impl_unittest.cc?format=TEXT",
+      "bytes": 47020,
+      "sha256": "5a472e9e771b4f1b46c360800eed15e84d19adb4852eb534ddea43e540178bb6",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_impl_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_browsertest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_browsertest.cc?format=TEXT",
+      "bytes": 17592,
+      "sha256": "aa775090b1c4dbe7b3ffef4c662aa902f16906e67c1278b182f2eeab9c773be0",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_browsertest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/media_web_contents_observer.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/media_web_contents_observer.cc?format=TEXT",
+      "bytes": 29974,
+      "sha256": "cb6782c841b4be3a1eafa66a889767ee1edb652b2f12c9c59333a81eb2fae8e9",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/media_web_contents_observer.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_manager_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_manager_impl.cc?format=TEXT",
+      "bytes": 63226,
+      "sha256": "2e1939bdaebf723780f0ac0f6c4ddc9d5db90c73f9f68953a291240b27de8730",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/download_manager_impl.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_manager_impl.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_manager_impl.h?format=TEXT",
+      "bytes": 17955,
+      "sha256": "9340d6cc46772e074192fd8244ea507110fa7636f97d91a789aab73beb752b2a",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/download_manager_impl.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_manager_impl_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_manager_impl_unittest.cc?format=TEXT",
+      "bytes": 41175,
+      "sha256": "adbb1fe3ca25c0e8d50cdba5ca5b3ada29e5df02dd6eda5c27a9b1c9786f84a2",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/download_manager_impl_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/public/browser/download_manager.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/public/browser/download_manager.h?format=TEXT",
+      "bytes": 10507,
+      "sha256": "7378098fa03669365662fefbf62ad6e4db86dd80aa1ce9a344955d8399021fd5",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/public/browser/download_manager.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/public/browser/download_item_utils.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/public/browser/download_item_utils.cc?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/public/common/download_item.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/public/common/download_item.h?format=TEXT",
+      "bytes": 24187,
+      "sha256": "509ba7eb683f8005aaa6ba935891d47f180f2ed25025e53da1507b34524a32de",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/public/common/download_item.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/download_item_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/download_item_impl.cc?format=TEXT",
+      "bytes": 103116,
+      "sha256": "e3d327c49a7b5671972e0cae7884d119cbdcf5fd9f00896e7b1134e2c548e66b",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/internal/common/download_item_impl.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/download_item_impl_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/download_item_impl_unittest.cc?format=TEXT",
+      "bytes": 107123,
+      "sha256": "9458c459f6f4bb9fb9b688129bebf18c4ccdae443aa0232cced0d55567153f3e",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/internal/common/download_item_impl_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/in_progress_download_manager.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/in_progress_download_manager.cc?format=TEXT",
+      "bytes": 28290,
+      "sha256": "5782c1232430f10b434372b0797465b358ca87f4bbe2f9885a29caae8dedb95f",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/internal/common/in_progress_download_manager.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/in_progress_download_manager_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/in_progress_download_manager_unittest.cc?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/chrome_download_manager_delegate.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/chrome_download_manager_delegate.cc?format=TEXT",
+      "bytes": 94316,
+      "sha256": "1a086221fd19b4c8c5ea927c143df6aab60a6720c3840976189f9fac296cca4b",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/chrome_download_manager_delegate.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/chrome_download_manager_delegate_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/chrome_download_manager_delegate_unittest.cc?format=TEXT",
+      "bytes": 117839,
+      "sha256": "5a1bb17f64017ff0e1dd8d84afee93a30e57a90321ce5766211696d6fa1dbc37",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/chrome_download_manager_delegate_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/download_history.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history.cc?format=TEXT",
+      "bytes": 26562,
+      "sha256": "c435e1910c064152cbc1b63dff2ae03e080546d4ec7a549ccd3014d2952e3e6d",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/download_history.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/download_history_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_history_unittest.cc?format=TEXT",
+      "bytes": 40761,
+      "sha256": "bc0a35e6542643bb3cb31ba394572926cd06026f1b08e7de3fd11646862dd9de",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/download_history_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/download_core_service_factory.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_core_service_factory.cc?format=TEXT",
+      "bytes": 2417,
+      "sha256": "60d8738b7952f1d05c7dfa85cfeb2bdd04b8dbaedf9906d992e68865c683247f",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/download_core_service_factory.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/download_core_service_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_core_service_impl.cc?format=TEXT",
+      "bytes": 6591,
+      "sha256": "2847aa9ef5233673c5d83e54b0da6ad46b0f6a0e23391bd6bf78249c78b7a79b",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/download_core_service_impl.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/download_target_determiner.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_target_determiner.cc?format=TEXT",
+      "bytes": 55571,
+      "sha256": "288e5b868aafaeec01f31940df48f884c389397ae2d430d5c91f76bfa590f582",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/download_target_determiner.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/download/download_target_determiner_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/download/download_target_determiner_unittest.cc?format=TEXT",
+      "bytes": 127470,
+      "sha256": "2995f0e9952afa019d2f4b92fc6ff11501eaaac6a568ab332dd072a164b680e8",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/download/download_target_determiner_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/save_package.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/save_package.cc?format=TEXT",
+      "bytes": 58817,
+      "sha256": "0343ee868704632d26eefc8de43465bef64997f78a6dbb47a5db506d2cd6cf14",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/save_package.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/save_package_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/save_package_unittest.cc?format=TEXT",
+      "bytes": 13600,
+      "sha256": "e3e077d697ceff708662219201915b75d5125410563994012df7142bad974838",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/save_package_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/save_package_browsertest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/save_package_browsertest.cc?format=TEXT",
+      "bytes": 14039,
+      "sha256": "ffcb0dea5192fd1d1fe0b927fce0d78e66cdbe1695ab39500035907ff29582eb",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/save_package_browsertest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu.cc?format=TEXT",
+      "bytes": 188865,
+      "sha256": "ec0c32e670485e3a02582418a57abf08020e77186371b5597fbe2f2548250e1d",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/renderer_context_menu/render_view_context_menu.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc?format=TEXT",
+      "bytes": 152942,
+      "sha256": "e8b9490b2ae93da80d273fbfc8b954899774c414f685bbd6fb99b4cc07816515",
+      "status": 200,
+      "local_path": "source/chromium/upstream/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_item_utils.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_item_utils.cc",
+      "bytes": 4934,
+      "sha256": "25c9b03c9ff86706ed74cef2fe6d042565a57ee0f41b4bb621dbe6327cc7c4c1",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/download_item_utils.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/public/browser/download_item_utils.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/public/browser/download_item_utils.h",
+      "bytes": 2190,
+      "sha256": "daf3c87382371de76453ecafb8c630310f26284d30e6f13958fd235ecb73ae8a",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/public/browser/download_item_utils.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_controller.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_controller.cc",
+      "bytes": 11213,
+      "sha256": "75fa26274cb99df990dedca2af9742b39a348bee8d2b2f45e834a783a36b6406",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_controller.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_impl_browsertest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl_browsertest.cc",
+      "bytes": 122215,
+      "sha256": "0c3863a8470ba5a3ea38c56b0b0bfdf59a90390013fe46171ca472555d8d52d4",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_impl_browsertest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_controller_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_controller_unittest.cc",
+      "bytes": 32377,
+      "sha256": "4d0b71676199786a87e1c4b2b65a637e56d2e7b279cacd226fa27714139fb29f",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_controller_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_impl_service_routing_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_impl_service_routing_unittest.cc",
+      "bytes": 51857,
+      "sha256": "3f37775af18f0fea319b9243f6337634b4ef53a43bcabe3e6bce3d6b88bf17be",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_impl_service_routing_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/media/session/media_session_controllers_manager.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/media/session/media_session_controllers_manager.cc",
+      "bytes": 5448,
+      "sha256": "25cf704014dee67e9739464682fac24ce37c42621cd388e58fc82b2ba048336b",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/media/session/media_session_controllers_manager.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/public/browser/media_session.h",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/public/browser/media_session.h",
+      "bytes": 7496,
+      "sha256": "f453a4e61a8273e2e47b9508c6b1f7825df5054c2fa386710074982842cfc269",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/public/browser/media_session.h"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+      "bytes": 16317,
+      "sha256": "05e04a5466b41064b9b3deb8217322c42dedc824c4ca2914e2cf1b471390b0b1",
+      "status": 200,
+      "local_path": "source/chromium/vendor/third_party/blink/renderer/core/html/media/autoplay_policy.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/download_db_cache.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache.cc",
+      "bytes": 7623,
+      "sha256": "7342cfc92d64102ac6feee7df47457b9836beef9976edab07a2d3a68e7535fd0",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/internal/common/download_db_cache.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/download_db_cache_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_cache_unittest.cc",
+      "bytes": 12263,
+      "sha256": "f4008be5ca7acacddcb05c86b8b5397f9042cdd193cdba4912181784ceb5a6eb",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/internal/common/download_db_cache_unittest.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/download_db_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_impl.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/internal/common/download_db_impl_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/internal/common/download_db_impl_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_item_utils.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_item_utils.cc?format=TEXT",
+      "bytes": 4934,
+      "sha256": "25c9b03c9ff86706ed74cef2fe6d042565a57ee0f41b4bb621dbe6327cc7c4c1",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/download_item_utils.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/public/browser/download_item_utils.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/public/browser/download_item_utils.h?format=TEXT",
+      "bytes": 2190,
+      "sha256": "daf3c87382371de76453ecafb8c630310f26284d30e6f13958fd235ecb73ae8a",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/public/browser/download_item_utils.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_controller.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_controller.cc?format=TEXT",
+      "bytes": 11213,
+      "sha256": "75fa26274cb99df990dedca2af9742b39a348bee8d2b2f45e834a783a36b6406",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_controller.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_impl_browsertest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_impl_browsertest.cc?format=TEXT",
+      "bytes": 122215,
+      "sha256": "0c3863a8470ba5a3ea38c56b0b0bfdf59a90390013fe46171ca472555d8d52d4",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_impl_browsertest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_controller_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_controller_unittest.cc?format=TEXT",
+      "bytes": 32377,
+      "sha256": "4d0b71676199786a87e1c4b2b65a637e56d2e7b279cacd226fa27714139fb29f",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_controller_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_impl_service_routing_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_impl_service_routing_unittest.cc?format=TEXT",
+      "bytes": 51857,
+      "sha256": "3f37775af18f0fea319b9243f6337634b4ef53a43bcabe3e6bce3d6b88bf17be",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_impl_service_routing_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/media/session/media_session_controllers_manager.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/media/session/media_session_controllers_manager.cc?format=TEXT",
+      "bytes": 5448,
+      "sha256": "25cf704014dee67e9739464682fac24ce37c42621cd388e58fc82b2ba048336b",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/media/session/media_session_controllers_manager.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/public/browser/media_session.h",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/public/browser/media_session.h?format=TEXT",
+      "bytes": 7496,
+      "sha256": "f453a4e61a8273e2e47b9508c6b1f7825df5054c2fa386710074982842cfc269",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/public/browser/media_session.h"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/third_party/blink/renderer/core/html/media/autoplay_policy.cc?format=TEXT",
+      "bytes": 16317,
+      "sha256": "05e04a5466b41064b9b3deb8217322c42dedc824c4ca2914e2cf1b471390b0b1",
+      "status": 200,
+      "local_path": "source/chromium/upstream/third_party/blink/renderer/core/html/media/autoplay_policy.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/download_db_cache.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/download_db_cache.cc?format=TEXT",
+      "bytes": 7623,
+      "sha256": "7342cfc92d64102ac6feee7df47457b9836beef9976edab07a2d3a68e7535fd0",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/internal/common/download_db_cache.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/download_db_cache_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/download_db_cache_unittest.cc?format=TEXT",
+      "bytes": 12263,
+      "sha256": "f4008be5ca7acacddcb05c86b8b5397f9042cdd193cdba4912181784ceb5a6eb",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/internal/common/download_db_cache_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/download_db_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/download_db_impl.cc?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/internal/common/download_db_impl_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/internal/common/download_db_impl_unittest.cc?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "third_party/blink/LICENSE",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/third_party/blink/LICENSE",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "third_party/blink/renderer/core/page/context_menu_controller.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/third_party/blink/renderer/core/page/context_menu_controller.cc",
+      "bytes": 37674,
+      "sha256": "0b5abd2c8450577d24b7d397dc7eadd191afa459e4f6aac85263207dcf821873",
+      "status": 200,
+      "local_path": "source/chromium/vendor/third_party/blink/renderer/core/page/context_menu_controller.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_request_utils.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_request_utils.cc",
+      "bytes": 1353,
+      "sha256": "af462e4e851772553f720fd6442b0d693fa5afe2c26f2dfd1c289f541c4ea0ab",
+      "status": 200,
+      "local_path": "source/chromium/vendor/content/browser/download/download_request_utils.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_request_utils_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_request_utils_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "content/browser/download/download_item_utils_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/content/browser/download/download_item_utils_unittest.cc",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/database/download_db_impl.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/database/download_db_impl.cc",
+      "bytes": 6388,
+      "sha256": "4fd306c5495c3ee0f42f0bd1d8a03ef89d502a5129fe53ff3e04372030d9b445",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/database/download_db_impl.cc"
+    },
+    {
+      "family": "vendor",
+      "revision": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+      "path": "components/download/database/download_db_impl_unittest.cc",
+      "url": "https://raw.githubusercontent.com/qt/qtwebengine-chromium/58c11ad487f8a237cf0ac71cc3e818b52db150df/chromium/components/download/database/download_db_impl_unittest.cc",
+      "bytes": 8976,
+      "sha256": "664206905c7395a93937b68e9394575f91900a0a7db9f8ff4d4a16835d564e46",
+      "status": 200,
+      "local_path": "source/chromium/vendor/components/download/database/download_db_impl_unittest.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "third_party/blink/LICENSE",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/third_party/blink/LICENSE?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "third_party/blink/renderer/core/page/context_menu_controller.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/third_party/blink/renderer/core/page/context_menu_controller.cc?format=TEXT",
+      "bytes": 37674,
+      "sha256": "0b5abd2c8450577d24b7d397dc7eadd191afa459e4f6aac85263207dcf821873",
+      "status": 200,
+      "local_path": "source/chromium/upstream/third_party/blink/renderer/core/page/context_menu_controller.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_request_utils.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_request_utils.cc?format=TEXT",
+      "bytes": 1507,
+      "sha256": "430700dbd4f5c974bd16ec14adb7486d32261a641a50cd8bd80c437dcc75894c",
+      "status": 200,
+      "local_path": "source/chromium/upstream/content/browser/download/download_request_utils.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_request_utils_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_request_utils_unittest.cc?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "content/browser/download/download_item_utils_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/content/browser/download/download_item_utils_unittest.cc?format=TEXT",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/database/download_db_impl.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/database/download_db_impl.cc?format=TEXT",
+      "bytes": 6388,
+      "sha256": "4fd306c5495c3ee0f42f0bd1d8a03ef89d502a5129fe53ff3e04372030d9b445",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/database/download_db_impl.cc"
+    },
+    {
+      "family": "upstream",
+      "revision": "56ca847e9ea70a5c56fa3d634361da1002fb284b",
+      "path": "components/download/database/download_db_impl_unittest.cc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/56ca847e9ea70a5c56fa3d634361da1002fb284b/components/download/database/download_db_impl_unittest.cc?format=TEXT",
+      "bytes": 8976,
+      "sha256": "664206905c7395a93937b68e9394575f91900a0a7db9f8ff4d4a16835d564e46",
+      "status": 200,
+      "local_path": "source/chromium/upstream/components/download/database/download_db_impl_unittest.cc"
+    }
+  ],
+  "comparisons": [
+    {
+      "path": "LICENSE",
+      "byte_identical": true
+    },
+    {
+      "path": "content/public/browser/web_contents.h",
+      "byte_identical": false
+    },
+    {
+      "path": "content/browser/web_contents/web_contents_impl.cc",
+      "byte_identical": false
+    },
+    {
+      "path": "content/browser/media/session/media_session_impl.cc",
+      "byte_identical": false
+    },
+    {
+      "path": "content/browser/media/session/media_session_impl.h",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_impl_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_browsertest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/media_web_contents_observer.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/download/download_manager_impl.cc",
+      "byte_identical": false
+    },
+    {
+      "path": "content/browser/download/download_manager_impl.h",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/download/download_manager_impl_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/public/browser/download_manager.h",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/public/common/download_item.h",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/internal/common/download_item_impl.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/internal/common/download_item_impl_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/internal/common/in_progress_download_manager.cc",
+      "byte_identical": false
+    },
+    {
+      "path": "content/browser/download/save_package.cc",
+      "byte_identical": false
+    },
+    {
+      "path": "content/browser/download/save_package_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/download/save_package_browsertest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/download/download_item_utils.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/public/browser/download_item_utils.h",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_controller.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_impl_browsertest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_controller_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_impl_service_routing_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/media/session/media_session_controllers_manager.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/public/browser/media_session.h",
+      "byte_identical": true
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/media/autoplay_policy.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/internal/common/download_db_cache.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/internal/common/download_db_cache_unittest.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "third_party/blink/renderer/core/page/context_menu_controller.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "content/browser/download/download_request_utils.cc",
+      "byte_identical": false
+    },
+    {
+      "path": "components/download/database/download_db_impl.cc",
+      "byte_identical": true
+    },
+    {
+      "path": "components/download/database/download_db_impl_unittest.cc",
+      "byte_identical": true
+    }
+  ],
+  "tests_executed": false,
+  "builds_executed": false
+}

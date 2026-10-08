@@ -1,0 +1,27 @@
+{
+  "artifact_checks_only": true,
+  "categories": [
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "source_anchors_verified": 75,
+  "source_manifest_hash_checks": [
+    {
+      "manifest": "source/cef/manifest.json",
+      "retrieved_files": 64,
+      "hashes_verified": true
+    },
+    {
+      "manifest": "source/cef/chromium-integration/manifest.json",
+      "retrieved_files": 10,
+      "hashes_verified": true
+    }
+  ],
+  "tests_executed": false,
+  "builds_executed": false,
+  "production_changes": false,
+  "claims": "Local evidence-file presence/line-range/hash checks only; no runtime or product test result."
+}

@@ -1,0 +1,875 @@
+--- upstream/content/public/browser/web_contents.h
++++ vendor/content/public/browser/web_contents.h
+@@ -1261,7 +1261,7 @@
+   // Returns false if the request is no longer valid, otherwise true.
+   virtual bool GotResponseToKeyboardLockRequest(bool allowed) = 0;
+ 
+-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
++#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_QTWEBENGINE)
+   // Called when the user has selected a color in the color chooser.
+   virtual void DidChooseColorInColorChooser(SkColor color) = 0;
+ 
+@@ -1432,6 +1432,7 @@
+   // view resize. e.g. This will be false when going from tab fullscreen to
+   // browser fullscreen.
+   virtual void ExitFullscreen(bool will_cause_resize) = 0;
++  virtual void NotifyFullscreenChanged(bool will_cause_resize) = 0;
+ 
+   // The WebContents is trying to take some action that would cause user
+   // confusion if taken while in fullscreen. If this WebContents or any outer
+--- upstream/content/browser/web_contents/web_contents_impl.cc
++++ vendor/content/browser/web_contents/web_contents_impl.cc
+@@ -815,7 +815,7 @@
+   if (outer_web_contents) {
+     outer_web_contents->InnerWebContentsCreated(new_contents.get());
+   }
+-  return new_contents;
++  return std::unique_ptr<WebContents>(new_contents.release());
+ }
+ 
+ base::CallbackListSubscription
+@@ -1015,7 +1015,7 @@
+   raw_ptr<WebContentsImpl> owner_;
+ };
+ 
+-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
++#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_QTWEBENGINE)
+ // TODO(sreejakshetty): Make |WebContentsImpl::ColorChooserHolder| per-frame
+ // instead of WebContents-owned.
+ // WebContentsImpl::ColorChooserHolder -----------------------------------------
+@@ -1512,7 +1512,7 @@
+   // Clear out any JavaScript state.
+   CancelDialogManagerDialogs(/*reset_state=*/true);
+ 
+-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
++#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_QTWEBENGINE)
+   color_chooser_holder_.reset();
+ #endif
+   find_request_manager_.reset();
+@@ -2412,7 +2412,7 @@
+ 
+ void WebContentsImpl::SetAlwaysSendSubresourceNotifications() {
+   if (!base::FeatureList::IsEnabled(
+-          features::kReduceSubresourceResponseStartedIPC)) {
++          ::features::kReduceSubresourceResponseStartedIPC)) {
+     return;
+   }
+ 
+@@ -2442,6 +2442,7 @@
+                         "override_in_new_tabs", override_in_new_tabs);
+   DCHECK(!ua_override.ua_metadata_override.has_value() ||
+          !ua_override.ua_string_override.empty());
++  should_override_user_agent_in_new_tabs_ = override_in_new_tabs;
+ 
+   if (GetUserAgentOverride() == ua_override) {
+     return;
+@@ -2451,8 +2452,6 @@
+       !net::HttpUtil::IsValidHeaderValue(ua_override.ua_string_override)) {
+     return;
+   }
+-
+-  should_override_user_agent_in_new_tabs_ = override_in_new_tabs;
+ 
+   // Update any in-flight load requests with overrides for new tabs.
+   if (delayed_load_url_params_.get()) {
+@@ -2650,7 +2649,7 @@
+ }
+ 
+ void WebContentsImpl::Discard(base::OnceClosure on_discarded_cb) {
+-  if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
++  if (!base::FeatureList::IsEnabled(::features::kWebContentsDiscard)) {
+     NOTREACHED();
+   }
+ 
+@@ -3144,9 +3143,9 @@
+          "IsPerceptibleImportanceSupported() is false";
+   CHECK(main_frame_importance >= subframe_importance);
+ 
+-  if (base::FeatureList::IsEnabled(features::kSubframeImportance)) {
++  if (base::FeatureList::IsEnabled(::features::kSubframeImportance)) {
+     CHECK(
+-        base::FeatureList::IsEnabled(features::kSubframePriorityContribution));
++        base::FeatureList::IsEnabled(::features::kSubframePriorityContribution));
+     if (subframe_importance != primary_subframe_importance_) {
+       primary_subframe_importance_ = subframe_importance;
+       ApplyPrimaryPageSubframeImportance();
+@@ -3248,7 +3247,7 @@
+     RenderFrameHost* render_frame_host,
+     bool is_full_page) {
+   // Not reachable with MPArch based guest view.
+-  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
++  CHECK(!base::FeatureList::IsEnabled(::features::kGuestViewMPArch));
+   AttachInnerWebContentsImpl(inner_web_contents.release(), render_frame_host,
+                              is_full_page,
+                              /*should_take_ownership=*/true);
+@@ -3390,7 +3389,7 @@
+ 
+ void WebContentsImpl::DetachUnownedInnerWebContents(
+     WebContents* inner_web_contents) {
+-  CHECK(base::FeatureList::IsEnabled(features::kAttachUnownedInnerWebContents));
++  CHECK(base::FeatureList::IsEnabled(::features::kAttachUnownedInnerWebContents));
+   CHECK(node_.IsUnownedInnerWebContents(inner_web_contents));
+ 
+   WebContentsImpl* inner_web_contents_impl =
+@@ -3453,7 +3452,7 @@
+ void WebContentsImpl::AttachGuestPage(
+     std::unique_ptr<GuestPageHolder> guest_page,
+     RenderFrameHost* outer_render_frame_host) {
+-  CHECK(base::FeatureList::IsEnabled(features::kGuestViewMPArch));
++  CHECK(base::FeatureList::IsEnabled(::features::kGuestViewMPArch));
+ 
+   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::AttachGuestPage",
+                         "guest_page", static_cast<void*>(guest_page.get()));
+@@ -3663,7 +3662,7 @@
+       !command_line.HasSwitch(switches::kDisableAccelerated2dCanvas);
+   prefs.canvas_2d_layers_enabled =
+       command_line.HasSwitch(switches::kEnableCanvas2DLayers) ||
+-      base::FeatureList::IsEnabled(features::kEnableCanvas2DLayers);
++      base::FeatureList::IsEnabled(::features::kEnableCanvas2DLayers);
+   prefs.antialiased_2d_canvas_disabled =
+       command_line.HasSwitch(switches::kDisable2dCanvasAntialiasing);
+   prefs.antialiased_clips_2d_canvas_enabled =
+@@ -3692,7 +3691,7 @@
+   }
+ 
+   prefs.dont_send_key_events_to_javascript =
+-      base::FeatureList::IsEnabled(features::kDontSendKeyEventsToJavascript);
++      base::FeatureList::IsEnabled(::features::kDontSendKeyEventsToJavascript);
+ 
+ // TODO(dtapuska): Enable barrel button selection drag support on Android.
+ // crbug.com/758042
+@@ -3763,7 +3762,7 @@
+   prefs.long_press_link_select_text = long_press_link_select_text_;
+ 
+   if (base::FeatureList::IsEnabled(
+-          features::kRestrictOrientationLockToPhones)) {
++          ::features::kRestrictOrientationLockToPhones)) {
+     // Only lock fullscreen orientation if the provider allows it, and if the
+     // prefs currently want to do so.  While current behavior happens to match
+     // exactly with the provider claiming to support orientation lock, we still
+@@ -3828,10 +3827,10 @@
+   }
+ 
+   prefs.payment_request_enabled =
+-      base::FeatureList::IsEnabled(features::kWebPayments);
++      base::FeatureList::IsEnabled(::features::kWebPayments);
+ 
+ #if BUILDFLAG(IS_ANDROID)
+-  if (base::FeatureList::IsEnabled(features::kWebauthnDisabledOnAuto) &&
++  if (base::FeatureList::IsEnabled(::features::kWebauthnDisabledOnAuto) &&
+       base::android::BuildInfo::GetInstance()->is_automotive()) {
+     prefs.disable_webauthn = true;
+   }
+@@ -4102,7 +4101,7 @@
+   tc->GetController().CopyStateFrom(&primary_frame_tree_.controller(), true);
+   observers_.NotifyObservers(&WebContentsObserver::DidCloneToNewWebContents,
+                              this, tc.get());
+-  return tc;
++  return std::unique_ptr<WebContents>(tc.release());
+ }
+ 
+ void WebContentsImpl::Init(const WebContents::CreateParams& params,
+@@ -4240,7 +4239,7 @@
+   // Checks whether the associated ssl_manager has any certificate error or HTTP
+   // exceptions for any host and updates the renderer preferences.
+   if (base::FeatureList::IsEnabled(
+-          features::kReduceSubresourceResponseStartedIPC) &&
++          ::features::kReduceSubresourceResponseStartedIPC) &&
+       GetController().ssl_manager()->HasAllowExceptionForAnyHost()) {
+     renderer_preferences_.send_subresource_notification = true;
+     SyncRendererPrefs();
+@@ -4567,6 +4566,40 @@
+   return hosts;
+ }
+ 
++void WebContentsImpl::NotifyFullscreenChanged(bool will_cause_resize) {
++  // The fullscreen state is communicated to the renderer through a resize
++  // message. If the change in fullscreen state doesn't cause a view resize
++  // then we must ensure web contents exit the fullscreen state by explicitly
++  // sending a resize message. This is required for the situation of the browser
++  // moving the view into a "browser fullscreen" state and then the contents
++  // entering "tab fullscreen". Exiting the contents "tab fullscreen" then won't
++  // have the side effect of the view resizing, hence the explicit call here is
++  // required.
++  if (!will_cause_resize) {
++    if (RenderWidgetHostView* rwh_view = GetRenderWidgetHostView()) {
++      if (RenderWidgetHost* render_widget_host = rwh_view->GetRenderWidgetHost())
++        render_widget_host->SynchronizeVisualProperties();
++    }
++  }
++
++  bool exitedFullscreen = !IsFullscreen();
++  if (exitedFullscreen)
++    current_fullscreen_frame_id_ = GlobalRenderFrameHostId();
++
++  observers_.NotifyObservers(
++      &WebContentsObserver::DidToggleFullscreenModeForTab, !exitedFullscreen,
++      will_cause_resize);
++
++  if (safe_area_insets_host_ && exitedFullscreen) {
++    safe_area_insets_host_->DidExitFullscreen();
++  }
++
++  if (exitedFullscreen)
++    FullscreenContentsSet(GetBrowserContext())->erase(this);
++  else
++    FullscreenContentsSet(GetBrowserContext())->insert(this);
++}
++
+ RenderWidgetHostImpl* WebContentsImpl::GetFocusedRenderWidgetHost(
+     RenderWidgetHostImpl* receiving_widget) {
+   // Events for widgets other than the main frame (e.g., popup menus) should be
+@@ -4624,7 +4657,7 @@
+   DCHECK(requesting_frame->IsActive());
+   DCHECK(ContainsOrIsFocusedWebContents());
+   if (base::FeatureList::IsEnabled(
+-          features::kAutomaticFullscreenContentSetting)) {
++          ::features::kAutomaticFullscreenContentSetting)) {
+     // Ensure the window is made active to take input focus. The user may have
+     // activated another window between making a gesture and the site handling
+     // that gesture to request fullscreen. The experimental automatic fullscreen
+@@ -4641,17 +4674,21 @@
+   }
+ 
+   if (delegate_) {
++    // This may spin the message loop and destroy this object.
++    // See crbug.com/1506535, crbug.com/498752242.
++    base::WeakPtr<WebContents> weak_ptr = GetWeakPtr();
+     delegate_->EnterFullscreenModeForTab(requesting_frame, options);
++    if (!weak_ptr) {
++      return;
++    }
+ 
+     if (keyboard_lock_widget_) {
+       delegate_->RequestKeyboardLock(this, esc_key_locked_);
+     }
+   }
+ 
+-  observers_.NotifyObservers(
+-      &WebContentsObserver::DidToggleFullscreenModeForTab, IsFullscreen(),
+-      false);
+-  FullscreenContentsSet(GetBrowserContext())->insert(this);
++  if (IsFullscreen())
++      NotifyFullscreenChanged(false);
+ }
+ 
+ void WebContentsImpl::ExitFullscreenMode(bool will_cause_resize) {
+@@ -4669,8 +4706,9 @@
+                          base::TimeTicks::Now());
+ 
+   if (delegate_) {
+-    // This may spin the message loop and destroy this object crbug.com/1506535
+-    base::WeakPtr<WebContentsImpl> weak_ptr = weak_factory_.GetWeakPtr();
++    // This may spin the message loop and destroy this object.
++    // See crbug.com/1506535, crbug.com/498752242.
++    base::WeakPtr<WebContents> weak_ptr = GetWeakPtr();
+     delegate_->ExitFullscreenModeForTab(this);
+     if (!weak_ptr) {
+       return;
+@@ -4681,33 +4719,8 @@
+     }
+   }
+ 
+-  // The fullscreen state is communicated to the renderer through a resize
+-  // message. If the change in fullscreen state doesn't cause a view resize
+-  // then we must ensure web contents exit the fullscreen state by explicitly
+-  // sending a resize message. This is required for the situation of the browser
+-  // moving the view into a "browser fullscreen" state and then the contents
+-  // entering "tab fullscreen". Exiting the contents "tab fullscreen" then won't
+-  // have the side effect of the view resizing, hence the explicit call here is
+-  // required.
+-  if (!will_cause_resize) {
+-    if (RenderWidgetHostView* rwhv = GetRenderWidgetHostView()) {
+-      if (RenderWidgetHost* render_widget_host = rwhv->GetRenderWidgetHost()) {
+-        render_widget_host->SynchronizeVisualProperties();
+-      }
+-    }
+-  }
+-
+-  current_fullscreen_frame_id_ = GlobalRenderFrameHostId();
+-
+-  observers_.NotifyObservers(
+-      &WebContentsObserver::DidToggleFullscreenModeForTab, IsFullscreen(),
+-      will_cause_resize);
+-
+-  if (safe_area_insets_host_) {
+-    safe_area_insets_host_->DidExitFullscreen();
+-  }
+-
+-  FullscreenContentsSet(GetBrowserContext())->erase(this);
++  if (!IsFullscreen())
++    NotifyFullscreenChanged(will_cause_resize);
+ }
+ 
+ void WebContentsImpl::FullscreenStateChanged(
+@@ -5192,7 +5205,7 @@
+   }
+ 
+   // Not reachable with MPArch based guests.
+-  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
++  CHECK(!base::FeatureList::IsEnabled(::features::kGuestViewMPArch));
+ 
+   DCHECK(GetOuterWebContents());
+ 
+@@ -5271,7 +5284,7 @@
+       params.disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB;
+ 
+   bool is_guest =
+-      base::FeatureList::IsEnabled(features::kGuestViewMPArch)
++      base::FeatureList::IsEnabled(::features::kGuestViewMPArch)
+           ? opener->GetOutermostMainFrame()->frame_tree()->is_guest()
+           : IsGuest();
+   // While some guest types do not have a guest SiteInstance, the ones that
+@@ -5296,7 +5309,7 @@
+     site_instance = source_site_instance;
+   }
+ 
+-  if (is_guest && base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
++  if (is_guest && base::FeatureList::IsEnabled(::features::kGuestViewMPArch)) {
+     if (auto* guest = GuestPageHolderImpl::FromRenderFrameHost(*opener)) {
+       return guest->CreateNewWindow(
+           params.disposition, params.target_url, params.frame_name,
+@@ -5429,6 +5442,10 @@
+     return &new_contents_impl->GetPrimaryFrameTree();
+   }
+ 
++  auto initiator_origin = opener->GetLastCommittedOrigin();
++  auto initiator_process_id = opener->GetProcess()->GetDeprecatedID();
++  auto initiator_frame_token = opener->GetFrameToken();
++
+   // When the opener is suppressed, the original renderer cannot access the
+   // new window.  As a result, we need to show and navigate the window here.
+   bool was_blocked = false;
+@@ -5440,7 +5457,7 @@
+         this, std::move(new_contents), params.target_url, params.disposition,
+         *params.features, has_user_gesture, &was_blocked);
+ 
+-    if (base::FeatureList::IsEnabled(features::kPwaNavigationCapturing)) {
++    if (base::FeatureList::IsEnabled(::features::kPwaNavigationCapturing)) {
+       // The delegate may delete |new_contents_impl| during AddNewContents().
+       // If that occurs and there isn't a replacement contents returned, exit.
+       // Otherwise, use the replacement web contents that was navigated in.
+@@ -5464,9 +5481,10 @@
+     std::unique_ptr<NavigationController::LoadURLParams> load_params =
+         std::make_unique<NavigationController::LoadURLParams>(
+             params.target_url);
+-    load_params->initiator_origin = opener->GetLastCommittedOrigin();
+-    load_params->initiator_process_id = opener->GetProcess()->GetDeprecatedID();
+-    load_params->initiator_frame_token = opener->GetFrameToken();
++    load_params->initiator_origin = initiator_origin;
++    load_params->initiator_process_id = initiator_process_id;
++    load_params->initiator_frame_token = initiator_frame_token;
++
+     // Avoiding setting |load_params->source_site_instance| when
+     // |opener_suppressed| is true, because in that case we do not want to use
+     // the old SiteInstance and/or BrowsingInstance.  See also the test here:
+@@ -5670,6 +5688,16 @@
+     return;
+   }
+ 
++  RenderWidgetHostImpl* rwh = GetPrimaryMainFrame()->GetRenderWidgetHost();
++  if (base::FeatureList::IsEnabled(
++          blink::features::kBlockSelectPopupUnfocusedWindow) &&
++      !rwh->is_active()) {
++    // If the OS window isn't focused, then don't open select element popups for
++    // it: https://issues.chromium.org/issues/365089001
++    widget_host_view->host()->ShutdownAndDestroyWidget(true);
++    return;
++  }
++
+   // GetOutermostWebContents() returns |this| if there are no outer WebContents.
+   auto* outer_web_contents = GetOuterWebContents();
+   auto* outermost_web_contents = GetOutermostWebContents();
+@@ -5707,6 +5735,13 @@
+   }
+ 
+   RenderWidgetHostImpl* render_widget_host_impl = widget_host_view->host();
++
++  // A background tab cannot show a popup over the active tab.
++  if (GetVisibility() != Visibility::VISIBLE) {
++    render_widget_host_impl->ShutdownAndDestroyWidget(true);
++    return;
++  }
++
+   auto permission_exclusion_area_bounds =
+       PermissionControllerImpl::FromBrowserContext(GetBrowserContext())
+           ->GetExclusionAreaBoundsInScreen(outermost_web_contents);
+@@ -6323,7 +6358,7 @@
+   }
+ 
+   if (source_render_frame_host &&
+-      base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
++      base::FeatureList::IsEnabled(::features::kGuestViewMPArch)) {
+     if (auto* guest = GuestPageHolderImpl::FromRenderFrameHost(
+             *source_render_frame_host)) {
+       if (auto* delegate = guest->delegate()) {
+@@ -6642,7 +6677,8 @@
+     return;
+   }
+ 
+-  Stop();
++  if (IsLoading())
++    Stop();
+ 
+   // Create the save package and possibly prompt the user for the name to save
+   // the page as. The user prompt is an asynchronous operation that runs on
+@@ -6739,9 +6775,7 @@
+             "triggered by user request."
+           policy_exception_justification: "Not implemented."
+         })");
+-  auto params = std::make_unique<download::DownloadUrlParameters>(
+-      url, rfh->GetProcess()->GetDeprecatedID(), rfh->GetRoutingID(),
+-      traffic_annotation);
++  auto params = rfh->CreateDownloadUrlParameters(url, traffic_annotation);
+   params->set_referrer(referrer.url);
+   params->set_referrer_policy(
+       Referrer::ReferrerPolicyForUrlRequest(referrer.policy));
+@@ -6775,6 +6809,7 @@
+           .GetLastCommittedEntry()
+           ->GetFrameEntry(frame_tree_node);
+   if (frame_navigation_entry) {
++    // Replay the original initiator, rather than using the current frame origin
+     params->set_initiator(frame_navigation_entry->initiator_origin());
+   }
+ 
+@@ -7018,7 +7053,7 @@
+                     : nullptr;
+ }
+ 
+-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
++#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_QTWEBENGINE)
+ void WebContentsImpl::DidChooseColorInColorChooser(SkColor color) {
+   OPTIONAL_TRACE_EVENT1("content",
+                         "WebContentsImpl::DidChooseColorInColorChooser",
+@@ -7178,10 +7213,20 @@
+   // upstream contents. Drop that WebContents out of fullscreen if it does. This
+   // is theoretically quadratic-ish (fullscreen contentses x each one's opener
+   // length) but neither of those is expected to ever be a large number.
+-  auto fullscreen_set_copy = *FullscreenContentsSet(GetBrowserContext());
+-  for (WebContentsImpl* fullscreen_contents : fullscreen_set_copy) {
+-    if (is_fullscreen(fullscreen_contents, display_id)) {
+-      auto opener_contentses = GetAllOpeningWebContents(fullscreen_contents);
++  std::vector<base::WeakPtr<WebContentsImpl>> fullscreen_contents_list;
++  for (WebContentsImpl* fullscreen_contents :
++       *FullscreenContentsSet(GetBrowserContext())) {
++    fullscreen_contents_list.push_back(
++        fullscreen_contents->weak_factory_.GetWeakPtr());
++  }
++
++  for (auto& fullscreen_contents : fullscreen_contents_list) {
++    if (!fullscreen_contents) {
++      continue;
++    }
++    if (is_fullscreen(fullscreen_contents.get(), display_id)) {
++      auto opener_contentses =
++          GetAllOpeningWebContents(fullscreen_contents.get());
+       if (opener_contentses.count(this)) {
+         fullscreen_contents->ExitFullscreen(true);
+       }
+@@ -7195,29 +7240,41 @@
+   // any request to enter fullscreen will have the upstream of the WebContents
+   // checked. (See CanEnterFullscreenMode().)
+ 
+-  std::vector<base::WeakPtr<WebContentsImpl>> blocked_contentses;
+-
+-  for (auto* opener : GetAllOpeningWebContents(this)) {
+-    if (is_fullscreen(opener, display_id)) {
++  std::vector<base::WeakPtr<WebContentsImpl>> blocked_contents_list;
++  std::vector<base::WeakPtr<WebContentsImpl>> openers;
++  for (WebContentsImpl* opener : GetAllOpeningWebContents(this)) {
++    openers.push_back(opener->weak_factory_.GetWeakPtr());
++  }
++
++  for (auto& opener : openers) {
++    if (!opener) {
++      continue;
++    }
++
++    if (is_fullscreen(opener.get(), display_id)) {
+       opener->ExitFullscreen(true);
++    }
++
++    if (!opener) {
++      continue;
+     }
+ 
+     // ...block the WebContents from entering fullscreen until further notice.
+     ++opener->fullscreen_blocker_count_;
+-    blocked_contentses.push_back(opener->weak_factory_.GetWeakPtr());
++    blocked_contents_list.push_back(opener);
+   }
+ 
+   return base::ScopedClosureRunner(base::BindOnce(
+-      [](std::vector<base::WeakPtr<WebContentsImpl>> blocked_contentses) {
++      [](std::vector<base::WeakPtr<WebContentsImpl>> blocked_contents_list) {
+         for (base::WeakPtr<WebContentsImpl>& web_contents :
+-             blocked_contentses) {
++             blocked_contents_list) {
+           if (web_contents) {
+             DCHECK_GT(web_contents->fullscreen_blocker_count_, 0);
+             --web_contents->fullscreen_blocker_count_;
+           }
+         }
+       },
+-      std::move(blocked_contentses)));
++      std::move(blocked_contents_list)));
+ }
+ 
+ void WebContentsImpl::ResumeLoadingCreatedWebContents() {
+@@ -7625,16 +7682,8 @@
+   }
+ #endif
+ 
+-  // Ensure fullscreen mode is exited before committing the navigation to a
+-  // different page.  The next page will not start out assuming it is in
+-  // fullscreen mode.
+   if (navigation_is_within_page) {
+-    // No page change?  Then, the renderer and browser can remain in fullscreen.
+-    return;
+-  }
+-
+-  if (IsFullscreen()) {
+-    ExitFullscreen(false);
++    return;
+   }
+ 
+   auto* rwhvb = static_cast<RenderWidgetHostViewBase*>(
+@@ -7643,8 +7692,51 @@
+     rwhvb->OnOldViewDidNavigatePreCommit();
+   }
+ 
+-  // Clean up keyboard lock state when navigating.
+   CancelKeyboardLock(keyboard_lock_widget_);
++}
++
++void WebContentsImpl::DidNavigateAnyFramePreCommit(
++    NavigationHandle* navigation_handle,
++    bool navigation_is_within_page) {
++  // Ensure fullscreen mode is exited before committing the navigation to a
++  // different page.  The next page will not start out assuming it is in
++  // fullscreen mode.
++  if (navigation_is_within_page || !IsFullscreen()) {
++    return;
++  }
++
++  bool should_exit_fullscreen = false;
++  if (navigation_handle->IsInPrimaryMainFrame()) {
++    should_exit_fullscreen = true;
++  } else {
++    // For iframe navigation, exit if the fullscreen was requested by the
++    // iframe or one of its descendants.
++    const FrameTreeNodeId navigating_id =
++        navigation_handle->GetFrameTreeNodeId();
++    should_exit_fullscreen =
++        std::any_of(fullscreen_frames_.begin(), fullscreen_frames_.end(),
++                    [navigating_id](RenderFrameHostImpl* rfh) {
++                      for (RenderFrameHostImpl* current = rfh; current;
++                           current = current->GetParentOrOuterDocument()) {
++                        if (current->frame_tree_node()->frame_tree_node_id() ==
++                            navigating_id) {
++                          return true;
++                        }
++                      }
++                      return false;
++                    });
++  }
++
++  if (should_exit_fullscreen) {
++    base::WeakPtr<WebContentsImpl> weak_this = weak_factory_.GetWeakPtr();
++    ExitFullscreen(false);
++
++    // If `this` gets destructed due to ExitFullscreen(), we need to exit early.
++    if (!weak_this) {
++      return;
++    }
++    CancelKeyboardLock(keyboard_lock_widget_);
++  }
+ }
+ 
+ void WebContentsImpl::DidNavigateMainFramePostCommit(
+@@ -8291,7 +8383,7 @@
+   color_chooser_factory_receivers_.Add(this, std::move(receiver));
+ }
+ 
+-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
++#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_QTWEBENGINE)
+ void WebContentsImpl::OpenColorChooser(
+     mojo::PendingReceiver<blink::mojom::ColorChooser> chooser_receiver,
+     mojo::PendingRemote<blink::mojom::ColorChooserClient> client,
+@@ -8369,9 +8461,9 @@
+   }
+ #if BUILDFLAG(IS_ANDROID)
+   if (base::FeatureList::IsEnabled(
+-          features::kAndroidWarmUpSpareRendererWithTimeout) &&
+-      features::kAndroidSpareRendererCreationTiming.Get() ==
+-          features::kAndroidSpareRendererCreationAfterFirstPaint) {
++          ::features::kAndroidWarmUpSpareRendererWithTimeout) &&
++      ::features::kAndroidSpareRendererCreationTiming.Get() ==
++          ::features::kAndroidSpareRendererCreationAfterFirstPaint) {
+     WarmUpAndroidSpareRenderer();
+   }
+ #endif
+@@ -8620,7 +8712,7 @@
+   }
+ 
+ #if BUILDFLAG(IS_ANDROID)
+-  if (base::FeatureList::IsEnabled(features::kSubframeImportance) &&
++  if (base::FeatureList::IsEnabled(::features::kSubframeImportance) &&
+       render_frame_host->GetParent() &&
+       render_frame_host->frame_tree()->is_primary()) {
+     if (auto* rwh = render_frame_host->GetLocalRenderWidgetHost()) {
+@@ -9479,9 +9571,9 @@
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   if (base::FeatureList::IsEnabled(
+-          features::kAndroidWarmUpSpareRendererWithTimeout) &&
+-      features::kAndroidSpareRendererCreationTiming.Get() ==
+-          features::kAndroidSpareRendererCreationAfterLoading) {
++          ::features::kAndroidWarmUpSpareRendererWithTimeout) &&
++      ::features::kAndroidSpareRendererCreationTiming.Get() ==
++          ::features::kAndroidSpareRendererCreationAfterLoading) {
+     WarmUpAndroidSpareRenderer();
+   }
+ #endif
+@@ -9547,7 +9639,7 @@
+                                               ax::mojom::Role role) {
+ // The AXTreeFixing feature is not currently available on Android.
+ #if !BUILDFLAG(IS_ANDROID)
+-  CHECK(features::IsAXTreeFixingEnabled());
++  CHECK(::features::IsAXTreeFixingEnabled());
+ 
+   GetPrimaryMainFrame()->ForEachRenderFrameHostImplWithAction(
+       [tree_id, node_id, role](RenderFrameHostImpl* rfhi) {
+@@ -9988,7 +10080,7 @@
+   // TODO(https://crbug.com/376085320): MPArch based <webview> allows focus on
+   // the inner frame tree node. For now, disable this DCHECK when the flag is
+   // enabled.
+-  DCHECK(base::FeatureList::IsEnabled(features::kGuestViewMPArch) ||
++  DCHECK(base::FeatureList::IsEnabled(::features::kGuestViewMPArch) ||
+          inner_contents ||
+          node->current_frame_host()
+              ->inner_tree_main_frame_tree_node_id()
+@@ -10498,7 +10590,7 @@
+ 
+   // With SetHistoryInfoOnViewCreation enabled, the history and index length are
+   // sent as part of the the CreateView() IPC via the CreateViewParams.
+-  if (!base::FeatureList::IsEnabled(features::kSetHistoryInfoOnViewCreation)) {
++  if (!base::FeatureList::IsEnabled(::features::kSetHistoryInfoOnViewCreation)) {
+     SetHistoryIndexAndLengthForView(
+         render_view_host,
+         rvh_impl->frame_tree()->controller().GetLastCommittedEntryIndex(),
+@@ -11388,7 +11480,7 @@
+     return {};
+   }
+   std::vector<FrameTreeNode*> unattached_owned_nodes;
+-  if (base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
++  if (base::FeatureList::IsEnabled(::features::kGuestViewMPArch)) {
+     guest_manager->ForEachUnattachedGuestPage(
+         owner->GetPage(), [&](GuestPageHolder& guest_page) {
+           unattached_owned_nodes.push_back(
+@@ -11807,7 +11899,7 @@
+   // pages restored from back/forward cache. Note that we don't need to clear
+   // importance for non-primary pages because the importance is ignored at
+   // RenderWidgetHostImpl::GetPriority() and updated when it becomes inactive.
+-  if (base::FeatureList::IsEnabled(features::kSubframeImportance)) {
++  if (base::FeatureList::IsEnabled(::features::kSubframeImportance)) {
+     ApplyPrimaryPageSubframeImportance();
+   }
+ #endif
+@@ -11868,7 +11960,7 @@
+                        "render_frame_host", render_frame_host, "old_state",
+                        old_state, "new_state", new_state);
+ 
+-#if BUILDFLAG(IS_ANDROID)
++#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_QTWEBENGINE)
+   if (old_state == LifecycleState::kActive && !render_frame_host->GetParent()) {
+     // TODO(sreejakshetty): Remove this reset when ColorChooserHolder becomes
+     // per-frame.
+@@ -12042,7 +12134,7 @@
+     std::optional<PreloadingHoldbackStatus> holdback_status_override,
+     std::optional<base::TimeDelta> ttl) {
+   if (!base::FeatureList::IsEnabled(
+-          features::kPrefetchBrowserInitiatedTriggers)) {
++          ::features::kPrefetchBrowserInitiatedTriggers)) {
+     return nullptr;
+   }
+ 
+@@ -12279,11 +12371,11 @@
+     return;
+   }
+   if (!GetLastCommittedURL().SchemeIsHTTPOrHTTPS() &&
+-      features::kAndroidSpareRendererOnlyWarmupAfterWebPageLoaded.Get()) {
++      ::features::kAndroidSpareRendererOnlyWarmupAfterWebPageLoaded.Get()) {
+     return;
+   }
+   int renderer_timeout_seconds =
+-      features::kAndroidSpareRendererTimeoutSeconds.Get();
++      ::features::kAndroidSpareRendererTimeoutSeconds.Get();
+   if (renderer_timeout_seconds < 0) {
+     SpareRenderProcessHostManagerImpl::Get().WarmupSpare(GetBrowserContext());
+   } else {
+--- upstream/content/browser/media/session/media_session_impl.cc
++++ vendor/content/browser/media/session/media_session_impl.cc
+@@ -8,6 +8,7 @@
+ #include <memory>
+ #include <utility>
+ 
++#include "base/containers/flat_set.h"
+ #include "base/containers/contains.h"
+ #include "base/functional/bind.h"
+ #include "base/strings/string_util.h"
+@@ -43,6 +44,7 @@
+ #include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
+ #include "third_party/blink/public/strings/grit/blink_strings.h"
+ #include "ui/gfx/favicon_size.h"
++#include "url/url_constants.h"
+ 
+ #if BUILDFLAG(IS_ANDROID)
+ #include "content/browser/media/session/media_session_android.h"
+@@ -1265,7 +1267,6 @@
+     return;
+   }
+ 
+-  DCHECK_EQ(normal_players_.size(), 1u);
+   if (normal_players_.size() != 1u) {
+     // There should be one and only one player when we enter picture-in-picture.
+     return;
+@@ -1330,13 +1331,23 @@
+ }
+ 
+ void MediaSessionImpl::SetMute(bool mute) {
+-  DCHECK_EQ(normal_players_.size(), 1u);
++  // The SetMute action should only be available when there is one normal
++  // player, though due to the asynchronous nature of mojo, we may no longer
++  // have 1 normal player. In that case, just return.
++  if (normal_players_.size() != 1u) {
++    return;
++  }
+   normal_players_.begin()->first.observer->OnSetMute(
+       normal_players_.begin()->first.player_id, mute);
+ }
+ 
+ void MediaSessionImpl::RequestMediaRemoting() {
+-  DCHECK_EQ(normal_players_.size(), 1u);
++  // The RequestMediaRemoting action should only be available when there is one
++  // normal player, though due to the asynchronous nature of mojo, we may no
++  // longer have 1 normal player. In that case, just return.
++  if (normal_players_.size() != 1u) {
++    return;
++  }
+   normal_players_.begin()->first.observer->OnRequestMediaRemoting(
+       normal_players_.begin()->first.player_id);
+ }
+@@ -1950,16 +1961,51 @@
+   }
+ 
+   if (source_title.empty()) {
+-    // If the url is a file then we should display a placeholder.
+-    source_title =
+-        url.SchemeIsFile()
+-            ? content_client->GetLocalizedString(IDS_MEDIA_SESSION_FILE_SOURCE)
+-            : url_formatter::FormatUrl(
+-                  url::Origin::Create(url).GetURL(),
+-                  url_formatter::kFormatUrlOmitDefaults |
+-                      url_formatter::kFormatUrlOmitHTTPS |
+-                      url_formatter::kFormatUrlOmitTrivialSubdomains,
+-                  base::UnescapeRule::SPACES, nullptr, nullptr, nullptr);
++    // If the url is a file or a data url then we should display a placeholder.
++    if (url.SchemeIsFile()) {
++      source_title =
++          content_client->GetLocalizedString(IDS_MEDIA_SESSION_FILE_SOURCE);
++    } else if (url.SchemeIs(url::kDataScheme)) {
++      source_title =
++          content_client->GetLocalizedString(IDS_MEDIA_SESSION_DATA_SOURCE);
++    } else {
++      url::Origin origin = url::Origin::Create(url);
++      GURL format_url = origin.GetURL();
++
++      // If the origin is opaque, use its precursor origin if available.
++      // Otherwise, traverse the opener chain to find the closest ancestor with
++      // a valid precursor origin. This ensures we display a recognizable origin
++      // to the user.
++      if (origin.opaque()) {
++        WebContents* current_web_contents = web_contents();
++        base::flat_set<WebContents*> seen_web_contents;
++
++        while (current_web_contents &&
++               !seen_web_contents.contains(current_web_contents)) {
++          seen_web_contents.insert(current_web_contents);
++
++          url::Origin current_origin =
++              url::Origin::Create(current_web_contents->GetLastCommittedURL());
++          const auto& precursor =
++              current_origin.GetTupleOrPrecursorTupleIfOpaque();
++          if (precursor.IsValid()) {
++            format_url = precursor.GetURL();
++            break;
++          }
++
++          RenderFrameHost* opener = current_web_contents->GetOpener();
++          current_web_contents =
++              opener ? WebContents::FromRenderFrameHost(opener) : nullptr;
++        }
++      }
++
++      source_title = url_formatter::FormatUrl(
++          format_url,
++          url_formatter::kFormatUrlOmitDefaults |
++              url_formatter::kFormatUrlOmitHTTPS |
++              url_formatter::kFormatUrlOmitTrivialSubdomains,
++          base::UnescapeRule::SPACES, nullptr, nullptr, nullptr);
++    }
+   }
+ 
+   metadata.source_title = source_title;
+--- upstream/content/browser/download/download_manager_impl.cc
++++ vendor/content/browser/download/download_manager_impl.cc
+@@ -1445,7 +1445,7 @@
+     }
+   }
+ 
+-  DCHECK_EQ(params->url().SchemeIsBlob(), bool{blob_url_loader_factory});
++  DCHECK_EQ(params->url().SchemeIsBlob(), bool(blob_url_loader_factory));
+   std::unique_ptr<network::PendingSharedURLLoaderFactory>
+       pending_url_loader_factory;
+   if (blob_url_loader_factory) {
+--- upstream/components/download/internal/common/in_progress_download_manager.cc
++++ vendor/components/download/internal/common/in_progress_download_manager.cc
+@@ -717,7 +717,7 @@
+ void InProgressDownloadManager::CancelUrlDownload(
+     UrlDownloadHandlerID downloader,
+     bool user_cancel) {
+-  OnUrlDownloadStopped(reinterpret_cast<UrlDownloadHandlerID>(downloader));
++  OnUrlDownloadStopped(downloader);
+ }
+ 
+ }  // namespace download
+--- upstream/content/browser/download/save_package.cc
++++ vendor/content/browser/download/save_package.cc
+@@ -802,8 +802,9 @@
+   if (download_) {
+     std::vector<download::DownloadSaveItemData::ItemInfo> files;
+     for (auto& item : saved_success_items_) {
+-      files.emplace_back(item.second->full_path(), item.second->url(),
+-                         item.second->referrer().url);
++      files.emplace_back(download::DownloadSaveItemData::ItemInfo{
++                            item.second->full_path(), item.second->url(),
++                            item.second->referrer().url});
+     }
+     download::DownloadSaveItemData::AttachItemData(download_, std::move(files));
+   }
+--- upstream/content/browser/download/download_request_utils.cc
++++ vendor/content/browser/download/download_request_utils.cc
+@@ -21,10 +21,8 @@
+     WebContents* web_contents,
+     const GURL& url,
+     const net::NetworkTrafficAnnotationTag& traffic_annotation) {
+-  RenderFrameHost* render_frame_host = web_contents->GetPrimaryMainFrame();
+-  return std::make_unique<download::DownloadUrlParameters>(
+-      url, render_frame_host->GetProcess()->GetDeprecatedID(),
+-      render_frame_host->GetRoutingID(), traffic_annotation);
++  return web_contents->GetPrimaryMainFrame()->CreateDownloadUrlParameters(
++      url, traffic_annotation);
+ }
+ 
+ // static

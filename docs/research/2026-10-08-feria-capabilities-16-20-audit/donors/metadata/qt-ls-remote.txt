@@ -1,0 +1,3 @@
+Command: git ls-remote https://code.qt.io/qt/qtwebengine.git refs/tags/v6.11.1 refs/tags/v6.11.1^{}
+7aa0d2a34896cfbe88ce0e9ea69bb4e943e1c998	refs/tags/v6.11.1
+eb0793cc4b76e93cf669f586fd68c76019f40ec9	refs/tags/v6.11.1^{}

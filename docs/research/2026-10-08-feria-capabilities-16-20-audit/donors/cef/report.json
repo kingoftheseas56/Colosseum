@@ -1,0 +1,900 @@
+{
+  "schema_version": 1,
+  "donor": "cef",
+  "scope": [
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "revisions": {
+    "cef": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+    "cef_branch": "7339",
+    "cef_chromium_version": "140.0.7339.214",
+    "cef_chromium_commit": "754bf56217050dfc97f626926b8dbc6f22b12634",
+    "receiving_qtwebengine": "eb0793cc4b76e93cf669f586fd68c76019f40ec9",
+    "receiving_qt_vendor_gitlink": "58c11ad487f8a237cf0ac71cc3e818b52db150df",
+    "compatibility": "Same M140 / branch 7339 family only; not exact Qt 6.11.1 patch compatibility. Qt manifest discrepancy and security backports must not imply Chromium 148 APIs."
+  },
+  "source_manifest_path": "source/cef/manifest.json",
+  "shared_chromium_source_manifest_path": "source/cef/chromium-integration/manifest.json",
+  "tests_executed": false,
+  "builds_executed": false,
+  "production_changes": false,
+  "external_writes": false,
+  "cells": [
+    {
+      "category": 16,
+      "name": "Pause on app minimize/world-away; resume only media paused by Colosseum",
+      "evidence_status": "source_traced; dedicated app-owned pause/resume API absent in inspected CEF surface; behavior reference only",
+      "tests_executed": false,
+      "sources": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_browser.h",
+          "symbol": "WasHidden; SetAudioMuted/IsAudioMuted",
+          "line_start": 701,
+          "line_end": 707,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_browser.h#L701-L707"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_browser.h",
+          "symbol": "SetAudioMuted / IsAudioMuted",
+          "line_start": 999,
+          "line_end": 1010,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_browser.h#L999-L1010"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/browser_host_base.cc",
+          "symbol": "SetAudioMuted / IsAudioMuted",
+          "line_start": 786,
+          "line_end": 805,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_host_base.cc#L786-L805"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/chrome/chrome_browser_host_impl.cc",
+          "symbol": "WasHidden",
+          "line_start": 249,
+          "line_end": 251,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_host_impl.cc#L249-L251"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/alloy/alloy_browser_host_impl.cc",
+          "symbol": "WasHidden",
+          "line_start": 403,
+          "line_end": 417,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/alloy/alloy_browser_host_impl.cc#L403-L417"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_frame.h",
+          "symbol": "ExecuteJavaScript / GetIdentifier",
+          "line_start": 154,
+          "line_end": 193,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_frame.h#L154-L193"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_frame_handler.h",
+          "symbol": "creation, detachment, destruction, BFCache and temporary-frame lifecycle",
+          "line_start": 45,
+          "line_end": 188,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_frame_handler.h#L45-L188"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/frame_host_impl.cc",
+          "symbol": "SendJavaScript / SendToRenderFrame / Detach",
+          "line_start": 423,
+          "line_end": 444,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/frame_host_impl.cc#L423-L444"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/frame_host_impl.cc",
+          "symbol": "Detach",
+          "line_start": 505,
+          "line_end": 562,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/frame_host_impl.cc#L505-L562"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/frame_host_impl.cc",
+          "symbol": "SendToRenderFrame",
+          "line_start": 624,
+          "line_end": 651,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/frame_host_impl.cc#L624-L651"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/renderer/frame_impl.cc",
+          "symbol": "SendJavaScript",
+          "line_start": 874,
+          "line_end": 885,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/renderer/frame_impl.cc#L874-L885"
+        }
+      ],
+      "api_or_ownership_path": "Host visibility/mute \u2192 WebContents/OSR presentation. CefFrame script API \u2192 frame-scoped Mojo message \u2192 Blink ExecuteScript. The app must own exact space/document/frame/media identity, pause reason and resume acknowledgement; CEF supplies no Colosseum provenance ledger.",
+      "findings": [
+        "Mute is not pause: it invokes WebContents::SetAudioMuted only. WasHidden documents stopping layout/OnPaint for windowless rendering and is not implemented by ChromeBrowserHostImpl.",
+        "Frame commands carry an actual CefFrame association, are ignored for temporary/detached frames, queue until connection, and discarded on full detachment. Frame identity is not by itself document identity; same-origin reuse is explicit in tests.",
+        "CEF ExecuteJavaScript is void, with no playback-result acknowledgement or user-gesture grant. Cross-origin frames can be separately addressed by CEF frame APIs; that is not same-origin DOM traversal and is not a Qt API. No promise for arbitrary players, closed shadow trees, protected media, or default autoplay success."
+      ],
+      "tests_inspected": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/audio_output_unittest.cc",
+          "symbol": "AudioOutputTest / AudioCloseBrowserTest / AudioTogglePlaybackTest",
+          "line_start": 810,
+          "line_end": 1102,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/audio_output_unittest.cc#L810-L1102",
+          "coverage": "Audio capture lifecycle, browser-close callback and scripted play/pause timing.",
+          "limitations": "Alloy-only guards at 1077,1087,1097; tests set autoplay-policy=no-user-gesture-required at 863\u2013865. They do not test app-owned pause or default autoplay.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/frame_handler_unittest.cc",
+          "symbol": "FrameStatus; OrderMainNavSameOrigin / OrderMainNavCrossOrigin; OrderSubCrossOriginPeersNavCrossOrigin / ChildrenNavCrossOrigin",
+          "line_start": 177,
+          "line_end": 305,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/frame_handler_unittest.cc#L177-L305",
+          "coverage": "Valid/destroyed frame checks, message queue delivery and frame lifecycle identities.",
+          "limitations": "",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/frame_handler_unittest.cc",
+          "symbol": "same/cross-origin and temporary cross-origin frame fixtures",
+          "line_start": 872,
+          "line_end": 949,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/frame_handler_unittest.cc#L872-L949",
+          "coverage": "Same-origin reuse versus new main-frame transitions.",
+          "limitations": "",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/frame_handler_unittest.cc",
+          "symbol": "CrossOriginOrderSubTestHandler and cross-origin subframe fixtures",
+          "line_start": 1448,
+          "line_end": 1575,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/frame_handler_unittest.cc#L1448-L1575",
+          "coverage": "Temporary source-process frames discarded before real cross-origin frames; peer and nested frame navigation.",
+          "limitations": "",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "No minimize/world-away policy or ordinary-inactive-tab behavior is provided by this CEF API.",
+        "No public CefBrowserHost per-media paused-by-app provenance, media-session suspend/resume reason ledger, or freeze API was found in the complete inspected browser/frame interfaces.",
+        "Do not replace existing Colosseum element ledger with audio mute, paint suppression, a browser-wide playback toggle or test-only autoplay bypass."
+      ],
+      "recommendation_classification": "Keep existing Colosseum implementation; adapt donor frame retirement behavior into existing Colosseum owner; internal reference only",
+      "recommendation": "Keep FeriaPlayback/FeriaQtWebEngine presentation ownership and inactive-tab policy. Add explicit reason and document/frame identity/acknowledgement only where public receiving APIs permit. CEF internals and frame APIs are references, not callable QtWebEngine APIs.",
+      "dependency_footprint": "Directly copying script transport/host lifecycle pulls CEF refcounting, browser/renderer Mojo IPC, Chromium content and Blink. Re-express stale-command rejection and ownership tests in existing owners without another engine."
+    },
+    {
+      "category": 17,
+      "name": "Download request ownership and admission",
+      "evidence_status": "public API and internal ownership/source-retirement paths traced; source-only",
+      "tests_executed": false,
+      "sources": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_download_handler.h",
+          "symbol": "CanDownload / OnBeforeDownload / OnDownloadUpdated",
+          "line_start": 86,
+          "line_end": 133,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_download_handler.h#L86-L133"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/browser_contents_delegate.cc",
+          "symbol": "CanDownload",
+          "line_start": 248,
+          "line_end": 260,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_contents_delegate.cc#L248-L260"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "patch/patches/chrome_browser_download.patch",
+          "symbol": "ChromeDownloadManagerDelegate creates CEF delegate per Profile manager",
+          "line_start": 24,
+          "line_end": 54,
+          "api_layer": "CEF Chromium patch / integration",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/patch/patches/chrome_browser_download.patch#L24-L54"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "CefBeforeDownloadCallbackImpl::Continue / GenerateFilename / ChooseDownloadPath",
+          "line_start": 50,
+          "line_end": 189,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L50-L189"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "DetermineDownloadTarget / GetOrAssociateBrowser",
+          "line_start": 372,
+          "line_end": 466,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L372-L466"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.h",
+          "symbol": "ItemBrowserMap",
+          "line_start": 61,
+          "line_end": 70,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.h#L61-L70"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/browser_host_base.cc",
+          "symbol": "StartDownload",
+          "line_start": 513,
+          "line_end": 543,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_host_base.cc#L513-L543"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_request_context.h",
+          "symbol": "CreateContext / sharing / cache path",
+          "line_start": 91,
+          "line_end": 166,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_request_context.h#L91-L166"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/request_context_impl.cc",
+          "symbol": "Initialize context sharing or isolation",
+          "line_start": 762,
+          "line_end": 815,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/request_context_impl.cc#L762-L815"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/file_dialog_manager.cc",
+          "symbol": "CefFileDialogCallbackImpl cancellation; native chooser; late-listener fence",
+          "line_start": 27,
+          "line_end": 88,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/file_dialog_manager.cc#L27-L88"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/file_dialog_manager.cc",
+          "symbol": "SelectFileDoneByDelegateCallback / SelectFileDoneByListenerCallback",
+          "line_start": 547,
+          "line_end": 603,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/file_dialog_manager.cc#L547-L603"
+        }
+      ],
+      "api_or_ownership_path": "CefRequestContext \u2192 CefBrowserContext/Chrome Profile \u2192 content::DownloadManager \u2192 CEF delegate \u2192 originating browser CefClient::GetDownloadHandler. The profile owns transfer machinery, but the public handler is client/browser-scoped rather than a profile-level subscription.",
+      "findings": [
+        "CanDownload is synchronous admission for user-initiated navigation/click downloads; programmatic StartDownload is not covered by it. OnBeforeDownload receives the native item and one-shot destination callback; item wrapper is detached immediately after callback and must not be retained.",
+        "Delegate captures DownloadItem\u2192originating-browser once from DownloadItemUtils::GetWebContents, avoiding retargeting when navigation removes the WebContents relation. Source frame/origin is not included in the CEF download handler signature, and GetURL is a transfer URL, not request-origin proof.",
+        "Continue consumes its download ID; callback work holds a weak manager, looks item up by ID and rechecks IN_PROGRESS after filename work. ResetManager invalidates outstanding weak pointers. Status updates may precede OnBeforeDownload.",
+        "Suggested names go through net::GenerateFileName. An explicit path may create directories; directory-creation failure clears it and falls back to temp/current-directory plus suggested name. show_dialog cannot be treated as unconditional consent enforcement: if no source browser is recoverable, ChooseDownloadPath runs the suggested path directly.",
+        "File-dialog callbacks have explicit release-to-cancel semantics, and a native dialog cancellation returns empty path. A stale dialog delegate result checks active_listeners_ before touching the listener; browser destruction destroys file-dialog manager before notifying download observers.",
+        "Off-the-record context isolation is separate from transfer admission and separate again from app metadata authorization. CEF has no one-use Feria metadata-grant concept. Same nonempty cache path or explicit CreateContext(other) shares context/storage."
+      ],
+      "tests_inspected": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/download_unittest.cc",
+          "symbol": "Programmatic / Clicked / ClickedInvalid / ClickedBlocked / Navigated / Pending groups",
+          "line_start": 167,
+          "line_end": 622,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/download_unittest.cc#L167-L622",
+          "coverage": "Actual handler asserts source browser identity, stable download ID, default known-byte progress, final file bytes, invalid protocol/no-handler-callback and CanDownload denial. Groups expand across default/global/custom in-memory/custom disk request contexts. Navigated delays response across cross-origin main-frame navigation.",
+          "limitations": "No concurrent multi-window test, paused state/resumability, zero/unknown total, disk failure or safe Open coverage. Pending explicitly cancels in DestroyTest (501\u2013505), so its name does not prove continued transfer after source-browser destruction.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/request_context_unittest.cc",
+          "symbol": "BasicCreate / BasicCreateNoHandler / BasicCreateSharedOnDisk",
+          "line_start": 34,
+          "line_end": 197,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/request_context_unittest.cc#L34-L197",
+          "coverage": "Empty-cache custom contexts are distinct/nonsharing; explicit shared contexts share storage.",
+          "limitations": "Does not test private download history/file deletion or account-switch transfer drain.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/test_util.h",
+          "symbol": "RC_TEST_GROUP_IN_MEMORY / ON_DISK / ALL",
+          "line_start": 181,
+          "line_end": 247,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/test_util.h#L181-L247",
+          "coverage": "Confirms the actual request-context variants for each DownloadTest group.",
+          "limitations": "",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/test_util.cc",
+          "symbol": "CreateTestRequestContext",
+          "line_start": 431,
+          "line_end": 478,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/test_util.cc#L431-L478",
+          "coverage": "Actual settings/handler initialization used by download fixtures.",
+          "limitations": "",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/dialog_unittest.cc",
+          "symbol": "DialogTestHandler; FileSave / FileSaveCancel / FileSaveAsync / FileSaveAsyncCancel",
+          "line_start": 15,
+          "line_end": 175,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/dialog_unittest.cc#L15-L175",
+          "coverage": "Actual callback result asserts paths for success and empty paths for cancellation; execution can post the retained callback to UI.",
+          "limitations": "This handles the dialog in the test client, not native chooser UI or download integration. FileSaveAsyncCancel at 409\u2013417 actually sets callback_async=false, so its name does not prove asynchronous save cancellation.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/dialog_unittest.cc",
+          "symbol": "FileSave / FileSaveCancel / FileSaveAsync / FileSaveAsyncCancel fixture configuration",
+          "line_start": 377,
+          "line_end": 417,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/dialog_unittest.cc#L377-L417",
+          "coverage": "Synchronous save/explicit cancel and async success configuration; verifies source rather than inferring coverage from names.",
+          "limitations": "FileSaveAsyncCancel is configured synchronous (line 411). No source-browser retirement during pending destination fixture.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "A per-browser client handler is not an authoritative profile-level listener after source retirement.",
+        "Programmatic URLs need separate admission; GURL validity alone is not a product URL/file policy.",
+        "No public source-frame ID, origin, app space, account binding or one-use metadata authorization is automatically supplied.",
+        "No demonstrated test for late before-download callback after manager destruction, double Continue, no-browser show_dialog fallback, grant replay or multi-window concurrency."
+      ],
+      "recommendation_classification": "Keep existing Colosseum implementation; adapt donor behavior into an existing Colosseum owner; internal reference only",
+      "recommendation": "Keep the existing profile-scoped FeriaBrowserDownloads receivers and FeriaAccountStore grants. Adapt immutable source capture, weak/lifetime-fenced one-shot destination work and copy-only native snapshots. Reject CEF fallback-to-temp behavior as a substitute for the product destination decision and reject per-browser update ownership.",
+      "dependency_footprint": "CEF public API requires libcef plus its ABI/runtime. Delegate depends on Chromium download/content/net filename logic, browser host/file chooser, UI/background task runners and CEF value wrappers. Not a separable Qt component."
+    },
+    {
+      "category": 18,
+      "name": "Download progress/pause/resume/cancel/open",
+      "evidence_status": "native state projection and action implementations traced; paused/resumable/open surface incomplete",
+      "tests_executed": false,
+      "sources": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_download_item.h",
+          "symbol": "all public progress/state/path members",
+          "line_start": 47,
+          "line_end": 164,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_download_item.h#L47-L164"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_download_handler.h",
+          "symbol": "CefDownloadItemCallback::Cancel / Pause / Resume",
+          "line_start": 61,
+          "line_end": 84,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_download_handler.h#L61-L84"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_item_impl.cc",
+          "symbol": "native snapshot accessors",
+          "line_start": 11,
+          "line_end": 115,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_item_impl.cc#L11-L115"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "CefDownloadItemCallbackImpl / UI state rechecks",
+          "line_start": 199,
+          "line_end": 270,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L199-L270"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "OnDownloadUpdated snapshot detachment",
+          "line_start": 297,
+          "line_end": 313,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L297-L313"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/cefclient/browser/client_handler.cc",
+          "symbol": "OnDownloadUpdated",
+          "line_start": 906,
+          "line_end": 917,
+          "api_layer": "CEF sample client, not a test or product owner",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/cefclient/browser/client_handler.cc#L906-L917"
+        }
+      ],
+      "api_or_ownership_path": "DownloadItem native state \u2192 temporary CefDownloadItem snapshot \u2192 host copied projection; separate retained CefDownloadItemCallback resolves manager+ID on UI thread at action time.",
+      "findings": [
+        "Public states distinguish IN_PROGRESS, COMPLETE, CANCELLED, INTERRUPTED and interrupt reason; bytes, rough percent, speed, times and actual full path are available. PercentComplete is documented as -1 for unknown total, not a completed/zero-byte inference.",
+        "Cancel and Pause post to UI then act only if item still IN_PROGRESS; Resume posts then checks native CanResume. Cancel resets callback download_id to zero. A completion race cannot be converted into cancellation by these methods because they recheck native state.",
+        "The complete public CefDownloadItem interface contains no IsPaused, CanResume, CanOpenDownload, external-file-exists, OpenDownload or ShowDownloadInShell member at this pin. Resume support exists internally but cannot be advertised as a guaranteed public capability from the CEF snapshot.",
+        "Interrupted-item Cancel through this callback is a no-op (IN_PROGRESS guard), while Resume can act if native CanResume. Action methods return void, so host needs fresh state/outcome rather than optimistic UI mutation.",
+        "cefclient only shows a completion alert with GetFullPath; it does not validate or open a saved file. Native completion and current file availability must remain different state."
+      ],
+      "tests_inspected": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/download_unittest.cc",
+          "symbol": "Programmatic / Clicked / ClickedInvalid / ClickedBlocked / Navigated / Pending groups",
+          "line_start": 167,
+          "line_end": 622,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/download_unittest.cc#L167-L622",
+          "coverage": "Actual handler asserts source browser identity, stable download ID, default known-byte progress, final file bytes, invalid protocol/no-handler-callback and CanDownload denial. Groups expand across default/global/custom in-memory/custom disk request contexts. Navigated delays response across cross-origin main-frame navigation.",
+          "limitations": "No concurrent multi-window test, paused state/resumability, zero/unknown total, disk failure or safe Open coverage. Pending explicitly cancels in DestroyTest (501\u2013505), so its name does not prove continued transfer after source-browser destruction.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "CEF download fixtures use a known fixed positive response size and do not inspect pause/resume, interruption retry, cancel/completion races, zero-byte files or unknown totals.",
+        "Safe Open/Show in folder is absent from this public CEF item/callback surface. Internal Chromium helpers are not public Qt APIs.",
+        "No file-identity authorization or existence check is supplied by copying a string path; rejected, cancelled, removed/replaced files must not be opened."
+      ],
+      "recommendation_classification": "Keep existing Colosseum implementation; adapt donor behavior into an existing Colosseum owner; internal reference only / unsupported public operations",
+      "recommendation": "Keep the current native Qt request as state/action authority. Adopt action-time native rechecks and truthful interruption/capability outcomes. Implement any safe Open through the existing trusted native file owner using finished-transfer identity and current authorization/existence checks, not renderer paths or CEF classes.",
+      "dependency_footprint": "CefDownloadItemImpl is a thin wrapper over Chromium download::DownloadItem and CEF value controller. Copying it adds no useful authority and imports CEF/Chromium dependencies; behavior adaptation has small cost."
+    },
+    {
+      "category": 19,
+      "name": "Download persistence and private cleanup",
+      "evidence_status": "CEF context/transfer retirement traced; persistence traced in shared targeted Chromium dependency; no CEF restart-resume API",
+      "tests_executed": false,
+      "sources": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "OnBrowserDestroyed",
+          "line_start": 423,
+          "line_end": 433,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L423-L433"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "ManagerGoingDown / ResetManager",
+          "line_start": 366,
+          "line_end": 369,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L366-L369"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/download_manager_delegate_impl.cc",
+          "symbol": "ResetManager",
+          "line_start": 484,
+          "line_end": 496,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/download_manager_delegate_impl.cc#L484-L496"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/request_context_impl.cc",
+          "symbol": "destructor",
+          "line_start": 172,
+          "line_end": 179,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/request_context_impl.cc#L172-L179"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/browser_context.cc",
+          "symbol": "RemoveCefRequestContext / Shutdown",
+          "line_start": 213,
+          "line_end": 250,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_context.cc#L213-L250"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/chrome/chrome_browser_context.cc",
+          "symbol": "InitializeAsync / Shutdown / ProfileCreated",
+          "line_start": 87,
+          "line_end": 179,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_context.cc#L87-L179"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/internal/cef_types.h",
+          "symbol": "cef_request_context_settings_t::cache_path",
+          "line_start": 514,
+          "line_end": 526,
+          "api_layer": "CEF public settings",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/internal/cef_types.h#L514-L526"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_core_service_impl.cc",
+          "symbol": "GetDownloadManagerDelegate / off-record history exclusion",
+          "line_start": 45,
+          "line_end": 90,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_core_service_impl.cc#45"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_core_service_impl.cc",
+          "symbol": "CancelDownloads / Shutdown",
+          "line_start": 122,
+          "line_end": 179,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_core_service_impl.cc#122"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_history.cc",
+          "symbol": "MaybeAddToHistory / ItemAdded / OnDownloadUpdated / OnDownloadRemoved",
+          "line_start": 477,
+          "line_end": 648,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history.cc#477"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_history.cc",
+          "symbol": "NeedToUpdateDownloadHistory",
+          "line_start": 658,
+          "line_end": 675,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history.cc#658"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_history.cc",
+          "symbol": "LoadHistoryDownloads",
+          "line_start": 373,
+          "line_end": 434,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history.cc#373"
+        }
+      ],
+      "api_or_ownership_path": "Source browser can retire independently of DownloadItem. CEF nulls browser association and suppresses callbacks; retained BrowserContext/RequestContext must outlive valid dependent transfers. Chrome Profile owns DownloadCoreService and persistence; off-record excludes DownloadHistory. Colosseum metadata grant/history is a separate app authority.",
+      "findings": [
+        "OnBrowserDestroyed deliberately does not cancel the DownloadItem, but nulls browser mapping: transfer continues silently until complete or browser-context destruction. A stale comment at GetOrAssociateBrowser lines 459\u2013460 says cancel; the actual implementation at 423\u2013433 governs this finding.",
+        "Last CefRequestContext removal triggers browser-context shutdown; Chrome off-record context destroys its unique OTR Profile. A browser holds a request-context reference, but a download callback only holds a weak manager, not a keep-alive grant for that context. Closing the final source without another retained context can retire the dependency.",
+        "CEF download public API has no enumerate/restore history or durable restart-resume facility. Its Chromium integration creates DownloadHistory only when !profile->IsOffTheRecord. That storage exclusion is not a promise to delete files saved to an explicit destination.",
+        "Shared Chromium DownloadHistory distinguishes NOT_PERSISTED/PERSISTING/PERSISTED, uses weak callbacks, handles remove-while-add, ignores vanished manager/item and returns failed insert to NOT_PERSISTED for next-item-update retry without an immediate loop.",
+        "Shared Chromium separates ordinary history (terminal/save-package rows) from in-progress DB. Reconstructing native downloads uses GUID, URL chain, storage partition, paths, validators, bytes and slices, not the lightweight Colosseum history row. Metadata alone is not restart-resume.",
+        "Private history exclusion must still be enforced in FeriaAccountStore; CEF/Chromium profile isolation cannot authorize writing private metadata into another account store."
+      ],
+      "tests_inspected": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/download_unittest.cc",
+          "symbol": "Programmatic / Clicked / ClickedInvalid / ClickedBlocked / Navigated / Pending groups",
+          "line_start": 167,
+          "line_end": 622,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/download_unittest.cc#L167-L622",
+          "coverage": "Actual handler asserts source browser identity, stable download ID, default known-byte progress, final file bytes, invalid protocol/no-handler-callback and CanDownload denial. Groups expand across default/global/custom in-memory/custom disk request contexts. Navigated delays response across cross-origin main-frame navigation.",
+          "limitations": "No concurrent multi-window test, paused state/resumability, zero/unknown total, disk failure or safe Open coverage. Pending explicitly cancels in DestroyTest (501\u2013505), so its name does not prove continued transfer after source-browser destruction.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/request_context_unittest.cc",
+          "symbol": "BasicCreate / BasicCreateNoHandler / BasicCreateSharedOnDisk",
+          "line_start": 34,
+          "line_end": 197,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/request_context_unittest.cc#L34-L197",
+          "coverage": "Empty-cache custom contexts are distinct/nonsharing; explicit shared contexts share storage.",
+          "limitations": "Does not test private download history/file deletion or account-switch transfer drain.",
+          "executed": false
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_history_unittest.cc",
+          "symbol": "DownloadHistoryTest_Temporary / RemoveWhileAdding / Multiple / CreateFailed / UpdateWhileAdding",
+          "line_start": 627,
+          "line_end": 793,
+          "api_layer": "Shared Chromium dependency test source",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history_unittest.cc#627",
+          "coverage": "Delayed insert/remove race, multiple item identity, temporary-history exclusion and failed-insert retry on next update.",
+          "limitations": "Shared Chromium tests; no independent CEF corroboration and not executed.",
+          "executed": false
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/download/download_history_unittest.cc",
+          "symbol": "CreateInProgressDownload / InProgressHistoryItemBecomesNonResumable",
+          "line_start": 849,
+          "line_end": 887,
+          "api_layer": "Shared Chromium dependency test source",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/download/download_history_unittest.cc#849",
+          "coverage": "In-progress not inserted in ordinary history; history state reconciles a nonresumable interrupt.",
+          "limitations": "Not evidence for Colosseum restart-resume or private saved-file erasure.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "The Pending CEF fixture cancels its transfer before teardown, so continued orphan completion and private last-context survival remain unqualified by those tests.",
+        "CEF public callbacks disappear when browser retires; keeping a context alone does not make them profile-observable.",
+        "No CEF concept of account switching, one-use metadata-grant replay or durable app metadata retry exists; those stay with existing Colosseum owners.",
+        "No universal file deletion/secure erasure promise; private profile cache/history and user-saved files are distinct."
+      ],
+      "recommendation_classification": "Keep existing Colosseum implementation; adapt donor behavior into an existing Colosseum owner; shared Chromium internals reference only",
+      "recommendation": "Keep FeriaAccountStore metadata/grants and FeriaBrowserDownloads live entries. Preserve profile lifetime while valid transfers depend on it, separately fence terminal retirement/account switching, and keep updates observable after tab close. Adapt bounded retry and late-write tombstone ideas only where not already implemented. Do not copy DownloadHistory or create another store.",
+      "dependency_footprint": "CEF profile lifecycle imports Chromium ProfileManager/OTR profiles/keep-alive services; DownloadHistory imports history service/database, DownloadManager, storage partitions, extension conditionals and keyed services. This is engine/application infrastructure, not a separable persistence library."
+    },
+    {
+      "category": 20,
+      "name": "Save page/link/image/media through native download pipeline",
+      "evidence_status": "CEF Chrome/Alloy differences and native request/context paths traced; no uniform CEF Save API",
+      "tests_executed": false,
+      "sources": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_browser.h",
+          "symbol": "StartDownload / DownloadImage",
+          "line_start": 508,
+          "line_end": 531,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_browser.h#L508-L531"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/browser_host_base.cc",
+          "symbol": "StartDownload",
+          "line_start": 513,
+          "line_end": 543,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/browser_host_base.cc#L513-L543"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_browser.h",
+          "symbol": "CanExecuteChromeCommand / ExecuteChromeCommand",
+          "line_start": 1036,
+          "line_end": 1056,
+          "api_layer": "CEF public embedding API, Chrome style only",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_browser.h#L1036-L1056"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/chrome/chrome_browser_host_impl.cc",
+          "symbol": "CanExecuteChromeCommand / ExecuteChromeCommand",
+          "line_start": 332,
+          "line_end": 359,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_browser_host_impl.cc#L332-L359"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/alloy/alloy_browser_host_impl.cc",
+          "symbol": "Chrome command unsupported",
+          "line_start": 377,
+          "line_end": 384,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/alloy/alloy_browser_host_impl.cc#L377-L384"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_context_menu_handler.h",
+          "symbol": "borrowed params and async callback contract",
+          "line_start": 98,
+          "line_end": 152,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_context_menu_handler.h#L98-L152"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/cef_context_menu_handler.h",
+          "symbol": "link/source/frame/capability snapshot getters",
+          "line_start": 228,
+          "line_end": 295,
+          "api_layer": "CEF public embedding API",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/cef_context_menu_handler.h#L228-L295"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "include/internal/cef_types.h",
+          "symbol": "context media flags",
+          "line_start": 2248,
+          "line_end": 2268,
+          "api_layer": "CEF public types",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/include/internal/cef_types.h#L2248-L2268"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/chrome/chrome_context_menu_handler.cc",
+          "symbol": "async callback release-to-cancel and one-shot execution",
+          "line_start": 22,
+          "line_end": 75,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_context_menu_handler.cc#L22-L75"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/chrome/chrome_context_menu_handler.cc",
+          "symbol": "GetFrame / ExecuteCommandCallback",
+          "line_start": 268,
+          "line_end": 303,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_context_menu_handler.cc#L268-L303"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/chrome/chrome_context_menu_handler.cc",
+          "symbol": "MenuCreatedCallback / Chrome integration",
+          "line_start": 306,
+          "line_end": 342,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/chrome/chrome_context_menu_handler.cc#L306-L342"
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "libcef/browser/menu_manager.cc",
+          "symbol": "Alloy CreateDefaultModel / ExecuteDefaultCommand",
+          "line_start": 334,
+          "line_end": 519,
+          "api_layer": "CEF internal implementation",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/libcef/browser/menu_manager.cc#L334-L519"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+          "symbol": "native save capability checks",
+          "line_start": 3739,
+          "line_end": 3813,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/renderer_context_menu/render_view_context_menu.cc#3739"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+          "symbol": "ExecSaveLinkAs / ExecSaveAs",
+          "line_start": 4135,
+          "line_end": 4262,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/renderer_context_menu/render_view_context_menu.cc#4135"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+          "symbol": "IDC_SAVE_PAGE",
+          "line_start": 3348,
+          "line_end": 3356,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/renderer_context_menu/render_view_context_menu.cc#3348"
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/ui/browser_commands.cc",
+          "symbol": "SavePage / CanSavePage",
+          "line_start": 1910,
+          "line_end": 1942,
+          "api_layer": "Shared Chromium internal dependency",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/ui/browser_commands.cc#1910"
+        }
+      ],
+      "api_or_ownership_path": "Chrome-style native context-menu callback retains Chromium RenderViewContextMenu ownership/snapshot and executes native save commands. Link saves create DownloadUrlParameters for actual source RFH and browser-context DownloadManager; image/media saves use actual frame SaveFrameWithHeaders/SaveImageAt; page save enters WebContents::OnSavePage. Programmatic CefBrowserHost::StartDownload creates a main-frame request. Alloy default context menu has no Save page/link/image/media implementation.",
+      "findings": [
+        "Prefer native context snapshots/commands over interpolated script URLs. CEF params are borrowed callback-scoped; GetUnfilteredLinkUrl is explicitly copy-address-only and not validated for navigation/download.",
+        "Chrome context callback is single-consumption; dropping it cancels, it binds a weak observer, and model/params/browser state is cleared on close. Its callback-facing GetFrame falls back to main frame after originating frame disappears, but native Chromium save operations retrieve/check the captured RenderFrameHost; do not adopt fallback as permission to retarget.",
+        "Chrome link save checks surviving RFH and passes frame process/routing IDs, referrer policy, charset, initiator, suggested filename, prompt=true and CONTEXT_MENU source into the same browser-context manager. At this Chromium pin initiator is derived from frame_url with an upstream TODO to use actual origin: do not upgrade it into stronger proof.",
+        "Image/media capability checks distinguish image contents, supported protocol and MediaCanSave; canvas/large-data image uses SaveImageAt, normal image/media passes source frame/referrer/headers to SaveFrameWithHeaders. PDF/print-preview paths are build/feature conditional.",
+        "Chrome-style generic ExecuteChromeCommand is supported, but SavePage ultimately targets its Browser active WebContents. It is not a safe substitute for a captured inactive-page context ticket without validating the target.",
+        "Alloy CanExecuteChromeCommand returns false and ExecuteChromeCommand is NOTIMPLEMENTED; its default menu switch has no save cases. StartDownload only saves a URL via main-frame association, not complete-page HTML/MHTML or exact subframe native media context. DownloadImage returns bitmap/image data, not a filesystem transfer through CefDownloadHandler."
+      ],
+      "tests_inspected": [
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/download_unittest.cc",
+          "symbol": "Programmatic / Clicked / ClickedInvalid / ClickedBlocked / Navigated / Pending groups",
+          "line_start": 167,
+          "line_end": 622,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/download_unittest.cc#L167-L622",
+          "coverage": "Actual handler asserts source browser identity, stable download ID, default known-byte progress, final file bytes, invalid protocol/no-handler-callback and CanDownload denial. Groups expand across default/global/custom in-memory/custom disk request contexts. Navigated delays response across cross-origin main-frame navigation.",
+          "limitations": "No concurrent multi-window test, paused state/resumability, zero/unknown total, disk failure or safe Open coverage. Pending explicitly cancels in DestroyTest (501\u2013505), so its name does not prove continued transfer after source-browser destruction.",
+          "executed": false
+        },
+        {
+          "revision": "754bf56217050dfc97f626926b8dbc6f22b12634",
+          "path": "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc",
+          "symbol": "SaveLinkAsEntryIsDisabledForBlockedUrls / SaveAsEntryIsDisabledForBlockedUrls / SaveAsEntryIsNotDisabledForNonBlockedUrls / SaveImageAsEntryIsDisabledForBlockedUrls / SaveVideoAsEntryIsDisabledForBlockedUrls",
+          "line_start": 731,
+          "line_end": 822,
+          "api_layer": "Shared Chromium dependency test source",
+          "url": "https://chromium.googlesource.com/chromium/src/+/754bf56217050dfc97f626926b8dbc6f22b12634/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc#731",
+          "coverage": "Real native context-menu negative controls for policy-blocked Save entries and allowed page Save.",
+          "limitations": "These are shared Chromium tests, not CEF end-to-end save fixtures. They test capability gating, not saved-byte/formats/destination completion.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/dialog_unittest.cc",
+          "symbol": "DialogTestHandler; FileSave / FileSaveCancel / FileSaveAsync / FileSaveAsyncCancel",
+          "line_start": 15,
+          "line_end": 175,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/dialog_unittest.cc#L15-L175",
+          "coverage": "Actual callback result asserts paths for success and empty paths for cancellation; execution can post the retained callback to UI.",
+          "limitations": "This handles the dialog in the test client, not native chooser UI or download integration. FileSaveAsyncCancel at 409\u2013417 actually sets callback_async=false, so its name does not prove asynchronous save cancellation.",
+          "executed": false
+        },
+        {
+          "revision": "49f5d095ac0c84b2da64d06fec866f22531b331d",
+          "path": "tests/ceftests/dialog_unittest.cc",
+          "symbol": "FileSave / FileSaveCancel / FileSaveAsync / FileSaveAsyncCancel fixture configuration",
+          "line_start": 377,
+          "line_end": 417,
+          "api_layer": "CEF test source",
+          "url": "https://github.com/chromiumembedded/cef/blob/49f5d095ac0c84b2da64d06fec866f22531b331d/tests/ceftests/dialog_unittest.cc#L377-L417",
+          "coverage": "Synchronous save/explicit cancel and async success configuration; verifies source rather than inferring coverage from names.",
+          "limitations": "FileSaveAsyncCancel is configured synchronous (line 411). No source-browser retirement during pending destination fixture.",
+          "executed": false
+        }
+      ],
+      "limitations": [
+        "No uniform public CEF SavePage(format,path) or actual-source-frame StartDownload overload is present in inspected API.",
+        "CEF native context and Chrome commands are not QtWebEngine APIs. Chrome/Alloy runtime and PDF/print build flags matter.",
+        "No CEF save-page format, async stale-menu save, canvas/blob media, unsafe filename, download-integrated native dialog cancellation or multi-window origin fixture inspected; do not claim those verified.",
+        "No universal protected/streaming media save; retain disabled capability where engine cannot save."
+      ],
+      "recommendation_classification": "Use a supported public engine API in receiving Qt adapter; adapt donor context-capability/lifetime behavior into existing owner; CEF/Chromium internals reference only",
+      "recommendation": "Use receiving Qt public native Save/page/context actions, subject to exact API/build verification by Qt cell, and route to existing profile listener. Retain fresh immutable context/identity/capability ticket with expiry on frame/navigation/menu retirement. Do not introduce CEF, a script URL scraper or another ad hoc downloader.",
+      "dependency_footprint": "Cef Chrome native context menu relies on CEF integration patches plus Chrome RenderViewContextMenu, UI command framework, content frame/SavePackage/DownloadManager, policy and optional PDF services. Copying is an engine patch with broad dependencies, not a reusable Qt component."
+    }
+  ],
+  "cross_cutting": {
+    "independence": "Shared Chromium integration/history/context-menu source is included to trace actual CEF delegation at its targeted .214 pin. It is not independent corroboration by a third browser.",
+    "colosseum_existing_owner": "Baseline findings are supplied by colosseum/findings.json. Existing SessionStore/FeriaPlayback/FeriaBrowserDownloads/FeriaAccountStore remain authoritative; no duplicate transfer/history/profile owner proposed.",
+    "resource_cost": "C++ UI-thread callbacks and weak manager+ID tasks are low local overhead; whole CEF would duplicate engine distribution/process/runtime complexity and is outside scope. Copy candidate cones are engine-bound; behavior adaptations avoid that cost. No runtime measurements made.",
+    "portability": "CEF C/C++ APIs are portable within CEF distribution constraints, not callable through Qt WebEngine. Chromium internal classes require integration/engine build changes and exact revision upkeep."
+  }
+}
