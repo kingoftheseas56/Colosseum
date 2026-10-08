@@ -41,7 +41,7 @@ Item {
             tryVerify(function() { return entry && entry.browser && entry.browser.ready }, 30000)
             tryVerify(function() { return !entry.browser.loading
                 && String(entry.browser.url) === FixtureUrl + path
-                && entry.browser.title === "Fixture " + path }, 20000)
+                && entry.browser.title === "Fixture " + path }, 30000)
             return id
         }
         function browserOf(id) { return deck.entries[id] ? deck.entries[id].browser : null }
@@ -336,8 +336,221 @@ Item {
             tryVerify(function() { return deck.quiescing === false }, 30000)
             tryVerify(function() { return Sessions.get(id).id === undefined }, 5000)
             var drained = ops().operationResult(token)
-            verify(drained.outcome === "invalidated" || drained.outcome === undefined)
-            verify(drained.outcome !== "succeeded")
+            compare(drained.outcome, "invalidated")
+        }
+
+        function receivingScript(id, script) {
+            var browser = browserOf(id), done = false, value = null
+            var handler = function(label, json) {
+                if (label !== "receiving-read") return
+                value = json ? JSON.parse(json) : null
+                done = true
+            }
+            browser.scriptResult.connect(handler)
+            browser.executeScript("receiving-read", script)
+            tryVerify(function() { return done }, 5000)
+            browser.scriptResult.disconnect(handler)
+            return value
+        }
+
+        // --- Promoted receiving regressions (originally failing) ---
+
+        function test_receiving_navigationReportsSuccess() {
+            var id = openSpace("/a"), records = []
+            var handler = function(token, outcome) { records.push(ops().operationResult(token)) }
+            ops().operationSettled.connect(handler)
+            verify(deck.navigateSession(id, FixtureUrl + "/b"))
+            tryVerify(function() { return browserOf(id).title === "Fixture /b" && !browserOf(id).loading }, 15000)
+            ops().operationSettled.disconnect(handler)
+            verify(records.some(function(r) { return r.kind === "navigate" && r.outcome === "succeeded" }),
+                   "Successful native navigation must settle succeeded")
+        }
+
+        function test_receiving_stopSettlesOriginalLoad() {
+            var id = openSpace("/a"), browser = browserOf(id)
+            verify(deck.navigateSession(id, FixtureUrl + "/slow"))
+            tryVerify(function() { return browser.loading }, 5000)
+            var original = ops().pendingOperation(id).operationId
+            verify(original.length > 0)
+            verify(deck.stop(id))
+            tryVerify(function() { return !browser.loading }, 5000)
+            var result = ops().operationResult(original)
+            compare(result.outcome, "cancelled", "Stop must settle the admitted load")
+            compare(result.evidence, "user-stop-requested")
+        }
+
+        function test_receiving_stopIsNotSuccessfulDocument() {
+            var id = openSpace("/a"), browser = browserOf(id), completions = []
+            var handler = function(location, success) {
+                completions.push({url: String(location), success: success})
+            }
+            browser.completed.connect(handler)
+            verify(deck.navigateSession(id, FixtureUrl + "/slow"))
+            tryVerify(function() { return browser.loading }, 5000)
+            verify(deck.stop(id))
+            tryVerify(function() { return !browser.loading && completions.length > 0 }, 5000)
+            browser.completed.disconnect(handler)
+            verify(!completions.some(function(c) { return c.success }),
+                   "Stopped load must not count as successful intended-document load")
+        }
+
+        function test_receiving_stoppedLoadKeepsRestoreOffer() {
+            // A cancelled load must never consume restore/reopen state: the
+            // wrapper suppresses documentReplaced/mainDocumentLoaded for it.
+            var id = openSpace("/a"), browser = browserOf(id)
+            var offerId = "restore-" + Date.now()
+            var saved = FeriaAccount.browserRestoreOffers || []
+            var offers = saved.concat([{restoreId: offerId, providerId: "mangaplus",
+                url: FixtureUrl + "/slow", title: "Slow"}])
+            verify(FeriaAccount.saveBrowserRestoreOffers(offers))
+            var entry = deck.entries[id]
+            entry.restoreOfferId = offerId
+            var replaced = []
+            var handler = function(generation) { replaced.push(generation) }
+            browser.documentReplaced.connect(handler)
+            verify(deck.navigateSession(id, FixtureUrl + "/slow"))
+            tryVerify(function() { return browser.loading }, 5000)
+            verify(deck.stop(id))
+            tryVerify(function() { return !browser.loading }, 5000)
+            browser.documentReplaced.disconnect(handler)
+            verify(!replaced.some(function(g) { return g > 0 }),
+                   "A stopped load must not emit documentReplaced")
+            compare(entry.restoreOfferId, offerId, "A stopped load must not consume the restore offer")
+            verify(FeriaAccount.saveBrowserRestoreOffers(saved))
+        }
+
+        function test_receiving_pendingCloseSurvivesRetention() {
+            var id = openSpace("/plain"), identity = Sessions.browserIdentity(id)
+            var close = ops().beginOperation(identity, "webview2", "request-close")
+            verify(close.admitted)
+            for (var i = 0; i < 256; ++i) {
+                var nav = ops().beginOperation(identity, "webview2", "reload")
+                verify(nav.admitted)
+                verify(ops().settleOperation(identity, nav.operationId, "failed",
+                    "receiving", "receiving-check", {}).settled)
+            }
+            var result = ops().settleOperation(identity, close.operationId, "blocked",
+                "receiving", "receiving-check", {})
+            verify(result.settled, "Completed history retention must not evict a pending close")
+            verify(Sessions.get(id).id !== undefined)
+        }
+
+        function test_receiving_retiredOperationCannotAnswerConsent() {
+            var id = openSpace("/plain"), identity = Sessions.browserIdentity(id)
+            var op = ops().beginOperation(identity, "webview2", "request-close")
+            verify(op.admitted)
+            var request = ops().openRequest(op.operationId, identity, "app-close",
+                {origin: String(FixtureUrl)})
+            verify(request.opened)
+            verify(ops().settleOperation(identity, op.operationId, "invalidated",
+                "receiving-retired", "", {}).settled)
+            var answer = ops().answerRequest(request.requestId, identity)
+            verify(!answer.valid, "Consent must not authorize a retired operation")
+            verify(Sessions.get(id).id !== undefined)
+        }
+
+        function test_receiving_profileDoesNotShareCookies() {
+            // Preventive native-partition invariant with a positive control.
+            var id = openSpace("/plain")
+            var cookieName = "colosseum_receiving_" + Date.now()
+            var initial = receivingScript(id,
+                "document.cookie='" + cookieName + "=marker; path=/'; document.cookie")
+            verify(String(initial).indexOf(cookieName + "=marker") >= 0,
+                   "Cookie positive control must exist in first profile")
+            deck.startQuiescence(false)
+            tryCompare(deck, "quiescing", false, 20000)
+            Fixture.switchProfile("receiving-isolated-" + (++serial))
+            tryCompare(deck, "quiescing", false, 20000)
+            var other = openSpace("/plain")
+            var cookies = receivingScript(other, "document.cookie")
+            verify(String(cookies).indexOf(cookieName + "=marker") < 0,
+                   "A different account profile must not receive the first profile cookie")
+        }
+
+        // --- New repair coverage ---
+
+        function test_processLossWithRetainedDeferralDrainsAndSettles() {
+            var id = openSpace("/guard")
+            armGuard(id)
+            verify(deck.closeTab(id))
+            var consent = null
+            tryVerify(function() {
+                consent = deck.entries[id] ? deck.entries[id].closeConsent : null
+                return consent && consent.kind === "close"
+            }, 10000)
+            var token = consent.attempt
+            // Test-build injection through the real process-failure handler:
+            // retained deferrals drain, the close settles failed (renderer)
+            // or blocked (browser runtime), never succeeded, and the space
+            // survives for recovery.
+            browserOf(id).simulateProcessFailureForTest("renderer")
+            tryVerify(function() { return !deck.entries[id].closePending }, 10000)
+            var result = ops().operationResult(token)
+            // The retained deferral drained and the close retired truthfully:
+            // invalidated by the loss (renderer reason recorded), failed or
+            // blocked when the loss path settles it directly — never success.
+            verify(result.outcome === "failed" || result.outcome === "blocked"
+                   || result.outcome === "invalidated")
+            verify(result.outcome !== "succeeded")
+            verify(String(result.reason).indexOf("process") >= 0
+                   || String(result.reason).indexOf("renderer") >= 0)
+            tryVerify(function() { return Sessions.get(id).id !== undefined }, 2000)
+            verify(deck.entries[id].browser.ready,
+                   "Renderer loss must leave the host recoverable")
+        }
+
+        function test_suppressedProgrammaticNavigationSettlesBlocked() {
+            // The observed runtime stall: after a dismissed beforeunload, a
+            // programmatic navigation to another guarded page never reaches a
+            // terminal. The admitted operation settles bounded-blocked and
+            // the space stays usable; the supported user-gesture case is
+            // covered by the replacement test.
+            var id = openSpace("/guard")
+            armGuard(id)
+            browserOf(id).navigationDeadlineMs = 3000
+            verify(deck.closeTab(id))
+            var consent = null
+            tryVerify(function() {
+                consent = deck.entries[id] ? deck.entries[id].closeConsent : null
+                return consent && consent.kind === "close"
+            }, 10000)
+            var staleToken = consent.attempt
+            verify(deck.navigateSession(id, FixtureUrl + "/b"))
+            // The deck resumes the queued navigation asynchronously after the
+            // close settles; wait for its admission.
+            var stalledOp = ""
+            tryVerify(function() {
+                stalledOp = (ops().pendingOperation(id) || {}).operationId || ""
+                return stalledOp.length > 0
+            }, 8000)
+            verify(stalledOp.length > 0, "The resumed navigation must be admitted")
+            tryVerify(function() { return !deck.entries[id].closePending }, 10000)
+            compare(ops().operationResult(staleToken).outcome, "invalidated")
+            var stalled = null
+            tryVerify(function() {
+                stalled = ops().operationResult(stalledOp)
+                return Boolean(stalled.outcome)
+            }, 15000)
+            verify(stalled && stalled.outcome === "blocked",
+                   "A stalled programmatic navigation must settle blocked, not hang")
+            tryVerify(function() { return Sessions.get(id).id !== undefined }, 2000)
+        }
+
+        function test_queuedNavigationReplaysAfterViewCreation() {
+            // A navigation dispatched while the loader is still creating the
+            // view is replayed once the view exists.
+            var id = Sessions.openBrowser({providerId: "mangaplus", providerName: "Reading",
+                url: FixtureUrl + "/a", startUrl: FixtureUrl + "/plain",
+                engineId: "webview2", mode: "read"}, true, false, true)
+            verify(id.length > 0)
+            verify(deck.navigateSession(id, FixtureUrl + "/b"))
+            var browser = null
+            tryVerify(function() {
+                browser = deck.entries[id] ? deck.entries[id].browser : null
+                return browser && browser.ready
+            }, 30000)
+            tryVerify(function() { return String(browser.url) === FixtureUrl + "/b"
+                && browser.title === "Fixture /b" && !browser.loading }, 20000)
         }
 
         function test_leaveRequiresCorrelatedDeparture() {

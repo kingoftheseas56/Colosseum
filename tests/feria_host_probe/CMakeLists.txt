@@ -46,7 +46,8 @@ target_link_libraries(feria_host_probe PRIVATE
 target_compile_definitions(feria_host_probe PRIVATE
     UNICODE
     _UNICODE
-    WIN32_LEAN_AND_MEAN)
+    WIN32_LEAN_AND_MEAN
+    FERIA_TEST_CONTROLS)
 
 add_custom_target(feria_host_probe_qml_copy
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

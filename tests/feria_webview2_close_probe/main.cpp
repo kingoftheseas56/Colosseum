@@ -301,6 +301,74 @@ int wmain(int argc, wchar_t **argv)
             views.push_back(createView(environment.Get(), label, static_cast<int>(views.size())));
             return *views.back();
         };
+        if (argc > 3 && std::wstring(argv[3]) == L"--stall-repro") {
+            // Matched minimal native reproduction of the suppressed-
+            // programmatic-navigation stall observed in the assembled host:
+            // a guarded page with user activation denies a beforeunload
+            // dialog (deferral completed without Accept), after which a
+            // programmatic Navigate to a different page never raises another
+            // dialog nor reaches a navigation terminal. Verdict is printed
+            // explicitly; exit 3 = stalled (documented runtime limitation),
+            // exit 0 = proceeded (runtime no longer stalls).
+            View &stallView = addView("stall-repro");
+            require(stallView.navigate(base + L"?mode=plain").success,
+                    "stall repro: plain page loads");
+            stallView.activate();
+            // Match the assembled fixture: the beforeunload guard is added
+            // from a user-activation context, not at document load.
+            stallView.cdp(L"Runtime.evaluate",
+                L"{\"expression\":\"addEventListener('beforeunload',e=>{e.preventDefault();e.returnValue=''});'armed'\",\"userGesture\":true,\"returnByValue\":true}");
+            const std::wstring aboutUri = L"about:blank";
+            check(stallView.web->Navigate(aboutUri.c_str()), "stall repro: denied attempt dispatch");
+            waitFor([&stallView] { return stallView.dialogs == 1; },
+                    "stall repro: beforeunload dialog for the denied attempt");
+            // The view's own handler queued the deny (deferral completed
+            // without Accept) because leave is false; wait for that decision.
+            waitFor([&stallView] { return stallView.denied == 1; },
+                    "stall repro: denied deferral completed");
+            // Match the assembled host's timing: the follow-up programmatic
+            // navigation there is dispatched at least one event-loop turn
+            // after the denied deferral, never on the dialog's own pump.
+            for (int waited = 0; waited < 500; ++waited) {
+                MSG message;
+                while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+                    if (message.message == WM_QUIT) throw std::runtime_error("unexpected WM_QUIT");
+                    TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+                while (!deferred.empty()) {
+                    auto task = std::move(deferred.front()); deferred.pop_front(); task();
+                }
+                // Mirror the assembled wrapper's periodic diagnostic script
+                // (app-mode polling), which executes on the guarded page
+                // between the denied dialog and the follow-up navigation.
+                if (waited == 250) stallView.script(L"1");
+                Sleep(1);
+            }
+            const size_t startsBefore = stallView.starts.size();
+            const int dialogsBefore = stallView.dialogs;
+            const std::wstring target = base + L"?mode=plain";
+            check(stallView.web->Navigate(target.c_str()), "stall repro: second navigate dispatch");
+            bool terminal = false;
+            bool dialogSeen = false;
+            try {
+                waitFor([&] {
+                    terminal = stallView.starts.size() > startsBefore;
+                    dialogSeen = stallView.dialogs > dialogsBefore;
+                    return terminal || dialogSeen;
+                }, "stall repro: navigation terminal");
+            } catch (const std::runtime_error &) {
+                // timeout: the suppressed navigation never proceeded
+            }
+            if (terminal || dialogSeen) {
+                log("stall-repro", "PROCEEDED: suppressed navigation reached a terminal or dialog");
+                std::cout << "{\"stallRepro\": \"proceeded\"}" << std::endl;
+                return 0;
+            }
+            log("stall-repro", "STALLED: no dialog and no navigation terminal within the window");
+            std::cout << "{\"stallRepro\": \"stalled\"}" << std::endl;
+            return 3;
+        }
         View &sibling = addView("sibling");
         require(sibling.navigate(base + L"?mode=plain").success, "sibling loads");
         const auto siblingState = sibling.script(L"snapshot()");

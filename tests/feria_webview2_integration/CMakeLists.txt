@@ -34,7 +34,7 @@ target_link_libraries(feria_wv2_integration PRIVATE
     Qt6::WebEngineQuick
     unofficial::webview2::webview2 ole32 user32)
 target_compile_definitions(feria_wv2_integration PRIVATE
-    FERIA_HAS_WEBVIEW2 UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+    FERIA_HAS_WEBVIEW2 FERIA_TEST_CONTROLS UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
 add_custom_command(TARGET feria_wv2_integration POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:unofficial::webview2::webview2>"
