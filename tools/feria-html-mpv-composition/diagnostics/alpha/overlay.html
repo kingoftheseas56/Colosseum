@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HTML overlay alpha test</title>
+<style>
+* { box-sizing: border-box; }
+html { background: transparent; }
+body { margin: 0; min-height: 1200px; background: transparent; color: white; font: 16px sans-serif; }
+body.opaque { background: #182538; }
+header { position: absolute; left: 80px; top: 24px; z-index: 1; }
+h1 { font-size: 22px; margin: 0 0 8px; }
+p { margin: 0; color: #a9c4dd; font-size: 14px; }
+#aperture { position: absolute; left: 80px; top: 112px; width: calc(100% - 160px); height: 340px;
+  background: transparent; outline: 2px solid #d6f5f1; box-shadow: 0 0 0 2000px #182538; }
+#caption { position: absolute; left: 20px; bottom: 18px; background: #07101d; padding: 12px 18px;
+  max-width: calc(100% - 40px); font-size: 18px; }
+#menu { position: absolute; top: 16px; right: 16px; width: 190px; background: #433070; padding: 16px; }
+#menu strong { display: block; margin-bottom: 12px; }
+#controls { position: absolute; left: 80px; top: 480px; width: calc(100% - 160px); background: #224466; padding: 14px; }
+button { background: #e1edf6; color: #132c41; border: 0; border-radius: 4px; padding: 10px 16px; margin-right: 8px; font: inherit; cursor: pointer; }
+#explanation { position: absolute; top: 556px; left: 80px; right: 80px; font-size: 14px; line-height: 1.5; }
+[hidden] { display: none !important; }
+</style>
+<body class="opaque">
+<header><h1>QML + HTML: alpha composition probe</h1><p>The checkerboard is native Qt Quick. This is not video playback.</p></header>
+<section id="aperture" aria-label="Transparent opening over native QML checkerboard">
+  <div id="caption">HTML caption stays above the native underlay.</div>
+  <aside id="menu" hidden><strong>HTML menu</strong>Caption controls<br>Remain interactive</aside>
+</section>
+<div id="controls"><button id="menuButton">Toggle HTML menu</button><button id="captionButton">Toggle caption</button></div>
+<p id="explanation">An opaque body is the negative control. Removing its fill should expose the native checkerboard through this opening while these HTML controls, captions and menu remain composed above it.</p>
+<script>
+if (location.hash === '#transparent') document.body.classList.remove('opaque');
+let menuClicks = 0, captionClicks = 0;
+const menu = document.getElementById('menu'), caption = document.getElementById('caption');
+document.getElementById('menuButton').onclick = () => { menu.hidden = !menu.hidden; menuClicks++; };
+document.getElementById('captionButton').onclick = () => { caption.hidden = !caption.hidden; captionClicks++; };
+function box(id) {
+  const node = document.getElementById(id), r = node.getBoundingClientRect();
+  return {x:r.x,y:r.y,width:r.width,height:r.height,visible:!node.hidden};
+}
+window.centerOf = id => { const r=box(id); return {x:r.x+r.width/2,y:r.y+r.height/2}; };
+window.measureProbe = () => ({aperture:box('aperture'),caption:box('caption'),controls:box('controls'),menu:box('menu'),scrollY:window.scrollY,menuClicks,captionClicks,bodyBackground:getComputedStyle(document.body).backgroundColor});
+</script>

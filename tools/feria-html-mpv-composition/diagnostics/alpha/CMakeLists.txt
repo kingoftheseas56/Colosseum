@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.21)
+project(alpha_probe LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick WebEngineQuick Test)
+qt_add_executable(alpha_probe main.cpp)
+qt_add_resources(alpha_probe assets PREFIX "/" FILES Main.qml overlay.html)
+target_link_libraries(alpha_probe PRIVATE Qt6::Quick Qt6::WebEngineQuick Qt6::Test)
