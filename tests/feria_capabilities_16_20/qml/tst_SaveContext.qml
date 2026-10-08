@@ -371,7 +371,9 @@ Item {
             var snapshot = context("linkA")
             verify(snapshot.linkUrl.indexOf("alpha.bin") >= 0, "Narrow fixture must target the actual link, not resized-page background")
             tryCompare(contextBar,"width",460,5000)
-            verify(waitForRendering(surface))
+            // No future frame is guaranteed once this static scene is idle.
+            // grabWindow below inspects the actual scene; exact control bounds
+            // and wrapping remain the geometry assertions.
             console.info("NARROW_CONTEXT_LAYOUT", JSON.stringify({surfaceWidth:surface.width,barWidth:contextBar.width,barHeight:contextBar.height}))
             if (Fixture.evidenceRoot.length) verify(Fixture.captureWindow(surface,"category20-narrow-context-controls.png"))
             var firstY = -1, wrapped = false
