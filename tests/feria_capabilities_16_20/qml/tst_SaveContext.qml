@@ -12,7 +12,17 @@ Item {
     property var viewer: null
     property int serial: 0
     Feria.FeriaSaveContextBar { id: contextBar; width: parent.width; tools: surface.page ? surface.page.pageTools : null }
-    Component { id: profileFactory; WebEngineProfile { offTheRecord: true } }
+    Component {
+        id: profileFactory
+        WebEngineProfile {
+            property bool ordinary: false
+            property string partitionName: ""
+            storageName: ordinary ? partitionName : ""
+            offTheRecord: !ordinary
+            persistentStoragePath: ordinary ? Fixture.downloadsDirectory + "/profile-" + partitionName : ""
+            cachePath: ordinary ? Fixture.downloadsDirectory + "/cache-" + partitionName : ""
+        }
+    }
     Component {
         id: ownerFactory
         Feria.FeriaBrowserDownloads {
@@ -40,14 +50,23 @@ Item {
         id: suite
         name: "FeriaNativeSave20"
         when: windowShown
-        function init() {
+        function init() { initialize(false) }
+        function initialize(ordinary) {
+            surface.width = 1024
             Fixture.reset()
-            nativeProfile = profileFactory.createObject(surface, {downloadPath: Fixture.downloadsDirectory})
+            ++surface.serial
+            if (ordinary) Fixture.switchProfile("save-context-account-" + surface.serial)
+            nativeProfile = profileFactory.createObject(surface, {ordinary: ordinary, partitionName: "save-context-" + surface.serial, downloadPath: Fixture.downloadsDirectory})
             verify(nativeProfile !== null)
-            owner = ownerFactory.createObject(surface, {profile: nativeProfile})
+            owner = ownerFactory.createObject(surface, {profile: nativeProfile, privateBrowsing: !ordinary})
             verify(owner !== null)
             page = pageFactory.createObject(surface, {sharedProfile: nativeProfile, saveAdmissionOwner: owner})
             verify(page !== null)
+            if (ordinary) {
+                page.accountVisitToken = FeriaAccount.beginSessionVisit(page.accountSessionId,
+                    {pk: "mangaplus", privateBrowsing: false, title: "Native Save fixture"})
+                verify(page.accountVisitToken.length > 0)
+            }
             tryVerify(function() { return page.documentReady && !page.loading }, 15000)
             page.forceActiveFocus()
             verify(page.mainFrame.isValid)
@@ -64,11 +83,12 @@ Item {
                 page.prepareForClose(false)
                 tryCompare(page, "pendingJavaScript", 0, 5000)
             }
-            // Do not exercise the unsafe pre-delivery source-close race as
-            // cleanup after a failed assertion. Retire that profile while its
-            // source object remains retained. Normal teardown destroys views first.
+            // A failed fixture may leave a pre-delivery Save with no public
+            // cancellation/drain handle. Do not turn cleanup into the unsafe
+            // source-close race, or destroy a profile under a live source.
+            // Exit only this test process nonzero; remaining cases are NOT RUN.
             var awaitingNative = owner && owner.pageSaveIntent && !owner.pageSaveIntent.downloadId
-            if (awaitingNative && nativeProfile) { nativeProfile.destroy(); nativeProfile = null; wait(0) }
+            if (awaitingNative) Fixture.unsupportedCleanup("PageSave request was not delivered; safe source/profile teardown is unqualified")
             if (page) { page.destroy(); page = null; wait(0) }
             if (owner) { owner.destroy(); owner = null; wait(0) }
             if (nativeProfile) { nativeProfile.destroy(); nativeProfile = null }
@@ -95,7 +115,7 @@ Item {
             verify(!Fixture.fileExists(entry.path), "Requested must not write before destination admission")
             return entry
         }
-        function accept(entry, suffix) {
+        function accept(entry, suffix, expectedMetadata) {
             var name = "save-" + (++serial) + "-" + suffix
             var result = owner.decideDownload(entry.downloadId, entry.decisionToken,
                 {directory: Fixture.downloadsDirectory, fileName: name})
@@ -104,7 +124,7 @@ Item {
             compare(entry.state, WebEngineDownloadRequest.DownloadCompleted)
             verify(Fixture.fileExists(entry.path))
             verify(Fixture.pathSize(entry.path) > 0)
-            compare(entry.metadataState, "private", "Private saves must not enter ordinary history")
+            tryCompare(entry, "metadataState", expectedMetadata || "private", 5000)
             return entry.path
         }
         function test_contextSerialNavigationAndHostFences() {
@@ -132,6 +152,7 @@ Item {
             verify(observed > 0)
             verify(accepted, "The native menu must not expose an unguarded SavePage ingress")
             verify(contextBar.open)
+            compare(contextBar.color, "#202936", "Chrome needs its own readable backdrop")
             verify(page.y >= contextBar.y + contextBar.height, "Save controls must not overlay the website")
             verify(findChild(contextBar, "feriaContextCopy").visible)
             verify(findChild(contextBar, "feriaContextOpenLink").visible)
@@ -168,6 +189,8 @@ Item {
             compare(Fixture.checksum(audioPath), Fixture.expectedChecksum("/media.wav"))
             var canvas = context("canvas")
             compare(page.pageTools.saveFromContext(canvas.contextId,"image").status,"unsupported")
+            verify(findChild(contextBar,"feriaContextCopy").visible)
+            compare(page.pageTools.contextNativeAction(canvas.contextId,"copyImage").status,"dispatched")
             var scriptLink = context("javascriptLink")
             compare(page.pageTools.saveFromContext(scriptLink.contextId,"link").status,"unsupported")
             compare(owner.items.length, 1)
@@ -182,8 +205,11 @@ Item {
             compare(owner.items.length,0)
         }
         function test_nativePageFormatsRequestedRoundtripAndSerialization() {
+            var previousGeneration = page.navigationGeneration
             page.url = Fixture.baseUrl + "/save-page"
-            tryVerify(function() { return page.documentReady && !page.loading && String(page.url).indexOf('/save-page') >= 0 },15000)
+            tryVerify(function() { return page.navigationGeneration > previousGeneration && page.documentReady
+                && !page.loading && String(page.url).indexOf('/save-page') >= 0 },15000)
+            verify(evaluate("document.body.innerText.includes('FERIA_SAVE_PAGE_MARKER')"), "The intended fixture document must commit before native Save")
             var formats = [WebEngineDownloadRequest.SingleHtmlSaveFormat,
                 WebEngineDownloadRequest.CompleteHtmlSaveFormat, WebEngineDownloadRequest.MimeHtmlSaveFormat]
             for (var format of formats) {
@@ -211,16 +237,63 @@ Item {
                 viewer.destroy(); viewer=null
             }
         }
-        function test_nativePageDestinationCancelAndNavigationBlocked() {
+        function test_nativePageDestinationCancelWritesNoFile() {
             compare(page.pageTools.savePage().status,"dispatched")
-            var entry=waitOffer(1), generation=page.navigationGeneration
-            evaluate("location.href='/save-page';true")
-            wait(150)
-            compare(page.navigationGeneration,generation,"Navigation must not replace a document during serialization admission")
+            var entry=waitOffer(1)
             compare(owner.decideDownload(entry.downloadId,entry.decisionToken,{cancel:true}).status,"cancelled")
             tryVerify(function(){return entry.finished && !owner.pendingPageSaveForView(page)},5000)
             compare(entry.state,WebEngineDownloadRequest.DownloadCancelled)
             verify(!Fixture.fileExists(entry.path))
+        }
+        function test_sourceNavigationInvalidatesDocumentDependentSave() {
+            var historyBefore = FeriaAccount.browserDownloadHistory.length
+            compare(page.pageTools.savePage().status,"dispatched")
+            var entry=waitOffer(1)
+            evaluate("location.href='/save-page';true")
+            // Qt can announce LoadStarted before navigationRequested. That
+            // invalidates/cancels serialization; generation staying unchanged
+            // is not a supported navigation-prevention guarantee.
+            tryVerify(function(){return entry.finished && !owner.pendingPageSaveForView(page)},5000)
+            compare(owner.nativeSaveOutcome.status,"invalidated")
+            compare(entry.state,WebEngineDownloadRequest.DownloadCancelled)
+            verify(!Fixture.fileExists(entry.path))
+            compare(FeriaAccount.browserDownloadHistory.length,historyBefore)
+        }
+        function test_narrowContextControlsReserveWrappedHeight() {
+            surface.width = 460
+            context("linkA")
+            tryVerify(function() { return contextBar.height > 80 }, 5000)
+            for (var name of ["feriaContextSavePage", "feriaSavePageFormat", "feriaContextSaveResource",
+                    "feriaContextOpenLink", "feriaContextCopy", "feriaContextDismiss"]) {
+                var control = findChild(contextBar, name)
+                verify(control !== null)
+                if (!control.visible) continue
+                var point = control.mapToItem(contextBar, 0, 0)
+                verify(point.x >= 0 && point.x + control.width <= contextBar.width,
+                    name + " must fit inside narrow chrome")
+            }
+            verify(page.y >= contextBar.height)
+        }
+        function test_pageSaveCommitsSettledNativeBytesExactlyOnce() {
+            cleanup()
+            initialize(true)
+            compare(nativeProfile.offTheRecord, false)
+            compare(FeriaAccount.browserDownloadHistory.length, 0)
+            compare(page.pageTools.savePage(WebEngineDownloadRequest.MimeHtmlSaveFormat).status, "dispatched")
+            var entry = waitOffer(1)
+            compare(entry.snapshot().sourceStatus, "exclusive-app-page-save")
+            compare(entry.snapshot().source.sessionId, page.accountSessionId)
+            var path = accept(entry, "history.mhtml", "recorded")
+            compare(FeriaAccount.browserDownloadHistory.length, 1)
+            var row = FeriaAccount.browserDownloadHistory[0]
+            compare(row.id, entry.downloadId)
+            compare(row.path, path)
+            compare(row.receivedBytes, entry.request.receivedBytes)
+            compare(row.totalBytes, Math.max(0, entry.request.totalBytes))
+            verify(row.receivedBytes > 0)
+            entry.update(); entry.update()
+            compare(FeriaAccount.browserDownloadHistory.length, 1, "Duplicate terminal delivery must not consume another grant")
+            compare(FeriaAccount.browserDownloadHistory[0].receivedBytes, row.receivedBytes)
         }
         function test_noOwnerNoExplicitPathFallback() {
             page.saveAdmissionOwner=null

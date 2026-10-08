@@ -1,4 +1,6 @@
 #include "CapabilitiesHttpFixture.h"
+#include <cstdio>
+#include <cstdlib>
 #include "SessionStore.h"
 #include "feria/FeriaAccountStore.h"
 #include "feria/FeriaBrowserPolicy.h"
@@ -48,6 +50,14 @@ public:
     Q_PROPERTY(QString downloadsDirectory READ downloadRoot CONSTANT)
     Q_PROPERTY(QString baseUrl READ baseUrl CONSTANT)
     QString baseUrl() const { return QStringLiteral("http://127.0.0.1:%1").arg(m_server.serverPort()); }
+    // Abort only this synthetic harness process when safe QObject teardown
+    // cannot be established after a failed pre-delivery Save assertion. This
+    // is an explicit failed run, never a successful/skip cleanup path.
+    Q_INVOKABLE void unsupportedCleanup(const QString &reason) const {
+        std::fprintf(stderr, "UNSUPPORTED_CLEANUP: %s\n", qPrintable(reason));
+        std::fflush(stdout); std::fflush(stderr);
+        std::_Exit(EXIT_FAILURE);
+    }
     Q_INVOKABLE void reset() { m_capabilities.reset(); }
     Q_INVOKABLE int release(const QString &key) { return m_capabilities.release(key); }
     Q_INVOKABLE int interrupt(const QString &key) { return m_capabilities.interrupt(key); }
@@ -168,7 +178,9 @@ public:
         m_sessions->setBrowserProfile(root);
         m_account->setStoragePath(root + QStringLiteral("/account.json"));
         m_policy->setStorageRoot(root + QStringLiteral("/browser"));
+#ifndef FERIA_BASELINE_API
         m_policy->setDownloadAccountStore(m_account);
+#endif
     }
 public slots:
     void applicationAvailable() {

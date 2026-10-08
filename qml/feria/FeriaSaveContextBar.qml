@@ -5,9 +5,10 @@ import QtWebEngine
 import "../account" as AccountUi
 
 // A small reserved chrome row. Its parent must place the website below it.
-Item {
+Rectangle {
     id: root
     objectName: "feriaSaveContextBar"
+    color: "#202936"
     property var tools: null
     readonly property var snapshot: tools ? tools.contextSnapshot : null
     readonly property bool open: snapshot !== null
@@ -24,7 +25,7 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: parent.top; anchors.margins: 6
         spacing: 4
-        RowLayout {
+        Flow {
             Layout.fillWidth: true
             spacing: 6
             ContextButton {
@@ -64,14 +65,16 @@ Item {
             ContextButton {
                 objectName: "feriaContextCopy"
                 text: root.snapshot && root.snapshot.linkUrl.length ? qsTr("Copy link")
-                    : root.snapshot && root.snapshot.mediaType === ContextMenuRequest.MediaTypeImage
+                    : root.snapshot && (root.snapshot.mediaType === ContextMenuRequest.MediaTypeImage
+                        || root.snapshot.mediaType === ContextMenuRequest.MediaTypeCanvas)
                         ? qsTr("Copy image") : qsTr("Copy media link")
-                visible: root.snapshot && (root.snapshot.linkUrl.length || root.snapshot.mediaUrl.length)
+                visible: root.snapshot && (root.snapshot.linkUrl.length || root.snapshot.mediaUrl.length
+                    || root.snapshot.mediaType === ContextMenuRequest.MediaTypeCanvas)
                 onClicked: root.tools.contextNativeAction(root.snapshot.contextId,
                     root.snapshot.linkUrl.length ? "copyLink"
-                    : root.snapshot.mediaType === ContextMenuRequest.MediaTypeImage ? "copyImage" : "copyMediaLink")
+                    : (root.snapshot.mediaType === ContextMenuRequest.MediaTypeImage
+                        || root.snapshot.mediaType === ContextMenuRequest.MediaTypeCanvas) ? "copyImage" : "copyMediaLink")
             }
-            Item { Layout.fillWidth: true }
             ContextButton {
                 objectName: "feriaContextDismiss"
                 text: qsTr("Dismiss")

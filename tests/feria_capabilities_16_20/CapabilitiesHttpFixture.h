@@ -142,6 +142,14 @@ public:
                     + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
                 socket->disconnectFromHost(); return true;
             }
+            if (query.queryItemValue("rejectRange") == "1") {
+                auto rejected = m_log[logIndex].toMap();
+                rejected.insert("status", 416); rejected.insert("rangeStart", qlonglong(start));
+                m_log[logIndex] = rejected;
+                socket->write("HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */"
+                    + QByteArray::number(fullSize) + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                socket->disconnectFromHost(); return true;
+            }
             if (!specification.value(1).isEmpty()) end = qMin(end, qsizetype(specification.value(1).toLongLong()));
             if (end < start) end = fullSize - 1;
             body = body.mid(start, end - start + 1); partial = true;

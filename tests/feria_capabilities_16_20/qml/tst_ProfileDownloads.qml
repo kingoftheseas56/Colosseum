@@ -190,6 +190,34 @@ Item {
                 "A real nonzero HTTP Range request is required; replaying a full-body GET is not this assertion")
             compare(transfer.owner.requestDownloadAction(transfer.entry.downloadId,"terminal-resume","resume").status,"blocked")
         }
+        function test_serverRejectsRangeWithoutInventedResumeSuccess() {
+            var id=open(false), transfer=start(id,"no-range","no-range","&rejectRange=1")
+            tryVerify(function() { return transfer.entry.received>0 },10000)
+            verify(Fixture.interrupt("no-range")>0)
+            tryVerify(function() { return transfer.entry.state===WebEngineDownloadRequest.DownloadInterrupted
+                || Fixture.requestCount("no-range")>1 },20000)
+            if (transfer.entry.state===WebEngineDownloadRequest.DownloadInterrupted && transfer.entry.canResume)
+                compare(transfer.owner.requestDownloadAction(transfer.entry.downloadId,"no-range-attempt","resume").status,"dispatched")
+            Fixture.release("no-range")
+            tryVerify(function() { return Fixture.requestLog().some(function(row) { return row.gate==="no-range" && row.status===416 }) },20000)
+            tryVerify(function() { return transfer.entry.finished || transfer.entry.state===WebEngineDownloadRequest.DownloadInterrupted },20000)
+            console.log("FERIA_REJECT_RANGE_EVIDENCE "+JSON.stringify({state:transfer.entry.state,
+                finished:transfer.entry.finished,resumeAttemptAvailable:transfer.entry.canResume,requests:Fixture.requestLog()}))
+            if (transfer.entry.completed) {
+                // The engine may legitimately fall back to a fresh full GET.
+                // Count success only with its actual native terminal and bytes.
+                complete(transfer,"")
+            } else {
+                compare(transfer.entry.completed,false)
+                compare(transfer.entry.snapshot().canOpen,false)
+                compare(transfer.entry.snapshot().resumeGuarantee,false)
+                if (transfer.entry.canCancel) {
+                    compare(transfer.owner.requestDownloadAction(transfer.entry.downloadId,"stop-no-range","cancel").status,"dispatched")
+                    tryCompare(transfer.entry,"state",WebEngineDownloadRequest.DownloadCancelled,5000)
+                }
+                compare(transfer.entry.snapshot().cleanupConfirmed,false)
+            }
+        }
         function test_acceptedTransferSurvivesOriginalSpaceClose() {
             var id = open(false), transfer = start(id,"source-close","source-close")
             tryVerify(function() { return transfer.entry.received > 0 },10000)

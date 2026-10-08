@@ -22,7 +22,7 @@ FERIA_SESSION_EVIDENCE_DIR="$PWD/evidence/captures" xvfb-run -a -s '-screen 0 12
 - `/download?name=fixture.bin&gate=token`: deterministic1MiB attachment. Server writes exactly64KiB then holds until `Fixture.release("token")`. A test must observe actual received bytes and active native state before exercising pause, close, or retirement.
 - `/gated-download?gate=token`: holds response headers and body until release, for the strictly live-view document provenance reproducer.
 - `Fixture.interrupt("token")`: closes only fixture sockets associated with that gate. A later genuine native resume request supports and records HTTP Range. No synthetic state transition is injected into Qt.
-- `unknown=1`: omits Content-Length, finishing only when connection closes. `bytes=0`: real zero-length attachment.
+- `unknown=1`: omits Content-Length, finishing only when connection closes. `bytes=0`: real zero-length attachment. `rejectRange=1`: any actual Range request receives HTTP416, with no fixture-side restart; tests distinguish native full retry from terminal/interrupted state.
 - `requestLog()`: actual HTTP method/URL/path/gate/Range/start/status/bytes written. `requestCount(key)`: matching gate or route path count.
 - `checksum(path)`/`expectedChecksum(key)`, `pathSize(path)`, `fileExists(path)`, `readText(path)`: verify bytes written by the actual native download; file access stays under the fixture temporary root. For zero-length payload checks, call expectedChecksum after its keyed request.
 - `/media`: audio IDs playing/manual and video ID video, with valid local WAV and generated VP8/Vorbis WebM; no autoplay.
@@ -46,3 +46,9 @@ SHA-256:2040aaefe3922332e5dcb93f540fe9b612b8495f8cb2053d49fdbc8695a7381d.
 Download source attribution through the pinned Quick raw-backed request.view getter is excluded. A deliberately supplied source-envelope test remains a model of that boundary and is labeled accordingly. Originless/creation-view lifetime probes denied in earlier work are not executed. Automatic Page Save correlation is not inferred from URL, active selection, or event order.
 
 The unchanged legacy retained-download test is run separately on both exact baseline and candidate. Its fixed-delay failure stays visible. The deterministic gated regression is additional evidence and does not weaken or replace the old assertion.
+
+## Baseline visibility comparison
+
+For a test-only overlay onto the exact62057 baseline, configure with `-DFERIA_BASELINE_API=ON` and build only `feria_capabilities_runtime`. This omits only the new fixture account-binder call unavailable on that old owner API. Production sources remain at their pinned baseline revision; diagnostic files, HTTP/media assets and launch settings are the same as the candidate. No new native download-policy test is claimed on the old API.
+
+If a failed pre-delivery Save assertion leaves no qualified safe teardown, `Fixture.unsupportedCleanup(reason)` prints `UNSUPPORTED_CLEANUP`, flushes logs and exits only the current synthetic test process nonzero without Qt destructor traversal. Later cases are NOT RUN. This is never a pass or skip and never targets another process.

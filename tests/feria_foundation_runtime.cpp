@@ -143,6 +143,7 @@ public:
         m_sessions->setBrowserProfile(root);
         m_account->setStoragePath(root + QStringLiteral("/account.json"));
         m_policy->setStorageRoot(root + QStringLiteral("/browser"));
+        m_policy->setDownloadAccountStore(m_account);
     }
 public slots:
     void applicationAvailable() {

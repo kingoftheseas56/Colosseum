@@ -129,7 +129,8 @@ Item {
         var action = -1
         if (kind === "openLink" && admittedSaveUrl(snapshot.linkUrl)) action = WebEngineView.OpenLinkInNewTab
         else if (kind === "copyLink" && snapshot.linkUrl.length) action = WebEngineView.CopyLinkToClipboard
-        else if (kind === "copyImage" && snapshot.mediaType === ContextMenuRequest.MediaTypeImage)
+        else if (kind === "copyImage" && (snapshot.mediaType === ContextMenuRequest.MediaTypeImage
+                || snapshot.mediaType === ContextMenuRequest.MediaTypeCanvas))
             action = WebEngineView.CopyImageToClipboard
         else if (kind === "copyMediaLink" && snapshot.mediaUrl.length)
             action = WebEngineView.CopyMediaUrlToClipboard

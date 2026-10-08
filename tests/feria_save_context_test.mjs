@@ -95,6 +95,7 @@ function check(variant = '') {
     }
     f = fixture(variant); const canvas = snapshot(f, {linkUrl:'',mediaUrl:'',mediaType:4,mediaFlags:16});
     assert.equal(f.state.saveFromContext(canvas.contextId, 'image').status, 'unsupported');
+    assert.equal(f.state.contextNativeAction(canvas.contextId, 'copyImage').status, 'dispatched', 'canvas keeps supported native copy while Save is unavailable');
     f = fixture(variant); f.browser.mainFrame.children = [{}]; const frame = snapshot(f);
     assert.equal(frame.frameProvenance, 'unavailable');
     assert.equal(f.state.saveFromContext(frame.contextId, 'link').status, 'unsupported', 'unqualified frame fidelity must fail closed');
