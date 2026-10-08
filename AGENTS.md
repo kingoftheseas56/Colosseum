@@ -2,7 +2,7 @@
 
 ## Authority
 - Follow the user's current task first.
-- At the start of a fresh session, read `MEMORY.md` completely. It is intentionally compact product hot state, not a history archive.
+- Use canonical Brotherhood Event Memory proactively when relevant prior decisions, work, verification, integrations or blockers could affect the task; follow the installed `brotherhood-event-memory` skill with targeted queries (limit 3-5), compact summaries and exact-event expansion only as needed. Reuse relevant results already in context. Do not automatically preload `MEMORY.md` or dump all history.
 - Use live source, tests, build files, and runtime evidence for implementation facts.
 - Treat plans, handoffs, recaps, and Git history as optional context; read them only when the task requires them.
 - Do not preload documentation, skills, or historical context "just in case."
