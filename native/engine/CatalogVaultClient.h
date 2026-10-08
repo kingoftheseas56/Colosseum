@@ -15,6 +15,7 @@
 // over a file that is still open. If the rename still fails after that signal, the temp
 // `.downloading` file is left in place and fetchFailed(name, "target locked") is emitted
 // instead of touching the (still-valid) old target.
+#include <QByteArray>
 #include <QDateTime>
 #include <QHash>
 #include <QObject>
@@ -68,6 +69,7 @@ private:
         QString name;
         QUrl url;
         qint64 size = 0;
+        QByteArray sha256; // ASCII lowercase hex, empty only for digest-less legacy manifests
     };
 
     void setFetching(bool value);

@@ -1,5 +1,6 @@
 #include "engine/CatalogVaultClient.h"
 
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -31,6 +32,32 @@ const QStringList& knownAssets()
     return names;
 }
 
+bool isSha256Hex(const QByteArray& value)
+{
+    if (value.size() != 64)
+        return false;
+    for (const char c : value) {
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+              || (c >= 'A' && c <= 'F')))
+            return false;
+    }
+    return true;
+}
+
+bool isAllowedAssetUrl(const QUrl& url)
+{
+    if (!url.isValid() || url.host().isEmpty() || url.hasFragment()
+        || !url.userName().isEmpty() || !url.password().isEmpty())
+        return false;
+    if (url.scheme() == QStringLiteral("https"))
+        return true;
+    // Local fixture server only; distributed catalogues must use HTTPS.
+    return url.scheme() == QStringLiteral("http")
+        && (url.host() == QStringLiteral("127.0.0.1")
+            || url.host() == QStringLiteral("localhost")
+            || url.host() == QStringLiteral("::1"));
+}
+
 } // namespace
 
 class CatalogVaultIoWorker final : public QObject {
@@ -40,6 +67,7 @@ public:
         closeActive();
         m_error.clear();
         QFile::remove(tmpPath);
+        m_hash.reset();
         QDir().mkpath(QFileInfo(tmpPath).absolutePath());
         m_file = new QFile(tmpPath);
         const bool ok = m_file->open(QIODevice::WriteOnly);
@@ -55,10 +83,13 @@ public:
         if (!m_file || bytes.isEmpty() || !m_error.isEmpty()) return;
         if (m_file->write(bytes) != bytes.size())
             m_error = QStringLiteral("temp file write failed");
+        else
+            m_hash.addData(bytes);
     }
 
     void finish(int queueIndex, const QString& tmpPath, qint64 expectedSize,
-                const QString& networkError, QPointer<CatalogVaultClient> client)
+                const QByteArray& expectedSha256, const QString& networkError,
+                QPointer<CatalogVaultClient> client)
     {
         QString error = m_error;
         if (m_file) {
@@ -71,6 +102,9 @@ public:
         if (error.isEmpty() && !networkError.isEmpty()) error = networkError;
         if (error.isEmpty() && expectedSize > 0 && bytesWritten != expectedSize)
             error = QStringLiteral("truncated download");
+        if (error.isEmpty() && !expectedSha256.isEmpty()
+            && m_hash.result().toHex() != expectedSha256)
+            error = QStringLiteral("sha256 mismatch");
         if (!error.isEmpty()) QFile::remove(tmpPath);
         post(client, [queueIndex, bytesWritten, error](CatalogVaultClient* c) {
             c->onIoDownloadClosed(queueIndex, bytesWritten, error);
@@ -114,6 +148,7 @@ private:
 
     QFile* m_file = nullptr;
     QString m_error;
+    QCryptographicHash m_hash{QCryptographicHash::Sha256};
 };
 
 CatalogVaultClient::CatalogVaultClient(QNetworkAccessManager* nam, const QString& vaultDir,
@@ -290,8 +325,13 @@ void CatalogVaultClient::checkAndFetch()
 void CatalogVaultClient::fetchManifest()
 {
     setFetching(true);
-    QNetworkRequest request{QUrl(m_apiBaseUrl + QStringLiteral("/releases/latest"))};
-    request.setRawHeader("Accept", "application/vnd.github+json");
+    // A direct .json URL is portable (R2, S3, CDN). The historic GitHub API
+    // base URL continues to work unchanged for existing releases.
+    const QUrl endpoint(m_apiBaseUrl);
+    const QUrl manifestUrl = endpoint.path().endsWith(QStringLiteral(".json"))
+        ? endpoint : QUrl(m_apiBaseUrl + QStringLiteral("/releases/latest"));
+    QNetworkRequest request{manifestUrl};
+    request.setRawHeader("Accept", "application/json");
     request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
     request.setRawHeader("User-Agent", kUserAgent);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
@@ -331,9 +371,16 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
         return;
     }
     const QJsonObject root = doc.object();
-    const QString tag = root.value(QStringLiteral("tag_name")).toString();
+    const bool portable = root.contains(QStringLiteral("schema"));
+    if (portable && root.value(QStringLiteral("schema")).toString()
+            != QStringLiteral("colosseum.catalog-vault.v1")) {
+        failManifest(QStringLiteral("unsupported catalog manifest schema"));
+        return;
+    }
+    const QString tag = root.value(portable ? QStringLiteral("tag")
+                                           : QStringLiteral("tag_name")).toString();
     if (tag.isEmpty()) {
-        failManifest(QStringLiteral("missing tag_name"));
+        failManifest(QStringLiteral("missing catalogue tag"));
         return;
     }
 
@@ -343,11 +390,39 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
         const QString name = asset.value(QStringLiteral("name")).toString();
         if (!knownAssets().contains(name))
             continue;
+        if (byName.contains(name)) {
+            failManifest(QStringLiteral("duplicate catalogue asset"));
+            return;
+        }
+
         AssetInfo info;
         info.name = name;
-        info.url = QUrl(asset.value(QStringLiteral("browser_download_url")).toString());
+        const QString rawUrl = asset.value(portable ? QStringLiteral("url")
+                                                   : QStringLiteral("browser_download_url")).toString();
+        info.url = reply->url().resolved(QUrl(rawUrl));
         info.size = asset.value(QStringLiteral("size")).toVariant().toLongLong();
+
+        QString hash = portable ? asset.value(QStringLiteral("sha256")).toString()
+                                : asset.value(QStringLiteral("digest")).toString();
+        if (!portable && hash.startsWith(QStringLiteral("sha256:")))
+            hash.remove(0, 7);
+        info.sha256 = hash.toLatin1().toLower();
+
+        if (info.size <= 0 || !isAllowedAssetUrl(info.url)
+            || (portable && !isSha256Hex(info.sha256))
+            || (!info.sha256.isEmpty() && !isSha256Hex(info.sha256))) {
+            failManifest(QStringLiteral("invalid catalogue asset: ") + name);
+            return;
+        }
         byName.insert(name, info);
+    }
+    if (portable) {
+        for (const QString& name : managedAssetNames()) {
+            if (!byName.contains(name)) {
+                failManifest(QStringLiteral("missing catalogue asset: ") + name);
+                return;
+            }
+        }
     }
 
     QString priorTag;
@@ -465,8 +540,9 @@ void CatalogVaultClient::onDownloadFinished()
 
     QPointer<CatalogVaultClient> self(this);
     QMetaObject::invokeMethod(m_ioWorker,
-        [worker = m_ioWorker, queueIndex, tmpPath, expectedSize = asset.size, networkError, self] {
-            worker->finish(queueIndex, tmpPath, expectedSize, networkError, self);
+        [worker = m_ioWorker, queueIndex, tmpPath, expectedSize = asset.size,
+         expectedSha256 = asset.sha256, networkError, self] {
+            worker->finish(queueIndex, tmpPath, expectedSize, expectedSha256, networkError, self);
         }, Qt::QueuedConnection);
 }
 

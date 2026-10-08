@@ -17,6 +17,7 @@
 #include "engine/CatalogVaultClient.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
 #include <QEventLoop>
@@ -79,6 +80,7 @@ public:
     QString tag = QStringLiteral("v1.0.0");
     QHash<QString, QByteArray> assetBytes;
     QString truncateName; // non-empty: that asset's download is cut mid-stream
+    QString corruptName; // non-empty: corrupt payload without changing its length
     int requestCount = 0;
 
     QString baseUrl() const { return QStringLiteral("http://127.0.0.1:%1").arg(serverPort()); }
@@ -103,6 +105,8 @@ protected:
 
             if (path == "/releases/latest") {
                 writeResponse(socket, 200, buildLatestJson(), {});
+            } else if (path == "/catalog-vault/manifest.json") {
+                writeResponse(socket, 200, buildPortableJson(), {});
             } else if (path.startsWith("/download/")) {
                 const QString name = QString::fromUtf8(path.mid(int(strlen("/download/"))));
                 const QByteArray full = assetBytes.value(name);
@@ -113,6 +117,11 @@ protected:
                     socket->write(response);
                     socket->flush();
                     socket->disconnectFromHost();
+                } else if (name == corruptName) {
+                    QByteArray changed = full;
+                    if (!changed.isEmpty())
+                        changed[0] = char(changed[0] ^ 1);
+                    writeResponse(socket, 200, changed, {});
                 } else {
                     writeResponse(socket, 200, full, {});
                 }
@@ -132,10 +141,31 @@ private:
             asset.insert(QStringLiteral("browser_download_url"),
                         baseUrl() + QStringLiteral("/download/") + it.key());
             asset.insert(QStringLiteral("size"), it.value().size());
+            asset.insert(QStringLiteral("digest"), QStringLiteral("sha256:") + QString::fromLatin1(
+                QCryptographicHash::hash(it.value(), QCryptographicHash::Sha256).toHex()));
             assets.append(asset);
         }
         QJsonObject root;
         root.insert(QStringLiteral("tag_name"), tag);
+        root.insert(QStringLiteral("assets"), assets);
+        return QJsonDocument(root).toJson(QJsonDocument::Compact);
+    }
+
+    QByteArray buildPortableJson() const
+    {
+        QJsonArray assets;
+        for (auto it = assetBytes.constBegin(); it != assetBytes.constEnd(); ++it) {
+            QJsonObject asset;
+            asset.insert(QStringLiteral("name"), it.key());
+            asset.insert(QStringLiteral("url"), baseUrl() + QStringLiteral("/download/") + it.key());
+            asset.insert(QStringLiteral("size"), it.value().size());
+            asset.insert(QStringLiteral("sha256"), QString::fromLatin1(
+                QCryptographicHash::hash(it.value(), QCryptographicHash::Sha256).toHex()));
+            assets.append(asset);
+        }
+        QJsonObject root;
+        root.insert(QStringLiteral("schema"), QStringLiteral("colosseum.catalog-vault.v1"));
+        root.insert(QStringLiteral("tag"), tag);
         root.insert(QStringLiteral("assets"), assets);
         return QJsonDocument(root).toJson(QJsonDocument::Compact);
     }
@@ -435,6 +465,48 @@ int main(int argc, char** argv)
     require(foregroundFresh, "(i) deferred pass resumes when foreground pressure returns Normal");
     require(server.requestCount >= 2, "(i) resumed pass fetched manifest and managed asset");
     pass("(i) foreground pressure defers and resumes a new pass");
+
+    // ── (j) portable schema works at a direct JSON URL without GitHub REST ──
+    QTemporaryDir dirJ;
+    require(dirJ.isValid(), "temp vault dir J created");
+    server.tag = QStringLiteral("data-v6");
+    server.assetBytes = fixtureBytesFor(server.tag);
+    const QString portableManifest = server.baseUrl() + QStringLiteral("/catalog-vault/manifest.json");
+    const RunResult j = run(nam, dirJ.path(), portableManifest);
+    require(j.allFreshCalled && j.allFreshTag == QStringLiteral("data-v6"),
+            "(j) portable manifest completes cold fetch");
+    for (const QString& name : knownNames()) {
+        QFile f(dirJ.path() + QLatin1Char('/') + name);
+        require(f.open(QIODevice::ReadOnly), "(j) portable download opens");
+        require(f.readAll() == server.assetBytes.value(name), "(j) SHA-verified bytes match");
+    }
+    pass("(j) portable versioned manifest cold-fetches all four assets");
+
+    // ── (k) same-size corruption never replaces a last-known-good cache ───────
+    QTemporaryDir dirK;
+    require(dirK.isValid(), "temp vault dir K created");
+    const QString malName = QStringLiteral("mal_catalog.db");
+    const QByteArray lastGood("previous-valid-catalogue");
+    writeFile(dirK.path() + QLatin1Char('/') + malName, lastGood);
+    server.tag = QStringLiteral("data-v7");
+    server.assetBytes = fixtureBytesFor(server.tag);
+    server.corruptName = malName;
+    const QStringList onlyMal{malName};
+    const RunResult k = runWithManaged(nam, dirK.path(), portableManifest, &onlyMal);
+    require(k.failedNames == QStringList{malName},
+            "(k) corrupted same-length payload fails named asset");
+    require(k.failedErrors.join(QLatin1Char(' ')).contains(QStringLiteral("sha256 mismatch")),
+            "(k) verification reports digest mismatch");
+    QFile oldMal(dirK.path() + QLatin1Char('/') + malName);
+    require(oldMal.open(QIODevice::ReadOnly) && oldMal.readAll() == lastGood,
+            "(k) checksum failure retains previous catalogue");
+    require(!anyDownloadingResidue(dirK.path()), "(k) temp removed on mismatch");
+    require(!QFile::exists(dirK.path() + QStringLiteral("/state.json")),
+            "(k) corrupted download cannot advance manifest tag");
+    require(!k.events.contains(QStringLiteral("about:") + malName),
+            "(k) rejected bytes never reach live-swap boundary");
+    server.corruptName.clear();
+    pass("(k) same-size SHA mismatch preserves last-known-good catalogue");
 
     std::cout << "CATALOG_VAULT_CLIENT_OK\n";
     return 0;
