@@ -6,6 +6,7 @@ import QtWebEngine
 import "FeriaPlayback.js" as Playback
 import "FeriaSession.js" as Session
 import "FeriaAppMode.js" as AppMode
+import "FeriaJavaScript.js" as JavaScript
 
 WebEngineView {
     id: browser
@@ -36,8 +37,25 @@ WebEngineView {
     // engine says it is safe; audible pages and pending callbacks stay active.
     property bool freezeBackground: true
     property int freezeDelay: 30000
+    property bool lifecycleBlocked: false
+    property bool activitySuspended: false
+    property int presentationSerial: 0
+    function applyPresentationActivity() {
+        if (closingSession || rendererLost || replacementLoadPending || !documentReady) return
+        wakePage()
+        evaluateJavaScript(Playback.presentationMedia(activitySuspended, navigationGeneration, presentationSerial))
+    }
+    onActivitySuspendedChanged: {
+        var serial = ++presentationSerial
+        // Coalesce rapid world/minimize changes before dispatching page commands.
+        Qt.callLater(function() {
+            if (serial === browser.presentationSerial) browser.applyPresentationActivity()
+        })
+    }
+    onLifecycleBlockedChanged: if (lifecycleBlocked) wakePage()
     function wakePage() {
-        freezeTimer.stop()
+        // Eligibility owns the timer. Stopping it here while already Active
+        // leaves an eligible hidden view stopped until a dependency changes.
         if (lifecycleState !== WebEngineView.LifecycleState.Active)
             lifecycleState = WebEngineView.LifecycleState.Active
     }
@@ -47,11 +65,13 @@ WebEngineView {
         id: freezeTimer
         interval: browser.freezeDelay
         running: browser.freezeBackground && !browser.visible && !browser.closingSession
+            && !browser.lifecycleBlocked && !browser.rendererLost && !browser.adoptingWindowRequest
             && !browser.recentlyAudible
             && browser.recommendedState !== WebEngineView.LifecycleState.Active
             && browser.lifecycleState === WebEngineView.LifecycleState.Active
         onTriggered: {
-            if (browser.pendingJavaScript === 0) browser.lifecycleState = WebEngineView.LifecycleState.Frozen
+            if (browser.pendingJavaScript === 0 && !browser.lifecycleBlocked)
+                browser.lifecycleState = WebEngineView.LifecycleState.Frozen
             else restart()
         }
     }
@@ -59,29 +79,42 @@ WebEngineView {
     // pending JavaScript callback can reach a torn-down QML context on close.
     property bool closingSession: false
     property bool adoptingWindowRequest: false
-    property int pendingJavaScript: 0
+    property var javascriptTickets: ({})
+    property int javascriptTicketSerial: 0
+    readonly property int pendingJavaScript: Object.keys(javascriptTickets).length
+    property int javascriptEpoch: 0
+    property bool destructionNotified: false
     signal safeToDestroy()
-    function evaluateJavaScript(script, callback) {
-        if (closingSession || adoptingWindowRequest) return false
-        if (lifecycleState !== WebEngineView.LifecycleState.Active) return false
-        // Legacy single-view and cleanup owners retain their existing API.
-        if (!sharedProfile) {
-            if (typeof callback === "function") runJavaScript(script, callback)
-            else runJavaScript(script)
-            return true
+    function notifySafeToDestroy() {
+        if (!closingSession || pendingJavaScript !== 0 || destructionNotified) return
+        destructionNotified = true
+        stop()
+        safeToDestroy()
+    }
+    function invalidateJavaScriptTickets() {
+        for (var id of Object.keys(javascriptTickets)) JavaScript.invalidate(javascriptTickets[id])
+        javascriptTickets = ({})
+    }
+    function finishJavaScript(ticket, result, callback) {
+        if (javascriptTickets[ticket.id] !== ticket) return
+        var remaining = Object.assign({}, javascriptTickets)
+        delete remaining[ticket.id]
+        javascriptTickets = remaining
+        try {
+            if (!closingSession && !rendererLost && ticket.epoch === javascriptEpoch
+                    && typeof callback === "function") callback(result)
+        } finally {
+            notifySafeToDestroy()
         }
-        ++pendingJavaScript
-        runJavaScript(script, function(result) {
-            try {
-                if (!browser.closingSession && typeof callback === "function") callback(result)
-            } finally {
-                --browser.pendingJavaScript
-                if (browser.closingSession && browser.pendingJavaScript === 0) {
-                    browser.stop()
-                    browser.safeToDestroy()
-                }
-            }
-        })
+    }
+    function evaluateJavaScript(script, callback) {
+        if (closingSession || adoptingWindowRequest || rendererLost) return false
+        if (lifecycleState !== WebEngineView.LifecycleState.Active) return false
+        var ticket = JavaScript.ticket(browser, ++javascriptTicketSerial, javascriptEpoch, callback)
+        var pending = Object.assign({}, javascriptTickets)
+        pending[ticket.id] = ticket
+        javascriptTickets = pending
+        runJavaScript(script, JavaScript.resultCallback(ticket))
         return true
     }
     function prepareForClose(engineTerminal) {
@@ -98,7 +131,7 @@ WebEngineView {
         // before deferred parent/Loader destruction reaches the native view.
         focus = false
         documentCheck.stop(); cleanupPoll.stop()
-        if (pendingJavaScript === 0) { stop(); safeToDestroy() }
+        notifySafeToDestroy()
     }
     property string providerId: ""
     property string accountVisitToken: ""
@@ -175,7 +208,7 @@ WebEngineView {
     onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
     Timer {
         interval: 2000; repeat: true
-        running: !browser.closingSession && browser.lifecycleState === WebEngineView.LifecycleState.Active
+        running: !browser.closingSession && !browser.rendererLost && browser.lifecycleState === WebEngineView.LifecycleState.Active
             && (browser.observationEnabled || browser.resumePosition > 0 || browser.resumeLocator !== null)
         onTriggered: browser.samplePlayback()
     }
@@ -184,12 +217,14 @@ WebEngineView {
     property var clearOrigins: []
     property var clearDomains: []
     property bool cleanupNavigationPending: false
+    property bool cleanupComplete: true
     function clearLocalSession(domains, origins) {
+        cleanupComplete = true
         clearingSession = true; clearDomains = domains; clearOrigins = origins.slice(); clearNextOrigin()
     }
     function clearNextOrigin() {
         if (clearOrigins.length === 0) {
-            clearingSession = false; localSessionCleared(true)
+            clearingSession = false; localSessionCleared(cleanupComplete)
             return
         }
         var origin = clearOrigins[0]; clearOrigins = clearOrigins.slice(1)
@@ -198,14 +233,18 @@ WebEngineView {
         cleanupNavigationPending = true
         loadHtml("<!doctype html><title>Feria session cleanup</title>", origin + "/")
     }
+    function acceptCleanupResult(result) {
+        if (result === "done" || result === "partial") {
+            cleanupPoll.stop()
+            if (result === "partial") cleanupComplete = false
+            clearNextOrigin()
+        } else if (result === "failed") {
+            cleanupPoll.stop(); clearingSession = false; localSessionCleared(false)
+        }
+    }
     Timer {
         id: cleanupPoll; interval: 100; repeat: true
-        onTriggered: browser.evaluateJavaScript("window.__feriaStorageCleared || ''", function(result) {
-            if (result === "done") { cleanupPoll.stop(); browser.clearNextOrigin() }
-            else if (result === "failed") {
-                cleanupPoll.stop(); browser.clearingSession = false; browser.localSessionCleared(false)
-            }
-        })
+        onTriggered: browser.evaluateJavaScript("window.__feriaStorageCleared || ''", browser.acceptCleanupResult)
     }
     property bool suppressed: false
     readonly property bool ready: true
@@ -213,7 +252,9 @@ WebEngineView {
     property bool documentReady: false
     property int navigationGeneration: 0
     property bool replacementLoadPending: false
+    property bool rendererLost: false
     signal documentReplaced(int generation)
+    signal mainDocumentLoaded(string location)
     signal documentLoadUnsuccessful(int generation, string location)
     // Engine load state for the shell; WebEngineView reports real loadProgress.
     readonly property bool loadActive: loading
@@ -263,19 +304,30 @@ WebEngineView {
         if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()
     }
     onLoadingChanged: function(info) {
-        if (closingSession || adoptingWindowRequest) return
+        if (closingSession) return
+        if (adoptingWindowRequest) {
+            // Qt initialization reports the original adopted content, including
+            // a silent about:blank popup. Preserve its adoption observation;
+            // this is not a reconstructed main-document load or recovery.
+            if (!rendererLost && info.status === WebEngineView.LoadSucceededStatus)
+                completed(String(info.url), true)
+            return
+        }
         if (info.status === WebEngineView.LoadStartedStatus) {
             fullScreenActive = false
             stopRequested = false
             ++navigationGeneration
+            ++javascriptEpoch
             replacementLoadPending = true
             documentReady = false
-            documentCheck.restart()
+            if (!rendererLost) documentCheck.restart()
             started(String(info.url))
         }
         else if (info.status === WebEngineView.LoadSucceededStatus) {
+            if (!replacementLoadPending || loading || String(info.url) !== String(url)) return
             stopRequested = false
             documentCheck.stop()
+            rendererLost = false
             documentReady = true
             applyAppMode()
             if (clearingSession) {
@@ -284,10 +336,10 @@ WebEngineView {
             }
             // Qt's DidStartNavigation excludes same-document navigation. Only
             // its successful main-document completion releases old barriers.
-            if (replacementLoadPending && !loading && String(info.url) === String(url)) {
-                replacementLoadPending = false
-                documentReplaced(navigationGeneration)
-            }
+            replacementLoadPending = false
+            documentReplaced(navigationGeneration)
+            mainDocumentLoaded(String(info.url))
+            applyPresentationActivity()
             // A completed listener may begin cleanup synchronously. Inspect the
             // current load before notifying it, so about:blank is never cleaned.
             completed(String(info.url), true)
@@ -301,6 +353,7 @@ WebEngineView {
             replacementLoadPending = false
             stopRequested = false
             ++navigationGeneration
+            ++javascriptEpoch
             documentCheck.stop()
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
@@ -312,6 +365,7 @@ WebEngineView {
             if (!loading || (info.errorCode !== 3 && info.errorCode !== -3))
                 replacementLoadPending = false
             ++navigationGeneration
+            ++javascriptEpoch
             documentCheck.stop()
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
@@ -334,18 +388,43 @@ WebEngineView {
         onTriggered: {
             var generation = browser.navigationGeneration
             browser.evaluateJavaScript("({ready:document.readyState !== 'loading' && !!document.body && document.body.childElementCount > 0,url:location.href})", function(result) {
-                if (generation !== browser.navigationGeneration || !result || result.ready !== true
+                if (browser.rendererLost || browser.closingSession || generation !== browser.navigationGeneration || !result || result.ready !== true
                         || String(result.url) !== String(browser.url)) return
                 documentCheck.stop()
                 browser.documentReady = true
                 browser.applyAppMode()
-                browser.completed(String(browser.url), true)
             })
         }
     }
     onRenderProcessTerminated: function(status, exitCode) {
+        // A terminal can arrive while live-close callbacks are still draining.
+        // Those requests can no longer answer; retire them and release once.
+        if (closingSession) {
+            invalidateJavaScriptTickets()
+            ++javascriptEpoch
+            documentCheck.stop(); cleanupPoll.stop(); freezeTimer.stop()
+            notifySafeToDestroy()
+            return
+        }
+        // Routine renderer retirement stays quiet. The close controller still
+        // receives the original engine signal independently.
+        if (status === WebEngineView.NormalTerminationStatus) return
+        // Generation changes synchronously request media invalidation scripts.
+        // Latch first so none can be admitted to a renderer that has terminated.
+        rendererLost = true
+        // Qt Quick can retain unanswered native callbacks until adapter disposal.
+        // Retire this terminal's tickets, never live-close or new-renderer work.
+        invalidateJavaScriptTickets()
+        ++navigationGeneration
+        ++javascriptEpoch
+        ++presentationSerial
+        documentCheck.stop()
+        cleanupPoll.stop()
+        freezeTimer.stop()
         replacementLoadPending = false
         documentReady = false
+        if (clearingSession) { clearingSession = false; localSessionCleared(false) }
+        message("The page renderer is unavailable. Reload to open a new document; unsaved page state may be lost.")
         completed(String(url), false)
     }
     onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
@@ -386,6 +465,7 @@ WebEngineView {
         FeriaBrowserPolicy.registerRuntimeProfile(profile)
     }
     Component.onDestruction: {
+        invalidateJavaScriptTickets()
         var windows = popups.slice()
         for (var i = 0; i < windows.length; ++i) windows[i].destroy()
     }

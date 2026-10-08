@@ -47,8 +47,10 @@ Item {
         function test_twoViewsKeepHistoryAndWorldState() {
             var a = open("mangaplus", "/a", false)
             var pageA = deck.entries[a].browser
-            evaluate(pageA, "location.href='/b'")
-            tryVerify(function() { return String(pageA.url).endsWith("/b") && pageA.documentReady && !pageA.loading }, 10000)
+            var generation = pageA.navigationGeneration
+            verify(pageA.evaluateJavaScript("location.href='/b'"))
+            tryVerify(function() { return pageA.navigationGeneration > generation && String(pageA.url).endsWith("/b")
+                && pageA.documentReady && !pageA.loading && !pageA.replacementLoadPending }, 10000)
             evaluate(pageA, "window.sessionMarker=2718")
             var b = open("ytmusic", "/music", false)
             var pageB = deck.entries[b].browser
@@ -66,8 +68,10 @@ Item {
             deck.displayed = true
             compare(deck.entries[a].browser, pageA)
             compare(evaluate(pageA, "window.sessionMarker"), 2718)
-            pageA.runJavaScript("history.back()")
-            tryVerify(function() { return String(pageA.url).endsWith("/a") && pageA.documentReady }, 10000)
+            generation = pageA.navigationGeneration
+            verify(pageA.evaluateJavaScript("history.back()"))
+            tryVerify(function() { return pageA.navigationGeneration > generation && String(pageA.url).endsWith("/a")
+                && pageA.documentReady && !pageA.loading && !pageA.replacementLoadPending }, 10000)
             Sessions.close(a)
             tryVerify(function() { return !deck.entries[a] }, 5000)
             compare(deck.entries[b].browser, pageB)
@@ -75,18 +79,33 @@ Item {
             Sessions.switchTo(b)
             compare(deck.activeBrowser, pageB)
         }
-        function test_backgroundMediaAdvancesWithoutWorldVisibility() {
+        function test_worldAwayPausesAndReturnsToSameView() {
+            var a = open("ytmusic", "/music", false)
+            var page = deck.entries[a].browser
+            evaluate(page, "document.getElementById('audio').play(); true")
+            tryVerify(function() { return evaluate(page, "document.getElementById('audio').currentTime") > 0.1 }, 10000)
+            deck.displayed = false
+            tryVerify(function() { return evaluate(page, "document.getElementById('audio').paused") }, 5000)
+            var before = evaluate(page, "document.getElementById('audio').currentTime")
+            wait(300)
+            compare(evaluate(page, "document.getElementById('audio').currentTime"), before)
+            deck.displayed = true
+            compare(deck.entries[a].browser, page)
+            tryVerify(function() { return evaluate(page, "!document.getElementById('audio').paused") }, 5000)
+        }
+        function test_inactiveTabKeepsItsPlayingMedia() {
             var a = open("ytmusic", "/music", false)
             var page = deck.entries[a].browser
             evaluate(page, "document.getElementById('audio').play(); true")
             tryVerify(function() { return evaluate(page, "document.getElementById('audio').currentTime") > 0.1 }, 10000)
             var before = evaluate(page, "document.getElementById('audio').currentTime")
-            deck.displayed = false
-            wait(500)
-            var after = evaluate(page, "document.getElementById('audio').currentTime")
-            verify(after > before, "Unencrypted fixture audio time must advance while world is hidden")
+            var b = open("mangaplus", "/a", false)
+            compare(Sessions.activeId, b)
+            compare(page.activitySuspended, false)
+            wait(300)
+            verify(evaluate(page, "document.getElementById('audio').currentTime") > before)
             compare(evaluate(page, "document.getElementById('audio').paused"), false)
-            deck.displayed = true
+            compare(deck.entries[a].browser, page)
         }
         function test_defaultResumeAndExplicitNewHaveSeparateIdentity() {
             var a = open("mangaplus", "/a", false)

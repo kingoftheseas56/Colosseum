@@ -574,6 +574,9 @@ private:
         for (const QString &key : {QStringLiteral("providerId"), QStringLiteral("providerName"),
                                   QStringLiteral("mode"), QStringLiteral("logo")})
             if (target.contains(key)) result.insert(key, target.value(key).toString().left(2048));
+        const auto restoreId = target.value(QStringLiteral("restoreId"));
+        if (restoreId.metaType().id() == QMetaType::QString && !restoreId.toString().isEmpty()
+            && restoreId.toString().size() <= 100) result.insert(QStringLiteral("restoreId"), restoreId);
         result.insert(QStringLiteral("title"), (sameProvider && snapshot.contains(QStringLiteral("title"))
             ? snapshot.value(QStringLiteral("title")) : record.value(QStringLiteral("title"))).toString().left(300));
         result.insert(QStringLiteral("url"), url);
@@ -664,6 +667,8 @@ private:
         if (m_activeId == id)
             return;
         const int index = indexOf(id);
+        if (!id.isEmpty() && index < 0)
+            return;
         if (index >= 0) {
             QVariantMap rec = m_sessions.at(index).toMap();
             if (rec.value(QStringLiteral("contentKind")) == QStringLiteral("browser")) {

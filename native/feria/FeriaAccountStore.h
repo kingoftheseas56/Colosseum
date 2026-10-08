@@ -17,6 +17,7 @@ class FeriaAccountStore final : public QObject {
     Q_PROPERTY(QVariantList browserHistory READ browserHistory NOTIFY changed)
     Q_PROPERTY(QVariantMap browserPreferences READ browserPreferences NOTIFY changed)
     Q_PROPERTY(QVariantList browserTabs READ browserTabs NOTIFY changed)
+    Q_PROPERTY(QVariantList browserRestoreOffers READ browserRestoreOffers NOTIFY changed)
     Q_PROPERTY(QVariantList browserDownloadHistory READ browserDownloadHistory NOTIFY changed)
 public:
     explicit FeriaAccountStore(QObject *parent = nullptr);
@@ -45,6 +46,7 @@ public:
     QVariantList browserHistory() const;
     QVariantMap browserPreferences() const;
     QVariantList browserTabs() const;
+    QVariantList browserRestoreOffers() const;
     QVariantList browserDownloadHistory() const;
     Q_INVOKABLE bool setBrowserBookmark(const QString &url, const QString &title, bool saved);
     Q_INVOKABLE bool recordBrowserVisit(const QString &sessionId, const QString &token,
@@ -52,6 +54,8 @@ public:
     Q_INVOKABLE bool clearBrowserHistory();
     Q_INVOKABLE bool setBrowserPreference(const QString &key, const QVariant &value);
     Q_INVOKABLE bool saveBrowserTabs(const QVariantList &descriptors);
+    Q_INVOKABLE bool captureBrowserRestoreOffers();
+    Q_INVOKABLE bool saveBrowserRestoreOffers(const QVariantList &descriptors);
     Q_INVOKABLE QString authorizeBrowserDownload(const QString &sessionId, const QString &visitToken);
     Q_INVOKABLE bool cancelBrowserDownload(const QString &downloadToken);
     Q_INVOKABLE bool recordBrowserDownload(const QVariantMap &descriptor);
@@ -82,4 +86,6 @@ private:
     QString m_path, m_error, m_legacyToken;
     QHash<QString, Visit> m_visits;
     QHash<QString, DownloadAuthorization> m_downloadAuthorizations;
+    bool m_restoreCaptured = false;
+    bool m_writeFailed = false;
 };

@@ -18,7 +18,7 @@ Item {
     property bool active: profile !== null
     property bool panelOpen: false
     property var items: []
-    readonly property var history: accountStore ? accountStore.browserDownloadHistory || [] : []
+    readonly property var history: !privateBrowsing && accountStore ? accountStore.browserDownloadHistory || [] : []
     signal message(string text)
     Theme { id: theme }
 
@@ -89,6 +89,8 @@ Item {
             property string sessionId: ""
             property string visitToken: ""
             property bool recorded: false
+            property bool metadataPending: false
+            property bool notified: false
             property string name: request ? request.downloadFileName : ""
             property string directory: request ? request.downloadDirectory : ""
             readonly property string path: directory.replace(/[\\/]$/, "") + "/" + name
@@ -107,17 +109,21 @@ Item {
                 if (!request) return
                 if (request.state === WebEngineDownloadRequest.DownloadCancelled) releaseAuthorization()
                 if (request.state === WebEngineDownloadRequest.DownloadCompleted && !recorded) {
-                    recorded = true
+                    if (!notified) { notified = true; root.message(qsTr("Downloaded %1.").arg(name)) }
                     if (!privateDownload && downloadToken.length && root.active && owningProfile === root.profile
-                            && metadataStore && metadataStore === root.accountStore && typeof metadataStore.recordBrowserDownload === "function")
-                        metadataStore.recordBrowserDownload({url: sourceUrl, path: path, fileName: name,
+                            && metadataStore && metadataStore === root.accountStore && typeof metadataStore.recordBrowserDownload === "function") {
+                        recorded = metadataStore.recordBrowserDownload({url: sourceUrl, path: path, fileName: name,
                             mimeType: request.mimeType, receivedBytes: request.receivedBytes,
                             totalBytes: Math.max(0, request.totalBytes), state: "completed",
-                            sessionId: sessionId, visitToken: visitToken, downloadToken: downloadToken})
-                    // Native consumes a successful grant; release any remaining grant
-                    // after failure or an account/profile fence. It is never reused.
+                            sessionId: sessionId, visitToken: visitToken, downloadToken: downloadToken}) === true
+                        metadataPending = !recorded
+                        if (!recorded) {
+                            root.message(qsTr("The file downloaded, but its history could not be saved. Retry saving history."))
+                            return // Native retains failed grants until retry or retirement.
+                        }
+                    } else recorded = true // Private/unowned downloads do not enter history.
+                    metadataPending = false
                     releaseAuthorization()
-                    root.message(qsTr("Downloaded %1.").arg(name))
                 }
             }
             function releaseAuthorization() {
@@ -169,6 +175,11 @@ Item {
                     Text { text: modelData.status; color: theme.inkDim; font.family: theme.ui }
                     ProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1, modelData.total); value: modelData.received; indeterminate: modelData.total <= 0 && !modelData.finished }
                     RowLayout {
+                        Account.AccountButton {
+                            implicitWidth: 150; implicitHeight: 36
+                            visible: modelData.metadataPending
+                            text: qsTr("Retry saving history"); onClicked: modelData.update()
+                        }
                         Account.AccountButton {
                             implicitWidth: 110; implicitHeight: 36
                             visible: !modelData.completed && modelData.state !== WebEngineDownloadRequest.DownloadCancelled

@@ -21,6 +21,7 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QDebug>
+#include <QScopeGuard>
 #include <QtWebEngineCore/qtwebenginecoreglobal.h>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -30,6 +31,12 @@
 #ifdef Q_OS_LINUX
 #include <sys/types.h>
 #include <signal.h>
+#elif defined(Q_OS_WIN)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <tlhelp32.h>
 #endif
 
 class FeriaRuntimeFixture : public QObject {
@@ -46,9 +53,9 @@ public:
     }
     // Isolated renderer lifecycle probe only: never a process-name/broad kill.
     // The one registered test view supplies its public renderer PID, and its
-    // ancestry must resolve to this exact fixture process before SIGTERM.
+    // ancestry must resolve to this exact fixture process before termination.
     Q_INVOKABLE bool terminateOnlyRenderer(QObject *view) const {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
         if (!view || !m_policy || m_policy->runtimeViewCount() != 1) return false;
         bool webEngineView = false;
         for (auto *meta = view->metaObject(); meta; meta = meta->superClass())
@@ -59,6 +66,41 @@ public:
         if (pid <= 1 || pid == self) return false;
         qint64 cursor = pid;
         bool owned = false;
+#ifdef Q_OS_WIN
+        // Pin the object before taking ancestry evidence, preventing PID reuse
+        // between the snapshot and termination from targeting another process.
+        const HANDLE renderer = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, DWORD(pid));
+        if (!renderer) return false;
+        const auto rendererGuard = qScopeGuard([renderer] { CloseHandle(renderer); });
+        const HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snapshot == INVALID_HANDLE_VALUE) return false;
+        QHash<qint64, qint64> parents;
+        PROCESSENTRY32W process{};
+        process.dwSize = sizeof(process);
+        if (Process32FirstW(snapshot, &process)) {
+            do { parents.insert(process.th32ProcessID, process.th32ParentProcessID); }
+            while (Process32NextW(snapshot, &process));
+        }
+        CloseHandle(snapshot);
+        for (int depth = 0; depth < 32 && cursor > 1; ++depth) {
+            if (cursor == self) { owned = true; break; }
+            const qint64 parent = parents.value(cursor);
+            if (parent <= 0 || parent == cursor) return false;
+            cursor = parent;
+        }
+        if (!owned || view->property("renderProcessPid").toLongLong() != pid) return false;
+        // Also verify creation time against the fixture. No process name or
+        // broad kill is used; the retained handle identifies the exact object.
+        FILETIME rendererCreated{}, selfCreated{}, exitTime{}, kernelTime{}, userTime{};
+        const bool valid = GetProcessId(renderer) == DWORD(pid)
+            && GetProcessTimes(renderer, &rendererCreated, &exitTime, &kernelTime, &userTime)
+            && GetProcessTimes(GetCurrentProcess(), &selfCreated, &exitTime, &kernelTime, &userTime)
+            && CompareFileTime(&rendererCreated, &selfCreated) >= 0
+            && view->property("renderProcessPid").toLongLong() == pid;
+        const bool terminated = valid && TerminateProcess(renderer, 9);
+        if (terminated) qInfo() << "Fixture terminated verified owned renderer" << pid;
+        return terminated;
+#else
         for (int depth = 0; depth < 32 && cursor > 1; ++depth) {
             if (cursor == self) { owned = true; break; }
             QFile status(QStringLiteral("/proc/%1/status").arg(cursor));
@@ -72,6 +114,7 @@ public:
         if (!owned || view->property("renderProcessPid").toLongLong() != pid) return false;
         qInfo() << "Fixture SIGTERM verified owned renderer" << pid;
         return ::kill(static_cast<pid_t>(pid), SIGTERM) == 0;
+#endif
 #else
         Q_UNUSED(view);
         return false;

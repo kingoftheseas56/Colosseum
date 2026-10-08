@@ -47,7 +47,8 @@ Dialog {
         bookmarkRows = accountStore ? accountStore.browserBookmarks || [] : []
         historyRows = accountStore ? accountStore.browserHistory || [] : []
         preferences = accountStore ? accountStore.browserPreferences || ({}) : ({})
-        savedTabCount = deck ? deck.restorableTabCount : 0
+        savedTabCount = deck ? (typeof deck.restorableCountForProvider === "function"
+            ? deck.restorableCountForProvider(providerId) : deck.restorableTabCount) : 0
     }
     function openSection(nextSection) {
         section = ["tabs", "bookmarks", "history", "settings"].indexOf(nextSection) >= 0 ? nextSection : "tabs"
@@ -345,24 +346,9 @@ Dialog {
             ColumnLayout {
                 spacing: 12
                 CheckBox {
-                    id: restorePreference
-                    objectName: "feriaBrowserRestoreTabsPreference"
-                    text: "Restore regular tabs when Colosseum opens"
-                    checked: root.preferences.restoreTabs === true
-                    onClicked: root.setPreference("restoreTabs", checked)
-                    contentItem: HubLabel { text: restorePreference.text; color: theme.ink; leftPadding: 32; verticalAlignment: Text.AlignVCenter; font.pixelSize: 13 }
-                    indicator: Rectangle {
-                        x: 0; y: (restorePreference.height - height) / 2
-                        width: 22; height: 22; radius: 6
-                        color: restorePreference.checked ? theme.gold : theme.glassTint
-                        border.color: restorePreference.activeFocus ? theme.gold : theme.edge
-                        Text { anchors.centerIn: parent; text: restorePreference.checked ? "✓" : ""; color: theme.biblioWashBottom }
-                    }
-                }
-                CheckBox {
                     id: freezePreference
                     objectName: "feriaBrowserFreezeBackgroundPreference"
-                    text: "Freeze inactive tabs when no media is playing"
+                    text: "Freeze inactive tabs when the browser allows it"
                     checked: root.preferences.freezeBackground === true
                     onClicked: root.setPreference("freezeBackground", checked)
                     contentItem: HubLabel { text: freezePreference.text; color: theme.ink; leftPadding: 32; verticalAlignment: Text.AlignVCenter; font.pixelSize: 13 }
@@ -411,14 +397,14 @@ Dialog {
                         objectName: "feriaBrowserRestorePrevious"
                         text: "Restore previous tabs (" + root.savedTabCount + ")"
                         enabled: root.savedTabCount > 0
-                        onClicked: { root.close(); root.deck.restoreTabs() }
+                        onClicked: { root.close(); root.deck.restoreTabs(root.providerId) }
                     }
                     HubButton {
                         objectName: "feriaBrowserDismissPrevious"
                         text: "Dismiss previous tabs"
                         enabled: root.savedTabCount > 0
                         variant: "link"
-                        onClicked: { root.deck.dismissRestoreTabs(); root.refreshRows() }
+                        onClicked: { root.deck.dismissRestoreTabs(root.providerId); root.refreshRows() }
                     }
                 }
                 Item { Layout.fillHeight: true }

@@ -68,6 +68,7 @@ Item {
             root.Window.window.requestActivate()
             tryVerify(function() { return Fixture.focusWindowMatches(root.Window.window) })
             Fixture.switchProfile("shell-controls")
+            compare(FeriaAccount.error, "", "Reloading this account must permit the synchronous restore capture")
             tryCompare(deck, "quiescing", false, 15000)
             chromeLoader.active = true
             tryCompare(chromeLoader, "status", Loader.Ready)

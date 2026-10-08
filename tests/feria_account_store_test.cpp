@@ -16,6 +16,127 @@ int main(int argc, char **argv) {
     QTemporaryDir temp;
     int checks = 0;
     auto check = [&](bool ok, const char *message) { ++checks; if (!ok) { qCritical() << message; std::exit(1); } };
+    bool regressionsPass = true;
+    auto regression = [&](bool ok, const char *message) {
+        ++checks;
+        if (!ok) { regressionsPass = false; qCritical() << "REGRESSION:" << message; }
+    };
+    FeriaAccountStore recovery;
+    const auto recoveryPath = temp.filePath("restore/account.json");
+    recovery.setStoragePath(recoveryPath);
+    const QVariantMap firstOffer{{"providerId", "youtube"}, {"url", "https://example.com/same"}, {"restoreId", "first"}};
+    auto secondOffer = firstOffer; secondOffer.insert("restoreId", "second");
+    const auto capture = [&](FeriaAccountStore &owner) {
+        bool captured = false;
+        return QMetaObject::invokeMethod(&owner, "captureBrowserRestoreOffers", Q_RETURN_ARG(bool, captured)) && captured;
+    };
+    const auto saveOffers = [&](FeriaAccountStore &owner, const QVariantList &rows) {
+        bool saved = false;
+        return QMetaObject::invokeMethod(&owner, "saveBrowserRestoreOffers", Q_RETURN_ARG(bool, saved), Q_ARG(QVariantList, rows)) && saved;
+    };
+    regression(recovery.saveBrowserTabs({firstOffer, secondOffer}) && capture(recovery)
+        && recovery.property("browserRestoreOffers").toList().size() == 2,
+        "Distinct same-URL restore offers must be durable and individually identified");
+    regression(saveOffers(recovery, {secondOffer}) && recovery.saveBrowserTabs({firstOffer}) && capture(recovery)
+        && recovery.property("browserRestoreOffers").toList().size() == 1,
+        "Current-session snapshots cannot replace pending restore offers or recapture within the loaded account");
+    FeriaAccountStore restartedRecovery; restartedRecovery.setStoragePath(recoveryPath);
+    regression(capture(restartedRecovery) && restartedRecovery.property("browserRestoreOffers").toList().size() == 2,
+        "A changed latest snapshot merges with previous pending offers on next process load");
+    regression(saveOffers(restartedRecovery, {}) && capture(restartedRecovery), "Dismiss durable restore offers");
+    FeriaAccountStore dismissedRecovery; dismissedRecovery.setStoragePath(recoveryPath);
+    regression(capture(dismissedRecovery) && dismissedRecovery.property("browserRestoreOffers").toList().isEmpty(),
+        "An identical captured snapshot cannot resurrect dismissed offers after restart");
+    auto newerOffer = firstOffer; newerOffer.insert("restoreId", "newer"); newerOffer.insert("url", "https://example.com/newer");
+    regression(dismissedRecovery.saveBrowserTabs({newerOffer}), "Save a new current session snapshot");
+    FeriaAccountStore newerRecovery; newerRecovery.setStoragePath(recoveryPath);
+    regression(capture(newerRecovery) && newerRecovery.property("browserRestoreOffers").toList().size() == 1
+        && newerRecovery.property("browserRestoreOffers").toList().first().toMap().value("restoreId") == "newer",
+        "A newly changed snapshot becomes offered at the next account load");
+    regression(saveOffers(newerRecovery, {}) && newerRecovery.saveBrowserTabs({secondOffer}),
+        "Save a changed snapshot before leaving account A");
+    newerRecovery.setStoragePath(temp.filePath("restore-b/account.json"));
+    regression(capture(newerRecovery) && newerRecovery.property("browserRestoreOffers").toList().isEmpty(),
+        "Account B must not inherit account A restore offers");
+    newerRecovery.setStoragePath(recoveryPath);
+    regression(capture(newerRecovery) && newerRecovery.property("browserRestoreOffers").toList().size() == 1
+        && newerRecovery.property("browserRestoreOffers").toList().first().toMap().value("restoreId") == "second",
+        "Returning A to B to A captures A's newly changed snapshot");
+    const auto validationPath = temp.filePath("browser-validation.json");
+    QFile validationFile(validationPath);
+    auto privateOffer = firstOffer; privateOffer.insert("privateBrowsing", true);
+    auto authOffer = firstOffer; authOffer.insert("url", "https://example.com/login");
+    auto unknownOffer = firstOffer; unknownOffer.insert("providerId", "unknown-provider");
+    auto oversizedOffer = firstOffer; oversizedOffer.insert("title", QString(2049, 'x'));
+    auto malformedOffer = firstOffer; malformedOffer.insert("url", QVariantList{"https://example.com/a"});
+    auto hiddenStateOffer = firstOffer; hiddenStateOffer.insert("opener", "secret"); hiddenStateOffer.insert("pageGeneration", 55);
+    const QVariantList invalidOffers{privateOffer, authOffer, unknownOffer, oversizedOffer, malformedOffer, 17};
+    auto allOffers = invalidOffers; allOffers.append(hiddenStateOffer);
+    regression(validationFile.open(QIODevice::WriteOnly), "Open persisted validation fixture");
+    validationFile.write(QJsonDocument::fromVariant(QVariantMap{{"version", 1}, {"browserTabs", allOffers},
+        {"browserRestoreOffers", allOffers}, {"browserPreferences", QVariantMap{{"restoreTabs", "true"},
+        {"freezeBackground", 0}, {"searchEngine", "unapproved"}, {"unknown", "ignored"}}}}).toJson());
+    validationFile.close();
+    FeriaAccountStore validated; validated.setStoragePath(validationPath);
+    const auto cleanTabs = validated.browserTabs();
+    regression(cleanTabs.size() == 1 && !cleanTabs.first().toMap().contains("opener")
+        && !cleanTabs.first().toMap().contains("pageGeneration"),
+        "Persisted tabs reject private/auth/unknown/oversized/malformed records and strip live state");
+    regression(validated.browserPreferences() == QVariantMap{{"restoreTabs", false}, {"freezeBackground", true}, {"searchEngine", "duckduckgo"}},
+        "Loaded preferences must enforce the same typed allowlist as writes");
+    regression(validated.property("browserRestoreOffers").toList().size() == 1, "Loaded offers use the same descriptor validation");
+    regression(validated.saveBrowserTabs(allOffers) && validated.browserTabs().size() == 1,
+        "Written descriptors reject malformed and oversized rows as well as loaded descriptors");
+    regression(!validated.recordBrowserDownload({{"url", "https://example.com/file"}})
+        && validated.browserDownloadHistory().isEmpty(), "Tokenless native download metadata must be rejected");
+    auto legacyOffer = firstOffer; legacyOffer.remove("restoreId");
+    regression(validationFile.open(QIODevice::WriteOnly), "Open legacy persisted descriptor fixture");
+    validationFile.write(QJsonDocument::fromVariant(QVariantMap{{"version", 1},
+        {"browserTabs", QVariantList{legacyOffer, legacyOffer}}}).toJson());
+    validationFile.close();
+    validated.setStoragePath(validationPath);
+    regression(capture(validated)
+        && validated.browserTabs().size() == 2
+        && !validated.browserTabs().first().toMap().value("restoreId").toString().isEmpty()
+        && validated.browserTabs()[0].toMap().value("restoreId") != validated.browserTabs()[1].toMap().value("restoreId"),
+        "Legacy duplicate URLs receive separate stable IDs when captured");
+    FeriaAccountStore legacyRestart; legacyRestart.setStoragePath(validationPath);
+    regression(legacyRestart.browserTabs() == validated.browserTabs(), "Legacy IDs survive restart without regeneration");
+    check(regressionsPass, "Browser native validation and restore regressions must pass");
+    const auto interruptedPath = temp.filePath("interrupted/account.json");
+    FeriaAccountStore seed; seed.setStoragePath(interruptedPath);
+    check(seed.saveBrowserTabs({firstOffer, secondOffer}), "Seed previous snapshot before capture obstruction");
+    const auto announcementPath = temp.filePath("announcement/account.json");
+    FeriaAccountStore publisherSeed; publisherSeed.setStoragePath(announcementPath);
+    check(publisherSeed.saveBrowserTabs({firstOffer}), "Seed an account whose profile signal captures restore offers");
+    FeriaAccountStore published;
+    bool capturedOnProfile = false;
+    QObject::connect(&published, &FeriaAccountStore::profileChanged, &published, [&] {
+        capturedOnProfile = capture(published);
+    });
+    published.setStoragePath(announcementPath);
+    regression(capturedOnProfile && published.error().isEmpty() && published.browserRestoreOffers().size() == 1,
+        "Profile observers must be able to atomically capture the loaded account without its read handle blocking replacement");
+    FeriaAccountStore interrupted; interrupted.setStoragePath(interruptedPath);
+    check(QFile::rename(interruptedPath, interruptedPath + ".snapshot") && QDir().mkpath(interruptedPath),
+        "Obstruct capture after loading the original snapshot");
+    check(!capture(interrupted) && interrupted.browserRestoreOffers().isEmpty()
+        && interrupted.browserTabs().size() == 2, "Failed capture must retain the loaded snapshot for retry");
+    const auto blockedVisit = interrupted.beginSessionVisit("blocked-write", {{"pk", "youtube"}});
+    regression(!blockedVisit.isEmpty(), "A transient metadata write failure must not prevent volatile browser admission");
+    const auto blockedGrant = interrupted.authorizeBrowserDownload("blocked-write", blockedVisit);
+    regression(!blockedGrant.isEmpty(), "Transient write failure must retain provenance for a new download's later retry");
+    check(!interrupted.recording(), "Metadata recording remains disabled while its write failure is unresolved");
+    const auto blockedPrivate = interrupted.beginSessionVisit("blocked-private", {{"pk", "youtube"}, {"privateBrowsing", true}});
+    check(!blockedPrivate.isEmpty() && interrupted.authorizeBrowserDownload("blocked-private", blockedPrivate).isEmpty(),
+        "Transient write failure does not authorize private download history");
+    check(QDir().rmdir(interruptedPath) && QFile::rename(interruptedPath + ".snapshot", interruptedPath),
+        "Remove obstruction and restore the original file");
+    check(capture(interrupted) && interrupted.browserRestoreOffers().size() == 2 && interrupted.error().isEmpty(),
+        "Capture retries successfully without replacing the previous snapshot");
+    FeriaAccountStore capturedRestart; capturedRestart.setStoragePath(interruptedPath);
+    check(capturedRestart.browserRestoreOffers() == interrupted.browserRestoreOffers(),
+        "Retried offer capture is durable after disk reload");
     FeriaAccountStore store;
     const auto path = temp.filePath("a/account.json");
     store.setStoragePath(path);
@@ -97,6 +218,9 @@ int main(int argc, char **argv) {
     QFile broken(temp.filePath("broken.json")); check(broken.open(QIODevice::WriteOnly), "Create corrupt fixture"); broken.write("broken"); broken.close();
     reopened.setStoragePath(broken.fileName());
     check(!reopened.error().isEmpty() && !reopened.clearHistory(), "Preserve unreadable store");
+    check(!reopened.saveBrowserTabs({firstOffer}) && broken.open(QIODevice::ReadOnly)
+        && broken.readAll() == QByteArray("broken"), "Malformed loaded data remains sealed against retry writes");
+    broken.close();
     FeriaAccountStore hotstar;
     hotstar.setStoragePath(temp.filePath("hotstar.json"));
     hotstar.beginVisit({{"pk", "hotstar"}});
@@ -299,7 +423,8 @@ int main(int argc, char **argv) {
     auto localTab = regularTab; localTab.insert("url", "file:///secret.txt");
     check(tabs({regularTab, privateTab, authTab, localTab}) && browser.property("browserTabs").toList().size() == 1,
           "Restore snapshots exclude private, authentication, and local pages");
-    check(download({{"id", "download-1"}, {"url", webUrl}, {"fileName", "beacon.txt"}, {"state", "completed"}})
+    check(download({{"id", "download-1"}, {"url", webUrl}, {"fileName", "beacon.txt"}, {"state", "completed"},
+                    {"sessionId", "normal"}, {"visitToken", normalToken}})
           && !download({{"id", "private-download"}, {"url", webUrl}, {"privateBrowsing", true}}),
           "Download history excludes private transfers");
     FeriaAccountStore browserReopened; browserReopened.setStoragePath(browserPath);
@@ -336,9 +461,9 @@ int main(int argc, char **argv) {
     check(visit("cap", cappedToken, webUrl) && browser.property("browserHistory").toList().size() == 1000,
           "Browser history is capped at 1000");
     check(tabs(manyTabs) && browser.property("browserTabs").toList().size() == 50, "Restored tabs are capped at 50");
-    check(download({{"id", "latest"}, {"url", webUrl}})
+    check(download({{"id", "latest"}, {"url", webUrl}, {"sessionId", "cap"}, {"visitToken", cappedToken}})
           && browser.property("browserDownloadHistory").toList().size() == 100, "Downloads are capped at 100");
-    check(download({{"id", "latest"}, {"url", webUrl}, {"state", "completed"}})
+    check(download({{"id", "latest"}, {"url", webUrl}, {"state", "completed"}, {"sessionId", "cap"}, {"visitToken", cappedToken}})
           && browser.property("browserDownloadHistory").toList().size() == 100,
           "Download progress updates one record rather than creating duplicates");
     check(!download({{"url", webUrl}, {"sessionId", "cap"}, {"visitToken", "stale"}}),
@@ -439,9 +564,16 @@ int main(int argc, char **argv) {
     check(QDir().mkpath(failedTransferPath), "Block download metadata save with directory");
     check(!complete({{"downloadToken", failedTransferToken}, {"url", webUrl}})
           && transfers.browserDownloadHistory().isEmpty(), "Failed metadata commit preserves download history");
-    cancelledResult = false;
-    check(QMetaObject::invokeMethod(&transfers, "cancelBrowserDownload", Q_RETURN_ARG(bool, cancelledResult),
-            Q_ARG(QString, failedTransferToken)) && cancelledResult,
-          "Failed metadata commit leaves authorization unconsumed");
+    check(!transfers.error().isEmpty() && QDir().rmdir(failedTransferPath), "Unblock transient metadata save failure");
+    regression(complete({{"downloadToken", failedTransferToken}, {"url", webUrl}})
+        && transfers.browserDownloadHistory().size() == 1 && transfers.error().isEmpty(),
+        "Unblocked metadata save must retry successfully with the same unconsumed grant");
+    regression(!complete({{"downloadToken", failedTransferToken}, {"url", webUrl}}),
+        "Successful metadata retry consumes its grant once");
+    auto encodedOversizedOffer = firstOffer;
+    encodedOversizedOffer.insert("url", QString("https://example.com/") + QString(3000, QChar(0x4e00)));
+    regression(validated.saveBrowserTabs({encodedOversizedOffer}) && validated.browserTabs().isEmpty(),
+        "Descriptor size bound applies to the canonical encoded URL written to disk");
+    check(regressionsPass, "Native retry and encoded descriptor regressions must pass");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
 }

@@ -54,13 +54,14 @@ Item {
         property var newAction: null
         property string closedId: ""
         property int restores: 0
+        property string restoredProvider: ""
         property int restorableTabCount: 2
         property int dismissals: 0
         function newSpace(sourceId, privateBrowsing, activate) {
             newAction = { sourceId: sourceId, privateBrowsing: privateBrowsing, activate: activate }
         }
         function closeTab(id) { closedId = id }
-        function restoreTabs() { restores++ }
+        function restoreTabs(provider) { restores++; restoredProvider = provider || "" }
         function dismissRestoreTabs() { dismissals++; restorableTabCount = 0 }
     }
     property var sceneSessions: sessions
@@ -107,6 +108,7 @@ Item {
             deck.closedId = ""
             deck.quiescing = false
             deck.restores = 0
+            deck.restoredProvider = ""
             deck.restorableTabCount = 2
             deck.dismissals = 0
             deck.activeEntry = ({ descriptor: { privateBrowsing: false } })
@@ -221,11 +223,11 @@ Item {
         }
         function test_settings_restore_and_native_tools() {
             open("settings")
-            mouseClick(control("feriaBrowserRestoreTabsPreference"))
-            compare(account.preferenceAction.key, "restoreTabs")
-            compare(account.preferenceAction.value, false)
+            compare(findChild(menu, "feriaBrowserRestoreTabsPreference"), null,
+                "Manual-only restoration must not expose an automatic startup switch")
             mouseClick(control("feriaBrowserRestorePrevious"))
             compare(deck.restores, 1)
+            compare(deck.restoredProvider, "mangaplus")
             tryCompare(menu, "visible", false)
             open(); mouseClick(control("feriaBrowserAddress")); compare(addressSpy.count, 1)
             open(); mouseClick(control("feriaBrowserPrint")); compare(printSpy.count, 1)

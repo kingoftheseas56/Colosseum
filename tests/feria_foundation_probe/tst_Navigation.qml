@@ -48,6 +48,15 @@ Item {
             tryVerify(function() { return done }, 5000)
             return value
         }
+        function scriptNavigate(page, path) {
+            var generation = page.navigationGeneration
+            // A navigation command replaces its JS epoch; its old callback is
+            // intentionally fenced. Await the actual replacement document.
+            verify(page.evaluateJavaScript("location.href=" + JSON.stringify(path)))
+            tryVerify(function() { return page.navigationGeneration > generation
+                && String(page.url) === FixtureUrl + path && page.title === "Fixture " + path
+                && page.documentReady && !page.loading && !page.replacementLoadPending }, 10000)
+        }
         function test_crossOriginAndSameDocumentHistory() {
             var a = open("/a"), page = deck.entries[a].browser
             var other = FixtureUrl.replace("127.0.0.1", "localhost") + "/cross"
@@ -187,11 +196,16 @@ Item {
             verify(deck.stop(a))
             tryCompare(nav, "loading", false, 10000)
             verify(!deck.stop(a))
+            var generation = page.navigationGeneration
             verify(deck.navigateInput(a, FixtureUrl + "/a"))
-            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady && !page.loading }, 10000)
+            tryVerify(function() { return page.navigationGeneration > generation && String(page.url).endsWith("/a")
+                && page.documentReady && !page.loading && !page.replacementLoadPending }, 10000)
             js(page, "window.sessionMarker=99")
+            generation = page.navigationGeneration
             verify(deck.reload(a))
-            tryVerify(function() { return page.documentReady && js(page, "window.sessionMarker") === 0 }, 10000)
+            tryVerify(function() { return page.navigationGeneration > generation && page.documentReady
+                && !page.loading && !page.replacementLoadPending }, 10000)
+            compare(js(page, "window.sessionMarker"), 0)
         }
         function test_originalPostRequest() {
             var a = open("/a"), page = deck.entries[a].browser
@@ -242,8 +256,7 @@ Item {
         }
         function test_scriptNavigationKeepsNativeSkipSemantics() {
             var a = open("/a"), page = deck.entries[a].browser
-            js(page, "location.href='/b'")
-            tryVerify(function() { return page.title === "Fixture /b" && page.documentReady && !page.loading }, 10000)
+            scriptNavigate(page, "/b")
             var nav = deck.navigationForSession(a)
             tryVerify(function() { return nav.backCount > 0 })
             console.log("SCRIPT_NAV", page.canGoBack, nav.canGoBack, nav.backCount)
@@ -254,10 +267,8 @@ Item {
         }
         function test_historyOffsetAndStaleToken() {
             var a = open("/a"), page = deck.entries[a].browser
-            js(page, "location.href='/b'")
-            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady && !page.loading }, 10000)
-            js(page, "location.href='/c'")
-            tryVerify(function() { return String(page.url).endsWith("/c") && page.documentReady && !page.loading }, 10000)
+            scriptNavigate(page, "/b")
+            scriptNavigate(page, "/c")
             var nav = deck.navigationForSession(a)
             tryVerify(function() { return nav.backCount >= 2 })
             var token = nav.historyRevision

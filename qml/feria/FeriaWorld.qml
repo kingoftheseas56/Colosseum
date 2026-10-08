@@ -218,7 +218,9 @@ Item {
             domains: shell.signOutScope.domains
             origins: shell.signOutScope.origins
             onFinished: function(success) {
-                shell.signOutMessage = success ? "Signed out here. Browser sessions closed; history and Continue are unchanged." : "Could not finish signing out. Try again."
+                shell.signOutMessage = success
+                    ? "Cookies and available site storage cleared for known origins. Other sign-in state may remain."
+                    : "Site cleanup was incomplete. Some sign-in state may remain; retry or sign out on the service."
                 shell.signingOutProvider = ""
                 shell.signOutQuiesced = false
                 if (shell.browserDeck) shell.browserDeck.finishCleanup()

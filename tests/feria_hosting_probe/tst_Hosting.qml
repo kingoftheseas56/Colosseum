@@ -762,7 +762,8 @@ Item {
             compare(deck.browserForSession(a), p)
         }
         function test_rendererTerminalCancelsBarrierAndReloads() {
-            if (Qt.platform.os !== "linux") skip("Scoped renderer SIGTERM fixture is Linux-only")
+            if (Qt.platform.os !== "linux" && Qt.platform.os !== "windows")
+                skip("Owned renderer termination fixture supports Linux and Windows")
             var a = open("/hosting"), p = deck.browserForSession(a), terminalCount = 0
             function terminated(status, code) { ++terminalCount; console.log("OWNED_RENDERER_TERMINATED", status, code) }
             p.renderProcessTerminated.connect(terminated)
@@ -820,6 +821,14 @@ Item {
             var blank = deck.browserForSession(b)
             verify(blank !== null)
             compare(blank.profile, first.profile)
+            var blankReady = false
+            tryVerify(function() {
+                if (!blank.loading && !blank.adoptingWindowRequest)
+                    blank.evaluateJavaScript("({ready:document.readyState!=='loading',href:location.href})", function(value) {
+                        blankReady = value && value.ready && value.href === "about:blank"
+                    })
+                return blankReady
+            }, 5000)
             compare(js(blank, "location.href"), "about:blank")
             compare(js(blank, "window.sessionMarker=777;window.sessionMarker"), 777)
             compare(js(blank, "document.title"), "")

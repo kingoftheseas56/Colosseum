@@ -18,7 +18,7 @@ Item {
     property var privateProfile: null
     property bool privateProfileRetiring: false
     property bool restoredProfile: false
-    property var restoreSource: []
+    readonly property var restoreSource: accountStore.browserRestoreOffers || []
     readonly property int restorableTabCount: restoreSource.length
     property string snapshotRoot: ""
     property int presentationRevision: 0
@@ -108,20 +108,40 @@ Item {
         return sessions.browsers().map(function(record) {
             var descriptor = Object.assign({}, record.target)
             descriptor.title = record.title
+            descriptor.restoreId = descriptor.restoreId || record.id
             return descriptor
         })
     }
     function persistTabs() {
-        if (ready && !quiescing) accountStore.saveBrowserTabs(tabDescriptors())
+        if (ready && !quiescing && captureRestoreSource()) accountStore.saveBrowserTabs(tabDescriptors())
     }
-    // Keep the previous session available while the current session keeps saving.
-    // This projection is replaced on profile switch and consumed by restore/dismiss.
+    // AccountStore owns durable offers independently of the current snapshot.
     function captureRestoreSource() {
-        restoreSource = accountStore.browserTabs.map(function(descriptor) {
-            return Object.assign({}, descriptor)
-        })
+        var captured = accountStore.captureBrowserRestoreOffers()
+        if (!captured)
+            message("", "Could not prepare previous spaces. The saved snapshot is still available.")
+        return captured
     }
-    function dismissRestoreTabs() { restoreSource = [] }
+    function restorableCountForProvider(provider) {
+        return restoreSource.filter(function(row) { return !provider || row.providerId === provider }).length
+    }
+    function dismissRestoreTabs(provider) {
+        var pending = restoreSource.filter(function(row) { return provider && row.providerId !== provider })
+        if (!accountStore.saveBrowserRestoreOffers(pending)) {
+            message("", "Could not dismiss previous spaces. Try again.")
+            return false
+        }
+        for (var id of Object.keys(entries)) {
+            if (!provider || entries[id].descriptor.providerId === provider) entries[id].restoreOfferId = ""
+        }
+        return true
+    }
+    function completeRestore(entry) {
+        if (!entry.restoreOfferId || entry.retiring || entries[entry.sessionId] !== entry) return
+        var pending = restoreSource.filter(function(row) { return row.restoreId !== entry.restoreOfferId })
+        if (accountStore.saveBrowserRestoreOffers(pending)) entry.restoreOfferId = ""
+        else message(entry.sessionId, "The page opened, but its restore offer could not be saved. Try Restore again.")
+    }
     Timer {
         id: snapshotTimer
         interval: 250
@@ -207,6 +227,7 @@ Item {
         descriptor.url = normalizedStart
         descriptor.title = descriptor.providerName || descriptor.providerId
         descriptor.privateBrowsing = Boolean(privateBrowsing)
+        delete descriptor.restoreId
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
         return sessions.openBrowser(descriptor, true, false, activate !== false)
     }
@@ -218,6 +239,7 @@ Item {
         var descriptor = Object.assign({}, activeEntry.descriptor)
         descriptor.url = url
         descriptor.privateBrowsing = Boolean(privateBrowsing)
+        delete descriptor.restoreId
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
         return sessions.openBrowser(descriptor, true, false, activate !== false)
     }
@@ -368,6 +390,7 @@ Item {
         // An empty initial URL avoids queueing script callbacks on a temporary
         // blank WebContents that openIn() will replace immediately.
         descriptor.adoptWindowRequest = true
+        delete descriptor.restoreId
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
         var foreground = request.destination !== WebEngineNewWindowRequest.InNewBackgroundTab
         var id = sessions.openBrowser(descriptor, true, false, foreground)
@@ -400,24 +423,29 @@ Item {
         }
         else { if (id) sessions.close(id); message(sourceId, "Could not open the new tab") }
     }
-    function restoreTabs() {
-        if (!ready) return
-        var saved = restoreSource.slice()
-        var pending = []
+    function restoreTabs(provider) {
+        if (!ready || !captureRestoreSource()) return
+        provider = provider || (activeEntry ? activeEntry.descriptor.providerId : "")
+        var saved = restoreSource.filter(function(row) { return !provider || row.providerId === provider })
         var existing = sessions.browsers().slice()
         var used = ({})
         var last = ""
         restoredProfile = true
         for (var descriptor of saved) {
-            var match = existing.find(function(record) {
+            var candidates = existing.filter(function(record) {
                 return !used[record.id] && !record.target.privateBrowsing
-                    && record.target.providerId === descriptor.providerId && record.target.url === descriptor.url
+                    && record.target.providerId === descriptor.providerId
             })
-            last = match ? match.id : sessions.openBrowser(descriptor, true, false, false)
-            if (last) used[last] = true
-            else pending.push(descriptor)
+            var match = candidates.find(function(record) { return record.target.restoreId === descriptor.restoreId })
+                || candidates.find(function(record) { return !record.target.restoreId && record.target.url === descriptor.url })
+            var id = match ? match.id : sessions.openBrowser(descriptor, true, false, false)
+            var entry = entries[id]
+            if (!entry || !entry.browser) continue
+            last = id; used[id] = true
+            entry.restoreOfferId = descriptor.restoreId
+            if (entry.mainLoadSucceeded) completeRestore(entry)
+            else if (match && !entry.browser.loading) reload(id)
         }
-        restoreSource = pending
         if (last) sessions.switchTo(last)
     }
     function reopenClosedSpace(provider) {
@@ -442,7 +470,7 @@ Item {
     function considerRestore() {
         if (!ready || restoredProfile) return
         restoredProfile = true
-        if (accountStore.browserPreferences.restoreTabs && sessions.browsers().length === 0) restoreTabs()
+        // Previous spaces remain parked as offers until an explicit app action.
     }
 
     Component {
@@ -681,6 +709,8 @@ Item {
                 }
             }
             property string reopenRecordId: ""
+            property string restoreOfferId: ""
+            property bool mainLoadSucceeded: false
             function rollbackReopen(recordId) {
                 if (retiring || !recordId || reopenRecordId !== recordId
                     || deck.entries[sessionId] !== entry) return
@@ -785,6 +815,10 @@ Item {
                     resumeLocator: entry.descriptor.locator || null
                     suppressed: !entry.visible
                     freezeBackground: deck.accountStore.browserPreferences.freezeBackground !== false
+                    lifecycleBlocked: closeController.busy
+                    activitySuspended: !deck.displayed
+                        || (deck.Window.window && deck.Window.window.visibility === Window.Minimized)
+                        || (entry.hostWindow && entry.hostWindow.visibility === Window.Minimized)
                 }
                 onStatusChanged: if (status === Loader.Error) entry.errorText = "The browser could not start."
                 onLoaded: {
@@ -802,18 +836,26 @@ Item {
                 }
                 function onStarted(location) {
                     entry.observeAdoption()
-                    entry.errorText = ""
+                    entry.mainLoadSucceeded = false
+                    if (!entry.browser.rendererLost) entry.errorText = ""
                     if (!entry.descriptor.privateBrowsing) deck.policy.rememberOrigin(entry.descriptor.providerId, location)
                     deck.sessions.updateBrowser(entry.sessionId, location, "")
                 }
                 function onCompleted(location, success) {
                     if (entry.retiring) return
                     entry.observeAdoption()
-                    entry.errorText = closeController.failure || (success ? "" : "Could not open the page. Try Reload.")
+                    if (entry.browser.rendererLost) entry.errorText = "The browser page stopped responding. Reload to recover; unsaved page state may be lost."
+                    else if (!success) entry.errorText = closeController.failure || "Could not open the page. Try Reload."
                     deck.sessions.updateBrowser(entry.sessionId, location,
                                                 entry.browser ? entry.browser.title : "")
-                    if (success) deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token,
-                        location, entry.browser ? entry.browser.title : "")
+                }
+                function onMainDocumentLoaded(location) {
+                    if (entry.retiring || deck.entries[entry.sessionId] !== entry || !entry.browser) return
+                    entry.mainLoadSucceeded = true
+                    entry.errorText = closeController.failure
+                    deck.sessions.updateBrowser(entry.sessionId, location, entry.browser.title)
+                    deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token, location, entry.browser.title)
+                    deck.completeRestore(entry)
                 }
                 function onDocumentReplaced(generation) {
                     if (entry.retiring || !entry.reopenRecordId || !entry.browser
@@ -828,6 +870,8 @@ Item {
                         entry.deferReopenFailure(generation, location)
                 }
                 function onRenderProcessTerminated(status, code) {
+                    entry.mainLoadSucceeded = false
+                    if (status === WebEngineView.NormalTerminationStatus || entry.retiring) return
                     if (entry.reopenRecordId) entry.rollbackReopen(entry.reopenRecordId)
                 }
                 function onTabRequested(request) { deck.openWindow(entry.sessionId, request) }

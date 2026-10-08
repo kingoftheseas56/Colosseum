@@ -60,6 +60,40 @@ class FeriaHostingStateTest : public QObject {
         return !token.isEmpty() && settle(s, origin, token, true, desc);
     }
 private slots:
+    void restoreIdentitySurvivesCloseAndReopen() {
+        SessionStore s;
+        s.setBrowserProfile("account-a");
+        auto desc = descriptor(); desc.insert("restoreId", "saved-offer");
+        const auto id = s.openBrowser(desc, true);
+        QCOMPARE(s.get(id).value("target").toMap().value("restoreId").toString(), QStringLiteral("saved-offer"));
+        QVERIFY(accept(s, id));
+        const auto prepared = prepare(s, "youtube").value("descriptor").toMap();
+        QCOMPARE(prepared.value("restoreId").toString(), QStringLiteral("saved-offer"));
+        const auto restored = s.openBrowser(prepared, true);
+        QVERIFY(!restored.isEmpty());
+        QCOMPARE(s.get(restored).value("target").toMap().value("restoreId").toString(), QStringLiteral("saved-offer"));
+    }
+    void unknownActiveIdDoesNotMutateSelection() {
+        SessionStore s;
+        s.setBrowserProfile("account-a");
+        const auto first = s.openBrowser(descriptor(), true);
+        const auto second = s.openBrowser(descriptor("netflix", "https://example.com/b"), true);
+        s.switchTo(first);
+        const auto before = s.browsers();
+        const auto revision = s.revision();
+        QSignalSpy changed(&s, &SessionStore::changed);
+        QSignalSpy activeChanged(&s, &SessionStore::activeChangedProp);
+        s.switchTo("retired-or-unknown");
+        QCOMPARE(s.activeId(), first);
+        QCOMPARE(s.revision(), revision);
+        QCOMPARE(s.browsers(), before);
+        QCOMPARE(changed.size(), 0);
+        QCOMPARE(activeChanged.size(), 0);
+        s.switchTo({});
+        QCOMPARE(s.activeId(), QString());
+        s.switchTo(second);
+        QCOMPARE(s.activeId(), second);
+    }
     void apiContract() {
         SessionStore s;
         for (const char *signature : {"browserIdentity(QString)", "beginBrowserClose(QVariantMap)",

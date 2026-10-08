@@ -57,6 +57,54 @@ bool knownBrowserProvider(const QString &provider) {
     return PorticoAppStateBridge::currentPorticoProviderIds().contains(provider);
 }
 
+QVariantMap validatedBrowserPreferences(const QVariantMap &stored) {
+    QVariantMap result{{"restoreTabs", false}, {"freezeBackground", true}, {"searchEngine", "duckduckgo"}};
+    for (const auto &key : {"restoreTabs", "freezeBackground"}) {
+        const auto value = stored.value(key);
+        if (value.metaType().id() == QMetaType::Bool) result.insert(key, value);
+    }
+    const auto search = stored.value("searchEngine");
+    if (search.metaType().id() == QMetaType::QString
+        && QStringList{"duckduckgo", "google", "bing"}.contains(search.toString()))
+        result.insert("searchEngine", search);
+    return result;
+}
+
+QVariantList validatedBrowserDescriptors(const QVariantList &descriptors) {
+    QVariantList rows;
+    QSet<QString> ids;
+    for (const auto &value : descriptors) {
+        if (value.metaType().id() != QMetaType::QVariantMap) continue;
+        const auto descriptor = value.toMap();
+        const auto inputUrl = descriptor.value("url"), provider = descriptor.value("providerId");
+        if (inputUrl.metaType().id() != QMetaType::QString || inputUrl.toString().size() > 8192
+            || provider.metaType().id() != QMetaType::QString || !knownBrowserProvider(provider.toString())) continue;
+        if (descriptor.contains("privateBrowsing")
+            && (descriptor.value("privateBrowsing").metaType().id() != QMetaType::Bool
+                || descriptor.value("privateBrowsing").toBool())) continue;
+        const auto url = browserUrl(inputUrl.toString(), true);
+        if (url.isEmpty() || url.size() > 8192) continue;
+        QVariantMap row{{"url", url}, {"providerId", provider}};
+        bool valid = true;
+        for (const auto &key : {"providerName", "title", "mode", "launchMode", "titleId", "logo", "restoreId"}) {
+            if (!descriptor.contains(key)) continue;
+            const auto text = descriptor.value(key);
+            if (text.metaType().id() != QMetaType::QString || text.toString().size() > (QString(key) == "restoreId" ? 100 : 2048)) {
+                valid = false; break;
+            }
+            row.insert(key, text);
+        }
+        if (!valid) continue;
+        QString id = row.value("restoreId").toString();
+        if (id.isEmpty()) id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (ids.contains(id)) continue;
+        ids.insert(id); row.insert("restoreId", id);
+        rows.append(row);
+        if (rows.size() == 50) break;
+    }
+    return rows;
+}
+
 // Only a provider-specific rule can qualify an external media ID. Context comes
 // from beginVisit(), never from the page payload. Other providers remain legacy.
 QString youtubeMusicId(const QString &href) {
@@ -88,6 +136,8 @@ QString continueIdentity(const QVariantMap &row) {
 FeriaAccountStore::FeriaAccountStore(QObject *parent) : QObject(parent) {}
 
 void FeriaAccountStore::setStoragePath(const QString &path) {
+    m_restoreCaptured = false;
+    m_writeFailed = false;
     m_visits.clear();
     m_downloadAuthorizations.clear();
     m_legacyToken.clear();
@@ -101,9 +151,17 @@ void FeriaAccountStore::setStoragePath(const QString &path) {
             const auto doc = QJsonDocument::fromJson(file.readAll());
             if (!doc.isObject() || doc.object().value("version").toInt() != 1)
                 m_error = "Feria account data could not be loaded. The saved file has been preserved.";
-            else m_state = doc.object().toVariantMap();
+            else {
+                m_state = doc.object().toVariantMap();
+                m_state.insert("browserTabs", validatedBrowserDescriptors(m_state.value("browserTabs").toList()));
+                m_state.insert("browserRestoreOffers", validatedBrowserDescriptors(m_state.value("browserRestoreOffers").toList()));
+                m_state.insert("browserPreferences", validatedBrowserPreferences(m_state.value("browserPreferences").toMap()));
+            }
         }
     }
+    // Profile observers may immediately save restore offers. Release our read
+    // handle before their atomic replacement of this file, especially on Windows.
+    file.close();
     emit changed();
     emit profileChanged();
 }
@@ -114,12 +172,10 @@ bool FeriaAccountStore::recording() const { return m_state.value("recording", tr
 QVariantList FeriaAccountStore::browserBookmarks() const { return m_state.value("browserBookmarks").toList(); }
 QVariantList FeriaAccountStore::browserHistory() const { return m_state.value("browserHistory").toList(); }
 QVariantList FeriaAccountStore::browserTabs() const { return m_state.value("browserTabs").toList(); }
+QVariantList FeriaAccountStore::browserRestoreOffers() const { return m_state.value("browserRestoreOffers").toList(); }
 QVariantList FeriaAccountStore::browserDownloadHistory() const { return m_state.value("browserDownloadHistory").toList(); }
 QVariantMap FeriaAccountStore::browserPreferences() const {
-    QVariantMap result{{"restoreTabs", false}, {"freezeBackground", true}, {"searchEngine", "duckduckgo"}};
-    const auto stored = m_state.value("browserPreferences").toMap();
-    for (auto it = stored.cbegin(); it != stored.cend(); ++it) result.insert(it.key(), it.value());
-    return result;
+    return validatedBrowserPreferences(m_state.value("browserPreferences").toMap());
 }
 
 bool FeriaAccountStore::setBrowserBookmark(const QString &value, const QString &title, bool saved) {
@@ -166,24 +222,41 @@ bool FeriaAccountStore::setBrowserPreference(const QString &key, const QVariant 
 }
 
 bool FeriaAccountStore::saveBrowserTabs(const QVariantList &descriptors) {
-    QVariantList rows;
-    for (const auto &value : descriptors) {
-        const auto descriptor = value.toMap();
-        const QString url = browserUrl(descriptor.value("url").toString(), true);
-        if (descriptor.value("privateBrowsing").toBool() || url.isEmpty()
-            || !knownBrowserProvider(descriptor.value("providerId").toString())) continue;
-        QVariantMap row{{"url", url}, {"providerId", descriptor.value("providerId")}};
-        for (const auto &key : {"providerName", "title", "mode", "launchMode", "titleId", "logo"})
-            if (descriptor.contains(key)) row.insert(key, descriptor.value(key).toString().left(2048));
-        rows.append(row);
-        if (rows.size() >= 50) break;
+    auto state = m_state; state.insert("browserTabs", validatedBrowserDescriptors(descriptors)); return commit(state);
+}
+
+bool FeriaAccountStore::saveBrowserRestoreOffers(const QVariantList &descriptors) {
+    auto state = m_state; state.insert("browserRestoreOffers", validatedBrowserDescriptors(descriptors)); return commit(state);
+}
+
+bool FeriaAccountStore::captureBrowserRestoreOffers() {
+    if (m_path.isEmpty() || (!m_error.isEmpty() && !m_writeFailed)) return false;
+    if (m_restoreCaptured) return true;
+    const auto tabs = browserTabs();
+    const auto digest = QString::fromLatin1(QCryptographicHash::hash(
+        QJsonDocument::fromVariant(tabs).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256).toHex());
+    m_restoreCaptured = true; // changed() can synchronously re-enter this method.
+    if (m_state.value("browserRestoreSnapshotDigest").toString() == digest) return true;
+    auto offers = browserRestoreOffers();
+    for (const auto &value : tabs) {
+        const auto id = value.toMap().value("restoreId").toString();
+        qsizetype index = 0;
+        while (index < offers.size() && offers[index].toMap().value("restoreId").toString() != id) ++index;
+        if (index < offers.size()) offers[index] = value;
+        else if (offers.size() < 50) offers.append(value);
     }
-    auto state = m_state; state.insert("browserTabs", rows); return commit(state);
+    auto state = m_state;
+    state.insert("browserTabs", tabs); // Persist the IDs assigned to legacy descriptors on read.
+    state.insert("browserRestoreOffers", offers);
+    state.insert("browserRestoreSnapshotDigest", digest);
+    if (commit(state)) return true;
+    m_restoreCaptured = false;
+    return false;
 }
 
 QString FeriaAccountStore::authorizeBrowserDownload(const QString &sessionId, const QString &visitToken) {
     const Visit *visit = visitFor(sessionId, visitToken);
-    if (!visit || visit->privateBrowsing || m_path.isEmpty() || !m_error.isEmpty()) return {};
+    if (!visit || visit->privateBrowsing || m_path.isEmpty() || (!m_error.isEmpty() && !m_writeFailed)) return {};
     const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
     m_downloadAuthorizations.insert(token, {m_path, visit->context.value("pk").toString()});
     return token;
@@ -206,7 +279,7 @@ bool FeriaAccountStore::recordBrowserDownload(const QVariantMap &descriptor) {
     } else if (descriptor.contains("sessionId") || descriptor.contains("visitToken")) {
         const Visit *visit = visitFor(descriptor.value("sessionId").toString(), descriptor.value("visitToken").toString());
         if (!visit || visit->privateBrowsing) return false;
-    }
+    } else return false;
     const QString url = browserUrl(descriptor.value("url").toString(), true);
     if (url.isEmpty()) return false;
     QString id = descriptor.value("id").toString().left(100);
@@ -284,25 +357,28 @@ QString FeriaAccountStore::safeUrl(const QString &value) {
 }
 
 bool FeriaAccountStore::commit(const QVariantMap &state) {
-    if (m_path.isEmpty() || !m_error.isEmpty()) return false;
+    if (m_path.isEmpty() || (!m_error.isEmpty() && !m_writeFailed)) return false;
     auto next = state;
     next.insert("version", 1);
     QSaveFile file(m_path);
     const auto data = QJsonDocument(QJsonObject::fromVariantMap(next)).toJson(QJsonDocument::Compact);
     if (!QDir().mkpath(QFileInfo(m_path).absolutePath()) || !file.open(QIODevice::WriteOnly)
         || file.write(data) != data.size() || !file.commit()) {
-        m_error = "Could not save Feria account data. Check available disk space and restart Colosseum.";
+        m_writeFailed = true;
+        m_error = "Could not save Feria account data. Check available disk space and retry.";
         emit changed();
         return false;
     }
     m_state = next;
+    m_writeFailed = false;
+    m_error.clear();
     emit changed();
     return true;
 }
 
 QString FeriaAccountStore::beginSessionVisit(const QString &sessionId, const QVariantMap &context) {
     endSessionVisit(sessionId);
-    if (sessionId.isEmpty() || m_path.isEmpty() || !m_error.isEmpty()
+    if (sessionId.isEmpty() || m_path.isEmpty() || (!m_error.isEmpty() && !m_writeFailed)
         || !PorticoAppStateBridge::currentPorticoProviderIds().contains(context.value("pk").toString())) return {};
     Visit visit;
     visit.context = context;
