@@ -249,10 +249,20 @@ Item {
             verify(!deck.returnToEmbedded(b), "Held external unload consent must fence host transfer")
             Sessions.switchTo(a)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
-            tryVerify(function() { return !deck.entries[b].closeController.busy }, 5000)
+            verify(deck.entries[b].closeController.busy)
+            verify(deck.entries[b].closeController.failure.length > 0)
+            verify(!deck.closeTab(b), "External site-close refusal has no same-document terminal hook")
             compare(deck.browserForSession(a), p)
-            verify(deck.closeTab(b))
+            verify(deck.reload(b))
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
+            tryVerify(function() { return child.documentReady && child.title === "Fixture /hosting"
+                && !deck.entries[b].closeController.busy }, 10000)
+            click(child, "#guard")
+            js(child, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.close()}")
+            click(child, "#dialog")
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            compare(deck.entries[b].closeConsent.kind, "unload")
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
             tryVerify(function() { return !deck.entries[b] }, 10000)
             compare(deck.browserForSession(a), p)
@@ -267,6 +277,7 @@ Item {
             tryVerify(function() { return p.title === "Fixture /b" || deck.entries[a].closeConsent }, 10000)
             if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
             tryCompare(p, "title", "Fixture /b", 10000)
+            tryVerify(function() { return p.documentReady && !deck.entries[a].closeController.busy }, 10000)
             verify(deck.closeTab(a))
             var freshAttempt = deck.entries[a].closeController.attempt
             oldCallback() // queued OLD adapter callback, not an invented extra engine terminal
@@ -424,7 +435,7 @@ Item {
             compare(deck.browserForSession(a), p)
             compare(String(p.url), FixtureUrl + "/hosting")
         }
-        function test_externalStayWaitsForEngineBeforeAppRetry() {
+        function test_externalSiteStayRequiresDocumentRecovery() {
             var a = open("/hosting"), p = deck.browserForSession(a)
             js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','external-retry','width=520,height=420')}")
             click(p, "#dialog")
@@ -440,13 +451,19 @@ Item {
             click(child, "#dialog")
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
-            if (acknowledgements === 0)
-                verify(!deck.closeTab(b), "App retry cannot overlap external rejection still in flight")
-            tryVerify(function() { return acknowledgements === 1 }, 5000)
+            verify(!deck.closeTab(b), "External rejection has no same-document ACK; app retry stays fenced")
+            verify(deck.entries[b].closeController.failure.length > 0)
+            verify(deck.reload(b))
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
+            tryVerify(function() { return child.documentReady && child.title === "Fixture /hosting"
+                && !deck.entries[b].closeController.busy }, 10000)
+            compare(acknowledgements, 0, "Renderer-initiated Stay did not emit app RequestClose's private hook")
+            click(child, "#guard")
             verify(deck.closeTab(b))
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
-            tryVerify(function() { return acknowledgements === 2 }, 5000)
+            tryVerify(function() { return acknowledgements === 1 }, 5000)
             child.closeRejected.disconnect(rejected)
         }
         function test_navigationStayAllowsLaterNavigation() {
@@ -502,11 +519,41 @@ Item {
             tryVerify(function() { return p.title === "Fixture /b" || deck.entries[a].closeConsent }, 10000)
             if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
             tryCompare(p, "title", "Fixture /b", 10000)
-            compare(replacementCount, 1)
+            tryVerify(function() { return replacementCount === 1 }, 10000,
+                "Only an actual successful replacement event unlocks recovery")
             compare(deck.entries[a].closeController.failure, "")
             verify(deck.closeTab(a), "Verified new document permits a fresh close")
             tryVerify(function() { return !deck.entries[a] }, 10000)
             // The retired view and its per-test signal closures are destroyed.
+        }
+        function test_externalLeaveFailedLoadShowsRecoveryAndReloads() {
+            var a = open("/hosting"), p = deck.browserForSession(a), failed = false
+            function loading(info) {
+                if (String(info.url) === FixtureUrl + "/broken" && info.status === WebEngineView.LoadFailedStatus)
+                    failed = true
+            }
+            p.loadingChanged.connect(loading)
+            click(p, "#guard")
+            verify(deck.attachConsentSurface(globalChrome))
+            verify(deck.navigateInput(a, FixtureUrl + "/broken"))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryVerify(function() { return failed }, 10000)
+            verify(!deck.closeTab(a), "Failed replacement cannot authorize a close through the old unload ticket")
+            var panel = childMatching(globalChrome, function(item) {
+                return String(item).indexOf("FeriaCloseConsent") >= 0 && item.visible && item.diagnostic.length > 0
+            })
+            verify(panel !== null, "Failed replacement must expose its close/transfer recovery limitation")
+            verify(deck.navigateInput(a, FixtureUrl + "/hosting"))
+            tryVerify(function() { return p.title === "Fixture /hosting" && p.documentReady
+                || deck.entries[a].closeConsent }, 10000)
+            if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryVerify(function() { return p.title === "Fixture /hosting" && p.documentReady
+                && !deck.entries[a].closeController.busy }, 10000)
+            verify(deck.reload(a))
+            tryVerify(function() { return p.documentReady && !p.loading }, 10000)
+            verify(deck.closeTab(a))
+            tryVerify(function() { return !deck.entries[a] }, 10000)
         }
         function test_newSiteCloseAfterCancelledCloseNavigation() {
             var a = open("/hosting"), p = deck.browserForSession(a)
@@ -617,7 +664,8 @@ Item {
             var recordId = Sessions.closedBrowserRecords("mangaplus")[0].recordId
             var fresh = deck.reopenClosedSpace("mangaplus")
             verify(fresh && fresh !== a)
-            tryVerify(function() { var q=deck.browserForSession(fresh); return q && q.loading }, 10000)
+            tryVerify(function() { var q=deck.browserForSession(fresh)
+                return q && q.loading && q.navigation.usable && q.navigation.loading }, 10000)
             var page = deck.browserForSession(fresh), stopped = false
             function loading(info) { if (info.status === WebEngineView.LoadStoppedStatus) stopped = true }
             page.loadingChanged.connect(loading)
