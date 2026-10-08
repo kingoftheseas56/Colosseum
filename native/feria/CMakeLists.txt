@@ -17,6 +17,8 @@ add_library(feria_discovery STATIC
     FeriaAccountStore.h
     FeriaBrowserPolicy.h
     FeriaBrowserPolicy.cpp
+    FeriaBrowserOperations.h
+    FeriaBrowserOperations.cpp
     PorticoComposition.cpp
     PorticoComposition.h
     PorticoWebBridge.cpp
