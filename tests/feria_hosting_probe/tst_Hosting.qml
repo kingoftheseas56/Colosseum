@@ -76,8 +76,10 @@ Item {
         function test_appMaxPreservesSameDocumentAndInput() {
             var id = open("/hosting"), p = deck.browserForSession(id), profile = p.profile
             click(p, "#edit"); typeText("kept")
-            js(p, "window.sessionMarker=841;history.pushState({},'', '#kept');window.scrollTo(0,500);document.querySelector('audio').play();true")
+            js(p, "window.sessionMarker=841;history.pushState({retained:841},'', '#kept');window.scrollTo(0,500);document.querySelector('audio').play();true")
             var generation = p.navigationGeneration, w = p.width, h = p.height
+            var ex = deck.entries[id].x, ey = deck.entries[id].y
+            var historyLength = js(p, "history.length")
             verify(typeof deck.maximizeSession === "function", "App Max must move the live page into a separate same-window host")
             for (var i=0; i<3; ++i) {
                 verify(deck.maximizeSession(id, fullSize))
@@ -86,13 +88,21 @@ Item {
                 verify(p.width > w); compare(p.navigationGeneration, generation)
                 compare(js(p, "document.querySelector('#edit').value"), "kept")
                 compare(js(p, "window.sessionMarker"), 841)
+                compare(js(p, "history.length"), historyLength)
+                compare(js(p, "history.state.retained"), 841)
+                compare(js(p, "location.hash"), "#kept")
                 compare(js(p, "Math.round(window.scrollY)"), 500)
                 compare(js(p, "document.activeElement.id"), "edit")
                 compare(js(p, "document.querySelector('audio').paused"), false)
                 verify(!p.fullScreenActive)
                 verify(deck.restoreSession(id))
                 tryCompare(p, "width", w); tryCompare(p, "height", h)
+                compare(deck.entries[id].x, ex); compare(deck.entries[id].y, ey)
             }
+            js(p, "history.back()")
+            tryVerify(function() { return js(p, "location.hash") === "" }, 5000)
+            js(p, "history.forward()")
+            tryVerify(function() { return js(p, "history.state && history.state.retained") === 841 }, 5000)
             click(p, "#edit"); typeText("-input")
             compare(js(p, "document.querySelector('#edit').value"), "kept-input")
         }
@@ -182,6 +192,8 @@ Item {
             verify(e.hostWindow && e.hostWindow.visible, "Site dialog requires independent canonical native host")
             compare(e.browser.profile, p.profile)
             verify(e.hostWindow.width >= 320 && e.hostWindow.height >= 240)
+            tryVerify(function() { return Fixture.hostFrameWithinAvailableScreen(e.hostWindow) }, 5000,
+                "Actual native outer frame and controls stay inside available screen geometry")
             compare(js(e.browser, "window.openerMarker"), 192)
             compare(js(e.browser, "window.postBody"), "marker=original-post-body")
             deck.closeTab(b)
@@ -237,7 +249,7 @@ Item {
             verify(!deck.returnToEmbedded(b), "Held external unload consent must fence host transfer")
             Sessions.switchTo(a)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
-            tryVerify(function() { return !deck.entries[b].closePending }, 5000)
+            tryVerify(function() { return !deck.entries[b].closeController.busy }, 5000)
             compare(deck.browserForSession(a), p)
             verify(deck.closeTab(b))
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
@@ -249,14 +261,31 @@ Item {
             var a = open("/hosting"), p = deck.browserForSession(a)
             click(p, "#guard")
             verify(deck.closeTab(a))
-            // Invalidate while RequestClose is still in flight, before a dialog
-            // or rejection acknowledgment reaches the adapter.
+            var oldCallback = deck.entries[a].closeController.closeAcknowledgement
             verify(deck.navigateInput(a, FixtureUrl + "/b"))
-            var nextWasAdmitted = deck.closeTab(a)
-            p.windowCloseRequested() // Inject delayed A acknowledgement, not B consent.
-            wait(50)
-            verify(deck.browserForSession(a) === p,
-                "Old acknowledgement must not settle fresh attempt; admitted=" + nextWasAdmitted)
+            verify(!deck.closeTab(a), "In-flight cancelled attempt blocks a second app close")
+            tryVerify(function() { return p.title === "Fixture /b" || deck.entries[a].closeConsent }, 10000)
+            if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryCompare(p, "title", "Fixture /b", 10000)
+            verify(deck.closeTab(a))
+            var freshAttempt = deck.entries[a].closeController.attempt
+            oldCallback() // queued OLD adapter callback, not an invented extra engine terminal
+            compare(deck.entries[a].closeController.attempt, freshAttempt)
+            compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+            tryVerify(function() { return !deck.entries[a] }, 10000)
+        }
+        function test_pendingConsentAcrossAccountRetirement() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            click(p, "#guard")
+            verify(deck.closeTab(a))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            var oldConsent = deck.entries[a].closeConsent
+            Fixture.switchProfile("retired-account-" + (++serial))
+            tryCompare(deck, "quiescing", false, 15000)
+            tryVerify(function() { return !deck.entries[a] }, 10000)
+            var fresh = open("/b")
+            verify(!deck.answerClose(a, oldConsent.attempt, true))
+            verify(deck.browserForSession(fresh))
             compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
         }
         function childMatching(item, predicate) {
@@ -316,11 +345,43 @@ Item {
             p.newWindowRequested.disconnect(duplicate)
             compare(Sessions.browsers().length, 2, "Repeated void-openIn request must not leave an orphan entry/host")
             var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
-            tryVerify(function() { return deck.browserForSession(b) && deck.browserForSession(b).documentReady }, 10000)
+            tryVerify(function() { var child = deck.browserForSession(b)
+                return child && child.documentReady && child.title === "Fixture /hosting"
+                    && String(child.url) === FixtureUrl + "/hosting" }, 10000)
             compare(js(deck.browserForSession(b), "window.opener.sessionMarker"), 291)
             compare(deck.entries[a].liveAdoptedChildren, 1)
-            deck.closeTab(b)
-            tryVerify(function() { return !deck.entries[b] && deck.entries[a].liveAdoptedChildren === 0 }, 10000)
+            verify(deck.closeTab(b))
+            tryVerify(function() { return !deck.entries[b] }, 10000, "Accepted child close retires its canonical entry")
+            tryCompare(deck.entries[a], "liveAdoptedChildren", 0, 10000,
+                "Actual child destruction releases its creation dependency")
+        }
+        function test_nestedAdoptionKeepsLiveOriginsAndReleasesLeafFirst() {
+            var a = open("/hosting"), first = deck.browserForSession(a)
+            js(first, "window.sessionMarker=101;document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','nested-first','width=520,height=420')}")
+            click(first, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { var p=deck.browserForSession(b); return p && p.documentReady && p.title === "Fixture /hosting" }, 10000)
+            var second = deck.browserForSession(b)
+            compare(second.profile, first.profile)
+            compare(js(second, "opener.sessionMarker"), 101)
+            js(second, "window.sessionMarker=202;document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','nested-second','width=520,height=420')}")
+            click(second, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 3 }, 10000)
+            var c = Sessions.browsers().filter(function(r) { return r.id !== a && r.id !== b })[0].id
+            tryVerify(function() { var p=deck.browserForSession(c); return p && p.documentReady && p.title === "Fixture /hosting" }, 10000)
+            var third = deck.browserForSession(c)
+            compare(third.profile, first.profile)
+            compare(js(third, "opener.sessionMarker"), 202)
+            click(third, "#edit"); typeText("nested-input")
+            compare(js(third, "document.querySelector('#edit').value"), "nested-input")
+            compare(deck.entries[a].liveAdoptedChildren, 1)
+            compare(deck.entries[b].liveAdoptedChildren, 1)
+            verify(deck.closeTab(c)); tryVerify(function() { return !deck.entries[c] }, 10000)
+            tryCompare(deck.entries[b], "liveAdoptedChildren", 0, 10000)
+            verify(deck.closeTab(b)); tryVerify(function() { return !deck.entries[b] }, 10000)
+            tryCompare(deck.entries[a], "liveAdoptedChildren", 0, 10000)
+            verify(deck.closeTab(a)); tryVerify(function() { return !deck.entries[a] }, 10000)
         }
         function test_restoreReinstatesEmbeddedLayoutBinding() {
             var a = open("/hosting"), p = deck.browserForSession(a)
@@ -400,12 +461,52 @@ Item {
             wait(200)
             console.log("NAVIGATION_REJECTION_EVENTS", JSON.stringify(events))
             verify(!deck.entries[a].closePending)
-            compare(deck.entries[a].closeController.failure, "")
-            verify(deck.navigateInput(a, FixtureUrl + "/b"))
+            verify(deck.entries[a].closeController.failure.indexOf("navigation cancellation") >= 0)
+            verify(!deck.closeTab(a), "Navigation refusal lacks a safe same-document close ACK hook")
+            verify(!deck.moveToDesktop(a), "Unacknowledged refusal fences host transfer")
+            verify(deck.attachConsentSurface(globalChrome))
+            var diagnosticPanel = childMatching(globalChrome, function(item) {
+                return String(item).indexOf("FeriaCloseConsent") >= 0 && item.visible && item.diagnostic.length > 0
+            })
+            verify(diagnosticPanel !== null, "The supported limitation must be visible in reserved chrome")
+            js(p, "history.pushState({},'', '#same-document')")
+            verify(!deck.closeTab(a), "Fragment changes cannot clear a document barrier")
+            var replacementCount = 0, brokenFinished = false, slowStarted = false, slowStopped = false
+            function replaced(generation) { ++replacementCount }
+            function failedLoad(info) {
+                if (String(info.url) === FixtureUrl + "/slow") {
+                    if (info.status === WebEngineView.LoadStartedStatus) slowStarted = true
+                    if (info.status === WebEngineView.LoadStoppedStatus) slowStopped = true
+                }
+                if (String(info.url) === FixtureUrl + "/broken"
+                    && (info.status === WebEngineView.LoadFailedStatus || info.status === WebEngineView.LoadStoppedStatus))
+                    brokenFinished = true
+            }
+            p.documentReplaced.connect(replaced)
+            p.loadingChanged.connect(failedLoad)
+            verify(deck.navigateInput(a, FixtureUrl + "/broken"))
             tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
             verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryVerify(function() { return brokenFinished }, 10000)
+            compare(replacementCount, 0, "Failed provisional load cannot claim a replacement document")
+            verify(!deck.closeTab(a))
+            verify(deck.navigateInput(a, FixtureUrl + "/slow"))
+            tryVerify(function() { return slowStarted || deck.entries[a].closeConsent }, 10000)
+            if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryVerify(function() { return slowStarted && p.loading }, 5000)
+            verify(deck.stop(a))
+            tryVerify(function() { return slowStopped }, 10000)
+            compare(replacementCount, 0, "Explicitly stopped provisional load cannot release close quarantine")
+            verify(!deck.closeTab(a))
+            verify(deck.navigateInput(a, FixtureUrl + "/b"))
+            tryVerify(function() { return p.title === "Fixture /b" || deck.entries[a].closeConsent }, 10000)
+            if (deck.entries[a].closeConsent) verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
             tryCompare(p, "title", "Fixture /b", 10000)
-            p.closeRejected.disconnect(rejected); p.loadingChanged.disconnect(loading)
+            compare(replacementCount, 1)
+            compare(deck.entries[a].closeController.failure, "")
+            verify(deck.closeTab(a), "Verified new document permits a fresh close")
+            tryVerify(function() { return !deck.entries[a] }, 10000)
+            // The retired view and its per-test signal closures are destroyed.
         }
         function test_newSiteCloseAfterCancelledCloseNavigation() {
             var a = open("/hosting"), p = deck.browserForSession(a)
@@ -508,6 +609,25 @@ Item {
             tryVerify(function() { var page = deck.browserForSession(fresh)
                 return page && page.documentReady && page.title === "Fixture /hosting" }, 15000)
             compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+        }
+        function test_stoppedReopenRetainsOriginalRecord() {
+            var a = open("/reopen-slow")
+            verify(deck.closeTab(a)); tryVerify(function() { return !deck.entries[a] }, 10000)
+            compare(Sessions.closedBrowserRecords("mangaplus").length, 1)
+            var recordId = Sessions.closedBrowserRecords("mangaplus")[0].recordId
+            var fresh = deck.reopenClosedSpace("mangaplus")
+            verify(fresh && fresh !== a)
+            tryVerify(function() { var q=deck.browserForSession(fresh); return q && q.loading }, 10000)
+            var page = deck.browserForSession(fresh), stopped = false
+            function loading(info) { if (info.status === WebEngineView.LoadStoppedStatus) stopped = true }
+            page.loadingChanged.connect(loading)
+            verify(deck.stop(fresh))
+            tryVerify(function() { return stopped }, 10000)
+            compare(Sessions.closedBrowserRecords("mangaplus").length, 1,
+                "A stopped provisional reopen cannot consume the user's original closed record")
+            compare(Sessions.closedBrowserRecords("mangaplus")[0].recordId, recordId)
+            tryVerify(function() { return !deck.entries[fresh] }, 10000,
+                "Stopped reconstruction rolls back its new placeholder")
         }
         function test_reopenAppScopedFreshIdentity() {
             var a = open("/hosting", "mangaplus"), b = open("/b", "ytmusic")

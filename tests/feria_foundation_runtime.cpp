@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QSettings>
 #include <QHostAddress>
 #include <QQmlContext>
@@ -81,6 +82,11 @@ public:
         auto *host = qobject_cast<QWindow *>(second);
         return origin && host && origin->screen() == host->screen();
     }
+    Q_INVOKABLE bool hostFrameWithinAvailableScreen(QObject *object) const {
+        auto *window = qobject_cast<QWindow *>(object);
+        return window && window->isVisible() && window->screen()
+            && window->screen()->availableGeometry().contains(window->frameGeometry());
+    }
     Q_INVOKABLE bool focusWindowMatches(QObject *object) const {
         return qobject_cast<QWindow *>(object) == QGuiApplication::focusWindow();
     }
@@ -128,6 +134,15 @@ public slots:
                     }
                     if (path == "/broken") {
                         socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/reopen-slow" && ++m_routeHits[path] > 1) {
+                        QTimer::singleShot(5000, socket, [socket] {
+                            const QByteArray page("<title>Fixture /reopen-slow</title>");
+                            socket->write("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(page.size())
+                                + "\r\nConnection: close\r\n\r\n" + page);
+                            socket->disconnectFromHost();
+                        });
                         return;
                     }
                     if (path == "/slow") {

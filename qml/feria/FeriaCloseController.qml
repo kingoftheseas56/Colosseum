@@ -22,9 +22,15 @@ Item {
     property string retiredAttempt: ""
     property int externalSerial: 0
     property var externalAccepted: null
+    property var externalRejection: null
+    property bool externalRecoveryOnly: false
+    property int recoveryAfterGeneration: -1
+    property int attemptLoadGeneration: -1
+    property var closeAcknowledgement: null
+    property bool engineClosed: false
     property string failure: ""
     readonly property bool pending: attempt.length > 0
-    readonly property bool busy: pending || request !== null || externalAccepted !== null || retiredBarrier
+    readonly property bool busy: pending || request !== null || externalAccepted !== null || externalRejection !== null || retiredBarrier || staleAcknowledgementFence || failure.length > 0
     signal changed()
     signal blocked(string reason)
     signal cancellationSettled()
@@ -38,7 +44,7 @@ Item {
     function matches() { return identityMatches(identity) }
     function clearLocal() {
         rejectionDeadline.stop()
-        attempt = ""; identity = null; request = null; consent = null
+        attempt = ""; identity = null; request = null; consent = null; closeAcknowledgement = null
         awaitingRejection = false; cancellationRequested = false; acceptedLeave = false
         changed()
     }
@@ -47,11 +53,16 @@ Item {
             blocked("Close this space's child windows first. This Qt runtime still needs their creation view.")
             return false
         }
-        if (!browser || browser.closingSession || pending || request || externalAccepted
-            || retiredBarrier || failure.length) return false
+        if (!browser || browser.closingSession || busy) return false
         identity = sessions.browserIdentity(sessionId)
         attempt = sessions.beginBrowserClose(identity)
         if (!attempt.length) { identity = null; return false }
+        attemptLoadGeneration = browser.navigationGeneration
+        var capturedIdentity = Object.assign({}, identity), capturedAttempt = attempt
+        closeAcknowledgement = function() {
+            if (controller.attempt !== capturedAttempt || !controller.identityMatches(capturedIdentity)) return
+            controller.acknowledgeAttempt()
+        }
         // Only a completed cancellation barrier permits admission here.
         staleAcknowledgementFence = false
         changed()
@@ -64,7 +75,7 @@ Item {
     function capture(dialog) {
         if (dialog.type !== JavaScriptDialogRequest.DialogTypeBeforeUnload) return
         dialog.accepted = true
-        if (browser.closingSession || request || failure.length) { dialog.dialogReject(); return }
+        if (browser.closingSession || request || (failure.length && !externalRejection)) { dialog.dialogReject(); return }
         if (pending) {
             if (!matches()) { dialog.dialogReject(); return }
             if (cancellationRequested) {
@@ -82,9 +93,9 @@ Item {
             // later exact windowCloseRequested distinguishes terminal site close.
             var key = sessions.browserIdentity(sessionId)
             if (!key.spaceId) { dialog.dialogReject(); return }
-            if (!retiredBarrier) staleAcknowledgementFence = false
             request = dialog
             consent = {identity: key, attempt: "unload:" + (++externalSerial), kind: "unload",
+                loadGeneration: browser.navigationGeneration,
                 origin: browser.browserRequests.originLabel(dialog.securityOrigin)}
         }
         changed()
@@ -95,6 +106,14 @@ Item {
         request = null; consent = null
         if (ticket.kind === "unload") {
             externalAccepted = leave ? ticket.identity : null
+            if (!leave) {
+                externalRejection = ticket
+                recoveryAfterGeneration = ticket.loadGeneration
+                // Navigation refusal has no Qt terminal rejection hook. A site
+                // close supplies closeRejected; otherwise keep visible, bounded
+                // functionality: close/transfer unavailable, navigation allowed.
+                failure = "Close and host transfer are unavailable after this navigation cancellation until a new page loads. You can navigate or reload. This Qt runtime does not expose its navigation rejection acknowledgement."
+            }
             changed()
             if (leave) dialog.dialogAccept()
             else dialog.dialogReject()
@@ -128,7 +147,7 @@ Item {
         var cancelled = cancellationRequested
         if (matches()) sessions.settleBrowserClose(identity, attempt, false, {})
         retiredBarrier = false
-        staleAcknowledgementFence = cancelled
+        staleAcknowledgementFence = false // actual old-operation terminal, not elapsed time
         clearLocal()
         if (cancelled) cancellationSettled()
     }
@@ -136,29 +155,32 @@ Item {
         if (retiredAttempt && identityMatches(retiredIdentity))
             sessions.settleBrowserClose(retiredIdentity, retiredAttempt, false, {})
         retiredBarrier = false; retiredIdentity = null; retiredAttempt = ""; failure = ""
+        staleAcknowledgementFence = false
         rejectionDeadline.stop()
+        changed()
     }
     function rejectionAcknowledged() {
+        if (externalRejection && !externalRecoveryOnly) {
+            externalRejection = null; failure = ""; staleAcknowledgementFence = false
+            changed()
+            return
+        }
         if (retiredBarrier && !pending) { finishRetiredBarrier(); return }
         if (!pending || !awaitingRejection || !matches()) return
         settleCancellation()
     }
-    function acknowledge() {
-        if (!browser || browser.closingSession) return
-        if (retiredBarrier && !pending) { finishRetiredBarrier(); return }
-        if (pending && cancellationRequested) {
-            // The old request finished without a dialog. Qt's terminal event is
-            // an observed barrier; preserve the page and honor queued navigation.
-            settleCancellation()
-            return
-        }
-        if (!pending && staleAcknowledgementFence) return
-        if (!pending && externalAccepted) {
-            if (!identityMatches(externalAccepted)) { externalAccepted = null; return }
-            externalAccepted = null
-        }
-        if (!pending && !begin(false)) return
-        if (!matches() || awaitingRejection || request) return
+    function prepareNavigation() {
+        if (externalAccepted || request) return false
+        // If navigation overlaps a rejected external operation, a later untagged
+        // rejection cannot safely identify the newest ticket. Require a new
+        // document instead; never promote such an overlap to close permission.
+        if (externalRejection) externalRecoveryOnly = true
+        return true
+    }
+    function acknowledgeAttempt() {
+        if (!pending || !matches()) return
+        if (cancellationRequested) { settleCancellation(); return }
+        if (awaitingRejection || request) return
         if (!retirementAllowed) {
             invalidate(false)
             blocked("Close the child windows before retiring their creation view.")
@@ -166,8 +188,44 @@ Item {
         }
         var key = identity, token = attempt
         var descriptor = {url: String(browser.url), title: browser.title}
+        engineClosed = true
         clearLocal()
         sessions.settleBrowserClose(key, token, true, descriptor)
+    }
+    function acknowledge() {
+        if (!browser || browser.closingSession) return
+        if (pending) { if (closeAcknowledgement) closeAcknowledgement(); return }
+        if (retiredBarrier) { finishRetiredBarrier(); return }
+        if (externalRejection || staleAcknowledgementFence) return
+        if (externalAccepted) {
+            if (!identityMatches(externalAccepted)) { externalAccepted = null; return }
+            externalAccepted = null
+        }
+        if (begin(false)) acknowledgeAttempt()
+    }
+    function rendererTerminated() {
+        // A dead renderer cannot acknowledge rejection later. Preserve canonical
+        // space, settle its pending attempt false, and invalidate old callbacks.
+        if (pending && matches()) sessions.settleBrowserClose(identity, attempt, false, {})
+        if (retiredAttempt && identityMatches(retiredIdentity))
+            sessions.settleBrowserClose(retiredIdentity, retiredAttempt, false, {})
+        var dialog = request
+        clearLocal()
+        externalAccepted = null; externalRejection = null; externalRecoveryOnly = false
+        retiredBarrier = false; retiredIdentity = null; retiredAttempt = ""
+        staleAcknowledgementFence = false; failure = ""; recoveryAfterGeneration = -1
+        sessions.advanceBrowserDocument(sessionId)
+        if (dialog) dialog.dialogReject()
+        changed()
+    }
+    function documentReplaced(generation) {
+        // This signal is LoadStarted -> LoadSucceeded for a real main document,
+        // never a fragment, provisional start, stopped or failed load.
+        if (generation <= recoveryAfterGeneration) return
+        if (!externalRejection && !retiredBarrier && !staleAcknowledgementFence) return
+        externalAccepted = null; externalRejection = null; externalRecoveryOnly = false
+        finishRetiredBarrier()
+        recoveryAfterGeneration = -1
     }
     function invalidate(advanceDocument) {
         var dialog = request
@@ -175,14 +233,16 @@ Item {
         if (hadAttempt) {
             retiredIdentity = identity; retiredAttempt = attempt
             retiredBarrier = true
+            recoveryAfterGeneration = attemptLoadGeneration
         }
+        if (hadExternal) recoveryAfterGeneration = browser.navigationGeneration - 1
         if (hadAttempt || hadExternal) staleAcknowledgementFence = true
         externalAccepted = null
         clearLocal()
         if (advanceDocument || hadAttempt) sessions.advanceBrowserDocument(sessionId)
         if (dialog) dialog.dialogReject()
         if (retiredBarrier) rejectionDeadline.restart()
-        if (advanceDocument && !retiredBarrier) failure = ""
+        if (advanceDocument && !retiredBarrier && !externalRejection) failure = ""
     }
     Timer {
         id: rejectionDeadline
@@ -197,6 +257,7 @@ Item {
             if (controller.pending) {
                 controller.retiredIdentity = controller.identity
                 controller.retiredAttempt = controller.attempt
+                controller.recoveryAfterGeneration = controller.attemptLoadGeneration
             }
             controller.clearLocal()
         }
@@ -207,7 +268,8 @@ Item {
         function onCloseRejected() { controller.rejectionAcknowledged() }
         function onWindowCloseRequested() { controller.acknowledge() }
         function onStarted(location) { controller.invalidate(true) }
-        function onRenderProcessTerminated(status, code) { controller.invalidate(true) }
+        function onDocumentReplaced(generation) { controller.documentReplaced(generation) }
+        function onRenderProcessTerminated(status, code) { controller.rendererTerminated() }
     }
     Component.onDestruction: if (request) request.dialogReject()
 }

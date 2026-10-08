@@ -84,12 +84,15 @@ WebEngineView {
         })
         return true
     }
-    function prepareForClose() {
+    function prepareForClose(engineTerminal) {
         if (closingSession) return
         wakePage()
         // Pause without depending on a provider-specific connector, then drain
         // callbacks before stopping the engine or destroying its QML context.
-        evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
+        // No fresh IPC after an observed engine close terminal: its document
+        // has unloaded and may never answer a newly dispatched script.
+        if (!engineTerminal)
+            evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
         closingSession = true
         // Release focus while the retained owner's scope is still alive,
         // before deferred parent/Loader destruction reaches the native view.
@@ -205,6 +208,8 @@ WebEngineView {
     property var popups: []
     property bool documentReady: false
     property int navigationGeneration: 0
+    property bool replacementLoadPending: false
+    signal documentReplaced(int generation)
     // Engine load state for the shell; WebEngineView reports real loadProgress.
     readonly property bool loadActive: loading
     property bool stopRequested: false
@@ -258,6 +263,7 @@ WebEngineView {
             fullScreenActive = false
             stopRequested = false
             ++navigationGeneration
+            replacementLoadPending = true
             documentReady = false
             documentCheck.restart()
             started(String(info.url))
@@ -271,6 +277,12 @@ WebEngineView {
                 evaluateJavaScript(Session.clearStorage)
                 cleanupPoll.start()
             }
+            // Qt's DidStartNavigation excludes same-document navigation. Only
+            // its successful main-document completion releases old barriers.
+            if (replacementLoadPending && !loading && String(info.url) === String(url)) {
+                replacementLoadPending = false
+                documentReplaced(navigationGeneration)
+            }
             // A completed listener may begin cleanup synchronously. Inspect the
             // current load before notifying it, so about:blank is never cleaned.
             completed(String(info.url), true)
@@ -281,6 +293,7 @@ WebEngineView {
             // that trails a newer load is superseded and must not overwrite the
             // replacing load's state.
             if (!stopRequested && loading) return
+            replacementLoadPending = false
             stopRequested = false
             ++navigationGeneration
             documentCheck.stop()
@@ -288,6 +301,10 @@ WebEngineView {
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             completed(String(info.url), true)
         } else if (info.status === WebEngineView.LoadFailedStatus) {
+            // An older aborted request can trail a newer main-frame start.
+            // Preserve that newer load's gate, without treating the abort as success.
+            if (!loading || (info.errorCode !== 3 && info.errorCode !== -3))
+                replacementLoadPending = false
             ++navigationGeneration
             documentCheck.stop()
             documentReady = false
@@ -319,7 +336,11 @@ WebEngineView {
             })
         }
     }
-    onRenderProcessTerminated: function(status, exitCode) { completed(String(url), false) }
+    onRenderProcessTerminated: function(status, exitCode) {
+        replacementLoadPending = false
+        documentReady = false
+        completed(String(url), false)
+    }
     onFullScreenRequested: function(request) { request.accept(); fullScreenActive = request.toggleOn }
     onNewWindowRequested: function(request) {
         if (!request.userInitiated) { message("Popup blocked"); return }

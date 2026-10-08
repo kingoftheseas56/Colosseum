@@ -34,6 +34,38 @@ Item {
         }
         return null
     }
+    // The caller reserves visible chrome outside the page viewport. Parenting
+    // this presentation there does not expand a sidebar or reveal hidden pages.
+    property var consentSurface: null
+    property var consentPresentation: null
+    readonly property string embeddedDiagnostic: {
+        presentationRevision
+        for (var id of Object.keys(entries)) {
+            var entry = entries[id]
+            if (!entry.hostWindow && entry.closeController.failure.length)
+                return entry.closeController.failure
+        }
+        return ""
+    }
+    function attachConsentSurface(surface) {
+        if (!surface || surface.Window.window !== deck.Window.window) return false
+        if (consentPresentation) consentPresentation.destroy()
+        consentSurface = surface
+        consentPresentation = consentFactory.createObject(deck, {parent: surface, deckOwner: deck})
+        return consentPresentation !== null
+    }
+    Component {
+        id: consentFactory
+        FeriaCloseConsent {
+            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+            required property var deckOwner
+            deck: deckOwner
+            consent: deckOwner.activeEntry && deckOwner.activeEntry.hostWindow
+                ? null : deckOwner.embeddedConsent
+            diagnostic: deckOwner.activeEntry && deckOwner.activeEntry.hostWindow
+                ? "" : deckOwner.embeddedDiagnostic
+        }
+    }
     readonly property var downloads: sharedProfile ? regularDownloads : null
     property bool quiescing: false
     property bool holdForCleanup: false
@@ -116,6 +148,7 @@ Item {
             entry.pendingNavigation = null
             return false
         }
+        if (!entry.closeController.prepareNavigation()) return false
         return nav[action]()
     }
     function back(id) { return dispatchNavigation(id, "back") }
@@ -536,6 +569,7 @@ Item {
             entry.pendingNavigation = null
             return false
         }
+        if (!entry.closeController.prepareNavigation()) return false
         entry.pendingNavigation = null
         entry.browser.wakePage()
         if (context) entry.visitContext = context
@@ -639,7 +673,11 @@ Item {
                 onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
                 onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
                 onChanged: ++deck.presentationRevision
-                onFailureChanged: if (failure.length) deck.message(entry.sessionId, failure)
+                onFailureChanged: {
+                    entry.errorText = failure
+                    ++deck.presentationRevision
+                    if (failure.length) deck.message(entry.sessionId, failure)
+                }
             }
             property string errorText: ""
             property var pendingNavigation: null
@@ -657,7 +695,7 @@ Item {
                 anchors.fill = null
                 parent = deck
                 deck.disposeHost(entry)
-                if (browser) browser.prepareForClose()
+                if (browser) browser.prepareForClose(closeController.engineClosed)
                 else destroy()
             }
             Component.onDestruction: {
@@ -675,7 +713,11 @@ Item {
                 id: consentDock
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                 deck: entry.ownerDeck
-                consent: entry.closeConsent || (deck.sessions.activeId === entry.sessionId ? deck.embeddedConsent : null)
+                consent: entry.hostWindow || !entry.ownerDeck.consentPresentation
+                    ? entry.closeConsent || (deck.sessions.activeId === entry.sessionId ? deck.embeddedConsent : null) : null
+                diagnostic: entry.hostWindow
+                    ? (deck.sessions.activeId === entry.sessionId ? deck.embeddedDiagnostic : "")
+                    : !entry.ownerDeck.consentPresentation ? closeController.failure : ""
             }
             Loader {
                 id: browserLoader
@@ -732,7 +774,7 @@ Item {
                             return
                         }
                     }
-                    entry.errorText = success ? "" : "Could not open the page. Try Reload."
+                    entry.errorText = closeController.failure || (success ? "" : "Could not open the page. Try Reload.")
                     deck.sessions.updateBrowser(entry.sessionId, location,
                                                 entry.browser ? entry.browser.title : "")
                     if (success) deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token,
