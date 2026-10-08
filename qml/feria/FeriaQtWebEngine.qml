@@ -114,7 +114,11 @@ WebEngineView {
     property bool appKeyboard: true
     property string appAccent: "#f2c94c"
     function applyAppMode() {
-        if (providerId.length > 0 && documentReady && !clearingSession) evaluateJavaScript(AppMode.script(providerId,appLayout,appKeyboard,appAccent))
+        if (providerId.length > 0 && documentReady && !clearingSession)
+            // Navigation can replace the document after this IPC is queued.
+            // Guard DOM availability at execution, not only at QML dispatch.
+            evaluateJavaScript("(()=>{if(!document.documentElement||!document.head)return;"
+                + AppMode.script(providerId,appLayout,appKeyboard,appAccent) + "})()")
     }
     onAppLayoutChanged: applyAppMode()
     onAppKeyboardChanged: applyAppMode()
@@ -210,6 +214,7 @@ WebEngineView {
     property int navigationGeneration: 0
     property bool replacementLoadPending: false
     signal documentReplaced(int generation)
+    signal documentLoadUnsuccessful(int generation, string location)
     // Engine load state for the shell; WebEngineView reports real loadProgress.
     readonly property bool loadActive: loading
     property bool stopRequested: false
@@ -299,6 +304,7 @@ WebEngineView {
             documentCheck.stop()
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
+            documentLoadUnsuccessful(navigationGeneration, String(info.url))
             completed(String(info.url), true)
         } else if (info.status === WebEngineView.LoadFailedStatus) {
             // An older aborted request can trail a newer main-frame start.
@@ -309,6 +315,7 @@ WebEngineView {
             documentCheck.stop()
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
+            documentLoadUnsuccessful(navigationGeneration, String(info.url))
             if (info.errorCode === 3 || info.errorCode === -3) {
                 // ERR_ABORTED: a superseded navigation or a deliberate stop.
                 // A superseded load must not overwrite the state of the load

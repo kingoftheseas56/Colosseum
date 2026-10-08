@@ -414,8 +414,8 @@ Item {
             return ""
         }
         entry.reopenRecordId = record.recordId
-        // Loader success is not page success. Completion commits only the exact
-        // record; a failed load retires this placeholder without consuming it.
+        // Loader/DOM readiness is not a successful reconstruction. Only the
+        // wrapper's actual main-document success event commits this record.
         return id
     }
     function restoreClosedTab() {
@@ -663,6 +663,29 @@ Item {
                 }
             }
             property string reopenRecordId: ""
+            function rollbackReopen(recordId) {
+                if (retiring || !recordId || reopenRecordId !== recordId
+                    || deck.entries[sessionId] !== entry) return
+                reopenRecordId = ""
+                deck.sessions.close(sessionId)
+                deck.message(sessionId, "The space could not reopen. Its closed record is still available.")
+            }
+            function deferReopenFailure(generation, location) {
+                if (!reopenRecordId || !browser) return
+                var recordId = reopenRecordId
+                // Older abort notifications may trail a newer provisional load.
+                // Recheck this exact reconstruction after queued load signals;
+                // this is rollback arbitration, never a close-consent ACK.
+                Qt.callLater(function() {
+                    if (!entry || entry.retiring || deck.entries[entry.sessionId] !== entry
+                        || entry.reopenRecordId !== recordId || !entry.browser
+                        || entry.browser.navigationGeneration !== generation
+                        || entry.browser.loading || entry.browser.replacementLoadPending) return
+                    if (String(location) !== String(entry.browser.url)
+                        && String(location) !== String(entry.browser.sourceUrl)) return
+                    entry.rollbackReopen(recordId)
+                })
+            }
             readonly property alias closeController: closeController
             readonly property alias closeConsent: closeController.consent
             readonly property alias closePending: closeController.pending
@@ -765,20 +788,26 @@ Item {
                 function onCompleted(location, success) {
                     if (entry.retiring) return
                     entry.observeAdoption()
-                    if (entry.reopenRecordId) {
-                        var recordId = entry.reopenRecordId
-                        entry.reopenRecordId = ""
-                        if (!success || !deck.sessions.commitBrowserReopen(recordId, entry.sessionId)) {
-                            deck.sessions.close(entry.sessionId)
-                            deck.message(entry.sessionId, "The space could not reopen. Its closed record is still available.")
-                            return
-                        }
-                    }
                     entry.errorText = closeController.failure || (success ? "" : "Could not open the page. Try Reload.")
                     deck.sessions.updateBrowser(entry.sessionId, location,
                                                 entry.browser ? entry.browser.title : "")
                     if (success) deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token,
                         location, entry.browser ? entry.browser.title : "")
+                }
+                function onDocumentReplaced(generation) {
+                    if (entry.retiring || !entry.reopenRecordId || !entry.browser
+                        || entry.browser.navigationGeneration !== generation || entry.browser.loading) return
+                    var recordId = entry.reopenRecordId
+                    deck.sessions.updateBrowser(entry.sessionId, String(entry.browser.url), entry.browser.title)
+                    if (deck.sessions.commitBrowserReopen(recordId, entry.sessionId)) entry.reopenRecordId = ""
+                    else entry.rollbackReopen(recordId)
+                }
+                function onDocumentLoadUnsuccessful(generation, location) {
+                    if (entry.reopenRecordId && !entry.retiring)
+                        entry.deferReopenFailure(generation, location)
+                }
+                function onRenderProcessTerminated(status, code) {
+                    if (entry.reopenRecordId) entry.rollbackReopen(entry.reopenRecordId)
                 }
                 function onTabRequested(request) { deck.openWindow(entry.sessionId, request) }
                 function onGeometryChangeRequested(geometry) {

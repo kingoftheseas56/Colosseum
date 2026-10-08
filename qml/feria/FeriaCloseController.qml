@@ -75,7 +75,8 @@ Item {
     function capture(dialog) {
         if (dialog.type !== JavaScriptDialogRequest.DialogTypeBeforeUnload) return
         dialog.accepted = true
-        if (browser.closingSession || request || (failure.length && !externalRejection)) { dialog.dialogReject(); return }
+        if (browser.closingSession || request
+            || (failure.length && !externalRejection && !staleAcknowledgementFence)) { dialog.dialogReject(); return }
         if (pending) {
             if (!matches()) { dialog.dialogReject(); return }
             if (cancellationRequested) {
@@ -109,10 +110,10 @@ Item {
             if (!leave) {
                 externalRejection = ticket
                 recoveryAfterGeneration = ticket.loadGeneration
-                // Navigation refusal has no Qt terminal rejection hook. A site
-                // close supplies closeRejected; otherwise keep visible, bounded
-                // functionality: close/transfer unavailable, navigation allowed.
-                failure = "Close and host transfer are unavailable after this navigation cancellation until a new page loads. You can navigate or reload. This Qt runtime does not expose its navigation rejection acknowledgement."
+                // Renderer-initiated site close and navigation refusal have no
+                // Qt terminal rejection hook. Keep visible, bounded functionality:
+                // close/transfer unavailable, fresh navigation remains allowed.
+                failure = "Close and host transfer are unavailable after this external page cancellation until a new page loads. You can navigate or reload. This Qt runtime does not expose the external rejection acknowledgement."
             }
             changed()
             if (leave) dialog.dialogAccept()
@@ -235,14 +236,17 @@ Item {
             retiredBarrier = true
             recoveryAfterGeneration = attemptLoadGeneration
         }
-        if (hadExternal) recoveryAfterGeneration = browser.navigationGeneration - 1
+        if (hadExternal) {
+            recoveryAfterGeneration = browser.navigationGeneration - 1
+            failure = "Close and host transfer wait for a successful replacement page. If loading fails or stops, navigate or reload to recover."
+        }
         if (hadAttempt || hadExternal) staleAcknowledgementFence = true
         externalAccepted = null
         clearLocal()
         if (advanceDocument || hadAttempt) sessions.advanceBrowserDocument(sessionId)
         if (dialog) dialog.dialogReject()
         if (retiredBarrier) rejectionDeadline.restart()
-        if (advanceDocument && !retiredBarrier && !externalRejection) failure = ""
+        if (advanceDocument && !retiredBarrier && !externalRejection && !staleAcknowledgementFence) failure = ""
     }
     Timer {
         id: rejectionDeadline

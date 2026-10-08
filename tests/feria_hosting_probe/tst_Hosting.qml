@@ -478,7 +478,7 @@ Item {
             wait(200)
             console.log("NAVIGATION_REJECTION_EVENTS", JSON.stringify(events))
             verify(!deck.entries[a].closePending)
-            verify(deck.entries[a].closeController.failure.indexOf("navigation cancellation") >= 0)
+            verify(deck.entries[a].closeController.failure.indexOf("cancellation") >= 0)
             verify(!deck.closeTab(a), "Navigation refusal lacks a safe same-document close ACK hook")
             verify(!deck.moveToDesktop(a), "Unacknowledged refusal fences host transfer")
             verify(deck.attachConsentSurface(globalChrome))
@@ -656,6 +656,27 @@ Item {
             tryVerify(function() { var page = deck.browserForSession(fresh)
                 return page && page.documentReady && page.title === "Fixture /hosting" }, 15000)
             compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+        }
+        function test_validBlankPopupSurvivesSilentAdmissionInterval() {
+            var a = open("/hosting"), first = deck.browserForSession(a)
+            js(first, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('about:blank','valid-blank','width=520,height=420')}")
+            click(first, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            var blank = deck.browserForSession(b)
+            verify(blank !== null)
+            compare(blank.profile, first.profile)
+            compare(js(blank, "location.href"), "about:blank")
+            compare(js(blank, "window.sessionMarker=777;window.sessionMarker"), 777)
+            compare(js(blank, "document.title"), "")
+            // Explicit negative check of the prototype's 10s admission timer,
+            // not a page-readiness or beforeunload acknowledgment surrogate.
+            wait(10500)
+            verify(deck.entries[b] !== undefined, "A silent valid blank document is not failed adoption")
+            compare(deck.browserForSession(b), blank)
+            compare(js(blank, "window.sessionMarker"), 777)
+            verify(deck.closeTab(b)); tryVerify(function() { return !deck.entries[b] }, 10000)
+            tryCompare(deck.entries[a], "liveAdoptedChildren", 0, 10000)
         }
         function test_stoppedReopenRetainsOriginalRecord() {
             var a = open("/reopen-slow")
