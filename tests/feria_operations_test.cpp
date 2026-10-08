@@ -13,6 +13,11 @@ class FeriaOperationsTest final : public QObject
     Q_OBJECT
 private slots:
     void init() { m_store.setBrowserProfile(m_tempDir.path() + QStringLiteral("/p") + QString::number(++m_serial)); }
+    void testNavigationOwnCommitIsNotInvalidation();
+    void testNavigationInvalidatedByHostMove();
+    void testPendingCloseSurvivesRetention();
+    void testRetiredOperationCannotAnswerConsent();
+    void testRequestForForeignOperationRefused();
 
     void testCloseAdmissionUsesCanonicalAttempt();
     void testExactlyOnceSettlement();
@@ -322,6 +327,125 @@ void FeriaOperationsTest::testInvalidCommandShapes()
                                  QStringLiteral("succeeded"), QString(),
                                  QStringLiteral("navigation-completed"), {})
                  .value(QStringLiteral("settled")).toBool());
+}
+
+void FeriaOperationsTest::testNavigationOwnCommitIsNotInvalidation()
+{
+    const QString id = openSpace();
+    const QVariantMap identity = m_store.browserIdentity(id);
+    FeriaBrowserOperations ops;
+    ops.setStore(&m_store);
+    const QString op = ops.beginOperation(identity, QStringLiteral("webview2"),
+                                          QStringLiteral("navigate"))
+                           .value(QStringLiteral("operationId")).toString();
+    // The navigation's own commit advances the document generation; its
+    // terminal must settle as requested, not be invalidated by itself.
+    m_store.advanceBrowserDocument(id);
+    QVariantMap settled = ops.settleOperation(identity, op, QStringLiteral("succeeded"),
+                                              QStringLiteral("native-history"),
+                                              QStringLiteral("navigation-completed"),
+                                              QVariantMap{{QStringLiteral("nativeNavigationId"),
+                                                           QVariant::fromValue<quint64>(7)}});
+    QVERIFY(settled.value(QStringLiteral("settled")).toBool());
+    QCOMPARE(settled.value(QStringLiteral("outcome")).toString(), QStringLiteral("succeeded"));
+    QCOMPARE(ops.operationResult(op).value(QStringLiteral("nativeNavigationId")).toULongLong(),
+             quint64(7));
+}
+
+void FeriaOperationsTest::testNavigationInvalidatedByHostMove()
+{
+    const QString id = openSpace();
+    const QVariantMap identity = m_store.browserIdentity(id);
+    FeriaBrowserOperations ops;
+    ops.setStore(&m_store);
+    const QString op = ops.beginOperation(identity, QStringLiteral("qtwebengine"),
+                                          QStringLiteral("back"))
+                           .value(QStringLiteral("operationId")).toString();
+    // A host transfer during a pending navigation is not the operation's own
+    // commit: the terminal is invalidated.
+    m_store.setBrowserHost(m_store.browserIdentity(id), QStringLiteral("app-fullsize:9"));
+    QVariantMap settled = ops.settleOperation(identity, op, QStringLiteral("succeeded"),
+                                              QStringLiteral("native-history"),
+                                              QStringLiteral("navigation-completed"), {});
+    QVERIFY(settled.value(QStringLiteral("settled")).toBool());
+    QCOMPARE(settled.value(QStringLiteral("outcome")).toString(), QStringLiteral("invalidated"));
+}
+
+void FeriaOperationsTest::testPendingCloseSurvivesRetention()
+{
+    const QString id = openSpace();
+    const QVariantMap identity = m_store.browserIdentity(id);
+    FeriaBrowserOperations ops;
+    ops.setStore(&m_store);
+    const QString close = ops.beginOperation(identity, QStringLiteral("webview2"),
+                                             QStringLiteral("request-close"))
+                              .value(QStringLiteral("operationId")).toString();
+    // Completed-history retention must never evict live ownership: after 256
+    // settled navigation operations the pending close still settles.
+    for (int i = 0; i < 256; ++i) {
+        const QString nav = ops.beginOperation(identity, QStringLiteral("webview2"),
+                                               QStringLiteral("reload"))
+                                .value(QStringLiteral("operationId")).toString();
+        QVERIFY(!nav.isEmpty());
+        QVERIFY(ops.settleOperation(identity, nav, QStringLiteral("failed"),
+                                    QStringLiteral("retention-check"),
+                                    QStringLiteral("receiving-check"), {})
+                    .value(QStringLiteral("settled")).toBool());
+    }
+    QVariantMap settled = ops.settleOperation(identity, close, QStringLiteral("blocked"),
+                                              QStringLiteral("retention-check"),
+                                              QStringLiteral("receiving-check"), {});
+    QVERIFY(settled.value(QStringLiteral("settled")).toBool());
+    QCOMPARE(settled.value(QStringLiteral("outcome")).toString(), QStringLiteral("blocked"));
+    // The seam's settlement already cleared the canonical attempt.
+    QVERIFY(m_store.get(id).value(QStringLiteral("browserCloseAttempt")).toString().isEmpty());
+}
+
+void FeriaOperationsTest::testRetiredOperationCannotAnswerConsent()
+{
+    const QString id = openSpace();
+    const QVariantMap identity = m_store.browserIdentity(id);
+    FeriaBrowserOperations ops;
+    ops.setStore(&m_store);
+    const QString op = ops.beginOperation(identity, QStringLiteral("webview2"),
+                                          QStringLiteral("request-close"))
+                           .value(QStringLiteral("operationId")).toString();
+    const QString request = ops.openRequest(op, identity, QStringLiteral("app-close"), {})
+                                .value(QStringLiteral("requestId")).toString();
+    QVERIFY(!request.isEmpty());
+    QVERIFY(ops.settleOperation(identity, op, QStringLiteral("invalidated"),
+                                QStringLiteral("retired"), QStringLiteral(""), {})
+                .value(QStringLiteral("settled")).toBool());
+    QVariantMap answer = ops.answerRequest(request, identity);
+    QVERIFY(!answer.value(QStringLiteral("valid")).toBool());
+    QCOMPARE(answer.value(QStringLiteral("reason")).toString(),
+             QStringLiteral("request-retired"));
+    // A retired operation cannot open a fresh request either.
+    QVERIFY(!ops.openRequest(op, identity, QStringLiteral("app-close"), {})
+                 .value(QStringLiteral("opened")).toBool());
+}
+
+void FeriaOperationsTest::testRequestForForeignOperationRefused()
+{
+    const QString a = openSpace(QStringLiteral("https://example.com/a"));
+    const QString b = openSpace(QStringLiteral("https://example.com/b"));
+    const QVariantMap identityA = m_store.browserIdentity(a);
+    const QVariantMap identityB = m_store.browserIdentity(b);
+    FeriaBrowserOperations ops;
+    ops.setStore(&m_store);
+    const QString opA = ops.beginOperation(identityA, QStringLiteral("webview2"),
+                                           QStringLiteral("request-close"))
+                            .value(QStringLiteral("operationId")).toString();
+    QVERIFY(!opA.isEmpty());
+    // B's identity cannot open a consent on A's operation.
+    QVERIFY(!ops.openRequest(opA, identityB, QStringLiteral("app-close"), {})
+                 .value(QStringLiteral("opened")).toBool());
+    // A non-close operation cannot carry an app-close request.
+    const QString nav = ops.beginOperation(identityA, QStringLiteral("webview2"),
+                                           QStringLiteral("navigate"))
+                            .value(QStringLiteral("operationId")).toString();
+    QVERIFY(!ops.openRequest(nav, identityA, QStringLiteral("app-close"), {})
+                 .value(QStringLiteral("opened")).toBool());
 }
 
 // Negative control: with FERIA_UNSAFE_OPERATION_FENCE set, the seam's own

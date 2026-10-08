@@ -11,6 +11,8 @@ add_library(foundation_owners STATIC
     "${ROOT}/native/feria/FeriaBrowserOperations.cpp"
     "${ROOT}/native/feria/app-state/PorticoAppStateBridge.cpp")
 target_include_directories(foundation_owners PUBLIC "${ROOT}/native" "${ROOT}/native/feria")
+# Deliberate unsafe RED controls compile only into test builds.
+target_compile_definitions(foundation_owners PRIVATE FERIA_TEST_CONTROLS)
 target_link_libraries(foundation_owners PUBLIC Qt6::Core Qt6::Gui Qt6::Qml Qt6::Sql)
 add_executable(feria_foundation_policy_test "${ROOT}/tests/feria_foundation_policy_test.cpp")
 target_link_libraries(feria_foundation_policy_test PRIVATE foundation_owners Qt6::Test)

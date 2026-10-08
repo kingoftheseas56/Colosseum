@@ -81,6 +81,9 @@ public:
     // {operationId, kind, engineId, identity, outcome, reason, evidence,
     // nativeNavigationId}.
     Q_INVOKABLE QVariantMap operationResult(const QString &operationId) const;
+    // Newest live navigation operation admitted for a space, for native
+    // attempt correlation. {operationId, kind}, empty when none is pending.
+    Q_INVOKABLE QVariantMap pendingOperation(const QString &spaceId) const;
 
     // State of a consent request: {present, answered, purpose, operationId,
     // identity, source}.
@@ -115,6 +118,8 @@ private:
     bool settleStoreClose(const QVariantMap &identity, const QString &attempt,
                           bool accepted, const QVariantMap &descriptor) const;
     QVariantMap canonicalIdentity(const QString &spaceId) const;
+    bool navigationIdentityAlive(const QVariantMap &identity) const;
+    void retireRequestsForOperation(const QString &operationId);
     void retain(QStringList &order, QVariantMap &records,
                 const QString &id, const QVariantMap &record);
 

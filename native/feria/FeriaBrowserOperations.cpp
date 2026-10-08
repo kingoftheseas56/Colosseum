@@ -16,6 +16,7 @@ const QStringList kCancellationEvidence{
     QStringLiteral("dialog-rejected"),
     QStringLiteral("window-close-rejected"),
     QStringLiteral("user-stop-requested"),
+    QStringLiteral("superseded-by-navigation"),
 };
 const QStringList kCloseSuccessEvidence{
     QStringLiteral("window-close-acknowledged"),
@@ -34,10 +35,24 @@ const QStringList kKinds{
 const QStringList kPurposes{
     QStringLiteral("app-close"), QStringLiteral("external-unload"),
 };
+const QStringList kNavigationKinds{
+    QStringLiteral("navigate"), QStringLiteral("back"), QStringLiteral("forward"),
+    QStringLiteral("stop"), QStringLiteral("reload"),
+};
 
 QString newToken(const QString &prefix)
 {
     return prefix + QUuid::createUuid().toString(QUuid::WithoutBraces);
+}
+
+bool isLiveOperation(const QVariantMap &record)
+{
+    return !record.value(QStringLiteral("settled")).toBool();
+}
+
+bool isLiveRequest(const QVariantMap &record)
+{
+    return !record.value(QStringLiteral("answered")).toBool();
 }
 
 } // namespace
@@ -47,7 +62,15 @@ void FeriaBrowserOperations::retain(QStringList &order, QVariantMap &records,
 {
     if (!order.contains(id)) order.append(id);
     records.insert(id, record);
+    // Only completed history is bounded. Live ownership (pending operations,
+    // unanswered requests) is never evicted by retention: losing a pending
+    // close ticket would strand the canonical attempt, and losing an
+    // unanswered request would strand a native deferral.
     while (order.size() > kMaxRetained) {
+        const QString &oldest = order.first();
+        if (isLiveOperation(records.value(oldest).toMap())
+                || isLiveRequest(records.value(oldest).toMap()))
+            break;
         records.remove(order.takeFirst());
     }
 }
@@ -55,11 +78,15 @@ void FeriaBrowserOperations::retain(QStringList &order, QVariantMap &records,
 FeriaBrowserOperations::FeriaBrowserOperations(QObject *parent)
     : QObject(parent)
 {
-    // Test-only RED control for the integration negative check: with this
-    // variable set, the shared fences are switched off so a deliberately
-    // unsafe adapter decision can be shown to fail the assertions that the
-    // fences normally guarantee. Never set in production paths.
-    m_fenceDisabled = qEnvironmentVariableIsSet("FERIA_UNSAFE_OPERATION_FENCE");
+#ifdef FERIA_TEST_CONTROLS
+    // Test-build-only RED control for the integration negative check: with
+    // this variable set to 1, the shared fences are switched off so a
+    // deliberately unsafe adapter decision can be shown to fail the
+    // assertions the fences normally guarantee. Production builds compile
+    // this out entirely.
+    m_fenceDisabled = qEnvironmentVariable("FERIA_UNSAFE_OPERATION_FENCE")
+                      == QStringLiteral("1");
+#endif
 }
 
 void FeriaBrowserOperations::setStore(QObject *store)
@@ -96,6 +123,30 @@ bool FeriaBrowserOperations::identityCurrent(const QVariantMap &identity) const
     return !canonical.isEmpty() && canonical == identity;
 }
 
+bool FeriaBrowserOperations::navigationIdentityAlive(const QVariantMap &identity) const
+{
+    // A navigation operation commits the replacement document itself, so its
+    // own terminal naturally trails a documentGeneration advance. The settle
+    // is still fenced: the same logical page (account, profile, space, page
+    // and host binding) must still own the operation. A host transfer or any
+    // other identity move keeps invalidating it.
+    if (m_fenceDisabled || identity.isEmpty())
+        return true;
+    const QVariantMap canonical = canonicalIdentity(
+        identity.value(QStringLiteral("spaceId")).toString());
+    if (canonical.isEmpty())
+        return false;
+    const QStringList stable{
+        QStringLiteral("accountEpoch"), QStringLiteral("profileId"),
+        QStringLiteral("spaceId"), QStringLiteral("pageGeneration"),
+        QStringLiteral("hostId"), QStringLiteral("hostGeneration"),
+    };
+    for (const QString &key : stable)
+        if (canonical.value(key) != identity.value(key))
+            return false;
+    return true;
+}
+
 QString FeriaBrowserOperations::beginStoreClose(const QVariantMap &identity) const
 {
     if (m_store.isNull())
@@ -126,6 +177,22 @@ bool FeriaBrowserOperations::settleStoreClose(const QVariantMap &identity,
                               Q_ARG(bool, accepted),
                               Q_ARG(QVariantMap, descriptor));
     return settled;
+}
+
+void FeriaBrowserOperations::retireRequestsForOperation(const QString &operationId)
+{
+    // Settling an operation retires its unanswered requests: a consent answer
+    // can no longer authorize anything for a retired close intent.
+    for (const QString &requestId : m_requestOrder) {
+        QVariantMap record = m_requests.value(requestId).toMap();
+        if (record.isEmpty() || record.value(QStringLiteral("answered")).toBool())
+            continue;
+        if (record.value(QStringLiteral("operationId")).toString() != operationId)
+            continue;
+        record.insert(QStringLiteral("answered"), true);
+        record.insert(QStringLiteral("retired"), true);
+        m_requests.insert(requestId, record);
+    }
 }
 
 QVariantMap FeriaBrowserOperations::beginOperation(const QVariantMap &identity,
@@ -182,10 +249,22 @@ QVariantMap FeriaBrowserOperations::openRequest(const QString &operationId,
         result.insert(QStringLiteral("reason"), QStringLiteral("invalid-request"));
         return result;
     }
-    if (purpose == QStringLiteral("app-close")
-        && (operationId.isEmpty() || !m_operations.contains(operationId))) {
-        result.insert(QStringLiteral("reason"), QStringLiteral("unknown-operation"));
-        return result;
+    if (purpose == QStringLiteral("app-close")) {
+        // A consent request is bound to a LIVE matching close operation of
+        // the same identity: retired or foreign operations cannot open one.
+        const QVariantMap operation = m_operations.value(operationId).toMap();
+        if (operationId.isEmpty() || operation.isEmpty()) {
+            result.insert(QStringLiteral("reason"), QStringLiteral("unknown-operation"));
+            return result;
+        }
+        if (operation.value(QStringLiteral("kind")).toString()
+                != QStringLiteral("request-close")
+                || operation.value(QStringLiteral("settled")).toBool()
+                || operation.value(QStringLiteral("identity")).toMap() != identity) {
+            result.insert(QStringLiteral("reason"),
+                          QStringLiteral("operation-not-pending-close"));
+            return result;
+        }
     }
     if (!identityCurrent(identity)) {
         result.insert(QStringLiteral("reason"), QStringLiteral("stale-identity"));
@@ -225,7 +304,10 @@ QVariantMap FeriaBrowserOperations::answerRequest(const QString &requestId,
     result.insert(QStringLiteral("operationId"), record.value(QStringLiteral("operationId")));
     if (!m_fenceDisabled) {
         if (record.value(QStringLiteral("answered")).toBool()) {
-            result.insert(QStringLiteral("reason"), QStringLiteral("request-already-answered"));
+            result.insert(QStringLiteral("reason"),
+                          record.value(QStringLiteral("retired")).toBool()
+                              ? QStringLiteral("request-retired")
+                              : QStringLiteral("request-already-answered"));
             return result;
         }
         // Only the exact captured identity may answer; a sibling or a
@@ -234,6 +316,18 @@ QVariantMap FeriaBrowserOperations::answerRequest(const QString &requestId,
             || !identityCurrent(identity)) {
             result.insert(QStringLiteral("reason"), QStringLiteral("stale-identity"));
             return result;
+        }
+        // A request bound to an operation cannot answer once that operation
+        // has retired: consent never authorizes a settled close intent.
+        const QString boundOperation = record.value(QStringLiteral("operationId")).toString();
+        if (!boundOperation.isEmpty()) {
+            const QVariantMap operation = m_operations.value(boundOperation).toMap();
+            if (operation.isEmpty()
+                    || operation.value(QStringLiteral("settled")).toBool()) {
+                result.insert(QStringLiteral("reason"),
+                              QStringLiteral("operation-retired"));
+                return result;
+            }
         }
     }
     QVariantMap answered = record;
@@ -279,8 +373,13 @@ QVariantMap FeriaBrowserOperations::settleOperation(const QVariantMap &identity,
             return result;
         }
         // A late settle from an old identity is invalidated, never applied:
-        // the canonical record it captured has moved on.
-        if (!identityCurrent(identity) && outcome != QStringLiteral("invalidated"))
+        // the canonical record it captured has moved on. A navigation
+        // operation's own commit is the exception — it replaces the document
+        // itself, so only the stable page binding must survive.
+        const bool ownCommitAllowed = kNavigationKinds.contains(kind)
+            && navigationIdentityAlive(identity);
+        if (!identityCurrent(identity) && !ownCommitAllowed
+                && outcome != QStringLiteral("invalidated"))
             effectiveOutcome = QStringLiteral("invalidated");
         if (outcome == QStringLiteral("cancelled")
             && !kCancellationEvidence.contains(evidence)) {
@@ -327,6 +426,9 @@ QVariantMap FeriaBrowserOperations::settleOperation(const QVariantMap &identity,
     record.insert(QStringLiteral("nativeNavigationId"),
                   extra.value(QStringLiteral("nativeNavigationId")));
     m_operations.insert(operationId, record);
+    // Retire unanswered requests bound to this operation; native drain
+    // ownership stays with the adapter, but consent authorization ends here.
+    retireRequestsForOperation(operationId);
     result.insert(QStringLiteral("settled"), true);
     result.insert(QStringLiteral("outcome"), effectiveOutcome);
     emit operationSettled(operationId, effectiveOutcome);
@@ -351,6 +453,27 @@ QVariantMap FeriaBrowserOperations::operationResult(const QString &operationId) 
     return result;
 }
 
+QVariantMap FeriaBrowserOperations::pendingOperation(const QString &spaceId) const
+{
+    // Newest live navigation operation for a space, if any: adapters use this
+    // to correlate a native attempt with the work that admitted it.
+    for (int i = m_operationOrder.size() - 1; i >= 0; --i) {
+        const QVariantMap record = m_operations.value(m_operationOrder.at(i)).toMap();
+        if (record.isEmpty() || !isLiveOperation(record))
+            continue;
+        if (!kNavigationKinds.contains(record.value(QStringLiteral("kind")).toString()))
+            continue;
+        if (record.value(QStringLiteral("identity")).toMap()
+                .value(QStringLiteral("spaceId")).toString() != spaceId)
+            continue;
+        QVariantMap result;
+        result.insert(QStringLiteral("operationId"), m_operationOrder.at(i));
+        result.insert(QStringLiteral("kind"), record.value(QStringLiteral("kind")));
+        return result;
+    }
+    return {};
+}
+
 QVariantMap FeriaBrowserOperations::requestState(const QString &requestId) const
 {
     QVariantMap result{{QStringLiteral("present"), false}};
@@ -359,6 +482,7 @@ QVariantMap FeriaBrowserOperations::requestState(const QString &requestId) const
         return result;
     result.insert(QStringLiteral("present"), true);
     result.insert(QStringLiteral("answered"), record.value(QStringLiteral("answered")));
+    result.insert(QStringLiteral("retired"), record.value(QStringLiteral("retired")));
     result.insert(QStringLiteral("purpose"), record.value(QStringLiteral("purpose")));
     result.insert(QStringLiteral("operationId"), record.value(QStringLiteral("operationId")));
     result.insert(QStringLiteral("identity"), record.value(QStringLiteral("identity")));
