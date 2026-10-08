@@ -9,10 +9,11 @@ function(server1_register_k11_tests)
   target_compile_options(server1_k11_engine_registry_test PRIVATE
     "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
 
-  foreach(case_id IN ITEMS K11-01 K11-02 K11-03)
+  foreach(case_id IN ITEMS K11-01 K11-02 K11-03 R7 R8 R9 R10 R11)
     add_test(NAME ${case_id}-engine-registry
       COMMAND server1_k11_engine_registry_test ${case_id})
     set_tests_properties(${case_id}-engine-registry PROPERTIES
-      LABELS "server1;native;K11")
+      LABELS "server1;native;K11"
+      ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
   endforeach()
 endfunction()

@@ -416,11 +416,18 @@ std::optional<std::pair<std::string, std::uint16_t>> parsePeerAddress(const std:
 }
 
 // Work-lane state. Only tasks on the engine's serialized work lane touch the
-// transport handle and store here; the app lane reads only `closing`.
+// transport handle and store here. The app lane also admits/cancels read
+// reservations under readMutex; it never accesses the store.
 struct WorkState final {
     std::shared_ptr<ports::TorrentTransport> transport;
     std::unique_ptr<StoreBackend> store;
     std::atomic_bool closing{false};
+    // Read admission is on the app lane; store access is on the work lane.
+    // Keep reservations live (not a stage-post-time snapshot) until bytes have
+    // been copied. Tokens distinguish sibling readers of the same piece.
+    std::mutex readMutex;
+    std::set<std::uint64_t> pendingReads;
+    bool circular = false; // initialized and read on the serialized work lane
 };
 
 struct TraceSink final {
@@ -451,7 +458,11 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         {
             owner_.postRead(token, piece, std::move(completion));
         }
-        bool cancelRead(std::uint64_t) override { return false; }
+        bool cancelRead(std::uint64_t token) override
+        {
+            std::lock_guard<std::mutex> lock(owner_.work->readMutex);
+            return owner_.work->pendingReads.erase(token) != 0;
+        }
 
     private:
         Impl &owner_;
@@ -704,6 +715,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 } else {
                     store = std::make_unique<PersistentBackend>(root, *parsed);
                 }
+                state->circular = circular;
                 auto restored = store->restored(parsed->geometry().virtualPieces().size());
                 sink("metadata-install", 0, 0, parsed->geometry().virtualPieces().size());
                 sink("restore", 0, 0, 0, restored.size());
@@ -1203,11 +1215,23 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         auto clockCopy = clock;
         std::weak_ptr<Impl> weak = weak_from_this();
         auto app = appPost;
+        std::unique_lock<std::mutex> admission(state->readMutex, std::defer_lock);
+        if (circular) {
+            admission.lock();
+            state->pendingReads.insert(token);
+        }
         post([state, token, piece, completion = std::move(completion), sink, clockCopy, weak,
               app]() mutable {
+            std::unique_lock<std::mutex> reservation(state->readMutex, std::defer_lock);
+            if (state->circular) {
+                reservation.lock();
+                if (state->pendingReads.erase(token) == 0) return;
+            }
             if (state->closing.load() || !state->store) return;
             std::string error;
             auto bytes = state->store->read(piece, clockCopy(), &error);
+            // A late app completion owns its copied bytes, not a store slot.
+            if (reservation.owns_lock()) reservation.unlock();
             sink("read", piece, 0, 0, bytes ? bytes->size() : 0);
             if (app) static_cast<void>(app([weak, token, piece, completion = std::move(completion),
                                             bytes = std::move(bytes), error]() mutable {
@@ -1260,8 +1284,23 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         auto app = appPost;
         post([state, piece, bytes = std::move(bytes), sink, clockCopy, weak, app]() mutable {
             if (state->closing.load() || !state->store) return;
+            std::unique_lock<std::mutex> reservation(state->readMutex, std::defer_lock);
+            if (state->circular) reservation.lock();
+            if (state->circular && !state->pendingReads.empty()) {
+                // Stage may have been posted before a later reader was admitted.
+                // Let its queued reads copy their bytes before any cache eviction.
+                // Retain this received piece once; do not turn cache pressure into
+                // a terminal failure or discard it and request the network again.
+                reservation.unlock();
+                if (app) static_cast<void>(app([weak, piece, bytes = std::move(bytes)]() mutable {
+                    const auto self = weak.lock();
+                    if (self && !self->closed) self->postStage(piece, std::move(bytes));
+                }));
+                return;
+            }
             const auto length = bytes.size();
             const auto result = state->store->stage(piece, std::move(bytes), clockCopy());
+            if (reservation.owns_lock()) reservation.unlock();
             sink("stage", piece, 0, 0, length);
             if (!result.complete)
                 sink("verify-incomplete", piece, result.start, result.endExclusive);
@@ -1477,6 +1516,10 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             }
             state->store.reset();
             state->transport.reset();
+            {
+                std::lock_guard<std::mutex> lock(state->readMutex);
+                state->pendingReads.clear();
+            }
             if (onClosed && app) static_cast<void>(app(onClosed));
         });
     }

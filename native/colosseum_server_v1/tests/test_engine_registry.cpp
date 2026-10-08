@@ -1862,6 +1862,110 @@ void pumpUntil(EngineRegistry &registry, Predicate predicate, int rounds = 2000)
     }
 }
 
+// Real engine/reader/store composition: a stage is queued before two reads,
+// but executes after those reads have acquired their active piece locks.
+void regressionCircularActiveReaders(bool fullCache = false, int cancellations = 0, bool retire = false)
+{
+    const Bytes payload{'A','B','C','D','E','F','G','H','I','J','K','L'};
+    const auto torrent = dataFixture("eviction", {{"a.bin",4},{"b.bin",4},{"c.bin",4}}, payload);
+    FakeFactory factory;
+    LaneWorker worker;
+    EngineRegistryConfig config;
+    config.cacheRoot = uniqueRoot("k11-eviction");
+    config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
+    config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    std::atomic<std::uint64_t> clock{1};
+    config.monotonicClock = [&] { return clock++; };
+    config.trace = [](const EngineTrace &t) { std::cerr << t.kind << " piece=" << t.piece << "\n"; };
+    EngineRegistry registry(std::move(config));
+    registry.create({torrent.hash, Value::object({{"circularBuffer",Value::boolean(true)},
+        {"buffer",Value::number(fullCache ? 4 : 8)},{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);
+    auto state = factory.at(0);
+    ready(state,torrent);
+    settle(registry,worker);
+    auto engine = registry.get(torrent.hash);
+    observe(state, AvailablePiecesObservation{engine->generation(),91,{0,1,2}});
+    observe(state, PeerObservation{91,false,true,1.0,0.0,0,0});
+    settle(registry,worker);
+    auto requestFor = [&](std::size_t piece) {
+        const auto all = actionsOf<RequestAction>(state);
+        auto found = std::find_if(all.rbegin(),all.rend(),[&](const auto &r){return r.block.piece==piece;});
+        expect(found!=all.rend(),"EVICTION missing requested piece "+std::to_string(piece));
+        return *found;
+    };
+    auto answer = [&](const RequestAction &r) {
+        const auto start = r.block.piece*4+r.block.offset;
+        observe(state,BlockObservation{r.ownership,r.peer,r.block,
+            Bytes(payload.begin()+start,payload.begin()+start+r.block.length),false,false});
+    };
+    // Establish an LRU victim (piece 0) and an unprotected alternative (piece 1).
+    for (std::size_t piece=0;piece<(fullCache ? 1U : 2U);++piece) {
+        auto reader = engine->createReader(piece);
+        reader->request(4);
+        settle(registry,worker);
+        answer(requestFor(piece));
+        settle(registry,worker);
+        expect(reader->takeData()==std::vector<Bytes>{Bytes(payload.begin()+piece*4,payload.begin()+piece*4+4)},
+               "EVICTION prefill bytes mismatch");
+        reader->close();
+    }
+    auto incoming = engine->createReader(2);
+    incoming->request(4);
+    settle(registry,worker);
+    answer(requestFor(2));
+    // Poll handles transport observations on the app lane and posts the stage.
+    // Fence first, then acquire reader locks after that stage has been posted.
+    expect(worker.waitIdle(),"EVICTION pre-stage work did not finish");
+    worker.fence();
+    registry.poll();
+    registry.dispatch();
+    expect(worker.queued()>0,"EVICTION stage was not queued behind work fence");
+    auto readerA = engine->createReader(0);
+    auto readerB = engine->createReader(0);
+    readerA->request(4);
+    readerB->request(4);
+    expect(readerA->pendingReads()==1 && readerB->pendingReads()==1,
+           "EVICTION both reads must be pending before stage runs A="+std::to_string(readerA->pendingReads())+" B="+std::to_string(readerB->pendingReads()));
+    if (cancellations >= 1) readerA->close();
+    if (cancellations >= 2) readerB->close();
+    if (retire) {
+        const auto oldGeneration = engine->generation();
+        expect(registry.remove(torrent.hash), "EVICTION old generation removal failed");
+        worker.release();
+        settle(registry,worker);
+        registry.create({torrent.hash, Value::object({{"circularBuffer",Value::boolean(true)},
+            {"buffer",Value::number(8)},{"peerSearch",Value::boolean(false)}})});
+        settle(registry,worker);
+        auto replacementState = factory.at(1);
+        ready(replacementState,torrent);
+        settle(registry,worker);
+        auto replacement = registry.get(torrent.hash);
+        expect(replacement->ready() && replacement->generation()!=oldGeneration
+            && readerA->closed() && readerB->closed() && incoming->closed()
+            && readerA->takeData().empty() && readerB->takeData().empty(),
+            "EVICTION retired reads/stage leaked into replacement generation");
+        std::cout << "K11-EVICTION retire-generation PASS\n";
+        return;
+    }
+    worker.release();
+    settle(registry,worker);
+    const auto aError=readerA->takeError(), bError=readerB->takeError();
+    expect(!aError && !bError,"EVICTION active piece was evicted: A="+aError.value_or("none")+" B="+bError.value_or("none"));
+    const auto expectedA = cancellations >= 1 ? std::vector<Bytes>{} : std::vector<Bytes>{Bytes{'A','B','C','D'}};
+    const auto expectedB = cancellations >= 2 ? std::vector<Bytes>{} : std::vector<Bytes>{Bytes{'A','B','C','D'}};
+    expect(readerA->takeData()==expectedA && readerB->takeData()==expectedB,
+           "EVICTION active reader bytes lost or duplicated");
+    expect(incoming->takeData()==std::vector<Bytes>{Bytes{'I','J','K','L'}} && !incoming->takeError(),
+           "EVICTION replacement piece failed despite an unprotected victim");
+    expect(actionsOf<RequestAction>(state).size()==(fullCache ? 2U : 3U),
+           "EVICTION pressure discarded received bytes and caused a network retry");
+    expect(readerA->pendingReads()==0 && readerB->pendingReads()==0
+           && readerA->lockedPieces().empty() && readerB->lockedPieces().empty(),
+           "EVICTION active ownership did not drain");
+    std::cout << "K11-EVICTION full=" << fullCache << " canceled=" << cancellations << " PASS\n";
+}
+
 void runK1103()
 {
     const auto one = fixture("one.bin", {{"one.bin", 8}});
@@ -2087,6 +2191,11 @@ int main(int argc, char **argv)
         else if (id == "R4") regressionPeerSearch();
         else if (id == "R5") regressionCommittedOnly();
         else if (id == "R6") regressionPartialRestore();
+        else if (id == "R7") regressionCircularActiveReaders();
+        else if (id == "R8") regressionCircularActiveReaders(true);
+        else if (id == "R9") regressionCircularActiveReaders(true, 1);
+        else if (id == "R10") regressionCircularActiveReaders(true, 2);
+        else if (id == "R11") regressionCircularActiveReaders(true, 0, true);
         else throw std::runtime_error("unknown K11 case: " + id);
         return EXIT_SUCCESS;
     } catch (const std::exception &error) {
