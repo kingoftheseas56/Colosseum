@@ -82,11 +82,12 @@ Item {
             verify(deck.navigateSession(id, FixtureUrl + "/b"))
             tryVerify(function() { return String(browser.url) === FixtureUrl + "/b"
                 && browser.title === "Fixture /b" && !browser.loading }, 15000)
-            verify(browser.navCanGoBack)
-            verify(!browser.navCanGoForward)
+            tryVerify(function() { return browser.navCanGoBack && !browser.navCanGoForward }, 5000)
             verify(deck.back(id))
             tryVerify(function() { return String(browser.url) === FixtureUrl + "/a" }, 15000)
-            verify(browser.navCanGoForward)
+            // HistoryChanged can trail traversals on this engine; the host
+            // re-queries on a short delay, so wait for the settled state.
+            tryVerify(function() { return browser.navCanGoForward }, 5000)
             verify(deck.forward(id))
             tryVerify(function() { return String(browser.url) === FixtureUrl + "/b" }, 15000)
             // Redirect resolves to the destination through native state.
@@ -233,7 +234,7 @@ Item {
             compare(result.outcome, "succeeded")
         }
 
-        function test_staleConsentAfterReplacementAndDuplicateAnswer() {
+        function test_competingNavigationInvalidatesClose() {
             var id = openSpace("/guard")
             armGuard(id)
             verify(deck.closeTab(id))
@@ -245,18 +246,35 @@ Item {
             var staleToken = consent.attempt
             // A deck-dispatched competing navigation invalidates the captured
             // close: the retained dialog is answered as an explicit Stay and
-            // the operation settles invalidated. (On this runtime the resumed
-            // programmatic navigation to the still-guarded page can stall in
-            // the renderer's suppressed beforeunload; the invalidation itself
-            // is what this slice proves. See the delivery's remaining gaps.)
+            // the operation settles invalidated, never succeeded. (On this
+            // runtime the resumed programmatic navigation to the still-
+            // guarded page can stall in a suppressed beforeunload; the
+            // invalidation itself is what this case proves. See the delivery
+            // gaps.)
             verify(deck.navigateSession(id, FixtureUrl + "/b"))
             tryVerify(function() { return !deck.entries[id].closePending }, 10000)
             var invalidated = ops().operationResult(staleToken)
             compare(invalidated.outcome, "invalidated")
             verify(!deck.answerClose(id, staleToken, true))
             tryVerify(function() { return Sessions.get(id).id !== undefined }, 2000)
-            // Recover on the still-live document with a trusted link click:
-            // fresh user activation lets the page ask its own unload consent.
+        }
+
+        function test_staleConsentAfterReplacementAndDuplicateAnswer() {
+            var id = openSpace("/guard")
+            armGuard(id)
+            verify(deck.closeTab(id))
+            var consent = null
+            tryVerify(function() {
+                consent = deck.entries[id] ? deck.entries[id].closeConsent : null
+                return consent && consent.kind === "close"
+            }, 10000)
+            var staleToken = consent.attempt
+            // Answer the close Stay first; the dismissed dialog means the
+            // runtime needs a fresh user gesture before another http
+            // navigation can raise beforeunload, so the link is clicked
+            // afterwards. Its external unload consent is answered Leave.
+            verify(deck.answerClose(id, staleToken, false))
+            tryVerify(function() { return !deck.entries[id].closePending }, 10000)
             Fixture.trustedClick(browserOf(id), 120, 162)
             var replacement = null
             tryVerify(function() {
@@ -264,23 +282,6 @@ Item {
                 return replacement && replacement.kind === "unload"
             }, 10000)
             verify(deck.answerClose(id, replacement.attempt, true))
-            // The previously stalled programmatic navigation can queue its own
-            // beforeunload round behind the link's; answer each one Leave
-            // until the replacement document actually arrives.
-            var rounds = 0
-            while (rounds++ < 3
-                   && !(String(browserOf(id).url) === FixtureUrl + "/b"
-                        && browserOf(id).title === "Fixture /b")) {
-                var queued = null, waited = 0
-                while (waited < 40) {
-                    queued = deck.entries[id] ? deck.entries[id].closeConsent : null
-                    if (queued && queued.kind === "unload") break
-                    if (String(browserOf(id).url) === FixtureUrl + "/b"
-                            && browserOf(id).title === "Fixture /b") break
-                    wait(250); ++waited
-                }
-                if (queued && queued.kind === "unload") verify(deck.answerClose(id, queued.attempt, true))
-            }
             tryVerify(function() { return String(browserOf(id).url) === FixtureUrl + "/b"
                 && browserOf(id).title === "Fixture /b" }, 15000)
             // The stale token cannot answer or close the replacement document,
