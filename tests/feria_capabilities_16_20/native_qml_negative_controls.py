@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Run unchanged real-engine tests before/after one production fence mutation."""
+"""Run unchanged Qt/WebEngine tests around one production fence mutation.
+
+Context cases include real press/cancel events plus explicitly synthetic late
+clicked delivery to isolate the captured-token handler from Qt cancellation.
+"""
 import hashlib
 import json
 from pathlib import Path
@@ -55,10 +59,19 @@ for label, relative, fixture, name, needle, replacement in cases:
     restored, restored_log = run("restored")
     valid = negative != 0 and any("FAIL!" in line and name in line for line in negative_log.splitlines())
     valid = valid and not any(x in negative_log for x in ["QML testcase compilation failed", "Unknown test function", "is not a function"])
+    expected_assertions = (["Actual   (): succeeded", "Expected (): blocked"]
+                           if label == "play-result-honesty" else
+                           ["Native replaced-context release must fail closed",
+                            "Delivered late context click must reject replaced press token"])
+    if label == "play-result-honesty":
+        valid = valid and all(message in negative_log for message in expected_assertions)
+    else:
+        valid = valid and any(message in negative_log for message in expected_assertions)
     valid = valid and restored == 0 and source.read_bytes() == original and test_file.read_bytes() == assertions
     row = {"name": label, "test": name, "before": before, "mutant": negative, "restored": restored,
+           "boundary": ("real decoded-media play-result boundary" if label == "play-result-honesty" else "real Qt press/cancel plus explicit synthetic late clicked delivery"),
            "sourceSha256": hashlib.sha256(original).hexdigest(), "assertionsSha256": hashlib.sha256(assertions).hexdigest(),
-           "passed": valid}
+           "expectedFenceAssertions": expected_assertions, "passed": valid}
     results.append(row)
     (out / "results.json").write_text(json.dumps(results, indent=2) + "\n")
     if not valid:

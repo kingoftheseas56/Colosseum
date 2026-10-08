@@ -11,6 +11,9 @@ Item {
     property var nativeProfile: null
     property var viewer: null
     property Item presentedTools: null
+    property Item observedButton: null
+    SignalSpy { id: contextClicked; target: surface.observedButton; signalName: "clicked" }
+    SignalSpy { id: contextCanceled; target: surface.observedButton; signalName: "canceled" }
     property int serial: 0
     Feria.FeriaSaveContextBar { id: contextBar; width: parent.width; tools: surface.presentedTools || (surface.page ? surface.page.pageTools : null) }
     Component {
@@ -91,6 +94,7 @@ Item {
             compare(page.mainFrame.children.length, 0, "Qt 6.11.1 public mainFrame.children is exercised")
         }
         function cleanup() {
+            surface.observedButton = null
             if (presentedTools) { presentedTools.destroy(); presentedTools = null; wait(0) }
             if (viewer) { viewer.destroy(); viewer = null }
             if (owner) {
@@ -120,7 +124,10 @@ Item {
             return result
         }
         function context(id) {
-            var point = evaluate("(()=>{let r=document.getElementById(" + JSON.stringify(id) + ").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()")
+            // QML geometry updates before Chromium's viewport-resize IPC.
+            // Wait for the actual native viewport before computing hit targets.
+            tryVerify(function() { return evaluate("window.innerWidth") === Math.round(page.width) }, 5000)
+            var point = evaluate("(()=>{let e=document.getElementById(" + JSON.stringify(id) + ");let r=e.getClientRects()[0]||e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()")
             var old = page.pageTools.contextSerial
             mouseClick(page, point.x, point.y, Qt.RightButton)
             tryVerify(function() { return page.pageTools.contextSerial > old && page.pageTools.contextSnapshot !== null }, 5000)
@@ -301,7 +308,10 @@ Item {
                 var button = findChild(contextBar, name)
                 verify(button !== null && button.visible && button.enabled)
                 page.pageTools.saveOutcome = {status:"not-dispatched"}
+                surface.observedButton = button
+                contextClicked.clear(); contextCanceled.clear()
                 mousePress(button, button.width / 2, button.height / 2, Qt.LeftButton)
+                verify(button.pressed)
                 compare(button.contextIdAtPress, original.contextId)
                 // This presentation-boundary injection simulates a new native
                 // context notification while the actual QML button is held.
@@ -310,7 +320,18 @@ Item {
                     mediaUrl:"",mediaType:ContextMenuRequest.MediaTypeNone,mediaFlags:0})
                 verify(replacement.contextId !== original.contextId)
                 mouseRelease(button, button.width / 2, button.height / 2, Qt.LeftButton)
-                compare(page.pageTools.saveOutcome.status,"invalidated", "Held context action must reject replacement before release")
+                console.info("HELD_CONTEXT_NATIVE_INPUT",JSON.stringify({button:name,clicked:contextClicked.count,
+                    canceled:contextCanceled.count,pressed:button.pressed,outcome:page.pageTools.saveOutcome.status}))
+                verify(page.pageTools.saveOutcome.status !== "dispatched", "Native replaced-context release must fail closed")
+                compare(owner.items.length,0)
+                // Qt can cancel the held press while the context row is briefly
+                // hidden. Separately exercise a synthetic late clicked delivery
+                // so an untriggered input mutation is never counted as evidence.
+                page.pageTools.saveOutcome = {status:"awaiting-late-click"}
+                button.clicked()
+                if (name === "feriaContextSaveResource" && page.pageTools.saveOutcome.status === "dispatched")
+                    tryVerify(function(){return owner.items.length > 0},10000) // Retain mutant source until native admission.
+                compare(page.pageTools.saveOutcome.status,"invalidated", "Delivered late context click must reject replaced press token")
                 compare(owner.items.length,0)
             }
             compare(findChild(contextBar,"feriaContextTarget").textFormat,Text.PlainText)
@@ -347,7 +368,8 @@ Item {
         }
         function test_narrowContextControlsReserveWrappedHeight() {
             surface.width = 460
-            context("linkA")
+            var snapshot = context("linkA")
+            verify(snapshot.linkUrl.indexOf("alpha.bin") >= 0, "Narrow fixture must target the actual link, not resized-page background")
             tryCompare(contextBar,"width",460,5000)
             verify(waitForRendering(surface))
             console.info("NARROW_CONTEXT_LAYOUT", JSON.stringify({surfaceWidth:surface.width,barWidth:contextBar.width,barHeight:contextBar.height}))
