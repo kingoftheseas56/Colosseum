@@ -53,7 +53,9 @@ Row {
         source: Qt.resolvedUrl(controls.compactSessionTile
                               ? (controls.shellWindowed ? "../../assets/icons/feria/session-maximize.svg" : "../../assets/icons/feria/session-restore.svg")
                               : (controls.shellWindowed ? "../../assets/icons/fullscreen.svg" : "../../assets/icons/fullscreen-exit.svg"))
-        label: controls.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
+        label: controls.sessionControls
+            ? (controls.shellWindowed ? "Maximize app" : "Restore app")
+            : (controls.shellWindowed ? "Enter fullscreen" : "Exit fullscreen")
         onTriggered: controls.controller.fullscreenClicked()
     }
     WindowAction {

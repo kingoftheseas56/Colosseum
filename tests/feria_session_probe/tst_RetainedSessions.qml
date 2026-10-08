@@ -34,7 +34,7 @@ Item {
             verify(id.length > 0)
             tryVerify(function() { return deck.entries[id] && deck.entries[id].browser }, 10000)
             var page = deck.entries[id].browser
-            tryCompare(page, "documentReady", true, 15000)
+            tryVerify(function() { return page.documentReady && !page.loading }, 15000)
             return id
         }
         function evaluate(page, script) {
@@ -48,7 +48,7 @@ Item {
             var a = open("mangaplus", "/a", false)
             var pageA = deck.entries[a].browser
             evaluate(pageA, "location.href='/b'")
-            tryVerify(function() { return String(pageA.url).endsWith("/b") && pageA.documentReady }, 10000)
+            tryVerify(function() { return String(pageA.url).endsWith("/b") && pageA.documentReady && !pageA.loading }, 10000)
             evaluate(pageA, "window.sessionMarker=2718")
             var b = open("ytmusic", "/music", false)
             var pageB = deck.entries[b].browser

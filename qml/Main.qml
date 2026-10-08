@@ -2886,6 +2886,12 @@ Window {
     function closeSession(id) {
         if (!id) return
         var rec = Sessions.get(id)
+        // Browser close must await the exact page's unload veto/terminal result.
+        // The changed/active signals tear down its presentation after acceptance.
+        if (rec && rec.contentKind === "browser") {
+            feriaSessionDeck.closeTab(id)
+            return
+        }
         // the store removes the record BEFORE the switch glue can look it up, so the live
         // surface must come down here when closing the active one (else it lingers on screen).
         if (id === Sessions.activeId) win.teardownSession(rec)
@@ -3115,7 +3121,7 @@ Window {
             // activeId's property signal already selects the incoming entry.
             // Tear down presentation on the outgoing record, never its sibling.
             var outgoing = feriaSessionDeck.entries[rec.id]
-            if (outgoing) outgoing.immersive = false
+            if (outgoing && outgoing.fullSizeHost) feriaSessionDeck.restoreSession(rec.id)
             if (outgoing && outgoing.browser && outgoing.browser.fullScreenActive)
                 outgoing.browser.runJavaScript(
                     "if(document.fullscreenElement) document.exitFullscreen()")
@@ -4708,6 +4714,7 @@ Window {
         sessions: Sessions
         accountStore: FeriaAccount
         policy: FeriaBrowserPolicy
+        fullSizeSurface: feriaFullSizeSurface
         z: 58.5
         readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
                                                         : Qt.rect(0, 160, win.width, win.height - 160)
@@ -4719,6 +4726,28 @@ Window {
         onMessage: function(id, text) {
             if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
         }
+        Component.onCompleted: attachConsentSurface(feriaConsentSurface)
+    }
+
+    // Permanent hosts outlive the Feria Loader. Max moves the live page here;
+    // the embedded world's geometry and anchors remain its saved restore point.
+    Item {
+        id: feriaFullSizeSurface
+        objectName: "feriaFullSizeSurface"
+        anchors.fill: parent
+        anchors.topMargin: feriaConsentSurface.height
+        z: 58.75
+        visible: false
+    }
+    Item {
+        id: feriaConsentSurface
+        objectName: "feriaConsentSurface"
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: !feriaSessionDeck.activeEntry || !feriaSessionDeck.activeEntry.hostWindow
+            ? (feriaSessionDeck.embeddedConsent || feriaSessionDeck.embeddedDiagnostic.length ? 100 : 0) : 0
+        // Hidden Feria pages may ask while Theatre's z:60 player is open.
+        // Keep shell consent above world surfaces and below the taskbar.
+        z: 899
     }
 
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----

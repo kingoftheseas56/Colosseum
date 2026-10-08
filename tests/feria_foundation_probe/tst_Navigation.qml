@@ -34,7 +34,9 @@ Item {
                 true, false, foreground !== false)
             verify(id.length > 0)
             tryVerify(function() { return deck.entries[id] && deck.entries[id].browser
-                && deck.entries[id].browser.documentReady }, 15000)
+                && deck.entries[id].browser.documentReady && !deck.entries[id].browser.loading
+                && String(deck.entries[id].browser.url) === FixtureUrl + path
+                && deck.entries[id].browser.title === "Fixture " + path }, 15000)
             return id
         }
         function js(page, script) {
@@ -50,11 +52,11 @@ Item {
             var a = open("/a"), page = deck.entries[a].browser
             var other = FixtureUrl.replace("127.0.0.1", "localhost") + "/cross"
             verify(deck.navigateInput(a, other))
-            tryVerify(function() { return String(page.url) === other && page.title === "Fixture /cross" && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url) === other && page.title === "Fixture /cross" && page.documentReady && !page.loading }, 10000)
             var nav = deck.navigationForSession(a)
             tryCompare(nav, "canGoBack", true)
             verify(deck.back(a))
-            tryVerify(function() { return String(page.url) === FixtureUrl + "/a" && page.title === "Fixture /a" && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url) === FixtureUrl + "/a" && page.title === "Fixture /a" && page.documentReady && !page.loading }, 10000)
             js(page, "window.sessionMarker=88; history.pushState({},'', '#one'); history.pushState({},'', '#two')")
             tryVerify(function() { return String(page.url).endsWith("#two") && nav.backCount >= 2 })
             verify(deck.historyOffset(a, -1, nav.historyRevision))
@@ -178,6 +180,7 @@ Item {
         function test_stopAndReload() {
             var a = open("/a"), page = deck.entries[a].browser
             var nav = deck.navigationForSession(a)
+            tryCompare(nav, "loading", false, 5000)
             verify(!deck.stop(a))
             verify(deck.navigateInput(a, FixtureUrl + "/slow"))
             tryCompare(nav, "loading", true, 5000)
@@ -185,7 +188,7 @@ Item {
             tryCompare(nav, "loading", false, 10000)
             verify(!deck.stop(a))
             verify(deck.navigateInput(a, FixtureUrl + "/a"))
-            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady && !page.loading }, 10000)
             js(page, "window.sessionMarker=99")
             verify(deck.reload(a))
             tryVerify(function() { return page.documentReady && js(page, "window.sessionMarker") === 0 }, 10000)
@@ -222,48 +225,48 @@ Item {
             // Toolbar Back follows Chromium's user-interaction skip policy.
             // Navigate with a real user click, not a renderer-script redirect.
             mouseClick(page, 45, 80)
-            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady && !page.loading }, 10000)
             var b = open("/other")
             var nav = deck.navigationForSession(a)
             verify(nav !== null)
             console.log("USER_NAV", page.canGoBack, nav.canGoBack, nav.backCount)
             tryCompare(nav, "canGoBack", true)
             verify(deck.back(a))
-            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady && !page.loading }, 10000)
             compare(Sessions.activeId, b)
             compare(String(deck.entries[b].browser.url), FixtureUrl + "/other")
             tryCompare(nav, "canGoForward", true)
             verify(deck.forward(a))
-            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady && !page.loading }, 10000)
             verify(!deck.back("missing"))
         }
         function test_scriptNavigationKeepsNativeSkipSemantics() {
             var a = open("/a"), page = deck.entries[a].browser
             js(page, "location.href='/b'")
-            tryVerify(function() { return page.title === "Fixture /b" && page.documentReady }, 10000)
+            tryVerify(function() { return page.title === "Fixture /b" && page.documentReady && !page.loading }, 10000)
             var nav = deck.navigationForSession(a)
             tryVerify(function() { return nav.backCount > 0 })
             console.log("SCRIPT_NAV", page.canGoBack, nav.canGoBack, nav.backCount)
             compare(nav.canGoBack, page.canGoBack)
             // An explicit chooser may traverse an entry the toolbar skips.
             verify(deck.historyOffset(a, -1, nav.historyRevision))
-            tryVerify(function() { return page.title === "Fixture /a" && page.documentReady }, 10000)
+            tryVerify(function() { return page.title === "Fixture /a" && page.documentReady && !page.loading }, 10000)
         }
         function test_historyOffsetAndStaleToken() {
             var a = open("/a"), page = deck.entries[a].browser
             js(page, "location.href='/b'")
-            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/b") && page.documentReady && !page.loading }, 10000)
             js(page, "location.href='/c'")
-            tryVerify(function() { return String(page.url).endsWith("/c") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/c") && page.documentReady && !page.loading }, 10000)
             var nav = deck.navigationForSession(a)
             tryVerify(function() { return nav.backCount >= 2 })
             var token = nav.historyRevision
             verify(!deck.historyOffset(a, -999, token))
             verify(deck.historyOffset(a, -2, token))
-            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/a") && page.documentReady && !page.loading }, 10000)
             verify(!deck.historyOffset(a, 1, token), "stale chooser token must be rejected")
             verify(deck.historyOffset(a, 2, nav.historyRevision))
-            tryVerify(function() { return String(page.url).endsWith("/c") && page.documentReady }, 10000)
+            tryVerify(function() { return String(page.url).endsWith("/c") && page.documentReady && !page.loading }, 10000)
         }
         function test_liveIdentityAndAppProjection() {
             var a = open("/a"), first = deck.entries[a].browser

@@ -6,6 +6,26 @@
 class FoundationPolicyTest : public QObject {
     Q_OBJECT
 private slots:
+    void independentAdoptionRequiresPatchedRegisteredRuntime() {
+        FeriaBrowserPolicy policy;
+        QObject view;
+        bool repaired = true;
+        QVERIFY(QMetaObject::invokeMethod(&policy, "independentAdoptionAvailable",
+            Q_RETURN_ARG(bool, repaired), Q_ARG(QObject *, &view)));
+        QVERIFY(!repaired);
+        policy.registerRuntimeView(&view);
+        QVERIFY(QMetaObject::invokeMethod(&policy, "independentAdoptionAvailable",
+            Q_RETURN_ARG(bool, repaired), Q_ARG(QObject *, &view)));
+        QVERIFY(!repaired);
+        view.setProperty("_colosseumAdoptionInputRebound", "true");
+        QMetaObject::invokeMethod(&policy, "independentAdoptionAvailable",
+            Q_RETURN_ARG(bool, repaired), Q_ARG(QObject *, &view));
+        QVERIFY(!repaired);
+        view.setProperty("_colosseumAdoptionInputRebound", true);
+        QMetaObject::invokeMethod(&policy, "independentAdoptionAvailable",
+            Q_RETURN_ARG(bool, repaired), Q_ARG(QObject *, &view));
+        QVERIFY(repaired);
+    }
     void addresses_data() {
         QTest::addColumn<QString>("input");
         QTest::addColumn<QString>("host");

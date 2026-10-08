@@ -45,7 +45,7 @@ Item {
                 privateBrowsing: !!privateMode}, true)
             verify(id.length > 0)
             tryVerify(function() { var p = deck.browserForSession(id)
-                return p && p.documentReady && String(p.url) === FixtureUrl + path
+                return p && p.documentReady && !p.loading && String(p.url) === FixtureUrl + path
                     && p.title === "Fixture " + path }, 15000)
             return id
         }
@@ -72,6 +72,101 @@ Item {
         }
         function typeText(text) {
             for (var i=0; i<text.length; ++i) keyClick(text.toUpperCase().charCodeAt(i), Qt.NoModifier)
+        }
+        function test_shellMaxActionPreservesEmbeddedBounds() {
+            var id = open("/hosting"), p = deck.browserForSession(id)
+            var w = p.width, h = p.height
+            js(p, "window.sessionMarker=731")
+            verify(typeof deck.toggleAppMax === "function", "Shell controls need one Max/Restore transaction")
+            deck.fullSizeSurface = fullSize
+            verify(deck.toggleAppMax(id))
+            verify(deck.entries[id].fullSizeHost !== null)
+            compare(deck.browserForSession(id), p)
+            compare(js(p, "window.sessionMarker"), 731)
+            verify(deck.toggleAppMax(id))
+            compare(deck.entries[id].fullSizeHost, null)
+            tryCompare(p, "width", w); tryCompare(p, "height", h)
+        }
+        function test_shellMaxRejectsForeignSurfaceWithoutMutation() {
+            var id = open("/hosting"), p = deck.browserForSession(id)
+            verify(typeof deck.toggleAppMax === "function")
+            deck.fullSizeSurface = null
+            verify(!deck.toggleAppMax(id))
+            compare(deck.entries[id].fullSizeHost, null)
+            compare(deck.entries[id].savedPlacement, null)
+            compare(deck.browserForSession(id), p)
+        }
+        function test_immediateNavigationStayThenAppCloseKeepsForm() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            click(p, "#edit"); typeText("unsaved")
+            click(p, "#guard")
+            for (var i = 0; i < 3; ++i) {
+                verify(deck.navigateInput(a, FixtureUrl + "/b"))
+                tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+                verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, false))
+                verify(deck.closeTab(a), "A new explicit close must be admitted after navigation Stay")
+                tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+                compare(deck.entries[a].closeConsent.kind, "close")
+                verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, false))
+                tryVerify(function() { return !deck.entries[a].closeController.busy }, 5000)
+                compare(js(p, "document.querySelector('#edit').value"), "unsaved")
+                compare(String(p.url), FixtureUrl + "/hosting")
+            }
+            verify(deck.closeTab(a))
+            tryVerify(function() { return deck.entries[a].closeConsent }, 5000)
+            verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, true))
+            tryVerify(function() { return !deck.entries[a] }, 10000)
+        }
+        function test_siteStayThenTransferAndCloseKeepsLiveChild() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','stay-transfer','width=520,height=420')}")
+            click(p, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { var q=deck.browserForSession(b); return q && q.documentReady && q.title === "Fixture /hosting" && String(q.url) === FixtureUrl + "/hosting" }, 10000)
+            var child = deck.browserForSession(b)
+            click(child, "#edit"); typeText("child-unsaved")
+            click(child, "#guard")
+            js(child, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.close()}")
+            click(child, "#dialog")
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
+            verify(deck.returnToEmbedded(b), "Stay must permit same-live-view host transfer")
+            compare(deck.browserForSession(b), child)
+            compare(js(child, "document.querySelector('#edit').value"), "child-unsaved")
+            verify(deck.closeTab(b))
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            compare(deck.entries[b].closeConsent.kind, "close")
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
+            tryVerify(function() { return !deck.entries[b].closeController.busy }, 5000)
+            compare(deck.browserForSession(b), child)
+            verify(deck.closeTab(b))
+            tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
+            verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
+            tryVerify(function() { return !deck.entries[b] }, 10000)
+        }
+        function test_repairedEngineClosesOpenerAndKeepsChildInput() {
+            var a = open("/hosting"), p = deck.browserForSession(a)
+            if (!FeriaBrowserPolicy.independentAdoptionAvailable(p))
+                skip("Requires the compiled Qt adopted-input-owner patch; stock runtime stays guarded")
+            js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','independent-child','width=520,height=420')}")
+            click(p, "#dialog")
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { var q=deck.browserForSession(b); return q && q.documentReady && q.title === "Fixture /hosting" }, 10000)
+            var child = deck.browserForSession(b)
+            compare(deck.entries[a].liveAdoptedChildren, 0)
+            verify(deck.closeTab(a))
+            tryVerify(function() { return !deck.entries[a] && FeriaBrowserPolicy.runtimeViewCount === 1 }, 10000)
+            click(child, "#edit"); typeText("after-opener")
+            compare(js(child, "document.querySelector('#edit').value"), "after-opener")
+            compare(js(child, "window.opener === null || window.opener.closed"), true,
+                "The retired opener must be absent or represented by a closed WindowProxy")
+            verify(deck.returnToEmbedded(b))
+            click(child, "#edit"); typeText("-embedded")
+            compare(js(child, "document.querySelector('#edit').value"), "after-opener-embedded")
+            verify(deck.closeTab(b)); tryVerify(function() { return !deck.entries[b] }, 10000)
+            tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 0, 10000)
         }
         function test_appMaxPreservesSameDocumentAndInput() {
             var id = open("/hosting"), p = deck.browserForSession(id), profile = p.profile
@@ -104,7 +199,8 @@ Item {
             js(p, "history.forward()")
             tryVerify(function() { return js(p, "history.state && history.state.retained") === 841 }, 5000)
             click(p, "#edit"); typeText("-input")
-            compare(js(p, "document.querySelector('#edit').value"), "kept-input")
+            tryVerify(function() { return js(p, "document.querySelector('#edit').value") === "kept-input" }, 5000,
+                "The renderer must receive the final native key event after restoring the live page")
         }
         function test_nativeHostsAreExactAndDisposable() {
             var a = open("/hosting"), p = deck.browserForSession(a)
@@ -250,8 +346,8 @@ Item {
             Sessions.switchTo(a)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
             verify(deck.entries[b].closeController.busy)
-            verify(deck.entries[b].closeController.failure.length > 0)
-            verify(!deck.closeTab(b), "External site-close refusal has no same-document terminal hook")
+            compare(deck.entries[b].closeController.failure, "")
+            verify(deck.entries[b].closeController.canRetryExternalCancellation())
             compare(deck.browserForSession(a), p)
             verify(deck.reload(b))
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
@@ -309,6 +405,7 @@ Item {
             return null
         }
         function test_hiddenEmbeddedConsentVisibleInSelectedNativeChrome() {
+            verify(deck.attachConsentSurface(globalChrome))
             var a = open("/hosting"), p = deck.browserForSession(a)
             click(p, "#guard")
             var b = open("/b")
@@ -345,6 +442,59 @@ Item {
             compare(deck.browserForSession(a), p)
             verify(deck.browserForSession(b))
         }
+        function test_switchDuringMaxConsentDoesNotLeaveOrHideSiblingChrome() {
+            var a = open("/hosting"), first = deck.browserForSession(a)
+            var rejectionEvents = []
+            function trace(kind) {
+                var close = deck.entries[a].closeController
+                rejectionEvents.push({kind: kind, identity: close.identity,
+                    pending: close.pending, request: close.request !== null, awaiting: close.awaitingRejection,
+                    current: Sessions.browserIdentity(a), generation: first.navigationGeneration,
+                    loading: first.loading, lifecycle: first.lifecycleState, recommended: first.recommendedState})
+            }
+            function rejected() { trace("closeRejected") }
+            function loading(info) { trace("load:" + info.status) }
+            function replaced(generation) { trace("documentReplaced:" + generation) }
+            first.closeRejected.connect(rejected)
+            first.loadingChanged.connect(loading)
+            first.documentReplaced.connect(replaced)
+            click(first, "#guard")
+            verify(deck.maximizeSession(a, fullSize))
+            var heldHost = deck.entries[a].fullSizeHost
+            verify(deck.closeTab(a))
+            tryVerify(function() { return deck.entries[a].closeConsent !== null })
+            var b = open("/b"), second = deck.browserForSession(b)
+            verify(!heldHost.visible, "Unselected Max chrome cannot cover the incoming app")
+            verify(deck.maximizeSession(b, fullSize))
+            verify(deck.entries[b].fullSizeHost.visible && fullSize.visible)
+            compare(deck.entries[a].closeConsent.kind, "close")
+            trace("answerStay")
+            verify(deck.answerClose(a, deck.entries[a].closeConsent.attempt, false))
+            var reportedFailure = false
+            tryVerify(function() {
+                var close = deck.entries[a].closeController
+                if (close.failure.length && !reportedFailure) {
+                    reportedFailure = true
+                    console.log("MAX_STAY_FAILURE", close.failure,
+                        JSON.stringify(close.retiredIdentity), JSON.stringify(Sessions.browserIdentity(a)),
+                        close.pending, close.retiredBarrier, close.awaitingRejection,
+                        JSON.stringify(rejectionEvents))
+                }
+                return !close.busy
+            }, 6000)
+            first.closeRejected.disconnect(rejected)
+            first.loadingChanged.disconnect(loading)
+            first.documentReplaced.disconnect(replaced)
+            tryCompare(deck.entries[a], "fullSizeHost", null)
+            verify(fullSize.visible, "Restoring the outgoing host must not hide the selected sibling")
+            verify(deck.entries[b].fullSizeHost.visible)
+            compare(deck.browserForSession(a), first)
+            compare(deck.browserForSession(b), second)
+            deck.displayed = false
+            verify(!fullSize.visible, "Parking the app hides its full-size chrome")
+            deck.displayed = true
+            verify(fullSize.visible)
+        }
         function test_originalRequestCannotBeAdoptedTwice() {
             var a = open("/hosting"), p = deck.browserForSession(a)
             js(p, "window.sessionMarker=291;document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','one-shot','width=520,height=420')}")
@@ -360,7 +510,7 @@ Item {
                 return child && child.documentReady && child.title === "Fixture /hosting"
                     && String(child.url) === FixtureUrl + "/hosting" }, 10000)
             compare(js(deck.browserForSession(b), "window.opener.sessionMarker"), 291)
-            compare(deck.entries[a].liveAdoptedChildren, 1)
+            compare(deck.entries[a].liveAdoptedChildren, FeriaBrowserPolicy.independentAdoptionAvailable(deck.browserForSession(a)) ? 0 : 1)
             verify(deck.closeTab(b))
             tryVerify(function() { return !deck.entries[b] }, 10000, "Accepted child close retires its canonical entry")
             tryCompare(deck.entries[a], "liveAdoptedChildren", 0, 10000,
@@ -386,8 +536,8 @@ Item {
             compare(js(third, "opener.sessionMarker"), 202)
             click(third, "#edit"); typeText("nested-input")
             compare(js(third, "document.querySelector('#edit').value"), "nested-input")
-            compare(deck.entries[a].liveAdoptedChildren, 1)
-            compare(deck.entries[b].liveAdoptedChildren, 1)
+            compare(deck.entries[a].liveAdoptedChildren, FeriaBrowserPolicy.independentAdoptionAvailable(deck.browserForSession(a)) ? 0 : 1)
+            compare(deck.entries[b].liveAdoptedChildren, FeriaBrowserPolicy.independentAdoptionAvailable(deck.browserForSession(b)) ? 0 : 1)
             verify(deck.closeTab(c)); tryVerify(function() { return !deck.entries[c] }, 10000)
             tryCompare(deck.entries[b], "liveAdoptedChildren", 0, 10000)
             verify(deck.closeTab(b)); tryVerify(function() { return !deck.entries[b] }, 10000)
@@ -435,7 +585,7 @@ Item {
             compare(deck.browserForSession(a), p)
             compare(String(p.url), FixtureUrl + "/hosting")
         }
-        function test_externalSiteStayRequiresDocumentRecovery() {
+        function test_externalSiteStayAllowsRecoveryWithoutInventingAck() {
             var a = open("/hosting"), p = deck.browserForSession(a)
             js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','external-retry','width=520,height=420')}")
             click(p, "#dialog")
@@ -451,8 +601,8 @@ Item {
             click(child, "#dialog")
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, false))
-            verify(!deck.closeTab(b), "External rejection has no same-document ACK; app retry stays fenced")
-            verify(deck.entries[b].closeController.failure.length > 0)
+            verify(deck.entries[b].closeController.canRetryExternalCancellation())
+            compare(deck.entries[b].closeController.failure, "")
             verify(deck.reload(b))
             tryVerify(function() { return deck.entries[b].closeConsent }, 5000)
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
@@ -478,16 +628,16 @@ Item {
             wait(200)
             console.log("NAVIGATION_REJECTION_EVENTS", JSON.stringify(events))
             verify(!deck.entries[a].closePending)
-            verify(deck.entries[a].closeController.failure.indexOf("cancellation") >= 0)
-            verify(!deck.closeTab(a), "Navigation refusal lacks a safe same-document close ACK hook")
-            verify(!deck.moveToDesktop(a), "Unacknowledged refusal fences host transfer")
+            compare(deck.entries[a].closeController.failure, "")
+            verify(deck.entries[a].closeController.canRetryExternalCancellation())
+            verify(deck.entries[a].closeController.canTransfer())
             verify(deck.attachConsentSurface(globalChrome))
             var diagnosticPanel = childMatching(globalChrome, function(item) {
                 return String(item).indexOf("FeriaCloseConsent") >= 0 && item.visible && item.diagnostic.length > 0
             })
-            verify(diagnosticPanel !== null, "The supported limitation must be visible in reserved chrome")
+            compare(diagnosticPanel, null, "A normal Stay should not display an unavailable-action error")
             js(p, "history.pushState({},'', '#same-document')")
-            verify(!deck.closeTab(a), "Fragment changes cannot clear a document barrier")
+            verify(deck.entries[a].closeController.canRetryExternalCancellation(), "Fragment change preserves the same cancelled document")
             var replacementCount = 0, brokenFinished = false, slowStarted = false, slowStopped = false
             function replaced(generation) { ++replacementCount }
             function failedLoad(info) {
@@ -570,6 +720,9 @@ Item {
             tryVerify(function() { return child.title === "Fixture /b" || deck.entries[b].closeConsent }, 10000)
             if (deck.entries[b].closeConsent) verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
             tryCompare(child, "title", "Fixture /b", 10000)
+            tryVerify(function() { return child.documentReady && !child.loading
+                && !deck.entries[b].closeController.busy }, 10000,
+                "A new site close must follow actual document replacement and cancellation settlement")
             js(child, "document.querySelector('button').onclick=function(){window.close()}")
             click(child, "button")
             tryVerify(function() { return !deck.entries[b] }, 10000)
@@ -655,7 +808,8 @@ Item {
             verify(fresh && fresh !== a)
             tryVerify(function() { var page = deck.browserForSession(fresh)
                 return page && page.documentReady && page.title === "Fixture /hosting" }, 15000)
-            compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+            tryVerify(function() { return Sessions.closedBrowserRecords("mangaplus").length === 0 }, 10000,
+                "The successful main-document load must commit the redirect reconstruction")
         }
         function test_validBlankPopupSurvivesSilentAdmissionInterval() {
             var a = open("/hosting"), first = deck.browserForSession(a)
@@ -707,7 +861,8 @@ Item {
             verify(fresh && fresh !== a && fresh !== b)
             tryVerify(function() { return deck.browserForSession(fresh) && deck.browserForSession(fresh).documentReady }, 15000)
             compare(Sessions.get(fresh).target.providerId, "mangaplus")
-            compare(Sessions.closedBrowserRecords("mangaplus").length, 0)
+            tryVerify(function() { return Sessions.closedBrowserRecords("mangaplus").length === 0 }, 10000,
+                "DOM readiness can precede the successful main-document load transaction")
             compare(Sessions.closedBrowserRecords("ytmusic").length, 1)
         }
     }

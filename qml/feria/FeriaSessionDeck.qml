@@ -23,6 +23,7 @@ Item {
     property string snapshotRoot: ""
     property int presentationRevision: 0
     property int hostSerial: 0
+    property Item fullSizeSurface: null
     property var pendingRetirements: []
     readonly property var closedTabs: { sessions.revision; return activeEntry
         ? sessions.closedBrowserRecords(activeEntry.descriptor.providerId).map(function(r) { return r.descriptor }) : [] }
@@ -238,14 +239,12 @@ Item {
         entry.hostWindow = null; entry.fullSizeHost = null
         if (host) { host.retiring = true; host.hide(); host.destroy() }
         if (full) {
-            var surface = full.parent
             full.destroy()
-            if (surface) surface.visible = false
         }
     }
     function moveToDesktop(id, geometry, dialogWindow, originatingWindow, originatingScreenName) {
         var entry = entries[id]
-        if (!entry || !entry.browser || entry.retiring || entry.closeController.busy) return false
+        if (!entry || !entry.browser || entry.retiring || !entry.closeController.canTransfer()) return false
         if (entry.hostWindow) { entry.hostWindow.show(); entry.hostWindow.raise(); entry.hostWindow.requestActivate(); return true }
         if (entry.fullSizeHost && !restoreSession(id)) return false
         var host = desktopHostFactory.createObject(deck, {deck: deck, sessionId: id, dialogWindow: !!dialogWindow})
@@ -266,6 +265,7 @@ Item {
         if (!host.applyGeometry(rect)) { host.destroy(); return false }
         var identity = sessions.setBrowserHost(sessions.browserIdentity(id), "desktop:" + (++hostSerial))
         if (!identity.spaceId) { host.destroy(); return false }
+        entry.closeController.hostTransferred(identity)
         host.lease = Object.assign({}, identity)
         savePlacement(entry)
         entry.hostWindow = host
@@ -285,17 +285,21 @@ Item {
     }
     function maximizeSession(id, surface) {
         var entry = entries[id]
-        if (!entry || !entry.browser || entry.retiring || entry.closeController.busy || entry.hostWindow
+        if (!entry || !entry.browser || entry.retiring || !entry.closeController.canTransfer() || entry.hostWindow
             || !surface || surface.Window.window !== deck.Window.window) return false
         if (entry.fullSizeHost) return true
         var host = fullSizeHostFactory.createObject(deck, {parent: surface, deck: deck, sessionId: id})
         if (!host) return false
         var identity = sessions.setBrowserHost(sessions.browserIdentity(id), "app-fullsize:" + (++hostSerial))
         if (!identity.spaceId) { host.destroy(); return false }
+        entry.closeController.hostTransferred(identity)
         host.lease = Object.assign({}, identity)
         savePlacement(entry)
         entry.fullSizeHost = host
-        surface.visible = true
+        surface.visible = Qt.binding(function() {
+            return deck.displayed && !deck.suppressed && !!deck.activeEntry
+                && !!deck.activeEntry.fullSizeHost && deck.activeEntry.fullSizeHost.parent === surface
+        })
         entry.parent = host.viewport
         entry.anchors.fill = host.viewport
         entry.browser.forceActiveFocus()
@@ -304,13 +308,14 @@ Item {
     }
     function returnToEmbedded(id) {
         var entry = entries[id]
-        if (!entry || entry.retiring || entry.closeController.busy || entry.restoring || !entry.savedPlacement) return false
+        if (!entry || entry.retiring || !entry.closeController.canTransfer() || entry.restoring || !entry.savedPlacement) return false
         // Capture and guard BEFORE the synchronous native changed signal can
         // re-enter selectActive while switching from maximized A to neighbor B.
         var saved = entry.savedPlacement
         entry.restoring = true
         var identity = sessions.setBrowserHost(sessions.browserIdentity(id), "embedded")
         if (!identity.spaceId) { entry.restoring = false; return false }
+        entry.closeController.hostTransferred(identity)
         entry.savedPlacement = null
         entry.anchors.fill = null
         entry.parent = saved.parent
@@ -319,13 +324,24 @@ Item {
         entry.anchors.fill = saved.fill
         disposeHost(entry)
         entry.restoring = false
-        if (saved.focused && entry.browser) entry.browser.forceActiveFocus()
+        if (saved.focused && entry.browser && sessions.activeId === id && displayed && !suppressed)
+            entry.browser.forceActiveFocus()
         ++presentationRevision
         return true
     }
     function restoreSession(id) {
         var entry = entries[id]
         return entry && entry.fullSizeHost ? returnToEmbedded(id) : false
+    }
+    function restoreInactiveMax(id) {
+        var entry = entries[id]
+        if (entry && entry.fullSizeHost && !entry.restoring && !entry.retiring
+            && sessions.activeId !== id && entry.closeController.canTransfer()) restoreSession(id)
+    }
+    function toggleAppMax(id) {
+        var entry = entries[id]
+        if (!entry || entry.retiring || entry.hostWindow) return false
+        return entry.fullSizeHost ? restoreSession(id) : maximizeSession(id, fullSizeSurface)
     }
     Component { id: desktopHostFactory; FeriaDesktopHost {} }
     Component { id: fullSizeHostFactory; FeriaFullSizeHost {} }
@@ -372,8 +388,10 @@ Item {
             // Track the actual creation-view dependency, not QObject ownership.
             // New scoped close routes block its retirement until children die.
             // No hidden opener shell/lease workaround is enabled here.
-            entry.creationEntry = source
-            ++source.liveAdoptedChildren
+            if (!policy.independentAdoptionAvailable(entry.browser)) {
+                entry.creationEntry = source
+                ++source.liveAdoptedChildren
+            }
             entry.beginAdoption()
             request.openIn(entry.browser)
             entry.browser.adoptingWindowRequest = false
@@ -443,7 +461,7 @@ Item {
         var next = entries[sessions.activeId] || null
         var selectionChanged = activeEntry !== next
         if (activeEntry && activeEntry !== next && activeEntry.fullSizeHost
-            && !activeEntry.closeController.busy && !activeEntry.restoring)
+            && activeEntry.closeController.canTransfer() && !activeEntry.restoring)
             restoreSession(activeEntry.sessionId)
         activeEntry = next
         if (!activate && !selectionChanged) return
@@ -638,7 +656,7 @@ Item {
             property var visitContext: descriptor.visitContext || ({ title: descriptor.title || "", cover: "" })
             property string token: ""
             property bool retiring: false
-            property bool immersive: fullSizeHost !== null
+            readonly property bool immersive: fullSizeHost !== null
             property var hostWindow: null
             property var fullSizeHost: null
             property var savedPlacement: null
@@ -695,7 +713,10 @@ Item {
                 retirementAllowed: entry.liveAdoptedChildren === 0
                 onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
                 onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
-                onChanged: ++deck.presentationRevision
+                onChanged: {
+                    ++deck.presentationRevision
+                    Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
+                }
                 onFailureChanged: {
                     entry.errorText = failure
                     ++deck.presentationRevision

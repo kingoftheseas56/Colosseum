@@ -10,6 +10,7 @@ Item {
     property var lease: null
     readonly property alias viewport: viewport
     anchors.fill: parent
+    visible: deck.displayed && !deck.suppressed && deck.sessions.activeId === sessionId
     Rectangle {
         id: chrome
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right

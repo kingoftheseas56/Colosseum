@@ -32,6 +32,13 @@ public:
     }
 
     int runtimeViewCount() const { return m_runtimeViews.size(); }
+    // This marker is supplied by our patched Qt constructor, not by a version
+    // string. Stock 6.11.1 must retain its creation-view lifetime guard.
+    Q_INVOKABLE bool independentAdoptionAvailable(QObject *view) const {
+        if (!view || !m_runtimeViews.contains(view)) return false;
+        const QVariant marker = view->property("_colosseumAdoptionInputRebound");
+        return marker.metaType().id() == QMetaType::Bool && marker.toBool();
+    }
     Q_INVOKABLE int runtimeViewsForProfile(QObject *profile) const {
         int count = 0;
         for (QObject *view : m_runtimeViews)

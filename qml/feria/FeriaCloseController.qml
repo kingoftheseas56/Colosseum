@@ -24,6 +24,7 @@ Item {
     property var externalAccepted: null
     property var externalRejection: null
     property bool externalRecoveryOnly: false
+    property bool retryExternalCancellation: false
     property int recoveryAfterGeneration: -1
     property int attemptLoadGeneration: -1
     property var closeAcknowledgement: null
@@ -42,10 +43,20 @@ Item {
         return current.spaceId === sessionId
     }
     function matches() { return identityMatches(identity) }
+    function canRetryExternalCancellation() {
+        return externalRejection !== null && !externalRecoveryOnly && !pending
+            && !request && !externalAccepted && !retiredBarrier && !staleAcknowledgementFence
+            && identityMatches(externalRejection.identity)
+    }
+    function canTransfer() { return !busy || canRetryExternalCancellation() }
+    function hostTransferred(key) {
+        if (externalRejection) externalRejection.identity = Object.assign({}, key)
+    }
     function clearLocal() {
         rejectionDeadline.stop()
         attempt = ""; identity = null; request = null; consent = null; closeAcknowledgement = null
         awaitingRejection = false; cancellationRequested = false; acceptedLeave = false
+        retryExternalCancellation = false
         changed()
     }
     function begin(dispatch) {
@@ -53,17 +64,25 @@ Item {
             blocked("Close this space's child windows first. This Qt runtime still needs their creation view.")
             return false
         }
-        if (!browser || browser.closingSession || busy) return false
-        identity = sessions.browserIdentity(sessionId)
-        attempt = sessions.beginBrowserClose(identity)
-        if (!attempt.length) { identity = null; return false }
+        var retryExternal = canRetryExternalCancellation()
+        if (!browser || browser.closingSession || (busy && !retryExternal)) return false
+        var key = sessions.browserIdentity(sessionId)
+        var token = sessions.beginBrowserClose(key)
+        if (!token.length) return false
+        if (retryExternal) {
+            externalRejection = null; failure = ""; externalRecoveryOnly = false
+        }
+        identity = key
+        attempt = token
         attemptLoadGeneration = browser.navigationGeneration
+        retryExternalCancellation = retryExternal
         var capturedIdentity = Object.assign({}, identity), capturedAttempt = attempt
         closeAcknowledgement = function() {
             if (controller.attempt !== capturedAttempt || !controller.identityMatches(capturedIdentity)) return
             controller.acknowledgeAttempt()
         }
-        // Only a completed cancellation barrier permits admission here.
+        // New explicit intent may follow an external Stay; its own terminal
+        // callback is still required. Other unresolved barriers block admission.
         staleAcknowledgementFence = false
         changed()
         if (dispatch !== false) {
@@ -86,6 +105,7 @@ Item {
                 return
             }
             request = dialog
+            retryExternalCancellation = false
             consent = {identity: Object.assign({}, identity), attempt: attempt, kind: "close",
                 origin: browser.browserRequests.originLabel(dialog.securityOrigin)}
         } else {
@@ -110,10 +130,10 @@ Item {
             if (!leave) {
                 externalRejection = ticket
                 recoveryAfterGeneration = ticket.loadGeneration
-                // Renderer-initiated site close and navigation refusal have no
-                // Qt terminal rejection hook. Keep visible, bounded functionality:
-                // close/transfer unavailable, fresh navigation remains allowed.
-                failure = "Close and host transfer are unavailable after this external page cancellation until a new page loads. You can navigate or reload. This Qt runtime does not expose the external rejection acknowledgement."
+                // Do not pretend the dialog answer is a renderer ACK. A new
+                // explicit close owns its own terminal route; a visual transfer
+                // preserves this live view and cannot approve destruction.
+                failure = ""
             }
             changed()
             if (leave) dialog.dialogAccept()
@@ -161,13 +181,27 @@ Item {
         changed()
     }
     function rejectionAcknowledged() {
+        if (pending && matches() && retryExternalCancellation && !request && !awaitingRejection) {
+            // Chromium may coalesce an explicit user close with the cancelled
+            // navigation. Its real close rejection clears the old engine state.
+            // Retry once after that terminal callback unwinds, preserving the
+            // same captured intent. No timeout or JS result authorizes this.
+            retryExternalCancellation = false
+            var token = attempt, key = Object.assign({}, identity)
+            Qt.callLater(function() {
+                if (controller.attempt !== token || !controller.identityMatches(key)
+                    || controller.request || !controller.browser || controller.browser.closingSession) return
+                controller.browser.triggerWebAction(WebEngineView.RequestClose)
+            })
+            return
+        }
         if (externalRejection && !externalRecoveryOnly) {
             externalRejection = null; failure = ""; staleAcknowledgementFence = false
             changed()
             return
         }
         if (retiredBarrier && !pending) { finishRetiredBarrier(); return }
-        if (!pending || !awaitingRejection || !matches()) return
+        if (!pending || request || !matches()) return
         settleCancellation()
     }
     function prepareNavigation() {

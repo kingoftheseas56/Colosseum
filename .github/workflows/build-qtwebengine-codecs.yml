@@ -191,6 +191,20 @@ jobs:
           if (-not $inner) { throw "qtwebengine source dir missing after extract" }
           "WEBENGINE_SRC=$($inner.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Rebind adopted Quick view input ownership
+        if: env.QT_VERSION == '6.11.1'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $patch = Join-Path $env:GITHUB_WORKSPACE 'patches/qtwebengine/6.11.1-adopted-input-owner.patch'
+          git -C $env:WEBENGINE_SRC apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned Qt adoption patch does not match this source' }
+          git -C $env:WEBENGINE_SRC apply $patch
+          if ($LASTEXITCODE -ne 0) { throw 'Qt adoption patch failed' }
+          $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $patch).Hash.ToLowerInvariant()
+          "COLOSSEUM_QT_PATCH_SHA=$sha" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "Applied adopted Quick input ownership patch: $sha. Runtime qualification is separate." | Out-File $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
       - name: Configure WebEngine module (proprietary codecs, Release)
         shell: pwsh
         run: |
@@ -373,6 +387,15 @@ jobs:
           $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
           if (-not $core) { throw "Qt6WebEngineCore.dll missing from install prefix" }
           Write-Output "installed: $($core.FullName)"
+          if ($env:COLOSSEUM_QT_PATCH_SHA) {
+            @{
+              qtVersion = $env:QT_VERSION
+              patch = '6.11.1-adopted-input-owner.patch'
+              patchSha256 = $env:COLOSSEUM_QT_PATCH_SHA
+              repositoryCommit = $env:GITHUB_SHA
+              runtimeQualification = 'pending'
+            } | ConvertTo-Json | Set-Content (Join-Path $env:WEBENGINE_INSTALL_DIR 'colosseum-qt-patch.json') -Encoding utf8
+          }
 
       - name: Package artifact
         if: steps.webengine_build.outputs.completed == 'true'

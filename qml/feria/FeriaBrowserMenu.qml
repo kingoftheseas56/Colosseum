@@ -56,7 +56,11 @@ Dialog {
         open()
     }
     function notify(text) { statusText = text; message(text) }
-    function newTab(isPrivate) { close(); deck.newTab(isPrivate, "about:blank", true) }
+    function newTab(isPrivate) {
+        var sourceId = deck.sessions.activeId
+        close()
+        deck.newSpace(sourceId, isPrivate, true)
+    }
     function switchTab(id) { close(); deck.sessions.switchTo(id) }
     function closeTab(id) { deck.closeTab(id); refreshRows() }
     function navigate(url) { close(); navigateRequested(String(url)) }

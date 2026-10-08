@@ -56,7 +56,9 @@ Item {
         property int restores: 0
         property int restorableTabCount: 2
         property int dismissals: 0
-        function newTab(privateBrowsing, url, activate) { newAction = { privateBrowsing: privateBrowsing, url: url, activate: activate } }
+        function newSpace(sourceId, privateBrowsing, activate) {
+            newAction = { sourceId: sourceId, privateBrowsing: privateBrowsing, activate: activate }
+        }
         function closeTab(id) { closedId = id }
         function restoreTabs() { restores++ }
         function dismissRestoreTabs() { dismissals++; restorableTabCount = 0 }
@@ -124,7 +126,7 @@ Item {
             open()
             mouseClick(control("feriaBrowserNewPrivate"))
             compare(deck.newAction.privateBrowsing, true)
-            compare(deck.newAction.url, "about:blank")
+            compare(deck.newAction.sourceId, "tab-a")
             compare(deck.newAction.activate, true)
             tryCompare(menu, "visible", false)
             open()

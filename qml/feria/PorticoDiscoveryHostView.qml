@@ -43,16 +43,14 @@ Item {
         sequence: "Ctrl+T"
         enabled: root.visible && root.retained
         onActivated: {
-            root.controller.browserDeck.newTab(browserMenu.privateBrowsing, "about:blank", true)
-            Qt.callLater(navigationBar.focusAddress)
+            root.controller.browserDeck.newSpace(root.controller.hostSessionId, browserMenu.privateBrowsing, true)
         }
     }
     Shortcut {
         sequence: "Ctrl+Shift+N"
         enabled: root.visible && root.retained
         onActivated: {
-            root.controller.browserDeck.newTab(true, "about:blank", true)
-            Qt.callLater(navigationBar.focusAddress)
+            root.controller.browserDeck.newSpace(root.controller.hostSessionId, true, true)
         }
     }
     Shortcut { sequence: "Ctrl+W"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.closeTab(root.controller.hostSessionId) }
@@ -147,6 +145,11 @@ Item {
             return
         }
         if (!root.browserItem) return
+        if (retained) {
+            controller.browserDeck.navigateInput(controller.hostSessionId, address)
+            focusApp()
+            return
+        }
         controller.hostResumePosition = 0
         controller.hostResumeLocator = null
         root.browserItem.cancelMediaResume(true)
@@ -158,22 +161,28 @@ Item {
     }
     function cancelAddressEditing() { return navigationBar.cancelAddressEditing() }
     function pageBack() {
-        if (root.browserItem && engineCanGoBack) root.browserItem.pageBack()
+        if (retained) controller.browserDeck.back(controller.hostSessionId)
+        else if (root.browserItem && engineCanGoBack) root.browserItem.pageBack()
         focusApp()
     }
     function pageForward() {
-        if (root.browserItem && engineCanGoForward) root.browserItem.pageForward()
+        if (retained) controller.browserDeck.forward(controller.hostSessionId)
+        else if (root.browserItem && engineCanGoForward) root.browserItem.pageForward()
         focusApp()
     }
     function reloadOrStop() {
         if (!root.browserItem || !browserReady) return
-        if (pageLoading) root.browserItem.stopLoad()
+        if (retained) {
+            if (pageLoading) controller.browserDeck.stop(controller.hostSessionId)
+            else controller.browserDeck.reload(controller.hostSessionId)
+        }
+        else if (pageLoading) root.browserItem.stopLoad()
         else root.browserItem.reload()
         focusApp()
     }
     function exitFullScreen() {
-        if (retained && controller.browserDeck.activeEntry)
-            controller.browserDeck.activeEntry.immersive = false
+        if (retained && root.browserItem && !root.browserItem.fullScreenActive
+            && controller.browserDeck.restoreSession(controller.hostSessionId)) return
         if (!root.browserItem) return
         var script = "if(document.fullscreenElement) document.exitFullscreen()"
         if (engine === "webview2") root.browserItem.executeScript("fullscreen-exit",script)
@@ -277,6 +286,7 @@ Item {
         sequence: "Escape"
         enabled: root.visible && root.retained && root.controller.browserDeck.activeEntry
             && root.controller.browserDeck.activeEntry.immersive
+            && !(root.browserItem && root.browserItem.fullScreenActive)
             && !(root.pageTools && root.pageTools.findOpen)
         onActivated: root.exitFullScreen()
     }
@@ -298,7 +308,11 @@ Item {
     Shortcut {
         sequences: ["Ctrl+R", "F5"]
         enabled: root.visible && !root.fullScreenActive && root.browserReady
-        onActivated: { root.browserItem.reload(); root.focusApp() }
+        onActivated: {
+            if (root.retained) root.controller.browserDeck.reload(root.controller.hostSessionId)
+            else root.browserItem.reload()
+            root.focusApp()
+        }
     }
     Popup {
         id: optionsPanel
@@ -580,8 +594,8 @@ Item {
         function powerClicked() { root.controller.browserCloseRequested(root.controller.hostSessionId) }
         function fullscreenClicked() {
             if (root.fullScreenActive) root.exitFullScreen()
-            else if (root.controller.browserDeck.activeEntry)
-                root.controller.browserDeck.activeEntry.immersive = true
+            else if (root.retained)
+                root.controller.browserDeck.toggleAppMax(root.controller.hostSessionId)
         }
     }
     Loader {
