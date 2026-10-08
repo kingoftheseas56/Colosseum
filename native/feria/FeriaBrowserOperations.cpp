@@ -15,6 +15,7 @@ const QStringList kCancellationEvidence{
     QStringLiteral("explicit-stay-deferral-completed"),
     QStringLiteral("dialog-rejected"),
     QStringLiteral("window-close-rejected"),
+    QStringLiteral("user-stop-requested"),
 };
 const QStringList kCloseSuccessEvidence{
     QStringLiteral("window-close-acknowledged"),
@@ -300,17 +301,22 @@ QVariantMap FeriaBrowserOperations::settleOperation(const QVariantMap &identity,
         }
     }
 
-    if (kind == QStringLiteral("request-close") && effectiveOutcome != QStringLiteral("invalidated")) {
+    if (kind == QStringLiteral("request-close")) {
         const bool accepted = effectiveOutcome == QStringLiteral("succeeded");
-        QVariantMap descriptor;
-        if (accepted)
-            descriptor = extra.value(QStringLiteral("descriptor")).toMap();
-        const bool canonical = settleStoreClose(identity, operationId, accepted, descriptor);
-        if (accepted && !canonical) {
-            // The store refused the success (attempt already consumed or
-            // identity moved underneath us): never claim the space closed.
-            effectiveOutcome = QStringLiteral("invalidated");
-            result.insert(QStringLiteral("reason"), QStringLiteral("canonical-close-refused"));
+        if (accepted) {
+            const QVariantMap descriptor = extra.value(QStringLiteral("descriptor")).toMap();
+            if (!settleStoreClose(identity, operationId, true, descriptor)) {
+                // The store refused the success (attempt already consumed or
+                // identity moved underneath us): never claim the space closed.
+                effectiveOutcome = QStringLiteral("invalidated");
+                result.insert(QStringLiteral("reason"), QStringLiteral("canonical-close-refused"));
+            }
+        } else if (identityCurrent(identity)) {
+            // Cancelled/failed/blocked/invalidated with the captured identity
+            // still current: clear the canonical attempt so a fresh close is
+            // admissible while the space stays open. A stale identity already
+            // had its attempt retired by the store's own identity moves.
+            settleStoreClose(identity, operationId, false, {});
         }
     }
 

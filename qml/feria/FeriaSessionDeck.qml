@@ -68,6 +68,9 @@ Item {
         }
     }
     readonly property var downloads: sharedProfile ? regularDownloads : null
+    // The engine-neutral operation/request seam owned by SessionStore. Both
+    // engine controllers and the WebView2 wrapper fence through this object.
+    readonly property var operations: sessions ? sessions.browserOperations() : null
     property bool quiescing: false
     property bool holdForCleanup: false
     property bool cleanupNotified: false
@@ -681,6 +684,11 @@ Item {
             readonly property var ownerDeck: deck
             required property var descriptor
             property bool initialWindowRequest: false
+            // Explicit, validated engine selection: an admitted webview2
+            // preference uses the Windows adapter; anything else keeps the
+            // working QtWebEngine path unchanged.
+            readonly property bool usesWebView2: descriptor.engineId === "webview2"
+                && deck.policy.webView2Available
             property var visitContext: descriptor.visitContext || ({ title: descriptor.title || "", cover: "" })
             property string token: ""
             property bool retiring: false
@@ -734,24 +742,48 @@ Item {
                     entry.rollbackReopen(recordId)
                 })
             }
-            readonly property alias closeController: closeController
-            readonly property alias closeConsent: closeController.consent
-            readonly property alias closePending: closeController.pending
-            FeriaCloseController {
-                id: closeController
-                browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
-                retirementAllowed: entry.liveAdoptedChildren === 0
-                onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
-                onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
-                onChanged: {
-                    ++deck.presentationRevision
-                    Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
+            readonly property alias closeController: closeControllerLoader.item
+            readonly property var closeConsent: closeController ? closeController.consent : null
+            readonly property bool closePending: closeController ? closeController.pending : false
+            Component {
+                id: qtCloseFactory
+                FeriaCloseController {
+                    browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
+                    retirementAllowed: entry.liveAdoptedChildren === 0
+                    onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
+                    onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
+                    onChanged: {
+                        ++deck.presentationRevision
+                        Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
+                    }
+                    onFailureChanged: {
+                        entry.errorText = failure
+                        ++deck.presentationRevision
+                        if (failure.length) deck.message(entry.sessionId, failure)
+                    }
                 }
-                onFailureChanged: {
-                    entry.errorText = failure
-                    ++deck.presentationRevision
-                    if (failure.length) deck.message(entry.sessionId, failure)
+            }
+            Component {
+                id: webView2CloseFactory
+                FeriaWebView2CloseController {
+                    browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
+                    retirementAllowed: entry.liveAdoptedChildren === 0
+                    onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
+                    onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
+                    onChanged: {
+                        ++deck.presentationRevision
+                        Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
+                    }
+                    onFailureChanged: {
+                        entry.errorText = failure
+                        ++deck.presentationRevision
+                        if (failure.length) deck.message(entry.sessionId, failure)
+                    }
                 }
+            }
+            Loader {
+                id: closeControllerLoader
+                sourceComponent: entry.usesWebView2 ? webView2CloseFactory : qtCloseFactory
             }
             property string errorText: ""
             property var pendingNavigation: null
@@ -793,14 +825,9 @@ Item {
                     ? (deck.sessions.activeId === entry.sessionId ? deck.embeddedDiagnostic : "")
                     : !entry.ownerDeck.consentPresentation ? closeController.failure : ""
             }
-            Loader {
-                id: browserLoader
-                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.top: consentDock.bottom
-                active: entry.token.length > 0 && (entry.descriptor.privateBrowsing
-                    ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
-                    : deck.sharedProfile !== null)
-                sourceComponent: FeriaQtWebEngine {
+            Component {
+                id: qtViewFactory
+                FeriaQtWebEngine {
                     sourceUrl: entry.initialWindowRequest ? "" : entry.descriptor.url
                     adoptingWindowRequest: entry.initialWindowRequest
                     managedBeforeUnload: true
@@ -815,13 +842,44 @@ Item {
                     resumeLocator: entry.descriptor.locator || null
                     suppressed: !entry.visible
                     freezeBackground: deck.accountStore.browserPreferences.freezeBackground !== false
-                    lifecycleBlocked: closeController.busy
+                    lifecycleBlocked: entry.closeController ? entry.closeController.busy : false
                     activitySuspended: !deck.displayed
                         || (deck.Window.window && deck.Window.window.visibility === Window.Minimized)
                         || (entry.hostWindow && entry.hostWindow.visibility === Window.Minimized)
                 }
+            }
+            Loader {
+                id: browserLoader
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.top: consentDock.bottom
+                active: entry.token.length > 0 && (entry.descriptor.privateBrowsing
+                    ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
+                    : deck.sharedProfile !== null)
+                // The WebView2 view loads by URL so Qt-only harnesses never
+                // compile the native Colosseum.FeriaHost import: the module
+                // is registered where the engine is actually available.
+                source: entry.usesWebView2 ? "FeriaWebView2.qml" : ""
+                sourceComponent: entry.usesWebView2 ? null : qtViewFactory
                 onStatusChanged: if (status === Loader.Error) entry.errorText = "The browser could not start."
-                onLoaded: {
+                onLoaded: if (entry.usesWebView2) {
+                    // Initial values and live bindings are applied here; the
+                    // native host defers its first navigation until ready.
+                    item.sourceUrl = entry.initialWindowRequest ? "" : entry.descriptor.url
+                    item.profilePath = entry.descriptor.privateBrowsing
+                        ? deck.policy.storageRoot + "/webview2-private-" + entry.sessionId
+                        : deck.policy.storageRoot
+                    item.providerId = Qt.binding(function() { return entry.descriptor.providerId })
+                    item.accountVisitToken = Qt.binding(function() { return entry.token })
+                    item.accountSessionId = Qt.binding(function() { return entry.sessionId })
+                    item.sessions = Qt.binding(function() { return deck.sessions })
+                    item.observationMode = Qt.binding(function() { return entry.descriptor.mode || "watch" })
+                    item.observationEnabled = Qt.binding(function() {
+                        return deck.accountStore.recording && !entry.descriptor.privateBrowsing })
+                    item.resumePosition = Qt.binding(function() { return Number(entry.descriptor.position || 0) })
+                    item.resumeLocator = Qt.binding(function() { return entry.descriptor.locator || null })
+                    item.suppressed = Qt.binding(function() { return !entry.visible })
+                }
+                else {
                     Qt.callLater(function() {
                         if (deck.entries[entry.sessionId] !== entry) return
                         var pending = entry.pendingNavigation
@@ -831,6 +889,9 @@ Item {
             }
             Connections {
                 target: entry.browser
+                // Engine adapters expose different signal subsets (e.g. the
+                // WebView2 wrapper has no renderer/safeToDestroy signals).
+                ignoreUnknownSignals: true
                 function onSafeToDestroy() {
                     if (entry.retiring) Qt.callLater(function() { entry.destroy() })
                 }

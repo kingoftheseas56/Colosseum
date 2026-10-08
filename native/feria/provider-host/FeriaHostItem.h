@@ -16,6 +16,7 @@ class FeriaHostItem : public QQuickItem
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY canGoBackChanged)
     Q_PROPERTY(bool canGoForward READ canGoForward NOTIFY canGoForwardChanged)
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
 
 public:
     explicit FeriaHostItem(QQuickItem *parent = nullptr);
@@ -32,6 +33,7 @@ public:
     bool ready() const;
     bool canGoBack() const;
     bool canGoForward() const;
+    QString title() const;
     Q_INVOKABLE void focusWebView();
     Q_INVOKABLE void focusAppControls();
     Q_INVOKABLE void returnToQml();
@@ -45,6 +47,13 @@ public:
     Q_INVOKABLE QString captureGeometry(const QString &label);
     Q_INVOKABLE void clearSiteData(const QUrl &origin);
     Q_INVOKABLE void clearCookies(const QStringList &domains);
+    // Consented-close surface; nativeToken values come from
+    // closeConsentRequested/unloadConsentRequested and answer exactly once.
+    Q_INVOKABLE void requestClose(const QString &operationId);
+    Q_INVOKABLE void respondCloseRequest(const QString &nativeToken, bool leave);
+    Q_INVOKABLE void respondUnloadRequest(const QString &nativeToken, bool leave);
+    Q_INVOKABLE void cancelCloseOperation();
+    Q_INVOKABLE void dispatchTrustedClick(int x, int y);
 
 signals:
     void initializationFailed(const QString &reason);
@@ -69,6 +78,14 @@ signals:
     void siteDataCleared(bool success);
     void cookiesCleared(bool success);
     void geometryCaptured(const QString &json);
+    void titleChanged();
+    void closeConsentRequested(const QString &nativeToken, const QString &uri);
+    void unloadConsentRequested(const QString &nativeToken, const QString &uri);
+    void closeStayRecorded(const QString &nativeToken);
+    void closeDepartureVerified(const QString &operationId, qulonglong nativeNavigationId);
+    void closeInvalidated(const QString &reason);
+    void unloadSettled(const QString &nativeToken, bool leave);
+    void rendererLost(const QString &kind);
 
 protected:
     void componentComplete() override;

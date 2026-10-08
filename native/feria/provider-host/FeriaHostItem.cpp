@@ -69,7 +69,16 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
     connect(m_host, &FeriaProviderHost::initializationFailed,
             this, &FeriaHostItem::initializationFailed);
     connect(m_host, &FeriaProviderHost::navigationStarted,
-            this, &FeriaHostItem::navigationStarted);
+            this, [this](const QString &uri) {
+        // Track the live document URL so native history traversals and
+        // in-page navigations are reflected without re-dispatching Navigate.
+        const QUrl live(uri);
+        if (live.isValid() && m_url != live) {
+            m_url = live;
+            emit urlChanged();
+        }
+        emit navigationStarted(uri);
+    });
     connect(m_host, &FeriaProviderHost::documentReady,
             this, &FeriaHostItem::documentReady);
     connect(m_host, &FeriaProviderHost::navigationCompleted,
@@ -84,6 +93,27 @@ FeriaHostItem::FeriaHostItem(QQuickItem *parent)
             this, &FeriaHostItem::hostLog);
     connect(m_host, &FeriaProviderHost::siteDataCleared, this, &FeriaHostItem::siteDataCleared);
     connect(m_host, &FeriaProviderHost::cookiesCleared, this, &FeriaHostItem::cookiesCleared);
+    connect(m_host, &FeriaProviderHost::titleChanged, this, &FeriaHostItem::titleChanged);
+    connect(m_host, &FeriaProviderHost::closeConsentRequested, this,
+            [this](int token, const QString &uri) {
+                emit closeConsentRequested(QString::number(token), uri);
+            });
+    connect(m_host, &FeriaProviderHost::unloadConsentRequested, this,
+            [this](int token, const QString &uri) {
+                emit unloadConsentRequested(QString::number(token), uri);
+            });
+    connect(m_host, &FeriaProviderHost::closeStayRecorded, this,
+            [this](int token) {
+                emit closeStayRecorded(QString::number(token));
+            });
+    connect(m_host, &FeriaProviderHost::closeDepartureVerified, this,
+            &FeriaHostItem::closeDepartureVerified);
+    connect(m_host, &FeriaProviderHost::closeInvalidated, this, &FeriaHostItem::closeInvalidated);
+    connect(m_host, &FeriaProviderHost::unloadSettled, this,
+            [this](int token, bool leave) {
+                emit unloadSettled(QString::number(token), leave);
+            });
+    connect(m_host, &FeriaProviderHost::rendererLost, this, &FeriaHostItem::rendererLost);
     connect(m_host, &FeriaProviderHost::escapeRequested,
             this, &FeriaHostItem::returnToQml);
     connect(m_host, &FeriaProviderHost::fullScreenChanged,
@@ -150,6 +180,11 @@ bool FeriaHostItem::canGoBack() const
 bool FeriaHostItem::canGoForward() const
 {
     return m_canGoForward;
+}
+
+QString FeriaHostItem::title() const
+{
+    return m_host->title();
 }
 
 void FeriaHostItem::updateHistoryState()
@@ -373,3 +408,34 @@ QString FeriaHostItem::captureGeometry(const QString &label)
 
 void FeriaHostItem::clearSiteData(const QUrl &origin) { m_host->clearSiteData(origin); }
 void FeriaHostItem::clearCookies(const QStringList &domains) { m_host->clearCookies(domains); }
+
+void FeriaHostItem::requestClose(const QString &operationId)
+{
+    m_host->requestClose(operationId);
+}
+
+void FeriaHostItem::respondCloseRequest(const QString &nativeToken, bool leave)
+{
+    bool ok = false;
+    const int token = nativeToken.toInt(&ok);
+    if (ok)
+        m_host->respondCloseRequest(token, leave);
+}
+
+void FeriaHostItem::respondUnloadRequest(const QString &nativeToken, bool leave)
+{
+    bool ok = false;
+    const int token = nativeToken.toInt(&ok);
+    if (ok)
+        m_host->respondUnloadRequest(token, leave);
+}
+
+void FeriaHostItem::cancelCloseOperation()
+{
+    m_host->cancelCloseOperation();
+}
+
+void FeriaHostItem::dispatchTrustedClick(int x, int y)
+{
+    m_host->dispatchTrustedClick(x, y);
+}

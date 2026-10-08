@@ -13,6 +13,7 @@ Item {
     property string attempt: ""
     property var consent: null
     property var request: null
+    property string requestId: ""
     property bool awaitingRejection: false
     property bool cancellationRequested: false
     property bool acceptedLeave: false
@@ -42,6 +43,10 @@ Item {
         for (var name of Object.keys(key)) if (current[name] !== key[name]) return false
         return current.spaceId === sessionId
     }
+    // The shared engine-neutral seam owns admission fencing, one-use consent
+    // requests and exactly-once typed outcomes; this controller keeps only
+    // Qt's native rejection/cancellation barriers.
+    function operations() { return sessions ? sessions.browserOperations() : null }
     function matches() { return identityMatches(identity) }
     function canRetryExternalCancellation() {
         return externalRejection !== null && !externalRecoveryOnly && !pending
@@ -54,7 +59,8 @@ Item {
     }
     function clearLocal() {
         rejectionDeadline.stop()
-        attempt = ""; identity = null; request = null; consent = null; closeAcknowledgement = null
+        attempt = ""; identity = null; request = null; consent = null; requestId = ""
+        closeAcknowledgement = null
         awaitingRejection = false; cancellationRequested = false; acceptedLeave = false
         retryExternalCancellation = false
         changed()
@@ -67,8 +73,9 @@ Item {
         var retryExternal = canRetryExternalCancellation()
         if (!browser || browser.closingSession || (busy && !retryExternal)) return false
         var key = sessions.browserIdentity(sessionId)
-        var token = sessions.beginBrowserClose(key)
-        if (!token.length) return false
+        var admitted = operations().beginOperation(key, "qtwebengine", "request-close")
+        if (!admitted.admitted) return false
+        var token = admitted.operationId
         if (retryExternal) {
             externalRejection = null; failure = ""; externalRecoveryOnly = false
         }
@@ -104,7 +111,11 @@ Item {
                 dialog.dialogReject()
                 return
             }
+            var opened = operations().openRequest(attempt, identity, "app-close",
+                {origin: browser.browserRequests.originLabel(dialog.securityOrigin)})
+            if (!opened.opened) { dialog.dialogReject(); return }
             request = dialog
+            requestId = opened.requestId
             retryExternalCancellation = false
             consent = {identity: Object.assign({}, identity), attempt: attempt, kind: "close",
                 origin: browser.browserRequests.originLabel(dialog.securityOrigin)}
@@ -114,8 +125,12 @@ Item {
             // later exact windowCloseRequested distinguishes terminal site close.
             var key = sessions.browserIdentity(sessionId)
             if (!key.spaceId) { dialog.dialogReject(); return }
+            var external = operations().openRequest("", key, "external-unload",
+                {origin: browser.browserRequests.originLabel(dialog.securityOrigin)})
+            if (!external.opened) { dialog.dialogReject(); return }
             request = dialog
-            consent = {identity: key, attempt: "unload:" + (++externalSerial), kind: "unload",
+            requestId = external.requestId
+            consent = {identity: key, attempt: external.requestId, kind: "unload",
                 loadGeneration: browser.navigationGeneration,
                 origin: browser.browserRequests.originLabel(dialog.securityOrigin)}
         }
@@ -123,8 +138,16 @@ Item {
     }
     function answer(token, leave) {
         if (!request || !consent || consent.attempt !== token || !identityMatches(consent.identity)) return false
+        var checked = operations().answerRequest(requestId, consent.identity)
+        if (!checked.valid) {
+            // Duplicate or retargeted answer: the native dialog still needs
+            // its terminal, so reject rather than leave it pending.
+            request.dialogReject()
+            request = null; consent = null
+            return false
+        }
         var dialog = request, ticket = consent
-        request = null; consent = null
+        request = null; consent = null; requestId = ""
         if (ticket.kind === "unload") {
             externalAccepted = leave ? ticket.identity : null
             if (!leave) {
@@ -159,22 +182,23 @@ Item {
         awaitingRejection = true
         rejectionDeadline.restart()
         var dialog = request
-        request = null; consent = null
+        request = null; consent = null; requestId = ""
         changed()
         if (dialog) dialog.dialogReject()
         return true
     }
     function settleCancellation() {
         var cancelled = cancellationRequested
-        if (matches()) sessions.settleBrowserClose(identity, attempt, false, {})
+        if (matches()) operations().settleOperation(identity, attempt, "cancelled",
+            "cancelled-navigation", "window-close-rejected", {})
         retiredBarrier = false
         staleAcknowledgementFence = false // actual old-operation terminal, not elapsed time
         clearLocal()
         if (cancelled) cancellationSettled()
     }
     function finishRetiredBarrier() {
-        if (retiredAttempt && identityMatches(retiredIdentity))
-            sessions.settleBrowserClose(retiredIdentity, retiredAttempt, false, {})
+        if (retiredAttempt) operations().settleOperation(retiredIdentity, retiredAttempt,
+            "invalidated", "retired-barrier", {})
         retiredBarrier = false; retiredIdentity = null; retiredAttempt = ""; failure = ""
         staleAcknowledgementFence = false
         rejectionDeadline.stop()
@@ -225,7 +249,13 @@ Item {
         var descriptor = {url: String(browser.url), title: browser.title}
         engineClosed = true
         clearLocal()
-        sessions.settleBrowserClose(key, token, true, descriptor)
+        var settled = operations().settleOperation(key, token, "succeeded", "window-close",
+            "window-close-acknowledged", {descriptor: descriptor})
+        if (!settled.settled) {
+            engineClosed = false
+            failure = "This Qt runtime did not verify the close. The space is unchanged."
+            changed()
+        }
     }
     function acknowledge() {
         if (!browser || browser.closingSession) return
@@ -241,9 +271,10 @@ Item {
     function rendererTerminated() {
         // A dead renderer cannot acknowledge rejection later. Preserve canonical
         // space, settle its pending attempt false, and invalidate old callbacks.
-        if (pending && matches()) sessions.settleBrowserClose(identity, attempt, false, {})
-        if (retiredAttempt && identityMatches(retiredIdentity))
-            sessions.settleBrowserClose(retiredIdentity, retiredAttempt, false, {})
+        if (pending && matches()) operations().settleOperation(identity, attempt, "failed",
+            "renderer-terminated", "renderer-process-terminated", {})
+        if (retiredAttempt) operations().settleOperation(retiredIdentity, retiredAttempt,
+            "invalidated", "renderer-terminated-retired", {})
         var dialog = request
         clearLocal()
         externalAccepted = null; externalRejection = null; externalRecoveryOnly = false
