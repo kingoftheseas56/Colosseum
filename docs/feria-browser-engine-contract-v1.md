@@ -1,6 +1,6 @@
 # Feria browser engine contract v1
 
-Status: proposed design for review, 2026-10-08. This document defines required behavior and delivery boundaries; it does not claim the interface exists or that either engine has passed qualification.
+Status: behavior contract with navigation/close slice authorized for GLM implementation, updated 2026-10-08. The complete V1 interface remains a design target; this document does not claim it exists or that either assembled engine adapter has passed parity qualification. Unresolved product decisions remain unresolved.
 
 ## Goal and scope
 
@@ -30,7 +30,7 @@ Preserve the existing identity fields: accountEpoch, profileId, spaceId, pageGen
 
 The adapter binding additionally identifies engineId and its opaque profile handle. Ordinary/private and engine storage partitions must remain distinguishable even when they share a logical Colosseum account. Native profile handles are not canonical identities.
 
-Commands and callbacks carry captured identity plus a unique operationId. Navigation adds a native navigation identifier; page requests add their source frame/origin. SessionStore coordinates identity changes; adapters cannot invent canonical generations. Distinguish provisional navigation from main-document replacement and settle the correct native navigation attempt.
+Commands and callbacks carry captured identity plus a unique operationId allocated before native dispatch. A native navigation identifier is attached when actually emitted; it is not a prerequisite for capturing or cancelling a close attempt. Capture source frame/origin when the native request exposes them; mark unavailable provenance explicitly and block decisions that require evidence the API cannot supply. Never infer source from the selected space. SessionStore coordinates identity changes; adapters cannot invent canonical generations. Distinguish provisional navigation from main-document replacement and settle the correct native navigation attempt.
 
 Reject late callbacks from an old account, profile, replaced page, transferred host or retired operation. A stale callback cannot consume a restore offer, select another space, answer another page's permission request, resume unrelated media or destroy a replacement view.
 
@@ -38,7 +38,7 @@ Native objects remain inside the adapter. Shared code sees a typed request token
 
 ## Adapter surface
 
-These are semantic operation names, not declarations of existing APIs. GLM must map each to current code and supported native APIs before Dots implements it.
+These are semantic operation names, not declarations of existing APIs. GLM will map and implement the navigation/close slice against current code and supported native APIs. Other operation groups remain separate bounded assignments. Shared rules/state are implemented once; engine-specific mechanisms require explicit adapters and qualification, not automatic source-code translation.
 
 | Operation group | Required behavior |
 | --- | --- |
@@ -72,7 +72,19 @@ Use actual native back/forward state. A native new-window request must not becom
 
 Shared routing chooses app space versus permitted native auxiliary window. Engine adapters cannot create an unregistered competing window/session owner. Existing native host capability does not require a generic visible 'Open in separate window' menu action.
 
-A per-space close acts only on that space. A close-app operation, when invoked, enumerates that app's spaces through the same transactions and stops further close dispatch after Stay or a blocking failure. Report any spaces already closed; do not claim the multi-space operation is atomic or recreate them silently. Leaving cancels no unrelated navigation. Stay preserves the space; retry is allowed only after an observed native cancellation/terminal barrier. Preserve opener dependencies until qualified native retirement is possible. Account sign-out/switch cannot complete while old profile teardown is unresolved.
+A per-space close acts only on that space. A close-app operation, when invoked, enumerates that app's spaces through the same transactions and stops further close dispatch after Stay or a blocking failure. Report any spaces already closed; do not claim the multi-space operation is atomic or recreate them silently. Leaving cancels no unrelated navigation. Stay preserves the space; retry requires the engine-specific rejection/decision completion described below, not elapsed time. Preserve opener dependencies until qualified native retirement is possible. Account sign-out/switch cannot complete while old profile teardown is unresolved.
+
+#### Consented-close adapter semantics
+
+The shared owner captures the original identity, explicit close operation and safe reopen descriptor before dispatch. A consent request has its own one-use request token bound to that operation and source document. Ordinary site/navigation unload consent is distinct from app close intent; answering Leave on such a request does not itself authorize deleting a space.
+
+- QtWebEngine retains its qualified RequestClose/close/rejection path, including its actual rejection barrier and version-specific limits. Do not replace working native handling with a synthetic JavaScript result or weaken its guards to resemble WebView2.
+- In the isolated Windows WebView2 probe, native Navigate(about:blank) triggered ScriptDialogOpening beforeunload. Stay completed the retained deferral without Accept and preserved the original document. It cancelled before NavigationStarting, so no native navigation ID or NavigationCompleted cancellation existed. Record the exact Stay decision and successful native deferral completion for the current captured operation; do not fabricate a renderer rejection callback or wait forever for a nonexistent navigation event. Immediate retry must be verified through the assembled adapter as well.
+- WebView2 Leave calls Accept and completes the deferral, then remains pending until correlated native navigation completion and actual departure of the original document are proven. Controller Close, S_OK from dispatch, Accept, DOM readiness and a timer are insufficient evidence of successful consented close.
+- An internal unload navigation belongs to the captured close operation. It must not appear as a user address/history entry, consume a restore/reopen offer, advance the canonical space as a newly browsed document, or replace the original descriptor with about:blank. If the adapter cannot safely distinguish its unload from competing navigation or document replacement, invalidate/block instead of closing a replacement document.
+- Late answers, duplicate answers, disposal, account/profile/host changes and renderer loss must settle the affected operation once and safely drain native requests. Test invalidation while a consent deferral is outstanding. Timeouts remain failed/blocked, never successful close or assumed cancellation. Existing account teardown sequencing remains authoritative.
+
+Evidence: standalone native probe commit `1197508b0ecf8199afb42131e5aeea4eeeb1662d`, `tests/feria_webview2_close_probe/README.md`; WebView2 SDK 1.0.3800.47 / runtime 154.0.4258.62, 38 assertions passed twice with the forced-disposal negative control rejected. This qualifies native API feasibility, not SessionStore/deck/full-app integration, private profiles, renderer races or DRM. Windows results do not establish Qt/Linux parity.
 
 Header X scope is an unresolved product decision: close current space versus close app. Implement both semantic operations, preserve current behavior until Hemanth chooses the binding, and do not infer it from Windows appearance.
 
@@ -123,9 +135,9 @@ Windows adapter parity and media/provider qualification are separate reports. Li
 
 Delivery responsibilities:
 
-- Codex: approve shared contract interpretation, own shared-policy/deck integration, receiving review and accepted main integration.
-- GLM: produce the current-code/native-API mapping, identify gaps and independence boundaries, and review each candidate against this contract.
-- Dots: implement bounded WebView2 native adapter batches on its assigned branch. Batch 1: retained spaces/profile identity; batch 2: requests/windows/close; batch 3: lifecycle/downloads/recovery. Include evidence, limits and exact commits.
+- Codex: maintain the contract, review implementation and evidence, independently qualify receiving behavior, and own accepted main integration.
+- GLM: implement the shared navigation/close seam, both engine adapters and the minimum existing-owner/deck integration needed to exercise them on an isolated branch. Include a concise current-code/native-API mapping, scoped regression checks, real-engine evidence and exact commits. The first slice is specified in [the GLM implementation brief](feria-glm-shared-layer-slice-1.md).
+- Dots: continue its separately assigned Qt/shared capabilities 16-20 audit/prototype work on its own branch. It does not own this GLM navigation/close slice. Download-source engine patches, codec builds and later adapter groups are separate assignments.
 - Preflight: independently qualify the actual Windows host and report reproducible evidence. Coordination artifacts do not become Codex operating authority.
 - Hemanth with Codex: signed-in Netflix acceptance; Codex prepares diagnostics and interprets failures. Basic functional verification does not depend on Hemanth manually piloting every test.
 
@@ -133,6 +145,6 @@ Before implementation, assign exact file ownership per batch. Do not have parall
 
 ## Review gates
 
-This is the proposed interface/behavior contract, not the implementation plan. GLM's mapping must identify any native API limitation before a capability is promised. Hemanth reviews the contract, especially header X and any unsupported live-host transfer; the reviewed mapping then informs the written implementation plan and bounded batches. Do not infer DRM success, live provider sign-in success, or full-app qualification from existing Qt foundation test totals.
+GLM implementation of the bounded navigation/close slice is authorized; the linked brief is its execution scope. Report newly discovered API limitations before promising a capability, continue independent in-scope work and fail honestly where proof is unavailable. Header X binding, live presentation transfer and other V1 groups are not silently decided by this assignment. Codex receiving review precedes production integration. Do not infer DRM success, live provider sign-in success, or full-app qualification from existing Qt foundation test totals. No Preflight document bootstrap is required or authorized by this contract.
 
 Native mapping references: [WebView2 core API](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2), [WebView2 new-window request/deferral](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2newwindowrequestedeventargs), [Qt codecs and HTML5 DRM](https://doc.qt.io/qt-6.10/qtwebengine-features.html#html5-drm). Verify mappings against the installed SDK/runtime; these references do not qualify Colosseum's behavior.
