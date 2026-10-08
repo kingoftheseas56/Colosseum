@@ -259,6 +259,7 @@ int FeriaBrowserPolicy::clearQtCookies(const QString &profilePath, const QString
 #include <QDesktopServices>
 #include <QFileInfo>
 #include <QJSValue>
+#include <QThread>
 #if defined(Q_OS_UNIX)
 #include <sys/stat.h>
 #elif defined(Q_OS_WIN)
@@ -431,6 +432,26 @@ bool FeriaBrowserPolicy::registerDownloadOwner(QObject *owner, QObject *accountS
 
 bool FeriaBrowserPolicy::unregisterDownloadOwner(QObject *owner) {
     return m_downloadOwners.remove(owner) != 0;
+}
+
+bool FeriaBrowserPolicy::observeDownloadRequestLifetime(QObject *owner, QObject *request, const QString &id) {
+    if (!owner || !request || id.isEmpty() || id.size() > 100
+        || owner->thread() != request->thread() || owner->thread() != QThread::currentThread()
+        || owner->metaObject()->indexOfMethod("nativeRequestDestroyed(QVariant)") < 0) return false;
+    const QVariant value = owner->property("profile");
+    QObject *profile = value.value<QObject *>();
+    if (!profile && value.metaType().id() == qMetaTypeId<QJSValue>()) profile = value.value<QJSValue>().toQObject();
+    if (!requestBelongsToProfile(request, profile)) return false;
+    // This is a disappearance notification, not account or file authorization.
+    // Keep it through account retirement so draining entries clear dead handles.
+    // The receiver context disconnects when the owner dies; no request pointer
+    // crosses the callback, and the policy retains no transfer registry.
+    return bool(connect(request, &QObject::destroyed, owner,
+        [ownerGuard = QPointer<QObject>(owner), id] {
+            if (!ownerGuard) return;
+            QMetaObject::invokeMethod(ownerGuard.data(), "nativeRequestDestroyed", Qt::DirectConnection,
+                                      Q_ARG(QVariant, QVariant(id)));
+        }));
 }
 
 QVariantMap FeriaBrowserPolicy::downloadOwnerScope(QObject *owner) const {

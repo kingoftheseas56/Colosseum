@@ -15,6 +15,7 @@ Item {
     required property var profile
     property var accountStore: null
     property var policy: null
+    property var requestLifetimeObserver: policy
     property bool privateBrowsing: false
     property bool active: profile !== null
     property bool retired: false
@@ -31,6 +32,7 @@ Item {
     property int decisionSerial: 0
     property string ownerBinding: "qt-download-owner-" + Date.now() + "-" + Math.random().toString(36).slice(2)
     property string destinationPolicy: "autoSave"
+    property string lastAdmissionFailure: ""
     // Pinned Qt Quick view() dereferences a raw adapterClient even for an
     // originless request. page() supplies no Quick alternative. Never evaluate
     // either getter here. A future qualified adapter may supply an immutable
@@ -56,6 +58,27 @@ Item {
 
     function openPanel() { panelOpen = true }
     function cancelActive() { retire("account-retired") }
+    function requestAvailable(request) { return !!request && Qt.isQtObject(request) }
+    function nativeRequestDestroyed(id) {
+        for (var entry of items.concat(draining)) {
+            if (entry.downloadId !== id) continue
+            entry.markRequestLost()
+            entry.request = null
+            publish()
+            return
+        }
+        if (pageSaveIntent && pageSaveIntent.token === id && rejectedPageRequest) {
+            rejectedPageRequest = null
+            nativeSaveOutcome = {status:"failed", reason:"rejected-native-request-lost",
+                operationId:pageSaveIntent.source.operationId, nativeDrain:"unconfirmed"}
+            nativeSaveStateChanged()
+            publish()
+        }
+    }
+    function watchRequest(request, id) {
+        return requestLifetimeObserver && typeof requestLifetimeObserver.observeDownloadRequestLifetime === "function"
+            ? requestLifetimeObserver.observeDownloadRequestLifetime(root, request, id) : false
+    }
     function registerOwner() {
         if (policy && accountStore && typeof policy.registerDownloadOwner === "function")
             policy.registerDownloadOwner(root, accountStore)
@@ -78,10 +101,12 @@ Item {
         return captured ? JSON.parse(JSON.stringify(captured)) : {}
     }
     function createEntry(request, source) {
+        lastAdmissionFailure = ""
         var accountScope = policy && typeof policy.downloadOwnerScope === "function"
             ? policy.downloadOwnerScope(root) : {}
         if (policy && typeof policy.downloadOwnerScope === "function" && accountScope.accountGeneration === undefined) {
             request.cancel()
+            lastAdmissionFailure = "account-scope-retired"
             message(qsTr("The download belongs to a retired account scope."))
             return null
         }
@@ -92,6 +117,7 @@ Item {
             ? policy.admitDownloadDestination(request.downloadDirectory, request.downloadFileName) : {}
         if (policy && admission.status !== "admitted") {
             request.cancel()
+            lastAdmissionFailure = "destination-rejected"
             message(qsTr("The download destination is unavailable or unsafe."))
             return null
         }
@@ -109,10 +135,17 @@ Item {
             received: request.receivedBytes, total: request.totalBytes, state: request.state,
             paused: request.isPaused, finished: request.isFinished, sourceUrl: String(request.url)
         })
+        if (!entry || !watchRequest(request, downloadId)) {
+            lastAdmissionFailure = "lifetime-observer-unavailable"
+            if (entry) { entry.invalidated = true; entry.request = null; entry.destroy() }
+            request.cancel()
+            message(qsTr("This download cannot be safely tracked by the current engine owner."))
+            return null
+        }
         return entry
     }
     function receive(request) {
-        if (!request) return
+        if (!requestAvailable(request)) return
         var key = request.id === undefined ? "" : String(request.id)
         if ((key.length && seenNativeIds[key]) || items.some(function(item) { return item.request === request })) return
         if (!active || retired) { request.cancel(); return }
@@ -146,7 +179,7 @@ Item {
         var source = sourceForRequest(request)
         var entry = createEntry(request, source)
         if (!entry) {
-            if (request.isSavePageDownload) rejectPageOffer(request, "destination-rejected")
+            if (request.isSavePageDownload) rejectPageOffer(request, lastAdmissionFailure || "admission-rejected")
             return
         }
         if (key.length) seenNativeIds[key] = entry.downloadId
@@ -166,6 +199,7 @@ Item {
         if (ownsSlot) {
             rejectedPageRequest = request
             rejectedPageReason = reason
+            watchRequest(request, pageSaveIntent.token)
             if (reason === "source-invalidated") pageSaveIntent.invalidated = true
         }
         if (!request.isFinished) request.cancel()
@@ -173,8 +207,9 @@ Item {
     }
     function settleRejectedPageOffer() {
         var request = rejectedPageRequest
-        if (!pageSaveIntent || !request || !request.isFinished) return
+        if (!pageSaveIntent || !requestAvailable(request) || !request.isFinished) return
         nativeSaveOutcome = {status: pageSaveIntent.invalidated || rejectedPageReason === "source-invalidated" ? "invalidated"
+            : rejectedPageReason === "lifetime-observer-unavailable" ? "unsupported"
             : rejectedPageReason === "destination-rejected" ? "rejected"
             : request.state === WebEngineDownloadRequest.DownloadCancelled ? "cancelled" : "failed",
             reason: rejectedPageReason, operationId: pageSaveIntent.source.operationId,
@@ -267,7 +302,7 @@ Item {
         nativeSaveOutcome = {status: "invalidated", reason: String(reason || "source-retired"),
             operationId: pageSaveIntent.source.operationId, nativeDrain: "unconfirmed"}
         var entry = findEntry(pageSaveIntent.downloadId)
-        if (entry && entry.request && !entry.request.isFinished) entry.cancel()
+        if (entry && requestAvailable(entry.request) && !entry.request.isFinished) entry.cancel()
         // Before native delivery there is no supported cancellation handle.
         // Retain the barrier until profile teardown; no timeout is a drain ACK.
         nativeSaveStateChanged()
@@ -345,7 +380,7 @@ Item {
         for (var entry of previous) {
             entry.invalidated = true
             entry.releaseAuthorization()
-            if (entry.request && !entry.request.isFinished) entry.request.cancel()
+            if (requestAvailable(entry.request) && !entry.request.isFinished) entry.request.cancel()
             // Keep QObject references/observers through profile destruction.
             // Cancelled/isFinished describe Qt's wrapper, not a physical-file
             // cleanup or native-drain acknowledgement.
@@ -464,6 +499,7 @@ Item {
             property bool nativeFinished: false
             property bool recorded: false
             property string metadataState: "pending"
+            property string metadataReason: ""
             readonly property bool metadataPending: metadataState === "retryable"
             property bool notified: false
             property bool settlePending: false
@@ -477,9 +513,9 @@ Item {
             property bool paused: false
             property bool finished: false
             readonly property bool completed: !cancelledTerminal && state === WebEngineDownloadRequest.DownloadCompleted
-            readonly property bool canPause: !!request && !invalidated && !cancelledTerminal && !request.isFinished && request.state === WebEngineDownloadRequest.DownloadInProgress && !request.isPaused
-            readonly property bool canResume: !!request && !invalidated && !cancelledTerminal && !request.isFinished && (request.isPaused || request.state === WebEngineDownloadRequest.DownloadInterrupted)
-            readonly property bool canCancel: !!request && !invalidated && !cancelledTerminal && !request.isFinished && request.state !== WebEngineDownloadRequest.DownloadCompleted && request.state !== WebEngineDownloadRequest.DownloadCancelled
+            readonly property bool canPause: root.requestAvailable(request) && !invalidated && !cancelledTerminal && !request.isFinished && request.state === WebEngineDownloadRequest.DownloadInProgress && !request.isPaused
+            readonly property bool canResume: root.requestAvailable(request) && !invalidated && !cancelledTerminal && !request.isFinished && (request.isPaused || request.state === WebEngineDownloadRequest.DownloadInterrupted)
+            readonly property bool canCancel: root.requestAvailable(request) && !invalidated && !cancelledTerminal && !request.isFinished && request.state !== WebEngineDownloadRequest.DownloadCompleted && request.state !== WebEngineDownloadRequest.DownloadCancelled
             readonly property string terminalOutcome: invalidated ? "invalidated" : requestLost ? "failed"
                 : cancelledTerminal ? "cancelled" : completed ? "succeeded"
                 : state === WebEngineDownloadRequest.DownloadCancelled ? "cancelled"
@@ -503,7 +539,7 @@ Item {
             }
             onRequestChanged: if (entryReady && !request) markRequestLost()
             function observeNativeState() {
-                if (!request || cancelledTerminal) return
+                if (!root.requestAvailable(request) || cancelledTerminal) return
                 if (request.state === WebEngineDownloadRequest.DownloadCancelled) {
                     cancelledTerminal = true
                     fileSnapshot = ({})
@@ -512,7 +548,7 @@ Item {
                 }
             }
             function dependsOnProfile() {
-                return !!request && (settlePending || !finished)
+                return root.requestAvailable(request) && (settlePending || !finished)
             }
             function snapshot() {
                 return {downloadId: downloadId, requestToken: downloadId, decisionToken: decisionConsumed ? "" : decisionToken,
@@ -521,13 +557,13 @@ Item {
                     privateDownload: privateDownload, profileInstanceId: profileId,
                     accountScope: JSON.parse(JSON.stringify(accountScope)),
                     engineId: "qtwebengine", state: cancelledTerminal ? WebEngineDownloadRequest.DownloadCancelled : state,
-                    nativeState: nativeState, nativeFinished: nativeFinished, nativeAvailable: !!request,
+                    nativeState: nativeState, nativeFinished: nativeFinished, nativeAvailable: root.requestAvailable(request),
                     requestLost: requestLost, status: status,
                     terminal: terminalOutcome, terminalOutcome: terminalOutcome,
                     received: received, total: total,
                     totalKnown: total >= 0, indeterminate: total <= 0 && !finished && terminalOutcome.length === 0,
                     paused: paused, finished: finished, completed: completed,
-                    metadataState: metadataState, canPause: canPause, canResume: canResume,
+                    metadataState: metadataState, metadataReason: metadataReason, canPause: canPause, canResume: canResume,
                     resumeGuarantee: false, canCancel: canCancel,
                     cancellationRequested: cancellationRequested, cleanupConfirmed: false,
                     canOpen: completed && !invalidated && !!fileSnapshot.path,
@@ -536,7 +572,7 @@ Item {
                     openCapability: "owner-resolved-file", revealCapability: "containing-folder-only"}
             }
             function acceptDecision(token, decision) {
-                if (!request || invalidated || decisionConsumed || token !== decisionToken
+                if (!root.requestAvailable(request) || invalidated || decisionConsumed || token !== decisionToken
                         || request.state !== WebEngineDownloadRequest.DownloadRequested)
                     return {status: "invalidated"}
                 if (decision.cancel === true) {
@@ -580,7 +616,7 @@ Item {
             }
             function update() {
                 settlePending = false
-                if (!request) { root.publish(); return }
+                if (!root.requestAvailable(request)) { markRequestLost(); root.publish(); return }
                 name = request.downloadFileName
                 directory = request.downloadDirectory
                 received = request.receivedBytes
@@ -607,16 +643,33 @@ Item {
                     // Qt emits stateChanged(Completed) before the final byte
                     // properties. This callback runs after that native update.
                     if (!notified) { notified = true; root.message(qsTr("Downloaded %1.").arg(name)) }
-                    if (root.policy && !fileSnapshot.path)
-                        fileSnapshot = root.policy.completedDownloadFile(admission)
-                    commitMetadata()
+                    if (!destinationMatchesAdmission()) {
+                        fileSnapshot = ({})
+                        metadataState = "rejected"
+                        metadataReason = "native-destination-changed"
+                        releaseAuthorization()
+                    } else {
+                        if (root.policy && !fileSnapshot.path)
+                            fileSnapshot = root.policy.completedDownloadFile(admission)
+                        commitMetadata()
+                    }
                 }
                 root.settleNativeSave(entry)
                 root.pruneFinished()
                 root.publish()
             }
+            function destinationMatchesAdmission() {
+                if (!admission.path) return !root.policy
+                function directoryKey(value) {
+                    var result = String(value || "").replace(/\\/g, "/")
+                    while (result.length > 1 && result.endsWith("/")) result = result.slice(0, -1)
+                    return result
+                }
+                return directoryKey(directory) === directoryKey(admission.directory)
+                    && name === String(admission.fileName)
+            }
             function commitMetadata() {
-                if (recorded || invalidated || cancelledTerminal || !completed || !request) return
+                if (recorded || invalidated || cancelledTerminal || !completed || !root.requestAvailable(request)) return
                 if (privateDownload || !downloadToken.length) {
                     metadataState = privateDownload ? "private" : "blockedSourceIdentity"
                     recorded = true
@@ -635,6 +688,7 @@ Item {
                 var result = typeof metadataStore.recordBrowserDownloadResult === "function"
                     ? metadataStore.recordBrowserDownloadResult(descriptor) : {status: "rejected", reason: "typed-owner-required"}
                 metadataState = result.status
+                metadataReason = String(result.reason || "")
                 if (metadataState === "recorded") { recorded = true; releaseAuthorization() }
                 else if (metadataState === "retryable")
                     root.message(qsTr("The file downloaded, but its history could not be saved. Retry saving history."))
@@ -704,7 +758,8 @@ Item {
                     Text { Layout.fillWidth: true; text: modelData.name; textFormat: Text.PlainText; elide: Text.ElideMiddle; color: theme.ink; font.family: theme.ui }
                     Text { text: modelData.status; color: theme.inkDim; font.family: theme.ui }
                     Text { visible: modelData.metadataState === "blockedSourceIdentity"; text: qsTr("File saved. Source history is unavailable on this engine."); color: theme.inkDim; font.family: theme.ui }
-                    ProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1, modelData.total); value: modelData.received; indeterminate: modelData.indeterminate }
+                    Text { visible: modelData.metadataReason === "native-destination-changed"; text: qsTr("The file finished, but its destination could not be verified."); color: theme.inkDim; font.family: theme.ui }
+                    ProgressBar { objectName: "downloadProgress-" + modelData.downloadId; visible: !(modelData.completed && modelData.total <= 0); Layout.fillWidth: true; from: 0; to: Math.max(1, modelData.total); value: modelData.received; indeterminate: modelData.indeterminate }
                     RowLayout {
                         Account.AccountButton { visible: modelData.metadataState === "retryable"; text: qsTr("Retry saving history"); onClicked: root.retryMetadata(modelData.downloadId) }
                         Account.AccountButton { visible: modelData.canPause || modelData.canResume; text: modelData.canResume ? qsTr("Try resume") : qsTr("Pause"); onClicked: root.requestDownloadAction(modelData.downloadId, modelData.downloadId + ":ui:" + (++root.requestSerial), modelData.canResume ? "resume" : "pause") }

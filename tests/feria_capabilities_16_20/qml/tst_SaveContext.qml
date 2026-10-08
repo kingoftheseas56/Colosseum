@@ -10,8 +10,9 @@ Item {
     property var owner: null
     property var nativeProfile: null
     property var viewer: null
+    property Item presentedTools: null
     property int serial: 0
-    Feria.FeriaSaveContextBar { id: contextBar; width: parent.width; tools: surface.page ? surface.page.pageTools : null }
+    Feria.FeriaSaveContextBar { id: contextBar; width: parent.width; tools: surface.presentedTools || (surface.page ? surface.page.pageTools : null) }
     Component {
         id: profileFactory
         WebEngineProfile {
@@ -46,6 +47,23 @@ Item {
         }
     }
     Component { id: viewerFactory; WebEngineView { width: 500; height: 400; visible: false } }
+    // Presentation-only replacement controller. Native capture/actions remain
+    // exercised on the real PageTools; this double observes accidental retargeting.
+    Component {
+        id: replacementToolsFactory
+        Item {
+            property var contextSnapshot: null
+            property bool canSavePage: false
+            property bool canSaveLink: true
+            property bool canSaveImage: false
+            property bool canSaveMedia: false
+            property int calls: 0
+            function admittedSaveUrl(value) { return true }
+            function contextNativeAction(id, kind) { ++calls }
+            function saveFromContext(id, kind) { ++calls }
+            function invalidateSaveContext(reason) { contextSnapshot = null }
+        }
+    }
     TestCase {
         id: suite
         name: "FeriaNativeSave20"
@@ -73,6 +91,7 @@ Item {
             compare(page.mainFrame.children.length, 0, "Qt 6.11.1 public mainFrame.children is exercised")
         }
         function cleanup() {
+            if (presentedTools) { presentedTools.destroy(); presentedTools = null; wait(0) }
             if (viewer) { viewer.destroy(); viewer = null }
             if (owner) {
                 for (var entry of owner.items) if (entry.request && !entry.request.isFinished) entry.request.cancel()
@@ -225,15 +244,32 @@ Item {
                 tryVerify(function() { return !owner.pendingPageSaveForView(page) },5000)
                 viewer = viewerFactory.createObject(surface)
                 verify(viewer !== null)
-                var loaded = false, succeeded = false
-                function loadedPage(info) { if (info.status === WebEngineView.LoadSucceededStatus) { loaded=true;succeeded=true } else if(info.status===WebEngineView.LoadFailedStatus) loaded=true }
+                var loaded = false, succeeded = false, targetUrl = "file://" + path
+                function loadedPage(info) {
+                    console.info("SAVE_ROUNDTRIP_LOAD",JSON.stringify({format:format,target:targetUrl,url:String(info.url),status:info.status}))
+                    if (String(info.url) !== targetUrl) return
+                    if (info.status === WebEngineView.LoadSucceededStatus) { loaded=true;succeeded=true }
+                    else if(info.status===WebEngineView.LoadFailedStatus) loaded=true
+                }
                 viewer.loadingChanged.connect(loadedPage)
-                viewer.url = "file://" + path
-                tryVerify(function() { return loaded },15000)
+                viewer.url = targetUrl
+                tryVerify(function() { return loaded && !viewer.loading && String(viewer.url) === targetUrl },15000)
                 verify(succeeded,"Saved native format must load again")
-                var done=false, marker=false
-                viewer.runJavaScript("document.body.innerText.includes('FERIA_SAVE_PAGE_MARKER')",function(value){marker=value;done=true})
-                tryVerify(function(){return done},5000); verify(marker)
+                if (Fixture.evidenceRoot.length)
+                    verify(Fixture.copyToEvidence(path,"category20-saved-format-" + format + (format === WebEngineDownloadRequest.MimeHtmlSaveFormat ? ".mhtml" : ".html")))
+                console.info("SAVE_ROUNDTRIP", JSON.stringify({format:format, path:path, bytes:Fixture.pathSize(path),
+                    fileContainsMarker:Fixture.readText(path).indexOf("FERIA_SAVE_PAGE_MARKER") >= 0,
+                    viewerUrl:String(viewer.url), title:viewer.title}))
+                // MHTML intentionally disables main-world scripts. Native Find
+                // verifies actual rendered text without changing its sandbox.
+                var found=false, matches=0
+                function findFinished(result) { matches=result.numberOfMatches; found=true }
+                viewer.findTextFinished.connect(findFinished)
+                viewer.findText("FERIA_SAVE_PAGE_MARKER")
+                tryVerify(function(){return found},5000)
+                compare(matches,1,"Saved format must render the fixture marker: " + format)
+                viewer.findTextFinished.disconnect(findFinished)
+                viewer.loadingChanged.disconnect(loadedPage)
                 viewer.destroy(); viewer=null
             }
         }
@@ -259,19 +295,79 @@ Item {
             verify(!Fixture.fileExists(entry.path))
             compare(FeriaAccount.browserDownloadHistory.length,historyBefore)
         }
+        function test_contextButtonPressCannotTargetReplacementContext() {
+            for (var name of ["feriaContextSaveResource", "feriaContextOpenLink", "feriaContextCopy"]) {
+                var original = context("linkA")
+                var button = findChild(contextBar, name)
+                verify(button !== null && button.visible && button.enabled)
+                page.pageTools.saveOutcome = {status:"not-dispatched"}
+                mousePress(button, button.width / 2, button.height / 2, Qt.LeftButton)
+                compare(button.contextIdAtPress, original.contextId)
+                // This presentation-boundary injection simulates a new native
+                // context notification while the actual QML button is held.
+                // The separate real A/right-click-B test qualifies native capture.
+                var replacement = page.pageTools.captureSaveContext({linkUrl:Fixture.baseUrl + "/download?name=beta.bin",
+                    mediaUrl:"",mediaType:ContextMenuRequest.MediaTypeNone,mediaFlags:0})
+                verify(replacement.contextId !== original.contextId)
+                mouseRelease(button, button.width / 2, button.height / 2, Qt.LeftButton)
+                compare(page.pageTools.saveOutcome.status,"invalidated", "Held context action must reject replacement before release")
+                compare(owner.items.length,0)
+            }
+            compare(findChild(contextBar,"feriaContextTarget").textFormat,Text.PlainText)
+        }
+        function test_contextButtonRetainsOwnerAcrossEqualIds() {
+            var original = context("linkA")
+            var button = findChild(contextBar,"feriaContextCopy")
+            page.pageTools.saveOutcome = {status:"not-dispatched"}
+            mousePress(button,button.width/2,button.height/2,Qt.LeftButton)
+            var replacement = replacementToolsFactory.createObject(surface,{contextSnapshot:Object.assign({},original)})
+            verify(replacement !== null)
+            surface.presentedTools = replacement
+            compare(contextBar.snapshot.contextId,original.contextId,"Fixture intentionally collides local context IDs")
+            mouseRelease(button,button.width/2,button.height/2,Qt.LeftButton)
+            compare(replacement.calls,0,"Click must never invoke a replacement context owner")
+            compare(page.pageTools.saveOutcome.status,"dispatched","Valid original Copy must still target its original native view")
+            surface.presentedTools = null
+            replacement.destroy()
+        }
+        function test_contextButtonDestroyedOwnerFailsClosed() {
+            var original = context("linkA")
+            var retiring = replacementToolsFactory.createObject(surface,{contextSnapshot:Object.assign({},original)})
+            surface.presentedTools = retiring
+            var button = findChild(contextBar,"feriaContextCopy")
+            page.pageTools.saveOutcome = {status:"not-dispatched"}
+            mousePress(button,button.width/2,button.height/2,Qt.LeftButton)
+            compare(button.toolsAtPress,retiring)
+            retiring.destroy()
+            tryCompare(button,"toolsAtPress",null,5000)
+            surface.presentedTools = null
+            mouseRelease(button,button.width/2,button.height/2,Qt.LeftButton)
+            compare(page.pageTools.saveOutcome.status,"not-dispatched","Destroyed original must not fall back to current tools")
+            compare(owner.items.length,0)
+        }
         function test_narrowContextControlsReserveWrappedHeight() {
             surface.width = 460
             context("linkA")
-            tryVerify(function() { return contextBar.height > 80 }, 5000)
+            tryCompare(contextBar,"width",460,5000)
+            verify(waitForRendering(surface))
+            console.info("NARROW_CONTEXT_LAYOUT", JSON.stringify({surfaceWidth:surface.width,barWidth:contextBar.width,barHeight:contextBar.height}))
+            if (Fixture.evidenceRoot.length) verify(Fixture.captureWindow(surface,"category20-narrow-context-controls.png"))
+            var firstY = -1, wrapped = false
             for (var name of ["feriaContextSavePage", "feriaSavePageFormat", "feriaContextSaveResource",
                     "feriaContextOpenLink", "feriaContextCopy", "feriaContextDismiss"]) {
                 var control = findChild(contextBar, name)
                 verify(control !== null)
                 if (!control.visible) continue
                 var point = control.mapToItem(contextBar, 0, 0)
+                console.info("NARROW_CONTEXT_CONTROL",JSON.stringify({name:name,x:point.x,y:point.y,width:control.width,height:control.height}))
+                if (firstY < 0) firstY = point.y
+                else if (point.y > firstY + control.height) wrapped = true
                 verify(point.x >= 0 && point.x + control.width <= contextBar.width,
                     name + " must fit inside narrow chrome")
+                verify(point.y >= 0 && point.y + control.height <= contextBar.height,
+                    name + " must fit inside reserved chrome height")
             }
+            verify(wrapped,"Narrow controls must wrap to a second row")
             verify(page.y >= contextBar.height)
         }
         function test_pageSaveCommitsSettledNativeBytesExactlyOnce() {
@@ -294,6 +390,15 @@ Item {
             entry.update(); entry.update()
             compare(FeriaAccount.browserDownloadHistory.length, 1, "Duplicate terminal delivery must not consume another grant")
             compare(FeriaAccount.browserDownloadHistory[0].receivedBytes, row.receivedBytes)
+        }
+        function test_pageSaveCapabilityReflectsReceivingEngineGate() {
+            owner.pageSaveIngressExclusive = false
+            context("linkA")
+            compare(page.pageTools.canSavePage,false)
+            compare(findChild(contextBar,"feriaContextSavePage").enabled,false)
+            compare(page.pageTools.savePage().status,"blocked")
+            compare(owner.items.length,0)
+            owner.pageSaveIngressExclusive = true
         }
         function test_noOwnerNoExplicitPathFallback() {
             page.saveAdmissionOwner=null

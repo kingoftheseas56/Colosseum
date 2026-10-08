@@ -62,7 +62,7 @@ public:
     }
     void reset() {
         for (auto &pending : m_pending) if (pending.socket) pending.socket->abort();
-        m_pending.clear(); m_released.clear(); m_log.clear();
+        m_pending.clear(); m_released.clear(); m_log.clear(); m_hashes.clear();
     }
     bool serve(QTcpSocket *socket, const QByteArray &request) {
         const auto fields = request.left(request.indexOf("\r\n")).split(' ');

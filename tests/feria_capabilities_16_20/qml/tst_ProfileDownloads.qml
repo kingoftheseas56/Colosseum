@@ -119,6 +119,9 @@ Item {
             compare(Fixture.pathSize(empty.path),0)
             compare(empty.entry.state,WebEngineDownloadRequest.DownloadCompleted)
             verify(!empty.entry.snapshot().indeterminate)
+            var emptyProgress=findChild(downloadSurface,"downloadProgress-"+empty.entry.downloadId)
+            verify(emptyProgress!==null)
+            compare(emptyProgress.visible,false,"Native completed zero-byte transfer has no empty progress bar")
             waitForRendering(surface)
             if (Fixture.evidenceRoot.length) verify(Fixture.captureWindow(surface,"downloads-completed.png"))
         }
@@ -206,7 +209,7 @@ Item {
             if (transfer.entry.completed) {
                 // The engine may legitimately fall back to a fresh full GET.
                 // Count success only with its actual native terminal and bytes.
-                complete(transfer,"")
+                complete(transfer,"no-range")
             } else {
                 compare(transfer.entry.completed,false)
                 compare(transfer.entry.snapshot().canOpen,false)

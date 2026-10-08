@@ -23,7 +23,7 @@ function receiver() {
         seenNativeIds: {}, sourceResolver: null, destinationPolicy:'autoSave',
         policy: null, panelOpen:false, rows:[], events:[],
         message(v) { root.events.push(v); },
-        publish() {}, pruneFinished() {}, registerOwner() {}, nativeSaveStateChanged() {},
+        publish() {}, pruneFinished() {}, registerOwner() {}, nativeSaveStateChanged() {}, requestAvailable:r=>!!r, watchRequest:()=>true,
         sourceForRequest() { return {}; },
         createEntry(request, source) { const entry = {request, source, downloadId:'id-'+root.items.length,
             acceptDecision() { request.accept(); }, scheduleUpdate() {},
@@ -72,14 +72,14 @@ function entryRuntime(overrides={}) {
     const store={attempts:0,releases:0,rows:[],outcome:'recorded',
         recordBrowserDownloadResult(row){this.attempts++;if(this.outcome==='recorded')this.rows.push(row);return {status:this.outcome};},
         cancelBrowserDownload(){this.releases++;}};
-    const root={profile:{},accountStore:store,active:true,retired:false,policy:null,publish(){},pruneFinished(){},settleNativeSave(){},message(){}};
+    const root={profile:{},accountStore:store,active:true,retired:false,policy:null,publish(){},pruneFinished(){},settleNativeSave(){},message(){},requestAvailable:r=>!!r};
     const e={request,root,metadataStore:store,owningProfile:root.profile,invalidated:false,recorded:false,completed:false,
-        cancelledTerminal:false,nativeState:1,nativeFinished:false,metadataState:'pending',downloadToken:'grant',privateDownload:false,downloadId:'p1:7',profileId:'p1',nativeId:'7',sourceUrl:'http://fixture/file',
+        cancelledTerminal:false,nativeState:1,nativeFinished:false,admission:{},metadataReason:'',metadataState:'pending',downloadToken:'grant',privateDownload:false,downloadId:'p1:7',profileId:'p1',nativeId:'7',sourceUrl:'http://fixture/file',
         path:'/fixture/file',name:'file',sessionId:'space-a',visitToken:'visit-a',fileSnapshot:{},notified:true,settlePending:false,
         state:1,canPause:true,canResume:false,canCancel:true,actionResults:{},cancellationRequested:false,...overrides};
     const ctx=vm.createContext({root,entry:e,Qt:{callLater:fn=>scheduled.push(fn)},qsTr:s=>s,WebEngineDownloadRequest:{DownloadRequested:0,DownloadInProgress:1,DownloadCompleted:2,DownloadCancelled:3,DownloadInterrupted:4}});
     for(const key of Object.keys(e))Object.defineProperty(ctx,key,{get:()=>e[key],set:v=>{e[key]=v;},configurable:true});
-    for(const name of ['releaseAuthorization','observeNativeState','acceptDecision','commitMetadata','update','scheduleUpdate','performAction']) {
+    for(const name of ['releaseAuthorization','observeNativeState','acceptDecision','destinationMatchesAdmission','commitMetadata','update','scheduleUpdate','performAction']) {
         vm.runInContext(entryFunction(name),ctx);e[name]=ctx[name];
     }
     return {e,request,store,root,scheduled,flush(){while(scheduled.length)scheduled.shift()();}};
@@ -124,7 +124,7 @@ test('unsupported resume stays blocked and dispatched resume is not success',()=
 function rootRuntime(initial,names) {
     const state={items:[],draining:[],rows:[],retired:false,active:true,profile:{},seenNativeIds:{},profileGeneration:1,
         pageSaveIntent:null,nativeSaveIntents:{},nativeSaveOutcome:{},panelOpen:true,idleProfileDetached:false,
-        publish(){},registerOwner(){},nativeSaveStateChanged(){},downloadDependenciesChanged(){},...initial};
+        publish(){},registerOwner(){},requestAvailable:r=>!!r,nativeSaveStateChanged(){},downloadDependenciesChanged(){},...initial};
     const ctx=vm.createContext({root:state,qsTr:s=>s,WebEngineDownloadRequest:{DownloadRequested:0,DownloadInProgress:1,DownloadCompleted:2,DownloadCancelled:3,DownloadInterrupted:4}});
     for(const key of Object.keys(state))Object.defineProperty(ctx,key,{get:()=>state[key],set:v=>{state[key]=v;},configurable:true});
     for(const name of names){vm.runInContext(ownerFunction(name),ctx);state[name]=ctx[name];}
@@ -250,4 +250,21 @@ test('rejected page authority cannot become succeeded on a late Completed wrappe
         r.settleRejectedPageOffer();assert.equal(r.nativeSaveOutcome.status,reason==='source-invalidated'?'invalidated':'rejected');
         assert.equal(r.nativeSaveOutcome.nativeState,2);
     }
+});
+test('settled native destination mismatch cannot mint file or history authority',()=>{
+    const r=entryRuntime({completed:true,admission:{path:'/fixture/approved.bin',directory:'/fixture',fileName:'approved.bin'}});
+    let seals=0;r.root.policy={completedDownloadFile(){seals++;return {path:'/fixture/approved.bin'};}};
+    r.request.state=2;r.request.isFinished=true;r.request.downloadDirectory='/fixture';r.request.downloadFileName='different.bin';
+    r.e.update();assert.equal(seals,0);assert.equal(r.store.attempts,0);assert.equal(r.e.completed,true);
+    assert.equal(r.e.metadataState,'rejected');assert.equal(r.e.metadataReason,'native-destination-changed');
+    assert.deepEqual(Object.keys(r.e.fileSnapshot),[]);
+});
+test('native destruction callback clears draining handle without affecting newer profile row',()=>{
+    const old={downloadId:'profile-1:7',request:{},invalidated:true,markRequestLost(){assert.equal(this.invalidated,true);}};
+    const current={downloadId:'profile-2:7',request:{},markRequestLost(){this.failed=true;}};
+    const currentHandle=current.request;
+    const r=rootRuntime({items:[current],draining:[old]},['nativeRequestDestroyed']);
+    r.nativeRequestDestroyed('profile-1:7');assert.equal(old.request,null);assert.equal(current.request,currentHandle);
+    r.draining=[];r.nativeRequestDestroyed('profile-1:7');assert.equal(current.request,currentHandle);
+    r.nativeRequestDestroyed('profile-2:7');assert.equal(current.request,null);assert.equal(current.failed,true);
 });

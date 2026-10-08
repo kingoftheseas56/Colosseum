@@ -58,12 +58,8 @@ Item {
             tryVerify(function() { return evaluate("oldMedia.currentTime>0.05 && !oldMedia.paused") }, 10000)
             evaluate("oldResumeCalls=0;true")
         }
-        function test_realAudioVideoOwnedOnlyAndInactiveVisibility() {
+        function test_realAudioVideoOwnedOnly() {
             startMedia()
-            // Hidden/inactive view alone is not an app/world-away reason.
-            page.visible = false; wait(250)
-            compare(evaluate("!playing.paused && !video.paused"), true)
-            page.visible = true
             suspend()
             compare(evaluate("playing.paused && video.paused && manual.paused"), true)
             resume()
@@ -71,6 +67,43 @@ Item {
             compare(page.presentationResult.outcome, "succeeded")
             compare(page.presentationResult.coverage.limited, true)
             verify(Fixture.captureWindow(surface, "category16-owned-audio-video.png"))
+        }
+        function test_inactiveAudibleMediaKeepsPlaying() {
+            evaluate("document.getElementById('video').muted=false;true")
+            startMedia()
+            var before = evaluate("({audio:playing.currentTime,video:video.currentTime})")
+            var serial = page.presentationSerial
+            page.visible = false; wait(350)
+            compare(evaluate("!playing.paused && !video.paused && manual.paused"), true)
+            verify(evaluate("playing.currentTime") > before.audio)
+            verify(evaluate("video.currentTime") > before.video)
+            compare(page.activitySuspended, false)
+            compare(page.presentationSerial, serial)
+            compare(evaluate("window.__feriaPresentationMedia.paused.size"), 0)
+            page.visible = true
+        }
+        function test_inactiveMutedVideoRetainsEngineVisibilityPolicy() {
+            // Exact 62057 and candidate7498 native diagnostics established this
+            // muted-video behavior with the same fixture and Qt6.11.1 build.
+            // It must never become a Colosseum-owned pause or a forced play.
+            evaluate("window.appPauseCalls=0;['playing','video'].forEach(function(id){var m=document.getElementById(id),pause=m.pause;m.pause=function(){++appPauseCalls;return pause.apply(this,arguments)}});true")
+            startMedia()
+            var serial = page.presentationSerial
+            page.visible = false
+            tryVerify(function() { return evaluate("video.paused") }, 5000)
+            compare(evaluate("!playing.paused && manual.paused && !video.ended"), true)
+            compare(evaluate("appPauseCalls"), 0)
+            compare(evaluate("window.__feriaPresentationMedia.paused.size"), 0)
+            compare(page.activitySuspended, false)
+            compare(page.presentationSerial, serial)
+            compare(page.lifecycleState, WebEngineView.LifecycleState.Active)
+            var heldTime = evaluate("video.currentTime")
+            wait(250)
+            compare(evaluate("video.currentTime"), heldTime)
+            page.visible = true
+            tryVerify(function() { return evaluate("!video.paused && video.currentTime>" + heldTime) }, 5000)
+            compare(evaluate("appPauseCalls"), 0)
+            compare(evaluate("window.__feriaPresentationMedia.paused.size"), 0)
         }
         function test_explicitPauseAndPageInputRevokeOwnership() {
             startMedia(); suspend()

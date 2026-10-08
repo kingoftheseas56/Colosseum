@@ -71,6 +71,11 @@ public:
         QFile file(path); if (!file.open(QIODevice::ReadOnly)) return {};
         return QString::fromLatin1(QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha256).toHex());
     }
+    Q_INVOKABLE bool copyToEvidence(const QString &path, const QString &name) const {
+        if (!safeFile(path) || evidenceRoot().isEmpty() || name.isEmpty()
+            || name.contains('/') || name.contains('\\') || name.contains("..")) return false;
+        return QFile::copy(path, QDir(evidenceRoot()).filePath(name));
+    }
     Q_INVOKABLE QString readText(const QString &path) const {
         if (!safeFile(path)) return {};
         QFile file(path); return file.open(QIODevice::ReadOnly) ? QString::fromUtf8(file.readAll()) : QString{};

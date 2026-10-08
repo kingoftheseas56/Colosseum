@@ -15,6 +15,15 @@ cases = [
      "FeriaOwnedMedia16::test_playRejectionHasObservedBlockedResult",
      "else item.outcome=allowed && !m.paused && !m.ended ? 'resumed' : 'blocked'",
      "else item.outcome='resumed'"),
+    ("resource-context-press", "qml/feria/FeriaSaveContextBar.qml", "tst_SaveContext.qml",
+     "FeriaNativeSave20::test_contextButtonPressCannotTargetReplacementContext",
+     "resourceAction.contextIdAtPress", "root.snapshot.contextId"),
+    ("open-context-press", "qml/feria/FeriaSaveContextBar.qml", "tst_SaveContext.qml",
+     "FeriaNativeSave20::test_contextButtonPressCannotTargetReplacementContext",
+     "openAction.contextIdAtPress", "root.snapshot.contextId"),
+    ("copy-context-press", "qml/feria/FeriaSaveContextBar.qml", "tst_SaveContext.qml",
+     "FeriaNativeSave20::test_contextButtonPressCannotTargetReplacementContext",
+     "copyAction.contextIdAtPress", "root.snapshot.contextId"),
 ]
 results = []
 for label, relative, fixture, name, needle, replacement in cases:

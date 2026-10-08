@@ -10,12 +10,20 @@
 #include <QTemporaryDir>
 #include <QDebug>
 #include <QDesktopServices>
+#include <QJSEngine>
+#include <QThread>
 
 // Only this owner keeps live/private entries. The policy stores no file rows.
 class DownloadOwner final : public QObject {
     Q_OBJECT
 public:
     QMap<QString, QVariantMap> files;
+    QStringList lostIds;
+    QStringList *externalLosses = nullptr;
+    Q_INVOKABLE void nativeRequestDestroyed(const QVariant &id) {
+        lostIds.append(id.toString());
+        if (externalLosses) externalLosses->append(id.toString());
+    }
     Q_INVOKABLE QVariant resolveDownloadFile(const QVariant &id) const {
         return files.value(id.toString());
     }
@@ -59,6 +67,56 @@ int main(int argc, char **argv) {
     };
     check(ownedRequest(&nativeRequest, &profileOne) && !ownedRequest(&nativeRequest, &profileTwo)
           && !ownedRequest(nullptr, &profileOne), "Only exact native request parent profile is accepted");
+    const auto observeLifetime = [&](QObject *owner, QObject *request, const QString &id) {
+        bool observed = false;
+        check(QMetaObject::invokeMethod(&policy, "observeDownloadRequestLifetime", Q_RETURN_ARG(bool, observed),
+              Q_ARG(QObject *, owner), Q_ARG(QObject *, request), Q_ARG(QString, id)), "Connect native request lifetime observer");
+        return observed;
+    };
+    DownloadOwner lifetimeOwner;
+    lifetimeOwner.setProperty("profile", QVariant::fromValue<QObject *>(&profileOne));
+    auto *lostRequest = new QObject(&profileOne);
+    check(!observeLifetime(nullptr, lostRequest, "loss") && !observeLifetime(&lifetimeOwner, nullptr, "loss")
+          && !observeLifetime(&lifetimeOwner, lostRequest, ""), "Lifetime observer rejects absent owner, request or ID");
+    check(!observeLifetime(&lifetimeOwner, lostRequest, QString(101, 'x')), "Lifetime observer rejects an oversized opaque ID");
+    QObject noCallback;
+    noCallback.setProperty("profile", QVariant::fromValue<QObject *>(&profileOne));
+    check(!observeLifetime(&noCallback, lostRequest, "unsupported"), "Lifetime observer requires its explicit cleanup callback");
+    check(observeLifetime(&lifetimeOwner, lostRequest, "loss"), "Same-profile request lifetime observation is available");
+    delete lostRequest;
+    check(lifetimeOwner.lostIds == QStringList{"loss"}, "Actual QObject destruction dispatches only its opaque download ID");
+    auto *foreignRequest = new QObject(&profileTwo);
+    check(!observeLifetime(&lifetimeOwner, foreignRequest, "foreign"), "Lifetime observer rejects another profile's request");
+    delete foreignRequest;
+    check(lifetimeOwner.lostIds == QStringList{"loss"}, "Rejected observation cannot dispatch an unrelated loss");
+    QJSEngine scriptEngine;
+    QJSEngine::setObjectOwnership(&profileOne, QJSEngine::CppOwnership);
+    lifetimeOwner.setProperty("profile", QVariant::fromValue(scriptEngine.newQObject(&profileOne)));
+    auto *retiredScopeRequest = new QObject(&profileOne);
+    check(observeLifetime(&lifetimeOwner, retiredScopeRequest, "retired-scope"), "QJSValue profile wrapper preserves exact native parent identity");
+    policy.setDownloadAccountStore(nullptr);
+    delete retiredScopeRequest;
+    check(lifetimeOwner.lostIds == QStringList{"loss", "retired-scope"}, "Account invalidation cannot suppress dead-handle cleanup");
+    policy.setDownloadAccountStore(&store);
+    QThread foreignThread;
+    auto *foreignProfile = new QObject;
+    auto *crossThreadRequest = new QObject(foreignProfile);
+    foreignProfile->moveToThread(&foreignThread);
+    foreignThread.start();
+    lifetimeOwner.setProperty("profile", QVariant::fromValue<QObject *>(foreignProfile));
+    check(!observeLifetime(&lifetimeOwner, crossThreadRequest, "thread"), "Lifetime observer rejects cross-thread object access");
+    QMetaObject::invokeMethod(foreignProfile, [foreignProfile] { delete foreignProfile; }, Qt::BlockingQueuedConnection);
+    foreignThread.quit(); foreignThread.wait();
+    lifetimeOwner.setProperty("profile", QVariant::fromValue<QObject *>(&profileOne));
+    QStringList abandonedLosses;
+    auto *retiredOwner = new DownloadOwner;
+    retiredOwner->externalLosses = &abandonedLosses;
+    retiredOwner->setProperty("profile", QVariant::fromValue<QObject *>(&profileOne));
+    auto *lateRequest = new QObject(&profileOne);
+    check(observeLifetime(retiredOwner, lateRequest, "late"), "Observe request before owner retirement");
+    delete retiredOwner;
+    delete lateRequest;
+    check(abandonedLosses.isEmpty(), "Destroyed owner automatically disconnects late native lifetime callbacks");
     const auto record = [&](FeriaAccountStore &owner, const QVariantMap &descriptor) {
         QVariantMap result;
         check(QMetaObject::invokeMethod(&owner, "recordBrowserDownloadResult", Q_RETURN_ARG(QVariantMap, result),

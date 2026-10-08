@@ -81,6 +81,7 @@ public:
     Q_INVOKABLE bool registerDownloadOwner(QObject *owner, QObject *accountStore);
     Q_INVOKABLE bool unregisterDownloadOwner(QObject *owner);
     Q_INVOKABLE QVariantMap downloadOwnerScope(QObject *owner) const;
+    Q_INVOKABLE bool observeDownloadRequestLifetime(QObject *owner, QObject *request, const QString &id);
     Q_INVOKABLE QVariantMap downloadFileStatus(QObject *owner, const QString &id) const;
     Q_INVOKABLE QVariantMap openDownloadedFile(QObject *owner, const QString &id) const;
     // Opens the containing folder; does not claim platform shell-select support.

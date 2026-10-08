@@ -16,6 +16,16 @@ P = "native/feria/FeriaBrowserPolicy.cpp"
 H = "native/feria/FeriaBrowserPolicy.h"
 A = "native/feria/FeriaAccountStore.cpp"
 CONTROLS = [
+    ("request_loss_notification", P, '"nativeRequestDestroyed", Qt::DirectConnection,',
+     '"missingCleanupCallback", Qt::DirectConnection,', "Actual QObject destruction dispatches only its opaque download ID"),
+    ("request_loss_profile", P, "if (!requestBelongsToProfile(request, profile)) return false;",
+     "// negative control: observe another profile", "Lifetime observer rejects another profile's request"),
+    ("request_loss_id", P, "id.isEmpty() || id.size() > 100\n        || owner->thread()",
+     "id.isEmpty()\n        || owner->thread()", "Lifetime observer rejects an oversized opaque ID"),
+    ("request_loss_callback", P, '|| owner->metaObject()->indexOfMethod("nativeRequestDestroyed(QVariant)") < 0',
+     "", "Lifetime observer requires its explicit cleanup callback"),
+    ("request_loss_thread", P, "owner->thread() != request->thread() || owner->thread() != QThread::currentThread()",
+     "false", "Lifetime observer rejects cross-thread object access"),
     ("native_profile_parent", H, "return request && profile && request->parent() == profile;",
      "return request && profile;", "Only exact native request parent profile is accepted"),
     ("unknown_total", A, "row.insert(key, bytes);", "row.insert(key, qMax<qint64>(0, bytes));",

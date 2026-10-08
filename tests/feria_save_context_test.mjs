@@ -35,7 +35,7 @@ function fixture(variant = '') {
             documentGeneration: 1, hostId: 'embedded', hostGeneration: 1 },
         action: () => ({enabled: true}), triggerWebAction: action => actions.push(action),
         wakePage() {}, message() {} };
-    const owner = { active: true, profile: browser.profile,
+    const owner = { active: true, profile: browser.profile, pageSaveIngressExclusive: true, pageSaveIntent: null,
         beginNativeSave(view, snapshot) { const id = 'save-' + (offers.length + 1); offers.push({id,view,snapshot}); return id; },
         cancelNativeSave(id, reason) { cancels.push({id,reason}); },
         pendingPageSaveForView() { return false; } };
@@ -55,6 +55,9 @@ function fixture(variant = '') {
     if (variant === 'menu') production = production.replace('if (replaceMenu) request.accepted = true', 'if (false) request.accepted = true');
     if (variant === 'url') production = production.replace(/function admittedSaveUrl\(value\) \{[\s\S]*?\n    \}/, 'function admittedSaveUrl(value) { return true }');
     vm.createContext(state); vm.runInContext(production, state);
+    let capability = source.match(/readonly property bool canSavePage: ([\s\S]*?)\n    readonly property bool canSaveLink/)[1];
+    if (variant === 'advertised_capability') capability = capability.replace('&& browser.saveAdmissionOwner.pageSaveIngressExclusive === true','');
+    Object.defineProperty(state,'canSavePage',{get:()=>vm.runInContext(capability,state)});
     return { state, browser, owner, actions, offers, cancels };
 }
 function link(url = 'https://fixture.test/file.bin') {
@@ -64,6 +67,13 @@ function snapshot(f, request = link()) { return f.state.captureSaveContext(reque
 function check(variant = '') {
     let f = fixture(variant);
     assert.equal(typeof f.state.captureSaveContext, 'function', 'production must capture a save context');
+    assert.equal(f.state.canSavePage,true);
+    f.owner.pageSaveIngressExclusive=false;
+    assert.equal(f.state.canSavePage,false,'production-disabled PageSave must not advertise an enabled action');
+    f.owner.pageSaveIngressExclusive=true;
+    f.owner.pageSaveIntent={token:'busy'};
+    assert.equal(f.state.canSavePage,false,'active native page-save barrier must disable repeated UI action');
+    f.owner.pageSaveIntent=null;
     const a = snapshot(f), b = snapshot(f, link('https://fixture.test/b.bin'));
     assert.notEqual(a.contextId, b.contextId);
     assert.equal(f.state.saveFromContext(a.contextId, 'link').status, 'invalidated', 'new context must retire prior native target');

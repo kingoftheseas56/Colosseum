@@ -7,6 +7,10 @@ import {spawnSync} from 'node:child_process';
 const source = fs.readFileSync(new URL('../../qml/feria/FeriaBrowserDownloads.qml', import.meta.url),'utf8');
 const testFile = new URL('./owner_model.test.mjs',import.meta.url).pathname;
 const variants = [
+    ['retarget-native-destruction','native destruction callback clears',
+        'if (entry.downloadId !== id) continue', 'if (false) continue'],
+    ['seal-unadmitted-native-target','settled native destination mismatch',
+        'if (!destinationMatchesAdmission())', 'if (false)'],
     ['resurrect-rejected-package','rejected page authority cannot',
         'status: pageSaveIntent.invalidated || rejectedPageReason === "source-invalidated" ? "invalidated"',
         'status: request.state === WebEngineDownloadRequest.DownloadCompleted ? "succeeded" : pageSaveIntent.invalidated || rejectedPageReason === "source-invalidated" ? "invalidated"'],
@@ -18,7 +22,7 @@ const variants = [
     ['rejected-slot-never-settles','rejected page offer waits',
         'pageSaveIntent = null\n        nativeSaveStateChanged()', 'pageSaveIntent = pageSaveIntent\n        nativeSaveStateChanged()'],
     ['invent-cancel-drain','rejected page slot stays',
-        'if (!pageSaveIntent || !request || !request.isFinished) return', 'if (!pageSaveIntent || !request) return'],
+        'if (!pageSaveIntent || !requestAvailable(request) || !request.isFinished) return', 'if (!pageSaveIntent || !requestAvailable(request)) return'],
     ['reuse-rejected-offer','rejected page offer waits',
         'if (key.length) seenNativeIds[key] = "offered"', 'if (false) seenNativeIds[key] = "offered"'],
     ['hide-request-loss','preterminal request loss',

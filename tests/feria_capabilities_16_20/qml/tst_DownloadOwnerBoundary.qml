@@ -56,7 +56,7 @@ Item {
     }
     Component {
         id: ownerFactory
-        Feria.FeriaBrowserDownloads { profile: null; accountStore: metadata }
+        Feria.FeriaBrowserDownloads { profile: null; accountStore: metadata; requestLifetimeObserver: FeriaBrowserPolicy }
     }
     Component {
         id: requestFactory
@@ -158,6 +158,14 @@ Item {
             owner.retire("test-retirement")
             browser.destroy()
         }
+        function test_missingLifetimeObserverRejectsWithoutRetainingRequest() {
+            owner.requestLifetimeObserver=null
+            var request=requestFactory.createObject(profile)
+            profile.downloadRequested(request)
+            compare(owner.items.length,0)
+            compare(request.state,WebEngineDownloadRequest.DownloadCancelled)
+            compare(owner.lastAdmissionFailure,"lifetime-observer-unavailable")
+        }
         function test_genuineQObjectDisappearanceFailsWithoutInventingNativeCancel() {
             var request=offer({}), id=owner.items[0].downloadId
             compare(owner.rows[0].terminal,"")
@@ -216,6 +224,19 @@ Item {
             compare(metadata.saved.receivedBytes,100)
             compare(metadata.saved.totalBytes,100)
             entry.update();compare(metadata.attempts,1)
+        }
+        function test_settledDestinationChangeRejectsFileAndMetadataAuthority() {
+            owner.policy=modeledPolicy
+            var request=offer({}), entry=owner.items[0]
+            request.downloadFileName="unadmitted.bin"
+            request.state=WebEngineDownloadRequest.DownloadCompleted;request.isFinished=true
+            tryCompare(entry,"settlePending",false,1000)
+            compare(entry.completed,true)
+            compare(entry.metadataState,"rejected")
+            compare(entry.metadataReason,"native-destination-changed")
+            compare(metadata.attempts,0)
+            compare(entry.snapshot().canOpen,false)
+            compare(Object.keys(owner.resolveDownloadFile(entry.downloadId)).length,0)
         }
         function test_typedRetryRetainsGrantButRejectionDoesNot() {
             var request=offer({}), entry=owner.items[0]

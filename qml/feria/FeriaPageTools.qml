@@ -40,6 +40,10 @@ Item {
     readonly property bool saveContextOpen: contextSnapshot !== null
     readonly property bool canSavePage: active && browser.documentReady && !browser.rendererLost
         && !browser.replacementLoadPending && browser.saveAdmissionOwner !== null
+        && browser.saveAdmissionOwner.active && !browser.saveAdmissionOwner.retired
+        && browser.saveAdmissionOwner.profile === browser.profile
+        && browser.saveAdmissionOwner.pageSaveIngressExclusive === true
+        && !browser.saveAdmissionOwner.pageSaveIntent
     readonly property bool canSaveLink: contextSnapshot !== null && contextSnapshot.linkAvailable
     readonly property bool canSaveImage: contextSnapshot !== null && contextSnapshot.imageAvailable
     readonly property bool canSaveMedia: contextSnapshot !== null && contextSnapshot.mediaAvailable
