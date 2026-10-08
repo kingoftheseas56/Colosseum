@@ -829,15 +829,42 @@ Item {
                     })
                 return blankReady
             }, 5000)
-            compare(js(blank, "location.href"), "about:blank")
-            compare(js(blank, "window.sessionMarker=777;window.sessionMarker"), 777)
-            compare(js(blank, "document.title"), "")
+            // An adopted blank document can answer its readiness probe before
+            // Qt reports the initial main-frame load. The production broker
+            // correctly discards a response crossing that document epoch.
+            // Retry only these idempotent reads/marker writes after the actual
+            // old ticket has retired; a missing same-epoch callback still fails.
+            function blankJs(source) {
+                var done = false, result, attemptEpoch, attemptId, attemptTicket
+                function dispatch() {
+                    var epoch = blank.javascriptEpoch
+                    attemptEpoch = epoch
+                    verify(blank.evaluateJavaScript(source, function(value) {
+                        if (blank.javascriptEpoch !== epoch) return
+                        result = value; done = true
+                    }))
+                    attemptId = blank.javascriptTicketSerial
+                    attemptTicket = blank.javascriptTickets[attemptId]
+                }
+                dispatch()
+                tryVerify(function() {
+                    if (done) return blank.javascriptEpoch === attemptEpoch
+                    if (blank.javascriptEpoch !== attemptEpoch && attemptTicket
+                            && attemptTicket.valid === false && !blank.javascriptTickets[attemptId])
+                        dispatch()
+                    return done && blank.javascriptEpoch === attemptEpoch
+                }, 5000)
+                return result
+            }
+            compare(blankJs("location.href"), "about:blank")
+            compare(blankJs("window.sessionMarker=777;window.sessionMarker"), 777)
+            compare(blankJs("document.title"), "")
             // Explicit negative check of the prototype's 10s admission timer,
             // not a page-readiness or beforeunload acknowledgment surrogate.
             wait(10500)
             verify(deck.entries[b] !== undefined, "A silent valid blank document is not failed adoption")
             compare(deck.browserForSession(b), blank)
-            compare(js(blank, "window.sessionMarker"), 777)
+            compare(blankJs("window.sessionMarker"), 777)
             verify(deck.closeTab(b)); tryVerify(function() { return !deck.entries[b] }, 10000)
             tryCompare(deck.entries[a], "liveAdoptedChildren", 0, 10000)
         }
