@@ -8,6 +8,10 @@
 #include <QSet>
 #include <QRect>
 #include <QMargins>
+#include <QHash>
+#include <QPointer>
+
+class FeriaAccountStore;
 
 // Shared by both browser hosts, including authentication popups.
 class FeriaBrowserPolicy final : public QObject
@@ -64,6 +68,24 @@ public:
         });
         emit runtimeProfileCountChanged();
     }
+    // The public request is parented to its native profile. Never read request.view
+    // to establish ownership: that Qt accessor may still wrap a retired raw view.
+    // Canonical account binding is supplied by native composition, not by a
+    // caller-provided QObject or whichever live owner happened to register last.
+    void setDownloadAccountStore(FeriaAccountStore *store);
+    Q_INVOKABLE bool requestBelongsToProfile(QObject *request, QObject *profile) const {
+        return request && profile && request->parent() == profile;
+    }
+    Q_INVOKABLE QVariantMap admitDownloadDestination(const QString &directory, const QString &fileName) const;
+    Q_INVOKABLE QVariantMap completedDownloadFile(const QVariantMap &admission) const;
+    Q_INVOKABLE bool registerDownloadOwner(QObject *owner, QObject *accountStore);
+    Q_INVOKABLE bool unregisterDownloadOwner(QObject *owner);
+    Q_INVOKABLE QVariantMap downloadOwnerScope(QObject *owner) const;
+    Q_INVOKABLE QVariantMap downloadFileStatus(QObject *owner, const QString &id) const;
+    Q_INVOKABLE QVariantMap openDownloadedFile(QObject *owner, const QString &id) const;
+    // Opens the containing folder; does not claim platform shell-select support.
+    Q_INVOKABLE QVariantMap revealDownloadedFile(QObject *owner, const QString &id) const;
+    static bool validDownloadFileSnapshot(const QVariantMap &snapshot);
     bool webView2Available() const;
     static void registerTypes();
     Q_INVOKABLE void rememberOrigin(const QString &provider, const QUrl &url);
@@ -107,10 +129,23 @@ public:
     }
 signals:
     void storageRootChanged();
+    void downloadAccountScopeChanged();
     void runtimeProfileCountChanged();
     void runtimeViewCountChanged();
     void cookiesCleared(int request, bool success);
 private:
+    struct DownloadOwnerScope {
+        QPointer<QObject> accountStore;
+        quint64 accountGeneration = 0, storageGeneration = 0;
+    };
+    bool currentDownloadAccount(const FeriaAccountStore *store) const;
+    QVariantMap resolveDownloadSnapshot(QObject *owner, const QString &id) const;
+    static QVariantMap checkDownloadSnapshot(const QVariantMap &snapshot);
+    QVariantMap launchDownloadedFile(QObject *owner, const QString &id, bool folder) const;
+    // Routes to existing owners only. No file, grant or transfer rows live here.
+    QHash<QObject *, DownloadOwnerScope> m_downloadOwners;
+    QPointer<QObject> m_downloadAccountStore;
+    quint64 m_downloadAccountGeneration = 0, m_downloadAccountStorageGeneration = 0;
     int m_cookieRequest = 0;
     quint64 m_storageGeneration = 0;
     QSet<QObject *> m_runtimeProfiles;

@@ -532,8 +532,8 @@ int main(int argc, char **argv) {
           "Private-marked completion cannot use a normal download authorization");
     check(!complete({{"downloadToken", privateMarked}, {"url", webUrl}, {"receivedBytes", -1}})
           && !complete({{"downloadToken", privateMarked}, {"url", webUrl}, {"providerId", "netflix"}})
-          && complete({{"downloadToken", privateMarked}, {"url", webUrl}}),
-          "Failed completion validation does not consume authorization");
+          && !complete({{"downloadToken", privateMarked}, {"url", webUrl}}),
+          "Terminal completion rejection invalidates authorization rather than offering unsafe retry");
     const auto reentrantToken = authorize("source", currentVisit);
     const QVariantMap reentrantCompletion{{"downloadToken", reentrantToken}, {"url", webUrl}};
     bool reentrantRejected = false;

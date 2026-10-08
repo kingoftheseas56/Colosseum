@@ -14,6 +14,14 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     property var sharedProfile: null
+    // Existing profile-level download owner is injected by the retained deck.
+    property var saveAdmissionOwner: null
+    property var saveBinding: ({})
+    property bool saveContextControlsAvailable: false
+    function invalidateNativeSave(reason) {
+        if (saveAdmissionOwner && typeof saveAdmissionOwner.invalidateNativeSave === "function")
+            saveAdmissionOwner.invalidateNativeSave(browser, reason)
+    }
     readonly property alias pageTools: pageToolsController
     FeriaPageTools { id: pageToolsController; browser: browser }
     readonly property alias browserRequests: requestsController
@@ -40,10 +48,58 @@ WebEngineView {
     property bool lifecycleBlocked: false
     property bool activitySuspended: false
     property int presentationSerial: 0
+    // Observations are limited to inspected DOM media, never universal playback.
+    property var presentationResult: ({outcome: "unobserved", reason: "no-operation"})
+    property int presentationPollAttempts: 0
+    property bool presentationPollPending: false
+    signal activityResult(var result)
+    function invalidatePresentationActivity(reason) {
+        presentationPollPending = false
+        presentationPollAttempts = 0
+        presentationResult = {operationId: navigationGeneration + ":" + presentationSerial,
+            outcome: "invalidated", reason: reason}
+        activityResult(presentationResult)
+    }
+    function acceptPresentationResult(generation, serial, result) {
+        if (closingSession || rendererLost || generation !== navigationGeneration
+                || serial !== presentationSerial) return
+        presentationPollPending = false
+        if (!result) result = {operationId: generation + ":" + serial,
+            outcome: "failed", reason: "missing-script-result"}
+        if (result.operationId !== generation + ":" + serial) return
+        presentationResult = result
+        activityResult(result)
+    }
+    function pollPresentationResult() {
+        var generation = navigationGeneration, serial = presentationSerial
+        presentationPollPending = true
+        ++presentationPollAttempts
+        if (!evaluateJavaScript(Playback.presentationMediaResult(generation, serial), function(result) {
+            browser.acceptPresentationResult(generation, serial, result)
+        })) presentationPollPending = false
+        // A pending Promise at the bounded observation limit stays pending;
+        // elapsed time never proves playback success or safe freezing.
+    }
+    Timer {
+        interval: 100; repeat: true
+        running: browser.presentationResult.outcome === "pending" && !browser.presentationPollPending
+            && browser.presentationPollAttempts < 100 && !browser.closingSession && !browser.rendererLost
+            && browser.documentReady && !browser.replacementLoadPending
+            && browser.lifecycleState === WebEngineView.LifecycleState.Active
+        onTriggered: browser.pollPresentationResult()
+    }
     function applyPresentationActivity() {
         if (closingSession || rendererLost || replacementLoadPending || !documentReady) return
         wakePage()
-        evaluateJavaScript(Playback.presentationMedia(activitySuspended, navigationGeneration, presentationSerial))
+        var generation = navigationGeneration, serial = presentationSerial
+        presentationPollAttempts = 0
+        presentationPollPending = false
+        presentationResult = {operationId: generation + ":" + serial,
+            outcome: "pending", reason: "script-requested"}
+        if (!evaluateJavaScript(Playback.presentationMedia(activitySuspended, generation, serial), function(result) {
+            browser.acceptPresentationResult(generation, serial, result)
+        })) acceptPresentationResult(generation, serial, {operationId: generation + ":" + serial,
+            outcome: "unsupported", reason: "script-dispatch-unavailable"})
     }
     onActivitySuspendedChanged: {
         var serial = ++presentationSerial
@@ -66,6 +122,7 @@ WebEngineView {
         interval: browser.freezeDelay
         running: browser.freezeBackground && !browser.visible && !browser.closingSession
             && !browser.lifecycleBlocked && !browser.rendererLost && !browser.adoptingWindowRequest
+            && browser.presentationResult.outcome !== "pending"
             && !browser.recentlyAudible
             && browser.recommendedState !== WebEngineView.LifecycleState.Active
             && browser.lifecycleState === WebEngineView.LifecycleState.Active
@@ -126,6 +183,8 @@ WebEngineView {
         // has unloaded and may never answer a newly dispatched script.
         if (!engineTerminal)
             evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
+        invalidatePresentationActivity("view-closing")
+        invalidateNativeSave("source-closing")
         closingSession = true
         // Release focus while the retained owner's scope is still alive,
         // before deferred parent/Loader destruction reaches the native view.
@@ -205,7 +264,10 @@ WebEngineView {
             }
         }
     }
-    onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
+    onNavigationGenerationChanged: {
+        invalidatePresentationActivity(rendererLost ? "renderer-lost" : "document-replaced")
+        if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
+    }
     Timer {
         interval: 2000; repeat: true
         running: !browser.closingSession && !browser.rendererLost && browser.lifecycleState === WebEngineView.LifecycleState.Active
@@ -295,6 +357,13 @@ WebEngineView {
         persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
     }
     onNavigationRequested: function(request) {
+        if (request.isMainFrame && saveAdmissionOwner
+                && typeof saveAdmissionOwner.pendingPageSaveForView === "function"
+                && saveAdmissionOwner.pendingPageSaveForView(browser)) {
+            request.reject()
+            message("Finish or cancel the page save before navigating this document.")
+            return
+        }
         // loadHtml creates a data URL internally. Permit just the next blank
         // document initiated by cleanup; normal pages retain the URL policy.
         if (clearingSession && cleanupNavigationPending && String(request.url).indexOf("data:text/html") === 0) {
@@ -314,6 +383,7 @@ WebEngineView {
             return
         }
         if (info.status === WebEngineView.LoadStartedStatus) {
+            invalidateNativeSave("document-replaced")
             fullScreenActive = false
             stopRequested = false
             ++navigationGeneration
@@ -397,6 +467,7 @@ WebEngineView {
         }
     }
     onRenderProcessTerminated: function(status, exitCode) {
+        invalidateNativeSave("renderer-terminated")
         // A terminal can arrive while live-close callbacks are still draining.
         // Those requests can no longer answer; retire them and release once.
         if (closingSession) {
@@ -491,6 +562,13 @@ WebEngineView {
                 Component.onCompleted: FeriaBrowserPolicy.registerRuntimeView(popupView)
                 settings.javascriptCanOpenWindows: true
                 onNavigationRequested: function(request) {
+        if (request.isMainFrame && saveAdmissionOwner
+                && typeof saveAdmissionOwner.pendingPageSaveForView === "function"
+                && saveAdmissionOwner.pendingPageSaveForView(browser)) {
+            request.reject()
+            message("Finish or cancel the page save before navigating this document.")
+            return
+        }
                     if (!FeriaBrowserPolicy.allowsNavigation(request.url)) request.reject()
                 }
                 onNewWindowRequested: function(request) {

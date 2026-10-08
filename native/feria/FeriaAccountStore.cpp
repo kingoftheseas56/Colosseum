@@ -1,4 +1,5 @@
 #include "FeriaAccountStore.h"
+#include "FeriaBrowserPolicy.h"
 #include "app-state/PorticoAppStateBridge.h"
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -70,6 +71,46 @@ QVariantMap validatedBrowserPreferences(const QVariantMap &stored) {
     return result;
 }
 
+QVariantList validatedBrowserDownloads(const QVariantList &descriptors) {
+    QVariantList rows;
+    QSet<QString> ids;
+    for (const auto &value : descriptors) {
+        if (value.metaType().id() != QMetaType::QVariantMap) continue;
+        const auto source = value.toMap();
+        const auto id = source.value("id"), inputUrl = source.value("url");
+        if (id.metaType().id() != QMetaType::QString || id.toString().isEmpty() || id.toString().size() > 100
+            || ids.contains(id.toString()) || inputUrl.metaType().id() != QMetaType::QString
+            || inputUrl.toString().size() > 8192 || source.value("privateBrowsing").toBool()) continue;
+        const auto url = browserUrl(inputUrl.toString(), true);
+        if (url.isEmpty() || url.size() > 8192) continue;
+        QVariantMap row{{"id", id}, {"url", url}};
+        bool valid = true;
+        for (const auto &key : {"title", "fileName", "path", "state", "providerId", "mimeType"}) {
+            if (!source.contains(key)) continue;
+            const auto text = source.value(key);
+            if (text.metaType().id() != QMetaType::QString || text.toString().size() > 4096) { valid = false; break; }
+            if (QString(key) == "providerId" && !knownBrowserProvider(text.toString())) { valid = false; break; }
+            row.insert(key, text);
+        }
+        if (!valid) continue;
+        for (const auto &key : {"receivedBytes", "totalBytes", "at"}) {
+            if (!source.contains(key)) continue;
+            bool ok = false;
+            const auto number = source.value(key).toLongLong(&ok);
+            if (!ok || number < (QString(key) == "totalBytes" ? -1 : 0)) { valid = false; break; }
+            row.insert(key, number);
+        }
+        if (!valid) continue;
+        const auto snapshot = source.value("fileSnapshot").toMap();
+        if (row.value("state") == "completed" && row.value("path") == snapshot.value("path")
+            && FeriaBrowserPolicy::validDownloadFileSnapshot(snapshot)) row.insert("fileSnapshot", snapshot);
+        ids.insert(id.toString());
+        rows.append(row);
+        if (rows.size() == 100) break;
+    }
+    return rows;
+}
+
 QVariantList validatedBrowserDescriptors(const QVariantList &descriptors) {
     QVariantList rows;
     QSet<QString> ids;
@@ -136,6 +177,8 @@ QString continueIdentity(const QVariantMap &row) {
 FeriaAccountStore::FeriaAccountStore(QObject *parent) : QObject(parent) {}
 
 void FeriaAccountStore::setStoragePath(const QString &path) {
+    const QVariantMap lastGoodState = path == m_path ? m_state : QVariantMap{};
+    ++m_downloadScopeGeneration;
     m_restoreCaptured = false;
     m_writeFailed = false;
     m_visits.clear();
@@ -153,12 +196,17 @@ void FeriaAccountStore::setStoragePath(const QString &path) {
                 m_error = "Feria account data could not be loaded. The saved file has been preserved.";
             else {
                 m_state = doc.object().toVariantMap();
+                m_state.insert("browserDownloadHistory", validatedBrowserDownloads(m_state.value("browserDownloadHistory").toList()));
                 m_state.insert("browserTabs", validatedBrowserDescriptors(m_state.value("browserTabs").toList()));
                 m_state.insert("browserRestoreOffers", validatedBrowserDescriptors(m_state.value("browserRestoreOffers").toList()));
                 m_state.insert("browserPreferences", validatedBrowserPreferences(m_state.value("browserPreferences").toMap()));
             }
         }
     }
+    // A failed reload of this same account keeps its last good presentation,
+    // but the read error still blocks writes and file authorization. Never carry
+    // the previous account's rows into another account whose data is corrupt.
+    if (!m_error.isEmpty()) m_state = lastGoodState;
     // Profile observers may immediately save restore offers. Release our read
     // handle before their atomic replacement of this file, especially on Windows.
     file.close();
@@ -254,11 +302,28 @@ bool FeriaAccountStore::captureBrowserRestoreOffers() {
     return false;
 }
 
-QString FeriaAccountStore::authorizeBrowserDownload(const QString &sessionId, const QString &visitToken) {
+QString FeriaAccountStore::authorizeBrowserDownload(const QString &sessionId, const QString &visitToken,
+                                                     const QVariantMap &binding) {
     const Visit *visit = visitFor(sessionId, visitToken);
-    if (!visit || visit->privateBrowsing || m_path.isEmpty() || (!m_error.isEmpty() && !m_writeFailed)) return {};
+    if (!visit || visit->privateBrowsing || !hasDownloadScope()) return {};
+    if (!binding.isEmpty()) {
+        const auto id = binding.value("id");
+        if (id.metaType().id() != QMetaType::QString || id.toString().isEmpty() || id.toString().size() > 100) return {};
+        for (const auto &key : {"path", "sourceUrl", "profileId", "nativeId"})
+            if (binding.contains(key) && (binding.value(key).metaType().id() != QMetaType::QString
+                || binding.value(key).toString().isEmpty() || binding.value(key).toString().size() > 8192)) return {};
+        if (binding.contains("admission")) {
+            const auto admission = binding.value("admission").toMap();
+            if (admission.value("status") != "admitted" || admission.value("path").toString().isEmpty()
+                || (binding.contains("path") && binding.value("path") != admission.value("path"))) return {};
+        }
+    }
     const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    m_downloadAuthorizations.insert(token, {m_path, visit->context.value("pk").toString()});
+    DownloadAuthorization grant;
+    grant.profilePath = m_path;
+    grant.providerId = visit->context.value("pk").toString();
+    grant.binding = binding;
+    m_downloadAuthorizations.insert(token, grant);
     return token;
 }
 
@@ -267,51 +332,131 @@ bool FeriaAccountStore::cancelBrowserDownload(const QString &downloadToken) {
 }
 
 bool FeriaAccountStore::recordBrowserDownload(const QVariantMap &descriptor) {
-    if (descriptor.value("privateBrowsing").toBool()) return false;
+    return recordBrowserDownloadResult(descriptor).value("status") == "recorded";
+}
+
+QVariantMap FeriaAccountStore::recordBrowserDownloadResult(const QVariantMap &descriptor) {
     const bool authorized = descriptor.contains("downloadToken");
-    const QString downloadToken = descriptor.value("downloadToken").toString();
-    QString authorizedProvider;
+    const QString token = descriptor.value("downloadToken").toString();
+    const auto outcome = [](const QString &status, const QString &reason, const QString &id = QString()) {
+        return QVariantMap{{"status", status}, {"reason", reason}, {"id", id}};
+    };
+    const auto reject = [&](const QString &reason) {
+        if (authorized) m_downloadAuthorizations.remove(token);
+        return outcome("rejected", reason);
+    };
+    QString provider;
+    QVariantMap binding, pendingRow;
     if (authorized) {
-        const auto grant = m_downloadAuthorizations.constFind(downloadToken);
-        if (grant == m_downloadAuthorizations.cend() || grant->profilePath != m_path || grant->committing) return false;
-        authorizedProvider = grant->providerId;
-        if (descriptor.contains("providerId") && descriptor.value("providerId").toString() != authorizedProvider) return false;
+        const auto grant = m_downloadAuthorizations.constFind(token);
+        if (descriptor.value("downloadToken").metaType().id() != QMetaType::QString
+            || grant == m_downloadAuthorizations.cend() || grant->profilePath != m_path || grant->committing)
+            return outcome("invalidated", "grant-retired-or-committing");
+        provider = grant->providerId;
+        binding = grant->binding;
+        pendingRow = grant->pendingRow;
     } else if (descriptor.contains("sessionId") || descriptor.contains("visitToken")) {
         const Visit *visit = visitFor(descriptor.value("sessionId").toString(), descriptor.value("visitToken").toString());
-        if (!visit || visit->privateBrowsing) return false;
-    } else return false;
-    const QString url = browserUrl(descriptor.value("url").toString(), true);
-    if (url.isEmpty()) return false;
-    QString id = descriptor.value("id").toString().left(100);
-    if (id.isEmpty()) id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    QVariantMap row{{"id", id}, {"url", url}, {"at", QDateTime::currentMSecsSinceEpoch()}};
-    for (const auto &key : {"title", "fileName", "path", "state", "providerId", "mimeType"})
-        if (descriptor.contains(key)) row.insert(key, descriptor.value(key).toString().left(2048));
-    if (authorized) row.insert("providerId", authorizedProvider);
-    for (const auto &key : {"receivedBytes", "totalBytes"})
-        if (descriptor.contains(key)) {
-            bool ok = false;
-            const qint64 bytes = descriptor.value(key).toLongLong(&ok);
-            if (!ok || bytes < 0) return false;
-            row.insert(key, bytes);
-        }
+        if (!visit || visit->privateBrowsing) return outcome("invalidated", "source-visit-retired");
+        provider = visit->context.value("pk").toString();
+    } else return outcome("invalidated", "metadata-authorization-required");
+    if (!hasDownloadScope()) {
+        if (authorized) m_downloadAuthorizations.remove(token);
+        return outcome("invalidated", "account-storage-unavailable");
+    }
+    if (descriptor.contains("privateBrowsing") && (descriptor.value("privateBrowsing").metaType().id() != QMetaType::Bool
+                                                 || descriptor.value("privateBrowsing").toBool()))
+        return reject("private-history-excluded");
+    if (descriptor.contains("providerId") && (descriptor.value("providerId").metaType().id() != QMetaType::QString
+                                              || descriptor.value("providerId").toString() != provider))
+        return reject("provider-binding-mismatch");
+    const auto inputUrl = descriptor.value("url");
+    if (inputUrl.metaType().id() != QMetaType::QString || inputUrl.toString().size() > 8192) return reject("malformed-url");
+    const auto url = browserUrl(inputUrl.toString(), true);
+    if (url.isEmpty() || url.size() > 8192) return reject("history-url-inadmissible");
+    for (const auto &key : {"id", "path", "profileId", "nativeId"})
+        if (binding.contains(key) && descriptor.value(key) != binding.value(key)) return reject("transfer-binding-mismatch");
+    if (binding.contains("sourceUrl") && inputUrl != binding.value("sourceUrl")) return reject("source-binding-mismatch");
+    if (!binding.isEmpty() && descriptor.value("state") != "completed") return reject("transfer-not-completed");
+    QString id;
+    if (descriptor.contains("id")) {
+        if (descriptor.value("id").metaType().id() != QMetaType::QString || descriptor.value("id").toString().size() > 100)
+            return reject("malformed-id");
+        id = descriptor.value("id").toString();
+    }
+    if (id.isEmpty()) id = pendingRow.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : pendingRow.value("id").toString();
+    QVariantMap row{{"id", id}, {"url", url}, {"providerId", provider},
+                    {"at", pendingRow.isEmpty() ? QDateTime::currentMSecsSinceEpoch() : pendingRow.value("at").toLongLong()}};
+    for (const auto &key : {"title", "fileName", "path", "state", "mimeType"}) {
+        if (!descriptor.contains(key)) continue;
+        const auto value = descriptor.value(key);
+        if (value.metaType().id() != QMetaType::QString || value.toString().size() > 4096) return reject("malformed-descriptor");
+        row.insert(key, value);
+    }
+    for (const auto &key : {"receivedBytes", "totalBytes"}) {
+        if (!descriptor.contains(key)) continue;
+        const auto value = descriptor.value(key);
+        const int type = value.metaType().id();
+        bool ok = false;
+        const qint64 bytes = value.toLongLong(&ok);
+        if (!ok || (type != QMetaType::Int && type != QMetaType::UInt && type != QMetaType::LongLong
+                    && type != QMetaType::ULongLong && type != QMetaType::Double)
+            || bytes < (QString(key) == "totalBytes" ? -1 : 0)
+            || (type == QMetaType::Double && (!std::isfinite(value.toDouble()) || value.toDouble() != double(bytes))))
+            return reject("malformed-byte-count");
+        row.insert(key, bytes);
+    }
+    if (descriptor.contains("fileSnapshot")) {
+        const auto snapshot = descriptor.value("fileSnapshot").toMap();
+        const auto admission = binding.value("admission").toMap();
+        if (!FeriaBrowserPolicy::validDownloadFileSnapshot(snapshot) || row.value("state") != "completed"
+            || row.value("path") != snapshot.value("path") || admission.value("status") != "admitted")
+            return reject("unadmitted-file-snapshot");
+        for (const auto &key : {"path", "directory", "fileName", "directoryIdentity"})
+            if (snapshot.value(key) != admission.value(key)) return reject("file-admission-mismatch");
+        row.insert("fileSnapshot", snapshot);
+    } else if (binding.contains("admission")) return reject("completed-file-snapshot-required");
+    if (!pendingRow.isEmpty() && row != pendingRow) return reject("settled-retry-descriptor-changed");
     auto rows = browserDownloadHistory();
     for (qsizetype i = rows.size(); i-- > 0;)
-        if (rows.at(i).toMap().value("id").toString() == id) rows.removeAt(i);
+        if (rows.at(i).toMap().value("id").toString() == id) {
+            if (!binding.isEmpty()) return reject("transfer-already-recorded");
+            rows.removeAt(i);
+        }
     rows.prepend(row);
     while (rows.size() > 100) rows.removeLast();
     auto state = m_state; state.insert("browserDownloadHistory", rows);
-    // changed() is synchronous; reserve the grant before commit so callbacks cannot replay it.
-    if (authorized) m_downloadAuthorizations[downloadToken].committing = true;
-    const bool saved = commit(state);
+    // Reserve before synchronous changed() delivery, including failed writes.
     if (authorized) {
-        const auto grant = m_downloadAuthorizations.find(downloadToken);
-        if (grant != m_downloadAuthorizations.end()) {
-            if (saved) m_downloadAuthorizations.erase(grant);
-            else grant->committing = false;
-        }
+        m_downloadAuthorizations[token].committing = true;
+        m_downloadAuthorizations[token].pendingRow = row;
     }
-    return saved;
+    const quint64 scope = m_downloadScopeGeneration;
+    const bool saved = commit(state);
+    if (scope != m_downloadScopeGeneration) return outcome("invalidated", "account-changed-during-commit");
+    if (authorized) {
+        const auto grant = m_downloadAuthorizations.find(token);
+        if (grant == m_downloadAuthorizations.end()) return outcome("invalidated", "grant-retired-during-commit");
+        if (saved) m_downloadAuthorizations.erase(grant);
+        else grant->committing = false;
+    }
+    return saved ? outcome("recorded", "atomic-commit", id)
+                 : outcome("retryable", "atomic-write-failed", id);
+}
+
+QVariantMap FeriaAccountStore::resolveDownloadFile(const QString &id) const {
+    if (!hasDownloadScope() || id.isEmpty()) return {};
+    for (const auto &value : browserDownloadHistory()) {
+        const auto row = value.toMap();
+        if (row.value("id") != id) continue;
+        const auto snapshot = row.value("fileSnapshot").toMap();
+        if (row.value("state") != "completed" || row.value("privateBrowsing").toBool()
+            || browserUrl(row.value("url").toString(), true).isEmpty()
+            || row.value("path") != snapshot.value("path")
+            || !FeriaBrowserPolicy::validDownloadFileSnapshot(snapshot)) return {};
+        return snapshot;
+    }
+    return {};
 }
 
 bool FeriaAccountStore::clearBrowserDownloads() {

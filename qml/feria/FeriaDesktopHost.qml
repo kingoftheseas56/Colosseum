@@ -13,7 +13,14 @@ Window {
     property bool retiring: false
     property var lease: null
     readonly property var entry: { deck.presentationRevision; return deck.entries[sessionId] || null }
+    readonly property var pageTools: entry && entry.browser ? entry.browser.pageTools : null
     readonly property alias viewport: viewport
+    Binding {
+        target: host.entry ? host.entry.browser : null
+        property: "saveContextControlsAvailable"; value: true
+        when: host.visible && host.entry !== null && host.entry.hostWindow === host && host.entry.browser !== null
+        restoreMode: Binding.RestoreNone
+    }
     title: entry && entry.browser ? entry.browser.title : "Feria"
     flags: dialogWindow ? Qt.Dialog : Qt.Window
     width: 900; height: 700
@@ -38,6 +45,8 @@ Window {
             Button { text: "Back"; onClicked: host.deck.hostCommand(host.lease, "back", "") }
             Button { text: "Forward"; onClicked: host.deck.hostCommand(host.lease, "forward", "") }
             Button { text: "Reload"; onClicked: host.deck.hostCommand(host.lease, "reload", "") }
+            Button { text: "Save page"; enabled: host.pageTools && host.pageTools.canSavePage
+                onClicked: if (host.deck.hostLeaseCurrent(host.lease)) host.pageTools.savePage() }
             Button { text: "Address"; checkable: true; onToggled: address.visible = checked }
         }
         TextField { id: address; visible: false; Layout.fillWidth: true; placeholderText: "Address or search"
@@ -48,6 +57,7 @@ Window {
             text: host.entry ? host.entry.errorText : ""
             wrapMode: Text.WordWrap
         }
+        FeriaSaveContextBar { Layout.fillWidth: true; tools: host.pageTools }
         Item { id: viewport; Layout.fillWidth: true; Layout.fillHeight: true }
     }
 }

@@ -13,6 +13,20 @@ Item {
     readonly property bool retained: controller.browserDeck && controller.managedBrowserRoute
     readonly property var browserItem: retained ? controller.browserDeck.activeBrowser : browserLoader.item
     readonly property var pageTools: engine === "qtwebengine" && browserItem ? browserItem.pageTools || null : null
+    readonly property bool downloadsPageOpen: retained && controller.browserDeck.downloadsPageOpen === true
+    function attachDownloadPage() {
+        if (retained && typeof controller.browserDeck.attachDownloadsSurface === "function")
+            controller.browserDeck.attachDownloadsSurface(downloadsPageSurface)
+    }
+    onRetainedChanged: attachDownloadPage()
+    Binding {
+        target: root.engine === "qtwebengine" ? root.browserItem : null
+        property: "saveContextControlsAvailable"
+        value: true
+        when: root.engine === "qtwebengine" && root.browserItem !== null && root.visible && !root.fullScreenActive
+            && (!root.retained || !root.controller.browserDeck.activeEntry || !root.controller.browserDeck.activeEntry.hostWindow)
+        restoreMode: Binding.RestoreNone
+    }
     FeriaBrowserMenu {
         id: browserMenu
         parent: Overlay.overlay
@@ -79,6 +93,7 @@ Item {
     readonly property real chromeHeight: strip.height
     readonly property rect viewportRect: {
         root.width; root.height; root.x; root.y; strip.height
+        if (root.downloadsPageOpen) return Qt.rect(0, 0, 0, 0)
         var origin = browserLoader.mapToItem(null, 0, 0)
         return Qt.rect(origin.x, origin.y, browserLoader.width, browserLoader.height)
     }
@@ -99,7 +114,7 @@ Item {
         loading = browserItem.loadActive
         errorText = controller.browserDeck.activeError
     }
-    onBrowserItemChanged: syncRetainedState()
+    onBrowserItemChanged: { syncRetainedState(); attachDownloadPage() }
     Connections {
         target: root.controller.browserDeck
         function onActiveErrorChanged() { root.syncRetainedState() }
@@ -236,6 +251,7 @@ Item {
         property string appsJson: "{}"
     }
     Component.onCompleted: {
+        attachDownloadPage()
         try { enginePreferences = JSON.parse(preferences.enginesJson) } catch (e) { enginePreferences = ({}) }
         try { appPreferences = JSON.parse(preferences.appsJson) } catch (e) { appPreferences = ({}) }
     }
@@ -459,7 +475,7 @@ Item {
         objectName: "feriaAppBar"
         anchors { left: parent.left; right: parent.right; top: parent.top }
         visible: !root.fullScreenActive
-        height: root.fullScreenActive ? 0 : 52
+        height: root.fullScreenActive ? 0 : 52 + saveContextBar.height
         Colosseum.KeyboardSpatialNavigator { id: appNav; root:strip }
         Keys.onPressed: function(event) { appNav.handle(event) }
         RowLayout {
@@ -520,6 +536,14 @@ Item {
                 Accessible.role: Accessible.StatusBar
             }
             FeriaPageToolButton {
+                objectName: "feriaNativeSavePage"
+                iconSource: "../../assets/icons/lucide/download.svg"
+                helpText: "Save page (Ctrl+S)"
+                visible: root.pageTools !== null && root.retained
+                enabled: root.pageTools && root.pageTools.canSavePage
+                onClicked: root.pageTools.savePage()
+            }
+            FeriaPageToolButton {
                 objectName: "feriaSaveReadingPlace"
                 iconSource: "../../assets/icons/reader2/bookmark.svg"
                 helpText: "Save reading place"
@@ -560,6 +584,12 @@ Item {
                 }
             }
         }
+        FeriaSaveContextBar {
+            id: saveContextBar
+            anchors.left: parent.left; anchors.right: parent.right
+            y: 52
+            tools: root.pageTools
+        }
         // Engine load feedback: a real percentage where the engine reports one,
         // an honest indeterminate sweep where it does not.
         Rectangle {
@@ -598,10 +628,17 @@ Item {
                 root.controller.browserDeck.toggleAppMax(root.controller.hostSessionId)
         }
     }
+    Item {
+        id: downloadsPageSurface
+        objectName: "feriaDownloadsPageSurface"
+        anchors { left: parent.left; right: parent.right; top: strip.bottom; bottom: parent.bottom }
+        visible: root.downloadsPageOpen
+    }
     Loader {
         id: browserLoader
         objectName: "feriaBrowserLoader"
         anchors { left: parent.left; right: parent.right; top: strip.bottom; bottom: parent.bottom }
+        visible: !root.downloadsPageOpen
         active: !root.retained && root.visible && controller.lifecycleActive && controller.hostUrl.length > 0 && FeriaBrowserPolicy.storageRoot.length > 0
         onActiveChanged: if (active) loadBrowser()
         Connections {

@@ -56,9 +56,16 @@ public:
     Q_INVOKABLE bool saveBrowserTabs(const QVariantList &descriptors);
     Q_INVOKABLE bool captureBrowserRestoreOffers();
     Q_INVOKABLE bool saveBrowserRestoreOffers(const QVariantList &descriptors);
-    Q_INVOKABLE QString authorizeBrowserDownload(const QString &sessionId, const QString &visitToken);
+    Q_INVOKABLE QString authorizeBrowserDownload(const QString &sessionId, const QString &visitToken,
+                                                 const QVariantMap &binding = {});
     Q_INVOKABLE bool cancelBrowserDownload(const QString &downloadToken);
     Q_INVOKABLE bool recordBrowserDownload(const QVariantMap &descriptor);
+    // recorded consumes once; retryable retains the exact settled descriptor;
+    // invalidated and rejected are terminal and must not offer disk-write retry.
+    Q_INVOKABLE QVariantMap recordBrowserDownloadResult(const QVariantMap &descriptor);
+    Q_INVOKABLE QVariantMap resolveDownloadFile(const QString &id) const;
+    quint64 downloadScopeGeneration() const { return m_downloadScopeGeneration; }
+    bool hasDownloadScope() const { return !m_path.isEmpty() && (m_error.isEmpty() || m_writeFailed); }
     Q_INVOKABLE bool clearBrowserDownloads();
 signals:
     void changed();
@@ -75,6 +82,7 @@ private:
     };
     struct DownloadAuthorization {
         QString profilePath, providerId;
+        QVariantMap binding, pendingRow;
         bool committing = false;
     };
     Visit *visitFor(const QString &sessionId, const QString &token);
@@ -86,6 +94,7 @@ private:
     QString m_path, m_error, m_legacyToken;
     QHash<QString, Visit> m_visits;
     QHash<QString, DownloadAuthorization> m_downloadAuthorizations;
+    quint64 m_downloadScopeGeneration = 0;
     bool m_restoreCaptured = false;
     bool m_writeFailed = false;
 };

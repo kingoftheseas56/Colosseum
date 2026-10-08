@@ -68,6 +68,20 @@ Item {
         }
     }
     readonly property var downloads: sharedProfile ? regularDownloads : null
+    readonly property bool downloadsPageOpen: regularDownloads.panelOpen || privateDownloads.panelOpen
+    function attachDownloadsSurface(surface) {
+        regularDownloads.panelSurface = surface
+        privateDownloads.panelSurface = surface
+    }
+    function rebindDownloadScopes() {
+        // Native account binding settles after synchronous profile/root
+        // notifications. Never reactivate an owner of a retiring profile.
+        if (!ready || quiescing) return
+        if (sharedProfile && sharedProfile.accountRoot === policy.storageRoot)
+            regularDownloads.rebindAccountScope()
+        if (privateProfile && privateProfile.accountRoot === policy.storageRoot)
+            privateDownloads.rebindAccountScope()
+    }
     property bool quiescing: false
     property bool holdForCleanup: false
     property bool cleanupNotified: false
@@ -91,16 +105,21 @@ Item {
         id: regularDownloads
         profile: deck.sharedProfile
         accountStore: deck.accountStore
+        policy: deck.policy
         onMessage: (text) => deck.message(deck.sessions.activeId, text)
     }
     FeriaBrowserDownloads {
         id: privateDownloads
         profile: deck.privateProfile
         accountStore: deck.accountStore
+        policy: deck.policy
         privateBrowsing: true
+        onHasTransferDependenciesChanged: Qt.callLater(deck.releasePrivateProfile)
         onMessage: (text) => deck.message(deck.sessions.activeId, text)
     }
     function showDownloads() {
+        regularDownloads.panelOpen = false
+        privateDownloads.panelOpen = false
         if (activeEntry && activeEntry.descriptor.privateBrowsing) privateDownloads.openPanel()
         else regularDownloads.openPanel()
     }
@@ -163,6 +182,7 @@ Item {
     function dispatchNavigation(id, action) {
         var entry = entries[id], nav = navigationForSession(id)
         if (!entry || !nav) return false
+        if (pageSavePending(entry)) { message(id, "The page is still being saved. Cancel or finish its download first."); return false }
         if (entry.closePending) {
             entry.pendingNavigation = {action: action}
             if (entry.closeController.cancelForNavigation()) return true
@@ -206,7 +226,10 @@ Item {
         if (action === "activate") { sessions.switchTo(id); return true }
         return false
     }
-    function stop(id) { var nav = navigationForSession(id); return nav ? nav.stop() : false }
+    function stop(id) {
+        if (pageSavePending(entries[id])) return false
+        var nav = navigationForSession(id); return nav ? nav.stop() : false
+    }
     function historyOffset(id, offset, revision) {
         var nav = navigationForSession(id)
         return nav ? nav.goToOffset(offset, revision) : false
@@ -245,7 +268,13 @@ Item {
     }
     function closeTab(id) {
         var entry = entries[id]
+        if (pageSavePending(entry)) { message(id, "The page is still being saved. Cancel or finish its download first."); return false }
         return entry && !entry.retiring && entry.browser ? entry.closeController.begin(true) : false
+    }
+    function pageSavePending(entry) {
+        if (!entry || !entry.browser) return false
+        var owner = entry.descriptor.privateBrowsing ? privateDownloads : regularDownloads
+        return owner.pendingPageSaveForView(entry.browser)
     }
     function answerClose(id, attempt, leave) {
         var entry = entries[id]
@@ -504,8 +533,17 @@ Item {
     }
     function releasePrivateProfile() {
         if (quiescing || !privateProfileRetiring || !privateProfile) return
+        // Idle retirement is reversible while an accepted transfer retains the
+        // profile. A newly opened private space reuses that same live profile.
+        if (sessions.browsers().some(function(r) { return r.target.privateBrowsing })) {
+            privateProfileRetiring = false
+            return
+        }
         if (policy.runtimeViewsForProfile(privateProfile) > 0) return
-        privateDownloads.cancelActive()
+        if (privateDownloads.hasTransferDependencies) return
+        // Saved private files are not history and do not need a live engine.
+        // Keep only settled plain rows/file identities, never request handles.
+        if (!privateDownloads.detachCompletedProfile()) return
         var old = privateProfile
         privateProfile = null
         old.destroy()
@@ -518,6 +556,8 @@ Item {
         if (privateProfile && !records.some(function(r) { return r.target.privateBrowsing })) {
             privateProfileRetiring = true
             Qt.callLater(releasePrivateProfile)
+        } else if (privateProfile && !quiescing) {
+            privateProfileRetiring = false
         }
         for (var record of records) live[record.id] = record
         for (var id of Object.keys(entries)) {
@@ -605,6 +645,7 @@ Item {
     function navigateSession(id, url, position, locator, context) {
         var entry = entries[id]
         if (!entry || !policy.allowsNavigation(url) || quiescing) return false
+        if (pageSavePending(entry)) { message(id, "The page is still being saved. Cancel or finish its download first."); return false }
         if (!entry.browser) {
             entry.pendingNavigation = { url: url, position: position || 0, locator: locator || null, context: context }
             return true
@@ -653,6 +694,7 @@ Item {
     }
     Connections {
         target: deck.policy
+        function onDownloadAccountScopeChanged() { Qt.callLater(deck.rebindDownloadScopes) }
         function onStorageRootChanged() { deck.startQuiescence(false) }
         function onRuntimeViewCountChanged() {
             Qt.callLater(deck.advanceQuiescence)
@@ -740,7 +782,7 @@ Item {
             FeriaCloseController {
                 id: closeController
                 browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
-                retirementAllowed: entry.liveAdoptedChildren === 0
+                retirementAllowed: entry.liveAdoptedChildren === 0 && !deck.pageSavePending(entry)
                 onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
                 onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
                 onChanged: {
@@ -758,7 +800,8 @@ Item {
             readonly property var browser: browserLoader.item
             anchors.fill: parent
             visible: !retiring && (hostWindow ? hostWindow.visible
-                : deck.displayed && deck.sessions.activeId === sessionId && !deck.suppressed)
+                : deck.displayed && deck.sessions.activeId === sessionId && !deck.suppressed
+                    && !deck.downloadsPageOpen)
             function retire() {
                 if (retiring) return
                 retiring = true
@@ -806,6 +849,8 @@ Item {
                     managedBeforeUnload: true
                     profilePath: deck.policy.storageRoot
                     sharedProfile: entry.descriptor.privateBrowsing ? deck.privateProfile : deck.sharedProfile
+                    saveAdmissionOwner: entry.descriptor.privateBrowsing ? privateDownloads : regularDownloads
+                    saveBinding: { deck.sessions.revision; return deck.sessions.browserIdentity(entry.sessionId) }
                     providerId: entry.descriptor.providerId
                     accountVisitToken: entry.token
                     accountSessionId: entry.sessionId
@@ -815,7 +860,7 @@ Item {
                     resumeLocator: entry.descriptor.locator || null
                     suppressed: !entry.visible
                     freezeBackground: deck.accountStore.browserPreferences.freezeBackground !== false
-                    lifecycleBlocked: closeController.busy
+                    lifecycleBlocked: closeController.busy || deck.pageSavePending(entry)
                     activitySuspended: !deck.displayed
                         || (deck.Window.window && deck.Window.window.visibility === Window.Minimized)
                         || (entry.hostWindow && entry.hostWindow.visibility === Window.Minimized)

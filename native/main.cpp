@@ -1988,6 +1988,7 @@ int main(int argc, char *argv[]) {
         sessions->setBrowserProfile(root);
         feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
         feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
+        feriaBrowserPolicy->setDownloadAccountStore(feriaAccount);
     };
     bindFeriaProfile();
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
@@ -1995,6 +1996,7 @@ int main(int argc, char *argv[]) {
                          sessions->setBrowserProfile({});
                          feriaAccount->setStoragePath({});
                          feriaBrowserPolicy->setStorageRoot({});
+                         feriaBrowserPolicy->setDownloadAccountStore(feriaAccount);
                      });
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
                      feriaAccount, bindFeriaProfile);
