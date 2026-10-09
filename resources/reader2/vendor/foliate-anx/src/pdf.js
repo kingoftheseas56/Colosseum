@@ -493,6 +493,46 @@ const annotationLayerBuilderCSS = `
 }
 `
 
+const renderTextLayer = async (page, viewport) => {
+    const container = document.createElement('div')
+    container.classList.add('textLayer')
+    await pdfjsLib.renderTextLayer({
+        textContentSource: await page.getTextContent(),
+        container, viewport,
+    }).promise
+    return container
+}
+
+// Search and rendered pages must share the same DOM structure: search result
+// CFIs address text-layer nodes in the document loaded by the fixed-layout reader.
+const pageHTML = (scale, src, textLayer, annotationLayer) => `
+    <!DOCTYPE html>
+    <meta charset="utf-8">
+    <style>
+    :root {
+        --scale-factor: ${scale};
+    }
+    html, body {
+        margin: 0;
+        padding: 0;
+    }
+    ${textLayerBuilderCSS}
+    ${annotationLayerBuilderCSS}
+    </style>
+    <img src="${src}">
+    ${textLayer.outerHTML}
+    ${annotationLayer.outerHTML}
+`
+
+const createDocument = async page => {
+    const textLayer = await renderTextLayer(page, page.getViewport({ scale: 1 }))
+    const annotationLayer = document.createElement('div')
+    annotationLayer.classList.add('annotationLayer')
+    // Extract the searchable DOM without rendering/caching a bitmap for every page.
+    return new DOMParser().parseFromString(
+        pageHTML(1, '', textLayer, annotationLayer), 'text/html')
+}
+
 const renderPage = async (page, getImageBlob) => {
 
     const naturalPdfSize = page.getViewport({ scale: 1 })
@@ -520,12 +560,7 @@ const renderPage = async (page, getImageBlob) => {
     const blob = new Blob([str], { type: 'image/svg+xml' })
     */
 
-    const container = document.createElement('div')
-    container.classList.add('textLayer')
-    await pdfjsLib.renderTextLayer({
-        textContentSource: await page.getTextContent(),
-        container, viewport,
-    }).promise
+    const container = await renderTextLayer(page, viewport)
 
     const div = document.createElement('div')
     div.classList.add('annotationLayer')
@@ -538,24 +573,9 @@ const renderPage = async (page, getImageBlob) => {
     })
 
     const src = URL.createObjectURL(blob)
-    const url = URL.createObjectURL(new Blob([`
-        <!DOCTYPE html>
-        <meta charset="utf-8">
-        <style>
-        :root {
-            --scale-factor: ${scale};
-        }
-        html, body {
-            margin: 0;
-            padding: 0;
-        }
-        ${textLayerBuilderCSS}
-        ${annotationLayerBuilderCSS}
-        </style>
-        <img src="${src}">
-        ${container.outerHTML}
-        ${div.outerHTML}
-    `], { type: 'text/html' }))
+    const url = URL.createObjectURL(new Blob([
+        pageHTML(scale, src, container, div),
+    ], { type: 'text/html' }))
     return url
 }
 
@@ -590,6 +610,7 @@ export const makePDF = async file => {
             cache.set(i, url)
             return url
         },
+        createDocument: async () => createDocument(await pdf.getPage(i + 1)),
         size: 1000,
     }))
     book.sections[0].pageSpread = 'right'

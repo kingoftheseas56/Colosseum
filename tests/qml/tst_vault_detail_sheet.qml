@@ -44,6 +44,20 @@ TestCase {
         sheet = null
     }
 
+    function test_keyboard_focus_wraps_between_close_and_primary_action() {
+        makeSheet(baseDetail({}))
+        var play = findChild(sheet, "vaultBrowseSheetPlay")
+        var close = findChild(sheet, "vaultBrowseSheetClose")
+        testWindow.requestActivate()
+        play.keyboardAction.forceActiveFocus()
+        wait(20)
+        verify(play.keyboardAction.activeFocus)
+        keyClick(Qt.Key_Backtab, Qt.ShiftModifier)
+        verify(close.keyboardAction.activeFocus)
+        keyClick(Qt.Key_Tab)
+        verify(play.keyboardAction.activeFocus)
+    }
+
     function baseDetail(overrides) {
         var d = {
             found: true, key: "/root/Film (2021)", displayTitle: "Spider-Man: No Way Home",

@@ -72,8 +72,11 @@ def verify(manifest_path: Path, signature_path: Path, installer_path: Path,
     release_version = version(data.get("version"), "version")
     if data.get("tag") != f"v{release_version}":
         fail("tag/version mismatch")
-    expected_notes = f"https://github.com/{REPO}/releases/tag/v{release_version}"
-    if data.get("notesUrl") != expected_notes:
+    notes_urls = {
+        f"https://github.com/{REPO}/releases/tag/v{release_version}",
+        f"https://getcolosseum.world/releases/v{release_version}",
+    }
+    if data.get("notesUrl") not in notes_urls:
         fail("wrong notes URL")
     minimum = version(data.get("minimumUpdaterVersion"), "minimumUpdaterVersion")
     del minimum

@@ -7,6 +7,7 @@
 #include "watchparty/WatchPartyTypes.h"
 
 #include <QObject>
+#include <QPointer>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
@@ -241,7 +242,8 @@ private:
     std::unique_ptr<RoomServiceClient> m_service;
     std::unique_ptr<IWatchPartyAccountBridge> m_ownedAccountBridge;
     std::unique_ptr<IdentityCoordinator> m_identity;
-    PlayerSyncController* m_playerSync = nullptr;
+    // Borrowed app-owned peer; it can be destroyed before this controller.
+    QPointer<PlayerSyncController> m_playerSync;
     IWatchPartyAccountBridge* m_accountBridge = nullptr;
 
     QUrl m_serviceUrl;

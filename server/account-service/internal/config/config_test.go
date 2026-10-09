@@ -20,6 +20,7 @@ func setRequiredTestEnvironment(t *testing.T) {
 	t.Setenv("PASSWORD_BLOCKLIST_PATH", "/tmp/colosseum-password-blocklist.txt")
 	t.Setenv("BUCKET_NAME", "")
 	t.Setenv("AWS_ENDPOINT_URL_S3", "")
+	t.Setenv("AVATAR_STORAGE", "")
 }
 
 func TestLoadRequiresSecurityKeys(t *testing.T) {
@@ -47,10 +48,46 @@ func TestLoadRejectsShortSyncDataKey(t *testing.T) {
 }
 
 func TestLoadRequiresProductionAvatarStorage(t *testing.T) {
-	setRequiredTestEnvironment(t)
-	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
-	if _, err := Load(); err == nil {
-		t.Fatal("Load() accepted production without Tigris configuration")
+	for _, mode := range []string{"", "enabled", "disabld"} {
+		t.Run("mode="+mode, func(t *testing.T) {
+			setRequiredTestEnvironment(t)
+			t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
+			t.Setenv("AVATAR_STORAGE", mode)
+			if _, err := Load(); err == nil || err.Error() != "BUCKET_NAME is required in production" {
+				t.Fatalf("Load() error = %v, want required avatar bucket", err)
+			}
+		})
+	}
+}
+
+func TestLoadAllowsExplicitlyDisabledProductionAvatarStorage(t *testing.T) {
+	for _, mode := range []string{"disabled", " DISABLED "} {
+		t.Run(mode, func(t *testing.T) {
+			setRequiredTestEnvironment(t)
+			t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
+			t.Setenv("AVATAR_STORAGE", mode)
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load() error = %v, want production without avatar uploads", err)
+			}
+			if cfg.Environment != "production" || cfg.AvatarBucketName != "" || cfg.AvatarEndpoint != "" {
+				t.Fatal("Load() did not preserve production with unconfigured avatar storage")
+			}
+		})
+	}
+}
+
+func TestLoadDisabledProductionAvatarStorageStillRequiresSecurityKeys(t *testing.T) {
+	for _, name := range []string{"RECOVERY_HMAC_KEY", "ABUSE_HMAC_KEY", "SESSION_WRAP_KEY", "SYNC_DATA_KEY"} {
+		t.Run(name, func(t *testing.T) {
+			setRequiredTestEnvironment(t)
+			t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
+			t.Setenv("AVATAR_STORAGE", "disabled")
+			t.Setenv(name, "")
+			if _, err := Load(); err == nil || err.Error() != name+" is required" {
+				t.Fatalf("Load() error = %v, want required security key %s", err, name)
+			}
+		})
 	}
 }
 

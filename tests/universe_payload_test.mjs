@@ -51,12 +51,19 @@ console.log('One Piece — plan section 4 (ids pinned by value, transcribed from
       'tt3354344', 'tt3354352', 'tt2893336', 'tt5098548', 'tt6597356', 'tt6609162', 'tt6425816',
       'tt11757066', 'tt11744496', 'tt33998607'],
      'special ids, in plan §4.3 order');
-  // Row 2 is the digital-coloured edition — now a real WeebCentral source (Hemanth 2026-07-28:
-  // use the WeebCentral series for poster/name/contents, distinct from the main One Piece manga).
+  // Row 2 is the digital-coloured edition — the July WeebCentral identity was superseded
+  // (790d56c "feat(tankoban): add One Piece color shelf"): it now rides the app's own
+  // Tankoban reader as an edition entry. Same MAL catalogue id (13), its own durable
+  // seriesId — the profile universe_ext_api_test.mjs pins is the newer contract.
   eq(sect(v, 'manga').entries.map(e => e.id || '(manual)'),
-     ['30013', '01J76XYAQSGEJPXCSCVPQ3MHZM', '44414', '47152', '82353', '102533', '110258', '110233',
+     ['30013', 'one-piece-color', '44414', '47152', '82353', '102533', '110258', '110233',
       '103252', '110232', '110715', '117802', '154266'],
-     'manga ids, in plan §4.4 order — position 2 is the WeebCentral digital-coloured series');
+     'manga ids, in plan §4.4 order — position 2 is the Tankoban colour edition');
+  const color = sect(v, 'manga').entries.filter(e => e.id === 'one-piece-color');
+  eq(color.length, 1, 'the colour edition appears exactly once');
+  eq(color[0] ? color[0].provider : '', 'tankoban', 'colour edition provider');
+  eq(color[0] ? color[0].malId : '', '13', 'colour edition MAL id');
+  eq(color[0] ? color[0].seriesId : '', 'mal:13:color', 'colour edition durable series id');
   eq(sect(v, 'novels').entries.map(e => e.id),
      ['1509329459', '1528233153', '6741084754', '6736634886'],
      'novel ids, in plan §4.5 order');

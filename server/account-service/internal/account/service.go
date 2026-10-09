@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	accessTokenLifetime       = 15 * time.Minute
-	refreshRetryGrace         = 30 * time.Second
+	accessTokenLifetime = 15 * time.Minute
+	// Cover the desktop's 15-second HTTP timeout, 30-second offline retry,
+	// and a brief restart after a committed rotation whose response was lost.
+	refreshRetryGrace         = 10 * time.Minute
 	deviceChallengeLifetime   = 10 * time.Minute
 	trustedRecoveryLifetime   = 10 * time.Minute
 	trustedRecoveryRetryGrace = 10 * time.Minute

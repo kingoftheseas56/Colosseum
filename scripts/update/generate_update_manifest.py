@@ -80,8 +80,11 @@ def load_presentation(path: Path, version: str) -> dict[str, Any]:
         fail("unknown presentation key")
     tag = f"v{version}"
     notes_url = data.get("notes_url")
-    expected_url = f"https://github.com/{REPO}/releases/tag/{tag}"
-    if notes_url != expected_url:
+    permitted_urls = {
+        f"https://github.com/{REPO}/releases/tag/{tag}",
+        f"https://getcolosseum.world/releases/{tag}",
+    }
+    if notes_url not in permitted_urls:
         fail("wrong notes URL")
 
     highlights: list[dict[str, Any]] = []

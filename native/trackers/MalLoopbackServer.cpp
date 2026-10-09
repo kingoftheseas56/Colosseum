@@ -74,7 +74,7 @@ void MalLoopbackServer::stop()
         }
     }
     m_buffers.clear();
-    m_redirectUri = {};
+    m_redirectUri = QUrl{};
     m_settled = false;
 }
 

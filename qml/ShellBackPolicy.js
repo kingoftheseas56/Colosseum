@@ -49,7 +49,6 @@ function actionFor(state) {
     if (on(s.onePieceArcActive)) return "onePieceArc"
     if (on(s.onePieceAtlasTransientOpen)) return "onePieceAtlasTransient"
     if (on(s.universeActive)) return "universe"
-    if (on(s.universeHallActive)) return "universeHall"
     if (on(s.searchActive)) return "search"
     if (on(s.worldSearchActive)) return "worldSearch"
     if (on(s.comicSeriesActive)) return "comicSeries"

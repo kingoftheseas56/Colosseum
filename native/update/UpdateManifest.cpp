@@ -110,10 +110,12 @@ std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* e
         return std::nullopt;
 
     const QUrl notesUrl(root.value(QStringLiteral("notesUrl")).toString());
-    const QString expectedNotes = QStringLiteral(
+    const QString legacyNotes = QStringLiteral(
         "https://github.com/kingoftheseas56/Colosseum/releases/tag/") + manifest.tag;
+    const QString firstPartyNotes = QStringLiteral(
+        "https://getcolosseum.world/releases/") + manifest.tag;
     if (!notesUrl.isValid() || notesUrl.scheme() != QStringLiteral("https")
-        || notesUrl.toString() != expectedNotes) {
+        || (notesUrl.toString() != legacyNotes && notesUrl.toString() != firstPartyNotes)) {
         fail(error, QStringLiteral("invalid_notes_url"));
         return std::nullopt;
     }

@@ -27,7 +27,7 @@ for(const needle of [
   'root.arcRequested(arc)',
   'root.mediaRequested(entry)'
 ]) check(page.includes(needle),`page contains ${needle}`);
-check(page.includes('atlasTransientOpen: atlas.transientOpen'), 'universe forwards atlas transient state');
+check(page.includes('atlasTransientOpen: !!root.activeAtlas && root.activeAtlas.transientOpen'), 'universe forwards the active atlas transient state');
 check(page.includes('return atlas.requestEscape()'), 'universe forwards atlas Escape request');
 for(const forbidden of [
   'OnePieceWorld3D {',

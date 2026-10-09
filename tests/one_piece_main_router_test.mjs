@@ -45,15 +45,15 @@ for (const needle of [
     'item.onePaceRequested.connect(win.openOnePaceArc)'
 ]) check(main.includes(needle), `Main routes ${needle}`);
 
-check(main.includes('if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {'),
+check(main.includes('if (universeLayer.bespokeId === "com.colosseum.universe.onepiece") {'),
       'One Piece universe has a dedicated signal branch');
 check(main.includes('function closeUniverse() {') && main.includes('win.closeOnePieceArc()'),
       'closing the globe clears any arc layer');
 check(policy.includes('if (on(s.onePieceArcActive)) return "onePieceArc"'),
       'ShellBackPolicy owns arc-before-universe precedence');
 
-const onePieceBranch = main.indexOf('if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {');
-const dcauBranch = main.indexOf('if (universeLayer.extensionId === "com.colosseum.universe.dcau") {', onePieceBranch + 1);
+const onePieceBranch = main.indexOf('if (universeLayer.bespokeId === "com.colosseum.universe.onepiece") {');
+const dcauBranch = main.indexOf('if (universeLayer.bespokeId === "com.colosseum.universe.dcau") {', onePieceBranch + 1);
 check(onePieceBranch >= 0 && dcauBranch > onePieceBranch,
       'One Piece bespoke branch is isolated before legacy universe signal wiring');
 

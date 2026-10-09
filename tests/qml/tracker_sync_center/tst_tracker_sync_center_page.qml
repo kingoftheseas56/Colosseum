@@ -964,7 +964,7 @@ TestCase {
         mouseClick(dossierButton)
         wait(0)
         compare(findChild(page, "trackerDossierStatus").text,
-                "Unavailable in this build")
+                Qt.platform.os === "linux" ? "Unavailable on Linux" : "Unavailable in this build")
         compare(findChild(page, "trackerConnectButton").enabled, false)
         compare(page.selectedProviderKey, "simkl")
     }
@@ -1065,6 +1065,24 @@ TestCase {
     }
 
     function test_trakt_uses_stremio_link_and_future_cards_say_coming_soon() {
+        if (Qt.platform.os === "linux") {
+            for (var key of ["trakt", "simkl", "mal"]) {
+                compare(findChild(page, "trackerCatalogueStatus_" + key).text,
+                        "Unavailable on Linux")
+                revealCatalogueCards()
+                mouseClick(findChild(page, "trackerCatalogue_" + key))
+                compare(findChild(page, "trackerDossierStatus").text,
+                        "Unavailable on Linux")
+                var connect = findChild(page, "trackerConnectButton")
+                compare(connect.enabled, false)
+                compare(connect.text, "Unavailable on Linux")
+                mouseClick(connect)
+                compare(fixtureConnector.beginCalls, 0)
+                page.closeDossier()
+            }
+            compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")
+            return
+        }
         compare(findChild(page, "trackerCatalogueStatus_trakt").text, "Not linked")
         compare(findChild(page, "trackerCatalogueStatus_mal").text, "Coming soon")
         compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")
@@ -2394,8 +2412,7 @@ TestCase {
         page.reducedMotion = true
         compare(page.motionEnabled, false)
         testWindow.width = 680
-        wait(0)
-        compare(page.catalogueColumns, 1)
+        tryCompare(page, "catalogueColumns", 1, 1000)
         verify(findChild(page, "trackerMainSyncButton") !== null)
     }
 }

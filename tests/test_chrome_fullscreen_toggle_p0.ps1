@@ -19,8 +19,8 @@ $pages = @(
     "GenrePage", "GenreIndex", "BiblioGenreIndex", "BiblioGenrePage",
     "TheatreGenrePage", "TheatreGenreIndex", "MangaSeries", "ComicSeries",
     "ComicSeriesPage", "LocgPublisherPage", "ComicArchiveBoard", "ComicArchiveIndex",
-    "TheatreSeries", "DownloadsPage", "UniverseHallPage", "GalaxyUniversePage",
-    "SagaUniversePage", "EraUniversePage", "StudioUniversePage", "UniversePage",
+    "TheatreSeries", "DownloadsPage", "GalaxyUniversePage",
+    "SagaUniversePage",
     "BiblioBook",   # ExtensionsPage retired 2026-09-28; the Store bar is Back-only by design
     "ContinueSeeAllPage", "SearchSurface", "BiblioSearch"
 )

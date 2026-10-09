@@ -74,8 +74,8 @@ var universes = [
       ],
       // the other adaptations — the live action and the announced remake.
       adaptations: [
-        { t: "One Piece — Live Action", id: "tt11737520", year: "2023", note: "Netflix sets sail in the flesh" },
-        { t: "The One Piece",           id: "tt30476502", year: "2026", note: "The WIT Studio remake", upcoming: true }
+        { t: "One Piece — Live Action", id: "tt11737520", year: "2023", note: "Netflix sets sail in the flesh", live: true },
+        { t: "The One Piece",           id: "tt30476502", year: "2027", note: "The WIT Studio remake", upcoming: true }
       ],
       // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
       filmEras: [
@@ -101,16 +101,114 @@ var universes = [
       ],
       // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
       manga: [
-        { t: "One Piece",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
-        { t: "Ace's Story",              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
-        { t: "One Piece Party",          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
-        { t: "Shokugeki no Sanji",       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
-        { t: "Koisuru One Piece",        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
-        { t: "One Piece × Toriko",       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
-        { t: "Chapter 1000 Special",     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
-        { t: "Wanted! — Oda's Origins",  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
+        { t: "One Piece", al: 30013, mal: 13,                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+        { t: "Ace's Story", al: 117802, mal: 128594,              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
+        { t: "One Piece Party", al: 102533, mal: 86972,          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
+        { t: "Shokugeki no Sanji", al: 103252, mal: 114760,       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
+        { t: "Koisuru One Piece", al: 110233, mal: 120401,        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
+        { t: "One Piece × Toriko", al: 55146, mal: 25146,       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
+        { t: "Chapter 1000 Special", al: 154266, mal: 150042,     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
+        { t: "Wanted! — Oda's Origins", al: 30793, mal: 793,  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
       ],
-      chips: [ { t: "8 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "17 Films", ic: "movies" } ] },
+      // THE STANDARD SHELVES (2026-10-05 catalogue correction): the full 56-work union —
+      // the old full-catalogue payload's breadth on the Arc 58 shelves contract, as explicit
+      // data instead of the generic three-shelf derivation. Manga / Series / Films /
+      // Specials / Novels. The identity law is unchanged: every screen work id-pinned to
+      // Cinemeta (type verified live 2026-10-05), every ordinary manga to AniList + MAL
+      // (pins and covers re-verified live by id, never by title search), the colour edition
+      // to its Tankoban series identity (it deliberately does NOT carry a generic mal — its
+      // progress must never merge with base One Piece), every novel to an exact Apple Books
+      // id (trackId re-verified). Spin-offs run in verified first-publication year order
+      // (AniList startDate). The Fish-Man Island Log carries its poster override (the
+      // generated metahub art is a known hole there). The fields above (anime, adaptations,
+      // filmEras, manga, sagas, sagaGrid) still feed the Tribute, the story grid and the
+      // older contracts — this list owns only the standard page.
+      shelves: [
+        { title: "Manga", kind: "manga",
+          runs: [
+            { label: "The series", works: [
+              { t: "One Piece", al: 30013, mal: 13,                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+              { id: "one-piece-color", provider: "tankoban", t: "One Piece (Color)",
+                malId: "13", seriesId: "mal:13:color",
+                sourceSearchTitle: "One Piece Colored",
+                sourceSearchAliases: [ "One Piece Digital Colored Comics" ],
+                sourceRequiredMarkers: [ "colored", "full color", "full colour" ],
+                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" } ] },
+            { label: "Spin-offs", works: [
+              { t: "Wanted! — Oda's Origins", al: 30793, mal: 793,  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" },
+              { t: "One Piece Log Book Omake", al: 44414, mal: 14414,                                   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx44414-5q51CV5hp2Yh.jpg" },
+              { t: "ONE PIECE: STRONG WORLD (Chapter 0)", al: 47152, mal: 17152,                         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/n47152-v3AqgrZH9BsU.jpg" },
+              { t: "One Piece × Toriko", al: 55146, mal: 25146,       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
+              { t: "Chopperman", al: 82353, mal: 52353,                                                   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/52353.jpg" },
+              { t: "One Piece Party", al: 102533, mal: 86972,          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
+              { t: "CHIN PIECE", al: 110258, mal: 142771,                                                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110258-w41GRxfZ1EvY.jpg" },
+              { t: "Koisuru One Piece", al: 110233, mal: 120401,        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
+              { t: "Shokugeki no Sanji", al: 103252, mal: 114760,       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
+              { t: "Kobiyama Who Looks Like Koby", al: 110232, mal: 115627,                               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110232-Ez6jnlZ7Pp9w.jpg" },
+              { t: "ONE PIECE Gakuen!!", al: 110715, mal: 122305,                                          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110715-IqObMH5zGdOM.jpg" },
+              { t: "Ace's Story", al: 117802, mal: 128594,              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
+              { t: "Chapter 1000 Special", al: 154266, mal: 150042,     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" } ] } ] },
+        { title: "Series", kind: "series",
+          runs: [
+            { label: "Animation", works: [
+              { t: "One Piece", id: "tt0388629", year: "1999" },
+              { t: "One Piece Log: Fish-Man Island Saga", id: "tt33992229", year: "2024",
+                poster: "https://m.media-amazon.com/images/M/MV5BYzRiYTcwM2YtMTE1OC00MGFkLTlmZjctMjI0YjQ5MWY1MTAwXkEyXkFqcGc@._V1_SX250.jpg" },
+              { t: "One Piece in Love", id: "tt36600601", year: "2025" },
+              { t: "THE ONE PIECE", id: "tt30476502", year: "2027", upcoming: true } ] },
+            { label: "Live action", works: [
+              { t: "One Piece — Live Action", id: "tt11737520", year: "2023", live: true } ] } ] },
+        { title: "Films", kind: "movie",
+          runs: [ { label: "", works: [
+            { t: "One Piece: The Movie",                   id: "tt0814243", year: "2000" },
+            { t: "Clockwork Island Adventure",             id: "tt0832449", year: "2001" },
+            { t: "Chopper's Kingdom on the Island of Strange Animals", id: "tt0997084", year: "2002" },
+            { t: "Dead End Adventure",                     id: "tt1006926", year: "2003" },
+            { t: "The Cursed Holy Sword",                  id: "tt1010435", year: "2004" },
+            { t: "Baron Omatsuri and the Secret Island",   id: "tt1018764", year: "2005" },
+            { t: "The Giant Mechanical Soldier of Karakuri Castle", id: "tt1059950", year: "2006" },
+            { t: "Episode of Alabasta",                    id: "tt1037116", year: "2007" },
+            { t: "Episode of Chopper Plus",                id: "tt1206326", year: "2008" },
+            { t: "Strong World",                           id: "tt1485763", year: "2009" },
+            { t: "One Piece 3D: Straw Hat Chase",          id: "tt1865467", year: "2011" },
+            { t: "Film Z",                                 id: "tt2375379", year: "2012" },
+            { t: "Film: Gold",                             id: "tt5251328", year: "2016" },
+            { t: "Stampede",                               id: "tt9430698", year: "2019" },
+            { t: "Film: Red",                              id: "tt16183464", year: "2022" } ] } ] },
+        { title: "Specials", kind: "movie",
+          runs: [ { label: "", works: [
+            { t: "Defeat the Pirate Ganzak!",              id: "tt1012788", year: "1998" },
+            { t: "Adventure in the Ocean's Navel",         id: "tt0975705", year: "2000" },
+            { t: "Open Upon the Great Sea! A Father's Huge, HUGE Dream!", id: "tt1003286", year: "2003" },
+            { t: "Protect! The Last Great Stage",          id: "tt1010037", year: "2003" },
+            { t: "Luffy's Detective Story",                id: "tt1012787", year: "2005" },
+            { t: "Strong World Episode 0",                 id: "tt7947592", year: "2010" },
+            { t: "Episode of Nami",                        id: "tt2598466", year: "2012" },
+            { t: "Episode of Luffy — Hand Island",         id: "tt3354344", year: "2012" },
+            { t: "Episode of Merry",                       id: "tt3354352", year: "2013" },
+            { t: "Dream 9 Toriko x One Piece x Dragon Ball Z", id: "tt2893336", year: "2013" },
+            { t: "3D2Y — Overcome Ace's Death",            id: "tt5098548", year: "2014" },
+            { t: "Episode of Sabo",                        id: "tt6597356", year: "2015" },
+            { t: "Adventure of Nebulandia",                id: "tt6609162", year: "2015" },
+            { t: "Heart of Gold",                          id: "tt6425816", year: "2016" },
+            { t: "Episode of East Blue",                   id: "tt11757066", year: "2017" },
+            { t: "Episode of Skypiea",                     id: "tt11744496", year: "2018" },
+            { t: "One Piece Fan Letter",                   id: "tt33998607", year: "2024" } ] } ] },
+        { title: "Novels", kind: "book",
+          runs: [ { label: "", works: [
+            { t: "One Piece: Ace's Story, Vol. 1", apple: 1509329459, author: "Sho Hinata", year: 2020,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication113/v4/3c/02/de/3c02decc-5827-f714-5f6b-8ad7f5547a85/9781974718528.jpg/400x600bb.jpg" },
+            { t: "One Piece: Ace's Story, Vol. 2", apple: 1528233153, author: "Sho Hinata", year: 2020,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication114/v4/a4/e7/d4/a4e7d44e-e8e6-f20a-4059-ef66599d5c12/9781974718535.jpg/400x600bb.jpg" },
+            { t: "One Piece: Law's Story", apple: 6741084754, author: "Eiichiro Oda", year: 2025,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/0c/67/48/0c67487b-ba94-6604-989a-8d8383d04124/9781974760145.jpg/400x600bb.jpg" },
+            { t: "One Piece: Heroines, Vol. 2", apple: 6736634886, author: "Eiichiro Oda", year: 2025,
+              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/79/f4/6f/79f46fb0-4b43-3833-0ea9-eebc84c24ba0/9781974756230.jpg/400x600bb.jpg" } ] } ] }
+      ],
+      // THE STORY GRID (2026-10-04, whole works only — the sagas-as-waypoints list above
+      // is Tribute material and ignored here): one story, the manga over its three shows.
+      sagaGrid: { stories: [ { short: "One Piece", book: 0, shows: [0, 1, 2] } ] },
+      chips: [ { t: "15 Manga", ic: "manga" }, { t: "5 Series", ic: "movies" }, { t: "15 Films", ic: "movies" }, { t: "17 Specials", ic: "movies" }, { t: "4 Novels", ic: "books" } ] },
     // renamed Marvel → full name (Hemanth 2026-07-13) + THE TELEVISION ACT: every Marvel
     // Studios series + the Special Presentations, release-ordered, ALL id-pinned (bare
     // names are impostor minefields — Loki/Hawkeye/Echo/What If all collide; Ms. Marvel
@@ -214,16 +312,27 @@ var universes = [
       ],
       // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
       manga: [
-        { t: "Dragon Ball",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
-        { t: "Dragon Ball Super",          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
-        { t: "Dragon Ball SD",             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
-        { t: "Reincarnated as Yamcha!",    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
-        { t: "Episode of Bardock",         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
-        { t: "Resurrection 'F'",           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
+        { t: "Dragon Ball", al: 30042, mal: 42,                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
+        { t: "Dragon Ball Super", al: 86508, mal: 89734,          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
+        { t: "Dragon Ball SD", al: 53446, mal: 23446,             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
+        { t: "Reincarnated as Yamcha!", al: 98030, mal: 103047,    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
+        { t: "Episode of Bardock", al: 56373, mal: 26373,         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
+        { t: "Resurrection 'F'", al: 94109, mal: 86671,           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
         { t: "Dragon Ball Minus",          q: "Dragon Ball Minus Departure Fated Child", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx97900-EqScEWX0U6Tj.png" },
-        { t: "Goku & Friends Return!!",    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
+        { t: "Goku & Friends Return!!", al: 46110, mal: 16110,    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
       ],
       firstWatch: { t: "Dragon Ball", id: "tt0088509" },
+      // THE STORY GRID (2026-10-04, whole works only): a column per series, the manga row
+      // over the anime row. Kai is Z recut; GT, Heroes and Daima have no manga of their own;
+      // the original manga spans Dragon Ball and Z, the Super manga rides Super's column.
+      sagaGrid: { labels: { shows: "ANIME" },
+                  stories: [ { short: "Dragon Ball",              shows: [0] },
+                             { short: "Dragon Ball Z",            shows: [1, 3] },   // Kai is Z recut
+                             { short: "Dragon Ball GT",           shows: [2] },      // no manga
+                             { short: "Dragon Ball Super",        book: 1, shows: [4] },
+                             { short: "Super Dragon Ball Heroes", shows: [5] },
+                             { short: "Dragon Ball Daima",        shows: [6] } ],
+                  spans: [ { books: 0, from: 1, to: 2 } ] },   // the original manga covers Dragon Ball and Z
       chips: [ { t: "8 Manga", ic: "manga" }, { t: "7 Anime", ic: "movies" }, { t: "25 Films", ic: "movies" } ] },
     { name: "Cosmere", c1: "#101927", category: "cosmere",
       // Wikipedia lead (Brandon Sanderson — the Cosmere has no standalone article), fetched
@@ -333,6 +442,20 @@ var universes = [
           ] }
       ] },
     { name: "Harry Potter", c1: "#221c30", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/harry-potter.jpg",
+      sagaBranches: [{ title: "Hogwarts Library", books: [7, 8, 9] }, { title: "Fantastic Beasts", films: [8, 9, 10] }, { title: "Harry Potter on television", shows: [0] }],
+      // THE SAGA GRID (Arc 58): a column per story, a row per form. The one hand-edited
+      // pairing — which screen work adapts which story — by canon index into novels/films/
+      // shows below. A story told in two films lists both; a work that covers several
+      // stories goes in `spans`. Anything left unpaired falls into an "On screen" block.
+      sagaGrid: { stories: [
+          { short: "Sorcerer's Stone",     book: 0, films: [0] },
+          { short: "Chamber of Secrets",   book: 1, films: [1] },
+          { short: "Prisoner of Azkaban",  book: 2, films: [2] },
+          { short: "Goblet of Fire",       book: 3, films: [3] },
+          { short: "Order of the Phoenix", book: 4, films: [4] },
+          { short: "Half-Blood Prince",    book: 5, films: [5] },
+          { short: "Deathly Hallows",      book: 6, films: [6, 7] } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Wizarding World — Rowling's seven novels, the eight films, and the Fantastic Beasts era beyond.",
       banner: "https://live.metahub.space/background/medium/tt1201607/img",
@@ -355,10 +478,18 @@ var universes = [
                 "Fantastic Beasts: The Secrets of Dumbledore" ],
       // the HBO show is id-pinned (Cinemeta names it bare "Harry Potter" — search also
       // returns Wizards of Baking / Tournament of Houses); premieres 2026-12-25 → UPCOMING tag
-      shows:  [ { t: "Harry Potter", id: "tt13918446" } ],
+      // Official premiere window: harrypotter.com/news/watch-the-first-teaser-for-hbo-original-harry-potter-series-premiering-christmas-2026
+      shows:  [ { t: "Harry Potter", id: "tt13918446", releaseDate: "2026-12-25" } ],
       movieQueries: [ "Harry Potter", "Fantastic Beasts" ],
       chips: [ { t: "10 Books", ic: "books" }, { t: "11 Films", ic: "movies" }, { t: "1 Show", ic: "movies" } ] },
     { name: "Lord of the Rings", c1: "#1c2414", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/lord-of-the-rings.jpg",
+      sagaBranches: [{ title: "More of Middle-earth", books: [4], films: [6, 7, 8], shows: [0] }],
+      sagaGrid: { stories: [
+          { short: "The Hobbit",                 book: 0, films: [3, 4, 5] },
+          { short: "The Fellowship of the Ring", book: 1, films: [0] },
+          { short: "The Two Towers",             book: 2, films: [1] },
+          { short: "The Return of the King",     book: 3, films: [2] } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Tolkien's Middle-earth — the novels, Jackson's films, and the age of Rings of Power.",
       banner: "https://live.metahub.space/background/medium/tt0167260/img",
@@ -378,6 +509,11 @@ var universes = [
       readQueries: [ "The Hobbit Tolkien" ],
       chips: [ { t: "5 Novels", ic: "books" }, { t: "9 Films", ic: "movies" }, { t: "1 Show", ic: "movies" } ] },
     { name: "A Song of Ice and Fire", c1: "#1f2429", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/ice-and-fire.jpg",
+      sagaBranches: [{ title: "Histories of Westeros", books: [5, 6, 7, 8], shows: [1, 2] }],
+      // one show covers all five books — it stretches across them
+      sagaGrid: { stories: [ { book: 0 }, { book: 1 }, { book: 2 }, { book: 3 }, { book: 4 } ],
+                  spans: [ { shows: 0, from: 1, to: 5 } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Martin's Westeros — the saga still being written, and the shows that carved it into legend.",
       banner: "https://live.metahub.space/background/medium/tt0944947/img",
@@ -401,14 +537,56 @@ var universes = [
     //    Begins" excluded — canon only. The SEVEN anime map to the seven Dragon Balls.
     { name: "Naruto", c1: "#2a3212", category: "anime",
       archived: true,   // benched 2026-07-18 — returns when custom-made
-      blurb: "The Hidden Leaf's loudest ninja — Kishimoto's manga, the anime and Shippuden, and Boruto's generation.",
+      // PINNED 2026-10-04 (Arc 58-D, Preflight; every id re-verified live by Agent 0 against
+      // Cinemeta and AniList the same day). Whole works only. Traps resolved by id: the manga
+      // is AL 30011 (the 1999 serialization, NOT the same-name 1997 one-shot AL 36444); Boruto
+      // is AL 87178 (MANGA, NOT the same-title novel AL 121093); the anime is tt0409591 (2002,
+      // NOT the Rock Lee spin-off tt2301807). `mal` is AniList's own idMal for each manga.
+      // Wikipedia REST summary, fetched 2026-10-04 verbatim.
+      blurb: "Naruto is a Japanese manga series written and illustrated by Masashi Kishimoto. It tells the story of Naruto Uzumaki, a young, socially isolated ninja who seeks recognition from his peers and dreams of becoming the Hokage, the leader of his village. The story is told in two parts: the first is set in Naruto's pre-teen years, and the second in his teens. The series is based on two one-shot manga by Kishimoto: Karakuri (1995), which earned Kishimoto an honorable mention in Shueisha's monthly Hop Step Award the following year, and Naruto (1997).",
+      blurbSource: "Wikipedia — Naruto",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30011-pkX1O0EFqvV7.jpg",
-      // expansion 2026-07-13 (AniList-verified): Boruto NNG (AL 87178, finished) + Two Blue
-      // Vortex (AL 168468, the live continuation) + the Scarlet Spring gaiden (AL 86171)
-      readQueries: [ "Naruto", "Boruto", "Boruto: Two Blue Vortex",
-                     "Naruto: The Seventh Hokage and the Scarlet Spring" ],
-      seriesQueries: [ "naruto", "boruto" ],
-      chips: [ { t: "5 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "11 Films", ic: "movies" } ] },
+      saga: [
+        { t: "Naruto",                          id: "tt0409591", year: "2002" },
+        { t: "Naruto: Shippuden",               id: "tt0988824", year: "2007" },
+        { t: "Boruto: Naruto Next Generations", id: "tt6342474", year: "2017" }
+      ],
+      filmEras: [
+        { era: "The Naruto Films", films: [
+            { t: "Naruto the Movie: Ninja Clash in the Land of Snow",          id: "tt0476680", year: "2004" },
+            { t: "Naruto the Movie 2: Legend of the Stone of Gelel",           id: "tt0791188", year: "2005" },
+            { t: "Naruto the Movie 3: Guardians of the Crescent Moon Kingdom", id: "tt1071815", year: "2006" }
+        ] },
+        { era: "The Shippuden Films", films: [
+            { t: "Naruto Shippûden: The Movie",                                   id: "tt0988982", year: "2007" },
+            { t: "Naruto Shippuden: The Movie - Bonds",                           id: "tt1160524", year: "2008" },
+            { t: "Naruto Shippûden: The Movie 3: Inheritors of the Will of Fire", id: "tt1481363", year: "2009" },
+            { t: "Naruto Shippûden: The Lost Tower",                              id: "tt1703048", year: "2010" },
+            { t: "Naruto Shippuden the Movie: Blood Prison",                      id: "tt1999167", year: "2011" },
+            { t: "Road to Ninja - Naruto the Movie",                              id: "tt2290828", year: "2012" },
+            { t: "The Last: Naruto the Movie",                                    id: "tt3717532", year: "2014" }
+        ] },
+        { era: "The Boruto Film", films: [
+            { t: "Boruto: Naruto the Movie", id: "tt4618398", year: "2015" }
+        ] }
+      ],
+      manga: [
+        { t: "Naruto",                          q: "Naruto",                          al: 30011,  mal: 11,     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30011-9yUF1dXWgDOx.jpg" },
+        { t: "Boruto: Naruto Next Generations", q: "Boruto: Naruto Next Generations", al: 87178,  mal: 95210,  cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx87178-CPMk8QdPo7c8.png" },
+        { t: "Boruto: Two Blue Vortex",         q: "Boruto: Two Blue Vortex",         al: 168468, mal: 160786, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx168468-FEo5x1ZZyWj4.png" },
+        { t: "The Seventh Hokage and the Scarlet Spring", q: "Naruto: The Seventh Hokage and the Scarlet Spring", al: 86171, mal: 87866, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86171-MqLAklSEVTI7.jpg" }
+      ],
+      firstWatch: { t: "Naruto", id: "tt0409591" },
+      // THE STORY GRID (whole works only): the original manga spans Naruto and Shippuden;
+      // Boruto's manga rides Boruto's column; Two Blue Vortex has no anime yet; the Scarlet
+      // Spring gaiden falls to Spin-offs.
+      sagaGrid: { labels: { shows: "ANIME" },
+                  stories: [ { short: "Naruto",                  shows: [0] },
+                             { short: "Naruto Shippuden",        shows: [1] },
+                             { short: "Boruto",                  book: 1, shows: [2] },
+                             { short: "Boruto: Two Blue Vortex", book: 2 } ],
+                  spans: [ { books: 0, from: 1, to: 2 } ] },
+      chips: [ { t: "4 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "11 Films", ic: "movies" } ] },
     // ERAS template — THE TIMELINE: the Timmverse in in-universe chronology. Ids pinned
     // where research flagged impostors (Batman Beyond's 2015 web series; Batwoman ranks 8th).
     { name: "DC Animated Universe", c1: "#101622", category: "eras",
@@ -616,6 +794,11 @@ var universes = [
                        "tales of the underworld", "young jedi adventures" ],
       chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
     { name: "Dune", c1: "#3a2a18", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/dune.jpg",
+      sagaBranches: [{ title: "Dune on television", shows: [0, 1, 2] }],
+      // Villeneuve's films pair to the books; the 1984 Lynch film stays unpaired (On screen)
+      sagaGrid: { stories: [ { book: 0, films: [0, 1] }, { book: 1, films: [2] },
+                             { book: 2 }, { book: 3 }, { book: 4 }, { book: 5 } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Frank Herbert's world, end to end — the novels, the films, the graphic novel.",
       banner: "https://live.metahub.space/background/medium/tt15239678/img",
@@ -638,6 +821,11 @@ var universes = [
     // ===== the 2026-07-12 second expansion (10 more, researched via parallel agents:
     // every Cinemeta name query-verified, every banner HEAD-checked 200 on pinned hosts) =====
     { name: "The Witcher", c1: "#26221c", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/the-witcher.jpg",
+      sagaBranches: [{ title: "Stories of the Continent", books: [7, 8], films: [0, 1, 2], shows: [1] }],
+      sagaGrid: { stories: [ { book: 0 }, { book: 1 }, { book: 2 }, { book: 3 }, { book: 4 },
+                             { book: 5 }, { book: 6 } ],
+                  spans: [ { shows: 0, from: 1, to: 7 } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Geralt's path through a Continent of monsters — the saga, the Netflix shows, and the animated film, in one place.",
       banner: "https://live.metahub.space/background/medium/tt5180504/img",
@@ -659,6 +847,8 @@ var universes = [
                 line: "Geralt in panels — the Dark Horse hunts." },
       chips: [ { t: "9 Novels", ic: "books" }, { t: "2 Shows", ic: "movies" }, { t: "3 Films", ic: "movies" } ] },
     { name: "Sherlock Holmes", c1: "#1f242c", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/sherlock-holmes.jpg",
+      sagaBranches: [{ title: "Other interpretations", shows: [1] }],
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Baker Street canon — Doyle's nine books and the defining screen deductions, in one place.",
       banner: "https://live.metahub.space/background/medium/tt1475582/img",
@@ -672,6 +862,12 @@ var universes = [
       seriesQueries: [ "sherlock", "elementary" ],
       chips: [ { t: "9 Books", ic: "books" }, { t: "2 Films", ic: "movies" }, { t: "3 Shows", ic: "movies" } ] },
     { name: "Jurassic Park", c1: "#1c2a20", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/jurassic-park.jpg",
+      sagaBranches: [{ title: "Jurassic World", films: [3, 4, 5, 6], shows: [0, 1] }],
+      // Jurassic Park III is a story with no book — its book slot stays empty
+      sagaGrid: { stories: [ { short: "Jurassic Park", book: 0, films: [0] },
+                             { short: "The Lost World", book: 1, films: [1] },
+                             { short: "Jurassic Park III", films: [2] } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Crichton's islands of resurrected giants — the novels, all seven films, and the animated escapes, in one place.",
       banner: "https://live.metahub.space/background/medium/tt0107290/img",
@@ -684,6 +880,13 @@ var universes = [
       seriesQueries: [ "jurassic" ],
       chips: [ { t: "2 Novels", ic: "books" }, { t: "7 Films", ic: "movies" }, { t: "2 Shows", ic: "movies" } ] },
     { name: "Percy Jackson", c1: "#1a2430", category: "saga",
+      wallpaper: "../assets/wallpaper/sagas/percy-jackson.jpg",
+      sagaBranches: [{ title: "Senior Year", books: [5, 6] }],
+      // films and the series both adapt the books: a row each. The series has aired two
+      // seasons, a book per season — extend `to` as seasons air.
+      sagaGrid: { stories: [ { book: 0, films: [0] }, { book: 1, films: [1] },
+                             { book: 2 }, { book: 3 }, { book: 4 } ],
+                  spans: [ { shows: 0, from: 1, to: 2 } ] },
       archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "A demigod's quests from Camp Half-Blood to Olympus — the five books, the films, and the series, in one place.",
       banner: "https://live.metahub.space/background/medium/tt12324366/img",
@@ -809,16 +1012,40 @@ var universes = [
       chips: [ { t: "3 Shows", ic: "movies" }, { t: "2 Films", ic: "movies" }, { t: "6 Novels", ic: "books" }, { t: "Comics", ic: "comics" } ] },
     { name: "Attack on Titan", c1: "#2a2018", category: "anime",
       archived: true,   // benched 2026-07-18 — returns when custom-made
-      blurb: "Humanity's last walls and the titans beyond them — Isayama's manga, the landmark anime, and the compilation films.",
+      // PINNED 2026-10-04 (Arc 58-D, Preflight; every id re-verified live by Agent 0 against
+      // Cinemeta and AniList the same day). Whole works only: the anime is ONE series
+      // (tt2560140, 2013–2023), not seasons or Final Chapters entries. Traps resolved by id:
+      // Before the Fall is AL 85312 (MANGA, NOT the same-title novel AL 73999); No Regrets is
+      // AL 85199 (NOT its one-shot prologue AL 85476). The two 2015 live-action films diverge
+      // from the source, so they stand in their own group. `mal` is AniList's own idMal.
+      // Wikipedia REST summary, fetched 2026-10-04.
+      blurb: "Attack on Titan is a Japanese manga series written and illustrated by Hajime Isayama. Set in a world where humanity is forced to live in cities surrounded by three enormous walls that protect them from gigantic man-eating humanoids referred to as Titans, the story follows Eren Yeager, an adolescent boy who vows to exterminate the Titans after they bring about the destruction of his hometown and the death of his mother. It was serialized in Kodansha's monthly magazine Bessatsu Shonen Magazine from September 2009 to April 2021, with its chapters collected in 34 tankobon volumes.",
+      blurbSource: "Wikipedia — Attack on Titan",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/53390-6Uru5rrjh8zv.jpg",
-      // expansion 2026-07-13 (AniList/Kitsu-verified): No Regrets (AL 85199) + Before the
-      // Fall (AL 85312 — the same-title NOVEL outranks the manga on bare search) + the
-      // Final Chapters specials (Kitsu 46038/47132, invisible on the bare query)
-      readQueries: [ "Attack on Titan", "Attack on Titan: No Regrets",
-                     "Attack on Titan: Before the Fall" ],
-      seriesQueries: [ "attack on titan", "attack on titan final chapters" ],
-      movieQueries: [ "attack on titan" ],
-      chips: [ { t: "3 Manga", ic: "manga" }, { t: "1 Anime", ic: "movies" }, { t: "Films", ic: "movies" } ] }
+      saga: [ { t: "Attack on Titan", id: "tt2560140", year: "2013" } ],
+      filmEras: [
+        { era: "The Compilation Films", films: [
+            { t: "Attack on Titan: Crimson Bow and Arrow",     id: "tt3646944",  year: "2014" },
+            { t: "Attack on Titan: The Wings of Freedom",      id: "tt3646946",  year: "2015" },
+            { t: "Attack on Titan: The Roar of Awakening",     id: "tt7941892",  year: "2018" },
+            { t: "Attack on Titan: Chronicle",                 id: "tt12415546", year: "2020" },
+            { t: "Attack on Titan the Movie: The Last Attack", id: "tt33175825", year: "2024" }
+        ] },
+        { era: "The Live-Action Films", films: [
+            { t: "Attack on Titan Part 1",  id: "tt2072230", year: "2015" },
+            { t: "Attack on Titan: Part 2", id: "tt4294052", year: "2015" }
+        ] }
+      ],
+      manga: [
+        { t: "Attack on Titan",  q: "Attack on Titan",                  al: 53390, mal: 23390, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53390-1RsuABC34P9D.jpg" },
+        { t: "No Regrets",       q: "Attack on Titan: No Regrets",      al: 85199, mal: 58007, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx85199-IzuYa59zXTBN.jpg" },
+        { t: "Before the Fall",  q: "Attack on Titan: Before the Fall", al: 85312, mal: 57795, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx85312-q88Zhgf7W9fh.jpg" }
+      ],
+      firstWatch: { t: "Attack on Titan", id: "tt2560140" },
+      // THE STORY GRID (whole works only): one story, the manga over the one anime series.
+      sagaGrid: { labels: { shows: "ANIME" },
+                  stories: [ { short: "Attack on Titan", book: 0, shows: [0] } ] },
+      chips: [ { t: "3 Manga", ic: "manga" }, { t: "1 Anime", ic: "movies" }, { t: "7 Films", ic: "movies" } ] }
 ];
 
 // Hemanth 2026-07-13: the Cognitive Atlas belongs at the front. Preserve One Piece as
@@ -852,9 +1079,8 @@ universes = universes.filter(function(u) { return u.archived !== true; });
 //  future curations land here first if their page needs work before surfacing)
 var placeholders = [];
 
-// which page TEMPLATE a universe opens into: "cinematic" → CinematicPage (the MCU
-// Fandom-wiki phase template, Marvel-only for now); everything else → the generic
-// name/query-driven UniversePage.
+// a universe's curated category. Since Arc 58 the page it opens is decided by its data
+// (`shelves`/`manga` → the shelves page, `sagaGrid` → the story grid), not by this.
 function categoryFor(name) {
     var all = universes.concat(archive);
     for (var i = 0; i < all.length; i++)
@@ -871,3 +1097,555 @@ function configFor(name) {
         if (all[i].name.toLowerCase() === q) return all[i];
     return {};
 }
+
+// The UNIVERSES WORLD roster (2026-10-04): every universe with a working page, as ledger
+// bars. First the INSTALLED roster exactly as the shell hands it down ({extensionId,
+// name, banner, logo} — Main's installedUniverses); then every curated door that opens a
+// real page today, from universes and archive alike. The page a door opens is DATA: a
+// curated sagaGrid (the story grid, whichever category the entry rides) opens "saga";
+// otherwise the category's own template (saga, eras, studio, anime). A curated entry
+// already on the installed shelf by name is skipped: the installed bar owns that
+// universe — and an installed universe whose curation carries a sagaGrid gets the page
+// beside its extensionId (the shell prefers the page). Entries with no page either way
+// (cinematic, magazine, cosmere, galaxy, and onepiece/dragonball without a sagaGrid)
+// stay out rather than dead bars. Installed entries pass through otherwise untouched;
+// curated entries carry name, banner (the local wallpaper art when a saga has it),
+// blurb, chips and their template page. Pure — same input, same bars.
+// Since 2026-10-05 the roster is STANDARD pages only: an installed universe with no page of
+// its own (Cosmere) is a Tribute and lives in the carousel, not in the list. Every entry
+// carries its identity mark (`logo`, `logoShape`) for the banner's rail.
+
+// THE MARKS (Arc 58, 2026-10-05): one recognisable identity per universe, for the banner in
+// the Universes world (Hemanth: "use accurate icons for each universe like the straw hat
+// symbol or the official DC logo"). Files live in assets/universes/marks/, presentation-ready
+// (already light where the mark must read on dark art; nothing is tinted at runtime). Shape
+// picks the box: wide wordmarks, tall emblems, square badges. Imported by
+// Brotherhood/agents/_import_universe_marks.py; provenance in Preflight's SOURCES.md.
+var MARKS = {
+    "Attack on Titan":            ["attack-on-titan.svg", "wide"],
+    "Avatar: The Last Airbender": ["avatar.svg", "wide"],
+    "DC Animated Universe":       ["dc.png", "square"],
+    "Dragon Ball":                ["dragon-ball.png", "wide"],
+    "Dune":                       ["dune.png", "wide"],
+    "Harry Potter":               ["harry-potter.png", "wide"],
+    "James Bond":                 ["james-bond.png", "wide"],
+    "Jurassic Park":              ["jurassic-park.png", "wide"],
+    "Lord of the Rings":          ["lord-of-the-rings.png", "wide"],
+    "Marvel Cinematic Universe":  ["marvel.png", "wide"],
+    "Naruto":                     ["naruto.svg", "square"],
+    "One Piece":                  ["one-piece.png", "square"],
+    "Percy Jackson":              ["percy-jackson.png", "wide"],
+    "Sherlock Holmes":            ["sherlock-holmes.png", "wide"],
+    "A Song of Ice and Fire":     ["ice-and-fire.png", "wide"],
+    "Star Trek":                  ["star-trek.png", "tall"],
+    "Star Wars":                  ["star-wars.png", "wide"],
+    "Studio Ghibli":              ["studio-ghibli.svg", "wide"],
+    "Weekly Shonen Jump":         ["shonen-jump.png", "wide"],
+    "The Witcher":                ["the-witcher.png", "wide"]
+};
+// WHAT A UNIVERSE PRIMARILY IS (Hemanth 2026-10-05): the filter strip in the Universes world
+// classifies, it does not inventory. "I click books and I see Avatar ... it is primarily a TV
+// show" — so every universe has ONE primary label, or TWO when the second is a direct
+// adaptation that stands level with the source (the books and their films, the manga and its
+// anime). What else a universe happens to hold stays on its banner and inside its page; it does
+// not put the universe under that tab. A curated judgment, like the pairing tables: edit here.
+var PRIMARY = {
+    "Attack on Titan":            ["manga", "anime"],
+    "Avatar: The Last Airbender": ["series"],
+    "DC Animated Universe":       ["series"],
+    "Dragon Ball":                ["manga", "anime"],
+    "Dune":                       ["books", "films"],
+    "Harry Potter":               ["books", "films"],
+    "James Bond":                 ["films"],
+    "Jurassic Park":              ["films"],
+    "Lord of the Rings":          ["books", "films"],
+    "Marvel Cinematic Universe":  ["films", "series"],
+    "Naruto":                     ["manga", "anime"],
+    "One Piece":                  ["manga", "anime"],
+    "Percy Jackson":              ["books", "series"],
+    "Sherlock Holmes":            ["books", "series"],
+    "A Song of Ice and Fire":     ["books", "series"],
+    "Star Trek":                  ["series", "films"],
+    "Star Wars":                  ["films", "series"],
+    "Studio Ghibli":              ["films", "anime"],
+    "Weekly Shonen Jump":         ["manga"],
+    "The Witcher":                ["books", "series"]
+};
+
+function markFor(name) {
+    var m = MARKS[name];
+    return m ? { logo: "../assets/universes/marks/" + m[0], shape: m[1] } : { logo: "", shape: "" };
+}
+
+function worldRoster(installed) {
+    var roster = [];
+    var seen = {};
+    var shelf = installed || [];
+    for (var i = 0; i < shelf.length; i++) {
+        if (!shelf[i] || !shelf[i].name) continue;
+        seen[shelf[i].name] = true;
+        // an installed universe supplies identity and art; what it holds comes from curation
+        var cfg = configFor(shelf[i].name);
+        var mark = markFor(shelf[i].name);
+        var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
+                      banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
+                      logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
+                      primary: PRIMARY[shelf[i].name] || null,
+                      blurb: cfg.blurb || "", chips: cfg.chips || [] };
+        if (cfg.shelves || cfg.manga) entry.page = "shelves";
+        else if (cfg.sagaGrid) entry.page = "saga";
+        if (entry.page) roster.push(entry);      // no standard page = Tribute only (the carousel)
+    }
+    var opensPage = { saga: true, eras: true, studio: true, anime: true };
+    var curated = universes.concat(archive);
+    for (var j = 0; j < curated.length; j++) {
+        var c = curated[j];
+        var page = (c.shelves || c.manga) ? "shelves" : (c.sagaGrid ? "saga" : (opensPage[c.category] ? c.category : null));
+        if (!page || seen[c.name]) continue;
+        seen[c.name] = true;
+        var cmark = markFor(c.name);
+        roster.push({ name: c.name,
+                      banner: c.wallpaper || c.banner || "",
+                      logo: cmark.logo, logoShape: cmark.shape,
+                      primary: PRIMARY[c.name] || null,
+                      blurb: c.blurb || "",
+                      chips: c.chips || [],
+                      page: page });
+    }
+    // a finite, curated list has no ranking: alphabetical, articles aside
+    function key(e) { return String(e.name).toLowerCase().replace(/^(the|a|an) /, ""); }
+    roster.sort(function(x, y) { return key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0; });
+    return roster;
+}
+
+// The filter's facets. A universe sits under a facet when that is what it PRIMARILY is (its
+// `primary` labels, from PRIMARY above). A universe nobody has classified yet falls back to
+// what its banner's chips say it holds, so a new entry is never invisible to the filter.
+var FACETS = [
+    { key: "books",  label: "Books",  match: /book|novel|stor/i },
+    { key: "manga",  label: "Manga",  match: /manga/i },
+    { key: "anime",  label: "Anime",  match: /anime/i },
+    { key: "films",  label: "Films",  match: /film|movie/i },
+    { key: "series", label: "Series", match: /show|series/i },
+    { key: "comics", label: "Comics", match: /comic|graphic/i }
+];
+function holds(entry, key) {
+    if (entry && entry.primary) return entry.primary.indexOf(key) >= 0;
+    var chips = (entry && entry.chips) || [];
+    for (var f = 0; f < FACETS.length; f++) {
+        if (FACETS[f].key !== key) continue;
+        for (var i = 0; i < chips.length; i++)
+            if (FACETS[f].match.test(String(chips[i].t))) return true;
+    }
+    return false;
+}
+// the facets worth offering: only those at least one universe in the roster primarily is
+function rosterFacets(roster) {
+    return FACETS.filter(function(f) {
+        return (roster || []).some(function(e) { return holds(e, f.key); });
+    }).map(function(f) { return { key: f.key, label: f.label }; });
+}
+function filterRoster(roster, key) {
+    if (!key) return roster || [];
+    return (roster || []).filter(function(e) { return holds(e, key); });
+}
+
+// The Tributes: the hand-made art pages. Today these are exactly the installed universe
+// extensions; the Universes world shows them in its carousel, above the list.
+// Their order is fixed (Hemanth 2026-10-05), whatever order the shell hands them down in;
+// a Tribute nobody has placed yet follows the four. `standard` says whether the universe
+// also has a standard page: Cosmere has none, so its slide offers the Tribute only.
+var TRIBUTE_ORDER = ["One Piece", "Cosmere", "DC Animated Universe", "Star Wars"];
+function tributes(installed) {
+    function rank(name) { var i = TRIBUTE_ORDER.indexOf(name); return i < 0 ? TRIBUTE_ORDER.length : i; }
+    return (installed || []).filter(function(u) { return u && u.name && u.extensionId; })
+        .map(function(u, at) {
+            var cfg = configFor(u.name);
+            return { extensionId: u.extensionId, name: u.name, at: at,
+                     standard: !!(cfg.shelves || cfg.manga || cfg.sagaGrid),
+                     banner: u.banner || cfg.banner || "", blurb: cfg.blurb || "" };
+        })
+        .sort(function(x, y) { return rank(x.name) - rank(y.name) || x.at - y.at; });
+}
+
+// ═══ BEGIN GENERATED: THE SHELVES (Arc 58-E) ═══
+// One universe page serves every universe that is not a book saga: the SHELVES page
+// (ShelvesUniversePage.qml). A universe that carries `shelves` opens it: one shelf per medium,
+// the franchise's own grouping as labelled runs, every work a provider identity
+// (Cinemeta id / Apple Books id / AniList + MAL id). Pinned per universe by Preflight
+// (Preflight-Architect/arcs/58-universes-and-tributes/prototypes/58-E-*), every identity
+// re-verified live by Agent 0 on 2026-10-05. Laid OVER the entries above, which keep the
+// fields their older pages read. Regenerate with Brotherhood/agents/_gen_universe_shelf_overlays.mjs;
+// do not hand-edit between the markers.
+var shelfOverlays = {
+  "James Bond": {
+    blurb: "The James Bond franchise focuses on the character of James Bond, a fictional British Secret Service agent created in 1953 by writer Ian Fleming, who featured him in twelve novels and two short-story collections. Since Fleming's death in 1964, nine other authors have written authorised Bond novels or novelisations: Kingsley Amis, Christopher Wood, John Gardner, Raymond Benson, Sebastian Faulks, Jeffery Deaver, William Boyd, Anthony Horowitz and Charlie Higson. The latest novel is On His Majesty's Secret Service by Charlie Higson, published in May 2023. Charlie Higson wrote a series on a young James Bond, and Kate Westbrook wrote three novels based on the diaries of a recurring series character, Moneypenny.",
+    blurbSource: "Wikipedia — James Bond",
+    chips: [ { t: "25 Films", ic: "movies" }, { t: "6 Eras", ic: "movies" }, { t: "14 Books", ic: "books" } ],
+    shelves: [
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "Sean Connery", works: [
+            { t: "Dr. No", id: "tt0055928", year: "1962" },
+            { t: "From Russia with Love", id: "tt0057076", year: "1963" },
+            { t: "Goldfinger", id: "tt0058150", year: "1964" },
+            { t: "Thunderball", id: "tt0059800", year: "1965" },
+            { t: "You Only Live Twice", id: "tt0062512", year: "1967" },
+            { t: "Diamonds Are Forever", id: "tt0066995", year: "1971" } ] },
+          { label: "George Lazenby", works: [
+            { t: "On Her Majesty's Secret Service", id: "tt0064757", year: "1969" } ] },
+          { label: "Roger Moore", works: [
+            { t: "Live and Let Die", id: "tt0070328", year: "1973" },
+            { t: "The Man with the Golden Gun", id: "tt0071807", year: "1974" },
+            { t: "The Spy Who Loved Me", id: "tt0076752", year: "1977" },
+            { t: "Moonraker", id: "tt0079574", year: "1979" },
+            { t: "For Your Eyes Only", id: "tt0082398", year: "1981" },
+            { t: "Octopussy", id: "tt0086034", year: "1983" },
+            { t: "A View to a Kill", id: "tt0090264", year: "1985" } ] },
+          { label: "Timothy Dalton", works: [
+            { t: "The Living Daylights", id: "tt0093428", year: "1987" },
+            { t: "Licence to Kill", id: "tt0097742", year: "1989" } ] },
+          { label: "Pierce Brosnan", works: [
+            { t: "GoldenEye", id: "tt0113189", year: "1995" },
+            { t: "Tomorrow Never Dies", id: "tt0120347", year: "1997" },
+            { t: "The World Is Not Enough", id: "tt0143145", year: "1999" },
+            { t: "Die Another Day", id: "tt0246460", year: "2002" } ] },
+          { label: "Daniel Craig", works: [
+            { t: "Casino Royale", id: "tt0381061", year: "2006" },
+            { t: "Quantum of Solace", id: "tt0830515", year: "2008" },
+            { t: "Skyfall", id: "tt1074638", year: "2012" },
+            { t: "Spectre", id: "tt2379713", year: "2015" },
+            { t: "No Time to Die", id: "tt2382320", year: "2021" } ] } ] },
+      { title: "Books", kind: "book",
+        runs: [
+          { label: "", works: [
+            { t: "Casino Royale", apple: 6442942098, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/5a/a4/b7/5aa4b70c-c5cb-9214-e0b0-c4885b9c9f0a/9780063298545.jpg/400x600bb.jpg" },
+            { t: "Live and Let Die", apple: 6442942812, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication112/v4/82/ef/d6/82efd6e9-6886-f034-23e4-7f97e9c81a21/9780063298576.jpg/400x600bb.jpg" },
+            { t: "Moonraker", apple: 6442942814, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/50/b4/b5/50b4b515-9b2f-fece-33cb-82537fec662b/9780063298613.jpg/400x600bb.jpg" },
+            { t: "Diamonds Are Forever", apple: 6442942630, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/5b/80/7d/5b807d4a-2195-b9f6-9aae-d5c098dd2cf1/9780063298651.jpg/400x600bb.jpg" },
+            { t: "From Russia with Love", apple: 6443385114, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/fb/52/8e/fb528e70-fcbe-a438-e510-c65233968327/9780063298699.jpg/400x600bb.jpg" },
+            { t: "Dr. No", apple: 6443794349, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/ec/d9/50/ecd950a1-80e8-a1e3-761d-88df829d1924/9780063298736.jpg/400x600bb.jpg" },
+            { t: "Goldfinger", apple: 6445432960, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/3f/29/e5/3f29e51d-659b-c3d3-d0dd-0b6c4479b81f/9780063298774.jpg/400x600bb.jpg" },
+            { t: "For Your Eyes Only", apple: 6445634664, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/cb/89/0f/cb890fa8-9f40-60bc-9262-568ad429145a/9780063298811.jpg/400x600bb.jpg" },
+            { t: "Thunderball", apple: 6445634519, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/91/84/d0/9184d03e-6163-f674-d3f3-3f4dc4f8db91/9780063298866.jpg/400x600bb.jpg" },
+            { t: "The Spy Who Loved Me", apple: 6445634808, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/c8/19/8c/c8198c7a-2837-2ba2-e46b-111865d91b5f/9780063298903.jpg/400x600bb.jpg" },
+            { t: "On Her Majesty's Secret Service", apple: 6445634776, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/35/44/95/35449551-e058-7975-36a7-69de9425dee8/9780063298958.jpg/400x600bb.jpg" },
+            { t: "You Only Live Twice", apple: 6445634522, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/2f/07/80/2f0780e0-33b6-5ce1-a76d-e57a1543b492/9780063298996.jpg/400x600bb.jpg" },
+            { t: "The Man with the Golden Gun", apple: 6445634642, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/b1/72/66/b17266ac-e313-002d-6d9d-bc4fffa8f95c/9780063299047.jpg/400x600bb.jpg" },
+            { t: "Octopussy and The Living Daylights", apple: 6445634809, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/23/e3/7e/23e37e43-960c-5d35-e8bc-d53f42a1348f/9780063299061.jpg/400x600bb.jpg" } ] } ] } ] },
+  "Marvel Cinematic Universe": {
+    blurb: "The Marvel Cinematic Universe (MCU) is an American media franchise and shared universe centered on a series of superhero films produced by Marvel Studios. The films are based on characters from American comic books published by Marvel Comics.",
+    blurbSource: "Wikipedia — Marvel Cinematic Universe",
+    chips: [ { t: "40 Films", ic: "movies" }, { t: "20 Series", ic: "movies" }, { t: "3 Specials", ic: "movies" } ],
+    shelves: [
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "Phase One", works: [
+            { t: "Iron Man", id: "tt0371746", year: "2008" },
+            { t: "The Incredible Hulk", id: "tt0800080", year: "2008" },
+            { t: "Iron Man 2", id: "tt1228705", year: "2010" },
+            { t: "Thor", id: "tt0800369", year: "2011" },
+            { t: "Captain America: The First Avenger", id: "tt0458339", year: "2011" },
+            { t: "The Avengers", id: "tt0848228", year: "2012" } ] },
+          { label: "Phase Two", works: [
+            { t: "Iron Man 3", id: "tt1300854", year: "2013" },
+            { t: "Thor: The Dark World", id: "tt1981115", year: "2013" },
+            { t: "Captain America: The Winter Soldier", id: "tt1843866", year: "2014" },
+            { t: "Guardians of the Galaxy", id: "tt2015381", year: "2014" },
+            { t: "Avengers: Age of Ultron", id: "tt2395427", year: "2015" },
+            { t: "Ant-Man", id: "tt0478970", year: "2015" } ] },
+          { label: "Phase Three", works: [
+            { t: "Captain America: Civil War", id: "tt3498820", year: "2016" },
+            { t: "Doctor Strange", id: "tt1211837", year: "2016" },
+            { t: "Guardians of the Galaxy Vol. 2", id: "tt3896198", year: "2017" },
+            { t: "Spider-Man: Homecoming", id: "tt2250912", year: "2017" },
+            { t: "Thor: Ragnarok", id: "tt3501632", year: "2017" },
+            { t: "Black Panther", id: "tt1825683", year: "2018" },
+            { t: "Avengers: Infinity War", id: "tt4154756", year: "2018" },
+            { t: "Ant-Man and the Wasp", id: "tt5095030", year: "2018" },
+            { t: "Captain Marvel", id: "tt4154664", year: "2019" },
+            { t: "Avengers: Endgame", id: "tt4154796", year: "2019" },
+            { t: "Spider-Man: Far From Home", id: "tt6320628", year: "2019" } ] },
+          { label: "Phase Four", works: [
+            { t: "Black Widow", id: "tt3480822", year: "2021" },
+            { t: "Shang-Chi and the Legend of the Ten Rings", id: "tt9376612", year: "2021" },
+            { t: "Eternals", id: "tt9032400", year: "2021" },
+            { t: "Spider-Man: No Way Home", id: "tt10872600", year: "2021" },
+            { t: "Doctor Strange in the Multiverse of Madness", id: "tt9419884", year: "2022" },
+            { t: "Thor: Love and Thunder", id: "tt10648342", year: "2022" },
+            { t: "Black Panther: Wakanda Forever", id: "tt9114286", year: "2022" } ] },
+          { label: "Phase Five", works: [
+            { t: "Ant-Man and the Wasp: Quantumania", id: "tt10954600", year: "2023" },
+            { t: "Guardians of the Galaxy Vol. 3", id: "tt6791350", year: "2023" },
+            { t: "The Marvels", id: "tt10676048", year: "2023" },
+            { t: "Deadpool & Wolverine", id: "tt6263850", year: "2024" },
+            { t: "Captain America: Brave New World", id: "tt14513804", year: "2025" },
+            { t: "Thunderbolts*", id: "tt20969586", year: "2025" } ] },
+          { label: "Phase Six", works: [
+            { t: "The Fantastic Four: First Steps", id: "tt10676052", year: "2025" },
+            { t: "Spider-Man: Brand New Day", id: "tt22084616", year: "2026" },
+            { t: "Avengers: Doomsday", id: "tt21357150", year: "2026", upcoming: true },
+            { t: "Avengers: Secret Wars", id: "tt21361444", year: "2027", upcoming: true } ] } ] },
+      { title: "Series", kind: "series",
+        runs: [
+          { label: "Phase Four", works: [
+            { t: "WandaVision", id: "tt9140560", year: "2021" },
+            { t: "The Falcon and the Winter Soldier", id: "tt9208876", year: "2021" },
+            { t: "Loki", id: "tt9140554", year: "2021" },
+            { t: "What If...?", id: "tt10168312", year: "2021" },
+            { t: "Hawkeye", id: "tt10160804", year: "2021" },
+            { t: "Moon Knight", id: "tt10234724", year: "2022" },
+            { t: "Ms. Marvel", id: "tt10857164", year: "2022" },
+            { t: "I Am Groot", id: "tt13623148", year: "2022" },
+            { t: "She-Hulk: Attorney at Law", id: "tt10857160", year: "2022" } ] },
+          { label: "Phase Five", works: [
+            { t: "Secret Invasion", id: "tt13157618", year: "2023" },
+            { t: "Echo", id: "tt13966962", year: "2023" },
+            { t: "Agatha All Along", id: "tt15571732", year: "2024" },
+            { t: "Your Friendly Neighborhood Spider-Man", id: "tt16027074", year: "2025" },
+            { t: "Daredevil: Born Again", id: "tt18923754", year: "2025" },
+            { t: "Ironheart", id: "tt13623126", year: "2025" } ] },
+          { label: "Phase Six", works: [
+            { t: "Eyes of Wakanda", id: "tt13968252", year: "2025" },
+            { t: "Marvel Zombies", id: "tt16027014", year: "2025" },
+            { t: "Wonder Man", id: "tt21066182", year: "2026" },
+            { t: "VisionQuest", id: "tt23112594", year: "2026", upcoming: true } ] },
+          { label: "Beyond the phases", works: [
+            { t: "X-Men '97", id: "tt16026746", year: "2024" } ] } ] },
+      { title: "Specials", kind: "movie",
+        runs: [
+          { label: "", works: [
+            { t: "Werewolf by Night", id: "tt15318872", year: "2022" },
+            { t: "The Guardians of the Galaxy Holiday Special", id: "tt13623136", year: "2022" },
+            { t: "The Punisher: One Last Kill", id: "tt36042156", year: "2026" } ] } ] } ] },
+  "Star Trek": {
+    blurb: "Star Trek is an American science fiction media franchise created by Gene Roddenberry and owned by Paramount, which began with the series of the same name and became a worldwide pop culture phenomenon. Since its creation, the franchise has expanded into various films, television series, video games, novels, and comic books, and it has become one of the most recognizable and highest-grossing media franchises of all time.",
+    blurbSource: "Wikipedia — Star Trek",
+    chips: [ { t: "13 Shows", ic: "movies" }, { t: "14 Films", ic: "movies" } ],
+    shelves: [
+      { title: "Series", kind: "series",
+        runs: [
+          { label: "The Classic Era", works: [
+            { t: "Star Trek", id: "tt0060028", year: "1966" },
+            { t: "Star Trek: The Animated Series", id: "tt0069637", year: "1973" },
+            { t: "Star Trek: The Next Generation", id: "tt0092455", year: "1987" },
+            { t: "Star Trek: Deep Space Nine", id: "tt0106145", year: "1993" },
+            { t: "Star Trek: Voyager", id: "tt0112178", year: "1995" },
+            { t: "Star Trek: Enterprise", id: "tt0244365", year: "2001" } ] },
+          { label: "The Streaming Era", works: [
+            { t: "Star Trek: Discovery", id: "tt5171438", year: "2017" },
+            { t: "Star Trek: Picard", id: "tt8806524", year: "2020" },
+            { t: "Star Trek: Lower Decks", id: "tt9184820", year: "2020" },
+            { t: "Star Trek: Prodigy", id: "tt9795876", year: "2021" },
+            { t: "Star Trek: Strange New Worlds", id: "tt12327578", year: "2022" },
+            { t: "Star Trek: Short Treks", id: "tt9059594", year: "2018" },
+            { t: "Star Trek: Starfleet Academy", id: "tt8622160", year: "2026" } ] } ] },
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "The Original Crew", works: [
+            { t: "Star Trek: The Motion Picture", id: "tt0079945", year: "1979" },
+            { t: "Star Trek II: The Wrath of Khan", id: "tt0084726", year: "1982" },
+            { t: "Star Trek III: The Search for Spock", id: "tt0088170", year: "1984" },
+            { t: "Star Trek IV: The Voyage Home", id: "tt0092007", year: "1986" },
+            { t: "Star Trek V: The Final Frontier", id: "tt0098382", year: "1989" },
+            { t: "Star Trek VI: The Undiscovered Country", id: "tt0102975", year: "1991" } ] },
+          { label: "The Next Generation", works: [
+            { t: "Star Trek: Generations", id: "tt0111280", year: "1994" },
+            { t: "Star Trek: First Contact", id: "tt0117731", year: "1996" },
+            { t: "Star Trek: Insurrection", id: "tt0120844", year: "1998" },
+            { t: "Star Trek: Nemesis", id: "tt0253754", year: "2002" } ] },
+          { label: "The Kelvin Timeline", works: [
+            { t: "Star Trek", id: "tt0796366", year: "2009" },
+            { t: "Star Trek Into Darkness", id: "tt1408101", year: "2013" },
+            { t: "Star Trek Beyond", id: "tt2660888", year: "2016" } ] },
+          { label: "The Streaming Films", works: [
+            { t: "Star Trek: Section 31", id: "tt9603060", year: "2025" } ] } ] } ] },
+  "Star Wars": {
+    blurb: "Star Wars is an American media franchise created by George Lucas. The space opera saga began with the original Star Wars film (1977) and quickly became a worldwide pop culture phenomenon. It has expanded into various films and other media, including television series, video games, novels, comic books, theme park attractions, and themed areas, comprising an all-encompassing fictional universe. Star Wars is one of the highest-grossing media franchises of all time and has a large following.",
+    blurbSource: "Wikipedia — Star Wars",
+    chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" } ],
+    shelves: [
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "The Prequels", works: [
+            { t: "Star Wars: Episode I - The Phantom Menace", id: "tt0120915", year: "1999" },
+            { t: "Star Wars: Episode II - Attack of the Clones", id: "tt0121765", year: "2002" },
+            { t: "Star Wars: Episode III - Revenge of the Sith", id: "tt0121766", year: "2005" } ] },
+          { label: "The Originals", works: [
+            { t: "Star Wars: Episode IV - A New Hope", id: "tt0076759", year: "1977" },
+            { t: "Star Wars: Episode V - The Empire Strikes Back", id: "tt0080684", year: "1980" },
+            { t: "Star Wars: Episode VI - Return of the Jedi", id: "tt0086190", year: "1983" } ] },
+          { label: "The Sequels", works: [
+            { t: "Star Wars: Episode VII - The Force Awakens", id: "tt2488496", year: "2015" },
+            { t: "Star Wars: Episode VIII - The Last Jedi", id: "tt2527336", year: "2017" },
+            { t: "Star Wars: Episode IX - The Rise of Skywalker", id: "tt2527338", year: "2019" } ] },
+          { label: "Standalone stories", works: [
+            { t: "Rogue One: A Star Wars Story", id: "tt3748528", year: "2016" },
+            { t: "Solo: A Star Wars Story", id: "tt3778644", year: "2018" } ] } ] },
+      { title: "Series", kind: "series",
+        runs: [
+          { label: "Live action", works: [
+            { t: "The Mandalorian", id: "tt8111088", year: "2019-" },
+            { t: "Andor", id: "tt9253284", year: "2022-2025" },
+            { t: "Obi-Wan Kenobi", id: "tt8466564", year: "2022" },
+            { t: "The Book of Boba Fett", id: "tt13668894", year: "2021-2022" },
+            { t: "Ahsoka", id: "tt13622776", year: "2023-" },
+            { t: "The Acolyte", id: "tt12262202", year: "2024" },
+            { t: "Skeleton Crew", id: "tt20600980", year: "2024-2025" } ] },
+          { label: "Animated", works: [
+            { t: "Star Wars: The Clone Wars", id: "tt0458290", year: "2008-2020" },
+            { t: "Star Wars: Rebels", id: "tt2930604", year: "2014-2018" },
+            { t: "Star Wars: The Bad Batch", id: "tt12708542", year: "2021-2024" },
+            { t: "Star Wars: Resistance", id: "tt8336340", year: "2018-2020" },
+            { t: "Star Wars: Visions", id: "tt13622982", year: "2021-" },
+            { t: "Star Wars: Clone Wars", id: "tt0361243", year: "2003-2005" },
+            { t: "Star Wars: Tales of the Jedi", id: "tt20723374", year: "2022" },
+            { t: "Star Wars: Tales of the Empire", id: "tt32019314", year: "2024" },
+            { t: "Star Wars: Tales of the Underworld", id: "tt36414431", year: "2025" },
+            { t: "Star Wars: Young Jedi Adventures", id: "tt20674124", year: "2023-2025" } ] } ] } ] },
+  "DC Animated Universe": {
+    blurb: "The DC Animated Universe (DCAU), also referred to as the Timmverse or Diniverse by fans, is a shared fictional universe based on DC Comics properties and media franchise produced by Warner Bros. Animation. It began with Batman: The Animated Series in 1992 and ended with Justice League vs. the Fatal Five in 2019. The associated media franchise includes theatrical and direct-to-video feature films, shorts, comic books, video games, and other multimedia adaptations.",
+    blurbSource: "Wikipedia — DC Animated Universe",
+    chips: [ { t: "8 Series", ic: "movies" }, { t: "4 Films", ic: "movies" } ],
+    shelves: [
+      { title: "Series", kind: "series",
+        runs: [
+          { label: "Gotham", works: [
+            { t: "Batman: The Animated Series", id: "tt0103359", year: "1992" },
+            { t: "The New Batman Adventures", id: "tt0118266", year: "1997" } ] },
+          { label: "Metropolis & the League", works: [
+            { t: "Superman: The Animated Series", id: "tt0115378", year: "1996" },
+            { t: "Justice League", id: "tt0275137", year: "2001" },
+            { t: "Justice League Unlimited", id: "tt6025022", year: "2004" },
+            { t: "Static Shock", id: "tt0247729", year: "2000" } ] },
+          { label: "The Future", works: [
+            { t: "Batman Beyond", id: "tt0147746", year: "1999" },
+            { t: "The Zeta Project", id: "tt0260662", year: "2001" } ] } ] },
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "", works: [
+            { t: "Batman: Mask of the Phantasm", id: "tt0106364", year: "1993" },
+            { t: "Batman & Mr. Freeze: SubZero", id: "tt0143127", year: "1998" },
+            { t: "Batman Beyond: Return of the Joker", id: "tt0233298", year: "2000" },
+            { t: "Batman: Mystery of the Batwoman", id: "tt0346578", year: "2003" } ] } ] } ] },
+  "Avatar: The Last Airbender": {
+    blurb: "Avatar: The Last Airbender, also known as Avatar Legends, is an American multimedia franchise created by Michael Dante DiMartino and Bryan Konietzko. The franchise began with the animated television series Avatar: The Last Airbender, which aired on Nickelodeon from 2005 to 2008. The franchise is set in an Asian-inspired fantasy world in which some people can telekinetically manipulate one of the four classical elements: air, water, earth, or fire. Only the titular \"Avatar\" can bend all four elements and is responsible for maintaining balance in the world.",
+    blurbSource: "Wikipedia — Avatar: The Last Airbender (franchise)",
+    chips: [ { t: "3 Shows", ic: "movies" }, { t: "2 Films", ic: "movies" }, { t: "5 Novels", ic: "books" }, { t: "Comics", ic: "comics" } ],
+    shelves: [
+      { title: "Series", kind: "series",
+        runs: [
+          { label: "The Animated Canon", works: [
+            { t: "Avatar: The Last Airbender", id: "tt0417299", year: "2005–2008" },
+            { t: "The Legend of Korra", id: "tt1695360", year: "2012–2014" } ] },
+          { label: "The Live Action", works: [
+            { t: "Avatar: The Last Airbender", id: "tt9018736", year: "2024–" } ] } ] },
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "", works: [
+            { t: "The Last Airbender", id: "tt0938283", year: "2010" },
+            { t: "Avatar Aang: The Last Airbender", id: "tt18259538", year: "2026" } ] } ] },
+      { title: "Books", kind: "book",
+        runs: [
+          { label: "", works: [
+            { t: "The Rise of Kyoshi", apple: 1434542033, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/b9/65/96/b96596cd-8c27-fe32-3b32-f3f76c0385aa/9781683355335.jpg/400x600bb.jpg", author: "F.C. Yee & Michael Dante DiMartino", year: "2019" },
+            { t: "The Shadow of Kyoshi", apple: 1477624848, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/9a/75/17/9a75179c-3f29-4fa6-9831-04a63a6d1f1f/9781683357988.jpg/400x600bb.jpg", author: "F.C. Yee", year: "2020" },
+            { t: "The Dawn of Yangchen", apple: 1616104801, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/80/bb/bb/80bbbb94-8a5e-a739-7f5a-9847ce2a4479/9781647004064.jpg/400x600bb.jpg", author: "F.C. Yee", year: "2022" },
+            { t: "The Legacy of Yangchen", apple: 6446881679, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/c2/4a/cd/c24acd14-c768-a0ab-cf68-8c12312f8300/9781647004071.jpg/400x600bb.jpg", author: "F.C. Yee", year: "2023" },
+            { t: "The Reckoning of Roku", apple: 6471482282, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/02/fe/8a/02fe8a41-e197-e01d-8300-cdc473b74af0/9798887073828.jpg/400x600bb.jpg", author: "Randy Ribay", year: "2024" } ] } ] } ] },
+  "Studio Ghibli": {
+    blurb: "Studio Ghibli Inc. is a Japanese animation studio based in Koganei, Tokyo. It was founded on June 15, 1985, by directors Hayao Miyazaki and Isao Takahata and producer Toshio Suzuki, after acquiring Topcraft's assets. It has a strong presence in the animation industry and has expanded its portfolio to include various media such as short subjects, television commercials and two television films. The studio's work is highly acclaimed by both critics and audiences and has been recognized with numerous awards. Their mascot and most recognizable character is Totoro from the 1988 film My Neighbor Totoro, a giant spirit inspired by raccoon dogs (tanuki) and cats (neko). Among the studio's highest-grossing films are Princess Mononoke (1997), Spirited Away (2001), Howl's Moving Castle (2004), Ponyo (2008), and The Boy and the Heron (2023).",
+    blurbSource: "Wikipedia — Studio Ghibli",
+    chips: [ { t: "23 Films", ic: "movies" }, { t: "1984–2023", ic: "movies" } ],
+    shelves: [
+      { title: "Films", kind: "movie",
+        runs: [
+          { label: "The 1980s", works: [
+            { t: "Nausicaä of the Valley of the Wind", id: "tt0087544", year: "1984" },
+            { t: "Castle in the Sky", id: "tt0092067", year: "1986" },
+            { t: "Grave of the Fireflies", id: "tt0095327", year: "1988" },
+            { t: "My Neighbor Totoro", id: "tt0096283", year: "1988" },
+            { t: "Kiki's Delivery Service", id: "tt0097814", year: "1989" } ] },
+          { label: "The 1990s", works: [
+            { t: "Only Yesterday", id: "tt0102587", year: "1991" },
+            { t: "Porco Rosso", id: "tt0104652", year: "1992" },
+            { t: "Ocean Waves", id: "tt0108432", year: "1993" },
+            { t: "Pom Poko", id: "tt0110008", year: "1994" },
+            { t: "Whisper of the Heart", id: "tt0113824", year: "1995" },
+            { t: "Princess Mononoke", id: "tt0119698", year: "1997" },
+            { t: "My Neighbors the Yamadas", id: "tt0206013", year: "1999" } ] },
+          { label: "The 2000s", works: [
+            { t: "Spirited Away", id: "tt0245429", year: "2001" },
+            { t: "The Cat Returns", id: "tt0347618", year: "2002" },
+            { t: "Howl's Moving Castle", id: "tt0347149", year: "2004" },
+            { t: "Tales from Earthsea", id: "tt0495596", year: "2006" },
+            { t: "Ponyo", id: "tt0876563", year: "2008" } ] },
+          { label: "The 2010s", works: [
+            { t: "The Secret World of Arrietty", id: "tt1568921", year: "2010" },
+            { t: "From Up on Poppy Hill", id: "tt1798188", year: "2011" },
+            { t: "The Wind Rises", id: "tt2013293", year: "2013" },
+            { t: "The Tale of The Princess Kaguya", id: "tt2576852", year: "2013" },
+            { t: "When Marnie Was There", id: "tt3398268", year: "2014" } ] },
+          { label: "The 2020s", works: [
+            { t: "The Boy and the Heron", id: "tt6587046", year: "2023" } ] } ] } ] },
+  "Weekly Shonen Jump": {
+    blurb: "Weekly Shōnen Jump is a weekly shōnen manga anthology published in Japan by Shueisha under the Jump line of magazines. It is one of the longest-running manga magazines, with the first issue being released on July 11, 1968.",
+    blurbSource: "Wikipedia — Weekly Shōnen Jump",
+    chips: [ { t: "50+ Manga", ic: "manga" }, { t: "Weekly", ic: "manga" }, { t: "Since 1968", ic: "manga" } ],
+    shelves: [
+      { title: "In the magazine now", kind: "manga", tab: "Now", pill: "running now", form: "table", order: "Longest-running first", asOf: "October 2026",
+        runs: [
+          { label: "", works: [
+            { t: "One Piece", al: 30013, mal: 13, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg", by: "Eiichirou Oda", from: 1997 },
+            { t: "Me & Roboco", al: 119499, mal: 128085, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx119499-bO0ef8QxQozs.png", by: "Shuuhei Miyazaki", from: 2020 },
+            { t: "Sakamoto Days", al: 125828, mal: 131334, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx125828-p78Z8SflkfmO.jpg", by: "Yuuto Suzuki", from: 2020 },
+            { t: "Witch Watch", al: 128896, mal: 133545, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx128896-VJfCBLFkm4Lb.jpg", by: "Kenta Shinohara", from: 2021 },
+            { t: "Akane-banashi", al: 144866, mal: 144034, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx144866-ummLIg6x419I.jpg", by: "Yuuki Suenaga & Takamasa Moue", from: 2022 },
+            { t: "RuriDragon", al: 150440, mal: 148054, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx150440-QdBFoMh4YHsK.jpg", by: "Masaoki Shindou", from: 2022 },
+            { t: "Nue's Exorcist", al: 163497, mal: 158849, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx163497-HNrC3KDTVxW5.jpg", by: "Kouta Kawae", from: 2023 },
+            { t: "Kagurabachi", al: 169355, mal: 162479, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx169355-5pqzh1Wb4NOQ.png", by: "Takeru Hokazono", from: 2023 },
+            { t: "Ultimate Exorcist Kiyoshi", al: 178509, mal: 171195, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx178509-Iyc0m68gQv8U.png", by: "Shouichi Usui", from: 2024 },
+            { t: "Ichi the Witch", al: 180752, mal: 173944, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx180752-13CVO310XiEs.jpg", by: "Osamu Nishi & Shiro Usazaki", from: 2024 },
+            { t: "Shinobi Undercover", al: 180881, mal: 174236, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx180881-2NqZaTxr69jc.jpg", by: "Ippon Takegushi & Santa Mitarashi", from: 2024 },
+            { t: "Someone Hertz", al: 198817, mal: 187001, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx198817-6WrNkObMtjkN.jpg", by: "Ei Yamano", from: 2025 },
+            { t: "Under Doctor", al: 206835, mal: 190725, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx206835-PWOgOewxlpUi.jpg", by: "Kyou Tanimoto", from: 2026 },
+            { t: "Class 2-B Hero Destroyerz", al: 210041, mal: 192696, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx210041-IVNam0nO00AI.jpg", by: "Hideaki Sorachi", from: 2026 },
+            { t: "Roku's House of Oddities", al: 210422, mal: 192356, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx210422-pMFXjIEP14PM.jpg", by: "Atsushi Nakamura", from: 2026 },
+            { t: "Animal Signal", al: 213019, mal: 193960, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx213019-RkddzpHznl4H.jpg", by: "Robinson Haruhara & Taishi Tsutsui", from: 2026 },
+            { t: "Hal Formula", al: 213229, mal: 194130, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx213229-vLoaUkYw2LBE.jpg", by: "Kento Terasaka", from: 2026 },
+            { t: "Cannon Master", al: 213403, mal: 194309, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx213403-fNxRdRYoPtEc.jpg", by: "Reiya Machida", from: 2026 },
+            { t: "The Ura Files", al: 216119, mal: 196075, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx216119-PsqCFGmMgS8d.jpg", by: "Shun Numa & Yuushin Kuroki", from: 2026 },
+            { t: "Graykeith: Translator Daemonica", al: 216538, mal: 196360, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx216538-Y92uBuR87DkR.jpg", by: "Natsuki Hokami", from: 2026 } ] } ] },
+      { title: "The classics", kind: "manga", tab: "Classics", pill: "classics", form: "table", order: "In order of first issue",
+        runs: [
+          { label: "", works: [
+            { t: "Harenchi Gakuen", al: 42808, mal: 12808, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b42808-AMU5PrfA3CT3.jpg", by: "Gou Nagai", from: 1968, to: 1972, volumes: 13 },
+            { t: "Mazinger Z", al: 38773, mal: 8773, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b38773-s5oYXmbfbvha.jpg", by: "Gou Nagai", from: 1972, to: 1973, volumes: 5 },
+            { t: "KochiKame", al: 30733, mal: 733, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30733-QmyPwBhjbgyX.jpg", by: "Osamu Akimoto", from: 1976, to: 2021, volumes: 203 },
+            { t: "Ring ni Kakero", al: 44231, mal: 14231, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b44231-AOphgOiTzTEL.jpg", by: "Masami Kurumada", from: 1977, to: 1981, volumes: 25 },
+            { t: "Cobra", al: 31062, mal: 1062, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx31062-5uQ2mmbAPA7K.jpg", by: "Buichi Terasawa", from: 1978, to: 1984, volumes: 18 },
+            { t: "Dr. Slump", al: 30796, mal: 796, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30796-PFF4n7Y2spz9.png", by: "Akira Toriyama", from: 1980, to: 1984, volumes: 18 },
+            { t: "Fist of the North Star", al: 31149, mal: 1149, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx31149-TOwqxOlY1Zs0.jpg", by: "Yoshiyuki Okamura & Tetsuo Hara", from: 1983, to: 1988, volumes: 27 },
+            { t: "Dragon Ball", al: 30042, mal: 42, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg", by: "Akira Toriyama", from: 1984, to: 1995, volumes: 42 },
+            { t: "City Hunter", al: 30792, mal: 792, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30792-62RxEnU7tlDg.png", by: "Tsukasa Houjou", from: 1985, to: 1991, volumes: 35 },
+            { t: "Saint Seiya", al: 31045, mal: 1045, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx31045-YUcWBMk7RpeK.png", by: "Masami Kurumada", from: 1985, to: 1990, volumes: 28 },
+            { t: "Yu Yu Hakusho", al: 30053, mal: 53, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30053-wCR6xyGzeUYo.png", by: "Yoshihiro Togashi", from: 1990, to: 1994, volumes: 19 },
+            { t: "Slam Dunk", al: 30051, mal: 51, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30051-5KJyPlO7z5F4.png", by: "Takehiko Inoue", from: 1990, to: 1996, volumes: 31 },
+            { t: "Rurouni Kenshin", al: 30022, mal: 22, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30022-jxTlViun1o10.jpg", by: "Nobuhiro Watsuki", from: 1994, to: 1999, volumes: 28 },
+            { t: "Yu-Gi-Oh!", al: 30054, mal: 54, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30054-HwrRlsJYePNF.jpg", by: "Kazuki Takahashi", from: 1996, to: 2004, volumes: 38 },
+            { t: "Hikaru no Go", al: 30020, mal: 20, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30020-5NZUzVqJPD2L.png", by: "Yumi Hotta & Takeshi Obata", from: 1998, to: 2003, volumes: 23 },
+            { t: "Naruto", al: 30011, mal: 11, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30011-9yUF1dXWgDOx.jpg", by: "Masashi Kishimoto", from: 1999, to: 2014, volumes: 72 },
+            { t: "Bleach", al: 30012, mal: 12, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30012-1epmVfTSv2rr.png", by: "Tite Kubo", from: 2001, to: 2016, volumes: 74 },
+            { t: "Eyeshield 21", al: 30043, mal: 43, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30043-b2SqUjwSzfIH.png", by: "Riichirou Inagaki & Yuusuke Murata", from: 2002, to: 2009, volumes: 37 },
+            { t: "Death Note", al: 30021, mal: 21, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30021-FE6kmrfpuKyb.jpg", by: "Tsugumi Ooba & Takeshi Obata", from: 2003, to: 2006, volumes: 12 },
+            { t: "Gintama", al: 30044, mal: 44, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30044-vPmoz3vTPvZs.jpg", by: "Hideaki Sorachi", from: 2003, to: 2019, volumes: 77 } ] } ] } ] }
+};
+(function() {
+    var all = universes.concat(archive);
+    for (var i = 0; i < all.length; i++) {
+        var over = shelfOverlays[all[i].name];
+        if (!over) continue;
+        for (var k in over) all[i][k] = over[k];
+    }
+})();
+// ═══ END GENERATED: THE SHELVES ═══

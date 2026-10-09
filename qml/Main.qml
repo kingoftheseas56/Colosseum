@@ -15,6 +15,7 @@ import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
+import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -616,6 +617,8 @@ Window {
                 win.openUniverse("com.colosseum.universe.starwars", "Star Wars")
             else if (devUniverse === "cosmere")
                 win.openUniverse("com.colosseum.universe.cosmere", "Cosmere")
+            else   // COLOSSEUM_OPEN_UNIVERSE="Harry Potter": an archived universe, by curated name
+                win.openUniverseByName(String(DevOpenUniverse))
         }
         // bakeoff harness (COLOSSEUM_BAKEOFF_STRIP=<dir>): page-only production
         // MangaReader over the canonical fixture (long-strip bakeoff spec §10)
@@ -731,7 +734,6 @@ Window {
                     && universeLayer.item
                     && universeLayer.item.atlasTransientOpen === true,
             universeActive: universeLayer.active,
-            universeHallActive: universeHallLayer.active,
             searchActive: searchLayer.active,
             worldSearchActive: worldSearchLayer.active,
             comicSeriesActive: comicSeriesLayer.active,
@@ -772,8 +774,8 @@ Window {
         if (bookReaderLayer.active) win.closeBookReader()
     }
     function requestUniverseEscape() {
-        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape) {
-            universeLayer.item.requestEscape()
+        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape
+                && universeLayer.item.requestEscape()) {
             return
         }
         win.closeUniverse()
@@ -847,7 +849,6 @@ Window {
         case "onePieceArc": win.closeOnePieceArc(); return
         case "onePieceAtlasTransient": win.requestOnePieceAtlasEscape(); return
         case "universe": win.requestUniverseEscape(); return
-        case "universeHall": win.closeUniverseHall(); return
         case "search": win.closeSearch(); return
         case "worldSearch": win.closeWorldSearch(); return
         case "comicSeries": win.closeComicSeries(); return
@@ -1017,6 +1018,7 @@ Window {
         if (medium === "Tankoban") return "TankobanWorld.qml"
         if (medium === "Theatre") return "TheatreWorld.qml"
         if (medium === "Biblio") return "BiblioWorld.qml"
+        if (medium === "Universes") return "UniversesWorld.qml"
         return "DemoWorld.qml"
     }
     function openWorld(medium) {
@@ -1028,8 +1030,6 @@ Window {
         currentSurface = medium
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
-        topbar.visible = false
-        page.visible = false
     }
     // Vault identity door: reuse the already-owned world entry points. The Vault never edits a
     // world page or invents a second reader route; it only hands over a certain identity.
@@ -1058,8 +1058,6 @@ Window {
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
         refreshWallpaper()
-        topbar.visible = true
-        page.visible = true
         win.armHomeIntroWidgets()
         win.armHomeContinueRail()
     }
@@ -1865,9 +1863,11 @@ Window {
     // for the header band before the payload lands.
     // One renderer for every universe. The per-category dispatcher is gone: it existed to
     // pick between bespoke per-IP pages, and those are being deleted (next task).
-    function openUniverse(extensionId, name) {
+    function openUniverse(extensionId, name, plain) {
         if (!extensionId) return
         win.closeOnePieceArc()
+        universeLayer.templatePage = ""
+        universeLayer.plain = plain === true
         universeLayer.extensionId = extensionId
         universeLayer.universeName = name || ""
         if (universeLayer.item) {
@@ -1875,6 +1875,40 @@ Window {
             universeLayer.item.universeName = name || ""
         }
         universeLayer.active = true
+    }
+    // An archived universe has no extension; it opens by name on its category's template.
+    function openArchivedUniverse(name, page) {
+        if (!name || !universeLayer.templateSources[page]) return
+        win.closeOnePieceArc()
+        universeLayer.plain = false
+        universeLayer.extensionId = "archive." + page
+        universeLayer.universeName = name
+        universeLayer.templatePage = page
+        if (universeLayer.item && universeLayer.status === Loader.Ready && universeLayer.item.universeName !== undefined)
+            universeLayer.item.universeName = name
+        universeLayer.active = true
+    }
+    // A banner in the Universes world opens the universe's STANDARD page. An entry with a
+    // page (a curated sagaGrid, or an archived universe's template) opens through
+    // openArchivedUniverse; only an entry with no page falls back to the extension route —
+    // an installed One Piece carries both, and its story-grid page wins over the payload
+    // route (a payload-less Cosmere still lands on its Tribute).
+    function openRosterUniverse(entry) {
+        if (!entry) return
+        if (entry.page)
+            win.openArchivedUniverse(entry.name, entry.page)
+        else
+            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0)
+    }
+    // The Universes world's carousel: the hand-made art page.
+    function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }
+    // A "More universes" card names a sibling; its template comes from the curated list.
+    function openUniverseByName(name) {
+        var cfg = UniverseCanon.configFor(name)
+        // same rule as the Universes world's roster: an anime universe (curated manga)
+        // opens its shelves page; a curated sagaGrid opens the story grid
+        if (cfg && cfg.category)
+            win.openArchivedUniverse(cfg.name, (cfg.shelves || cfg.manga) ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
         win.closeOnePieceArc()
@@ -1888,6 +1922,8 @@ Window {
     function closeOnePieceArc() {
         onePieceArcLayer.active = false
         onePieceArcLayer.arcData = null
+        if (universeLayer.active && universeLayer.item && universeLayer.item.takeKeyboardFocus)
+            Qt.callLater(universeLayer.item.takeKeyboardFocus)
     }
     function routeUniverseSeries(e) {
         var requested = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
@@ -1901,8 +1937,6 @@ Window {
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
-    function openUniverseHall() { universeHallLayer.active = true }
-    function closeUniverseHall() { universeHallLayer.active = false }
 
     // world (optional, R1 2026-08-21): lands the page straight on that world's Sources
     // tab instead of the default "theatre" — the manga picker's empty-state route
@@ -2483,7 +2517,10 @@ Window {
             // volume id rides in resume.chapterId (curChapterId of the volume reader).
             win.openComicSession(title, entry.id || "", r.chapterId || "", "tankoban")
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            win.openComicSession(title, entry.id || "", r.chapterId || "")
+            // Loose Vault comics save the archive as chapterId; they have no series page.
+            if (/^(vault:|vault-file:)/.test(String(entry.id || "")))
+                win.openVaultComic(r.path || r.chapterId || "", entry.id, title)
+            else win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
             if (r.path) win.openBookSession(r.path, r.book ? r.book : entry)
             else win.openBook(r.book ? r.book : entry)
@@ -2880,9 +2917,9 @@ Window {
                 vaultComicLayer.vaultId = t.id || ""
                 vaultComicLayer.title = t.title || rec.title || "Comic"
                 if (vaultComicLayer.active && vaultComicLayer.item) {
-                    vaultComicLayer.item.archivePath = t.vaultPath
                     vaultComicLayer.item.vaultId = t.id || ""
                     vaultComicLayer.item.title = vaultComicLayer.title
+                    vaultComicLayer.item.archivePath = t.vaultPath
                 } else vaultComicLayer.active = true
                 return
             }
@@ -3097,7 +3134,7 @@ Window {
         onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
         z: 20
-        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
+        visible: !win.immersiveSurfaceOpen && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
         x: theme.margin; y: 30
@@ -3194,7 +3231,7 @@ Window {
         id: page
         objectName: "homePageFlickable"
         z: 0
-        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
+        visible: !win.immersiveSurfaceOpen && worldStack.current === ""
         anchors.left: parent.left; anchors.right: parent.right
         y: 96
         height: win.height - 96
@@ -3278,7 +3315,7 @@ Window {
                             Column {
                                 anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
                                 spacing: 12
-                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
                                 Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
                                 // (the blurb line went with the baked list — the roster carries
                                 // identity and art, no prose, and a faked one would be a lie)
@@ -3295,7 +3332,7 @@ Window {
                                         Behavior on border.color { ColorAnimation { duration: 160 } }
                                         Row {
                                             id: exploreRow; anchors.centerIn: parent; spacing: 10
-                                            Text { text: "Explore the universe"; color: theme.ink
+                                            Text { text: "Explore the tribute"; color: theme.ink
                                                 font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                                 anchors.verticalCenter: parent.verticalCenter }
                                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
@@ -3309,7 +3346,7 @@ Window {
                                             // assertions ambiguous even though only one is a legal target.
                                             objectName: slide.SwipeView.isCurrentItem ? "homeHeroExplore" : ""
                                             anchors.fill: parent
-                                            accessibleName: "Explore the universe"
+                                            accessibleName: "Explore the tribute"
                                             pointerEnabled: false
                                             focusRadius: 12
                                             onTriggered: win.openUniverse(slide.modelData.extensionId,
@@ -3339,7 +3376,9 @@ Window {
                                      heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
                 }
 
-                // the door to the Hall of Worlds — quiet, top-right, gold on hover
+                // the door to the Universes world, the single front door to every universe
+                // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
+                // — quiet, top-right, gold on hover
                 Item {
                     z: 5
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
@@ -3348,7 +3387,7 @@ Window {
                         id: hallRow
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         spacing: 7
-                        Text { text: win.installedUniverses.length + " worlds"
+                        Text { text: win.installedUniverses.length + (win.installedUniverses.length === 1 ? " tribute" : " tributes")
                                color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
                                font.family: theme.display; font.pixelSize: 16
                                Behavior on color { ColorAnimation { duration: 120 } } }
@@ -3361,15 +3400,15 @@ Window {
                         id: hallKey
                         objectName: "homeUniverseHall"
                         anchors.fill: parent
-                        accessibleName: "Hall of Worlds"
+                        accessibleName: "Universes"
                         pointerEnabled: false
                         focusRadius: 8
-                        onTriggered: win.openUniverseHall()
+                        onTriggered: win.openWorld("Universes")
                     }
                     MouseArea {
                         id: hallMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: win.openUniverseHall()
+                        onClicked: win.openWorld("Universes")
                     }
                 }
             }
@@ -3561,6 +3600,10 @@ Window {
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                    // the Universes world: its list is the installed roster plus the archived templates
+                    if (item.universeRequested) item.universeRequested.connect(win.openRosterUniverse)
+                    if (item.tributeRequested) item.tributeRequested.connect(win.openTribute)
+                    if (item.installed !== undefined) item.installed = Qt.binding(function() { return win.installedUniverses })
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
                     if (item.libraryResumeRequested) item.libraryResumeRequested.connect(win.resumeLibraryEntry)
                     if (item.libraryMarkWatchedRequested) item.libraryMarkWatchedRequested.connect(win.markLibraryWatched)
@@ -4165,9 +4208,9 @@ Window {
         property string title: "Comic"
         source: "comicreader/VaultComicReader.qml"
         onLoaded: {
-            item.archivePath = vaultComicLayer.archivePath
             item.vaultId = vaultComicLayer.vaultId
             item.title = vaultComicLayer.title
+            item.archivePath = vaultComicLayer.archivePath
             item.minimizeRequested.connect(win.minimizeVaultComic)
             item.closeRequested.connect(win.closeVaultComic)
             item.backRequested.connect(win.closeVaultComic)
@@ -4345,23 +4388,53 @@ Window {
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
-        source: extensionId === "com.colosseum.universe.dcau"
+        // An archived universe on a shared template (Arc 58) is opened by NAME, not by an
+        // installed extension: "saga" | "eras" | "studio" | "anime", empty for extensions.
+        property string templatePage: ""
+        // An installed universe has two faces (Arc 58): its hand-made TRIBUTE page, and — when
+        // it ships a payload — the plain standard page the Universes world's banner opens.
+        property bool plain: false
+        readonly property string bespokeId: plain ? "" : extensionId
+        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "shelves": "ShelvesUniversePage.qml" })
+        source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
+              : bespokeId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
-                : (extensionId === "com.colosseum.universe.starwars"
+                : (bespokeId === "com.colosseum.universe.starwars"
                    ? "GalaxyUniversePage.qml"
-                   : (extensionId === "com.colosseum.universe.onepiece"
+                   : (bespokeId === "com.colosseum.universe.onepiece"
                       ? "OnePieceUniversePage.qml"
-                      : (extensionId === "com.colosseum.universe.cosmere"
+                      : (bespokeId === "com.colosseum.universe.cosmere"
                          ? "CosmereUniversePage.qml"
                          : "UniverseExtensionPage.qml")))
         onLoaded: {
+            if (universeLayer.templatePage.length) {
+                // Template pages share one contract; a page simply lacks the signals it has no use for.
+                item.backdrop = wall
+                item.universeName = universeLayer.universeName
+                item.backRequested.connect(win.closeUniverse)
+                item.minimizeRequested.connect(win.minimizeShell)
+                item.fullscreenRequested.connect(win.toggleFullscreenShell)
+                item.closeRequested.connect(function() { Qt.quit() })
+                if (accountHost.visible) accountHost.focusReturnItem = item
+                item.watchRequested.connect(win.openTheatreSeries)
+                if (item.bookRequested) item.bookRequested.connect(win.openBook)
+                if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openUniverseComic)
+                if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)
+                // an edition manga (e.g. the One Piece colour edition) arrives as a whole
+                // entry — same router as the arc pages, its provider/seriesId profile intact
+                if (item.seriesEntryRequested) item.seriesEntryRequested.connect(win.routeUniverseSeries)
+                if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
+                if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                if (item.universeRequested) item.universeRequested.connect(win.openUniverseByName)
+                return
+            }
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
-            if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
-                    universeLayer.extensionId === "com.colosseum.universe.starwars" ||
-                    universeLayer.extensionId === "com.colosseum.universe.onepiece")
+            if (universeLayer.bespokeId === "com.colosseum.universe.dcau" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.starwars" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            if (universeLayer.extensionId === "com.colosseum.universe.onepiece")
+            if (universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.installedExtensions = Qt.binding(function() { return win.installedExtensions })
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4378,16 +4451,17 @@ Window {
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
-            if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+            if (universeLayer.bespokeId === "com.colosseum.universe.onepiece") {
+                item.arcPageOpen = Qt.binding(function() { return onePieceArcLayer.active })
                 item.arcRequested.connect(win.openOnePieceArc)
                 item.mediaRequested.connect(win.openTheatreSeries)
-            } else if (universeLayer.extensionId === "com.colosseum.universe.cosmere") {
+            } else if (universeLayer.bespokeId === "com.colosseum.universe.cosmere") {
                 // The Cognitive Atlas self-sources from CosmereApi; its only content signal
                 // is a resolved Biblio book opening into the reader.
                 item.bookRequested.connect(win.openBook)
             } else {
                 item.watchRequested.connect(win.openTheatreSeries)
-                if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
+                if (universeLayer.bespokeId === "com.colosseum.universe.dcau") {
                     item.comicRequested.connect(win.openGcdSeries)
                     item.continueResumeRequested.connect(win.resumeContinue)
                     item.continueDetailRequested.connect(win.detailContinue)
@@ -4427,25 +4501,6 @@ Window {
         }
     }
 
-    Loader {
-        id: universeHallLayer
-        objectName: "universeHallLayer"
-        anchors.fill: parent
-        z: 51
-        active: false
-        visible: active
-        asynchronous: true
-        source: "UniverseHallPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.universes = win.installedUniverses
-            item.backRequested.connect(win.closeUniverseHall)
-            item.exploreRequested.connect(function (extensionId, name) {
-                win.closeUniverseHall(); win.openUniverse(extensionId, name)
-            })
-        }
-    }
-
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
@@ -4459,7 +4514,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             if (item.universeHallRequested)
-                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openUniverseHall() })
+                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openWorld("Universes") })
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })

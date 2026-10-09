@@ -47,7 +47,12 @@ eq(action({ syncCenterActive: true, historyStatsActive: true }), 'historyStats',
 eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
 eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
 eq(action({ extensionsActive: true, vaultActive: true }), 'extensions', 'extensions wins a broken same-z overlap');
+eq(action({ feriaActive: true, worldOpen: true }), 'feria', 'Feria owns Back above its underlying world');
+eq(action({ accountCenterVisible: true, feriaActive: true }), 'accountCenter', 'account centre closes before Feria');
+eq(action({ taskbarOpen: true, feriaActive: true }), 'taskbar', 'expanded taskbar closes before Feria');
+eq(action({ extensionsActive: true, feriaActive: true }), 'extensions', 'later Extensions layer wins a broken overlap with Feria');
 // Ratings & Reviews was retired in 1.1.7 (3928d0d2); its Escape rows went with it.
+eq(action({ yourFeriaActive: true, feriaActive: true }), 'yourFeria', 'Your Feria closes before its underlying world');
 eq(action({ vaultActive: true }), 'vault', 'Vault owns Escape when open');
 eq(action({ vaultActive: true, downloadsActive: true }), 'vault', 'Vault wins a broken same-z overlap');
 eq(action({ downloadsActive: true, bookActive: true }), 'downloads', 'taskbar full-page beats detail page');
@@ -71,5 +76,3 @@ eq(action({}), 'homeTop', 'empty Home stack returns to the top of Home, never qu
 
 console.log('PASS shell back policy matrix');
 process.exit(0);
-
-

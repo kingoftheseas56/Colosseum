@@ -128,6 +128,12 @@ Item {
         repeat: true
         running: world.visible && world.lifecycleActive && world.initialFocusName.length > 0
         onTriggered: {
+            // A user may navigate before this deferred initial landing runs.
+            // Keep that child focus instead of stealing it back to the carousel.
+            if (spatialNav.activeItem() !== world) {
+                stop()
+                return
+            }
             if (spatialNav.focusNamed(world.initialFocusName))
                 stop()
         }

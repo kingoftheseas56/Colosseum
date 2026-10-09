@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.8 LANGUAGES C CXX)
+project(colosseum VERSION 1.1.9 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -129,6 +129,16 @@ if(NOT WIN32 AND (NOT Libmpv_LIBRARIES OR NOT Libmpv_INCLUDE_DIRS))
     pkg_check_modules(Libmpv REQUIRED IMPORTED_TARGET mpv)
     set(Libmpv_LIBRARIES PkgConfig::Libmpv)
 endif()
+
+# MpvQt's FindLibmpv discovers <client.h> inside include/mpv, while our raw
+# libmpv consumers include <mpv/client.h>. Keep both include forms usable when
+# libmpv lives outside the compiler's default system include directory.
+foreach(_libmpv_include IN LISTS Libmpv_INCLUDE_DIRS)
+    if(EXISTS "${_libmpv_include}/client.h" AND NOT EXISTS "${_libmpv_include}/mpv/client.h")
+        get_filename_component(_libmpv_include_parent "${_libmpv_include}" DIRECTORY)
+        list(APPEND Libmpv_INCLUDE_DIRS "${_libmpv_include_parent}")
+    endif()
+endforeach()
 
 # ── libtorrent-rasterbar (tankorent engine core) ─────────────────────────────
 # Ported from TB2 CMakeLists.txt (TANKORENT_DOWNLOAD_FLOW_FIX lineage):
@@ -1302,6 +1312,9 @@ add_executable(reader2_profile_runtime_harness
     AudioPairingStore.h
 )
 target_include_directories(reader2_profile_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_sources(reader2_profile_runtime_harness PRIVATE
+    account/RatingsReviewsStore.cpp
+    account/RatingsReviewsStore.h)
 target_compile_definitions(reader2_profile_runtime_harness PRIVATE
     COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 target_link_libraries(reader2_profile_runtime_harness PRIVATE

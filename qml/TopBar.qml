@@ -21,7 +21,11 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
+    readonly property bool compactChrome: width < 1000
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
+    // World roots keep the historical Home destination; nested surfaces can name their
+    // owning world without inventing a second Back control.
+    property string backLabel: "Home"
     // With backOnly, the page names itself beside the arrow (as Your Colosseum does).
     property string pageTitle: ""
     property string pageSubtitle: ""
@@ -168,7 +172,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + 34
+        implicitWidth: pillContent.implicitWidth + (bar.width < 1000 ? 24 : 34)
         implicitHeight: 34
 
         Rectangle {
@@ -213,12 +217,14 @@ Item {
 
     // ---- left: "‹ Home" (world only) + clock/date ----
     Row {
+        id: leftChrome
+        objectName: "topBarLeftChrome"
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: 18
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            label: bar.backOnly && bar.pageTitle.length ? "" : "Home"
+            label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink
@@ -236,7 +242,8 @@ Item {
             }
         }
         Column {
-            visible: !bar.backOnly
+            objectName: "topBarClock"
+            visible: !bar.backOnly && !bar.compactChrome
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
@@ -251,9 +258,13 @@ Item {
 
     // ---- center: library pills in a glass capsule ----
     Glass {
+        objectName: "topBarWorldPicker"
         visible: !bar.backOnly
         backdrop: bar.backdrop
-        anchors.centerIn: parent
+        anchors.verticalCenter: parent.verticalCenter
+        x: bar.compactChrome
+           ? leftChrome.width + 12 + Math.max(0, (systemChrome.x - leftChrome.width - 24 - width) / 2)
+           : (bar.width - width) / 2
         radius: 999
         width: pillsRow.implicitWidth + 14; height: 46
         Row {
@@ -263,6 +274,7 @@ Item {
             Pill { label: "Tankoban" }
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
+            Pill { label: "Universes" }
         }
     }
 
@@ -273,10 +285,12 @@ Item {
     // are gated on activeMedium, the same home/world discriminator BackAction
     // uses above, so only one is ever present in the slot.
     Row {
+        id: systemChrome
+        objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: 20
-        // Search — worlds only.
+        spacing: bar.compactChrome ? 10 : 20
+        // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
             // non-Theatre search a world-specific name so Lanista can target
@@ -286,7 +300,7 @@ Item {
             source: "../assets/icons/search.svg"
             accessibleName: "Search"
             onClicked: bar.searchClicked()
-            visible: bar.activeMedium !== ""
+            visible: bar.activeMedium !== "" && bar.activeMedium !== "Universes"
         }
         // Theatre's provider door. The official artwork remains untouched;
         // only the small external badge communicates an actionable state.

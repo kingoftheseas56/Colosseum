@@ -72,6 +72,11 @@ int main()
       "artwork": []
     })json";
     require(parseManifest(valid, &error).has_value(), "valid schema parses after trust seam");
+    const QByteArray firstPartyNotes = replaced(
+        valid, "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.0",
+        "https://getcolosseum.world/releases/v1.1.0");
+    require(parseManifest(firstPartyNotes, &error).has_value(),
+            "first-party release notes are accepted for the 1.1.9 updater");
 
     const QList<QByteArray> invalid = {
         replaced(valid, "1.1.0", "1.1"),
@@ -88,7 +93,11 @@ int main()
         replaced(valid, "\"artwork\": []", "\"artwork\": [{\"asset\": \"feature.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}, {\"asset\": \"feature.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"} ]"),
         replaced(valid, "\"artwork\": []", "\"artwork\": [{\"asset\": \"foo/bar.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}]"),
         replaced(valid, "\"size\": 123", "\"size\": 9223372036854775808"),
-        replaced(valid, "kingoftheseas56/Colosseum", "another-owner/another-repo")
+        replaced(valid, "kingoftheseas56/Colosseum", "another-owner/another-repo"),
+        replaced(firstPartyNotes, "https://getcolosseum.world/releases/v1.1.0",
+                 "https://getcolosseum.world.evil.example/releases/v1.1.0"),
+        replaced(firstPartyNotes, "https://getcolosseum.world/releases/v1.1.0",
+                 "https://getcolosseum.world/releases/v1.1.1")
     };
     for (const QByteArray& invalidJson : invalid)
         require(!parseManifest(invalidJson, &error).has_value(), "invalid manifest rejected");

@@ -26,6 +26,33 @@ TestCase {
 
     SignalSpy { id: boundarySpy; target: bar; signalName: "boundaryArrowRequested" }
     SignalSpy { id: stremioSpy; target: bar; signalName: "stremioClicked" }
+    SignalSpy { id: mediumSpy; target: bar; signalName: "mediumSelected" }
+    SignalSpy { id: searchSpy; target: bar; signalName: "searchClicked" }
+
+    function test_compact_world_picker_does_not_overlap_search_data() {
+        return [{tag: "Tankoban", medium: "Tankoban"},
+                {tag: "Biblio", medium: "Biblio"},
+                {tag: "Theatre", medium: "Theatre"},
+                {tag: "Universes", medium: "Universes"}]
+    }
+    function test_compact_world_picker_does_not_overlap_search(data) {
+        bar.width = 904 // 1024px window minus the production side margins
+        bar.activeMedium = data.medium
+        bar.trackersEnabled = true
+        wait(30)
+        var picker = findChild(bar, "topBarWorldPicker")
+        var systems = findChild(bar, "topBarSystemChrome")
+        verify(picker.x + picker.width + 8 <= systems.x,
+               "World picker must leave space before system controls")
+        var universes = findChild(bar, "modePillFocus_Universes")
+        mediumSpy.clear(); searchSpy.clear()
+        mouseClick(universes)
+        compare(mediumSpy.count, 1)
+        compare(mediumSpy.signalArguments[0][0], "Universes")
+        compare(searchSpy.count, 0)
+        bar.width = 1040
+        bar.trackersEnabled = false
+    }
 
     function findChild(root, objectName) {
         if (!root) return null
@@ -54,6 +81,7 @@ TestCase {
         testWindow.requestActivate()
         boundarySpy.clear()
         stremioSpy.clear()
+        mediumSpy.clear()
         bar.activeMedium = ""
         bar.lifecycleActive = true
         wait(20)
@@ -107,5 +135,21 @@ TestCase {
         keyClick(Qt.Key_Down)
         compare(boundarySpy.count, 1)
         compare(boundarySpy.signalArguments[0][0], Qt.Key_Down)
+    }
+
+    function test_universes_is_the_fourth_world_and_keyboard_reachable() {
+        var theatre = focusableFace(findChild(bar, "modePill_Theatre"))
+        var universesPill = findChild(bar, "modePill_Universes")
+        var universes = focusableFace(universesPill)
+        verify(theatre !== null && universes !== null)
+        compare(findChild(bar, "modePill_Feria"), null)
+        theatre.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Right)
+        verify(universes.activeFocus)
+        keyClick(Qt.Key_Return)
+        compare(mediumSpy.count, 1)
+        compare(mediumSpy.signalArguments[0][0], "Universes")
+        bar.activeMedium = "Universes"
+        compare(universesPill.active, true)
     }
 }
