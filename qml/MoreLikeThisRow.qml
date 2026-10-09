@@ -5,6 +5,8 @@ import QtQuick
 Column {
     id: mlt
     property var cards: []   // [{id, type, title, cover}]
+    readonly property bool phoneNarrow: !!(mlt.Window.window && mlt.Window.window.androidHost
+                                            && mlt.Window.window.width < 840)
     signal openRequested(var item)
     visible: cards.length > 0
     spacing: 16
@@ -25,7 +27,7 @@ Column {
     ListView {
         id: moreLikeList
         width: parent.width
-        height: 216
+        height: mlt.phoneNarrow ? 234 : 216
         orientation: ListView.Horizontal
         spacing: 18
         clip: true
@@ -71,7 +73,10 @@ Column {
             }
             Text {
                 width: parent.width
-                text: card.modelData.title || ""; elide: Text.ElideRight
+                text: card.modelData.title || ""
+                wrapMode: mlt.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                maximumLineCount: mlt.phoneNarrow ? 3 : 1
+                elide: mlt.phoneNarrow ? Text.ElideNone : Text.ElideRight
                 color: theme.ink; font.family: theme.ui; font.pixelSize: 12
             }
         }

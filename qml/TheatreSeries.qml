@@ -10,6 +10,11 @@ import "TheatreFacts.js" as TheatreFacts
 
 Item {
     id: page
+    // The phone host uses the same width gate as the shared world tab bar.
+    readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost
+                                            && page.Window.window.width < 840)
+    readonly property int bodyInset: page.phoneNarrow ? 20 : theme.margin
+    readonly property int phoneArtHeight: 216
     signal libraryRemovalRequested(var entry)
     objectName: "theatreSeriesPage"
     property Item backdrop
@@ -53,8 +58,8 @@ Item {
     property var seasons: []
     property int activeSeason: 0
     property var episodes: AnimeEpisodePresentation.visibleEpisodes(animeOrder, effectiveEpisodeOrder, activeSeason)
-    readonly property int compactEpisodeRowHeight: 104
-    readonly property int nextUpEpisodeRowHeight: 148
+    readonly property int compactEpisodeRowHeight: page.phoneNarrow ? 280 : 104
+    readonly property int nextUpEpisodeRowHeight: page.phoneNarrow ? 280 : 148
     readonly property int episodeWindowOverscanRows: 8
     readonly property int nextUpEpisodeIndex: page.computeNextUpEpisodeIndex()
     readonly property int episodeContentHeight: page.episodes.length * page.compactEpisodeRowHeight
@@ -930,6 +935,18 @@ Item {
 
     ChromeScrim { z: 16 }
 
+    // Keep the fixed Back control readable when full-length phone copy scrolls beneath it.
+    // Desktop retains the existing fade/chrome behaviour.
+    Rectangle {
+        z: 17
+        visible: page.phoneNarrow && flick.contentY > 32
+        anchors.top: parent.top
+        width: parent.width
+        height: 86
+        color: "#08090d"
+        opacity: Math.min(1, Math.max(0, (flick.contentY - 32) / 40))
+    }
+
     BackAction {
         id: backBtn
         x: theme.margin
@@ -940,7 +957,7 @@ Item {
 
     Row {
         z: 30
-        visible: Qt.platform.os !== "android"
+        visible: Qt.platform.os !== "android" && !page.phoneNarrow
         anchors.right: parent.right
         anchors.rightMargin: theme.margin
         y: 34
@@ -1036,11 +1053,15 @@ Item {
             spacing: 0
 
             Item {
+                id: detailHero
                 width: parent.width
-                height: 360
+                height: page.phoneNarrow ? page.phoneArtHeight + heroCopy.implicitHeight + 44 : 360
                 Image {
                     id: bannerImg
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: page.phoneNarrow ? page.phoneArtHeight : parent.height
                     source: page.banner.length ? page.banner : page.cover
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
@@ -1057,17 +1078,20 @@ Item {
                     }
                 }
                 Column {
+                    id: heroCopy
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.leftMargin: theme.margin
-                    anchors.rightMargin: theme.margin
-                    anchors.bottomMargin: 30
+                    anchors.bottom: page.phoneNarrow ? undefined : parent.bottom
+                    anchors.top: page.phoneNarrow ? parent.top : undefined
+                    anchors.leftMargin: page.bodyInset
+                    anchors.rightMargin: page.bodyInset
+                    anchors.topMargin: page.phoneNarrow ? page.phoneArtHeight + 20 : 0
+                    anchors.bottomMargin: page.phoneNarrow ? 0 : 30
                     spacing: 12
                     // Hemanth eyes-on 2026-07-20: scrolling slid this hero text under the
                     // fixed Back/chrome band ("2006Back" mash) — fade it as it climbs; it
                     // is fully gone before it can reach the chrome.
-                    opacity: Math.max(0, 1 - flick.contentY / 220)
+                    opacity: page.phoneNarrow ? 1 : Math.max(0, 1 - flick.contentY / 220)
                     Text {
                         text: page.mediaType === "series" ? "Series - Theatre" : "Movie - Theatre"
                         color: theme.gold
@@ -1081,15 +1105,16 @@ Item {
                         text: page.title
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 64
+                        font.pixelSize: page.phoneNarrow ? 36 : 64
                         font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap
-                        maximumLineCount: 2
-                        elide: Text.ElideRight
+                        wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.WordWrap
+                        maximumLineCount: page.phoneNarrow ? 2147483647 : 2
+                        elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                         style: Text.Raised
                         styleColor: Qt.rgba(0, 0, 0, 0.35)
                     }
                     Row {
+                        visible: !page.phoneNarrow
                         spacing: 11
                         Text {
                             visible: page.year.length
@@ -1168,7 +1193,50 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
-                    Row {
+                    // Mobile keeps every fact and the full synopsis before the action row.
+                    Flow {
+                        visible: page.phoneNarrow
+                        width: parent.width
+                        spacing: 9
+                        Text { visible: page.year.length > 0; text: page.year; color: theme.ink
+                               font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { visible: page.genresLine.length > 0; text: page.genresLine
+                               width: Math.min(implicitWidth, parent.width)
+                               wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
+                        Text { visible: page.rating.length > 0; text: "IMDb " + page.rating
+                               color: theme.ink; font.family: theme.ui; font.pixelSize: 14 }
+                        Text { visible: page.runtime.length > 0; text: page.runtime
+                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
+                    }
+                    Column {
+                        visible: page.phoneNarrow && page.factRows.length > 0
+                        width: parent.width
+                        spacing: 12
+                        Repeater {
+                            model: page.factRows
+                            Column {
+                                required property var modelData
+                                width: parent.width
+                                spacing: 3
+                                Text { width: parent.width; text: modelData.k; color: theme.inkDimmer
+                                       font.family: theme.ui; font.pixelSize: 12 }
+                                Text { width: parent.width; text: modelData.v; color: theme.ink
+                                       font.family: theme.ui; font.pixelSize: 13
+                                       wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                            }
+                        }
+                    }
+                    Text {
+                        visible: page.phoneNarrow && page.synopsis.length > 0
+                        width: parent.width
+                        text: page.synopsis
+                        color: theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 15; lineHeight: 1.45
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                    Flow {
+                        width: parent.width
                         spacing: 12
                         topPadding: 8
                         Rectangle {
@@ -1257,6 +1325,7 @@ Item {
             }
 
             Row {
+                visible: !page.phoneNarrow
                 x: theme.margin
                 spacing: 56
                 Text {
@@ -1380,9 +1449,9 @@ Item {
                             }
                             Item {
                                 id: episodeNumberRail
-                                x: theme.margin + 2
-                                width: ep.tiny ? 52 : 70
-                                height: parent.height
+                                x: page.bodyInset + 2
+                                width: page.phoneNarrow ? 48 : (ep.tiny ? 52 : 70)
+                                height: page.phoneNarrow ? 96 : parent.height
                                 Column {
                                     anchors.centerIn: parent
                                     spacing: 2
@@ -1408,10 +1477,10 @@ Item {
                             }
                             Rectangle {
                                 id: thumb
-                                x: episodeNumberRail.x + episodeNumberRail.width + 16
-                                y: (parent.height - height) / 2
-                                width: ep.tiny ? 122 : (ep.narrow ? 142 : 172)
-                                height: ep.tiny ? 69 : (ep.narrow ? 80 : 96)
+                                x: episodeNumberRail.x + episodeNumberRail.width + (page.phoneNarrow ? 8 : 16)
+                                y: page.phoneNarrow ? 10 : (parent.height - height) / 2
+                                width: page.phoneNarrow ? 152 : (ep.tiny ? 122 : (ep.narrow ? 142 : 172))
+                                height: page.phoneNarrow ? 86 : (ep.tiny ? 69 : (ep.narrow ? 80 : 96))
                                 radius: 7
                                 clip: true
                                 color: "#15171f"
@@ -1446,11 +1515,11 @@ Item {
                                 }
                             }
                             Column {
-                                anchors.left: thumb.right
-                                anchors.leftMargin: 18
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.right: rowStatus.visible ? rowStatus.left : rowActions.left
-                                anchors.rightMargin: 20
+                                id: episodeCopy
+                                x: page.phoneNarrow ? page.bodyInset + 8 : thumb.x + thumb.width + 18
+                                y: page.phoneNarrow ? 108 : (ep.height - height) / 2
+                                width: page.phoneNarrow ? ep.width - 2 * (page.bodyInset + 8)
+                                      : (rowStatus.visible ? rowStatus.x : rowActions.x) - 20 - x
                                 spacing: ep.nextUp ? 8 : 5
                                 Text {
                                     width: parent.width
@@ -1461,7 +1530,9 @@ Item {
                                     font.family: theme.ui
                                     font.pixelSize: ep.nextUp ? 17 : 15
                                     font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
+                                    wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                                    maximumLineCount: page.phoneNarrow ? 4 : 1
+                                    elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                                 }
                                 Rectangle {
                                     // Honest single badge for a Specials (season 0) row.
@@ -1512,8 +1583,8 @@ Item {
                                     font.pixelSize: 13
                                     lineHeight: 1.35
                                     wrapMode: Text.WordWrap
-                                    maximumLineCount: ep.nextUp ? 2 : 1
-                                    elide: Text.ElideRight
+                                    maximumLineCount: page.phoneNarrow ? 3 : (ep.nextUp ? 2 : 1)
+                                    elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                                 }
                             }
                             Row {
@@ -1545,8 +1616,9 @@ Item {
                             Item {
                                 id: rowActions
                                 anchors.right: parent.right
-                                anchors.rightMargin: theme.margin + 10
-                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.rightMargin: page.phoneNarrow ? page.bodyInset : theme.margin + 10
+                                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                                y: page.phoneNarrow ? 33 : 0
                                 width: 84
                                 height: 38
                             }
@@ -1642,8 +1714,8 @@ Item {
             }
 
             CastRow {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.bodyInset
+                width: parent.width - 2 * page.bodyInset
                 people: page.castPeople
             }
 
@@ -1656,8 +1728,8 @@ Item {
             }
 
             MoreLikeThisRow {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.bodyInset
+                width: parent.width - 2 * page.bodyInset
                 cards: page.moreLikeCards
                 onOpenRequested: function(item) { page.openItemRequested(item) }
             }
@@ -1739,7 +1811,7 @@ Item {
             anchors.right: parent.right
             y: seasonChromeFloat.pinned ? -seasonChromeFloat.y : 0
             height: seasonChromeFloat.pinned ? (seasonChromeFloat.y + chromeCol.height) : 0
-            color: Qt.rgba(0.016, 0.02, 0.035, 0.93)
+            color: page.phoneNarrow ? "#08090d" : Qt.rgba(0.016, 0.02, 0.035, 0.93)
             opacity: seasonChromeFloat.pinned ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             Rectangle {
@@ -2011,13 +2083,16 @@ Item {
 
                 Item {
                     id: episodeLedgerHeader
-                    x: theme.margin
-                    width: parent.width - 2 * theme.margin
-                    height: 86
+                    x: page.bodyInset
+                    width: parent.width - 2 * page.bodyInset
+                    height: page.phoneNarrow ? 150 : 86
 
                     Column {
                         anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                        anchors.top: page.phoneNarrow ? parent.top : undefined
+                        anchors.topMargin: page.phoneNarrow ? 12 : 0
+                        width: page.phoneNarrow ? parent.width : implicitWidth
                         spacing: 7
                         Text {
                             text: page.seasonLabel()
@@ -2046,6 +2121,8 @@ Item {
                             font.family: theme.ui
                             font.pixelSize: 12
                             font.letterSpacing: 0.3
+                            width: page.phoneNarrow ? parent.width : implicitWidth
+                            wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                         }
                     }
 
@@ -2061,7 +2138,8 @@ Item {
                                  && page.effectiveEpisodeOrder !== "absolute"
                         anchors.right: jumpHost.visible ? jumpHost.left : parent.right
                         anchors.rightMargin: jumpHost.visible ? 10 : 0
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                        y: page.phoneNarrow ? 96 : 0
                         width: 176
                         height: 40
                         radius: 9
@@ -2110,7 +2188,8 @@ Item {
                         width: 102
                         height: 40
                         anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                        y: page.phoneNarrow ? 96 : 0
                         visible: page.episodes.length >= 12
                         Rectangle {
                             anchors.fill: parent
@@ -2288,7 +2367,8 @@ Item {
                     id: episodeLedgerColumns
                     x: theme.margin
                     width: parent.width - 2 * theme.margin
-                    height: 30
+                    height: page.phoneNarrow ? 0 : 30
+                    visible: !page.phoneNarrow
                     Text { x: 12; anchors.verticalCenter: parent.verticalCenter; text: "EPISODE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3; font.weight: Font.DemiBold }
                     Text { x: 276; anchors.verticalCenter: parent.verticalCenter; text: "STORY"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3; font.weight: Font.DemiBold }
                     Text { anchors.right: parent.right; anchors.rightMargin: 118; anchors.verticalCenter: parent.verticalCenter; text: "STATUS"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3; font.weight: Font.DemiBold }

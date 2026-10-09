@@ -20,6 +20,10 @@ import "TheatreFacts.js" as TheatreFacts
 
 Item {
     id: page
+    readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost
+                                            && page.Window.window.width < 840)
+    readonly property int bodyInset: page.phoneNarrow ? 20 : theme.margin
+    readonly property int phoneArtHeight: 216
     signal libraryRemovalRequested(var entry)
     objectName: "theatreSeriesPage"
     property Item backdrop
@@ -67,8 +71,8 @@ Item {
     property var seasons: []
     property int activeSeason: 0
     property var episodes: AnimeEpisodePresentation.visibleEpisodes(animeOrder, effectiveEpisodeOrder, activeSeason)
-    readonly property int compactEpisodeRowHeight: 96
-    readonly property int nextUpEpisodeRowHeight: 96
+    readonly property int compactEpisodeRowHeight: page.phoneNarrow ? 280 : 96
+    readonly property int nextUpEpisodeRowHeight: page.phoneNarrow ? 280 : 96
     readonly property int episodeWindowOverscanRows: 3
     readonly property int nextUpEpisodeIndex: page.computeNextUpEpisodeIndex()
     readonly property int episodeContentHeight: page.episodes.length * page.compactEpisodeRowHeight
@@ -928,7 +932,7 @@ Item {
     // =====================================================================================
 
     readonly property color focusGold: Qt.rgba(0.94, 0.77, 0.29, 1.0)
-    readonly property int ledgerBarHeight: 56
+    readonly property int ledgerBarHeight: page.phoneNarrow ? ledgerLeft.implicitHeight + ledgerRight.implicitHeight + 38 : 56
     readonly property int episodeRangeSize: 100
     readonly property bool longRun: page.episodes.length > page.episodeRangeSize
     property bool synopsisExpanded: false
@@ -1028,10 +1032,14 @@ Item {
             Item {
                 id: hero
                 width: parent.width
-                height: Math.max(heroCopy.implicitHeight + titleBar.height + 72, Math.min(640, page.height * 0.6))
+                height: page.phoneNarrow ? page.phoneArtHeight + heroCopy.implicitHeight + 46
+                                         : Math.max(heroCopy.implicitHeight + titleBar.height + 72, Math.min(640, page.height * 0.6))
                 Image {
                     id: heroArt
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: page.phoneNarrow ? page.phoneArtHeight : parent.height
                     source: page.banner.length ? page.banner : page.cover
                     sourceSize.width: 1920
                     fillMode: Image.PreserveAspectCrop
@@ -1062,13 +1070,16 @@ Item {
                 Column {
                     id: heroCopy
                     anchors.left: parent.left
-                    anchors.leftMargin: theme.margin
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 34
-                    width: Math.min(820, parent.width - 2 * theme.margin)
+                    anchors.leftMargin: page.bodyInset
+                    anchors.bottom: page.phoneNarrow ? undefined : parent.bottom
+                    anchors.top: page.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: page.phoneNarrow ? page.phoneArtHeight + 20 : 0
+                    anchors.bottomMargin: page.phoneNarrow ? 0 : 34
+                    width: page.phoneNarrow ? parent.width - 2 * page.bodyInset
+                                            : Math.min(820, parent.width - 2 * theme.margin)
                     spacing: 12
                     // The copy fades as it climbs, so it is gone before it reaches the title bar.
-                    opacity: Math.max(0, 1 - flick.contentY / Math.max(1, hero.height - titleBar.height - 40))
+                    opacity: page.phoneNarrow ? 1 : Math.max(0, 1 - flick.contentY / Math.max(1, hero.height - titleBar.height - 40))
 
                     Text {
                         text: page.mediaType === "series" ? "Series  ·  Theatre" : "Movie  ·  Theatre"
@@ -1083,12 +1094,12 @@ Item {
                         text: page.title
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 60
+                        font.pixelSize: page.phoneNarrow ? 36 : 60
                         font.weight: Font.DemiBold
                         lineHeight: 0.98
-                        wrapMode: Text.WordWrap
-                        maximumLineCount: 2
-                        elide: Text.ElideRight
+                        wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.WordWrap
+                        maximumLineCount: page.phoneNarrow ? 2147483647 : 2
+                        elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                     }
                     Flow {
                         width: parent.width
@@ -1102,6 +1113,8 @@ Item {
                         Text {
                             visible: page.genresLine.length > 0
                             text: page.genresLine.split(" - ").join("  ·  ")
+                            width: Math.min(implicitWidth, parent.width)
+                            wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                             color: theme.inkDim
                             font.family: theme.ui; font.pixelSize: 14
                         }
@@ -1135,7 +1148,26 @@ Item {
                             font.family: theme.ui; font.pixelSize: 14
                         }
                     }
-                    // Synopsis: three lines at rest, the whole of it on "More".
+                    // On a phone, the secondary facts join the primary facts above the synopsis.
+                    Column {
+                        visible: page.phoneNarrow && page.factRows.length > 0
+                        width: parent.width
+                        spacing: 12
+                        Repeater {
+                            model: page.factRows
+                            Column {
+                                required property var modelData
+                                width: parent.width
+                                spacing: 3
+                                Text { width: parent.width; text: modelData.k
+                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                                Text { width: parent.width; text: modelData.v
+                                       color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                       wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                            }
+                        }
+                    }
+                    // Synopsis: desktop keeps More; phone shows the complete, wrapping text.
                     Column {
                         width: parent.width
                         spacing: 4
@@ -1149,11 +1181,11 @@ Item {
                             font.pixelSize: 15
                             lineHeight: 1.45
                             wrapMode: Text.WordWrap
-                            maximumLineCount: page.synopsisExpanded ? 40 : 3
-                            elide: Text.ElideRight
+                            maximumLineCount: page.phoneNarrow ? 2147483647 : (page.synopsisExpanded ? 40 : 3)
+                            elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                         }
                         Item {
-                            visible: synopsisText.truncated || page.synopsisExpanded
+                            visible: !page.phoneNarrow && (synopsisText.truncated || page.synopsisExpanded)
                             width: moreText.implicitWidth + 8
                             height: 26
                             Text {
@@ -1278,8 +1310,8 @@ Item {
             // ---- the facts: two wrapping columns, never clipped ----
             Item {
                 width: parent.width
-                height: page.factRows.length ? factsGrid.implicitHeight + 36 : 0
-                visible: page.factRows.length > 0
+                height: !page.phoneNarrow && page.factRows.length ? factsGrid.implicitHeight + 36 : 0
+                visible: !page.phoneNarrow && page.factRows.length > 0
                 Grid {
                     id: factsGrid
                     x: theme.margin
@@ -1420,9 +1452,10 @@ Item {
 
                                 Column {
                                     id: numberCol
-                                    x: theme.margin + 12
+                                    x: page.bodyInset + 8
                                     width: 58
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                                    y: page.phoneNarrow ? 25 : 0
                                     spacing: 1
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
@@ -1444,10 +1477,11 @@ Item {
 
                                 Rectangle {
                                     id: thumb
-                                    x: numberCol.x + numberCol.width + 12
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 128
-                                    height: 72
+                                    x: numberCol.x + numberCol.width + (page.phoneNarrow ? 8 : 12)
+                                    anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                                    y: page.phoneNarrow ? 10 : 0
+                                    width: page.phoneNarrow ? 140 : 128
+                                    height: page.phoneNarrow ? 82 : 72
                                     radius: 6
                                     clip: true
                                     color: "#15171f"
@@ -1486,11 +1520,11 @@ Item {
                                 }
 
                                 Column {
-                                    anchors.left: thumb.right
-                                    anchors.leftMargin: 18
-                                    anchors.right: rowActions.left
-                                    anchors.rightMargin: 22
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    id: episodeCopy
+                                    x: page.phoneNarrow ? page.bodyInset + 8 : thumb.x + thumb.width + 18
+                                    y: page.phoneNarrow ? 107 : (ep.height - height) / 2
+                                    width: page.phoneNarrow ? ep.width - 2 * (page.bodyInset + 8)
+                                          : rowActions.x - 22 - x
                                     spacing: 3
                                     Row {
                                         width: parent.width
@@ -1502,7 +1536,9 @@ Item {
                                                      : "Episode " + page.episodeDisplayNumber(ep.modelData))
                                             color: theme.ink
                                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
-                                            elide: Text.ElideRight
+                                            wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                                            maximumLineCount: page.phoneNarrow ? 4 : 1
+                                            elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                                         }
                                         Rectangle {
                                             id: spBadge
@@ -1520,7 +1556,8 @@ Item {
                                         visible: text.length > 0
                                         color: ep.nextUp ? theme.gold : (ep.watched ? page.watchedInk : theme.inkDimmer)
                                         font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
+                                        wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                                        elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                                     }
                                     Text {
                                         visible: !!(ep.modelData.overview || ep.modelData.description)
@@ -1530,8 +1567,8 @@ Item {
                                         font.family: theme.ui; font.pixelSize: 13
                                         lineHeight: 1.3
                                         wrapMode: Text.WordWrap
-                                        maximumLineCount: 2
-                                        elide: Text.ElideRight
+                                        maximumLineCount: page.phoneNarrow ? 3 : 2
+                                        elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                                     }
                                 }
 
@@ -1564,8 +1601,9 @@ Item {
                                 Row {
                                     id: rowActions
                                     anchors.right: parent.right
-                                    anchors.rightMargin: theme.margin + 16
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.rightMargin: page.phoneNarrow ? page.bodyInset : theme.margin + 16
+                                    anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                                    y: page.phoneNarrow ? 30 : 0
                                     spacing: 8
                                     Rectangle {
                                         // Automation identity (Lanista): keyed by the episode's stream id,
@@ -1634,8 +1672,8 @@ Item {
             }
 
             CastRow {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.bodyInset
+                width: parent.width - 2 * page.bodyInset
                 people: page.castPeople
             }
             Item {
@@ -1644,8 +1682,8 @@ Item {
                 visible: (page.castPeople || []).length > 0 && (page.moreLikeCards || []).length > 0
             }
             MoreLikeThisRow {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.bodyInset
+                width: parent.width - 2 * page.bodyInset
                 cards: page.moreLikeCards
                 onOpenRequested: function(item) { page.openItemRequested(item) }
             }
@@ -1682,14 +1720,16 @@ Item {
                         height: 1; color: theme.edge }
         }
 
-        Row {
+        Flow {
             id: ledgerLeft
-            x: theme.margin
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 22
+            x: page.bodyInset
+            width: page.phoneNarrow ? page.width - 2 * page.bodyInset : implicitWidth
+            anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+            y: page.phoneNarrow ? 8 : 0
+            spacing: page.phoneNarrow ? 8 : 22
 
             Column {
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                 spacing: 1
                 Text {
                     text: page.ledgerHeading()
@@ -1706,7 +1746,7 @@ Item {
             // Absolute / Seasons — only when the native mapping is complete.
             Rectangle {
                 visible: page.animeOrder && page.animeOrder.absoluteComplete === true
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                 height: 36
                 width: orderRow.implicitWidth + 8
                 radius: 18
@@ -1752,7 +1792,7 @@ Item {
             Flickable {
                 id: seasonStrip
                 visible: page.seasons.length > 1 && page.seasons.length <= 10 && page.effectiveEpisodeOrder !== "absolute"
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                 width: Math.min(seasonPills.implicitWidth, Math.max(160, page.width * 0.42))
                 height: 36
                 contentWidth: seasonPills.implicitWidth
@@ -1804,7 +1844,7 @@ Item {
             // Seasons, more than ten: a dropdown.
             Item {
                 visible: page.seasons.length > 10 && page.effectiveEpisodeOrder !== "absolute"
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                 width: seasonTrigger.width
                 height: 36
                 z: 40
@@ -1911,18 +1951,21 @@ Item {
             }
         }
 
-        Row {
+        Flow {
             id: ledgerRight
-            anchors.right: parent.right
-            anchors.rightMargin: theme.margin
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: page.phoneNarrow ? undefined : parent.right
+            anchors.rightMargin: page.phoneNarrow ? 0 : theme.margin
+            anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+            x: page.phoneNarrow ? page.bodyInset : 0
+            y: page.phoneNarrow ? ledgerLeft.y + ledgerLeft.implicitHeight + 10 : 0
+            width: page.phoneNarrow ? page.width - 2 * page.bodyInset : implicitWidth
             spacing: 10
 
             // Download the active season (hidden in Absolute order: "episodes" is the whole run).
             Rectangle {
                 id: seasonDownloadAction
                 visible: typeof Download !== "undefined" && page.episodes.length > 0
-                         && page.effectiveEpisodeOrder !== "absolute" && ledgerBarFloat.width > 1180
+                         && page.effectiveEpisodeOrder !== "absolute" && (ledgerBarFloat.width > 1180 || page.phoneNarrow)
                 height: 36
                 width: dlSeasonRow.implicitWidth + 28
                 radius: 18
