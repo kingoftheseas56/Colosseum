@@ -168,11 +168,29 @@ if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
     endif()
 elseif(WIN32)
     set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc" CACHE PATH "libtorrent MSVC install")
-    set(BOOST_ROOT "C:/tools/boost-1.84.0" CACHE PATH "Boost headers")
+    # The prebuilt library and the Boost headers must be the same Boost release.
+    # Boost.Asio is header-only, so its inline code is compiled into both the
+    # library and the app and the linker keeps one copy: with 1.84 headers
+    # against the library's 1.90 build, an io_context laid out by one was
+    # destroyed by the other and the app faulted in ~execution_context at exit.
+    set(COLOSSEUM_LIBTORRENT_BOOST "1_90")
+    # A build directory configured before this check still names the old default.
+    if(BOOST_ROOT STREQUAL "C:/tools/boost-1.84.0")
+        unset(BOOST_ROOT CACHE)
+        unset(BOOST_INCLUDE_DIR CACHE)
+    endif()
+    set(BOOST_ROOT "C:/tools/boost-1.90.0" CACHE PATH "Boost headers matching the prebuilt libtorrent")
     set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc" CACHE PATH "OpenSSL MSVC install")
     find_path(LIBTORRENT_INCLUDE_DIR libtorrent/session.hpp HINTS "${LIBTORRENT_ROOT}/include")
     find_library(LIBTORRENT_LIBRARY torrent-rasterbar HINTS "${LIBTORRENT_ROOT}/lib")
     find_path(BOOST_INCLUDE_DIR boost/version.hpp HINTS "${BOOST_ROOT}")
+    if(BOOST_INCLUDE_DIR)
+        file(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp" _colosseum_boost_version
+             REGEX "define BOOST_LIB_VERSION")
+        if(NOT _colosseum_boost_version MATCHES "\"${COLOSSEUM_LIBTORRENT_BOOST}\"")
+            message(FATAL_ERROR "Boost headers at ${BOOST_INCLUDE_DIR} are not the ${COLOSSEUM_LIBTORRENT_BOOST} release the prebuilt libtorrent was built with (${_colosseum_boost_version}). Point BOOST_ROOT at the matching headers and clear BOOST_INCLUDE_DIR.")
+        endif()
+    endif()
     if(LIBTORRENT_INCLUDE_DIR AND LIBTORRENT_LIBRARY AND BOOST_INCLUDE_DIR)
         message(STATUS "libtorrent found via C:/tools fallback: ${LIBTORRENT_LIBRARY}")
         target_include_directories(colosseum_libtorrent INTERFACE
