@@ -65,7 +65,16 @@ Window {
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
     // Shared Android presentation seam. Writable so desktop viewport harnesses can force the
     // phone/tablet geometry without pretending the whole desktop canvas was scaled down.
-    property bool androidHost: Qt.platform.os === "android"
+    // Developer switch: `colosseum.exe qml/Main.qml --phone-shell` (or `--phone-shell=360x700`)
+    // draws the Android phone shell in a plain desktop window, so phone layout can be judged
+    // without an APK. Layout only: readers, the player and fonts still need a real device.
+    readonly property string phoneShellArg: {
+        var args = Qt.application.arguments
+        for (var i = 2; i < args.length; ++i)
+            if (String(args[i]).indexOf("--phone-shell") === 0) return String(args[i])
+        return ""
+    }
+    property bool androidHost: Qt.platform.os === "android" || phoneShellArg.length > 0
     AdaptiveLayout { id: adaptive; viewportWidth: Math.max(0, win.width - win.wideWorldNavigationLeftInset) }
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -567,7 +576,13 @@ Window {
                     + "  (booted=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
-        if (typeof WindowMode !== "undefined")
+        if (win.phoneShellArg.length > 0) {
+            var phoneSize = win.phoneShellArg.split("=")[1] || "412x700"
+            win.flags = Qt.Window
+            win.width = parseInt(phoneSize.split("x")[0]) || 412
+            win.height = parseInt(phoneSize.split("x")[1]) || 700
+            win.show()
+        } else if (typeof WindowMode !== "undefined")
             WindowMode.initializeShell(win)
         else
             win.showFullScreen()
