@@ -38,6 +38,14 @@ ReaderOverlay {
 
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
 
+    // Android phone width. This bar lives in its own native overlay window there, so the app
+    // window's androidHost is out of reach: gate on the platform and on the bar's own width.
+    // Compact = back, the book title, the four reader actions. The chapter name and the author
+    // do not fit beside 44px targets at 412 and are dropped from the bar (Contents still lists
+    // chapters). The window verbs never show on Android: Close is the same goBack as Back.
+    readonly property bool onAndroid: Qt.platform.os === "android"
+    readonly property bool compact: onAndroid && width < 840
+
     Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 
     // reveal: fade + a small downward slide-in from the top edge (mock: translateY(-6)).
@@ -55,8 +63,8 @@ ReaderOverlay {
         property int box: 19
         property string label: "Action"
         signal clicked()
-        implicitWidth: box + 10
-        implicitHeight: box + 10
+        implicitWidth: root.compact ? Math.max(44, box + 10) : box + 10
+        implicitHeight: root.compact ? Math.max(44, box + 10) : box + 10
         function focusKeyboard() { ma.forceActiveFocus(Qt.OtherFocusReason) }
         Image {
             id: img
@@ -86,7 +94,7 @@ ReaderOverlay {
         objectName: "bookReaderBack"   // test-only seam: Lanista ui-click closes the reader session (goBack -> closed)
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        anchors.leftMargin: 22
+        anchors.leftMargin: root.compact ? 6 : 22
         box: 22
         label: "Back"
         source: Qt.resolvedUrl("../../assets/icons/reader2/back.svg")
@@ -104,11 +112,17 @@ ReaderOverlay {
     // after the (possibly elided) title.
     Item {
         id: titleBlock
-        anchors.centerIn: parent
+        // compact: left-aligned in the space between Back and the actions, never centred under them
+        anchors.centerIn: root.compact ? undefined : parent
+        anchors.left: root.compact ? backBtn.right : undefined
+        anchors.leftMargin: root.compact ? 6 : 0
+        anchors.verticalCenter: root.compact ? parent.verticalCenter : undefined
         height: parent.height
         readonly property real authorW: authorText.visible ? authorText.implicitWidth + 10 : 0
         readonly property real sideReserve: Math.max(rightRow.width, backBtn.width) + 22 + 18
-        readonly property real availW: Math.max(80, root.width - 2 * sideReserve)
+        readonly property real availW: root.compact
+            ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - 14)
+            : Math.max(80, root.width - 2 * sideReserve)
         width: Math.min(titleText.implicitWidth + authorW, availW)
 
         Text {
@@ -129,7 +143,7 @@ ReaderOverlay {
             anchors.leftMargin: 10
             anchors.baseline: titleText.baseline
             text: root.author
-            visible: root.author !== ""
+            visible: root.author !== "" && !root.compact
             // elide is INERT without an explicit width — unconstrained, a squeezed block
             // let the author overflow at natural width into the right cluster (the same
             // 2026-07-20 double-print). Clamp to the room the block actually has.
@@ -146,13 +160,13 @@ ReaderOverlay {
         id: rightRow
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: 22
-        spacing: 12
+        anchors.rightMargin: root.compact ? 6 : 22
+        spacing: root.compact ? 0 : 12
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.chapterLabel
-            visible: root.chapterLabel !== ""
+            visible: root.chapterLabel !== "" && !root.compact
             // CAP (2026-07-20, the Wool 'Prologue 2110: Beneath the hills of…' finding):
             // uncapped, a long chapter name grows the right cluster until the centered
             // title block crushes to its 80px floor and the two print over each other.
@@ -174,9 +188,9 @@ ReaderOverlay {
             label: "Bookmark"; source: Qt.resolvedUrl("../../assets/icons/reader2/bookmark.svg"); onClicked: root.bookmarkRequested() }
         // minimize (window verb, comic-reader chrome parity 2026-07-18): park the book as a
         // taskbar tile instead of closing it. Back = close; this = keep the session warm.
-        IconButton { anchors.verticalCenter: parent.verticalCenter
+        IconButton { anchors.verticalCenter: parent.verticalCenter; visible: !root.onAndroid
             label: "Minimize"; source: Qt.resolvedUrl("../../assets/icons/reader2/minimize.svg"); onClicked: root.minimizeRequested() }
-        IconButton { anchors.verticalCenter: parent.verticalCenter
+        IconButton { anchors.verticalCenter: parent.verticalCenter; visible: !root.onAndroid
             label: root.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             source: Qt.resolvedUrl(root.shellWindowed
                 ? "../../assets/icons/reader2/fullscreen.svg"
@@ -184,7 +198,7 @@ ReaderOverlay {
             onClicked: root.fullscreenRequested() }
         // close (window verb, player-parity — the X ends the session; Back does the same
         // from the keyboard side. Rightmost, matching the player/comic chrome order.)
-        IconButton { anchors.verticalCenter: parent.verticalCenter
+        IconButton { anchors.verticalCenter: parent.verticalCenter; visible: !root.onAndroid
             label: "Close"; source: Qt.resolvedUrl("../../assets/icons/reader2/close.svg"); onClicked: root.closeRequested() }
     }
 }
