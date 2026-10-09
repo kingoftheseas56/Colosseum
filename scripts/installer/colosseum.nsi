@@ -54,6 +54,8 @@ RequestExecutionLevel user
 ; and the uninstaller would wipe the cache. Found the hard way testing 0.1.
 InstallDir "${COLOSSEUM_INSTALL_ROOT}"
 SetCompressor /SOLID lzma
+; Keep the full Qt runtime and atlas artwork within the release size gate.
+SetCompressorDictSize 64
 
 !define MUI_ICON "${STAGE}\assets\icons\colosseum.ico"
 !define MUI_UNICON "${STAGE}\assets\icons\colosseum.ico"
