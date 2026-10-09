@@ -21,6 +21,10 @@ Item {
     // read its state (`qml-get sourcesSheet.loading/rowCount/httpRowCount`) and prove the source-sheet
     // slices (5–7) in the running app instead of by eye. dump-ui sees named items only.
     objectName: "sourcesSheet"
+    // The host owns the Android-width decision. Standalone/desktop sheets stay unchanged.
+    readonly property bool phoneLayout: sheet.Window.window
+                                     && sheet.Window.window.androidHost
+                                     && sheet.Window.window.width < 840
 
     property Item backdrop
     property string label: ""
@@ -349,7 +353,7 @@ Item {
     Item {
         id: bannerStrip
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 300
+        height: sheet.phoneLayout ? 200 : 300
         Image {
             anchors.fill: parent
             source: sheet.backdropUrl
@@ -377,16 +381,19 @@ Item {
     // ---- back ----
     BackAction {
         id: sourcesBack
-        x: theme.margin; y: 30; z: 20
+        x: sheet.phoneLayout ? 16 : theme.margin
+        y: sheet.phoneLayout ? 20 : 30; z: 20
         onTriggered: sheet.hide()
     }
 
     // ---- title block, pinned to the bottom of the banner ----
     Column {
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
-        spacing: 12
+        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.top: parent.top
+        anchors.topMargin: bannerStrip.height - height - (sheet.phoneLayout ? 14 : 26)
+        spacing: sheet.phoneLayout ? 8 : 12
         Text {
             visible: sheet.mode !== "play" || sheet.metaLine.length > 0
             width: parent.width
@@ -395,15 +402,19 @@ Item {
                      : sheet.mode === "download" ? "DOWNLOAD — PICK A SOURCE" +
                        (sheet.metaLine.length ? "  ·  " + sheet.metaLine : "")
                      : sheet.metaLine).toUpperCase()
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 12
-            font.letterSpacing: 4; elide: Text.ElideRight
+            color: theme.gold; font.family: theme.ui
+            font.pixelSize: sheet.phoneLayout ? 11 : 12
+            font.letterSpacing: sheet.phoneLayout ? 1.5 : 4
+            wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
+            elide: sheet.phoneLayout ? Text.ElideNone : Text.ElideRight
         }
         Text {
             width: parent.width
             text: sheet.title.length ? sheet.title : "Sources"
             color: theme.ink; font.family: theme.display
-            font.pixelSize: 56; font.weight: Font.DemiBold
-            maximumLineCount: 1; elide: Text.ElideRight
+            font.pixelSize: sheet.phoneLayout ? 30 : 56; font.weight: Font.DemiBold
+            wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
+            maximumLineCount: sheet.phoneLayout ? 3 : 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
     }
@@ -413,9 +424,10 @@ Item {
     Rectangle {
         id: topBar
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: bannerStrip.bottom; anchors.topMargin: 20
-        height: 64; radius: 16
+        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 20
+        height: sheet.phoneLayout ? 52 : 64; radius: 16
         color: tbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
         border.color: tbMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
@@ -424,9 +436,10 @@ Item {
 
         Rectangle {                                                      // grid glyph
             id: gridBadge
-            anchors.left: parent.left; anchors.leftMargin: 20
+            anchors.left: parent.left; anchors.leftMargin: sheet.phoneLayout ? 12 : 20
             anchors.verticalCenter: parent.verticalCenter
-            width: 44; height: 44; radius: 12
+            width: sheet.phoneLayout ? 36 : 44
+            height: sheet.phoneLayout ? 36 : 44; radius: 12
             color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
             Grid {
                 anchors.centerIn: parent; rows: 2; columns: 2; rowSpacing: 5; columnSpacing: 5
@@ -435,14 +448,16 @@ Item {
             }
         }
         Text {
-            anchors.left: gridBadge.right; anchors.leftMargin: 20
+            anchors.left: gridBadge.right; anchors.leftMargin: sheet.phoneLayout ? 12 : 20
             anchors.verticalCenter: parent.verticalCenter
+            width: sheet.phoneLayout ? Math.max(0, topBar.width - x - 48) : implicitWidth
+            elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             text: sheet.extFilter === "all" ? "All" : sheet.extFilter
             color: sheet.extFilter === "all" ? theme.ink : theme.gold
-            font.family: theme.ui; font.pixelSize: 22
+            font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 18 : 22
         }
         Text {
-            anchors.right: parent.right; anchors.rightMargin: 24
+            anchors.right: parent.right; anchors.rightMargin: sheet.phoneLayout ? 14 : 24
             anchors.verticalCenter: parent.verticalCenter
             text: "▾"; color: theme.inkDim; font.family: theme.display; font.pixelSize: 18
             rotation: sheet.extMenuOpen ? 180 : 0
@@ -460,12 +475,14 @@ Item {
     }
 
     // quality quick-filter pills (active = gold fill)
-    Row {
+    Flow {
         id: pills
         property int currentIndex: 0
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
-        anchors.top: topBar.bottom; anchors.topMargin: 14
-        spacing: 12
+        anchors.left: parent.left
+        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 14
+        width: Math.max(0, sheet.width - (sheet.phoneLayout ? 32 : 2 * theme.margin))
+        spacing: sheet.phoneLayout ? 8 : 12
         visible: sheet.rows.length > 0
         focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => qualityKeys.handle(event)
@@ -482,7 +499,8 @@ Item {
                 property bool on: sheet.qualityFilter === pill.modelData
                 property int n: sheet.countFor(pill.modelData)
                 visible: n > 0 || pill.modelData === "all"
-                width: pillRow.implicitWidth + 36; height: 40; radius: 20
+                width: pillRow.implicitWidth + (sheet.phoneLayout ? 24 : 36)
+                height: 40; radius: 20
                 color: pill.on ? theme.gold : (pMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05))
                 border.width: pills.activeFocus && pills.currentIndex === index ? 2 : (pill.on ? 0 : 1)
                 border.color: pills.activeFocus && pills.currentIndex === index ? theme.gold : theme.edge
@@ -516,30 +534,41 @@ Item {
         id: table
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
         anchors.top: pills.visible ? pills.bottom : bannerStrip.bottom
-        anchors.topMargin: 16
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 26
+        anchors.topMargin: sheet.phoneLayout ? 12 : 16
+        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.phoneLayout ? 16 : 26
         radius: 18
         track: 0
 
         Item {
             id: tableHead
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 52
+            height: sheet.phoneLayout ? 70 : 52
             visible: sheet.visibleRows.length > 0
             Text {
-                anchors.left: parent.left; anchors.leftMargin: 26; anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left; anchors.leftMargin: sheet.phoneLayout ? 14 : 26
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: sheet.phoneLayout ? -13 : 0
+                width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "  ·  still asking…" : "")
                 color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             }
             Text {
-                anchors.right: parent.right; anchors.rightMargin: 26; anchors.verticalCenter: parent.verticalCenter
+                anchors.right: parent.right; anchors.rightMargin: sheet.phoneLayout ? 14 : 26
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: sheet.phoneLayout ? 15 : 0
+                width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
+                horizontalAlignment: sheet.phoneLayout ? Text.AlignLeft : Text.AlignRight
+                elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
                 text: sheet.askedNames.length > 2
                       ? "via " + sheet.askedNames.length + " extensions"
                       : "via " + sheet.askedNames.join(" · ")
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                font.letterSpacing: sheet.phoneLayout ? 0 : 1
             }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
         }
@@ -547,13 +576,16 @@ Item {
         Text {
             anchors.centerIn: parent
             visible: sheet.visibleRows.length === 0
+            width: sheet.phoneLayout ? Math.max(0, table.width - 36) : implicitWidth
+            wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
+            horizontalAlignment: sheet.phoneLayout ? Text.AlignHCenter : Text.AlignLeft
             text: sheet.loading ? "Finding sources…"
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedNames.length === 0
                         ? "No stream extension carries this title — add one on the Extensions page."
                         : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 16
+            font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
         }
 
         ListView {
@@ -606,7 +638,7 @@ Item {
                 // Slice 7 flips this when a series pre-picks the source that worked last episode.
                 property bool preselected: false
                 width: ListView.view.width
-                height: 150
+                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28) : 150
 
                 Rectangle { anchors.fill: parent; color: list.activeFocus && list.currentIndex === row.index
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
@@ -615,6 +647,7 @@ Item {
                 // provider logo
                 Rectangle {
                     id: logo
+                    visible: !sheet.phoneLayout
                     anchors.left: parent.left; anchors.leftMargin: 26
                     anchors.verticalCenter: parent.verticalCenter
                     width: 54; height: 54; radius: 12
@@ -627,6 +660,7 @@ Item {
 
                 // copy column — every element, clean hierarchy
                 Column {
+                    visible: !sheet.phoneLayout
                     anchors.left: logo.right; anchors.leftMargin: 24
                     anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.left
                     anchors.rightMargin: 20
@@ -693,6 +727,7 @@ Item {
                 // always-visible action button — solid gold, real triangle glyph
                 Rectangle {
                     id: play
+                    visible: !sheet.phoneLayout
                     anchors.right: parent.right; anchors.rightMargin: 30
                     anchors.verticalCenter: parent.verticalCenter
                     width: 56; height: 56; radius: 28; color: theme.gold
@@ -707,6 +742,7 @@ Item {
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
+                    visible: !sheet.phoneLayout
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         list.currentIndex = row.index
@@ -721,7 +757,7 @@ Item {
                 // it stacks ABOVE it — copy clicks never fall through into playback.
                 Rectangle {
                     id: copyBtn
-                    visible: true
+                    visible: !sheet.phoneLayout
                     anchors.right: play.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -751,7 +787,7 @@ Item {
                 // the sheet; the tick is per-TITLE, not per-row — see titleQueued above.
                 Rectangle {
                     id: dlBtn
-                    visible: sheet.mode === "play" && typeof Download !== "undefined"
+                    visible: !sheet.phoneLayout && sheet.mode === "play" && typeof Download !== "undefined"
                     anchors.right: copyBtn.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -770,6 +806,188 @@ Item {
                             list.currentIndex = row.index
                             list.forceActiveFocus(Qt.MouseFocusReason)
                             sheet.downloadSource(row.index)
+                        }
+                    }
+                }
+
+                // Phone-only row: one readable vertical stack, with the same data and actions.
+                MouseArea {
+                    id: mobileRowMa
+                    anchors.fill: parent
+                    visible: sheet.phoneLayout
+                    onClicked: {
+                        list.currentIndex = row.index
+                        list.forceActiveFocus(Qt.MouseFocusReason)
+                        sheet.activateSource(row.index)
+                    }
+                }
+                Column {
+                    id: mobileContent
+                    visible: sheet.phoneLayout
+                    x: 14; y: 14
+                    width: Math.max(0, row.width - 28)
+                    spacing: 8
+
+                    Row {
+                        width: parent.width
+                        spacing: 12
+                        Rectangle {
+                            width: 44; height: 44; radius: 10
+                            color: Qt.rgba(1, 1, 1, 0.05)
+                            border.width: 1; border.color: theme.edge
+                            Text {
+                                anchors.centerIn: parent
+                                text: (row.modelData.addonName || "?").charAt(0)
+                                color: theme.ink; font.family: theme.display
+                                font.pixelSize: 22; font.weight: Font.DemiBold
+                            }
+                        }
+                        Column {
+                            width: Math.max(0, mobileContent.width - 56)
+                            spacing: 4
+                            Text {
+                                width: parent.width
+                                text: row.modelData.addonName || ""
+                                color: theme.ink; font.family: theme.ui
+                                font.pixelSize: 15; font.weight: Font.DemiBold
+                                wrapMode: Text.WrapAnywhere
+                                maximumLineCount: 2; elide: Text.ElideRight
+                            }
+                            Text {
+                                width: parent.width
+                                text: row.modelData.qualityLine || row.modelData.quality || ""
+                                color: theme.gold; font.family: theme.ui
+                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                wrapMode: Text.WrapAnywhere
+                            }
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        text: row.modelData.release || ""
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: 14
+                        wrapMode: Text.WrapAnywhere
+                        maximumLineCount: 2; elide: Text.ElideRight
+                    }
+                    Text {
+                        width: parent.width
+                        text: sheet.metaText(row.modelData)
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Flow {
+                        width: parent.width; spacing: 8
+                        visible: row.modelData.audio !== undefined
+                        Text {
+                            text: row.modelData.audio || ""
+                            color: theme.ink; font.family: theme.ui
+                            font.pixelSize: 12; font.weight: Font.DemiBold
+                        }
+                        Repeater {
+                            model: row.modelData.languages || []
+                            delegate: Rectangle {
+                                required property string modelData
+                                width: Math.min(languageText.implicitWidth + 12, mobileContent.width)
+                                height: 24; radius: 5
+                                color: "transparent"; border.width: 1; border.color: theme.edge
+                                Text {
+                                    id: languageText; anchors.centerIn: parent
+                                    width: parent.width - 12
+                                    text: modelData; color: theme.inkDim
+                                    font.family: theme.ui; font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                    }
+                    Flow {
+                        width: parent.width; spacing: 7
+                        Repeater {
+                            model: row.modelData.tags || []
+                            delegate: Rectangle {
+                                required property string modelData
+                                width: Math.min(tagText.implicitWidth + 16, mobileContent.width)
+                                height: 24; radius: 6
+                                color: Qt.rgba(1, 1, 1, 0.05)
+                                border.width: 1; border.color: theme.edge
+                                Text {
+                                    id: tagText; anchors.centerIn: parent
+                                    width: parent.width - 16
+                                    text: modelData; color: theme.inkDim
+                                    font.family: theme.ui; font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        text: (row.modelData.streamKind || "Torrent") + " · "
+                              + (row.modelData.streamLabel || "P2P stream")
+                        color: theme.inkDimmer; font.family: theme.ui
+                        font.pixelSize: 12; font.weight: Font.DemiBold
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Row {
+                        width: parent.width; height: 48; spacing: 12
+                        layoutDirection: Qt.RightToLeft
+                        Rectangle {
+                            width: 56; height: 48; radius: 24; color: theme.gold
+                            Text {
+                                anchors.centerIn: parent
+                                text: sheet.mode === "play" ? "▶" : "↓"
+                                color: "#1a1306"; font.pixelSize: 18
+                            }
+                            MouseArea {
+                                objectName: "sourcePlay_" + row.index
+                                anchors.fill: parent
+                                onClicked: {
+                                    list.currentIndex = row.index
+                                    list.forceActiveFocus(Qt.MouseFocusReason)
+                                    sheet.activateSource(row.index)
+                                }
+                            }
+                        }
+                        Rectangle {
+                            width: 48; height: 48; radius: 24
+                            color: Qt.rgba(1, 1, 1, 0.05)
+                            border.width: 1; border.color: theme.edge
+                            Text {
+                                anchors.centerIn: parent
+                                text: row.copiedTick ? "✓" : "⧉"
+                                color: row.copiedTick ? theme.gold : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 16
+                            }
+                            MouseArea {
+                                objectName: "sourceCopy_" + row.index
+                                anchors.fill: parent
+                                onClicked: {
+                                    list.currentIndex = row.index
+                                    list.forceActiveFocus(Qt.MouseFocusReason)
+                                    sheet.copySource(row.index)
+                                }
+                            }
+                        }
+                        Rectangle {
+                            visible: sheet.mode === "play" && typeof Download !== "undefined"
+                            width: 48; height: 48; radius: 24
+                            color: Qt.rgba(1, 1, 1, 0.05)
+                            border.width: 1; border.color: theme.edge
+                            Text {
+                                anchors.centerIn: parent
+                                text: sheet.titleQueued ? "✓" : "↓"
+                                color: sheet.titleQueued ? theme.gold : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 16
+                            }
+                            MouseArea {
+                                objectName: "sourceDownload_" + row.index
+                                anchors.fill: parent
+                                onClicked: {
+                                    list.currentIndex = row.index
+                                    list.forceActiveFocus(Qt.MouseFocusReason)
+                                    sheet.downloadSource(row.index)
+                                }
+                            }
                         }
                     }
                 }
