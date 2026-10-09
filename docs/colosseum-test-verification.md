@@ -3103,3 +3103,28 @@ any delivery claim that includes the native union code.
   receiving run. Dots' Linux visual evidence and the owner's v2 design approval
   are separate from these Windows integration checks. The previously documented
   intermittent title-action failure is not claimed fixed by this slice.
+
+## Feria native player integration (2026-10-09 Windows)
+
+- New deterministic CTest registrations: `colosseum.feria_native_player_contract`
+  and `colosseum.feria_native_media_test`. Those and the existing native-store
+  resume QML target passed through the application build graph on Qt 6.11.1.
+- The application compiled and linked. The explicit graphical `Smoke.qml` check
+  passed saved resume, HTML pointer play/pause, seek, exact-element handback,
+  background rejection, direct FFV1, stale commands, navigation and closing.
+  Native video and the HTML controls were inspected in the captured pictures.
+- Two real public YouTube videos (`aqz-KE-bpKQ`, `jNQXAC9IVRw`) passed native
+  playback, audio-track presence, progress, seek, suspension and handback checks.
+  The assembled application also opened the Bunny watch page through Feria's
+  toolbar, decoded through mpv and produced an inspected picture of the actual UI.
+- Bitmovin Widevine and Castlabs VMP lab UAT/production samples played with
+  `mediaKeys`, advancing frames and clocks in the existing codec-enabled Qt
+  runtime. Encrypted handoff was declined. This verifies browser-path playback,
+  not Widevine through mpv or Netflix/Prime acceptance. Earlier failed attempts
+  remain in external evidence; these are the successful fresh runs.
+- YouTube requires optional local yt-dlp and a supported JavaScript runtime;
+  their installer packaging, authenticated source transfer, other providers'
+  MSE/blob handoff, audible output, and Prime login retention remain unverified.
+  Website cookies/profiles were not migrated or cleared. Runtime scenes are
+  explicit desktop/network checks, not ordinary headless CTest gates; reproduction
+  instructions live in `tests/feria_native_player_runtime/README.md`.

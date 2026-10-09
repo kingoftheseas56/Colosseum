@@ -12,7 +12,7 @@ import ".." as Colosseum
 
 Item {
     id: root
-    implicitWidth: 146
+    implicitWidth: nativePlaybackAvailable ? 184 : 146
     implicitHeight: 36
     readonly property Item overlay: Overlay.overlay
     property string currentUrl: ""
@@ -20,6 +20,8 @@ Item {
     property bool canGoForward: false
     property bool loading: false
     property bool browserReady: false
+    property bool nativePlaybackAvailable: false
+    signal nativePlaybackRequested(string address)
     signal backRequested()
     signal forwardRequested()
     signal reloadRequested()
@@ -79,6 +81,14 @@ Item {
                 if (addressPanel.visible) root.cancelAddressEditing()
                 else root.focusAddress()
             }
+        }
+        FeriaPageToolButton {
+            objectName: "feriaPlayInFeria"
+            visible: root.nativePlaybackAvailable
+            enabled: root.browserReady
+            iconSource: "../../assets/icons/lucide/play.svg"
+            helpText: "Play video in Feria"
+            onClicked: root.nativePlaybackRequested("")
         }
     }
     Popup {
@@ -156,6 +166,13 @@ Item {
                 MenuItem { objectName: "feriaAddressDelete"; text: "Delete"; enabled: address.selectedText.length > 0; onTriggered: address.remove(address.selectionStart, address.selectionEnd) }
                 MenuSeparator {}
                 MenuItem { text: "Select all"; enabled: address.text.length > 0; onTriggered: address.selectAll() }
+                MenuSeparator { visible: root.nativePlaybackAvailable }
+                MenuItem {
+                    text: "Play URL in Feria"
+                    visible: root.nativePlaybackAvailable
+                    enabled: address.text.length > 0
+                    onTriggered: { root.nativePlaybackRequested(address.text); root.hideAddress() }
+                }
             }
         }
     }

@@ -12,7 +12,16 @@ file(GLOB FERIA_BACKEND_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/identity-state/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/identity-state/*.h")
 
+# Standalone Feria consumers also register the native player. Keep its surface
+# implementation linkable without requiring the application executable's objects.
+add_library(feria_mpv_surface STATIC ../player/mpvitem.cpp ../player/mpvitem.h)
+target_link_libraries(feria_mpv_surface PUBLIC Qt6::Quick MpvQt::MpvQt)
+
 add_library(feria_discovery STATIC
+    FeriaNativePlayer.cpp
+    FeriaNativePlayer.h
+    FeriaYouTubeSource.cpp
+    FeriaYouTubeSource.h
     FeriaAccountStore.cpp
     FeriaAccountStore.h
     FeriaBrowserPolicy.h
@@ -31,7 +40,7 @@ target_include_directories(feria_discovery PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/app-state"
     "${CMAKE_CURRENT_SOURCE_DIR}/destination-router"
     "${CMAKE_CURRENT_SOURCE_DIR}/identity-state")
-target_link_libraries(feria_discovery PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::WebEngineQuick Qt6::Sql)
+target_link_libraries(feria_discovery PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::WebEngineQuick Qt6::Sql feria_mpv_surface)
 
 if(WIN32)
     find_package(unofficial-webview2 CONFIG QUIET)

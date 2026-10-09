@@ -501,6 +501,9 @@ Item {
                 canGoForward: root.engineCanGoForward
                 loading: root.pageLoading
                 browserReady: root.browserReady
+                nativePlaybackAvailable: root.engine === "qtwebengine"
+                    && root.browserItem && typeof root.browserItem.playInFeria === "function"
+                onNativePlaybackRequested: function(address) { root.browserItem.playInFeria(address) }
                 onBackRequested: root.pageBack()
                 onForwardRequested: root.pageForward()
                 onReloadRequested: root.reloadOrStop()

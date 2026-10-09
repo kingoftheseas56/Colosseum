@@ -30,6 +30,8 @@ QtObject {
     signal protectionChanged(bool blocked)
     signal unavailable()
     signal restored()
+    signal seekRequested(real position)
+    property bool nativePlayback: false
 
     onProviderIdChanged: if (initialized) {
         ++epoch; discardRequests()
@@ -112,15 +114,23 @@ QtObject {
         state = JSON.parse(JSON.stringify(state))
         protectionChanged(state.blocked)
         if (decision.unavailable) unavailable()
-        if (decision.seek !== null)
-            scriptRequested("feria-seek-" + epoch + "-" + serial,
-                Playback.seekMedia(decision.seek, sample, mode, providerId, connectorSource, epoch))
+        if (decision.seek !== null) {
+            if (nativePlayback) seekRequested(decision.seek)
+            else scriptRequested("feria-seek-" + epoch + "-" + serial,
+                    Playback.seekMedia(decision.seek, sample, mode, providerId, connectorSource, epoch))
+        }
         if (decision.allow) {
             sample.captureState = "observation"
             sample.connectorOutcome = "observation"
             observation(sample)
             if (state.phase === "settled") restored()
         }
+    }
+    function acceptNativeObservation(sample) {
+        if (!nativePlayback) return
+        var label = "feria-native-" + epoch + "-" + (++serial)
+        pendingRequests[label] = {epoch:epoch, serial:serial, expiresAt:clock()+10000}
+        acceptResult(label, {outcome:"observation",sample:sample})
     }
     property Timer deadlineTimer: Timer {
         interval: 500; repeat: true; running: gate.state.blocked

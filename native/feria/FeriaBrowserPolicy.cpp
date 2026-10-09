@@ -1,4 +1,8 @@
 #include "FeriaBrowserPolicy.h"
+#include "FeriaNativePlayer.h"
+#include "FeriaYouTubeSource.h"
+#include "../player/mpvitem.h"
+#include <qqml.h>
 #include <QRegularExpression>
 #include <QUrlQuery>
 #include <QGuiApplication>
@@ -110,6 +114,10 @@ bool FeriaBrowserPolicy::webView2Available() const
 
 void FeriaBrowserPolicy::registerTypes()
 {
+    qmlRegisterType<FeriaNativePlayer>("Colosseum.FeriaPlayer", 1, 0, "FeriaNativePlayer");
+    qmlRegisterType<FeriaYouTubeSource>("Colosseum.FeriaPlayer", 1, 0, "FeriaYouTubeSource");
+    if(qmlTypeId("Colosseum.Player",1,0,"MpvItem")<0)
+        qmlRegisterType<MpvItem>("Colosseum.Player",1,0,"MpvItem");
 #ifdef FERIA_HAS_WEBVIEW2
     qmlRegisterType<FeriaHostItem>("Colosseum.FeriaHost", 1, 0, "FeriaHostItem");
 #endif

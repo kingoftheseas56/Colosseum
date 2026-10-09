@@ -3,14 +3,143 @@
 import QtQuick
 import QtQuick.Window
 import QtWebEngine
+import Colosseum.FeriaPlayer 1.0 as Native
 import "FeriaPlayback.js" as Playback
 import "FeriaSession.js" as Session
 import "FeriaAppMode.js" as AppMode
 import "FeriaJavaScript.js" as JavaScript
+import "FeriaNativeMedia.js" as NativeMedia
 
 WebEngineView {
     id: browser
     objectName: "feriaQtWebEngine"
+    property var nativeCandidate: null
+    property string nativeDocumentToken: ""
+    property int nativeRequestSerial: 0
+    property bool nativeOpening: false
+    property var nativePendingYouTube: null
+    property string nativeOwnerHref: ""
+    function nativeOwnerMatches(href) {
+        var video=String(youtubeSource.canonicalWatchUrl(href))
+        return video ? video===String(youtubeSource.canonicalWatchUrl(url)) : Playback.sameDestination(href,url)
+    }
+    onUrlChanged: {
+        if((nativeOpening || nativePlaybackActive) && nativeOwnerHref && !nativeOwnerMatches(nativeOwnerHref))closeNativePlayer(false)
+    }
+    readonly property bool nativePlaybackActive: nativePlayerLoader.active
+    Native.FeriaYouTubeSource {
+        id: youtubeSource
+        onResolved: function(token,source) {
+            var pending=browser.nativePendingYouTube
+            if(!pending || pending.token!==token || pending.request!==browser.nativeRequestSerial
+                    || pending.generation!==browser.navigationGeneration || !browser.nativeOwnerMatches(pending.href))return
+            // YouTube may attach/change its video while the resolver is running.
+            // Acquire the current element again before pausing and handing it off.
+            var issued=browser.evaluateJavaScript(NativeMedia.probe(token),function(probe) {
+                if(!browser.nativePendingYouTube || pending.request!==browser.nativeRequestSerial
+                        || pending.generation!==browser.navigationGeneration || !browser.nativeOwnerMatches(pending.href))return
+                var candidate=NativeMedia.admit(probe ? Object.assign({},probe,source) : null)
+                if(!candidate.ok){browser.nativeOpening=false;browser.nativePendingYouTube=null;browser.message(candidate.reason);return}
+                candidate.audioSource=source.audioSource
+                candidate.headers=source.headers
+                if(String(youtubeSource.canonicalWatchUrl(browser.url))===source.href)candidate.browserSource=probe.source
+                else {candidate.position=0;candidate.paused=false}
+                browser.admitNativePlayer(candidate,pending.token,pending.request,pending.generation)
+            })
+            if(!issued){browser.nativeOpening=false;browser.nativePendingYouTube=null}
+        }
+        onFailed: function(token,reason) {
+            if(browser.nativePendingYouTube && browser.nativePendingYouTube.token===token) {
+                browser.nativeOpening=false;browser.nativePendingYouTube=null;browser.message(reason)
+            }
+        }
+    }
+    function playInFeria(requestedSource) {
+        if (closingSession || rendererLost || clearingSession || nativeOpening) return false
+        if (nativePlaybackActive) { if(nativePlayerLoader.item)nativePlayerLoader.item.takeFocus(); return true }
+        wakePage()
+        var generation = navigationGeneration
+        var request = ++nativeRequestSerial
+        var token = String(accountSessionId) + ":" + generation + ":" + request
+        var directSource = String(requestedSource || url)
+        var direct = !!requestedSource || /\.(mp4|m4v|webm|mkv|mov|avi|m3u8|mpd)(?:[?#]|$)/i.test(directSource)
+        nativeOpening = true
+        nativeOwnerHref=String(url)
+        var issued = evaluateJavaScript(NativeMedia.probe(token), function(result) {
+            if (request !== browser.nativeRequestSerial || generation !== browser.navigationGeneration) return
+            if(!result) {browser.nativeOpening=false;browser.message("No video source is available on this page.");return}
+            var youtube=/^https?:\/\/(?:www\.|m\.|music\.)?youtube\.com\/(?:watch[?]|shorts\/|live\/)|^https?:\/\/youtu\.be\//i.test(directSource)
+            if(youtube && !result.encrypted && !result.ad) {
+                browser.nativePendingYouTube={token:token,request:request,generation:generation,href:String(browser.url),probe:result}
+                if(!youtubeSource.resolve(directSource,token))browser.nativeOpening=false
+                return
+            }
+            if (direct && !youtube) result = {source:directSource,href:directSource,title:directSource.split('/').pop().split('?')[0],position:0,paused:false,volume:1,rate:1}
+            var admitted = NativeMedia.admit(result)
+            if (!admitted.ok) { browser.nativeOpening=false; browser.message(admitted.reason); return }
+            browser.admitNativePlayer(admitted,token,request,generation)
+        })
+        if (!issued) nativeOpening=false
+        return issued
+    }
+    function admitNativePlayer(admitted,token,request,generation) {
+            var pauseIssued = evaluateJavaScript(NativeMedia.pause(token), function(paused) {
+                browser.nativeOpening=false
+                if (!paused || generation !== browser.navigationGeneration || request !== browser.nativeRequestSerial) return
+                browser.nativeDocumentToken=token
+                admitted.visitToken=browser.accountVisitToken
+                browser.nativeCandidate=admitted
+                browser.nativePendingYouTube=null
+                // A native session is a new media generation of the same visit.
+                // Discard browser probes and confirm the saved intent anew.
+                var resume = Playback.sameDestination(admitted.href,browser.sourceUrl) ? browser.resumePosition : 0
+                mediaGate.requestResume(resume,admitted.href)
+                browser.nativePlayerLoaderOpen()
+            })
+            if (!pauseIssued) browser.nativeOpening=false
+    }
+    function nativePlayerLoaderOpen() { nativePlayerLoader.active=true }
+    function closeNativePlayer(handBack, restorePosition) {
+        ++nativeRequestSerial; nativeOpening=false
+        youtubeSource.cancel(); nativePendingYouTube=null
+        nativeObservation()
+        var position = Number.isFinite(restorePosition) ? restorePosition
+            : nativePlayerLoader.item ? Number(nativePlayerLoader.item.currentState.position || 0) : 0
+        if (nativePlayerLoader.item) nativePlayerLoader.item.backend.close()
+        nativePlayerLoader.active=false
+        fullScreenActive=false
+        if (handBack && nativeCandidate && !closingSession && !rendererLost)
+            evaluateJavaScript(NativeMedia.handBack(nativeDocumentToken,position,nativeCandidate.browserSource || nativeCandidate.source))
+        nativeCandidate=null; nativeDocumentToken=""
+        nativeOwnerHref=""
+    }
+    function nativeObservation() {
+        if (!nativePlayerLoader.item || !nativeCandidate) return
+        if(nativeCandidate.visitToken && nativeCandidate.visitToken!==accountVisitToken)return
+        var state = nativePlayerLoader.item.currentState
+        if (!state.ready || state.error || state.document !== nativeDocumentToken) return
+        mediaGate.acceptNativeObservation({href:nativeCandidate.href || String(url),title:nativeCandidate.title || title,kind:"video",
+            position:state.position,duration:state.duration,paused:state.paused,ended:state.ended,
+            readyState:4,rate:state.rate,ad:false,mediaGeneration:state.session})
+    }
+    Loader {
+        id: nativePlayerLoader
+        objectName: "feriaNativePlayerLoader"
+        anchors.fill: parent
+        z: 100
+        active: false
+        sourceComponent: FeriaNativePlayer {
+            candidate: browser.nativeCandidate
+            documentToken: browser.nativeDocumentToken
+            initialPosition: candidate && Playback.sameDestination(candidate.href,browser.sourceUrl) && browser.resumePosition > 0
+                ? browser.resumePosition : candidate ? candidate.position : 0
+            suspended: browser.suppressed || browser.activitySuspended || !browser.visible
+            headers: Object.assign({"Referer":String(browser.url),"User-Agent":browser.profile.httpUserAgent},candidate ? candidate.headers || {} : {})
+            onClosed: function(position) { browser.closeNativePlayer(true,position) }
+            onFullscreenRequested: browser.fullScreenActive=!browser.fullScreenActive
+            onUnavailable: function(reason) { browser.message(reason); browser.closeNativePlayer(true) }
+        }
+    }
     required property url sourceUrl
     required property string profilePath
     property var sharedProfile: null
@@ -43,8 +172,9 @@ WebEngineView {
     function applyPresentationActivity() {
         if (closingSession || rendererLost || replacementLoadPending || !documentReady) return
         wakePage()
-        evaluateJavaScript(Playback.presentationMedia(activitySuspended, navigationGeneration, presentationSerial))
+        evaluateJavaScript(Playback.presentationMedia(activitySuspended || nativePlaybackActive, navigationGeneration, presentationSerial))
     }
+    onNativePlaybackActiveChanged: { ++presentationSerial; applyPresentationActivity() }
     onActivitySuspendedChanged: {
         var serial = ++presentationSerial
         // Coalesce rapid world/minimize changes before dispatching page commands.
@@ -119,6 +249,7 @@ WebEngineView {
     }
     function prepareForClose(engineTerminal) {
         if (closingSession) return
+        closeNativePlayer(false)
         wakePage()
         // Pause without depending on a provider-specific connector, then drain
         // callbacks before stopping the engine or destroying its QML context.
@@ -141,7 +272,10 @@ WebEngineView {
         sequence:"Escape"
         context:Qt.WindowShortcut
         enabled:browser.visible && browser.fullScreenActive && !pageToolsController.findOpen
-        onActivated:browser.evaluateJavaScript("if(document.fullscreenElement) document.exitFullscreen()")
+        onActivated: {
+            if (browser.nativePlaybackActive) browser.fullScreenActive=false
+            else browser.evaluateJavaScript("if(document.fullscreenElement) document.exitFullscreen()")
+        }
     }
     property bool appLayout: true
     property bool appKeyboard: true
@@ -170,12 +304,18 @@ WebEngineView {
     property int readingResumeAttempts: 0
     signal captureProtectionChanged(bool blocked, string visitToken)
     function cancelMediaResume(freshStart) { mediaGate.cancelResume(freshStart) }
-    function samplePlayback() { mediaGate.poll() }
+    function samplePlayback() { if (nativePlaybackActive) nativeObservation(); else mediaGate.poll() }
     function receiveMediaResult(label, frame) { mediaGate.acceptResult(label, frame) }
     FeriaMediaSession {
         id: mediaGate
         providerId: browser.providerId; sourceUrl: String(browser.sourceUrl)
         mode: browser.observationMode; initialPosition: browser.resumePosition
+        nativePlayback: browser.nativePlaybackActive
+        onSeekRequested: function(position) {
+            if (!nativePlayerLoader.item) return
+            var state = nativePlayerLoader.item.currentState
+            nativePlayerLoader.item.backend.act(state.document,state.session,"seek",position)
+        }
         onScriptRequested: (label, script) => browser.evaluateJavaScript(script, function(result) {
             browser.receiveMediaResult(label, result)
         })
@@ -205,7 +345,10 @@ WebEngineView {
             }
         }
     }
-    onNavigationGenerationChanged: if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
+    onNavigationGenerationChanged: {
+        closeNativePlayer(false)
+        if (mediaGate && mediaGate.initialized) mediaGate.navigationChanged()
+    }
     Timer {
         interval: 2000; repeat: true
         running: !browser.closingSession && !browser.rendererLost && browser.lifecycleState === WebEngineView.LifecycleState.Active
