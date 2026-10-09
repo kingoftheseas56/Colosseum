@@ -53,6 +53,48 @@ QString browserUrl(const QString &value, bool automatic) {
     return url.toString(QUrl::FullyEncoded);
 }
 
+// Accepts an address typed without a scheme, as a bookmark editor receives it.
+QString typedBrowserUrl(const QString &value) {
+    const QString text = value.trimmed();
+    if (text.isEmpty() || text.size() > 8192) return {};
+    // Without a scheme, "mailto:a@example.com" would otherwise read as a host
+    // with credentials and be saved as that host.
+    if (!text.contains("://") && text.section('/', 0, 0).contains('@')) return {};
+    const QString url = browserUrl(text.contains("://") ? text : "https://" + text, false);
+    return url.size() > 8192 ? QString() : url;
+}
+
+QVariantList matchingBrowserRows(const QVariantList &rows, const QString &query) {
+    const auto terms = query.simplified().split(' ', Qt::SkipEmptyParts);
+    if (terms.isEmpty()) return rows;
+    QVariantList result;
+    for (const auto &value : rows) {
+        const auto row = value.toMap();
+        const QString url = row.value("url").toString();
+        // The address is searched as stored and as a person reads it.
+        const QString text = row.value("title").toString() + '\n' + url + '\n'
+            + QUrl::fromPercentEncoding(url.toUtf8());
+        if (std::all_of(terms.cbegin(), terms.cend(), [&text](const QString &term) {
+                return text.contains(term, Qt::CaseInsensitive); }))
+            result.append(value);
+    }
+    return result;
+}
+
+// One row per address, newest first: files written before visits were merged
+// by address can repeat one.
+QVariantList uniqueBrowserHistory(const QVariantList &rows) {
+    QVariantList result;
+    QSet<QString> seen;
+    for (const auto &value : rows) {
+        const QString url = value.toMap().value("url").toString();
+        if (url.isEmpty() || seen.contains(url)) continue;
+        seen.insert(url);
+        result.append(value);
+    }
+    return result;
+}
+
 bool knownBrowserProvider(const QString &provider) {
     return PorticoAppStateBridge::currentPorticoProviderIds().contains(provider);
 }
@@ -136,6 +178,7 @@ QString continueIdentity(const QVariantMap &row) {
 FeriaAccountStore::FeriaAccountStore(QObject *parent) : QObject(parent) {}
 
 void FeriaAccountStore::setStoragePath(const QString &path) {
+    ++m_generation;
     m_restoreCaptured = false;
     m_writeFailed = false;
     m_visits.clear();
@@ -156,6 +199,7 @@ void FeriaAccountStore::setStoragePath(const QString &path) {
                 m_state.insert("browserTabs", validatedBrowserDescriptors(m_state.value("browserTabs").toList()));
                 m_state.insert("browserRestoreOffers", validatedBrowserDescriptors(m_state.value("browserRestoreOffers").toList()));
                 m_state.insert("browserPreferences", validatedBrowserPreferences(m_state.value("browserPreferences").toMap()));
+                m_state.insert("browserHistory", uniqueBrowserHistory(m_state.value("browserHistory").toList()));
             }
         }
     }
@@ -178,7 +222,23 @@ QVariantMap FeriaAccountStore::browserPreferences() const {
     return validatedBrowserPreferences(m_state.value("browserPreferences").toMap());
 }
 
-bool FeriaAccountStore::setBrowserBookmark(const QString &value, const QString &title, bool saved) {
+QVariantList FeriaAccountStore::searchBrowserBookmarks(const QString &query) const {
+    return matchingBrowserRows(browserBookmarks(), query);
+}
+QVariantList FeriaAccountStore::searchBrowserHistory(const QString &query) const {
+    return matchingBrowserRows(browserHistory(), query);
+}
+bool FeriaAccountStore::isBrowserBookmarked(const QString &value) const {
+    const QString url = browserUrl(value, false);
+    if (url.isEmpty()) return false;
+    for (const auto &row : browserBookmarks())
+        if (row.toMap().value("url").toString() == url) return true;
+    return false;
+}
+
+bool FeriaAccountStore::setBrowserBookmark(const QString &value, const QString &title, bool saved,
+                                          int generation) {
+    if (generation && generation != m_generation) return false;
     const QString url = browserUrl(value, false);
     if (url.isEmpty()) return false;
     auto rows = browserBookmarks();
@@ -190,23 +250,106 @@ bool FeriaAccountStore::setBrowserBookmark(const QString &value, const QString &
     auto state = m_state; state.insert("browserBookmarks", rows); return commit(state);
 }
 
+QVariantMap FeriaAccountStore::editBrowserBookmark(int generation, const QString &value,
+                                                  const QString &newValue, const QString &newTitle) {
+    const auto refused = [](const char *reason) {
+        return QVariantMap{{"ok", false}, {"reason", QLatin1String(reason)}};
+    };
+    if (generation != m_generation) return refused("stale-account");
+    auto rows = browserBookmarks();
+    qsizetype index = 0;
+    while (index < rows.size() && rows.at(index).toMap().value("url").toString() != value) ++index;
+    if (index == rows.size()) return refused("not-found");
+    const QString url = typedBrowserUrl(newValue);
+    if (url.isEmpty()) return refused("invalid-url");
+    // Addresses are unique. An edit never replaces or merges another bookmark.
+    for (qsizetype i = 0; i < rows.size(); ++i)
+        if (i != index && rows.at(i).toMap().value("url").toString() == url) return refused("duplicate");
+    auto row = rows.at(index).toMap();
+    const QString title = newTitle.trimmed().left(300);
+    const QVariantMap done{{"ok", true}, {"reason", QString()}, {"url", url}, {"title", title}};
+    if (row.value("url").toString() == url && row.value("title").toString() == title) return done;
+    row.insert("url", url); row.insert("title", title);
+    rows[index] = row;
+    auto state = m_state; state.insert("browserBookmarks", rows);
+    return commit(state) ? done : refused("save-failed");
+}
+
+bool FeriaAccountStore::removeBrowserBookmark(int generation, const QString &value) {
+    if (generation != m_generation) return false;
+    const QString url = browserUrl(value, false);
+    auto rows = browserBookmarks();
+    const auto before = rows.size();
+    for (qsizetype i = rows.size(); i-- > 0;) {
+        const QString stored = rows.at(i).toMap().value("url").toString();
+        if (stored == value || (!url.isEmpty() && stored == url)) rows.removeAt(i);
+    }
+    if (rows.size() == before) return false;
+    auto state = m_state; state.insert("browserBookmarks", rows); return commit(state);
+}
+
 bool FeriaAccountStore::recordBrowserVisit(const QString &sessionId, const QString &token,
-                                          const QString &value, const QString &title) {
-    const Visit *visit = visitFor(sessionId, token);
+                                          const QString &value, const QString &title,
+                                          qint64 document) {
+    Visit *visit = visitFor(sessionId, token);
     const QString url = browserUrl(value, true);
     if (!visit || visit->privateBrowsing || !recording() || url.isEmpty()
+        || document < visit->historyDocument
         || !knownBrowserProvider(visit->context.value("pk").toString())) return false;
     auto rows = browserHistory();
-    if (!rows.isEmpty() && rows.first().toMap().value("sessionId").toString() == sessionId
-        && rows.first().toMap().value("url").toString() == url) rows.removeFirst();
-    rows.prepend(QVariantMap{{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+    // A reload, Back, Forward or a later visit from any tab refreshes the
+    // address's one row and moves it to the top; it never adds a second.
+    QString id;
+    for (qsizetype i = rows.size(); i-- > 0;) {
+        const auto row = rows.at(i).toMap();
+        if (row.value("url").toString() != url) continue;
+        id = row.value("id").toString();
+        rows.removeAt(i);
+    }
+    if (id.isEmpty()) id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    rows.prepend(QVariantMap{{"id", id},
         {"sessionId", sessionId}, {"url", url}, {"title", title.trimmed().left(300)},
         {"pk", visit->context.value("pk")}, {"at", QDateTime::currentMSecsSinceEpoch()}});
     while (rows.size() > 1000) rows.removeLast();
+    auto state = m_state; state.insert("browserHistory", rows);
+    if (!commit(state)) return false;
+    visit->historyUrl = url;
+    visit->historyDocument = document;
+    return true;
+}
+
+bool FeriaAccountStore::updateBrowserVisitTitle(const QString &sessionId, const QString &token,
+                                               qint64 document, const QString &value) {
+    const Visit *visit = visitFor(sessionId, token);
+    const QString title = value.trimmed().left(300);
+    if (!visit || visit->privateBrowsing || !recording() || title.isEmpty()
+        || visit->historyUrl.isEmpty() || visit->historyDocument != document) return false;
+    auto rows = browserHistory();
+    for (qsizetype i = 0; i < rows.size(); ++i) {
+        auto row = rows.at(i).toMap();
+        if (row.value("url").toString() != visit->historyUrl) continue;
+        // Another tab has visited the address since; the row is that visit's.
+        if (row.value("sessionId").toString() != sessionId) return false;
+        if (row.value("title").toString() == title) return true;
+        row.insert("title", title);
+        rows[i] = row;
+        auto state = m_state; state.insert("browserHistory", rows); return commit(state);
+    }
+    return false; // removed or cleared: a late title does not bring it back
+}
+
+bool FeriaAccountStore::removeBrowserHistoryEntry(int generation, const QString &url) {
+    if (generation != m_generation || url.isEmpty()) return false;
+    auto rows = browserHistory();
+    const auto before = rows.size();
+    for (qsizetype i = rows.size(); i-- > 0;)
+        if (rows.at(i).toMap().value("url").toString() == url) rows.removeAt(i);
+    if (rows.size() == before) return false;
     auto state = m_state; state.insert("browserHistory", rows); return commit(state);
 }
 
-bool FeriaAccountStore::clearBrowserHistory() {
+bool FeriaAccountStore::clearBrowserHistory(int generation) {
+    if (generation && generation != m_generation) return false;
     auto state = m_state; state.insert("browserHistory", QVariantList{}); return commit(state);
 }
 

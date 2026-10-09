@@ -1080,7 +1080,8 @@ Item {
                     entry.mainLoadSucceeded = true
                     entry.errorText = closeController.failure
                     deck.sessions.updateBrowser(entry.sessionId, location, entry.browser.title)
-                    deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token, location, entry.browser.title)
+                    deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token, location,
+                        entry.browser.title, entry.browser.navigationGeneration)
                     deck.completeRestore(entry)
                 }
                 function onDocumentReplaced(generation) {
@@ -1109,6 +1110,11 @@ Item {
                     if (entry.browser && entry.browser.title.length) entry.observeAdoption()
                     if (entry.browser) deck.sessions.updateBrowser(entry.sessionId,
                         String(entry.browser.url), entry.browser.title)
+                    // A title that settles after the load belongs to the visit
+                    // that document recorded; the store refuses any other.
+                    if (entry.browser && !entry.retiring && deck.entries[entry.sessionId] === entry)
+                        deck.accountStore.updateBrowserVisitTitle(entry.sessionId, entry.token,
+                            entry.browser.navigationGeneration, entry.browser.title)
                 }
                 function onUrlChanged() {
                     if (entry.browser) deck.sessions.updateBrowser(entry.sessionId,

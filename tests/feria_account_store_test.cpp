@@ -574,6 +574,191 @@ int main(int argc, char **argv) {
     encodedOversizedOffer.insert("url", QString("https://example.com/") + QString(3000, QChar(0x4e00)));
     regression(validated.saveBrowserTabs({encodedOversizedOffer}) && validated.browserTabs().isEmpty(),
         "Descriptor size bound applies to the canonical encoded URL written to disk");
+    // ---- Browser set 2: history and bookmark management.
+    {
+        FeriaAccountStore manage;
+        const auto managePath = temp.filePath("manage/account.json");
+        manage.setStoragePath(managePath);
+        const int generation = manage.browserGeneration();
+        const auto urls = [](const QVariantList &rows) {
+            QStringList result;
+            for (const auto &row : rows) result.append(row.toMap().value("url").toString());
+            return result;
+        };
+        const auto titles = [](const QVariantList &rows) {
+            QStringList result;
+            for (const auto &row : rows) result.append(row.toMap().value("title").toString());
+            return result;
+        };
+        const QString a = "https://example.com/a", b = "https://example.com/b", c = "https://reader.example.org/caf%C3%A9";
+        const auto tab = manage.beginSessionVisit("tab", {{"pk", "youtube"}});
+        const auto other = manage.beginSessionVisit("other", {{"pk", "youtube"}});
+        const auto hidden = manage.beginSessionVisit("hidden", {{"pk", "youtube"}, {"privateBrowsing", true}});
+
+        // Recording: one row per address, newest visit first.
+        check(manage.recordBrowserVisit("tab", tab, a, "Alpha", 1) && manage.recordBrowserVisit("tab", tab, b, "Beta", 2)
+              && urls(manage.browserHistory()) == QStringList({b, a}), "Visits are listed newest first");
+        const auto idOfA = manage.browserHistory().at(1).toMap().value("id").toString();
+        const auto timeOfA = manage.browserHistory().at(1).toMap().value("at").toLongLong();
+        QThread::msleep(5);
+        check(manage.recordBrowserVisit("tab", tab, b, "Beta", 3) && urls(manage.browserHistory()) == QStringList({b, a}),
+              "A reload refreshes its row instead of adding one");
+        check(manage.recordBrowserVisit("tab", tab, a, "Alpha", 4) && urls(manage.browserHistory()) == QStringList({a, b})
+              && manage.browserHistory().first().toMap().value("id").toString() == idOfA
+              && manage.browserHistory().first().toMap().value("at").toLongLong() > timeOfA,
+              "Back to an earlier page moves its one row to the top with a new time");
+        check(manage.recordBrowserVisit("other", other, b, "Beta", 1) && urls(manage.browserHistory()) == QStringList({b, a}),
+              "A second tab visiting the same address does not duplicate it");
+        check(!manage.recordBrowserVisit("tab", tab, c, "Stale", 3) && manage.browserHistory().size() == 2,
+              "An observation older than the tab's recorded document is refused");
+        check(!manage.recordBrowserVisit("hidden", hidden, c, "Private", 1)
+              && !manage.updateBrowserVisitTitle("hidden", hidden, 1, "Private") && manage.browserHistory().size() == 2,
+              "Private tabs record no visit and no title");
+
+        // Late titles amend only the visit their document recorded.
+        check(manage.recordBrowserVisit("tab", tab, c, "", 5) && titles(manage.browserHistory()).first().isEmpty()
+              && manage.updateBrowserVisitTitle("tab", tab, 5, " Cafe reading ")
+              && titles(manage.browserHistory()) == QStringList({"Cafe reading", "Beta", "Alpha"})
+              && urls(manage.browserHistory()) == QStringList({c, b, a}),
+              "A title arriving after the load names its own visit and adds no row");
+        check(!manage.updateBrowserVisitTitle("tab", tab, 4, "Old document")
+              && !manage.updateBrowserVisitTitle("tab", tab, 6, "Next document")
+              && !manage.updateBrowserVisitTitle("tab", other, 5, "Wrong token")
+              && !manage.updateBrowserVisitTitle("tab", tab, 5, "  ")
+              && titles(manage.browserHistory()).first() == "Cafe reading",
+              "Titles from another document, another visit or with no text are refused");
+        check(!manage.updateBrowserVisitTitle("tab", tab, 4, "Alpha late")
+              && manage.recordBrowserVisit("other", other, c, "Cafe twin", 2)
+              && !manage.updateBrowserVisitTitle("tab", tab, 5, "Lost race")
+              && titles(manage.browserHistory()).first() == "Cafe twin",
+              "A title cannot rename a row a later visit now owns");
+
+        // Search by title or address.
+        check(urls(manage.searchBrowserHistory("")) == QStringList({c, b, a})
+              && urls(manage.searchBrowserHistory("   ")) == QStringList({c, b, a}), "An empty search lists everything");
+        check(urls(manage.searchBrowserHistory("BETA")) == QStringList({b})
+              && urls(manage.searchBrowserHistory("reader.example")) == QStringList({c})
+              && urls(manage.searchBrowserHistory(QString::fromUtf8("caf\xc3\xa9"))) == QStringList({c})
+              && urls(manage.searchBrowserHistory("caf%C3%A9")) == QStringList({c}),
+              "History search matches title or address, in either case and as read or as stored");
+        check(urls(manage.searchBrowserHistory("example alpha")) == QStringList({a})
+              && manage.searchBrowserHistory("alpha beta").isEmpty() && manage.searchBrowserHistory("zebra").isEmpty(),
+              "Every word must match; no match is an empty list");
+
+        // Bookmarks: save, search, edit, duplicates, delete.
+        check(manage.setBrowserBookmark(a, "Alpha", true, generation) && manage.setBrowserBookmark(b, "Beta", true, generation)
+              && manage.setBrowserBookmark(c, "Cafe", true, generation)
+              && urls(manage.browserBookmarks()) == QStringList({c, b, a}), "Save three bookmarks");
+        check(urls(manage.searchBrowserBookmarks("be")) == QStringList({b})
+              && urls(manage.searchBrowserBookmarks("example.com")) == QStringList({b, a})
+              && manage.searchBrowserBookmarks("zebra").isEmpty(), "Bookmark search matches title or address");
+        check(manage.isBrowserBookmarked(a) && manage.isBrowserBookmarked("https://user:pw@example.com/a")
+              && !manage.isBrowserBookmarked("https://example.com/none") && !manage.isBrowserBookmarked("javascript:1"),
+              "Bookmarked state is read against the stored address form");
+        const auto savedAt = manage.browserBookmarks().at(1).toMap().value("at");
+        auto edit = manage.editBrowserBookmark(generation, b, b, "  Beta renamed  ");
+        check(edit.value("ok").toBool() && titles(manage.browserBookmarks()) == QStringList({"Cafe", "Beta renamed", "Alpha"})
+              && manage.browserBookmarks().at(1).toMap().value("at") == savedAt,
+              "Renaming a bookmark keeps its place and saved time");
+        edit = manage.editBrowserBookmark(generation, b, "example.com/moved?q=1#top", "Beta renamed");
+        check(edit.value("ok").toBool() && edit.value("url").toString() == "https://example.com/moved?q=1#top"
+              && urls(manage.browserBookmarks()) == QStringList({c, "https://example.com/moved?q=1#top", a}),
+              "Editing an address accepts one typed without a scheme and keeps the place");
+        const QString moved = "https://example.com/moved?q=1#top";
+        const auto beforeRefusals = manage.browserBookmarks();
+        check(manage.editBrowserBookmark(generation, moved, a, "Clash").value("reason").toString() == "duplicate"
+              && manage.editBrowserBookmark(generation, moved, "https://user:pw@example.com/a", "Clash").value("reason").toString() == "duplicate"
+              && manage.editBrowserBookmark(generation, moved, "javascript:alert(1)", "Bad").value("reason").toString() == "invalid-url"
+              && manage.editBrowserBookmark(generation, moved, "file:///secret.txt", "Bad").value("reason").toString() == "invalid-url"
+              && manage.editBrowserBookmark(generation, moved, "not a web address", "Bad").value("reason").toString() == "invalid-url"
+              && manage.editBrowserBookmark(generation, moved, "   ", "Bad").value("reason").toString() == "invalid-url"
+              && manage.editBrowserBookmark(generation, moved, "mailto:someone@example.com", "Bad").value("reason").toString() == "invalid-url"
+              && manage.editBrowserBookmark(generation, b, a, "Gone").value("reason").toString() == "not-found"
+              && manage.browserBookmarks() == beforeRefusals,
+              "A duplicate, invalid or missing bookmark edit is refused and changes nothing");
+        check(manage.editBrowserBookmark(generation, moved, moved, "Beta renamed").value("ok").toBool()
+              && manage.browserBookmarks() == beforeRefusals, "An unchanged edit succeeds without rewriting");
+        check(manage.setBrowserBookmark(a, "Alpha again", true, generation)
+              && urls(manage.browserBookmarks()) == QStringList({a, c, moved}),
+              "Saving an address that is already bookmarked renames and lifts the one bookmark");
+        check(manage.removeBrowserBookmark(generation, c) && urls(manage.browserBookmarks()) == QStringList({a, moved})
+              && !manage.removeBrowserBookmark(generation, c) && !manage.removeBrowserBookmark(generation, "javascript:1"),
+              "A bookmark is removed once; a second removal reports nothing removed");
+        check(manage.removeBrowserHistoryEntry(generation, b) && urls(manage.browserHistory()) == QStringList({c, a})
+              && !manage.removeBrowserHistoryEntry(generation, b) && !manage.removeBrowserHistoryEntry(generation, QString())
+              && urls(manage.browserBookmarks()) == QStringList({a, moved}),
+              "One history entry is removed without touching the rest or the bookmarks");
+        check(manage.removeBrowserHistoryEntry(generation, c) && !manage.updateBrowserVisitTitle("other", other, 2, "Back again")
+              && urls(manage.browserHistory()) == QStringList({a}),
+              "A late title cannot bring back a removed history entry");
+
+        // Restart: a new store over the same file.
+        {
+            FeriaAccountStore restarted; restarted.setStoragePath(managePath);
+            check(restarted.browserBookmarks() == manage.browserBookmarks()
+                  && restarted.browserHistory() == manage.browserHistory()
+                  && urls(restarted.searchBrowserBookmarks("moved")) == QStringList({moved}),
+                  "Edits and removals survive a restart");
+            check(!restarted.recordBrowserVisit("tab", tab, b, "Beta", 9) && !restarted.updateBrowserVisitTitle("tab", tab, 5, "X"),
+                  "Visit tokens do not survive a restart");
+        }
+
+        // Account isolation: everything captured under the first account is
+        // refused once another is active, and the first is untouched on return.
+        const auto firstBookmarks = manage.browserBookmarks();
+        const auto firstHistory = manage.browserHistory();
+        const auto secondPath = temp.filePath("manage-second/account.json");
+        manage.setStoragePath(secondPath);
+        const int second = manage.browserGeneration();
+        check(second != generation && manage.browserBookmarks().isEmpty() && manage.browserHistory().isEmpty()
+              && manage.searchBrowserBookmarks("alpha").isEmpty() && !manage.isBrowserBookmarked(a),
+              "A new account starts with its own empty lists");
+        const auto secondTab = manage.beginSessionVisit("tab", {{"pk", "youtube"}});
+        check(manage.setBrowserBookmark(a, "Second account", true, second) && manage.recordBrowserVisit("tab", secondTab, a, "Second", 1),
+              "The new account records its own rows");
+        const auto secondBookmarks = manage.browserBookmarks();
+        const auto secondHistory = manage.browserHistory();
+        check(manage.editBrowserBookmark(generation, a, b, "Stale edit").value("reason").toString() == "stale-account"
+              && !manage.removeBrowserBookmark(generation, a) && !manage.setBrowserBookmark(a, "Stale save", true, generation)
+              && !manage.setBrowserBookmark(a, "", false, generation)
+              && !manage.removeBrowserHistoryEntry(generation, a) && !manage.clearBrowserHistory(generation)
+              && !manage.recordBrowserVisit("tab", tab, b, "Stale visit", 9)
+              && !manage.updateBrowserVisitTitle("tab", tab, 5, "Stale title")
+              && manage.browserBookmarks() == secondBookmarks && manage.browserHistory() == secondHistory,
+              "Actions that began in the old account cannot change the new one");
+        manage.setStoragePath(managePath);
+        check(manage.browserGeneration() != generation && manage.browserGeneration() != second
+              && manage.browserBookmarks() == firstBookmarks && manage.browserHistory() == firstHistory,
+              "Returning to the first account finds it as it was left");
+        check(!manage.removeBrowserBookmark(second, a) && !manage.clearBrowserHistory(second)
+              && manage.clearBrowserHistory(manage.browserGeneration()) && manage.browserHistory().isEmpty()
+              && manage.browserBookmarks() == firstBookmarks,
+              "Clearing history is guarded the same way and leaves bookmarks alone");
+
+        // Files written before visits were merged by address.
+        QFile legacy(temp.filePath("manage-legacy.json"));
+        check(legacy.open(QIODevice::WriteOnly), "Create repeated-address history fixture");
+        legacy.write(QJsonDocument::fromVariant(QVariantMap{{"version", 1}, {"browserHistory", QVariantList{
+            QVariantMap{{"id", "3"}, {"url", a}, {"title", "Newest A"}}, QVariantMap{{"id", "2"}, {"url", b}, {"title", "B"}},
+            QVariantMap{{"id", "1"}, {"url", a}, {"title", "Oldest A"}}, QVariantMap{{"id", "0"}, {"title", "No address"}}}}}).toJson());
+        legacy.close();
+        manage.setStoragePath(legacy.fileName());
+        check(titles(manage.browserHistory()) == QStringList({"Newest A", "B"}),
+              "A stored history with repeated addresses loads as one row each, newest kept");
+        check(manage.removeBrowserHistoryEntry(manage.browserGeneration(), a) && titles(manage.browserHistory()) == QStringList({"B"}),
+              "Removing a page from such a history leaves no older copy behind");
+
+        // Failed writes change nothing.
+        const auto blockedPath = temp.filePath("manage-blocked/account.json");
+        manage.setStoragePath(blockedPath);
+        const int blocked = manage.browserGeneration();
+        check(manage.setBrowserBookmark(a, "Alpha", true, blocked), "Save before blocking writes");
+        const auto beforeBlock = manage.browserBookmarks();
+        check(QFile::rename(blockedPath, blockedPath + ".kept") && QDir().mkpath(blockedPath), "Block management writes with a directory");
+        check(manage.editBrowserBookmark(blocked, a, b, "Moved").value("reason").toString() == "save-failed"
+              && !manage.removeBrowserBookmark(blocked, a) && manage.browserBookmarks() == beforeBlock,
+              "A failed save reports the failure and keeps the bookmarks in memory");
+    }
     check(regressionsPass, "Native retry and encoded descriptor regressions must pass");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
 }

@@ -1,0 +1,327 @@
+{
+ "name": "feria-set2-app-smoke",
+ "steps": [
+  {
+   "cmd": "ping",
+   "label": "isolated app answers",
+   "expect": [
+    {
+     "path": "gates.drive",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "boot splash leaves",
+   "payload": {
+    "object": "bootSplash",
+    "prop": "visible",
+    "value": false,
+    "timeout_ms": 60000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "local entry is available",
+   "payload": {
+    "object": "accountWelcomeContinueLocal",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "continue locally",
+   "payload": {
+    "target": "accountWelcomeContinueLocal"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "shell is ready",
+   "payload": {
+    "object": "accountHost",
+    "prop": "visible",
+    "value": false,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "open Feria through the world selector",
+   "payload": {
+    "target": "modePill_Feria"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "Feria is active",
+   "payload": {
+    "object": "feriaAppPage",
+    "prop": "lifecycleActive",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "to tile 2",
+   "payload": {
+    "key": "Right"
+   }
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "to tile 3",
+   "payload": {
+    "key": "Right"
+   }
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "to tile 6",
+   "payload": {
+    "key": "Down"
+   }
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "to tile 9",
+   "payload": {
+    "key": "Down"
+   }
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "to tile 12",
+   "payload": {
+    "key": "Down"
+   }
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "to tile 11, MANGA Plus",
+   "payload": {
+    "key": "Left"
+   }
+  },
+  {
+   "presentation_wait_ms": 350,
+   "label": "allow focus scrolling to settle"
+  },
+  {
+   "cmd": "ui-click",
+   "label": "open the MANGA Plus tile",
+   "payload": {
+    "target": "feriaApp_mangaplus"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "browser host view is showing",
+   "payload": {
+    "object": "feriaAppPage",
+    "prop": "viewState",
+    "value": "host",
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the page finished loading",
+   "payload": {
+    "object": "feriaBrowserHost",
+    "prop": "loadSucceeded",
+    "value": true,
+    "timeout_ms": 60000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "page identity",
+   "payload": {
+    "object": "feriaBrowserHost",
+    "props": [
+     "currentUrl",
+     "pageTitle",
+     "engine",
+     "retained",
+     "loadSucceeded"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.currentUrl",
+     "op": "contains",
+     "value": "mangaplus.shueisha.co.jp"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "open History from the keyboard",
+   "payload": {
+    "key": "Ctrl+H"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "History list is showing",
+   "payload": {
+    "object": "feriaBrowserHistoryList",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "the visit was recorded",
+   "payload": {
+    "object": "feriaBrowserHistoryList",
+    "props": [
+     "count"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.count",
+     "op": ">=",
+     "value": "1"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-query",
+   "label": "capture the History section",
+   "payload": {
+    "object": "feriaBrowserHistorySearch",
+    "grab": {
+     "target": "window",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "remove the visit from history",
+   "payload": {
+    "target": "feriaBrowserHistoryRemove_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the list is empty at once",
+   "payload": {
+    "object": "feriaBrowserHistoryList",
+    "prop": "count",
+    "value": 0,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "empty state is showing",
+   "payload": {
+    "object": "feriaBrowserHistoryEmpty",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "close the browser menu",
+   "payload": {
+    "target": "feriaBrowserMenuDismiss"
+   }
+  },
+  {
+   "presentation_wait_ms": 500,
+   "label": "menu closes"
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "quit through the app's own Quit command",
+   "payload": {
+    "key": "Ctrl+Q"
+   }
+  },
+  {
+   "presentation_wait_ms": 8000,
+   "label": "let the application leave on its own"
+  }
+ ]
+}

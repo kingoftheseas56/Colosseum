@@ -30,13 +30,23 @@ Item {
         property int cleared: 0
         signal changed()
         signal profileChanged()
+        // A stand-in for the presentation cases in this file. The store's own
+        // search, edit and delete rules are exercised against the real
+        // FeriaAccountStore in tests/feria_history_probe.
+        property int browserGeneration: 1
+        function searchBrowserBookmarks(query) { return browserBookmarks }
+        function searchBrowserHistory(query) { return browserHistory }
+        function isBrowserBookmarked(url) {
+            return browserBookmarks.some(function(row) { return row.url === url })
+        }
         function setBrowserBookmark(url, title, saved) {
             bookmarkAction = { url: url, title: title, saved: saved }
             browserBookmarks = saved ? [{ url: url, title: title }] : []
             changed()
             return true
         }
-        function clearBrowserHistory() { cleared++; browserHistory = []; changed() }
+        function removeBrowserBookmark(generation, url) { return setBrowserBookmark(url, "", false) }
+        function clearBrowserHistory() { cleared++; browserHistory = []; changed(); return true }
         function setBrowserPreference(key, value) {
             preferenceAction = { key: key, value: value }
             var next = Object.assign({}, browserPreferences)
