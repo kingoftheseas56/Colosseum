@@ -125,7 +125,7 @@ ReaderOverlay {
         readonly property real authorW: authorText.visible ? authorText.implicitWidth + 10 : 0
         readonly property real sideReserve: Math.max(rightRow.width, backBtn.width) + 22 + 18
         readonly property real availW: root.leftTitle
-            ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - 28)
+            ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - (root.compact ? 14 : 28))
             : Math.max(80, root.width - 2 * sideReserve)
         width: Math.min(titleText.implicitWidth + authorW, availW)
 
