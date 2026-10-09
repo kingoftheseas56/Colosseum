@@ -178,7 +178,7 @@ if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
     endif()
 elseif(WIN32)
     set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc" CACHE PATH "libtorrent MSVC install")
-    set(BOOST_ROOT "C:/tools/boost-1.84.0" CACHE PATH "Boost headers")
+    set(BOOST_ROOT "C:/tools/boost-1.90.0" CACHE PATH "Boost headers matching the libtorrent build")
     set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc" CACHE PATH "OpenSSL MSVC install")
     find_path(LIBTORRENT_INCLUDE_DIR libtorrent/session.hpp HINTS "${LIBTORRENT_ROOT}/include")
     find_library(LIBTORRENT_LIBRARY torrent-rasterbar HINTS "${LIBTORRENT_ROOT}/lib")
@@ -194,6 +194,15 @@ elseif(WIN32)
             "${OPENSSL_MSVC_ROOT}/lib/libssl.lib"
             "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib"
             ws2_32 mswsock crypt32 iphlpapi bcrypt)
+        # Header-only Asio symbols can override those in the static library.
+        # A mismatched Boost build may link successfully and crash on shutdown.
+        set(_colosseum_abi_includes
+            "${LIBTORRENT_INCLUDE_DIR}" "${BOOST_INCLUDE_DIR}" "${OPENSSL_MSVC_ROOT}/include")
+        set(_colosseum_abi_libraries
+            "${LIBTORRENT_LIBRARY}"
+            "${OPENSSL_MSVC_ROOT}/lib/libssl.lib" "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib"
+            ws2_32 mswsock crypt32 iphlpapi bcrypt user32 advapi32)
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckLibtorrentAbi.cmake")
     else()
         message(FATAL_ERROR "libtorrent NOT found (find_package or C:/tools/libtorrent-2.0-msvc) — the tankorent engine requires it. See TB2 CMakeLists TANKORENT_DOWNLOAD_FLOW_FIX comment.")
     endif()
