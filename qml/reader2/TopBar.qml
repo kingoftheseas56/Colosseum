@@ -46,6 +46,9 @@ ReaderOverlay {
     readonly property bool onAndroid: Qt.platform.os === "android"
     // Under 600 is a phone. A portrait tablet (the Nokia T20 is 686 wide) keeps the full bar.
     readonly property bool compact: onAndroid && width < 600
+    // Any Android width under 840 puts the title left of the actions. Centred, the title must
+    // clear the wider side cluster on BOTH sides, which left it 86px at the T20's 686.
+    readonly property bool leftTitle: onAndroid && width < 840
 
     Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 
@@ -114,15 +117,15 @@ ReaderOverlay {
     Item {
         id: titleBlock
         // compact: left-aligned in the space between Back and the actions, never centred under them
-        anchors.centerIn: root.compact ? undefined : parent
-        anchors.left: root.compact ? backBtn.right : undefined
-        anchors.leftMargin: root.compact ? 6 : 0
-        anchors.verticalCenter: root.compact ? parent.verticalCenter : undefined
+        anchors.centerIn: root.leftTitle ? undefined : parent
+        anchors.left: root.leftTitle ? backBtn.right : undefined
+        anchors.leftMargin: root.leftTitle ? (root.compact ? 6 : 14) : 0
+        anchors.verticalCenter: root.leftTitle ? parent.verticalCenter : undefined
         height: parent.height
         readonly property real authorW: authorText.visible ? authorText.implicitWidth + 10 : 0
         readonly property real sideReserve: Math.max(rightRow.width, backBtn.width) + 22 + 18
-        readonly property real availW: root.compact
-            ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - 14)
+        readonly property real availW: root.leftTitle
+            ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - 28)
             : Math.max(80, root.width - 2 * sideReserve)
         width: Math.min(titleText.implicitWidth + authorW, availW)
 
