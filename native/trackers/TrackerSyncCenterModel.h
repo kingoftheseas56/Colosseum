@@ -42,6 +42,13 @@ class TrackerSyncCenterModel final : public QObject
     Q_PROPERTY(QVariantMap lastActionResult READ lastActionResult NOTIFY modelChanged)
 
 public:
+    enum class ConnectAvailability {
+        Ready,
+        CredentialStorageUnavailable,
+        ProviderServiceUnavailable
+    };
+    using ConnectionAvailabilitySource =
+        std::function<ConnectAvailability(TrackerProviderId)>;
     using LivePlaybackPreferenceAction = std::function<bool(const QString &, bool)>;
     using ResumeAfterSyncAction = std::function<void()>;
     using DisconnectAction = std::function<bool(const QString &,
@@ -100,7 +107,7 @@ public:
     // intentionally withholds account, remote, and canonical identity keys.
     Q_INVOKABLE QVariantList historyDeliveryRows();
     Q_INVOKABLE void refresh();
-    void setConnectAvailable(bool available);
+    void setConnectionAvailabilitySource(ConnectionAvailabilitySource source);
     void setImportOwner(TrackerImportOwner *owner) { m_importOwner = owner; }
     void setTitleMatching(TrackerMappingStore *store,
                           const TrackerCanonicalTitleIndex *index);
@@ -206,6 +213,7 @@ private:
                                     const QStringList &privateIds);
 
     const TrackerProviderDescriptor *descriptor(TrackerProviderId providerId) const;
+    QString connectUnavailableReason(const TrackerProviderDescriptor &provider) const;
     bool profileStoresHealthy() const;
     bool ownerHealthy() const;
     bool titleMatchAvailable() const;
@@ -252,6 +260,7 @@ private:
     TrackerScrobbleStore *m_scrobble = nullptr;
     TrackerSyncSettingsStore *m_settings = nullptr;
     QList<TrackerProviderDescriptor> m_catalogue;
+    ConnectionAvailabilitySource m_connectionAvailabilitySource;
     LivePlaybackPreferenceAction m_livePlaybackAction;
     ResumeAfterSyncAction m_resumeAfterSync;
     DisconnectAction m_disconnectAction;
@@ -263,7 +272,6 @@ private:
     quint64 m_revision = 1;
     bool m_profileAvailable = false;
     bool m_importedDataRemovalPending = false;
-    bool m_connectAvailable = false;
     QVariantMap m_lastActionResult{{QStringLiteral("accepted"), false},
                                   {QStringLiteral("action"), QStringLiteral("none")},
                                   {QStringLiteral("code"), QStringLiteral("idle")},
