@@ -130,7 +130,10 @@ QVariantList validatedBrowserDescriptors(const QVariantList &descriptors) {
         bool valid = true;
         for (const auto &key : {"providerName", "title", "mode", "launchMode", "titleId", "logo", "restoreId"}) {
             if (!descriptor.contains(key)) continue;
-            const auto text = descriptor.value(key);
+            auto text = descriptor.value(key);
+            // The shell resolves a provider's logo to a url value; a tab that
+            // carries one is still a tab to restore.
+            if (text.metaType().id() == QMetaType::QUrl) text = text.toUrl().toString();
             if (text.metaType().id() != QMetaType::QString || text.toString().size() > (QString(key) == "restoreId" ? 100 : 2048)) {
                 valid = false; break;
             }

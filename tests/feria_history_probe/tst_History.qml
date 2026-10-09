@@ -37,6 +37,9 @@ Item {
         readonly property var runtime: FeriaBrowserPolicy.runtime
         SignalSpy { id: commandSpy; target: tests.runtime; signalName: "commandFinished" }
         SignalSpy { id: settledSpy; target: Sessions.browserOperations(); signalName: "operationSettled" }
+        SignalSpy { id: quiescedSpy; target: deck; signalName: "quiesced" }
+        SignalSpy { id: cleanedSpy; signalName: "finished" }
+        Component { id: cleanerFactory; Feria.FeriaSessionCleaner {} }
 
         function init() {
             failOnWarning(/TypeError|ReferenceError|incompatible arguments|Could not convert argument/)
@@ -241,6 +244,54 @@ Item {
             compare(history(), "/a")
             compare(paths(FeriaAccount.browserBookmarks), "/a")
             compare(FeriaAccount.browserBookmarks[0].title, "First account")
+        }
+
+        // Site-data control: signing out of one site, the way the shell does
+        // it (close the browsers, clean, reopen), removes that site's cookies
+        // and storage and nothing else.
+        function test_signOutClearsOneSiteAndNothingElse() {
+            var site = FixtureUrl, other = FixtureUrl.replace("127.0.0.1", "localhost")
+            var mark = "document.cookie='marker=kept; max-age=86400; path=/';"
+                + "localStorage.setItem('marker','kept'); document.cookie + '|' + localStorage.getItem('marker')"
+            var read = "document.cookie + '|' + localStorage.getItem('marker')"
+            function openOther() {
+                var id = deck.open(descriptor("/b", {url: other + "/b"}), true, false, true)
+                verify(id.length > 0, "the second site must be allowed to open")
+                tryVerify(function() { var p = deck.browserForSession(id)
+                    return p && p.documentReady && !p.loading && !p.replacementLoadPending
+                        && String(p.url) === other + "/b" }, 15000, "Expected the second site to finish loading")
+                return deck.browserForSession(id)
+            }
+            compare(js(deck.browserForSession(open("/a")), mark), "marker=kept|kept")
+            compare(js(openOther(), mark), "marker=kept|kept")
+            verify(FeriaAccount.setBrowserBookmark(site + "/a", "Kept", true, FeriaAccount.browserGeneration))
+            tryCompare(FeriaAccount.browserHistory, "length", 2)
+            var historyBefore = history(), generation = FeriaAccount.browserGeneration
+
+            quiescedSpy.clear()
+            deck.startQuiescence(true)
+            tryVerify(function() { return quiescedSpy.count === 1 }, 20000, "browsers must close before cleanup")
+            compare(FeriaBrowserPolicy.runtimeViewCount, 0)
+            var cleaner = cleanerFactory.createObject(root, {profilePath: FeriaBrowserPolicy.storageRoot,
+                engines: ["qtwebengine"], domains: ["127.0.0.1"], origins: [site]})
+            cleanedSpy.target = cleaner
+            tryVerify(function() { return cleanedSpy.count === 1 }, 70000, "cleanup must finish")
+            // The cleaner reports "complete" only when it could also enumerate
+            // service workers, which its blank page cannot do in this engine;
+            // the shell words that outcome as incomplete. What it did clear is
+            // checked below from the pages themselves.
+            console.log("cleaner reported complete:", cleanedSpy.signalArguments[0][0])
+            cleanedSpy.target = null
+            cleaner.destroy()
+            deck.finishCleanup()
+            tryCompare(deck, "quiescing", false, 15000)
+
+            compare(js(deck.browserForSession(open("/a")), read), "|null", "the signed-out site keeps nothing")
+            compare(js(openOther(), read), "marker=kept|kept", "another site is untouched")
+            // History, bookmarks and the account itself are not site data.
+            compare(FeriaAccount.browserGeneration, generation)
+            compare(history(), historyBefore)
+            compare(paths(FeriaAccount.browserBookmarks), "/a")
         }
 
         function test_menuSearchesOpensAndRemovesHistory() {

@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 #include <cmath>
 
 int main(int argc, char **argv) {
@@ -758,6 +759,27 @@ int main(int argc, char **argv) {
         check(manage.editBrowserBookmark(blocked, a, b, "Moved").value("reason").toString() == "save-failed"
               && !manage.removeBrowserBookmark(blocked, a) && manage.browserBookmarks() == beforeBlock,
               "A failed save reports the failure and keeps the bookmarks in memory");
+    }
+    // The shell's own descriptor: its logo arrives as a url value, not text.
+    {
+        FeriaAccountStore shellTabs;
+        shellTabs.setStoragePath(temp.filePath("shell-tabs/account.json"));
+        const QVariantMap shellTab{{"providerId", "mangaplus"}, {"providerName", "MANGA Plus"},
+            {"title", "MANGA Plus"}, {"url", "https://mangaplus.shueisha.co.jp/updates"}, {"mode", "read"},
+            {"titleId", ""}, {"launchMode", "home"}, {"position", 0}, {"locator", QVariant()},
+            {"logo", QUrl("qrc:/assets/providers/mangaplus.png")}, {"restoreId", "shell-tab"}};
+        auto privateShellTab = shellTab;
+        privateShellTab.insert("privateBrowsing", true); privateShellTab.insert("restoreId", "private-tab");
+        check(shellTabs.saveBrowserTabs({shellTab, privateShellTab}) && shellTabs.browserTabs().size() == 1
+              && shellTabs.browserTabs().first().toMap().value("restoreId") == "shell-tab"
+              && shellTabs.browserTabs().first().toMap().value("logo") == "qrc:/assets/providers/mangaplus.png",
+              "A tab opened by the shell is saved for restore; its private twin is not");
+        FeriaAccountStore shellRestart; shellRestart.setStoragePath(temp.filePath("shell-tabs/account.json"));
+        bool captured = false;
+        check(QMetaObject::invokeMethod(&shellRestart, "captureBrowserRestoreOffers", Q_RETURN_ARG(bool, captured)) && captured
+              && shellRestart.browserRestoreOffers().size() == 1
+              && shellRestart.browserRestoreOffers().first().toMap().value("url") == "https://mangaplus.shueisha.co.jp/updates",
+              "After a restart that tab is offered for restore");
     }
     check(regressionsPass, "Native retry and encoded descriptor regressions must pass");
     qInfo() << "FERIA_ACCOUNT_STORE_PASS" << checks;
