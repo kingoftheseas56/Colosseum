@@ -106,7 +106,12 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
         return out;
 
     const QList<VaultIndex::FileRow> groupRows = index->rowsForGroup(key);
-    if (groupRows.isEmpty())
+    // Film keys name a group; Episode/Clip keys name the exact file. Never reconstruct a
+    // parent group for a leaf: its first row could be a different episode after a rescan.
+    const QList<VaultIndex::FileRow> leafRows = groupRows.isEmpty()
+        ? index->rowsForPath(key) : QList<VaultIndex::FileRow>();
+    const bool isFileDetail = !leafRows.isEmpty();
+    if (groupRows.isEmpty() && !isFileDetail)
         return out; // a stale key (rescanned/removed since the grid rendered it)
 
     // The group's PRIMARY file(s) — never an Extras/Featurettes row (see rowIsExtra above).
@@ -114,15 +119,18 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     for (const VaultIndex::FileRow& r : groupRows)
         if (!rowIsExtra(r))
             primaryInGroup.append(r);
-    const VaultIndex::FileRow& primary =
-        !primaryInGroup.isEmpty() ? primaryInGroup.first() : groupRows.first();
+    const VaultIndex::FileRow& primary = isFileDetail ? leafRows.first()
+        : !primaryInGroup.isEmpty() ? primaryInGroup.first() : groupRows.first();
     const bool identified = !primary.identityId.isEmpty() && !primary.identitySuppressed;
 
-    const QList<VaultIndex::FileRow> rawCopyRows = identified
-        ? index->rowsForIdentity(primary.identityId) : groupRows;
+    // An episode's adopted identity can be its SHOW identity, shared by every episode.
+    // Without an episode-specific identity we can only promise this one physical file.
+    const QList<VaultIndex::FileRow> rawCopyRows = isFileDetail
+        ? QList<VaultIndex::FileRow>{primary}
+        : identified ? index->rowsForIdentity(primary.identityId) : groupRows;
     QList<VaultIndex::FileRow> copyRows;
     for (const VaultIndex::FileRow& r : rawCopyRows)
-        if (!rowIsExtra(r))
+        if (isFileDetail || !rowIsExtra(r))
             copyRows.append(r);
     if (copyRows.isEmpty())
         copyRows = !primaryInGroup.isEmpty() ? primaryInGroup : groupRows; // defensive fallback
@@ -131,7 +139,25 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     out.insert(QStringLiteral("key"), key);
     const QString title = !primary.identityTitle.isEmpty() ? primary.identityTitle
                                                             : primary.groupTitle;
-    out.insert(QStringLiteral("displayTitle"), title);
+    const QString fileTitle = !primary.displayTitle.isEmpty() ? primary.displayTitle
+        : !primary.realName.isEmpty() ? primary.realName : QFileInfo(primary.path).fileName();
+    out.insert(QStringLiteral("displayTitle"), isFileDetail ? fileTitle : title);
+
+    bool playable = true; // preserve the established group-shaped film contract
+    if (isFileDetail) {
+        const QFileInfo file(primary.path);
+        const bool available = !primary.away && file.isFile() && file.isReadable();
+        // LocalLaunch still probes at launch. This read-only view may advertise Play only
+        // after the index has recorded decoded-frame admission, never for an unprobed file.
+        playable = available && primary.kind == QLatin1String("video")
+            && primary.admissionVerdict == QLatin1String("Admitted")
+            && primary.errorState.isEmpty() && primary.errorDetail.isEmpty();
+        out.insert(QStringLiteral("isFileDetail"), true);
+        out.insert(QStringLiteral("groupKey"), primary.groupKey);
+        out.insert(QStringLiteral("path"), primary.path);
+        out.insert(QStringLiteral("available"), available);
+        out.insert(QStringLiteral("playable"), playable);
+    }
     out.insert(QStringLiteral("year"), primary.identityYear > 0 ? primary.identityYear : 0);
     out.insert(QStringLiteral("coverRef"), primary.kind == QLatin1String("video")
                                                  ? primary.coverRef : QString());
@@ -174,7 +200,11 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     QVariantList copies;
     QString bestQuality;
     for (const VaultIndex::FileRow& row : copyRows) {
-        const QVariantMap c = copyEntry(row);
+        QVariantMap c = copyEntry(row);
+        if (isFileDetail) {
+            c.insert(QStringLiteral("available"), out.value(QStringLiteral("available")));
+            c.insert(QStringLiteral("playable"), playable);
+        }
         if (bestQuality.isEmpty())
             bestQuality = c.value(QStringLiteral("quality")).toString();
         copies.append(c);
@@ -186,8 +216,9 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     // Companions/extras are the CLICKED physical group's own folder facts — a multi-root
     // identified film may hold different companions per copy; this slice surfaces the one the
     // user actually opened, honestly, rather than merging facts across drives.
-    const VaultKit::FilmPhysicalFacts physical =
-        VaultKit::describeFilmFolder(primary.subtreePath, primary.path, scanIgnore);
+    // A show folder's subtitles/extras are not proven companions of an individual episode.
+    const VaultKit::FilmPhysicalFacts physical = isFileDetail ? VaultKit::FilmPhysicalFacts{}
+        : VaultKit::describeFilmFolder(primary.subtreePath, primary.path, scanIgnore);
     out.insert(QStringLiteral("companions"), QVariant(physical.companions));
     QVariantList extras;
     for (const VaultKit::FilmExtra& ex : physical.extras) {
@@ -200,7 +231,17 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     out.insert(QStringLiteral("ignoredCount"), physical.ignoredCount);
 
     QString evidence;
-    if (state == QLatin1String("identified")) {
+    if (isFileDetail) {
+        evidence = QStringLiteral("Indexed file: %1.").arg(fileTitle);
+        if (identified)
+            evidence += QStringLiteral(" Its group is identified as %1.").arg(title);
+        else if (state == QLatin1String("uncertain"))
+            evidence += QStringLiteral(" Its group's identity is uncertain.");
+        else if (primary.identitySuppressed)
+            evidence += QStringLiteral(" You told Vault not to guess its group's identity.");
+        else
+            evidence += QStringLiteral(" Its group has not been identified.");
+    } else if (state == QLatin1String("identified")) {
         evidence = QStringLiteral("Filename parsed to %1").arg(title);
         if (primary.identityYear > 0)
             evidence += QStringLiteral(" with year %1").arg(primary.identityYear);
@@ -221,7 +262,7 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     out.insert(QStringLiteral("evidence"), evidence);
 
     // Play routes the copy the user actually clicked, not whichever copy happens to sort first.
-    out.insert(QStringLiteral("playPath"), primary.path);
+    out.insert(QStringLiteral("playPath"), playable ? primary.path : QString());
 
     return out;
 }
