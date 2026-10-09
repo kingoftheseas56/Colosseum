@@ -8,6 +8,7 @@ import "MangaChapterGrouping.js" as Grouping
 Item {
     id: root
     objectName: "mangaChapterSeriesView"
+    readonly property bool phoneNarrow: win.androidHost && win.width < 840
 
     property Item backdrop
     property string seriesId: ""              // canonical Colosseum identity (mal:N)
@@ -95,8 +96,26 @@ Item {
 
     Rectangle { anchors.fill: parent; color: "#050608" }
 
+    // At phone width the masthead and chapter list scroll as a single column.
+    // Desktop keeps its pinned masthead and independent list unchanged.
+    Flickable {
+        id: phoneScroll
+        visible: root.phoneNarrow
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: phoneStack.height
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        Item {
+            id: phoneStack
+            width: phoneScroll.width
+            height: sharedHeader.height + scroll.height
+        }
+    }
+
     MangaSeriesSharedHeader {
         id: sharedHeader
+        parent: root.phoneNarrow ? phoneStack : root
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         tankobanMode: false
         seriesTitle: root.seriesTitle
@@ -120,8 +139,13 @@ Item {
 
     Flickable {
         id: scroll
+        parent: root.phoneNarrow ? phoneStack : root
         anchors.top: sharedHeader.bottom
-        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: root.phoneNarrow ? undefined : parent.bottom
+        height: root.phoneNarrow ? content.height + 54 : 0
+        interactive: !root.phoneNarrow
         contentWidth: width
         contentHeight: content.height + 54
         clip: true
@@ -133,10 +157,13 @@ Item {
             spacing: 0
 
             Item {
-                width: parent.width; height: 58
+                width: parent.width
+                height: root.phoneNarrow ? 100 : 58
                 Text {
                     anchors.left: parent.left; anchors.leftMargin: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                    anchors.top: root.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: root.phoneNarrow ? 16 : 0
                     text: "CHAPTERS  " + root.chapters.length
                     color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 12; font.letterSpacing: 2.2
                 }
@@ -145,8 +172,10 @@ Item {
                     id: pageSelector
                     objectName: "mangaChapterPageSelector"
                     anchors.right: parent.right; anchors.rightMargin: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 116; height: 34; z: 20
+                    anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                    anchors.top: root.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: root.phoneNarrow ? 54 : 0
+                    width: 116; height: root.phoneNarrow ? 44 : 34; z: 20
                     activeFocusOnTab: true
                     Accessible.role: Accessible.ComboBox
                     Accessible.name: "Chapter page selector"
@@ -163,10 +192,11 @@ Item {
                 height: ledger.height + 54
                 Rectangle {
                     id: ledger
-                    anchors.left: parent.left; anchors.leftMargin: theme.margin
-                    anchors.right: parent.right; anchors.rightMargin: theme.margin
+                    anchors.left: parent.left; anchors.leftMargin: root.phoneNarrow ? 12 : theme.margin
+                    anchors.right: parent.right; anchors.rightMargin: root.phoneNarrow ? 12 : theme.margin
                     anchors.top: parent.top
-                    height: 64 + chapterRepeater.count * 156
+                    height: ledgerHeader.height + Math.max(root.phoneNarrow && !root.activeChapters.length ? 156 : 0,
+                                                           chapterRows.implicitHeight)
                     radius: 18
                     color: Qt.rgba(0.07, 0.08, 0.11, 0.88)
                     border.width: 1; border.color: theme.edge
@@ -174,23 +204,32 @@ Item {
 
                     Item {
                         id: ledgerHeader
-                        width: parent.width; height: 64
+                        width: parent.width; height: root.phoneNarrow ? 136 : 64
                         Text {
-                            anchors.left: parent.left; anchors.leftMargin: 24
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.leftMargin: root.phoneNarrow ? 16 : 24
+                            anchors.right: root.phoneNarrow ? parent.right : undefined
+                            anchors.rightMargin: root.phoneNarrow ? 16 : 0
+                            anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                            anchors.top: root.phoneNarrow ? parent.top : undefined
+                            anchors.topMargin: root.phoneNarrow ? 12 : 0
                             text: root.activeRangeLabel
                             color: theme.ink; font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
                         }
                         Text {
-                            anchors.left: parent.left; anchors.leftMargin: 190
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left; anchors.leftMargin: root.phoneNarrow ? 16 : 190
+                            anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                            anchors.top: root.phoneNarrow ? parent.top : undefined
+                            anchors.topMargin: root.phoneNarrow ? 44 : 0
                             text: root.activeChapterCount + (root.activeChapterCount === 1 ? " chapter" : " chapters")
                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
                         }
                         Rectangle {
-                            anchors.right: parent.right; anchors.rightMargin: 22
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: batchLabel.implicitWidth + 28; height: 30; radius: 8
+                            anchors.right: parent.right; anchors.rightMargin: root.phoneNarrow ? 16 : 22
+                            anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                            anchors.top: root.phoneNarrow ? parent.top : undefined
+                            anchors.topMargin: root.phoneNarrow ? 76 : 0
+                            width: batchLabel.implicitWidth + 28
+                            height: root.phoneNarrow ? 44 : 30; radius: 8
                             color: batchMouse.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: theme.edge
                             Text { id: batchLabel; anchors.centerIn: parent; text: "↓  Download page"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
@@ -207,6 +246,7 @@ Item {
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                     }
                     Column {
+                        id: chapterRows
                         anchors.top: ledgerHeader.bottom
                         width: parent.width
                         Repeater {
@@ -215,7 +255,10 @@ Item {
                             delegate: Item {
                                 id: row
                                 required property var modelData
-                                width: ledger.width; height: 156
+                                width: ledger.width
+                                height: root.phoneNarrow
+                                    ? Math.max(112, chapterTitle.implicitHeight + chapterStatus.implicitHeight + 26)
+                                    : 156
                                 property string chapterId: String(modelData.id || "")
                                 property string dlState: "none"
                                 property int dlDone: 0
@@ -257,27 +300,41 @@ Item {
                                 }
                                 Rectangle { anchors.fill: parent; color: rowMouse.containsMouse ? Qt.rgba(1,1,1,0.045) : "transparent" }
                                 Text {
-                                    anchors.left: parent.left; anchors.leftMargin: 22
+                                    anchors.left: parent.left; anchors.leftMargin: root.phoneNarrow ? 12 : 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 52; horizontalAlignment: Text.AlignHCenter
+                                    width: root.phoneNarrow ? 32 : 52
+                                    horizontalAlignment: Text.AlignHCenter
                                     text: String(modelData.number !== undefined && modelData.number !== null ? modelData.number : "?")
-                                    color: theme.ink; font.family: theme.display; font.pixelSize: 24; font.weight: Font.DemiBold
+                                    color: theme.ink; font.family: theme.display
+                                    font.pixelSize: root.phoneNarrow ? 20 : 24; font.weight: Font.DemiBold
                                 }
                                 Item {
                                     id: thumb
-                                    anchors.left: parent.left; anchors.leftMargin: 94
+                                    anchors.left: parent.left; anchors.leftMargin: root.phoneNarrow ? 52 : 94
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 100; height: 140
+                                    width: root.phoneNarrow ? 52 : 100
+                                    height: root.phoneNarrow ? 76 : 140
                                     Rectangle { anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1; border.color: row.dlState === "done" ? Qt.rgba(.94,.77,.29,.5) : theme.edge }
                                     Text { anchors.centerIn: parent; visible: thumbImage.status !== Image.Ready; text: String(modelData.number || "?"); color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 28 }
                                     Image { id: thumbImage; anchors.fill: parent; anchors.margins: 1; source: row.thumbUrl; visible: status === Image.Ready; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true; sourceSize.width: 280 }
                                 }
                                 Column {
-                                    anchors.left: thumb.right; anchors.leftMargin: 18
-                                    anchors.right: trailing.left; anchors.rightMargin: 18
+                                    anchors.left: thumb.right; anchors.leftMargin: root.phoneNarrow ? 8 : 18
+                                    anchors.right: trailing.left; anchors.rightMargin: root.phoneNarrow ? 6 : 18
                                     anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                                    Text { width: parent.width; text: row.chapterLabel; color: rowMouse.containsMouse ? theme.gold : theme.ink; font.family: theme.ui; font.pixelSize: 17; font.weight: Font.DemiBold; elide: Text.ElideRight }
                                     Text {
+                                        id: chapterTitle
+                                        width: parent.width
+                                        text: row.chapterLabel
+                                        color: rowMouse.containsMouse ? theme.gold : theme.ink
+                                        font.family: theme.ui
+                                        font.pixelSize: root.phoneNarrow ? 14 : 17
+                                        font.weight: Font.DemiBold
+                                        wrapMode: root.phoneNarrow ? Text.Wrap : Text.NoWrap
+                                        elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
+                                    }
+                                    Text {
+                                        id: chapterStatus
                                         width: parent.width
                                         text: row.dlState === "done" ? "Downloaded"
                                             : row.dlState === "queued" ? "Queued…"
@@ -289,9 +346,10 @@ Item {
                                 }
                                 Item {
                                     id: trailing
-                                    anchors.right: parent.right; anchors.rightMargin: 22
+                                    anchors.right: parent.right; anchors.rightMargin: root.phoneNarrow ? 12 : 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 38; height: 38
+                                    width: root.phoneNarrow ? 44 : 38
+                                    height: root.phoneNarrow ? 44 : 38
                                     Rectangle { anchors.fill: parent; radius: 19; color: trailingMouse.containsMouse ? theme.glassHi : "transparent" }
                                     Text {
                                         anchors.centerIn: parent
@@ -312,7 +370,10 @@ Item {
                                 }
                                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,.05) }
                                 MouseArea {
-                                    id: rowMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    id: rowMouse
+                                    anchors.fill: parent
+                                    anchors.rightMargin: root.phoneNarrow ? 60 : 0
+                                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: root.readChapterRequested(row.chapterId, row.chapterLabel)
                                 }
                             }
@@ -321,10 +382,17 @@ Item {
 
                     Column {
                         visible: root.loading || root.errorText.length > 0 || (!root.loading && !root.chapters.length)
-                        anchors.centerIn: parent
+                        anchors.centerIn: root.phoneNarrow ? undefined : parent
+                        anchors.top: root.phoneNarrow ? ledgerHeader.bottom : undefined
+                        anchors.topMargin: root.phoneNarrow ? 24 : 0
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: root.phoneNarrow ? parent.width - 32 : implicitWidth
                         spacing: 12
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
+                            width: root.phoneNarrow ? parent.width : implicitWidth
+                            horizontalAlignment: root.phoneNarrow ? Text.AlignHCenter : Text.AlignLeft
+                            wrapMode: root.phoneNarrow ? Text.WordWrap : Text.NoWrap
                             text: root.loading ? "Loading chapters..." : (root.errorText.length ? root.errorText : "No chapters available")
                             color: root.errorText.length ? "#e6a3a3" : theme.inkDim
                             font.family: theme.ui; font.pixelSize: 14
