@@ -64,12 +64,11 @@ Item {
         }
 
         function test_native_controls_follow_painted_map_controls() {
+            // Painted stations keep their chart positions; interactive sizes follow
+            // the painted plate but never drop below the 44 px hit-target floor.
             var controls = [
                 ["finalSeaIndexButton", 0.8439, 0.0372, 0.1340, 0.0574],
-                ["finalSeaToNewWorld", 0.0299, 0.8055, 0.1441, 0.0616],
-                ["finalSeaZoomOut", 0.0299, 0.8831, 0.0353, 0.0584],
-                ["finalSeaZoomReset", 0.0652, 0.8831, 0.0604, 0.0584],
-                ["finalSeaZoomIn", 0.1256, 0.8831, 0.0359, 0.0584]
+                ["finalSeaToNewWorld", 0.0299, 0.8055, 0.1441, 0.0616]
             ]
             for (var row of controls) {
                 var button = control(row[0])
@@ -77,16 +76,71 @@ Item {
                 var painted = atlas.mapPoint(row[1], row[2])
                 fuzzyCompare(origin.x, painted.x, 0.2)
                 fuzzyCompare(origin.y, painted.y, 0.2)
-                fuzzyCompare(button.width, row[3] * atlas.stageGeometry.width, 0.2)
-                fuzzyCompare(button.height, row[4] * atlas.stageGeometry.height, 0.2)
+                fuzzyCompare(button.width, Math.max(44, row[3] * atlas.stageGeometry.width), 0.2)
+                fuzzyCompare(button.height, Math.max(44, row[4] * atlas.stageGeometry.height), 0.2)
                 verify(button.mapArtwork)
                 compare(button.contentItem.visible, false)
+            }
+            // Zoom station: painted position clamped right of the shell taskbar dock's
+            // closed footprint (leftEdge<=80 + 130 wide).
+            var tools = control("finalSeaZoomTools")
+            var paintedOrigin = atlas.mapPoint(0.0299, 0.8831)
+            var dockRight = Math.max(18, Math.min(80, atlas.width * 0.045)) + 130
+            fuzzyCompare(tools.x, Math.max(paintedOrigin.x, 218), 0.2)
+            fuzzyCompare(tools.y, paintedOrigin.y, 0.2)
+            verify(tools.x >= dockRight, "zoom station must sit clear of the shell taskbar dock")
+            var zoomWidths = [["finalSeaZoomOut", 0.0353], ["finalSeaZoomReset", 0.0604], ["finalSeaZoomIn", 0.0359]]
+            for (var z of zoomWidths) {
+                var zoomButton = control(z[0])
+                fuzzyCompare(zoomButton.width, Math.max(44, z[1] * atlas.stageGeometry.width), 0.2)
+                fuzzyCompare(zoomButton.height, Math.max(44, 0.0584 * atlas.stageGeometry.height), 0.2)
+                verify(zoomButton.mapArtwork)
+                compare(zoomButton.contentItem.visible, false)
             }
             mouseClick(control("finalSeaZoomIn"))
             compare(atlas.zoom, 1.25)
             atlas.takeKeyboardFocus()
             keyClick(Qt.Key_0)
             compare(atlas.zoom, 1)
+        }
+
+        // Regression for the 1.1.9 acceptance finding: finalSeaToNewWorld measured
+        // 39.5472 px high at 1280x720 against the 44 px minimum, and the painted
+        // zoom station sat under the shell taskbar dock.
+        function test_return_gate_keeps_44px_target_and_zoom_station_clears_dock() {
+            var sizes = [[1280, 720], [1364, 1024]]
+            for (var s of sizes) {
+                host.width = s[0]; host.height = s[1]
+                atlas.width = s[0]; atlas.height = s[1]
+                wait(30)
+                var gate = control("finalSeaToNewWorld")
+                verify(gate.width >= 44 && gate.height >= 44,
+                       "TO NEW WORLD keeps the 44 px target at " + s[0] + "x" + s[1])
+                var gatePoint = gate.mapToItem(atlas, 0, 0)
+                verify(gatePoint.x >= 0 && gatePoint.y >= 0
+                       && gatePoint.x + gate.width <= atlas.width
+                       && gatePoint.y + gate.height <= atlas.height,
+                       "TO NEW WORLD stays fully inside the window at " + s[0] + "x" + s[1])
+                var index = control("finalSeaIndexButton")
+                verify(index.width >= 44 && index.height >= 44,
+                       "painted Index keeps the 44 px target at " + s[0] + "x" + s[1])
+                var dock = {
+                    x: Math.max(18, Math.min(80, atlas.width * 0.045)),
+                    y: atlas.height - 80, width: 130, height: 64
+                }
+                var names = ["finalSeaZoomOut", "finalSeaZoomReset", "finalSeaZoomIn"]
+                for (var n = 0; n < names.length; ++n) {
+                    var zoomButton = control(names[n])
+                    verify(zoomButton.width >= 44 && zoomButton.height >= 44)
+                    var point = zoomButton.mapToItem(atlas, 0, 0)
+                    var overlapsDock = point.x < dock.x + dock.width
+                            && point.x + zoomButton.width > dock.x
+                            && point.y < dock.y + dock.height
+                            && point.y + zoomButton.height > dock.y
+                    verify(!overlapsDock,
+                           names[n] + " must not sit under the shell taskbar dock at " + s[0] + "x" + s[1])
+                }
+            }
         }
 
         function test_keyboard_index_stays_on_screen_when_map_is_zoomed() {

@@ -394,7 +394,10 @@ FocusScope {
     Row {
         id: zoomTools
         objectName: "finalSeaZoomTools"
-        x: root.mapPoint(0.0299, 0.8831).x
+        // The painted lower-left station slides right of the shell taskbar dock's
+        // closed footprint (leftEdge<=80 + 130 wide + gap); at short viewports the
+        // dock otherwise covers the zoom controls.
+        x: Math.max(root.mapPoint(0.0299, 0.8831).x, 218)
         y: root.mapPoint(0.0299, 0.8831).y
         spacing: 0
         z: 20
@@ -402,8 +405,8 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomOut"
             text: "−"
-            width: 0.0353 * root.stageGeometry.width
-            height: 0.0584 * root.stageGeometry.height
+            width: Math.max(44, 0.0353 * root.stageGeometry.width)
+            height: Math.max(44, 0.0584 * root.stageGeometry.height)
             mapArtwork: true
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
@@ -413,8 +416,8 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomReset"
             text: Math.round(root.zoom * 100) + "%"
-            width: 0.0604 * root.stageGeometry.width
-            height: 0.0584 * root.stageGeometry.height
+            width: Math.max(44, 0.0604 * root.stageGeometry.width)
+            height: Math.max(44, 0.0584 * root.stageGeometry.height)
             mapArtwork: true
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
@@ -424,8 +427,8 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomIn"
             text: "+"
-            width: 0.0359 * root.stageGeometry.width
-            height: 0.0584 * root.stageGeometry.height
+            width: Math.max(44, 0.0359 * root.stageGeometry.width)
+            height: Math.max(44, 0.0584 * root.stageGeometry.height)
             mapArtwork: true
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
@@ -439,8 +442,10 @@ FocusScope {
         objectName: "finalSeaToNewWorld"
         x: root.mapPoint(0.0299, 0.8055).x
         y: root.mapPoint(0.0299, 0.8055).y
-        width: 0.1441 * root.stageGeometry.width
-        height: 0.0616 * root.stageGeometry.height
+        // The painted plate scales with the chart, but the interactive target keeps
+        // the 44 px minimum the FinalSeaInkButton implicit size already promises.
+        width: Math.max(44, 0.1441 * root.stageGeometry.width)
+        height: Math.max(44, 0.0616 * root.stageGeometry.height)
         mapArtwork: true
         z: 20
         text: "TO NEW WORLD"
@@ -459,8 +464,8 @@ FocusScope {
         objectName: "finalSeaIndexButton"
         x: root.mapPoint(0.8439, 0.0372).x
         y: root.mapPoint(0.8439, 0.0372).y
-        width: 0.1340 * root.stageGeometry.width
-        height: 0.0574 * root.stageGeometry.height
+        width: Math.max(44, 0.1340 * root.stageGeometry.width)
+        height: Math.max(44, 0.0574 * root.stageGeometry.height)
         mapArtwork: true
         z: 30
         text: "INDEX"

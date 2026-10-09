@@ -371,7 +371,8 @@ FocusScope {
     Row {
         id: zoomTools
         objectName: "paradiseZoomTools"
-        x: 28; y: root.height - height - 26
+        // Right of the shell taskbar dock's closed footprint (leftEdge<=80 + 130 wide + gap).
+        x: 218; y: root.height - height - 26
         spacing: 4
         z: 20
         ParadiseInkButton { objectName: "paradiseZoomOut"; text: "−"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom out"; onClicked: root.setZoom(root.zoom - 0.25) }

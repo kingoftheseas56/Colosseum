@@ -718,4 +718,126 @@ TestCase {
         compare(count, 1)
         atlas.paradiseRequested.disconnect(handler)
     }
+
+    // Regression for the 1.1.9 acceptance finding: at 1364x1024 the cover-fit stage
+    // cropped Arlong and the next-sea gate beyond the window with no base-zoom
+    // panning recovery. Base zoom must contain the whole chart at every declared
+    // viewport, with zero tolerance against the window like the acceptance suite.
+    function test_base_zoom_contains_every_badge_and_gate_at_declared_viewports() {
+        var targets = [[1364, 1024], [1280, 720], [1920, 1080]]
+        var ids = ["romance", "orange", "syrup", "baratie", "arlong", "loguetown"]
+        for (var t = 0; t < targets.length; ++t) {
+            atlas.width = targets[t][0]
+            atlas.height = targets[t][1]
+            wait(20)
+            var rects = []
+            for (var i = 0; i < ids.length; ++i) {
+                var badge = atlas.markerForTest(ids[i])
+                verify(badge !== null, ids[i] + " badge exists at " + targets[t][0] + "x" + targets[t][1])
+                verify(badge.width >= 44 && badge.height >= 44,
+                       ids[i] + " keeps the 44 px hit target at " + targets[t][0] + "x" + targets[t][1])
+                var rect = rectInAtlas(badge)
+                verify(rect.x >= 0 && rect.y >= 0
+                       && rect.x + rect.width <= atlas.width
+                       && rect.y + rect.height <= atlas.height,
+                       ids[i] + " hit target must be fully inside the window at "
+                       + targets[t][0] + "x" + targets[t][1] + " (got " + rect.x + "," + rect.y
+                       + " " + rect.width + "x" + rect.height + ")")
+                rects.push(rect)
+            }
+            for (var a = 0; a < rects.length; ++a) {
+                for (var b = a + 1; b < rects.length; ++b) {
+                    verify(!intersects(rects[a], rects[b]),
+                           "badge hit regions must not overlap at " + targets[t][0] + "x" + targets[t][1])
+                }
+            }
+            var gate = findDescendant(atlas, function(item) { return item.objectName === "eastBlueToParadise" })
+            verify(gate !== null, "next-sea gate exists")
+            verify(gate.width >= 44 && gate.height >= 44, "next-sea gate keeps the 44 px target")
+            var gateRect = rectInAtlas(gate)
+            verify(gateRect.x >= 0 && gateRect.y >= 0
+                   && gateRect.x + gateRect.width <= atlas.width
+                   && gateRect.y + gateRect.height <= atlas.height,
+                   "next-sea gate must be fully inside the window at "
+                   + targets[t][0] + "x" + targets[t][1])
+        }
+    }
+
+    // Regression for the 1.1.9 acceptance finding: the permanent shell taskbar dock
+    // (closed footprint leftEdge..leftEdge+130 x bottom 80px band) covered the zoom
+    // controls, so a zoom-in click at (166,668) opened the dock instead. The zoom
+    // cluster must sit clear of that footprint at every window width.
+    function test_zoom_tools_clear_shell_taskbar_dock_footprint() {
+        var widths = [1024, 1280, 1364, 1920]
+        for (var i = 0; i < widths.length; ++i) {
+            atlas.width = widths[i]
+            atlas.height = 720
+            wait(20)
+            var tools = findDescendant(atlas, function(item) { return item.objectName === "eastBlueZoomTools" })
+            verify(tools !== null, "zoom tools exist at width " + widths[i])
+            var leftEdge = Math.max(18, Math.min(80, atlas.width * 0.045))
+            var dock = { x: leftEdge, y: atlas.height - 80,
+                         width: 130, height: 64 }
+            var toolsRect = rectInAtlas(tools)
+            verify(!intersects(toolsRect, dock),
+                   "zoom tools must not sit under the shell taskbar dock at width " + widths[i]
+                   + " (tools " + toolsRect.x + "," + toolsRect.y + " " + toolsRect.width + "x"
+                   + toolsRect.height + " vs dock " + dock.x + "," + dock.y + ")")
+            var names = ["eastBlueZoomOut", "eastBlueZoomReset", "eastBlueZoomIn"]
+            for (var n = 0; n < names.length; ++n) {
+                var button = findDescendant(atlas, function(item) { return item.objectName === names[n] })
+                verify(button !== null, names[n] + " exists")
+                verify(button.width >= 44 && button.height >= 44, names[n] + " keeps the 44 px target")
+            }
+        }
+    }
+
+    // Regression for the 1.1.9 acceptance finding: opening an arc parked the atlas
+    // scope's focus flag on the then-hidden OPEN ARC button, so the arc-return
+    // forceActiveFocus found no visible item and focus escaped to the shell. Both
+    // the pointer path and the keyboard path must return to the selected marker.
+    function test_open_arc_parks_focus_on_visible_marker_not_hidden_button() {
+        atlas.width = 1280
+        atlas.height = 720
+        wait(20)
+
+        // Pointer path: click OPEN ARC while focus sits on the marker (index flow).
+        atlas.focusMarker("arlong")
+        wait(20)
+        var open = findDescendant(atlas, function(item) { return item.objectName === "eastBlueOpenArc" })
+        verify(open !== null)
+        var count = 0
+        var handler = function() { count += 1 }
+        atlas.arcRequested.connect(handler)
+        open.click()
+        compare(count, 1)
+        compare(atlas.previewVisible, false, "opening an arc must close the preview")
+        verify(!open.focus, "hidden OPEN ARC must not keep the scope focus flag after a pointer open")
+        var marker = atlas.markerForTest("arlong")
+        verify(marker.activeFocus || atlas.activeFocus,
+               "atlas focus must stay on a visible item after a pointer open")
+        atlas.arcRequested.disconnect(handler)
+
+        // Keyboard path: OPEN ARC holds active focus when activated.
+        atlas.openPreview("arlong")
+        wait(20)
+        open = findDescendant(atlas, function(item) { return item.objectName === "eastBlueOpenArc" })
+        open.forceActiveFocus()
+        verify(open.activeFocus, "OPEN ARC must accept keyboard focus")
+        count = 0
+        handler = function() { count += 1 }
+        atlas.arcRequested.connect(handler)
+        open.click()
+        compare(count, 1)
+        compare(atlas.previewVisible, false)
+        verify(!open.visible && !open.focus,
+               "hidden OPEN ARC must not keep the scope focus flag after a keyboard open")
+
+        // Arc-return contract: refocusing the scope must land inside the atlas.
+        atlas.forceActiveFocus()
+        verify(atlas.activeFocus, "arc return must restore atlas active focus")
+        marker = atlas.markerForTest("arlong")
+        verify(marker.activeFocus, "the selected marker must own the restored focus")
+        atlas.arcRequested.disconnect(handler)
+    }
 }
