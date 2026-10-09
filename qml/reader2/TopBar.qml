@@ -44,7 +44,8 @@ ReaderOverlay {
     // do not fit beside 44px targets at 412 and are dropped from the bar (Contents still lists
     // chapters). The window verbs never show on Android: Close is the same goBack as Back.
     readonly property bool onAndroid: Qt.platform.os === "android"
-    readonly property bool compact: onAndroid && width < 840
+    // Under 600 is a phone. A portrait tablet (the Nokia T20 is 686 wide) keeps the full bar.
+    readonly property bool compact: onAndroid && width < 600
 
     Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 

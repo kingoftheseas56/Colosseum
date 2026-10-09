@@ -142,7 +142,9 @@ Item {
 
     // ── the sidebar (Discover sidebar plan Slice 2): catalogues live in a pinned rail ──
     property Item backdrop: null             // the world's wallpaper, for the rail's glass
-    readonly property real contentLeft: sidebar.visible ? sidebar.width + 28 : 0
+    // Phone width: an open sidebar lies over the wall instead of squeezing it into a sliver.
+    readonly property real contentLeft: !sidebar.visible ? 0
+        : (browser.phoneNarrow ? sidebar.closedWidth : sidebar.width) + 28
 
     // ── injectable copy (world-neutral defaults; the wrapper sets its world's exact words) ──
     property string textNoCatalogue: "Nothing to browse here yet."
@@ -591,11 +593,22 @@ Item {
     onCatalogMenuOpenChanged: if (catalogMenuOpen) filterPicker.open = false
 
     // ═══ the rail — the sources (addons), pinned beside the wall ═══
+    // phone: the floor an open sidebar stands on while it covers the wall
+    Rectangle {
+        visible: browser.phoneNarrow && sidebar.visible && !sidebar.collapsed
+        z: 119
+        x: 0; y: sidebar.y
+        width: sidebar.width + 14; height: sidebar.height
+        radius: 14
+        color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+        MouseArea { anchors.fill: parent }   // taps on the floor do not reach the wall beneath
+    }
     DiscoverSidebar {
         id: sidebar
         host: browser
         backdrop: browser.backdrop
         visible: browser.adapter !== null
+        z: browser.phoneNarrow && !collapsed ? 120 : 0
     }
 
     // ═══ masthead — the type lens (left) + what fills the wall (right) ═══
