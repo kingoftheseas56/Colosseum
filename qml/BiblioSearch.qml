@@ -51,8 +51,48 @@ Item {
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
+    readonly property bool phoneNarrow: win.androidHost && win.width < 840
 
     Theme { id: theme }
+
+    // A phone result is one full-width row, shared by Books and Audiobooks.
+    component PhoneBookResult: Rectangle {
+        id: phoneRow
+        property var entry: ({})
+        property bool isAudio: false
+        property bool keyboardSelected: false
+        signal activated()
+        height: Math.max(116, phoneDetails.implicitHeight + 24)
+        radius: 12; color: theme.glassTint
+        border.width: keyboardSelected ? 2 : 1
+        border.color: keyboardSelected ? theme.gold : theme.edge
+        Row {
+            anchors.fill: parent; anchors.margins: 12; spacing: 14
+            Rectangle {
+                width: 66; height: 92; radius: 7; clip: true; color: "#14131a"
+                Image { anchors.fill: parent; source: phoneRow.entry.cover || ""
+                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                Rectangle {
+                    visible: phoneRow.isAudio
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 3
+                    width: 22; height: 22; radius: 11; color: Qt.rgba(0,0,0,0.65)
+                    Image { anchors.centerIn: parent; width: 12; height: 12
+                        source: "../assets/icons/music.svg" }
+                }
+            }
+            Column {
+                id: phoneDetails
+                width: Math.max(0, parent.width - 80); spacing: 7
+                Text { width: parent.width; text: phoneRow.entry.title || ""
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 16; wrapMode: Text.Wrap }
+                Text { width: parent.width; text: phoneRow.entry.author || ""
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.Wrap }
+            }
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+            onClicked: phoneRow.activated() }
+    }
+
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) searchScrollKeys.handle(event) }
     Keys.onReleased: (event) => searchScrollKeys.handleRelease(event)
@@ -164,8 +204,9 @@ Item {
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
-        x: theme.margin
-        anchors.verticalCenter: field.verticalCenter
+        x: search.phoneNarrow ? 16 : theme.margin
+        y: search.phoneNarrow ? 14 : undefined
+        anchors.verticalCenter: search.phoneNarrow ? undefined : field.verticalCenter
         hoverColor: "#ffffff"   // Biblio world rule: white hover, not gold
         onTriggered: { search.cancelAllRequests(); search.commitCurrentQuery(); search.backRequested() }
     }
@@ -175,13 +216,16 @@ Item {
         // anchored to the same right margin, and their vertical bands overlapped by 12px, so the
         // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
         // chrome row's own width so it can never drift apart again. (Same fix as SearchSurface.)
-        x: searchBack.x + searchBack.width + 20; y: 44
-        width: search.width - x - theme.margin - winChrome.width - 24; height: 72; radius: 16
+        x: search.phoneNarrow ? 16 : searchBack.x + searchBack.width + 20
+        y: search.phoneNarrow ? 72 : 44
+        width: search.phoneNarrow ? Math.max(0, search.width - 32)
+                                  : search.width - x - theme.margin - winChrome.width - 24
+        height: search.phoneNarrow ? 56 : 72; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
         Canvas {
-            id: glass; width: 21; height: 21
-            x: 22; anchors.verticalCenter: parent.verticalCenter
+            id: glass; width: search.phoneNarrow ? 19 : 21; height: width
+            x: search.phoneNarrow ? 15 : 22; anchors.verticalCenter: parent.verticalCenter
             onPaint: {
                 var ctx = getContext("2d"); ctx.reset()
                 ctx.strokeStyle = "#9a99a5"; ctx.lineWidth = 1.7; ctx.lineCap = "round"
@@ -192,10 +236,10 @@ Item {
         TextInput {
             id: queryInput
             objectName: "biblioSearchInput"
-            anchors.left: glass.right; anchors.leftMargin: 15
-            anchors.right: rightCluster.left; anchors.rightMargin: 14
+            anchors.left: glass.right; anchors.leftMargin: search.phoneNarrow ? 10 : 15
+            anchors.right: rightCluster.left; anchors.rightMargin: search.phoneNarrow ? 4 : 14
             anchors.verticalCenter: parent.verticalCenter
-            color: theme.ink; font.family: theme.display; font.pixelSize: 22
+            color: theme.ink; font.family: theme.display; font.pixelSize: search.phoneNarrow ? 18 : 22
             clip: true; focus: true; selectByMouse: true
             onTextChanged: { search.cancelAllRequests(); debounce.restart() }
             // the field holds keyboard focus, so close on Esc here rather than relying on the
@@ -204,18 +248,20 @@ Item {
         }
         Text {
             visible: queryInput.text.length === 0
-            anchors.left: glass.right; anchors.leftMargin: 15
+            anchors.left: queryInput.left
+            width: queryInput.width; clip: true
             anchors.verticalCenter: parent.verticalCenter
-            text: "Search books…"; color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 22
+            text: "Search books…"; color: theme.inkDimmer; font.family: theme.display
+            font.pixelSize: search.phoneNarrow ? 18 : 22
         }
         Row {
             id: rightCluster
-            anchors.right: parent.right; anchors.rightMargin: 16
+            anchors.right: parent.right; anchors.rightMargin: search.phoneNarrow ? 6 : 16
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
+            spacing: search.phoneNarrow ? 0 : 12
             Rectangle {                              // clear
                 visible: queryInput.text.length > 0
-                width: 26; height: 26; radius: 13
+                width: search.phoneNarrow ? 44 : 26; height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
@@ -225,6 +271,7 @@ Item {
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {                              // Esc hint
+                visible: !search.phoneNarrow
                 width: escTxt.width + 16; height: 24; radius: 6
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.width: 1; border.color: theme.edge
@@ -240,9 +287,9 @@ Item {
     // ── content ──
     Flickable {
         id: scroll
-        anchors.top: field.bottom; anchors.topMargin: 30
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
-        anchors.right: parent.right; anchors.rightMargin: theme.margin
+        anchors.top: field.bottom; anchors.topMargin: search.phoneNarrow ? 20 : 30
+        anchors.left: parent.left; anchors.leftMargin: search.phoneNarrow ? 16 : theme.margin
+        anchors.right: parent.right; anchors.rightMargin: search.phoneNarrow ? 16 : theme.margin
         anchors.bottom: parent.bottom; anchors.bottomMargin: 8
         clip: true
         contentWidth: width
@@ -287,19 +334,22 @@ Item {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: recentFlow.activeFocus && recentFlow.currentIndex === index
-                            height: 40; radius: 999; width: rcLabel.implicitWidth + 57
+                            height: search.phoneNarrow ? Math.max(48, rcLabel.implicitHeight + 16) : 40
+                            radius: 999; width: search.phoneNarrow ? recentFlow.width : rcLabel.implicitWidth + 57
                             color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1
                             border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: rcLabel; anchors.left: parent.left; anchors.leftMargin: 17
                                 anchors.right: removeRecentButton.left; anchors.rightMargin: 5
                                 anchors.verticalCenter: parent.verticalCenter; text: modelData; color: theme.ink
-                                font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                font.family: theme.ui; font.pixelSize: 13
+                                wrapMode: search.phoneNarrow ? Text.Wrap : Text.NoWrap
+                                elide: search.phoneNarrow ? Text.ElideNone : Text.ElideRight }
                             MouseArea { id: rcMa; anchors.left: parent.left; anchors.right: removeRecentButton.left
                                 anchors.top: parent.top; anchors.bottom: parent.bottom; hoverEnabled: true
                                 objectName: "biblioRecentBody"; cursorShape: Qt.PointingHandCursor
                                 onClicked: search.fillAndSearch(modelData) }
-                            Rectangle { id: removeRecentButton; width: 28; height: parent.height; radius: height / 2
+                            Rectangle { id: removeRecentButton; width: search.phoneNarrow ? 44 : 28; height: parent.height; radius: height / 2
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
                                 color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
                                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
@@ -314,9 +364,9 @@ Item {
                 Text { text: "JUMP TO"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
                 Item { width: 1; height: 16 }
-                Row {
+                Flow {
                     id: jumpRow
-                    spacing: 12
+                    width: parent.width; spacing: 12
                     property int currentIndex: 0
                     focusPolicy: Qt.TabFocus
                     Keys.onPressed: (event) => jumpKeys.handle(event)
@@ -335,7 +385,7 @@ Item {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: jumpRow.activeFocus && jumpRow.currentIndex === index
-                            height: 48; radius: 999; width: jLbl.width + 44
+                            height: 48; radius: 999; width: search.phoneNarrow ? jumpRow.width : jLbl.width + 44
                             color: jMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: jLbl; anchors.centerIn: parent; text: modelData.t; color: theme.ink
@@ -373,7 +423,7 @@ Item {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: genreFlow.activeFocus && genreFlow.currentIndex === index
-                            height: 44; radius: 999; width: gLbl.width + 36
+                            height: 44; radius: 999; width: search.phoneNarrow ? genreFlow.width : gLbl.width + 36
                             color: gMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: gLbl; anchors.centerIn: parent; text: modelData.t
@@ -400,7 +450,7 @@ Item {
                 Item { visible: search.results.length > 0; width: 1; height: 14 }
                 Rectangle {
                     id: topCard
-                    visible: search.results.length > 0
+                    visible: search.results.length > 0 && !search.phoneNarrow
                     property var m: search.results.length > 0 ? search.results[0] : ({})
                     width: parent.width; height: 196; radius: 18
                     color: theme.glassTint; border.width: 1; border.color: theme.edge
@@ -456,6 +506,52 @@ Item {
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Open top match"; focusRadius: 18
                         onTriggered: if (topCard.m) search.openBook(topCard.m) }
                 }
+                Rectangle {
+                    id: phoneTopCard
+                    visible: search.phoneNarrow && search.results.length > 0
+                    width: parent.width; height: phoneTopContents.implicitHeight + 28
+                    radius: 16; color: theme.glassTint
+                    border.width: 1; border.color: theme.edge
+                    Column {
+                        id: phoneTopContents
+                        x: 14; y: 14; width: parent.width - 28; spacing: 14
+                        Item {
+                            width: parent.width
+                            height: Math.max(126, phoneTopDetails.implicitHeight)
+                            Row {
+                                anchors.fill: parent; spacing: 14
+                                Rectangle {
+                                    width: 84; height: 126; radius: 8; clip: true; color: "#14131a"
+                                    Image { anchors.fill: parent; source: topCard.m.cover || ""
+                                        fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                }
+                                Column {
+                                id: phoneTopDetails
+                                width: Math.max(0, parent.width - 98); spacing: 8
+                                Text { width: parent.width; text: topCard.m.title || ""
+                                    color: theme.ink; font.family: theme.display; font.pixelSize: 23
+                                    wrapMode: Text.Wrap }
+                                Text { visible: text.length > 0; width: parent.width
+                                    text: topCard.m.tagline ? "“" + topCard.m.tagline + "”" : ""
+                                    color: theme.ink; font.family: theme.display; font.italic: true
+                                    font.pixelSize: 16; wrapMode: Text.Wrap }
+                                Text { width: parent.width
+                                    text: (topCard.m.genreLine || "").toUpperCase()
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                    wrapMode: Text.Wrap }
+                            }
+                            }
+                            MouseArea { anchors.fill: parent; onClicked: search.openTop() }
+                        }
+                        Rectangle {
+                            width: parent.width; height: 48; radius: 12; color: theme.gold
+                            Text { anchors.centerIn: parent; text: "Open  ›"
+                                color: "#241a05"; font.family: theme.ui; font.pixelSize: 15
+                                font.weight: Font.DemiBold }
+                            MouseArea { anchors.fill: parent; onClicked: search.openTop() }
+                        }
+                    }
+                }
                 Item { visible: search.results.length > 0; width: 1; height: 38 }
 
                 // Results grid (the rest)
@@ -468,8 +564,8 @@ Item {
                 Item { visible: search.searched; width: 1; height: 16 }
                 Grid {
                     id: bookGrid
-                    width: parent.width; columns: 6
-                    columnSpacing: 22; rowSpacing: 26
+                    width: parent.width; columns: search.phoneNarrow ? 1 : 6
+                    columnSpacing: search.phoneNarrow ? 0 : 22; rowSpacing: search.phoneNarrow ? 12 : 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
                     readonly property var visibleItems: search.booksExpanded ? search.restResults : search.restResults.slice(0, bookGrid.columns)
                     property int currentIndex: visibleItems.length > 0 ? 0 : -1
@@ -487,8 +583,14 @@ Item {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: bookGrid.activeFocus && bookGrid.currentIndex === index
-                            width: bookGrid.cellW; spacing: 9
+                            width: bookGrid.cellW; spacing: search.phoneNarrow ? 0 : 9
+                            PhoneBookResult {
+                                visible: search.phoneNarrow; width: parent.width
+                                entry: modelData; keyboardSelected: bookGrid.activeFocus && bookGrid.currentIndex === index
+                                onActivated: search.openBook(modelData)
+                            }
                             Item {
+                                visible: !search.phoneNarrow
                                 width: parent.width; height: width * 1.5
                                 Rectangle {
                                     width: parent.width; height: parent.height; radius: 8; clip: true; color: "#14131a"
@@ -505,10 +607,10 @@ Item {
                                     onClicked: search.openBook(modelData) }
                                 }
                             }
-                            Text { width: parent.width; text: modelData.title || ""
+                            Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.title || ""
                                 color: theme.ink; font.family: theme.ui; font.pixelSize: 13
                                 elide: Text.ElideRight; maximumLineCount: 1 }
-                            Text { width: parent.width; text: modelData.author || ""
+                            Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.author || ""
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                         }
@@ -539,8 +641,8 @@ Item {
                 Item { visible: search.audioResults.length > 0; width: 1; height: 16 }
                 Grid {
                     id: audioGrid
-                    width: parent.width; columns: 6
-                    columnSpacing: 22; rowSpacing: 26
+                    width: parent.width; columns: search.phoneNarrow ? 1 : 6
+                    columnSpacing: search.phoneNarrow ? 0 : 22; rowSpacing: search.phoneNarrow ? 12 : 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
                     readonly property var visibleItems: search.audioExpanded ? search.audioResults : search.audioResults.slice(0, audioGrid.columns)
                     property int currentIndex: visibleItems.length > 0 ? 0 : -1
@@ -558,8 +660,15 @@ Item {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: audioGrid.activeFocus && audioGrid.currentIndex === index
-                            width: audioGrid.cellW; spacing: 9
+                            width: audioGrid.cellW; spacing: search.phoneNarrow ? 0 : 9
+                            PhoneBookResult {
+                                visible: search.phoneNarrow; width: parent.width
+                                entry: modelData; isAudio: true
+                                keyboardSelected: audioGrid.activeFocus && audioGrid.currentIndex === index
+                                onActivated: search.openBook(modelData)
+                            }
                             Item {
+                                visible: !search.phoneNarrow
                                 width: parent.width; height: width * 1.5
                                 Rectangle {
                                     width: parent.width; height: parent.height; radius: 8; clip: true; color: "#14131a"
@@ -583,10 +692,10 @@ Item {
                                         onClicked: search.openBook(modelData) }
                                 }
                             }
-                            Text { width: parent.width; text: modelData.title || ""
+                            Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.title || ""
                                 color: theme.ink; font.family: theme.ui; font.pixelSize: 13
                                 elide: Text.ElideRight; maximumLineCount: 1 }
-                            Text { width: parent.width; text: modelData.author || ""
+                            Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.author || ""
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                         }
@@ -602,6 +711,7 @@ Item {
                 Text {
                     visible: search.searchError.length > 0 && !search.searching && !search.audioSearching
                     text: search.searchError
+                    width: parent.width; wrapMode: Text.Wrap
                     color: theme.inkDimmer; font.family: theme.display
                     font.pixelSize: 18; topPadding: 30
                 }
@@ -627,6 +737,7 @@ Item {
     // minimize · fullscreen-toggle · power cluster every page carries.
     Row {
         id: winChrome
+        visible: !search.phoneNarrow
         z: 30
         anchors.right: parent.right
         anchors.rightMargin: theme.margin
