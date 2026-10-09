@@ -6,6 +6,7 @@
 // (ExtensionsSetupSheetAndroid). Tankoyomi's own settings open from its House tile
 // (TankoyomiConfigurationPage).
 import QtQuick
+import QtQuick.Window
 import "ExtensionsStoreApi.js" as StoreApi
 
 Item {
@@ -26,6 +27,10 @@ Item {
     property string loadError: ""
     property bool loading: true
     property int revision: 0                 // bumps on every Extensions change
+    readonly property bool phoneLayout: {
+        const w = root.Window.window
+        return !!(w && w.androidHost && w.width < 840)
+    }
     property var busy: ({})                  // slug -> true while an install is in flight
     property string configuringExtensionId: ""   // a House source whose settings page is open
     property var seeAllRow: null             // a row whose "See all ›" is open
@@ -135,6 +140,7 @@ Item {
     WorldPage {
         id: storeWorld
         objectName: "extensionsStoreWorld"
+        androidHost: root.phoneLayout
         anchors.fill: parent
         visible: !seeAll.visible && !tankoyomiConfiguration.visible
         medium: "Extensions"
@@ -165,6 +171,7 @@ Item {
             sub: "The five a fresh Colosseum needs."
             automationId: "extensionsEssentialsRail"
             canSeeAll: false                 // all five are already on screen
+            phoneLayout: root.phoneLayout
             items: root.essentials
             installedFn: root.isInstalled
             busy: root.busy
@@ -180,6 +187,7 @@ Item {
                 title: modelData.title
                 sub: modelData.sub
                 automationId: "extensionsStoreRail_" + index
+                phoneLayout: root.phoneLayout
                 items: modelData.items
                 installedFn: root.isInstalled
                 busy: root.busy

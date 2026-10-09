@@ -14,6 +14,7 @@ Column {
     property var busy: ({})
     property int revision: 0
     property bool canSeeAll: true
+    property bool phoneLayout: false
     signal addonActivated(var addon)
     signal seeAllRequested()
 
@@ -35,16 +36,21 @@ Column {
     // Header as in the mock: serif title, the line under it, "See all ›" on the right.
     Item {
         width: parent.width
-        height: head.height
+        height: rail.phoneLayout ? Math.max(head.height, seeAll.height) : head.height
         Column {
             id: head
+            width: rail.phoneLayout ? Math.max(0, rail.width - (rail.canSeeAll ? 92 : 0)) : implicitWidth
             spacing: 5
             Text {
+                width: rail.phoneLayout ? head.width : implicitWidth
+                wrapMode: rail.phoneLayout ? Text.WordWrap : Text.NoWrap
                 text: rail.title
                 color: theme.ink
                 font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
             }
             Text {
+                width: rail.phoneLayout ? head.width : implicitWidth
+                wrapMode: rail.phoneLayout ? Text.WordWrap : Text.NoWrap
                 visible: rail.sub.length > 0
                 text: rail.sub
                 color: theme.inkDimmer
@@ -70,8 +76,28 @@ Column {
         }
     }
 
+    Column {
+        id: mobileCards
+        visible: rail.phoneLayout
+        width: parent.width
+        spacing: 18
+        Repeater {
+            model: rail.phoneLayout ? rail.items : []
+            delegate: ExtensionsStoreCard {
+                required property var modelData
+                width: mobileCards.width
+                phoneLayout: true
+                addon: modelData
+                installed: { rail.revision; return rail.installedFn(modelData) }
+                busy: rail.busy[modelData.slug] === true
+                onActivated: rail.addonActivated(modelData)
+            }
+        }
+    }
+
     Flickable {
         id: flick
+        visible: !rail.phoneLayout
         objectName: rail.automationId
         property bool keyboardReturnOwner: true
         property var keyboardSectionCoordinator: rail.keyboardSectionCoordinator
@@ -98,10 +124,10 @@ Column {
         }
         property int currentIndex: rail.items.length > 0 ? 0 : -1
         width: parent.width
-        height: row.height
+        height: rail.phoneLayout ? 0 : row.height
         contentWidth: row.width; contentHeight: height
         clip: true
-        focusPolicy: rail.items.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        focusPolicy: rail.phoneLayout ? Qt.NoFocus : (rail.items.length > 0 ? Qt.TabFocus : Qt.NoFocus)
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => keys.handle(event)
