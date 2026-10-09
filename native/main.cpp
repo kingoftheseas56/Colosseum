@@ -1979,6 +1979,9 @@ int main(int argc, char *argv[]) {
     feriaDiscovery.exposeTo(engine.rootContext());
     auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
     engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
+    // Browser engines leave in order at exit: outstanding work, views, then profiles.
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     feriaBrowserPolicy->runtime(), &FeriaBrowserRuntime::shutdown);
     auto *feriaAccount = new FeriaAccountStore(&engine);
     auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
         const auto &profile = accountRuntime->profileStores()->activeProfile();

@@ -54,6 +54,9 @@ function fixture(saved = initialTabs, automatic = false) {
         accountStore, sessions, ready: true, quiescing: false, restoredProfile: false,
         entries: {}, activeEntry: null, closedTabs: [], policy: { storageRoot: "profile-a" },
         message() {},
+        // The deck is the native runtime's engine adapter; restore logic only
+        // needs it to attach and to refuse commands for these engine-less rows.
+        runtime: { attach() { return true; }, command() { return { accepted: false }; } },
         snapshotTimer: { stop() {}, restart() { context.persistTabs(); } },
         Qt: { callLater(callback) { queued.push(callback); } }
     };

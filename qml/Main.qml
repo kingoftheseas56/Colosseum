@@ -4669,7 +4669,7 @@ Window {
             item.sharedAccount = true
             item.browserDeck = feriaSessionDeck
             item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
-                var id = Sessions.openBrowser(descriptor, fresh, navigate)
+                var id = feriaSessionDeck.open(descriptor, fresh, navigate)
                 if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
                 item.activateBrowserRecord(Sessions.get(id))
                 if (navigate) Qt.callLater(function() {

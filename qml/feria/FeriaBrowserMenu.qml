@@ -62,7 +62,7 @@ Dialog {
         close()
         deck.newSpace(sourceId, isPrivate, true)
     }
-    function switchTab(id) { close(); deck.sessions.switchTo(id) }
+    function switchTab(id) { close(); deck.activate(id) }
     function closeTab(id) { deck.closeTab(id); refreshRows() }
     function navigate(url) { close(); navigateRequested(String(url)) }
     function setBookmark(url, title, saved) {

@@ -19,6 +19,8 @@ add_executable(feria_wv2_integration
     "${ROOT}/native/feria/FeriaBrowserPolicy.cpp"
     "${ROOT}/native/feria/FeriaBrowserPolicy.h"
     "${ROOT}/native/feria/FeriaBrowserOperations.cpp"
+    "${ROOT}/native/feria/FeriaBrowserRuntime.cpp"
+    "${ROOT}/native/feria/FeriaBrowserRuntime.h"
     "${ROOT}/native/feria/FeriaBrowserOperations.h"
     "${ROOT}/native/feria/app-state/PorticoAppStateBridge.cpp"
     "${ROOT}/native/feria/app-state/PorticoAppStateBridge.h"

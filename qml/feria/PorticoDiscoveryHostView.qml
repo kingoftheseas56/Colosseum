@@ -37,7 +37,7 @@ Item {
         var records = deck.sessions.browsers()
         if (!records.length) return
         var current = records.findIndex(function(record) { return record.id === deck.sessions.activeId })
-        deck.sessions.switchTo(records[(current + step + records.length) % records.length].id)
+        deck.activate(records[(current + step + records.length) % records.length].id)
     }
     Shortcut {
         sequence: "Ctrl+T"

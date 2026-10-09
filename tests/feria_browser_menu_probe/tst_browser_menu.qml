@@ -61,6 +61,8 @@ Item {
             newAction = { sourceId: sourceId, privateBrowsing: privateBrowsing, activate: activate }
         }
         function closeTab(id) { closedId = id }
+        // The real deck routes activation through the native command door.
+        function activate(id) { sessions.switchTo(id); return true }
         function restoreTabs(provider) { restores++; restoredProvider = provider || "" }
         function dismissRestoreTabs() { dismissals++; restorableTabCount = 0 }
     }

@@ -39,13 +39,91 @@
 #include <tlhelp32.h>
 #endif
 
+#ifdef Q_OS_WIN
+// Input-driven cases need this process to own the foreground. Windows denies
+// activation to a window whose process was started by a background launcher,
+// which fails focus waits for reasons unrelated to the code under test.
+// Opt-in (FERIA_FIXTURE_FOREGROUND=1): each top-level window claims the
+// foreground once, on its first exposure. Activation between this process's
+// own windows is then decided by the code under test, as on a user's desktop.
+class ForegroundClaim : public QObject {
+public:
+    using QObject::QObject;
+    static void claim(QWindow *window) {
+        const HWND target = reinterpret_cast<HWND>(window->winId());
+        const HWND current = GetForegroundWindow();
+        if (current == target) return;
+        const DWORD self = GetCurrentThreadId();
+        const DWORD owner = current ? GetWindowThreadProcessId(current, nullptr) : 0;
+        if (owner && owner != self) AttachThreadInput(owner, self, TRUE);
+        SetForegroundWindow(target);
+        BringWindowToTop(target);
+        if (owner && owner != self) AttachThreadInput(owner, self, FALSE);
+    }
+protected:
+    bool eventFilter(QObject *object, QEvent *event) override {
+        auto *window = qobject_cast<QWindow *>(object);
+        if (event->type() == QEvent::Expose && window && window->isTopLevel()
+            && window->isExposed() && !window->property("_feriaForegroundClaimed").toBool()) {
+            window->setProperty("_feriaForegroundClaimed", true);
+            claim(window);
+        }
+        return false;
+    }
+};
+#endif
+
+#ifdef Q_OS_WIN
+// No debugger or Qt symbols are assumed on a test machine. An unhandled
+// native exception is reported as module+offset frames so a crash during
+// teardown is attributable to a binary instead of being an opaque exit code.
+static void describeAddress(const char *label, void *address) {
+    HMODULE module = nullptr;
+    wchar_t path[MAX_PATH] = L"?";
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           static_cast<LPCWSTR>(address), &module) && module)
+        GetModuleFileNameW(module, path, MAX_PATH);
+    const wchar_t *name = wcsrchr(path, L'\\');
+    fprintf(stderr, "FERIA_CRASH %s %ls+0x%llx\n", label, name ? name + 1 : path,
+            static_cast<unsigned long long>(static_cast<char *>(address) - reinterpret_cast<char *>(module)));
+}
+static LONG WINAPI reportCrash(EXCEPTION_POINTERS *info) {
+    fprintf(stderr, "FERIA_CRASH code 0x%08lx\n", info->ExceptionRecord->ExceptionCode);
+    describeAddress("at", info->ExceptionRecord->ExceptionAddress);
+    void *frames[48];
+    const USHORT count = CaptureStackBackTrace(0, 48, frames, nullptr);
+    for (USHORT i = 0; i < count; ++i) describeAddress("frame", frames[i]);
+    fflush(stderr);
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 class FeriaRuntimeFixture : public QObject {
     Q_OBJECT
 public:
     Q_PROPERTY(QString evidenceRoot READ evidenceRoot CONSTANT)
     Q_PROPERTY(QString downloadRoot READ downloadRoot CONSTANT)
+    Q_PROPERTY(QString journey READ journey CONSTANT)
     QString evidenceRoot() const { return qEnvironmentVariable("FERIA_SESSION_EVIDENCE_DIR"); }
     QString downloadRoot() const { return m_temp.filePath("downloads"); }
+    // Journey runs (--journey) are whole-process scenarios that end through
+    // the application's own exit path instead of the QuickTest teardown.
+    QString journey() const { return qEnvironmentVariable("FERIA_JOURNEY"); }
+    // A caller-owned root lets two processes share one disposable profile, to
+    // prove what survives a clean restart. Default: a per-process temp dir.
+    QString profileRoot(const QString &name) const {
+        const QString root = qEnvironmentVariable("FERIA_FIXTURE_ROOT");
+        return root.isEmpty() ? m_temp.filePath(name) : QDir(root).filePath(name);
+    }
+    FeriaBrowserPolicy *policy() const { return m_policy; }
+    bool journeyPassed() const { return m_journeyPassed; }
+    Q_INVOKABLE void finish(bool passed, const QString &detail) {
+        if (m_journeyFinished) return;
+        m_journeyFinished = true;
+        m_journeyPassed = passed;
+        qInfo().noquote() << "FERIA_JOURNEY_RESULT" << (passed ? "PASS" : "FAIL") << detail;
+        QCoreApplication::exit(passed ? 0 : 1);
+    }
     Q_INVOKABLE QByteArray downloadedContent(const QString &path) const {
         if (!QDir::cleanPath(path).startsWith(downloadRoot() + '/')) return {};
         QFile file(path);
@@ -139,7 +217,7 @@ public:
         return item->window()->grabWindow().save(QDir(evidenceRoot()).filePath(name));
     }
     Q_INVOKABLE void switchProfile(const QString &name) {
-        const QString root = m_temp.filePath(name);
+        const QString root = profileRoot(name);
         m_sessions->setBrowserProfile(root);
         m_account->setStoragePath(root + QStringLiteral("/account.json"));
         m_policy->setStorageRoot(root + QStringLiteral("/browser"));
@@ -151,6 +229,10 @@ public slots:
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_temp.filePath("settings"));
         if (!evidenceRoot().isEmpty()) QDir().mkpath(evidenceRoot());
+#ifdef Q_OS_WIN
+        if (qEnvironmentVariable("FERIA_FIXTURE_FOREGROUND") == QStringLiteral("1"))
+            QCoreApplication::instance()->installEventFilter(new ForegroundClaim(QCoreApplication::instance()));
+#endif
         QDir().mkpath(downloadRoot());
         connect(&m_server, &QTcpServer::newConnection, this, [this] {
             while (m_server.hasPendingConnections()) {
@@ -172,6 +254,11 @@ public slots:
                     QByteArray mime("text/html");
                     if (path.startsWith("/reopen-redirect") && ++m_routeHits[path] > 1) {
                         socket->write("HTTP/1.1 302 Found\r\nLocation: /hosting\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/redirect") {
+                        socket->write("HTTP/1.1 302 Found\r\nLocation: /b\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
                         socket->disconnectFromHost();
                         return;
                     }
@@ -259,7 +346,9 @@ public slots:
                 connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
             }
         });
-        if (!m_server.listen(QHostAddress::LocalHost, 0)) qFatal("Fixture listener failed");
+        if (!m_server.listen(QHostAddress::LocalHost,
+                quint16(qEnvironmentVariableIntValue("FERIA_FIXTURE_PORT"))))
+            qFatal("Fixture listener failed");
     }
     void qmlEngineAvailable(QQmlEngine *engine) {
         m_sessions = new SessionStore(engine);
@@ -280,13 +369,28 @@ private:
     SessionStore *m_sessions = nullptr;
     FeriaAccountStore *m_account = nullptr;
     FeriaBrowserPolicy *m_policy = nullptr;
+    bool m_journeyFinished = false;
+    bool m_journeyPassed = false;
 };
 int main(int argc, char **argv) {
+#ifdef Q_OS_WIN
+    SetUnhandledExceptionFilter(reportCrash);
+#endif
     QtWebEngineQuick::initialize();
     qInfo().noquote() << "Runtime versions: Qt" << qVersion()
         << "WebEngine" << qWebEngineVersion()
         << "Chromium" << qWebEngineChromiumVersion()
         << "security-patch" << qWebEngineChromiumSecurityPatchVersion();
+#ifdef Q_OS_WIN
+    // Which engine binaries this run actually loaded: a result on the stock
+    // kit says nothing about a codec-enabled deployment, and the reverse.
+    for (const wchar_t *name : {L"Qt6Core.dll", L"Qt6Quick.dll", L"Qt6WebEngineQuick.dll", L"Qt6WebEngineCore.dll"}) {
+        wchar_t path[MAX_PATH] = {};
+        if (const HMODULE module = GetModuleHandleW(name); module && GetModuleFileNameW(module, path, MAX_PATH))
+            qInfo().noquote() << "Runtime module:" << QString::fromWCharArray(path);
+    }
+    qInfo().noquote() << "Runtime helper:" << qEnvironmentVariable("QTWEBENGINEPROCESS_PATH", QStringLiteral("(default beside Qt6WebEngineCore)"));
+#endif
     FeriaRuntimeFixture setup;
     if (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--preview") {
         QGuiApplication app(argc, argv);
@@ -313,6 +417,45 @@ int main(int argc, char **argv) {
             QTimer::singleShot(20000, &app, [] { QCoreApplication::exit(5); });
         }
         return app.exec();
+    }
+    if (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--journey") {
+        QGuiApplication app(argc, argv);
+        setup.applicationAvailable();
+        // Observe the actual destruction order instead of trusting the code
+        // that requests it: a profile must never go while a view remains.
+        int profileBeforeView = 0;
+        int profiles = 0;
+        int verdict = 2;
+        bool drained = false;
+        {
+            QQmlApplicationEngine engine;
+            setup.qmlEngineAvailable(&engine);
+            FeriaBrowserRuntime *runtime = setup.policy()->runtime();
+            // Same hook as native/main.cpp: engines leave in order at exit.
+            QObject::connect(&app, &QCoreApplication::aboutToQuit, runtime, &FeriaBrowserRuntime::shutdown);
+            QObject::connect(runtime, &FeriaBrowserRuntime::profileCountChanged, &app, [&, runtime] {
+                if (runtime->profileCount() < profiles && runtime->viewCount() > 0) ++profileBeforeView;
+                profiles = runtime->profileCount();
+            });
+            engine.load(QUrl::fromLocalFile(QFileInfo(QString::fromLocal8Bit(argv[2])).absoluteFilePath()));
+            if (engine.rootObjects().isEmpty()) return 2;
+            QTimer::singleShot(120000, &app, [] {
+                qCritical("FERIA_JOURNEY_RESULT FAIL deadline");
+                QCoreApplication::exit(5);
+            });
+            verdict = app.exec();
+            // exec() has flushed deferred deletions: every engine object the
+            // adapter retired is gone now, before the QML engine is torn down.
+            drained = runtime->viewCount() == 0 && runtime->profileCount() == 0;
+            qInfo().noquote() << "FERIA_JOURNEY_EXIT views" << runtime->viewCount()
+                << "profiles" << runtime->profileCount() << "profileBeforeView" << profileBeforeView;
+        }
+        // The QML engine is gone. Anything it still had to destroy went in
+        // object-tree order, which this counter also saw.
+        qInfo().noquote() << "FERIA_JOURNEY_TEARDOWN profileBeforeView" << profileBeforeView;
+        if (verdict != 0) return verdict;
+        if (!setup.journeyPassed()) return 6;
+        return drained && profileBeforeView == 0 ? 0 : 3;
     }
     return quick_test_main_with_setup(argc, argv, "feria_foundation", nullptr, &setup);
 }

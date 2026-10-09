@@ -14,6 +14,9 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     property var sharedProfile: null
+    // Native lifecycle owner: admits and redeems this view's asynchronous
+    // work, and decides when the view has drained and may be destroyed.
+    readonly property var runtime: FeriaBrowserPolicy.runtime
     // Canonical ownership for shared navigation fencing; optional so
     // standalone harnesses keep driving the raw wrapper.
     property var sessions: null
@@ -147,10 +150,14 @@ WebEngineView {
     property int javascriptTicketSerial: 0
     readonly property int pendingJavaScript: Object.keys(javascriptTickets).length
     property int javascriptEpoch: 0
+    // Every document boundary this adapter observes moves the native epoch
+    // that script and prompt tickets are bound to.
+    onJavascriptEpochChanged: runtime.documentChanged(browser)
     property bool destructionNotified: false
     signal safeToDestroy()
     function notifySafeToDestroy() {
-        if (!closingSession || pendingJavaScript !== 0 || destructionNotified) return
+        if (!closingSession || pendingJavaScript !== 0 || destructionNotified
+            || !runtime.drained(browser)) return
         destructionNotified = true
         stop()
         safeToDestroy()
@@ -158,14 +165,20 @@ WebEngineView {
     function invalidateJavaScriptTickets() {
         for (var id of Object.keys(javascriptTickets)) JavaScript.invalidate(javascriptTickets[id])
         javascriptTickets = ({})
+        // The engine will never answer these; the native ledger drops them too.
+        if (runtime) runtime.retireWork(browser)
     }
     function finishJavaScript(ticket, result, callback) {
         if (javascriptTickets[ticket.id] !== ticket) return
         var remaining = Object.assign({}, javascriptTickets)
         delete remaining[ticket.id]
         javascriptTickets = remaining
+        // The native ticket is redeemed exactly once. It is refused when the
+        // document, engine generation, page or account it was admitted for
+        // is no longer current, so a late result cannot act on a replacement.
+        var live = runtime.redeemWork(ticket.work)
         try {
-            if (!closingSession && !rendererLost && ticket.epoch === javascriptEpoch
+            if (live && !closingSession && !rendererLost
                     && typeof callback === "function") callback(result)
         } finally {
             notifySafeToDestroy()
@@ -174,7 +187,9 @@ WebEngineView {
     function evaluateJavaScript(script, callback) {
         if (closingSession || adoptingWindowRequest || rendererLost) return false
         if (lifecycleState !== WebEngineView.LifecycleState.Active) return false
-        var ticket = JavaScript.ticket(browser, ++javascriptTicketSerial, javascriptEpoch, callback)
+        var work = runtime.admitWork(browser, "script")
+        if (!work) return false
+        var ticket = JavaScript.ticket(browser, ++javascriptTicketSerial, work, callback)
         var pending = Object.assign({}, javascriptTickets)
         pending[ticket.id] = ticket
         javascriptTickets = pending
@@ -191,11 +206,29 @@ WebEngineView {
         if (!engineTerminal)
             evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
         closingSession = true
+        runtime.beginRetirement(browser)
         // Release focus while the retained owner's scope is still alive,
         // before deferred parent/Loader destruction reaches the native view.
         focus = false
         documentCheck.stop(); cleanupPoll.stop()
         notifySafeToDestroy()
+    }
+    // Application exit only: there is no event loop left to drain into. With
+    // Qt 6.11.1, deleting a view that still owed script callbacks faulted
+    // intermittently (access violation in Qt6Qml, called from
+    // Qt6WebEngineQuick while Qt6WebEngineCore tore the web contents down
+    // inside the view's destructor). Discarding destroys the web contents
+    // now, while this object is intact, so whatever the engine delivers on
+    // teardown arrives before the destructor. Measured, not proven: see
+    // docs/feria-browser-foundation-set-1.md.
+    function discardForExit() {
+        invalidateJavaScriptTickets()
+        closingSession = true
+        documentCheck.stop(); cleanupPoll.stop(); freezeTimer.stop()
+        focus = false
+        visible = false
+        lifecycleState = WebEngineView.LifecycleState.Discarded
+        return lifecycleState === WebEngineView.LifecycleState.Discarded
     }
     property string providerId: ""
     property string accountVisitToken: ""
@@ -497,6 +530,9 @@ WebEngineView {
         // Qt Quick can retain unanswered native callbacks until adapter disposal.
         // Retire this terminal's tickets, never live-close or new-renderer work.
         invalidateJavaScriptTickets()
+        // Same activity, new engine generation: nothing admitted for the dead
+        // renderer can be redeemed against the one that replaces it.
+        runtime.rendererLost(browser)
         ++navigationGeneration
         ++javascriptEpoch
         ++presentationSerial

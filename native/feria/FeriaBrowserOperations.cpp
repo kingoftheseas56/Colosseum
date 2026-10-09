@@ -21,6 +21,9 @@ const QStringList kCancellationEvidence{
 const QStringList kCloseSuccessEvidence{
     QStringLiteral("window-close-acknowledged"),
     QStringLiteral("correlated-navigation-departure"),
+    // The activity has no engine view (creation failed or its engine is
+    // unavailable): there is no document whose unload could be consulted.
+    QStringLiteral("no-engine-instance"),
 };
 
 const QStringList kOutcomes{

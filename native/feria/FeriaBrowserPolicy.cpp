@@ -25,6 +25,15 @@ bool hostWithPort(const QString &text) {
 }
 }
 
+FeriaBrowserPolicy::FeriaBrowserPolicy(QObject *parent)
+    : QObject(parent), m_runtime(new FeriaBrowserRuntime(this))
+{
+    connect(m_runtime, &FeriaBrowserRuntime::viewCountChanged,
+            this, &FeriaBrowserPolicy::runtimeViewCountChanged);
+    connect(m_runtime, &FeriaBrowserRuntime::profileCountChanged,
+            this, &FeriaBrowserPolicy::runtimeProfileCountChanged);
+}
+
 QRect FeriaBrowserPolicy::windowWorkArea(QObject *object) const
 {
     const auto *window = qobject_cast<QWindow *>(object);
@@ -204,7 +213,7 @@ int FeriaBrowserPolicy::clearQtCookies(const QString &profilePath, const QString
         }
         // A retained WebEngine profile owns a live cookie database. Wait for
         // QObject destruction, not merely a hidden or parked browser surface.
-        if (!m_runtimeProfiles.isEmpty() || !m_runtimeViews.isEmpty()) {
+        if (m_runtime->profileCount() > 0 || m_runtime->viewCount() > 0) {
             if (++*attempts >= 60) {
                 retry->stop(); retry->deleteLater(); emit cookiesCleared(request, false);
             }

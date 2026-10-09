@@ -28,6 +28,17 @@ Item {
     property var authDetails: null
     property string authValidationMessage: ""
     readonly property bool authenticating: current !== null && current.kind === "webauth"
+    // Prompts raised by a registered engine view hold a native work ticket
+    // bound to the document that asked. Component doubles that are not engine
+    // views are unmanaged (-1) and keep only the local generation fence.
+    readonly property var runtime: typeof FeriaBrowserPolicy !== "undefined" ? FeriaBrowserPolicy.runtime : null
+    function admitWork() {
+        return runtime && runtime.hasView(browser) ? runtime.admitWork(browser, "request") : -1
+    }
+    function workLive(entry) { return entry.work < 0 || runtime.workValid(entry.work) }
+    function settleWork(entry) {
+        if (entry && entry.work > 0) { runtime.releaseWork(entry.work); entry.work = 0 }
+    }
     Theme { id: theme }
 
     function originLabel(url) {
@@ -62,17 +73,22 @@ Item {
         return count
     }
     function reject(entry) {
-        if (!entry || !entry.request) return
+        if (!entry) return
+        settleWork(entry)
+        if (!entry.request) return
         if (entry.kind === "permission") {
             if (entry.request.isValid) entry.request.deny()
         } else if (entry.kind === "certificate") entry.request.selectNone()
         else if (entry.kind === "desktop" || entry.kind === "webauth") entry.request.cancel()
     }
     function enqueue(kind, request, origin) {
-        var entry = {id: ++nextId, generation: generation, kind: kind,
+        var entry = {id: ++nextId, generation: generation, kind: kind, work: -1,
                      request: request, origin: kind === "certificate" ? certificateHostLabel(origin)
                         : kind === "webauth" ? String(origin || originLabel(browser.url)) : originLabel(origin)}
         if (!active) { reject(entry); return }
+        entry.work = admitWork()
+        // Not admitted: the page that asked is retiring or no longer current.
+        if (entry.work === 0) { reject(entry); return }
         pending = pending.concat([entry])
         showNext()
     }
@@ -81,6 +97,7 @@ Item {
         var next = pending[0]
         pending = pending.slice(1)
         if (!next.request || (next.kind === "webauth" && authFinished(next.request.state))) {
+            settleWork(next)
             Qt.callLater(showNext)
             return
         }
@@ -93,6 +110,9 @@ Item {
         if (allow && entry.kind === "webauth") return false
         current = null
         prompt.close()
+        // An answer for a document that has since been replaced is a denial.
+        if (allow && !workLive(entry)) allow = false
+        settleWork(entry)
         if (!allow) reject(entry)
         else if (entry.kind === "permission") {
             if (entry.request.isValid) entry.request.grant()
@@ -130,6 +150,7 @@ Item {
         authValidationMessage = ""
         pinInput.clear(); confirmPinInput.clear()
         if (authFinished(authState)) {
+            settleWork(current)
             current = null
             prompt.close()
             Qt.callLater(showNext)
@@ -137,7 +158,8 @@ Item {
     }
     function submitAuth(id, action, value, confirmation) {
         var entry = current
-        if (!entry || entry.id !== id || entry.generation !== generation || !active || entry.kind !== "webauth") return false
+        if (!entry || entry.id !== id || entry.generation !== generation || !active || entry.kind !== "webauth"
+            || !workLive(entry)) return false
         var request = entry.request
         if (action === "account" && request.state === WebEngineWebAuthUxRequest.WebAuthUxState.SelectAccount) {
             if (request.userNames.indexOf(value) < 0) return false
