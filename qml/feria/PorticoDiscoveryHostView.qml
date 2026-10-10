@@ -53,7 +53,7 @@ Item {
             root.controller.browserDeck.newSpace(root.controller.hostSessionId, true, true)
         }
     }
-    Shortcut { sequence: "Ctrl+W"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.closeTab(root.controller.hostSessionId) }
+    Shortcut { sequence: "Ctrl+W"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.closeTab(root.controller.browserDeck.sessions.activeId) }
     Shortcut { sequence: "Ctrl+Tab"; enabled: root.visible && root.retained; onActivated: root.cycleBrowserTab(1) }
     Shortcut { sequence: "Ctrl+Shift+Tab"; enabled: root.visible && root.retained; onActivated: root.cycleBrowserTab(-1) }
     Shortcut { sequence: "Ctrl+Shift+T"; enabled: root.visible && root.retained; onActivated: root.controller.browserDeck.restoreClosedTab() }
