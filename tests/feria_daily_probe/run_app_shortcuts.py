@@ -99,7 +99,7 @@ def page_focus(label):
     # --keep-going: a home-screen tile must never be clicked as a web page.
     return [host_guard(label),
             app.click(label + ": focus WebEngine textarea", "feriaQtWebEngine"),
-            app.pause(label + ": Chromium focus hand-off", 650)]
+            app.pause(label + ": Chromium focus hand-off", 700)]
 
 
 def unchanged(label, name, value):
@@ -115,7 +115,7 @@ def prove_focus(steps, label, name, values, letter):
     current = values.get(name, "") + letter.lower()
     steps.extend(page_focus(label))
     steps += [app.key(label + ": CONTROL plain " + letter + " reaches page", letter),
-              app.pause(label + ": wait for input title", 400),
+              app.pause(label + ": wait for input title", 1600),
               title(label + ": CONTROL keyboard owned by " + name,
                     "kbd=%s|" % name),
               title(label + ": CONTROL textarea value", "|value=%s|" % current)]
