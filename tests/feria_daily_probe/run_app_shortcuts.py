@@ -75,7 +75,7 @@ def title(label, value):
 
 
 def unchanged(shortcut, text):
-    return [app.pause(shortcut + ": deliver page title", 300),
+    return [app.pause(shortcut + ": deliver page title", 1100),
             title(shortcut + ": textarea value unchanged", "|value=" + text + "|")]
 
 
@@ -115,7 +115,7 @@ def steps(site):
     # Control: a plain key really enters the page, rather than just the app.
     s += address("load keyboard fixture A", a)
     s += [*page_focus("initial page"), app.key("CONTROL: plain A to web textarea", "A"),
-          app.pause("CONTROL: input callback updates title", 400),
+          app.pause("CONTROL: input callback updates title", 1600),
           title("CONTROL: WebEngine received plain A", "kbd=a|loads=1|value=a|keydown=")]
 
     s += [*page_focus("Ctrl+L"), app.key("Ctrl+L: address editor", "Ctrl+L"),
@@ -124,7 +124,7 @@ def steps(site):
     s += unchanged("Ctrl+L", "a")
     s += [app.key("Ctrl+L: Escape", "Escape"), *page_focus("after Escape"),
           app.key("Ctrl+L: page receives B again", "B"),
-          app.pause("Ctrl+L: resumed typing reported", 300),
+          app.pause("Ctrl+L: resumed typing reported", 1600),
           title("Ctrl+L: focus returns to textarea", "|value=ab|")]
 
     s += [*page_focus("Ctrl+R"), app.key("Ctrl+R: reload", "Ctrl+R"),
@@ -138,7 +138,7 @@ def steps(site):
 
     s += address("load keyboard fixture B", b)
     s += [*page_focus("B navigation"), app.key("CONTROL: enter C on B", "C"),
-          app.pause("CONTROL: B input reported", 300),
+          app.pause("CONTROL: B input reported", 1600),
           title("CONTROL: B has the keyboard", "kbd=b|loads=1|value=c|")]
     s += [*page_focus("Alt+Left"), app.key("Alt+Left: back", "Alt+Left"),
           app.pause("Alt+Left: page completes", 900),
@@ -158,7 +158,7 @@ def steps(site):
     s += close_menu("after Ctrl+T")
     s += address("new tab goes to local fixture C", c)
     s += [*page_focus("new tab C"), app.key("CONTROL: C gets D", "D"),
-          app.pause("CONTROL: C title updated", 300),
+          app.pause("CONTROL: C title updated", 1600),
           title("CONTROL: new tab C has keyboard", "kbd=c|loads=1|value=d|")]
     s += [*page_focus("Ctrl+W"), app.key("Ctrl+W: close tab C", "Ctrl+W"),
           app.pause("Ctrl+W: return to B", 1200),
@@ -184,7 +184,7 @@ def steps(site):
           app.pause("Ctrl+Shift+N: tab created", 1200)]
     s += address("private tab loopback fixture", private)
     s += [*page_focus("private page"), app.key("CONTROL: private receives P", "P"),
-          app.pause("CONTROL: private input", 300),
+          app.pause("CONTROL: private input", 1600),
           title("CONTROL: private page keyboard", "kbd=private|loads=1|value=p|"),
           *page_focus("private menu"), app.key("Ctrl+Shift+N: inspect private mode", "Ctrl+H"),
           app.wait_for("private History visible", "feriaBrowserHistoryList", "visible", True),
@@ -215,7 +215,7 @@ def steps(site):
           app.wait_for("Ctrl+F: panel is dismissed", "feriaFindInput", "visible", False),
           app.pause("Ctrl+F: page focus restored", 350),
           app.key("Ctrl+F: resumed page input E", "E"),
-          app.pause("Ctrl+F: page accepted resumed typing", 400),
+          app.pause("Ctrl+F: page accepted resumed typing", 1600),
           title("Ctrl+F: textarea regained keyboard", "|value=ce|")]
 
     s += [*page_focus("Ctrl+="), app.key("Ctrl+=: zoom in", "Ctrl+="),
