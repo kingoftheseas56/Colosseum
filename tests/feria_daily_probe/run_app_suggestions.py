@@ -248,17 +248,31 @@ def run(args, name, serial, site):
     tag = "feria-set4-0009-%s-%02d-%s" % (name, serial, time.strftime("%Y%m%d-%H%M%S"))
     cmd = [str(args.lanista), "session", "run", str(scenario),
            "--exe", str(args.exe), "--qml", "qml/Main.qml", "--drive", "--tag", tag]
-    try:
-        completed = subprocess.run(cmd, cwd=app.ROOT, env=env, capture_output=True,
-                                   text=True, encoding="utf-8", errors="replace", timeout=300)
-        log_text = completed.stdout + completed.stderr
-        code = completed.returncode
-    except subprocess.TimeoutExpired as exc:
-        log_text = (exc.stdout or b"").decode("utf-8", "replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        log_text += "\nSCENARIO TIMEOUT after 300 seconds\n"
-        code = -1
+    # Stream Lanista output to disk as it arrives. A failed app may leave a
+    # descendant holding an inherited stdout handle, so communicate() can
+    # wait even after Lanista exits. A daemon pump and bounded join preserve
+    # the first failing step without waiting on that unrelated descendant.
     log = out / "suggestions.out"
-    log.write_text(log_text, encoding="utf-8")
+    with log.open("w", encoding="utf-8", errors="replace") as capture:
+        proc = subprocess.Popen(cmd, cwd=app.ROOT, env=env, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True,
+                                encoding="utf-8", errors="replace", bufsize=1)
+        def pump():
+            for line in proc.stdout:
+                capture.write(line)
+                capture.flush()
+        reader = threading.Thread(target=pump, daemon=True)
+        reader.start()
+        try:
+            code = proc.wait(timeout=180)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=10)
+            code = -1
+            capture.write("\nSCENARIO TIMEOUT after 180 seconds\n")
+            capture.flush()
+        reader.join(timeout=5)
+    log_text = log.read_text(encoding="utf-8", errors="replace")
     summary = re.search(r"(\d+) steps, (\d+) failed", log_text)
     match = re.search(r"manifest: (.*?)\)", log_text)
     manifest = {}
