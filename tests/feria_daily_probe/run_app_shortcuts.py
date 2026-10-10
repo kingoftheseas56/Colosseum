@@ -13,6 +13,10 @@ No clipboard operations, download requests, or PDF saves are performed.
 """
 import argparse
 import html
+import json
+import os
+import re
+import subprocess
 import sys
 import threading
 import time
@@ -242,6 +246,8 @@ def main():
     parser.add_argument("--lanista", required=True, type=Path)
     parser.add_argument("--qt-bin", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--smoke-steps", type=int, default=0,
+                        help="Diagnostics only: stop at this step and attempt graceful Quit")
     args = parser.parse_args()
     args.exe, args.lanista = args.exe.resolve(), args.lanista.resolve()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -249,8 +255,42 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     site = "http://127.0.0.1:%d" % server.server_address[1]
     try:
-        ok = app.run(args, "shortcuts", steps(site),
-                     "feria-set4-shortcuts-" + time.strftime("%Y%m%d-%H%M%S"), args.out)
+        all_steps = steps(site)
+        if args.smoke_steps:
+            all_steps = all_steps[:args.smoke_steps] + app.QUIT
+        scenario = args.out / "shortcuts.json"
+        scenario.write_text(json.dumps({"name": "shortcuts", "steps": all_steps}, indent=1),
+                            encoding="utf-8")
+        log = args.out / "shortcuts.out"
+        env = dict(os.environ)
+        env["PATH"] = str(args.qt_bin) + os.pathsep + env["PATH"]
+        env["QT_QPA_PLATFORM"] = "offscreen"
+        tag = "feria-set4-shortcuts-" + time.strftime("%Y%m%d-%H%M%S")
+        cmd = [str(args.lanista), "session", "run", str(scenario), "--exe", str(args.exe),
+               "--qml", "qml/Main.qml", "--drive", "--keep-going", "--tag", tag]
+        with log.open("w", encoding="utf-8", errors="replace") as capture:
+            proc = subprocess.Popen(cmd, cwd=app.ROOT, env=env, stdout=capture,
+                                    stderr=subprocess.STDOUT)
+            try:
+                exit_code = proc.wait(timeout=240)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=10)
+                exit_code = -1
+        output = log.read_text(encoding="utf-8", errors="replace")
+        summary = re.search(r"(\\d+) steps, (\\d+) failed", output)
+        manifest = re.search(r"manifest: (.*?)\\)", output)
+        state = json.loads((app.ROOT / manifest.group(1)).read_text()) if manifest else {}
+        clean = (state.get("exitCode") == 0 and state.get("crashed") is False
+                 and state.get("killReason") == "graceful")
+        ok = bool(summary) and summary.group(2) == "0" and clean and exit_code == 0
+        print("LANISTA", summary.group(0) if summary else "no step summary",
+              "process exit", exit_code, "app exit", state.get("exitCode"),
+              "crashed", state.get("crashed"), "killReason", state.get("killReason"),
+              "log", log, flush=True)
+        for line in output.splitlines():
+            if line.startswith(("FAIL", "INFRA")):
+                print(line[:400], flush=True)
     finally:
         server.shutdown()
     print("SHORTCUTS PROOF", "PASS" if ok else "FAIL")
