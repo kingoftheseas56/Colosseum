@@ -315,7 +315,7 @@ public slots:
                         socket->disconnectFromHost();
                         return;
                     }
-                    if (path == "/daily-document.pdf") {
+                    if (path == "/daily-document.pdf" || path == "/daily-attachment.pdf") {
                         // Pure ASCII, valid one-page PDF with computed xref offsets.
                         body = "%PDF-1.4\n";
                         QByteArray offsets[6];
@@ -334,8 +334,11 @@ public slots:
                         for (int id = 1; id <= 5; ++id) body += offsets[id] + " 00000 n \n";
                         body += "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"
                             + QByteArray::number(xref) + "\n%%EOF\n";
+                        const QByteArray disposition = path == "/daily-attachment.pdf"
+                            ? QByteArray("Content-Disposition: attachment; filename=daily-attachment.pdf\r\n")
+                            : QByteArray{};
                         socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\n"
-                            "Content-Length: " + QByteArray::number(body.size())
+                            + disposition + "Content-Length: " + QByteArray::number(body.size())
                             + "\r\nConnection: close\r\n\r\n" + body);
                         socket->disconnectFromHost();
                         return;
