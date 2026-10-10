@@ -14,6 +14,9 @@ import "../account" as Account
 
 Item {
     id: root
+    // The active view owns the print picker; these are read-only probe surfaces.
+    objectName: browser && browser.visible ? "feriaActiveBrowserRequests" : ""
+    readonly property bool printPromptPending: printTicket !== null
     required property var browser
     property bool closingSession: browser ? !!browser.closingSession : false
     property bool active: browser && browser.visible && !closingSession
