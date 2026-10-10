@@ -55,10 +55,31 @@ Item {
                 mode: "read", privateBrowsing: !!privateMode }
         }
         function loaded(page, path) {
+            // A WebEngine load can report ready before queued main-frame
+            // notifications reach the QML wrapper. Require one event-loop turn
+            // with the same completed navigation generation before input.
+            var stableGeneration = -1
+            var turnDrained = false
             tryVerify(function() {
-                return page && page.documentReady && !page.loading && !page.replacementLoadPending
-                    && String(page.url) === FixtureUrl + path
-            }, 15000, "Expected an engine-completed document at " + path)
+                var ready = page && page.documentReady && !page.loading
+                    && !page.replacementLoadPending && String(page.url) === FixtureUrl + path
+                if (!ready) {
+                    stableGeneration = -1
+                    turnDrained = false
+                    return false
+                }
+                if (stableGeneration !== page.navigationGeneration) {
+                    stableGeneration = page.navigationGeneration
+                    turnDrained = false
+                    var observedGeneration = stableGeneration
+                    Qt.callLater(function() {
+                        if (stableGeneration === observedGeneration)
+                            turnDrained = true
+                    })
+                    return false
+                }
+                return turnDrained
+            }, 15000, "Expected a stable engine-completed document at " + path)
         }
         function open(path, privateMode) {
             var id = deck.open(descriptor(path, privateMode), true, false, true)
