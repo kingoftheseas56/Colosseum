@@ -278,8 +278,8 @@ def main():
                 proc.wait(timeout=10)
                 exit_code = -1
         output = log.read_text(encoding="utf-8", errors="replace")
-        summary = re.search(r"(\\d+) steps, (\\d+) failed", output)
-        manifest = re.search(r"manifest: (.*?)\\)", output)
+        summary = re.search(r"(\d+) steps, (\d+) failed", output)
+        manifest = re.search(r"manifest: (.*?)\)", output)
         state = json.loads((app.ROOT / manifest.group(1)).read_text()) if manifest else {}
         clean = (state.get("exitCode") == 0 and state.get("crashed") is False
                  and state.get("killReason") == "graceful")
