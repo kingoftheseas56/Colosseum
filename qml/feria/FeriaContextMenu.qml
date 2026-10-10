@@ -66,13 +66,14 @@ Menu {
         selectedText = String(request.selectedText)
         hasSelection = !isEditable && selectedText.length > 0
         editFlags = Number(request.editFlags)
-        hitX = Math.max(0, Math.round(Number(request.x)))
-        hitY = Math.max(0, Math.round(Number(request.y)))
+        // ContextMenuRequest exposes a 'position' point, not x/y members.
+        hitX = Math.max(0, Math.round(Number(request.position.x)))
+        hitY = Math.max(0, Math.round(Number(request.position.y)))
         documentGeneration = browser.navigationGeneration
         contextActive = true
         ++contextSerial
-        x = Math.max(0, Math.round(Number(request.x)))
-        y = Math.max(0, Math.round(Number(request.y)))
+        x = hitX
+        y = hitY
         popup()
     }
     function invoke(action, editing) {
