@@ -14,14 +14,23 @@ Menu {
     palette.window: theme.biblioWashTop
     palette.windowText: theme.ink
     palette.text: theme.ink
-    palette.buttonText: theme.ink
-    palette.disabled.buttonText: theme.inkDimmer
-    palette.disabled.text: theme.inkDimmer
-    palette.disabled.windowText: theme.inkDimmer
     palette.highlight: theme.glassHi
     palette.highlightedText: theme.ink
     font.family: theme.ui
     Colosseum.Theme { id: theme }
+
+    // Basic MenuItem's IconLabel reads palette.windowText, which did not
+    // inherit the Menu's disabled palette group. Bind the real label instead,
+    // retaining the style's original contentItem layout and plain text.
+    Component.onCompleted: {
+        for (const item of entries()) {
+            if (!item.contentItem) continue
+            const row = item
+            item.contentItem.color = Qt.binding(function() {
+                return row.enabled ? theme.ink : theme.inkDimmer
+            })
+        }
+    }
 
     property bool contextActive: false
     property int contextSerial: 0
