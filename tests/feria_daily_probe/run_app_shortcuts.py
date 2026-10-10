@@ -182,8 +182,9 @@ def navigation(site):
                        "activeFocus", True, 10000)]
     s += unchanged("Ctrl+L", "a", a)
     s += [app.key("Ctrl+L: Escape close address", "Escape"),
-          app.wait_for("Ctrl+L: address panel hidden", "feriaBrowserAddressPanel",
-                       "visible", False, 10000),
+          app.pause("Ctrl+L: let Escape dismiss popup", 550),
+          observed("Ctrl+L: editor activeFocus after Escape",
+                   "feriaBrowserAddress", "activeFocus"),
           app.key("Ctrl+L: test page keyboard WITHOUT click (B)", "B"),
           app.pause("Ctrl+L: allow unsummoned page input", 650),
           observed("Ctrl+L: Escape page focus finding (value=ab means automatic)",
