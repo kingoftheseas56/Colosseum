@@ -357,6 +357,10 @@ Item {
         if (settingsSheet.opened) { settingsSheet.close(); chromeVisible = true; return }
         if (contextChooserOpen) { closeKeyboardContextChooser(); chromeVisible = true; return }
         if (activeOverlay.length) { activeOverlay = ""; chromeVisible = true; return }
+        // Android's Back key leaves the reader once nothing is open on top of the page. On a
+        // desktop this press toggles the bars and the Library arrow leaves; a phone user pressing
+        // Back twice was left standing in the comic (seen on the Nokia, 2026-10-10).
+        if (Qt.platform.os === "android") { reader.backRequested(); return }
         chromeVisible = !wasVisible
     }
 
