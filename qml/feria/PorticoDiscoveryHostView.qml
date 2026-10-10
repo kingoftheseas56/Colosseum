@@ -639,6 +639,10 @@ Item {
             if (!root.retained && controller.accountStore) controller.accountStore.setMediaCaptureBlocked(blocked, visitToken)
         }
         function onPlaybackObserved(sample) { root.receivePlayback(sample) }
+        // The page's own title. Playback samples carry one only while activity is
+        // being recorded, so a private tab, or any tab with recording paused,
+        // showed no title at all after it navigated.
+        function onTitleChanged() { if (root.browserItem) root.pageTitle = root.browserItem.title }
         function onResumeUnavailable() { controller.setToast("The saved page is open. Use the provider's controls to restore your position.") }
         function onStarted(location) {
             FeriaBrowserPolicy.rememberOrigin(controller.hostApp, location)
