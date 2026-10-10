@@ -85,6 +85,9 @@ Item {
             var before = deck.downloads ? deck.downloads.items.length : 0
             var page = go(id, "/daily-document.pdf")
             wait(250)
+            // The inline viewer can send a second load-status transition after
+            // HTML navigation first reports ready. Require its settled state.
+            loaded(page, "/daily-document.pdf")
             compare(deck.downloads.items.length, before, "inline PDF must not download")
             return page
         }
@@ -327,8 +330,11 @@ Item {
                 "Copy link address is wired; deliberately not triggered")
             choose(menu, "feriaPageMenuOpenLink")
             tryVerify(function() { return Sessions.browsers().length === before + 1 }, 10000)
-            var targetId = Sessions.activeId
-            verify(targetId !== id, "a new canonical tab must be selected")
+            var added = Sessions.browsers().filter(function(row) { return row.id !== id })
+            compare(added.length, 1, "one new canonical tab must be owned by the deck")
+            var targetId = added[0].id
+            verify(targetId !== id)
+            verify(deck.activate(targetId), "background tab can be activated explicitly")
             var target = deck.browserForSession(targetId)
             loaded(target, "/b")
             compare(String(source.url), FixtureUrl + "/daily")
@@ -399,6 +405,8 @@ Item {
             choose(menu, "feriaPageMenuSelectAll")
             var state = js(page, "(function(){var e=document.getElementById('dailyEdit');"
                 + "return {start:e.selectionStart,end:e.selectionEnd,len:e.value.length};})()")
+            console.log("DAILY_EDIT_SELECT_RESULT " + JSON.stringify(state)
+                + " flags=" + menu.editFlags)
             compare(state.start, 0)
             compare(state.end, state.len)
             console.log("DAILY_ASSERT_MENU_EDITABLE flags=" + menu.editFlags

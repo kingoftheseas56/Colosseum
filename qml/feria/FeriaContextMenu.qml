@@ -74,10 +74,18 @@ Menu {
     function invoke(action, editing) {
         if (!live()) return
         contextActive = false
-        // Refocus the originating view for Chromium's focused-edit actions.
-        if (editing) browser.forceActiveFocus()
-        browser.triggerWebAction(action)
-        close()
+        if (editing) {
+            // The popup itself owns focus during MenuItem activation. Close it
+            // before restoring the document's focus for Chromium edit actions.
+            close()
+            browser.forceActiveFocus()
+            browser.triggerWebAction(action)
+        } else {
+            // Keep native hit-test context current until a link/image action
+            // has been handed back to QtWebEngine.
+            browser.triggerWebAction(action)
+            close()
+        }
     }
     function navigate(direction) {
         if (!live()) return
