@@ -292,7 +292,7 @@ Item {
                 pluginsEnabled:Boolean(page.settings.pluginsEnabled),
                 url:String(page.url), title:String(page.title),
                 documentReady:page.documentReady, loading:page.loadActive,
-                downloadsBefore:before, downloadsAfter:after, fileName:item ? item.fileName : "",
+                downloadsBefore:before, downloadsAfter:after, fileName:item ? item.name : "",
                 fileCompleted:item ? item.completed : null, downloadedMagic:magic,
                 rendererPid:Number(page.renderProcessPid)})
         }
