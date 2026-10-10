@@ -98,7 +98,9 @@ rm -f "$STAGE_QML_MANIFEST"
 
 echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
 ( cd "$STAGE/native/build-msvc"
-  rm -rf CMakeFiles Testing artifacts
+  # CTest targets place their intermediates in build/tests as well as the root.
+  # A combined qualification build must not ship those object files and fixtures.
+  rm -rf CMakeFiles Testing artifacts tests
   rm -rf ./*_autogen
   rm -f ./*_harness.exe ./*harness*.exe tst_*.exe ./*_test*.exe colosseum-capture.exe colosseum-prev-live.exe
   rm -f ./_a0_* ./_slice* ./_engine_harness* ./*.log
