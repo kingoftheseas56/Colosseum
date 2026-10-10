@@ -268,7 +268,11 @@ def tabs(site):
           app.wait_for("Ctrl+Shift+T: C load complete", "feriaBrowserHost",
                        "loadSucceeded", True, 30000),
           app.pause("Ctrl+Shift+T: C title settles", 2500),
-          title("Ctrl+Shift+T: C title marker", "kbd=c|")]
+          title("Ctrl+Shift+T: C title marker", "kbd=c|"),
+          title("Ctrl+Shift+T: restored C is a new empty textarea", "|value=|")]
+    # Restoring C navigates a fresh WebEngine document; the old unsaved
+    # textarea contents were not persisted across close/reopen.
+    values["c"] = ""
     s += browser_menu("Ctrl+Shift+T: restored tab", "Tabs", 2)
     s += close_menu("Ctrl+Shift+T: restored tab")
     c = prove_focus(s, "Ctrl+Shift+N", "c", values, "G")
