@@ -1102,6 +1102,13 @@ Item {
                     if (entry.reopenRecordId) entry.rollbackReopen(entry.reopenRecordId)
                 }
                 function onTabRequested(request) { deck.openWindow(entry.sessionId, request) }
+                function onImageTabRequested(imageUrl) {
+                    // An image URL has no WebEngineNewWindowRequest to adopt. Use
+                    // the existing owned tab constructor, only for the live source tab.
+                    if (!entry.browser || entry.retiring || deck.activeEntry !== entry
+                        || !deck.policy.allowsNavigation(imageUrl)) return
+                    deck.newTab(!!entry.descriptor.privateBrowsing, imageUrl, true)
+                }
                 function onGeometryChangeRequested(geometry) {
                     if (entry.hostWindow) entry.hostWindow.applyGeometry(geometry)
                 }

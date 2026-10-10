@@ -79,13 +79,19 @@ WebEngineView {
                         "navigation-terminal-not-observed", "deadline-elapsed-no-terminal", {})
         }
     }
-    onUrlChanged: if (!closingSession && !adoptingWindowRequest && !clearingSession)
-        admitNavigation("navigate")
+    onUrlChanged: {
+        contextMenuController.cancel()
+        if (!closingSession && !adoptingWindowRequest && !clearingSession)
+            admitNavigation("navigate")
+    }
     readonly property alias pageTools: pageToolsController
     FeriaPageTools { id: pageToolsController; browser: browser }
+    readonly property alias pageMenu: contextMenuController
+    FeriaContextMenu { id: contextMenuController; browser: browser }
     readonly property alias browserRequests: requestsController
     signal message(string text)
     signal tabRequested(var request)
+    signal imageTabRequested(string imageUrl)
     property bool managedBeforeUnload: false
     property var windowAdmission: null
     property int windowAdmissionSerial: 0
@@ -126,7 +132,10 @@ WebEngineView {
         if (lifecycleState !== WebEngineView.LifecycleState.Active)
             lifecycleState = WebEngineView.LifecycleState.Active
     }
-    onVisibleChanged: if (visible) wakePage()
+    onVisibleChanged: {
+        if (visible) wakePage()
+        else contextMenuController.cancel()
+    }
     onFreezeBackgroundChanged: if (!freezeBackground) wakePage()
     Timer {
         id: freezeTimer
@@ -145,6 +154,7 @@ WebEngineView {
     // Drain callbacks before the owner destroys this view. In Qt 6.11.1 a
     // pending JavaScript callback can reach a torn-down QML context on close.
     property bool closingSession: false
+    onClosingSessionChanged: if (closingSession) contextMenuController.cancel()
     property bool adoptingWindowRequest: false
     property var javascriptTickets: ({})
     property int javascriptTicketSerial: 0
@@ -345,6 +355,7 @@ WebEngineView {
     }
     property bool suppressed: false
     readonly property bool ready: true
+    onRendererLostChanged: if (rendererLost) contextMenuController.cancel()
     property var popups: []
     property bool documentReady: false
     property int navigationGeneration: 0
@@ -402,7 +413,13 @@ WebEngineView {
         cachePath: browser.sharedProfile ? "" : browser.profilePath + "/qtwebengine-cache"
         persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
     }
+    onContextMenuRequested: function(request) {
+        // Claim the request synchronously; Qt must never instantiate its stock menu.
+        request.accepted = true
+        contextMenuController.openForRequest(request)
+    }
     onNavigationRequested: function(request) {
+        if (request.isMainFrame) contextMenuController.cancel()
         // loadHtml creates a data URL internally. Permit just the next blank
         // document initiated by cleanup; normal pages retain the URL policy.
         if (clearingSession && cleanupNavigationPending && String(request.url).indexOf("data:text/html") === 0) {
@@ -422,6 +439,7 @@ WebEngineView {
             return
         }
         if (info.status === WebEngineView.LoadStartedStatus) {
+            contextMenuController.cancel()
             fullScreenActive = false
             stopRequested = false
             ++navigationGeneration
@@ -577,6 +595,7 @@ WebEngineView {
     }
     onSuppressedChanged: {
         if (suppressed) {
+            contextMenuController.cancel()
             var windows = popups.slice()
             for (var i = 0; i < windows.length; ++i) windows[i].close()
         }
@@ -586,6 +605,7 @@ WebEngineView {
         FeriaBrowserPolicy.registerRuntimeProfile(profile)
     }
     Component.onDestruction: {
+        contextMenuController.cancel()
         invalidateJavaScriptTickets()
         var ids = Object.keys(pendingNavOps)
         for (var i = 0; i < ids.length; ++i)
