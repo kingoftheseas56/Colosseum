@@ -205,6 +205,51 @@ Item {
             rightClick(page, "editable textarea", 65, 270)
         }
 
+        function visibleMenuItem(label) {
+            var found = null
+            function walk(node, depth) {
+                if (!node || depth > 5 || found) return
+                if (node.visible && node.text === label) { found = node; return }
+                var children = node.children || []
+                for (var i = 0; i < children.length; ++i) walk(children[i], depth + 1)
+            }
+            try { walk(Overlay.overlay, 0) } catch (e) {}
+            return found
+        }
+        function test_05a_defaultMenuOpenLinkInTab() {
+            var page = open("/daily")
+            var before = Sessions.browsers().length
+            mouseClick(page, 70, 95, Qt.RightButton)
+            wait(300)
+            var entry = visibleMenuItem("Open link in new tab")
+            if (entry) {
+                mouseClick(entry)
+                wait(1500)
+            }
+            var records = Sessions.browsers()
+            log("CONTEXT_ACTION", {name:"open link in new tab",
+                offered:!!entry, tabsBefore:before, tabsAfter:records.length,
+                urls:records.map(function(r) { return String(r.target ? r.target.url : r.url) })})
+        }
+        function test_05b_defaultMenuBack() {
+            var page = open("/daily")
+            var id = deck.sessions.activeId
+            verify(deck.navigateSession(id, FixtureUrl + "/b", 0, null, null))
+            tryVerify(function() {
+                return !page.loading && page.documentReady && String(page.url) === FixtureUrl + "/b"
+            }, 15000)
+            mouseClick(page, 420, 45, Qt.RightButton)
+            wait(350)
+            var entry = visibleMenuItem("Back")
+            var enabled = entry ? entry.enabled : false
+            if (entry && enabled) {
+                mouseClick(entry)
+                wait(1000)
+            }
+            log("CONTEXT_ACTION", {name:"back", offered:!!entry, enabled:enabled,
+                resultingUrl:String(page.url), expectedUrl:FixtureUrl + "/daily"})
+        }
+
         function test_05_spellCheckStateAndTextarea() {
             var page = open("/daily")
             log("SPELL_PROFILE", {enabled:Boolean(page.profile.spellCheckEnabled),
@@ -228,10 +273,14 @@ Item {
             var after = deck.downloads ? deck.downloads.items.length : -1
             var item = after > before ? deck.downloads.items[after - 1] : null
             var magic = ""
-            if (item && item.path) {
-                var data = new Uint8Array(Fixture.downloadedContent(item.path))
-                if (data.length >= 4)
-                    magic = String.fromCharCode(data[0],data[1],data[2],data[3])
+            if (item && item.path && item.completed) {
+                try {
+                    var data = new Uint8Array(Fixture.downloadedContent(item.path))
+                    if (data.length >= 4)
+                        magic = String.fromCharCode(data[0],data[1],data[2],data[3])
+                } catch (e) {
+                    magic = "unreadable:" + String(e)
+                }
             }
             log("PDF", {mode:label, navigateAccepted:began,
                 pdfViewerEnabled:Boolean(page.settings.pdfViewerEnabled),
