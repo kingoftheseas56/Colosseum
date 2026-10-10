@@ -98,8 +98,12 @@ def page_focus(label):
     # The guard MUST abort the scenario on failure. Lanista runs without
     # --keep-going: a home-screen tile must never be clicked as a web page.
     return [host_guard(label),
-            app.click(label + ": focus WebEngine textarea", "feriaQtWebEngine"),
-            app.pause(label + ": Chromium focus hand-off", 700)]
+            app.wait_for(label + ": hosted page ready", "feriaBrowserHost",
+                         "loadSucceeded", True, 15000),
+            app.click(label + ": first focus click", "feriaQtWebEngine"),
+            app.pause(label + ": first Chromium focus hand-off", 500),
+            app.click(label + ": reaffirm focus in textarea", "feriaQtWebEngine"),
+            app.pause(label + ": Chromium focus hand-off", 850)]
 
 
 def unchanged(label, name, value):
