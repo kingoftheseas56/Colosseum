@@ -315,6 +315,31 @@ public slots:
                         socket->disconnectFromHost();
                         return;
                     }
+                    if (path == "/daily-document.pdf") {
+                        // Pure ASCII, valid one-page PDF with computed xref offsets.
+                        body = "%PDF-1.4\n";
+                        QByteArray offsets[6];
+                        auto appendObject = [&](int id, const QByteArray &payload) {
+                            offsets[id] = QByteArray::number(body.size()).rightJustified(10, '0');
+                            body += QByteArray::number(id) + " 0 obj\n" + payload + "\nendobj\n";
+                        };
+                        appendObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
+                        appendObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+                        appendObject(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>");
+                        const QByteArray text("BT /F1 24 Tf 72 700 Td (Feria daily PDF fixture) Tj ET\n");
+                        appendObject(4, "<< /Length " + QByteArray::number(text.size()) + " >>\nstream\n" + text + "endstream");
+                        appendObject(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+                        const qsizetype xref = body.size();
+                        body += "xref\n0 6\n0000000000 65535 f \n";
+                        for (int id = 1; id <= 5; ++id) body += offsets[id] + " 00000 n \n";
+                        body += "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"
+                            + QByteArray::number(xref) + "\n%%EOF\n";
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\n"
+                            "Content-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
                     if (path == "/download") {
                         body = "Colosseum browser download fixture\n";
                         socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"
@@ -326,7 +351,20 @@ public slots:
                         });
                         return;
                     }
-                    if (path == "/tone.wav") {
+                    if (path == "/daily") {
+                        body = R"HTML(<!doctype html><html><head><title>Fixture daily</title></head>
+<body style="background:#173044;color:white;font:16px sans-serif">
+<div id="blank" style="position:absolute;left:25px;top:18px;width:170px;height:30px">Blank space</div>
+<a id="dailyLink" href="/b" style="position:absolute;left:25px;top:80px;width:180px;height:35px;color:white">Daily fixture link</a>
+<img id="dailyImage" alt="Fixture image" width="90" height="70"
+ style="position:absolute;left:25px;top:140px"
+ src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==">
+<textarea id="dailyEdit" spellcheck="true" style="position:absolute;left:25px;top:235px;width:300px;height:80px">spelingg wurd</textarea>
+<p id="dailyText" style="position:absolute;left:25px;top:340px;width:450px;height:50px">Selected daily context menu sentence.</p>
+<input id="dailyInput" style="position:absolute;left:25px;top:420px;width:300px;height:40px" value="plain input">
+</body></html>)HTML";
+                    } else if (path == "/tone.wav") {
+
                         mime = "audio/wav";
                         QDataStream out(&body, QIODevice::WriteOnly);
                         out.setByteOrder(QDataStream::LittleEndian);
