@@ -387,6 +387,9 @@ WebEngineView {
     settings.javascriptCanOpenWindows: true
     settings.playbackRequiresUserGesture: false
     settings.fullScreenSupportEnabled: true
+    // QtWebEngine's built-in PDF viewer requires plug-ins for inline navigation.
+    settings.pdfViewerEnabled: true
+    settings.pluginsEnabled: true
     profile: sharedProfile || localProfile
     WebEngineProfile {
         id: localProfile
