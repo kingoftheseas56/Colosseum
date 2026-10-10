@@ -942,6 +942,14 @@ Window {
     Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
     // Android's Back key and gesture arrive as Qt.Key_Back. They are Back here too.
     Shortcut { sequence: "Back"; enabled: win.androidHost; onActivated: escapeCommand.invoke("androidBack") }
+    // A Back press nothing claimed reaches Qt as a request to close this window, and the app
+    // exits (seen on the Nokia, 2026-10-10: Back while a book was still loading, Android's exit
+    // record EXIT_SELF). On Android that request is treated as Back; the app never quits on it.
+    onClosing: (close) => {
+        if (Qt.platform.os !== "android") return
+        close.accepted = false
+        escapeCommand.invoke("androidClose")
+    }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
     // shortcut), and the Vault keeps its own Backspace (folder up), so it is off while Vault is open.
     Shortcut {

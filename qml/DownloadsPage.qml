@@ -14,6 +14,10 @@ Item {
     objectName: "downloadsPage"
     property Item backdrop: null
     property real contentBottomInset: 0
+    // Android: no window buttons; under 840 wide the header gives way to the fixed back button
+    // and the two metrics lines stay inside the page.
+    readonly property bool onAndroid: Qt.platform.os === "android"
+    readonly property bool phoneNarrow: onAndroid && width < 840
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -457,20 +461,23 @@ Item {
             id: col
             x: theme.margin
             width: root.width - theme.margin * 2
-            topPadding: 14
+            topPadding: root.phoneNarrow ? 58 : 14
             spacing: 0
 
             // ---- header ----
             Text { text: "COLOSSEUM · LOCAL"; color: theme.inkDimmer
                    font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
             Text { text: "Downloads"; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                   font.family: theme.display; font.pixelSize: root.phoneNarrow ? 40 : 56; font.letterSpacing: -1 }
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
 
             // one quiet inline metrics line — no stat cards, no pills
             Text {
                 topPadding: 16
+                width: root.phoneNarrow ? parent.width : implicitWidth
+                wrapMode: root.phoneNarrow ? Text.Wrap : Text.NoWrap
+                lineHeight: root.phoneNarrow ? 1.35 : 1.0
                 textFormat: Text.StyledText
                 font.family: theme.ui; font.pixelSize: 13
                 color: theme.inkDimmer
@@ -1151,6 +1158,9 @@ Item {
                                font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
                         Text {
                             anchors.baseline: parent.children[0].baseline
+                            width: root.phoneNarrow
+                                   ? Math.max(60, col.width - parent.children[0].width - 14) : implicitWidth
+                            elide: root.phoneNarrow ? Text.ElideRight : Text.ElideNone
                             textFormat: Text.StyledText
                             text: {
                                 var n = 0, bytes = 0;
@@ -1699,13 +1709,13 @@ Item {
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
                     KeyboardAction { anchors.fill: parent; accessibleName: "Search"; focusRadius: 5
                         onTriggered: root.searchClicked() } }
-            Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
+            Image { visible: !root.onAndroid; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5
                         onTriggered: root.minimizeRequested() } }
-            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
+            Image { visible: !root.onAndroid; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
                     KeyboardAction { anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5
                         onTriggered: root.fullscreenRequested() } }
-            Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
+            Image { visible: !root.onAndroid; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
                     KeyboardAction { anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5
                         onTriggered: root.closeRequested() } }
         }
