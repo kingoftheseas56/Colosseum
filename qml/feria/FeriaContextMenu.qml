@@ -11,6 +11,9 @@ Menu {
     required property var browser
     parent: browser
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    // TEMPORARY TASK-0004 experiment; remove with the completed patch.
+    property string editDispatchMode: "B"
+    focus: editDispatchMode !== "D"
     palette.window: theme.biblioWashTop
     palette.windowText: theme.ink
     palette.text: theme.ink
@@ -79,25 +82,13 @@ Menu {
     function invoke(action, editing) {
         if (!live()) return
         contextActive = false
-        if (editing) {
-            // A Qt Quick popup takes focus away from the HTML input. Closing
-            // the popup and focusing the WebEngineView is not sufficient on
-            // every offscreen run: the DOM caret can remain unfocused. Restore
-            // only the actual editable target at the context hit point, then
-            // use Chromium's native edit WebAction, never a JS edit substitute.
+        if (editing && editDispatchMode === "C") {
             const serial = contextSerial
             const generation = documentGeneration
-            const sx = Math.round(hitX)
-            const sy = Math.round(hitY)
             close()
             browser.forceActiveFocus()
-            const script = "(function(){var e=document.elementFromPoint("
-                + sx + "," + sy + ");while(e&&!e.isContentEditable&&"
-                + "e.tagName!=='INPUT'&&e.tagName!=='TEXTAREA')e=e.parentElement;"
-                + "if(!e||typeof e.focus!=='function')return false;e.focus();"
-                + "return document.activeElement===e;})()"
-            browser.evaluateJavaScript(script, function(focused) {
-                if (focused !== true || pageMenu.contextSerial !== serial
+            Qt.callLater(function() {
+                if (pageMenu.contextSerial !== serial
                     || browser.navigationGeneration !== generation
                     || !browser.visible || browser.suppressed
                     || browser.closingSession || browser.clearingSession
@@ -105,8 +96,6 @@ Menu {
                 browser.triggerWebAction(action)
             })
         } else {
-            // Keep native hit-test context current until a link/image action
-            // has been handed back to QtWebEngine.
             browser.triggerWebAction(action)
             close()
         }
