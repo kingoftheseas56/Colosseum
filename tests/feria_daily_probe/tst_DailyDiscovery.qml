@@ -263,6 +263,9 @@ Item {
         }
 
         function pdfAttempt(page, label) {
+            // Tests must never let QtWebEngine fall back to the user's Downloads.
+            verify(deck.sharedProfile !== null, "the disposable profile is available")
+            deck.sharedProfile.downloadPath = Fixture.downloadRoot
             var before = deck.downloads ? deck.downloads.items.length : -1
             var began = deck.navigateSession(deck.sessions.activeId,
                 FixtureUrl + "/daily-document.pdf", 0, null, null)
@@ -295,10 +298,10 @@ Item {
         }
         function test_06_pdfBuiltInViewer() {
             var page = open("/daily")
-            pdfAttempt(page, "production defaults")
+            pdfAttempt(page, "production defaults (inline PDF viewer)")
             var alternate = open("/daily")
-            alternate.settings.pluginsEnabled = true
-            pdfAttempt(alternate, "test-only pluginsEnabled true")
+            alternate.settings.pluginsEnabled = false
+            pdfAttempt(alternate, "test-only pluginsEnabled false (download control)")
             log("PDF_LIMIT", {note:"Viewer toolbar rendering, in-viewer zoom/page/download/print buttons cannot be proved from the URL or title in offscreen mode."})
         }
 
