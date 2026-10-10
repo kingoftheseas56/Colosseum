@@ -439,6 +439,8 @@ int main(int argc, char **argv) {
 #ifdef Q_OS_WIN
     SetUnhandledExceptionFilter(reportCrash);
 #endif
+    // Match native/main.cpp: select Basic before QGuiApplication is created.
+    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_STYLE")) qputenv("QT_QUICK_CONTROLS_STYLE", QByteArrayLiteral("Basic"));
     QtWebEngineQuick::initialize();
     qInfo().noquote() << "Runtime versions: Qt" << qVersion()
         << "WebEngine" << qWebEngineVersion()
