@@ -22,6 +22,9 @@ Item {
         property int cyclesCompleted: 0
         property int observedReleases: 0
         property int releasesWithPending: 0
+        property int safeToDestroySignals: 0
+        property int releasedWithoutSafeSignal: 0
+        property bool sawSafeSignal: false
         property int currentCycle: 0
         property var watchedLoader: null
         property var watchedView: null
@@ -40,7 +43,19 @@ Item {
                 var outstanding = tests.runtime.pendingWork(tests.watchedView)
                 ++tests.observedReleases
                 if (outstanding > 0) ++tests.releasesWithPending
-                console.log("SIGNOUT_RELEASE", tests.currentCycle, "pending", outstanding)
+                if (!tests.sawSafeSignal) ++tests.releasedWithoutSafeSignal
+                console.log("SIGNOUT_RELEASE", tests.currentCycle, "pending", outstanding,
+                    "safeToDestroy", tests.sawSafeSignal)
+            }
+        }
+        Connections {
+            target: tests.watchedView
+            ignoreUnknownSignals: true
+            function onSafeToDestroy() {
+                ++tests.safeToDestroySignals
+                tests.sawSafeSignal = true
+                compare(tests.runtime.pendingWork(tests.watchedView), 0,
+                    "native script work must drain before safeToDestroy")
             }
         }
         function descriptor(path, url) {
@@ -75,6 +90,7 @@ Item {
         }
         function initTestCase() {
             failOnWarning(/TypeError|ReferenceError|incompatible arguments|Could not convert argument/)
+            failOnWarning(/invalid context/)
             deck.startQuiescence(false)
             tryCompare(deck, "quiescing", false, 15000)
             Fixture.switchProfile("signout-stress")
@@ -89,7 +105,9 @@ Item {
             compare(FeriaBrowserPolicy.runtimeProfileCount, 0)
             console.log("SIGNOUT_TOTAL cycles", cyclesCompleted,
                 "observedReleases", observedReleases,
-                "releasesWithPending", releasesWithPending)
+                "releasesWithPending", releasesWithPending,
+                "safeToDestroySignals", safeToDestroySignals,
+                "releasedWithoutSafeSignal", releasedWithoutSafeSignal)
         }
         function test_signOutRepeatsAndIsolatesOrigins() {
             var site = FixtureUrl
@@ -117,6 +135,7 @@ Item {
                 })
                 verify(cleaner !== null, "cleaner created")
                 cleanedSpy.clear(); cleanedSpy.target = cleaner
+                sawSafeSignal = false
                 tryVerify(function() {
                     watchedLoader = findCleanerLoader(cleaner)
                     watchedView = watchedLoader ? watchedLoader.item : null
@@ -142,6 +161,8 @@ Item {
             }
             compare(cyclesCompleted, 25)
             compare(observedReleases, 25, "every cleaner view release was observed")
+            compare(safeToDestroySignals, 25, "each Qt cleaner must finish its wrapper drain")
+            compare(releasedWithoutSafeSignal, 0, "the view must wait for safeToDestroy")
             compare(releasesWithPending, 0, "no cleaner view may be released with pending work")
         }
     }
