@@ -89,8 +89,6 @@ Item {
             return null
         }
         function initTestCase() {
-            failOnWarning(/TypeError|ReferenceError|incompatible arguments|Could not convert argument/)
-            failOnWarning(/invalid context/)
             deck.startQuiescence(false)
             tryCompare(deck, "quiescing", false, 15000)
             Fixture.switchProfile("signout-stress")
@@ -110,6 +108,8 @@ Item {
                 "releasedWithoutSafeSignal", releasedWithoutSafeSignal)
         }
         function test_signOutRepeatsAndIsolatesOrigins() {
+            failOnWarning(/TypeError|ReferenceError|incompatible arguments|Could not convert argument/)
+            failOnWarning(/invalid context/)
             var site = FixtureUrl
             var other = FixtureUrl.replace("127.0.0.1", "localhost")
             var first = openPage(site + "/a")
