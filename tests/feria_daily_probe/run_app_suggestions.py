@@ -78,6 +78,8 @@ def go(label, site, name):
                      "currentUrl", url, 30000),
         app.wait_for(label + ": loaded", "feriaBrowserHost", "loadSucceeded", True, 30000),
         app.get(label + ": page address", "feriaBrowserHost", "currentUrl", "contains", "/" + name),
+        app.wait_for(label + ": expected page title ready", "feriaBrowserHost",
+                     "pageTitle", TITLES[name], 30000),
         app.get(label + ": page title", "feriaBrowserHost", "pageTitle", "contains", TITLES[name]),
         app.pause(label + ": title observation settles", 350),
     ]
@@ -129,7 +131,9 @@ def history(site):
 
 
 def keyboard(site):
-    steps = app.boot(True) + go("keyboard zebra", site, "zebra") + go("keyboard zenith", site, "zenith")
+    steps = (app.boot(True) + go("keyboard zebra", site, "zebra")
+             + go("keyboard zenith", site, "zenith")
+             + go("keyboard source apple", site, "apple"))
     steps += open_address("keyboard query zen")
     steps += query("keyboard zen", "zen", 1)
     steps += [app.key("Down highlights first row", "Down"),
@@ -137,6 +141,8 @@ def keyboard(site):
               app.key("Enter opens highlighted row", "Return"),
               app.wait_for("chosen URL navigated", "feriaBrowserHost", "currentUrl",
                            site + "/zenith", 20000),
+              app.wait_for("chosen page title ready", "feriaBrowserHost", "pageTitle",
+                           TITLES["zenith"], 30000),
               app.get("chosen page title", "feriaBrowserHost", "pageTitle",
                       "contains", TITLES["zenith"]),
               app.get("chosen row popup dismissed", "feriaAddressSuggestions", "visible", "==", "false")]
@@ -195,6 +201,8 @@ def private(site):
     steps += [app.click("mouse chooses saved row", "feriaAddressSuggestion_0"),
               app.wait_for("mouse navigated privately", "feriaBrowserHost",
                            "currentUrl", site + "/zenith", 20000),
+              app.wait_for("mouse-chosen page title ready", "feriaBrowserHost",
+                           "pageTitle", TITLES["zenith"], 30000),
               app.get("mouse-chosen page title", "feriaBrowserHost", "pageTitle",
                       "contains", TITLES["zenith"]),
               app.key("open private History", "Ctrl+H"),
