@@ -138,6 +138,7 @@ Menu {
         objectName: "feriaPageMenuOpenLink"
         text: "Open link in new tab"
         visible: pageMenu.hasLink
+        height: visible ? implicitHeight : 0
         onTriggered: pageMenu.invoke(WebEngineView.OpenLinkInNewTab)
     }
     MenuItem {
@@ -145,17 +146,20 @@ Menu {
         objectName: "feriaPageMenuCopyLinkAddress"
         text: "Copy link address"
         visible: pageMenu.hasLink
+        height: visible ? implicitHeight : 0
         onTriggered: pageMenu.invoke(WebEngineView.CopyLinkToClipboard)
     }
     MenuSeparator {
         objectName: "feriaPageMenuLinkImageDivider"
         visible: pageMenu.hasLink && pageMenu.hasImage
+        height: visible ? implicitHeight : 0
     }
     MenuItem {
         id: openImage
         objectName: "feriaPageMenuOpenImage"
         text: "Open image in new tab"
         visible: pageMenu.hasImage
+        height: visible ? implicitHeight : 0
         onTriggered: pageMenu.openImageTab()
     }
     MenuItem {
@@ -163,6 +167,7 @@ Menu {
         objectName: "feriaPageMenuSaveImage"
         text: "Save image"
         visible: pageMenu.hasImage
+        height: visible ? implicitHeight : 0
         onTriggered: pageMenu.invoke(WebEngineView.DownloadImageToDisk)
     }
     MenuItem {
@@ -170,18 +175,21 @@ Menu {
         objectName: "feriaPageMenuCopyImageAddress"
         text: "Copy image address"
         visible: pageMenu.hasImage
+        height: visible ? implicitHeight : 0
         onTriggered: pageMenu.invoke(WebEngineView.CopyImageUrlToClipboard)
     }
     MenuSeparator {
         objectName: "feriaPageMenuBeforeEditDivider"
         visible: (pageMenu.isEditable || pageMenu.hasSelection)
             && (pageMenu.hasLink || pageMenu.hasImage)
+        height: visible ? implicitHeight : 0
     }
     MenuItem {
         id: cutText
         objectName: "feriaPageMenuCut"
         text: "Cut"
         visible: pageMenu.isEditable
+        height: visible ? implicitHeight : 0
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanCut) !== 0
         onTriggered: pageMenu.invoke(WebEngineView.Cut)
     }
@@ -190,6 +198,7 @@ Menu {
         objectName: "feriaPageMenuCopy"
         text: "Copy"
         visible: pageMenu.isEditable || pageMenu.hasSelection
+        height: visible ? implicitHeight : 0
         enabled: !pageMenu.isEditable
             || (pageMenu.editFlags & ContextMenuRequest.CanCopy) !== 0
         onTriggered: pageMenu.invoke(WebEngineView.Copy)
@@ -199,6 +208,7 @@ Menu {
         objectName: "feriaPageMenuPaste"
         text: "Paste"
         visible: pageMenu.isEditable
+        height: visible ? implicitHeight : 0
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanPaste) !== 0
         onTriggered: pageMenu.invoke(WebEngineView.Paste)
     }
@@ -207,6 +217,7 @@ Menu {
         objectName: "feriaPageMenuSelectAll"
         text: "Select all"
         visible: pageMenu.isEditable
+        height: visible ? implicitHeight : 0
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanSelectAll) !== 0
         onTriggered: pageMenu.invoke(WebEngineView.SelectAll)
     }
@@ -214,6 +225,7 @@ Menu {
         objectName: "feriaPageMenuBeforeNavigationDivider"
         visible: pageMenu.hasLink || pageMenu.hasImage
             || pageMenu.isEditable || pageMenu.hasSelection
+        height: visible ? implicitHeight : 0
     }
     MenuItem {
         id: back

@@ -265,6 +265,17 @@ Item {
         function checkMenuStructure(menu, expected, message) {
             var observed = menuStructure(menu)
             compare(observed.join("|"), expected.join("|"), message)
+            var rowsHeight = 0
+            for (var i = 0; i < menu.count; ++i) {
+                var row = menu.itemAt(i)
+                if (row && row.visible) rowsHeight += row.implicitHeight
+            }
+            // Basic Menu's ListView otherwise reserves height for invisible
+            // delegates, leaving a tall blank panel even on empty pages.
+            tryVerify(function() { return menu.height <= rowsHeight + 24 },
+                3000, "hidden context rows and separators must consume no height")
+            console.log("DAILY_ASSERT_MENU_COMPACT height=" + menu.height
+                + " visibleHeight=" + rowsHeight + " names=" + observed.length)
             return observed
         }
         function choose(menu, objectName) {
