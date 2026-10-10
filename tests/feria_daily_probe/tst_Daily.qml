@@ -403,8 +403,14 @@ Item {
             compare(pasteEnabled, (menu.editFlags & 16) !== 0)
             compare(menu.entry("feriaPageMenuSelectAll").enabled, true)
             choose(menu, "feriaPageMenuSelectAll")
-            var state = js(page, "(function(){var e=document.getElementById('dailyEdit');"
-                + "return {start:e.selectionStart,end:e.selectionEnd,len:e.value.length};})()")
+            var state = null
+            for (var attempt = 0; attempt < 20; ++attempt) {
+                state = js(page, "(function(){var e=document.getElementById('dailyEdit');"
+                    + "return {start:e.selectionStart,end:e.selectionEnd,len:e.value.length,"
+                    + "active:document.activeElement===e};})()")
+                if (state.start === 0 && state.end === state.len) break
+                wait(75)
+            }
             console.log("DAILY_EDIT_SELECT_RESULT " + JSON.stringify(state)
                 + " flags=" + menu.editFlags)
             compare(state.start, 0)

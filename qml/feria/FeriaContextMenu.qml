@@ -29,6 +29,8 @@ Menu {
     property int editFlags: 0
     property string selectedText: ""
     property string imageAddress: ""
+    property real hitX: 0
+    property real hitY: 0
 
     onClosed: {
         // MenuItem.onTriggered runs during close; invalidate afterwards, not
@@ -64,6 +66,8 @@ Menu {
         selectedText = String(request.selectedText)
         hasSelection = !isEditable && selectedText.length > 0
         editFlags = Number(request.editFlags)
+        hitX = Math.max(0, Math.round(Number(request.x)))
+        hitY = Math.max(0, Math.round(Number(request.y)))
         documentGeneration = browser.navigationGeneration
         contextActive = true
         ++contextSerial
@@ -75,11 +79,30 @@ Menu {
         if (!live()) return
         contextActive = false
         if (editing) {
-            // The popup itself owns focus during MenuItem activation. Close it
-            // before restoring the document's focus for Chromium edit actions.
+            // A Qt Quick popup takes focus away from the HTML input. Closing
+            // the popup and focusing the WebEngineView is not sufficient on
+            // every offscreen run: the DOM caret can remain unfocused. Restore
+            // only the actual editable target at the context hit point, then
+            // use Chromium's native edit WebAction, never a JS edit substitute.
+            const serial = contextSerial
+            const generation = documentGeneration
+            const sx = Math.round(hitX)
+            const sy = Math.round(hitY)
             close()
             browser.forceActiveFocus()
-            browser.triggerWebAction(action)
+            const script = "(function(){var e=document.elementFromPoint("
+                + sx + "," + sy + ");while(e&&!e.isContentEditable&&"
+                + "e.tagName!=='INPUT'&&e.tagName!=='TEXTAREA')e=e.parentElement;"
+                + "if(!e||typeof e.focus!=='function')return false;e.focus();"
+                + "return document.activeElement===e;})()"
+            browser.evaluateJavaScript(script, function(focused) {
+                if (focused !== true || pageMenu.contextSerial !== serial
+                    || browser.navigationGeneration !== generation
+                    || !browser.visible || browser.suppressed
+                    || browser.closingSession || browser.clearingSession
+                    || browser.rendererLost) return
+                browser.triggerWebAction(action)
+            })
         } else {
             // Keep native hit-test context current until a link/image action
             // has been handed back to QtWebEngine.
