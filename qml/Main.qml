@@ -270,6 +270,12 @@ Window {
         interval: 2500
         repeat: false
         onTriggered: {
+            if (win.androidHost && worldStack.current !== "" && !win.immersiveSurfaceOpen) {
+                // Android always stands in a world: do the post-frame work, skip the Home board.
+                auxiliaryFontsReady = true
+                postFrameStartupWork.start()
+                return
+            }
             if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
                 startupIdleWorkArmed = false
                 win.armStartupIdleWork()
@@ -383,6 +389,22 @@ Window {
     // TankobanSeriesView.qml are built to replace TheatreSeries.qml and MangaSeries.qml.
     // Until Hemanth signs them off, a local views.ini (git-ignored, beside wallpapers.ini)
     // selects them: [views] rebuiltTitlePages=true.
+    // Android shell (decision 19 / Slice S2): there is no Home on Android. The app opens in the
+    // world it was last in, Theatre the first time.
+    Settings {
+        id: androidShellSettings
+        category: "androidShell"
+        property string lastWorld: ""
+    }
+    function enterAndroidStartWorld() {
+        if (!win.androidHost || worldStack.current !== "") return
+        var want = androidShellSettings.lastWorld
+        var known = false
+        for (var i = 0; i < win.worldDefinitions.length; ++i)
+            if (win.worldDefinitions[i].name === want) { known = true; break }
+        win.openWorld(known ? want : "Theatre")
+    }
+
     Settings {
         id: viewSettings
         location: Qt.resolvedUrl("../views.ini")
@@ -889,6 +911,8 @@ Window {
         }
     }
     Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
+    // Android's Back key and gesture arrive as Qt.Key_Back. They are Back here too.
+    Shortcut { sequence: "Back"; enabled: win.androidHost; onActivated: escapeCommand.invoke("androidBack") }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
     // shortcut), and the Vault keeps its own Backspace (folder up), so it is off while Vault is open.
     Shortcut {
@@ -1058,6 +1082,7 @@ Window {
         if (!found) openModes.append({ mode: medium })   // first visit → create its keep-alive Loader
         worldStack.current = medium
         currentSurface = medium
+        if (win.androidHost) androidShellSettings.lastWorld = medium
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
         topbar.visible = false
@@ -1086,6 +1111,10 @@ Window {
         }
     }
     function closeWorld() {
+        // Android has no Home: a world is always open. Back at the top of a world does nothing
+        // here; sending the app to the background needs a native call (moveTaskToBack) and waits
+        // for the next APK.
+        if (win.androidHost) return
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
@@ -5181,7 +5210,7 @@ Window {
         objectName: "bootSplash"
         anchors.fill: parent
         z: 1000
-        onFinished: bootFade.start()
+        onFinished: { win.enterAndroidStartWorld(); bootFade.start() }
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }

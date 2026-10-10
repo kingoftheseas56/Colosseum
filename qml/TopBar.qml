@@ -283,7 +283,8 @@ Item {
         spacing: bar.compactLayout ? 10 : 18
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
-            visible: bar.activeMedium !== ""
+            // Android has no Home to go back to; a back-only title page keeps its arrow.
+            visible: bar.activeMedium !== "" && !(bar.androidHost && !bar.backOnly)
             label: bar.backOnly && bar.pageTitle.length ? "" : "Home"
             labelSize: 14
             idleColor: theme.inkDim
