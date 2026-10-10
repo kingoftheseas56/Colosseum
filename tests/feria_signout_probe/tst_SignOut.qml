@@ -54,7 +54,7 @@ Item {
             function onSafeToDestroy() {
                 ++tests.safeToDestroySignals
                 tests.sawSafeSignal = true
-                compare(tests.runtime.pendingWork(tests.watchedView), 0,
+                tests.compare(tests.runtime.pendingWork(tests.watchedView), 0,
                     "native script work must drain before safeToDestroy")
             }
         }
