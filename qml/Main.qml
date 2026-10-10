@@ -396,6 +396,33 @@ Window {
         category: "androidShell"
         property string lastWorld: ""
     }
+    // Slice S3: the Profile tab is a plain list of doors to pages the app already has.
+    readonly property var profileRows: [
+        { key: "downloads",  label: "Downloads",        note: "Everything saved on this device" },
+        { key: "extensions", label: "Extensions",       note: "Add-ons and sources for every world" },
+        { key: "history",    label: "History and stats", note: "What you watched and read" },
+        { key: "sync",       label: "Sync and account", note: "Trackers and your Colosseum account" },
+        { key: "openFile",   label: "Open a file",      note: "Play or read something stored on this device" }
+    ]
+    function openProfilePage() { profileLayer.active = true }
+    function closeProfilePage() { profileLayer.active = false }
+    // leaving the Profile tab for a world closes the list and whichever of its pages is open
+    function closeProfileStack() {
+        profileLayer.active = false
+        if (downloadsLayer.active) win.closeDownloadsPage()
+        if (extensionsLayer.active) win.closeExtensionsPage()
+        if (historyStatsLayer.active) win.closeHistoryStatsPage()
+        if (syncCenterLayer.active) win.closeSyncCenterPage()
+    }
+    function openProfileRow(key) {
+        switch (key) {
+        case "downloads":  win.openDownloadsPage(); return
+        case "extensions": win.openExtensionsPage(); return
+        case "history":    win.openHistoryStatsPage(); return
+        case "sync":       win.openSyncCenterPage(); return
+        case "openFile":   openMediaDialog.open(); return
+        }
+    }
     function enterAndroidStartWorld() {
         if (!win.androidHost || worldStack.current !== "") return
         var want = androidShellSettings.lastWorld
@@ -766,6 +793,7 @@ Window {
             extensionsActive: extensionsLayer.active,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
+            profileActive: profileLayer.active,
             bookActive: bookLayer.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
@@ -885,6 +913,7 @@ Window {
             win.closeExtensionsPage(); return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
+        case "profile": win.closeProfilePage(); return
         case "book": win.closeBook(); return
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
@@ -3845,13 +3874,13 @@ Window {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         worlds: win.worldDefinitions
-        activeTab: downloadsLayer.active ? "Profile" : worldStack.current
+        activeTab: profileLayer.active ? "Profile" : worldStack.current
         visible: win.phoneWorldNavigationVisible
         onWorldRequested: (world) => {
-            if (downloadsLayer.active) win.closeDownloadsPage()
+            win.closeProfileStack()
             win.openWorld(world)
         }
-        onProfileRequested: win.openDownloadsPage()
+        onProfileRequested: win.openProfilePage()
     }
 
     // Wide Android shell (landscape tablets / open foldables). It uses the exact same
@@ -3864,13 +3893,13 @@ Window {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         worlds: win.worldDefinitions
-        activeTab: downloadsLayer.active ? "Profile" : worldStack.current
+        activeTab: profileLayer.active ? "Profile" : worldStack.current
         visible: win.wideWorldNavigationVisible
         onWorldRequested: (world) => {
-            if (downloadsLayer.active) win.closeDownloadsPage()
+            win.closeProfileStack()
             win.openWorld(world)
         }
-        onProfileRequested: win.openDownloadsPage()
+        onProfileRequested: win.openProfilePage()
     }
 
     Loader {
@@ -4499,6 +4528,26 @@ Window {
                 // user sees where the session went; it pulls back after 15 idle seconds.
                 if (prevId && Sessions.get(prevId).id) taskbar.reveal()
             }
+        }
+    }
+
+    // ---- Profile tab (Android shell, Slice S3): the list of doors. Its pages (z 56) open over it,
+    // so closing one returns to the list. Above every browse/detail page, below the taskbar pages.
+    Loader {
+        id: profileLayer
+        objectName: "profileLayer"
+        anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
+        z: 55
+        active: false
+        visible: active
+        source: "PhoneProfilePage.qml"
+        onLoaded: {
+            item.rows = Qt.binding(function() { return win.profileRows })
+            item.contentBottomInset = Qt.binding(function() {
+                return phoneWorldTabs.visible ? phoneWorldTabs.height : 0
+            })
+            item.rowRequested.connect(win.openProfileRow)
         }
     }
 

@@ -40,6 +40,8 @@ function actionFor(state) {
     if (on(s.extensionsActive)) return "extensions"
     if (on(s.vaultActive)) return "vault"
     if (on(s.downloadsActive)) return "downloads"
+    // Android shell: the Profile list lies over the detail pages and under its own pages.
+    if (on(s.profileActive)) return "profile"
 
     // Detail/browse layers follow their existing z-order and document order.
     if (on(s.bookActive)) return "book"
