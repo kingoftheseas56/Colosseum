@@ -150,7 +150,7 @@ Item {
             tryVerify(function() { return deck.downloads.items.length === before + 1 }, 10000)
             var item = deck.downloads.items[before]
             tryCompare(item, "completed", true, 15000)
-            compare(item.fileName, "daily-attachment.pdf")
+            compare(item.name, "daily-attachment.pdf")
             var file = printBytes(item.path)
             verify(file.length > 300, "the attachment must be saved inside Fixture.downloadRoot")
             compare(file.magic, "%PDF")
@@ -158,7 +158,7 @@ Item {
                 return !page.loading && String(page.url) === FixtureUrl + "/a"
             }, 10000, "attachment must not replace the source page")
             compare(FeriaAccount.browserHistory.length, 1)
-            console.log("DAILY_ASSERT_ATTACHMENT filename=" + item.fileName
+            console.log("DAILY_ASSERT_ATTACHMENT filename=" + item.name
                 + " path=" + item.path + " bytes=" + file.length
                 + " magic=" + file.magic + " page=" + String(page.url))
         }
