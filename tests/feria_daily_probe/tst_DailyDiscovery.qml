@@ -247,7 +247,9 @@ Item {
                 wait(1000)
             }
             log("CONTEXT_ACTION", {name:"back", offered:!!entry, enabled:enabled,
-                resultingUrl:String(page.url), expectedUrl:FixtureUrl + "/daily"})
+                engineCanGoBack:Boolean(page.canGoBack), wrapperCanGoBack:Boolean(page.navCanGoBack),
+                backItemCount:page.navigation.backCount, resultingUrl:String(page.url),
+                expectedUrl:FixtureUrl + "/daily"})
         }
 
         function test_05_spellCheckStateAndTextarea() {
