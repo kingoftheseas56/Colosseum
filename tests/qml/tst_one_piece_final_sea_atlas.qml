@@ -11,11 +11,13 @@ Item {
         id: atlasComponent
         FinalSea.OnePieceFinalSeaAtlas { reducedMotion: true }
     }
+    Component { id: taskbarComponent; FinalSea.Taskbar { z: 900 } }
 
     TestCase {
         name: "FinalSeaNativeAtlas"
         when: windowShown
         property var atlas: null
+        property var taskbar: null
 
         SignalSpy { id: arcSpy; signalName: "arcRequested" }
         SignalSpy { id: backSpy; signalName: "newWorldRequested" }
@@ -32,6 +34,8 @@ Item {
             mouseMove(host, 2, 2)
         }
         function cleanup() {
+            if (taskbar) taskbar.destroy()
+            taskbar = null
             arcSpy.target = null
             backSpy.target = null
             if (atlas) atlas.destroy()
@@ -81,7 +85,7 @@ Item {
                 verify(button.mapArtwork)
                 compare(button.contentItem.visible, false)
             }
-            // Zoom station: painted position clamped right of the shell taskbar dock's
+            // Zoom station: visible controls clamped right of the shell taskbar dock's
             // closed footprint (leftEdge<=80 + 130 wide).
             var tools = control("finalSeaZoomTools")
             var paintedOrigin = atlas.mapPoint(0.0299, 0.8831)
@@ -94,8 +98,8 @@ Item {
                 var zoomButton = control(z[0])
                 fuzzyCompare(zoomButton.width, Math.max(44, z[1] * atlas.stageGeometry.width), 0.2)
                 fuzzyCompare(zoomButton.height, Math.max(44, 0.0584 * atlas.stageGeometry.height), 0.2)
-                verify(zoomButton.mapArtwork)
-                compare(zoomButton.contentItem.visible, false)
+                compare(zoomButton.mapArtwork, false)
+                compare(zoomButton.contentItem.visible, true)
             }
             mouseClick(control("finalSeaZoomIn"))
             compare(atlas.zoom, 1.25)
@@ -153,6 +157,44 @@ Item {
             verify(panel.x >= 0 && panel.y >= 0)
             verify(panel.x + panel.width <= atlas.width)
             verify(panel.y + panel.height <= atlas.height)
+        }
+
+        function test_visible_zoom_symbols_drive_their_own_action() {
+            taskbar = taskbarComponent.createObject(host)
+            verify(taskbar !== null)
+            for (var size of [[1280, 720], [1364, 1024], [1920, 1080]]) {
+                host.width = size[0]; host.height = size[1]
+                atlas.width = size[0]; atlas.height = size[1]
+                atlas.setZoom(1)
+                wait(30)
+                var backing = control("finalSeaPaintedZoomCover")
+                var coverStart = backing.mapToItem(atlas, 0, 0)
+                var oldStart = atlas.mapPoint(0.0299, 0.8831)
+                var oldEnd = atlas.mapPoint(0.1615, 0.9415)
+                verify(coverStart.x <= oldStart.x && coverStart.y <= oldStart.y)
+                verify(coverStart.x + backing.width >= oldEnd.x
+                       && coverStart.y + backing.height >= oldEnd.y,
+                       "The original painted station must be covered")
+                compare(backing.opacity, 1)
+                for (var name of ["finalSeaZoomIn", "finalSeaZoomOut", "finalSeaZoomReset"]) {
+                    wait(30) // settle the viewport's deferred zoom scroll before the next pointer event
+                    var button = control(name)
+                    verify(button.contentItem.visible, name + " must paint its actionable symbol")
+                    var symbol = button.contentItem.mapToItem(atlas,
+                                    button.contentItem.width / 2, button.contentItem.height / 2)
+                    var before = atlas.zoom
+                    verify(symbol.x >= 0 && symbol.x < atlas.width
+                           && symbol.y >= 0 && symbol.y < atlas.height)
+                    mouseClick(atlas, symbol.x, symbol.y)
+                    compare(atlas.zoom, name === "finalSeaZoomIn" ? before + 0.25
+                            : name === "finalSeaZoomOut" ? before - 0.25 : 1)
+                    compare(taskbar.open, false, "The shell dock must not intercept a zoom symbol")
+                }
+            }
+            var home = findChild(taskbar, "colosseumTaskbarHomeButton")
+            verify(home !== null)
+            mouseClick(home, home.width / 2, home.height / 2)
+            compare(taskbar.open, true, "The production shell dock must itself remain clickable")
         }
 
         function test_unknown_ids_fail_closed() {

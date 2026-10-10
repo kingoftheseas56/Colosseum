@@ -34,6 +34,7 @@ FocusScope {
     readonly property bool transientOpen: previewVisible || indexVisible
     readonly property bool captureReady: mapImage.status === Image.Ready
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
+    readonly property var controlGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, 1)
     readonly property real sealDiameter: 84 * root.stageGeometry.scale
     // These seals cover marker artwork baked into the map; never relocate them.
     readonly property var badgePlacements: {
@@ -319,6 +320,15 @@ FocusScope {
             }
 
             Rectangle {
+                objectName: "finalSeaPaintedZoomCover"
+                x: 0.0299 * parent.width - 3
+                y: 0.8831 * parent.height - 3
+                width: 0.1316 * parent.width + 6
+                height: 0.0584 * parent.height + 6
+                color: "#e2cc9b"
+            }
+
+            Rectangle {
                 anchors.fill: parent
                 visible: mapImage.status !== Image.Ready
                 color: "#ddc69a"
@@ -391,23 +401,36 @@ FocusScope {
         }
     }
 
+    // Visible controls stay in the viewport while the chart zooms and pans.
+    Rectangle {
+        objectName: "finalSeaZoomStationBacking"
+        x: zoomTools.x - 3
+        y: zoomTools.y - 3
+        width: zoomTools.width + 6
+        height: zoomTools.height + 6
+        color: "#e2cc9b"
+        border.color: "#927345"
+        radius: 2
+        z: 19
+    }
+
     Row {
         id: zoomTools
         objectName: "finalSeaZoomTools"
-        // The painted lower-left station slides right of the shell taskbar dock's
+        // The visible lower-left station slides right of the shell taskbar dock's
         // closed footprint (leftEdge<=80 + 130 wide + gap); at short viewports the
         // dock otherwise covers the zoom controls.
-        x: Math.max(root.mapPoint(0.0299, 0.8831).x, 218)
-        y: root.mapPoint(0.0299, 0.8831).y
+        x: Math.max(mapViewport.x + root.controlGeometry.x + 0.0299 * root.controlGeometry.width, 218)
+        y: mapViewport.y + root.controlGeometry.y + 0.8831 * root.controlGeometry.height
         spacing: 0
         z: 20
 
         FinalSeaInkButton {
             objectName: "finalSeaZoomOut"
             text: "−"
-            width: Math.max(44, 0.0353 * root.stageGeometry.width)
-            height: Math.max(44, 0.0584 * root.stageGeometry.height)
-            mapArtwork: true
+            width: Math.max(44, 0.0353 * root.controlGeometry.width)
+            height: Math.max(44, 0.0584 * root.controlGeometry.height)
+            mapArtwork: false
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom out"
@@ -416,9 +439,9 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomReset"
             text: Math.round(root.zoom * 100) + "%"
-            width: Math.max(44, 0.0604 * root.stageGeometry.width)
-            height: Math.max(44, 0.0584 * root.stageGeometry.height)
-            mapArtwork: true
+            width: Math.max(44, 0.0604 * root.controlGeometry.width)
+            height: Math.max(44, 0.0584 * root.controlGeometry.height)
+            mapArtwork: false
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Reset zoom to show the whole chart"
@@ -427,9 +450,9 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomIn"
             text: "+"
-            width: Math.max(44, 0.0359 * root.stageGeometry.width)
-            height: Math.max(44, 0.0584 * root.stageGeometry.height)
-            mapArtwork: true
+            width: Math.max(44, 0.0359 * root.controlGeometry.width)
+            height: Math.max(44, 0.0584 * root.controlGeometry.height)
+            mapArtwork: false
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom in"
