@@ -80,7 +80,9 @@ def unchanged(shortcut, text):
 
 
 def page_focus(label):
-    return app.click(label + ": give textarea the keyboard", "feriaQtWebEngine")
+    # Chromium receives focus asynchronously after a QQuickWindow click.
+    return [app.click(label + ": give textarea the keyboard", "feriaQtWebEngine"),
+            app.pause(label + ": Chromium focus hand-off", 700)]
 
 
 def address(label, url):
@@ -96,7 +98,7 @@ def address(label, url):
 
 
 def menu_open(label, sequence, section):
-    return [page_focus(label), app.key(label, sequence),
+    return [*page_focus(label), app.key(label, sequence),
             app.wait_for(label + ": " + section + " is visible",
                          "feriaBrowser" + section + "List", "visible", True, 10000)]
 
@@ -112,84 +114,84 @@ def steps(site):
 
     # Control: a plain key really enters the page, rather than just the app.
     s += address("load keyboard fixture A", a)
-    s += [page_focus("initial page"), app.key("CONTROL: plain A to web textarea", "A"),
+    s += [*page_focus("initial page"), app.key("CONTROL: plain A to web textarea", "A"),
           app.pause("CONTROL: input callback updates title", 400),
           title("CONTROL: WebEngine received plain A", "kbd=a|loads=1|value=a|keydown=")]
 
-    s += [page_focus("Ctrl+L"), app.key("Ctrl+L: address editor", "Ctrl+L"),
+    s += [*page_focus("Ctrl+L"), app.key("Ctrl+L: address editor", "Ctrl+L"),
           app.wait_for("Ctrl+L: editor has active focus",
                        "feriaBrowserAddress", "activeFocus", True)]
     s += unchanged("Ctrl+L", "a")
-    s += [app.key("Ctrl+L: Escape", "Escape"), page_focus("after Escape"),
+    s += [app.key("Ctrl+L: Escape", "Escape"), *page_focus("after Escape"),
           app.key("Ctrl+L: page receives B again", "B"),
           app.pause("Ctrl+L: resumed typing reported", 300),
           title("Ctrl+L: focus returns to textarea", "|value=ab|")]
 
-    s += [page_focus("Ctrl+R"), app.key("Ctrl+R: reload", "Ctrl+R"),
-          app.pause("Ctrl+R: navigation result", 1000),
+    s += [*page_focus("Ctrl+R"), app.key("Ctrl+R: reload", "Ctrl+R"),
+          app.pause("Ctrl+R: navigation result", 2000),
           title("Ctrl+R: load count becomes 2", "kbd=a|loads=2|")]
     s += unchanged("Ctrl+R", "ab")
-    s += [page_focus("F5"), app.key("F5: reload", "F5"),
-          app.pause("F5: navigation result", 1000),
+    s += [*page_focus("F5"), app.key("F5: reload", "F5"),
+          app.pause("F5: navigation result", 2000),
           title("F5: load count becomes 3", "kbd=a|loads=3|")]
     s += unchanged("F5", "ab")
 
     s += address("load keyboard fixture B", b)
-    s += [page_focus("B navigation"), app.key("CONTROL: enter C on B", "C"),
+    s += [*page_focus("B navigation"), app.key("CONTROL: enter C on B", "C"),
           app.pause("CONTROL: B input reported", 300),
           title("CONTROL: B has the keyboard", "kbd=b|loads=1|value=c|")]
-    s += [page_focus("Alt+Left"), app.key("Alt+Left: back", "Alt+Left"),
+    s += [*page_focus("Alt+Left"), app.key("Alt+Left: back", "Alt+Left"),
           app.pause("Alt+Left: page completes", 900),
           app.get("Alt+Left: prior URL", "feriaBrowserHost", "currentUrl", "contains", "/a"),
           title("Alt+Left: prior page remains intact", "kbd=a|")]
     s += unchanged("Alt+Left", "ab")
-    s += [page_focus("Alt+Right"), app.key("Alt+Right: forward", "Alt+Right"),
+    s += [*page_focus("Alt+Right"), app.key("Alt+Right: forward", "Alt+Right"),
           app.pause("Alt+Right: page completes", 900),
           app.get("Alt+Right: forward URL", "feriaBrowserHost", "currentUrl", "contains", "/b"),
           title("Alt+Right: returns to B", "kbd=b|")]
     s += unchanged("Alt+Right", "c")
 
-    s += [page_focus("Ctrl+T"), app.key("Ctrl+T: create regular tab", "Ctrl+T"),
+    s += [*page_focus("Ctrl+T"), app.key("Ctrl+T: create regular tab", "Ctrl+T"),
           app.pause("Ctrl+T: new tab created", 1500),
           app.key("Ctrl+T: inspect tabs via History", "Ctrl+H"),
           app.wait_for("Ctrl+T: tabs count two", "feriaBrowserTabsList", "count", 2, 10000)]
     s += close_menu("after Ctrl+T")
     s += address("new tab goes to local fixture C", c)
-    s += [page_focus("new tab C"), app.key("CONTROL: C gets D", "D"),
+    s += [*page_focus("new tab C"), app.key("CONTROL: C gets D", "D"),
           app.pause("CONTROL: C title updated", 300),
           title("CONTROL: new tab C has keyboard", "kbd=c|loads=1|value=d|")]
-    s += [page_focus("Ctrl+W"), app.key("Ctrl+W: close tab C", "Ctrl+W"),
+    s += [*page_focus("Ctrl+W"), app.key("Ctrl+W: close tab C", "Ctrl+W"),
           app.pause("Ctrl+W: return to B", 1200),
           app.get("Ctrl+W: restored B URL", "feriaBrowserHost", "currentUrl", "contains", "/b")]
     s += unchanged("Ctrl+W", "c")
-    s += [page_focus("Ctrl+Shift+T"), app.key("Ctrl+Shift+T: reopen C", "Ctrl+Shift+T"),
+    s += [*page_focus("Ctrl+Shift+T"), app.key("Ctrl+Shift+T: reopen C", "Ctrl+Shift+T"),
           app.pause("Ctrl+Shift+T: reopened tab load", 1400),
           app.get("Ctrl+Shift+T: restored C URL", "feriaBrowserHost", "currentUrl", "contains", "/c"),
           title("Ctrl+Shift+T: browser displays C", "kbd=c|")]
-    s += [page_focus("Ctrl+Tab"), app.key("Ctrl+Tab: cycle to B", "Ctrl+Tab"),
+    s += [*page_focus("Ctrl+Tab"), app.key("Ctrl+Tab: cycle to B", "Ctrl+Tab"),
           app.pause("Ctrl+Tab: tab activation", 600),
           app.get("Ctrl+Tab: B active", "feriaBrowserHost", "currentUrl", "contains", "/b")]
     s += unchanged("Ctrl+Tab", "c")
-    s += [page_focus("Ctrl+Shift+Tab"), app.key("Ctrl+Shift+Tab: cycle to C", "Ctrl+Shift+Tab"),
+    s += [*page_focus("Ctrl+Shift+Tab"), app.key("Ctrl+Shift+Tab: cycle to C", "Ctrl+Shift+Tab"),
           app.pause("Ctrl+Shift+Tab: tab activation", 600),
           app.get("Ctrl+Shift+Tab: C active", "feriaBrowserHost", "currentUrl", "contains", "/c")]
-    s += [page_focus("close extra tab"), app.key("close C after tab cycling", "Ctrl+W"),
+    s += [*page_focus("close extra tab"), app.key("close C after tab cycling", "Ctrl+W"),
           app.pause("closed C", 600),
           app.get("B active again", "feriaBrowserHost", "currentUrl", "contains", "/b")]
     s += unchanged("Ctrl+Shift+Tab", "c")
 
-    s += [page_focus("Ctrl+Shift+N"), app.key("Ctrl+Shift+N: private tab", "Ctrl+Shift+N"),
+    s += [*page_focus("Ctrl+Shift+N"), app.key("Ctrl+Shift+N: private tab", "Ctrl+Shift+N"),
           app.pause("Ctrl+Shift+N: tab created", 1200)]
     s += address("private tab loopback fixture", private)
-    s += [page_focus("private page"), app.key("CONTROL: private receives P", "P"),
+    s += [*page_focus("private page"), app.key("CONTROL: private receives P", "P"),
           app.pause("CONTROL: private input", 300),
           title("CONTROL: private page keyboard", "kbd=private|loads=1|value=p|"),
-          page_focus("private menu"), app.key("Ctrl+Shift+N: inspect private mode", "Ctrl+H"),
+          *page_focus("private menu"), app.key("Ctrl+Shift+N: inspect private mode", "Ctrl+H"),
           app.wait_for("private History visible", "feriaBrowserHistoryList", "visible", True),
           app.get("Ctrl+Shift+N: private identity", "feriaBrowserPrivacy", "text", "contains", "Private")]
     s += close_menu("private")
     s += unchanged("Ctrl+Shift+N", "p")
-    s += [page_focus("private close"), app.key("close private tab", "Ctrl+W"),
+    s += [*page_focus("private close"), app.key("close private tab", "Ctrl+W"),
           app.pause("private tab closed", 600),
           app.get("regular B returns", "feriaBrowserHost", "currentUrl", "contains", "/b")]
 
@@ -199,7 +201,7 @@ def steps(site):
         s += close_menu(label)
         s += unchanged(label, "c")
 
-    s += [page_focus("Ctrl+J"), app.key("Ctrl+J: downloads panel", "Ctrl+J"),
+    s += [*page_focus("Ctrl+J"), app.key("Ctrl+J: downloads panel", "Ctrl+J"),
           app.wait_for("Ctrl+J: downloads panel opens",
                        "feriaRegularDownloads", "panelOpen", True, 10000),
           app.key("Ctrl+J: close empty downloads", "Escape"),
@@ -207,7 +209,7 @@ def steps(site):
                        "feriaRegularDownloads", "panelOpen", False, 10000)]
     s += unchanged("Ctrl+J", "c")
 
-    s += [page_focus("Ctrl+F"), app.key("Ctrl+F: find text", "Ctrl+F"),
+    s += [*page_focus("Ctrl+F"), app.key("Ctrl+F: find text", "Ctrl+F"),
           app.wait_for("Ctrl+F: find input has focus", "feriaFindInput", "activeFocus", True),
           app.key("Ctrl+F: Escape dismisses Find", "Escape"),
           app.wait_for("Ctrl+F: panel is dismissed", "feriaFindInput", "visible", False),
@@ -216,20 +218,20 @@ def steps(site):
           app.pause("Ctrl+F: page accepted resumed typing", 400),
           title("Ctrl+F: textarea regained keyboard", "|value=ce|")]
 
-    s += [page_focus("Ctrl+="), app.key("Ctrl+=: zoom in", "Ctrl+="),
+    s += [*page_focus("Ctrl+="), app.key("Ctrl+=: zoom in", "Ctrl+="),
           app.get("Ctrl+=: engine zoomed in", "feriaQtWebEngine", "zoomFactor", ">", 1)]
     s += unchanged("Ctrl+=", "ce")
-    s += [page_focus("Ctrl+-"), app.key("Ctrl+-: zoom out", "Ctrl+-"),
+    s += [*page_focus("Ctrl+-"), app.key("Ctrl+-: zoom out", "Ctrl+-"),
           app.get("Ctrl+-: engine zoom reset to 100%", "feriaQtWebEngine", "zoomFactor", "==", 1)]
     s += unchanged("Ctrl+-", "ce")
-    s += [page_focus("zoom up before reset"), app.key("prepare Ctrl+0: zoom in", "Ctrl+="),
-          page_focus("Ctrl+0"), app.key("Ctrl+0: reset zoom", "Ctrl+0"),
+    s += [*page_focus("zoom up before reset"), app.key("prepare Ctrl+0: zoom in", "Ctrl+="),
+          *page_focus("Ctrl+0"), app.key("Ctrl+0: reset zoom", "Ctrl+0"),
           app.get("Ctrl+0: engine zoom is 100%", "feriaQtWebEngine", "zoomFactor", "==", 1)]
     s += unchanged("Ctrl+0", "ce")
 
     # Last: native save dialog may retain focus in offscreen mode. Cancel only;
     # no filename is chosen and no printToPdf call is issued.
-    s += [page_focus("Ctrl+P"), app.key("Ctrl+P: request print", "Ctrl+P"),
+    s += [*page_focus("Ctrl+P"), app.key("Ctrl+P: request print", "Ctrl+P"),
           app.wait_for("Ctrl+P: print picker ticket allocated",
                        "feriaActiveBrowserRequests", "printPromptPending", True, 10000)]
     s += unchanged("Ctrl+P", "ce")
