@@ -96,6 +96,11 @@ Item {
         function onChanged() { root.revision++ }
         function onInstallFinished(id, name) {
             root.busy = ({})
+            // Installing means switching on. A built-in Theatre add-on that ships switched off
+            // (Torrentio, NoTorrent) is "updated in place" by an install at its own address and
+            // kept its off switch: the Store went on saying Set up and no stream ever appeared
+            // (seen on the Nokia, 2026-10-10). Core rows refuse this call, which is right.
+            Extensions.setEnabled(id, true)
             if (setup.open) {
                 // A set-up link is a new row beside the old bare one; the bare row only
                 // errors (Comet answers 403), so it goes once the configured one is in.
