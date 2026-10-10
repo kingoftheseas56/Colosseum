@@ -11,9 +11,6 @@ Menu {
     required property var browser
     parent: browser
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    // TEMPORARY TASK-0004 experiment; remove with the completed patch.
-    property string editDispatchMode: "B"
-    focus: editDispatchMode !== "D"
     palette.window: theme.biblioWashTop
     palette.windowText: theme.ink
     palette.text: theme.ink
@@ -79,26 +76,13 @@ Menu {
         y = hitY
         popup()
     }
-    function invoke(action, editing) {
+    function invoke(action) {
         if (!live()) return
+        // Dispatch while QtWebEngine's native hit-test context remains current.
+        // Edit commands do not run page scripts or guess an editable DOM target.
         contextActive = false
-        if (editing && editDispatchMode === "C") {
-            const serial = contextSerial
-            const generation = documentGeneration
-            close()
-            browser.forceActiveFocus()
-            Qt.callLater(function() {
-                if (pageMenu.contextSerial !== serial
-                    || browser.navigationGeneration !== generation
-                    || !browser.visible || browser.suppressed
-                    || browser.closingSession || browser.clearingSession
-                    || browser.rendererLost) return
-                browser.triggerWebAction(action)
-            })
-        } else {
-            browser.triggerWebAction(action)
-            close()
-        }
+        browser.triggerWebAction(action)
+        close()
     }
     function navigate(direction) {
         if (!live()) return
@@ -137,14 +121,14 @@ Menu {
         objectName: "feriaPageMenuOpenLink"
         text: "Open link in new tab"
         visible: pageMenu.hasLink
-        onTriggered: pageMenu.invoke(WebEngineView.OpenLinkInNewTab, false)
+        onTriggered: pageMenu.invoke(WebEngineView.OpenLinkInNewTab)
     }
     MenuItem {
         id: copyLink
         objectName: "feriaPageMenuCopyLinkAddress"
         text: "Copy link address"
         visible: pageMenu.hasLink
-        onTriggered: pageMenu.invoke(WebEngineView.CopyLinkToClipboard, false)
+        onTriggered: pageMenu.invoke(WebEngineView.CopyLinkToClipboard)
     }
     MenuItem {
         id: openImage
@@ -158,14 +142,14 @@ Menu {
         objectName: "feriaPageMenuSaveImage"
         text: "Save image"
         visible: pageMenu.hasImage
-        onTriggered: pageMenu.invoke(WebEngineView.DownloadImageToDisk, false)
+        onTriggered: pageMenu.invoke(WebEngineView.DownloadImageToDisk)
     }
     MenuItem {
         id: copyImage
         objectName: "feriaPageMenuCopyImageAddress"
         text: "Copy image address"
         visible: pageMenu.hasImage
-        onTriggered: pageMenu.invoke(WebEngineView.CopyImageUrlToClipboard, false)
+        onTriggered: pageMenu.invoke(WebEngineView.CopyImageUrlToClipboard)
     }
     MenuItem {
         id: cutText
@@ -173,7 +157,7 @@ Menu {
         text: "Cut"
         visible: pageMenu.isEditable
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanCut) !== 0
-        onTriggered: pageMenu.invoke(WebEngineView.Cut, true)
+        onTriggered: pageMenu.invoke(WebEngineView.Cut)
     }
     MenuItem {
         id: copyText
@@ -182,7 +166,7 @@ Menu {
         visible: pageMenu.isEditable || pageMenu.hasSelection
         enabled: !pageMenu.isEditable
             || (pageMenu.editFlags & ContextMenuRequest.CanCopy) !== 0
-        onTriggered: pageMenu.invoke(WebEngineView.Copy, pageMenu.isEditable)
+        onTriggered: pageMenu.invoke(WebEngineView.Copy)
     }
     MenuItem {
         id: pasteText
@@ -190,7 +174,7 @@ Menu {
         text: "Paste"
         visible: pageMenu.isEditable
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanPaste) !== 0
-        onTriggered: pageMenu.invoke(WebEngineView.Paste, true)
+        onTriggered: pageMenu.invoke(WebEngineView.Paste)
     }
     MenuItem {
         id: selectAll
@@ -198,7 +182,7 @@ Menu {
         text: "Select all"
         visible: pageMenu.isEditable
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanSelectAll) !== 0
-        onTriggered: pageMenu.invoke(WebEngineView.SelectAll, true)
+        onTriggered: pageMenu.invoke(WebEngineView.SelectAll)
     }
     MenuItem {
         id: back
