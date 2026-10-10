@@ -265,7 +265,9 @@ def tabs(site):
     s += [app.key("Ctrl+Shift+T: restore C", "Ctrl+Shift+T"),
           app.wait_for("Ctrl+Shift+T: restored C URL", "feriaBrowserHost",
                        "currentUrl", site + "/c", 15000),
-          app.pause("Ctrl+Shift+T: C title settles", 1100),
+          app.wait_for("Ctrl+Shift+T: C load complete", "feriaBrowserHost",
+                       "loadSucceeded", True, 30000),
+          app.pause("Ctrl+Shift+T: C title settles", 2500),
           title("Ctrl+Shift+T: C title marker", "kbd=c|")]
     s += browser_menu("Ctrl+Shift+T: restored tab", "Tabs", 2)
     s += close_menu("Ctrl+Shift+T: restored tab")
@@ -366,8 +368,45 @@ def panels(site):
     return s
 
 
+def escape_focus(site):
+    """Qualify the disputed Ctrl+L/Escape handoff without a page click."""
+    s, values = app.boot(True), {}
+    s += address("Escape control", site + "/escape", "escape")
+    value = prove_focus(s, "Escape control", "escape", values, "A")
+    s += [app.key("Ctrl+L Escape: open address", "Ctrl+L"),
+          app.wait_for("Ctrl+L Escape: address active", "feriaBrowserAddress",
+                       "activeFocus", True, 10000)]
+    s += unchanged("Ctrl+L Escape", "escape", value)
+    s += [app.key("Ctrl+L Escape: dismiss address", "Escape"),
+          app.pause("Ctrl+L Escape: wait for focus return", 1000),
+          app.key("Ctrl+L Escape: send B without page click", "B"),
+          app.pause("Ctrl+L Escape: let page report", 1600),
+          title("Ctrl+L Escape: AUTO keyboard return |value=ab|", "|value=ab|")]
+    s += app.QUIT
+    return s
+
+
+def escape_click(site):
+    """Separate launch proving whether an explicit click restores the caret."""
+    s, values = app.boot(True), {}
+    s += address("Escape click control", site + "/escape-click", "escape-click")
+    value = prove_focus(s, "Escape click control", "escape-click", values, "A")
+    s += [app.key("Ctrl+L Escape click: open address", "Ctrl+L"),
+          app.wait_for("Ctrl+L Escape click: address active", "feriaBrowserAddress",
+                       "activeFocus", True, 10000)]
+    s += unchanged("Ctrl+L Escape click", "escape-click", value)
+    s += [app.key("Ctrl+L Escape click: dismiss address", "Escape")]
+    value = prove_focus(s, "Ctrl+L Escape click: explicit page click",
+                        "escape-click", values, "B")
+    s += unchanged("Ctrl+L Escape click: input after click", "escape-click", value)
+    s += app.QUIT
+    return s
+
+
 SCENARIOS = {"navigation": navigation, "tabs": tabs, "panels": panels,
-             "single-close": single_close}
+             "single-close": single_close, "escape-focus": escape_focus,
+             "escape-click": escape_click}
+DEFAULT_SCENARIOS = ("navigation", "tabs", "panels", "single-close")
 
 
 def run(args, name, steps, tag):
@@ -386,15 +425,43 @@ def run(args, name, steps, tag):
            "--tag", tag]
     # DO NOT add --keep-going: a failed viewState guard MUST prevent a
     # subsequent ui-click from landing on a home-screen provider tile.
+    moments = {}
+    def pump(stream, capture):
+        for line in stream:
+            stamp = time.monotonic()
+            capture.write(line)
+            capture.flush()
+            if line.startswith("PASS  Ctrl+W: close active tab C"):
+                moments["two_key"] = stamp
+            elif line.startswith("PASS  Ctrl+W: shell returns to HOME"):
+                moments["two_home"] = stamp
+            elif line.startswith("PASS  Ctrl+W ONLY tab: close"):
+                moments["single_key"] = stamp
+            elif line.startswith("PASS  Ctrl+W ONLY tab: home"):
+                moments["single_home"] = stamp
     with log.open("w", encoding="utf-8", errors="replace") as capture:
-        proc = subprocess.Popen(cmd, cwd=app.ROOT, env=env, stdout=capture,
-                                stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(cmd, cwd=app.ROOT, env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, encoding="utf-8", errors="replace", bufsize=1)
+        reader = threading.Thread(target=pump, args=(proc.stdout, capture), daemon=True)
+        reader.start()
         try:
             code = proc.wait(timeout=240)
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=10)
             code = -1
+        reader.join(timeout=10)
+    timings = {kind: round(moments[kind + "_home"] -
+                           moments[kind + "_key"], 3)
+               for kind in ("two", "single")
+               if kind + "_key" in moments and kind + "_home" in moments}
+    (out / "close-timings.json").write_text(
+        json.dumps({"seconds_key_to_home_log": timings,
+                    "note": "Timestamped Lanista PASS lines; includes command/transport latency."},
+                   indent=2), encoding="utf-8")
+    for kind, seconds in timings.items():
+        print("CTRL+W", kind, "key-to-home observed-log seconds", seconds, flush=True)
     output = log.read_text(encoding="utf-8", errors="replace")
     summary = re.search(r"(\d+) steps, (\d+) failed", output)
     manifest = re.search(r"manifest: (.*?)\)", output)
@@ -431,7 +498,7 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     site = "http://127.0.0.1:%d" % server.server_address[1]
     try:
-        names = list(SCENARIOS) if args.scenario == "all" else [args.scenario]
+        names = list(DEFAULT_SCENARIOS) if args.scenario == "all" else [args.scenario]
         results = []
         for name in names:
             tag = ("feria-set4-0008-" + name + "-" +
