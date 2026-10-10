@@ -126,6 +126,20 @@ Section "Colosseum"
   ${If} $UpdateMode == "1"
     Call UpdateInstall
   ${Else}
+    ; A manual migration overlays the existing payload. Refresh the managed
+    ; QML tree in a registered installation so retired pages cannot invalidate
+    ; the new executable's exact QML build fingerprint. User profiles live in
+    ; AppData and are outside this payload directory.
+    ReadRegStr $0 HKCU "${COLOSSEUM_REGKEY}" "InstallLocation"
+    ${If} $0 == $INSTDIR
+    ${AndIf} ${FileExists} "$INSTDIR\native\build-msvc\colosseum.exe"
+    ${AndIf} ${FileExists} "$INSTDIR\qml\Main.qml"
+      ClearErrors
+      RMDir /r "$INSTDIR\qml"
+      ${If} ${Errors}
+        Abort "Close Colosseum and run this installer again to replace its interface files."
+      ${EndIf}
+    ${EndIf}
     SetOutPath "$INSTDIR"
   ${EndIf}
   File /r "${STAGE}\*.*"
