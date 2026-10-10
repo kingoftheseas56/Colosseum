@@ -115,6 +115,8 @@ async function browserTest() {
         transcript.push({ label, expectedIndex: index, expectedPhysicalPage: index + 1, ...state })
         check(state.index === index, label + ' reports wrong physical page index', state)
         check(state.cfiIndex === index, label + ' saves wrong page CFI', state)
+        check(state.chapterCurrent === index + 1,
+            label + ' displays wrong physical page number', state)
         check(state.contents.some(page => page.index === index && page.visible),
             label + ' target marker is not visible', state)
         const rect = reader.view.getBoundingClientRect()
