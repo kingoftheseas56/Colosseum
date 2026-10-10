@@ -14,6 +14,7 @@ Column {
     property var busy: ({})
     property int revision: 0
     property bool canSeeAll: true
+    readonly property int phoneVisibleCount: 4
     property bool phoneLayout: false
     signal addonActivated(var addon)
     signal seeAllRequested()
@@ -82,7 +83,11 @@ Column {
         width: parent.width
         spacing: 18
         Repeater {
-            model: rail.phoneLayout ? rail.items : []
+            // A phone shows the first few of a rail and leaves the rest behind See all (a lazy
+            // list). Building every card of every rail at once, logos included, got the app
+            // killed for memory on a 4 GB tablet (2026-10-10, Android exit record LOW_MEMORY).
+            model: !rail.phoneLayout ? []
+                 : (rail.canSeeAll ? rail.items.slice(0, rail.phoneVisibleCount) : rail.items)
             delegate: ExtensionsStoreCard {
                 required property var modelData
                 width: mobileCards.width
@@ -137,7 +142,8 @@ Column {
             spacing: 22
             Repeater {
                 id: cards
-                model: rail.items
+                // the wide row is not built at all on a phone; hidden cards still load their logos
+                model: rail.phoneLayout ? [] : rail.items
                 delegate: ExtensionsStoreCard {
                     required property var modelData
                     required property int index
