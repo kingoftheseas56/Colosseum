@@ -133,7 +133,7 @@ Item {
             log("CONTEXT_CASE", {name:label, signalled:root.contextSerial > before,
                 request: root.contextSerial > before ? root.lastContext : null,
                 visibleOverlay:menuSnapshot()})
-            keyClick(page, Qt.Key_Escape)
+            keyClick(Qt.Key_Escape)
             wait(120)
         }
 
@@ -169,26 +169,26 @@ Item {
         function test_03_pageFocusedShortcuts() {
             var page = open("/daily")
             mouseClick(page, 70, 270)
-            var focus = js(page, "({hasFocus:document.hasFocus(),tag:document.activeElement.tagName,id:document.activeElement.id})")
-            log("KEY_FOCUS", focus)
-            keyClick(page, Qt.Key_F, Qt.ControlModifier)
+            var focus = js(page, "var e=document.getElementById('dailyEdit'); e.focus(); ({hasFocus:document.hasFocus(),tag:document.activeElement.tagName,id:document.activeElement.id})")
+            log("KEY_FOCUS", {dom:focus, qtActiveFocus:page.activeFocus, toolsActive:page.pageTools.active})
+            keyClick(Qt.Key_F, Qt.ControlModifier)
             wait(300)
             log("KEY", {shortcut:"Ctrl+F", findOpen:page.pageTools.findOpen})
             page.pageTools.closeFind(false)
             mouseClick(page, 70, 270)
             var original = page.zoomFactor
-            keyClick(page, Qt.Key_Equal, Qt.ControlModifier)
+            keyClick(Qt.Key_Equal, Qt.ControlModifier)
             wait(300)
             log("KEY", {shortcut:"Ctrl+=", before:original, after:page.zoomFactor})
-            keyClick(page, Qt.Key_Minus, Qt.ControlModifier)
+            keyClick(Qt.Key_Minus, Qt.ControlModifier)
             wait(300)
             log("KEY", {shortcut:"Ctrl+-", after:page.zoomFactor})
             page.zoomFactor = 1.5
-            keyClick(page, Qt.Key_0, Qt.ControlModifier)
+            keyClick(Qt.Key_0, Qt.ControlModifier)
             wait(300)
             log("KEY", {shortcut:"Ctrl+0", after:page.zoomFactor})
             mouseClick(page, 70, 270)
-            keyClick(page, Qt.Key_F10)
+            keyClick(Qt.Key_F10)
             wait(250)
             log("KEY", {shortcut:"F10", optionsSignals:root.optionSignals})
             log("KEY_LIMIT", {note:"Host-level shortcuts live in PorticoDiscoveryHostView, not in this production deck fixture; their page-focused delivery is not qualified by this case."})
@@ -200,6 +200,7 @@ Item {
             rightClick(page, "link", 70, 95)
             rightClick(page, "image", 65, 175)
             js(page, "var s=window.getSelection(),r=document.createRange();r.selectNodeContents(document.getElementById('dailyText'));s.removeAllRanges();s.addRange(r);true")
+            log("CONTEXT_SELECTION_PRE", {selected:js(page,"window.getSelection().toString()")})
             rightClick(page, "selected text", 85, 350)
             rightClick(page, "editable textarea", 65, 270)
         }
@@ -214,22 +215,40 @@ Item {
             log("SPELL_LIMIT", {note:"An offscreen context request alone cannot prove a red underline was painted; the profile switch, dictionary availability and suggestions must be considered separately."})
         }
 
-        function test_06_pdfBuiltInViewer() {
-            var page = open("/daily")
-            var beforeDownloads = deck.downloads ? deck.downloads.items.length : -1
+        function pdfAttempt(page, label) {
+            var before = deck.downloads ? deck.downloads.items.length : -1
             var began = deck.navigateSession(deck.sessions.activeId,
                 FixtureUrl + "/daily-document.pdf", 0, null, null)
             for (var i = 0; i < 70; ++i) {
-                if (!page.loadActive && String(page.url).indexOf("daily-document.pdf") >= 0) break
+                if (!page.loadActive && (String(page.url).indexOf("daily-document.pdf") >= 0
+                        || (deck.downloads && deck.downloads.items.length > before))) break
                 wait(100)
             }
-            wait(1700)
-            log("PDF", {navigateAccepted:began, settingEnabled:Boolean(page.settings.pdfViewerEnabled),
-                url:String(page.url), title:String(page.title), documentReady:page.documentReady,
-                loading:page.loadActive, downloadsBefore:beforeDownloads,
-                downloadsAfter:deck.downloads ? deck.downloads.items.length : -1,
+            wait(1300)
+            var after = deck.downloads ? deck.downloads.items.length : -1
+            var item = after > before ? deck.downloads.items[after - 1] : null
+            var magic = ""
+            if (item && item.path) {
+                var data = new Uint8Array(Fixture.downloadedContent(item.path))
+                if (data.length >= 4)
+                    magic = String.fromCharCode(data[0],data[1],data[2],data[3])
+            }
+            log("PDF", {mode:label, navigateAccepted:began,
+                pdfViewerEnabled:Boolean(page.settings.pdfViewerEnabled),
+                pluginsEnabled:Boolean(page.settings.pluginsEnabled),
+                url:String(page.url), title:String(page.title),
+                documentReady:page.documentReady, loading:page.loadActive,
+                downloadsBefore:before, downloadsAfter:after, fileName:item ? item.fileName : "",
+                fileCompleted:item ? item.completed : null, downloadedMagic:magic,
                 rendererPid:Number(page.renderProcessPid)})
-            log("PDF_LIMIT", {note:"Embedded PDF toolbar painting, button clicks and system print UI are not established by URL/title alone."})
+        }
+        function test_06_pdfBuiltInViewer() {
+            var page = open("/daily")
+            pdfAttempt(page, "production defaults")
+            var alternate = open("/daily")
+            alternate.settings.pluginsEnabled = true
+            pdfAttempt(alternate, "test-only pluginsEnabled true")
+            log("PDF_LIMIT", {note:"Viewer toolbar rendering, in-viewer zoom/page/download/print buttons cannot be proved from the URL or title in offscreen mode."})
         }
 
         function test_07_inspectorProbe() {
