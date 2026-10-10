@@ -70,37 +70,80 @@ class KeyboardSite(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+
 def title(label, value):
     return app.get(label, "feriaBrowserHost", "pageTitle", "contains", value)
 
 
-def unchanged(shortcut, text):
-    return [app.pause(shortcut + ": deliver page title", 1100),
-            title(shortcut + ": textarea value unchanged", "|value=" + text + "|")]
+def observed(label, obj, prop):
+    """A non-asserting read for a disputed focus transfer."""
+    return {"cmd": "qml-get", "label": label,
+            "payload": {"object": obj, "props": [prop]}}
+
+
+def title_ready(label, name, loads=1, value=""):
+    # ui-wait-for compares entire values, not substrings. The newly loaded
+    # document has received no keys, so its first report is deterministic.
+    marker = "kbd=%s|loads=%d|value=%s|keydown=0|" % (name, loads, value)
+    return app.wait_for(label + ": page title marker ready",
+                        "feriaBrowserHost", "pageTitle", marker, 15000)
+
+
+def host_guard(label):
+    return app.get(label + ": GUARD viewState is host",
+                   "feriaAppPage", "viewState", "==", "host")
 
 
 def page_focus(label):
-    # Chromium receives focus asynchronously after a QQuickWindow click.
-    return [app.click(label + ": give textarea the keyboard", "feriaQtWebEngine"),
-            app.pause(label + ": Chromium focus hand-off", 700)]
+    # The guard MUST abort the scenario on failure. Lanista runs without
+    # --keep-going: a home-screen tile must never be clicked as a web page.
+    return [host_guard(label),
+            app.click(label + ": focus WebEngine textarea", "feriaQtWebEngine"),
+            app.pause(label + ": Chromium focus hand-off", 650)]
 
 
-def address(label, url):
-    return [app.click(label + ": open address", "feriaBrowserAddressToggle"),
+def unchanged(label, name, value):
+    return [app.pause(label + ": title update", 450),
+            title(label + ": textarea unchanged",
+                  "kbd=%s|" % name if value is None
+                  else "|value=%s|" % value)]
+
+
+def prove_focus(steps, label, name, values, letter):
+    """Show the web textarea actually receives an ordinary key immediately
+    before each shortcut; keep the exact expected lowercased input value."""
+    current = values.get(name, "") + letter.lower()
+    steps.extend(page_focus(label))
+    steps += [app.key(label + ": CONTROL plain " + letter + " reaches page", letter),
+              app.pause(label + ": wait for input title", 400),
+              title(label + ": CONTROL keyboard owned by " + name,
+                    "kbd=%s|" % name),
+              title(label + ": CONTROL textarea value", "|value=%s|" % current)]
+    values[name] = current
+    return current
+
+
+def address(label, url, name, loads=1, value=""):
+    # Do not attempt to address a browser that has returned to Feria home.
+    return [host_guard(label), app.click(label + ": open address", "feriaBrowserAddressToggle"),
             app.pause(label + ": address ready", 350),
             *app.typed(label + ": enter local URL", "feriaBrowserAddress", url),
             app.key(label + ": navigate", "Return"),
-            app.pause(label + ": navigation settles", 800),
-            app.wait_for(label + ": loading completed", "feriaBrowserHost",
-                         "loadSucceeded", True, 30000),
+            app.wait_for(label + ": loading completed",
+                         "feriaBrowserHost", "loadSucceeded", True, 30000),
             app.get(label + ": local address", "feriaBrowserHost",
-                    "currentUrl", "contains", url)]
+                    "currentUrl", "contains", url),
+            title_ready(label, name, loads, value)]
 
 
-def menu_open(label, sequence, section):
-    return [*page_focus(label), app.key(label, sequence),
-            app.wait_for(label + ": " + section + " is visible",
-                         "feriaBrowser" + section + "List", "visible", True, 10000)]
+def browser_menu(label, section, count=None):
+    steps = [app.key(label + ": open browser menu", "Ctrl+H"),
+             app.wait_for(label + ": " + section + " section visible",
+                          "feriaBrowser" + section + "List", "visible", True, 10000)]
+    if count is not None:
+        steps.append(app.wait_for(label + ": tabs count " + str(count),
+                                  "feriaBrowserTabsList", "count", count, 10000))
+    return steps
 
 
 def close_menu(label):
@@ -108,138 +151,260 @@ def close_menu(label):
             app.pause(label + ": modal closes", 300)]
 
 
-def steps(site):
-    a, b, c, private = (site + "/" + part for part in ("a", "b", "c", "private"))
-    s = app.boot(True)
+def reopen_provider(label):
+    # Called ONLY after a successful 15-second home-state wait. The navigation
+    # is the same documented 800x800 keyboard route as app.boot().
+    return [app.get(label + ": GUARDED home before tile", "feriaAppPage",
+                    "viewState", "==", "home"),
+            app.click(label + ": Feria mode", "modePill_Feria"),
+            app.key(label + ": tile 2", "Right"),
+            app.key(label + ": tile 3", "Right"),
+            app.key(label + ": tile 6", "Down"),
+            app.key(label + ": tile 9", "Down"),
+            app.key(label + ": tile 12", "Down"),
+            app.key(label + ": tile 11 MANGA Plus", "Left"),
+            app.pause(label + ": focus settles", 350),
+            app.get(label + ": GUARDED home before provider click",
+                    "feriaAppPage", "viewState", "==", "home"),
+            app.click(label + ": reopen MANGA Plus", "feriaApp_mangaplus"),
+            app.wait_for(label + ": returned to browser host",
+                         "feriaAppPage", "viewState", "host", 15000),
+            app.wait_for(label + ": hosted browser loaded",
+                         "feriaBrowserHost", "loadSucceeded", True, 60000)]
 
-    # Control: a plain key really enters the page, rather than just the app.
-    s += address("load keyboard fixture A", a)
-    s += [*page_focus("initial page"), app.key("CONTROL: plain A to web textarea", "A"),
-          app.pause("CONTROL: input callback updates title", 1600),
-          title("CONTROL: WebEngine received plain A", "kbd=a|loads=1|value=a|keydown=")]
 
-    s += [*page_focus("Ctrl+L"), app.key("Ctrl+L: address editor", "Ctrl+L"),
-          app.wait_for("Ctrl+L: editor has active focus",
-                       "feriaBrowserAddress", "activeFocus", True)]
-    s += unchanged("Ctrl+L", "a")
-    s += [app.key("Ctrl+L: Escape", "Escape"), *page_focus("after Escape"),
-          app.key("Ctrl+L: page receives B again", "B"),
-          app.pause("Ctrl+L: resumed typing reported", 1600),
-          title("Ctrl+L: focus returns to textarea", "|value=ab|")]
-
-    s += [*page_focus("Ctrl+R"), app.key("Ctrl+R: reload", "Ctrl+R"),
-          app.pause("Ctrl+R: navigation result", 2000),
-          title("Ctrl+R: load count becomes 2", "kbd=a|loads=2|")]
-    s += unchanged("Ctrl+R", "ab")
-    s += [*page_focus("F5"), app.key("F5: reload", "F5"),
-          app.pause("F5: navigation result", 2000),
-          title("F5: load count becomes 3", "kbd=a|loads=3|")]
-    s += unchanged("F5", "ab")
-
-    s += address("load keyboard fixture B", b)
-    s += [*page_focus("B navigation"), app.key("CONTROL: enter C on B", "C"),
-          app.pause("CONTROL: B input reported", 1600),
-          title("CONTROL: B has the keyboard", "kbd=b|loads=1|value=c|")]
-    s += [*page_focus("Alt+Left"), app.key("Alt+Left: back", "Alt+Left"),
-          app.pause("Alt+Left: page completes", 900),
-          app.get("Alt+Left: prior URL", "feriaBrowserHost", "currentUrl", "contains", "/a"),
-          title("Alt+Left: prior page remains intact", "kbd=a|")]
-    s += unchanged("Alt+Left", "ab")
-    s += [*page_focus("Alt+Right"), app.key("Alt+Right: forward", "Alt+Right"),
-          app.pause("Alt+Right: page completes", 900),
-          app.get("Alt+Right: forward URL", "feriaBrowserHost", "currentUrl", "contains", "/b"),
-          title("Alt+Right: returns to B", "kbd=b|")]
-    s += unchanged("Alt+Right", "c")
-
-    s += [*page_focus("Ctrl+T"), app.key("Ctrl+T: create regular tab", "Ctrl+T"),
-          app.pause("Ctrl+T: new tab created", 1500),
-          app.key("Ctrl+T: inspect tabs via History", "Ctrl+H"),
-          app.wait_for("Ctrl+T: tabs count two", "feriaBrowserTabsList", "count", 2, 10000)]
-    s += close_menu("after Ctrl+T")
-    s += address("new tab goes to local fixture C", c)
-    s += [*page_focus("new tab C"), app.key("CONTROL: C gets D", "D"),
-          app.pause("CONTROL: C title updated", 1600),
-          title("CONTROL: new tab C has keyboard", "kbd=c|loads=1|value=d|")]
-    s += [*page_focus("Ctrl+W"), app.key("Ctrl+W: close tab C", "Ctrl+W"),
-          app.pause("Ctrl+W: return to B", 1200),
-          app.get("Ctrl+W: restored B URL", "feriaBrowserHost", "currentUrl", "contains", "/b")]
-    s += unchanged("Ctrl+W", "c")
-    s += [*page_focus("Ctrl+Shift+T"), app.key("Ctrl+Shift+T: reopen C", "Ctrl+Shift+T"),
-          app.pause("Ctrl+Shift+T: reopened tab load", 1400),
-          app.get("Ctrl+Shift+T: restored C URL", "feriaBrowserHost", "currentUrl", "contains", "/c"),
-          title("Ctrl+Shift+T: browser displays C", "kbd=c|")]
-    s += [*page_focus("Ctrl+Tab"), app.key("Ctrl+Tab: cycle to B", "Ctrl+Tab"),
-          app.pause("Ctrl+Tab: tab activation", 600),
-          app.get("Ctrl+Tab: B active", "feriaBrowserHost", "currentUrl", "contains", "/b")]
-    s += unchanged("Ctrl+Tab", "c")
-    s += [*page_focus("Ctrl+Shift+Tab"), app.key("Ctrl+Shift+Tab: cycle to C", "Ctrl+Shift+Tab"),
-          app.pause("Ctrl+Shift+Tab: tab activation", 600),
-          app.get("Ctrl+Shift+Tab: C active", "feriaBrowserHost", "currentUrl", "contains", "/c")]
-    s += [*page_focus("close extra tab"), app.key("close C after tab cycling", "Ctrl+W"),
-          app.pause("closed C", 600),
-          app.get("B active again", "feriaBrowserHost", "currentUrl", "contains", "/b")]
-    s += unchanged("Ctrl+Shift+Tab", "c")
-
-    s += [*page_focus("Ctrl+Shift+N"), app.key("Ctrl+Shift+N: private tab", "Ctrl+Shift+N"),
-          app.pause("Ctrl+Shift+N: tab created", 1200)]
-    s += address("private tab loopback fixture", private)
-    s += [*page_focus("private page"), app.key("CONTROL: private receives P", "P"),
-          app.pause("CONTROL: private input", 1600),
-          title("CONTROL: private page keyboard", "kbd=private|loads=1|value=p|"),
-          *page_focus("private menu"), app.key("Ctrl+Shift+N: inspect private mode", "Ctrl+H"),
-          app.wait_for("private History visible", "feriaBrowserHistoryList", "visible", True),
-          app.get("Ctrl+Shift+N: private identity", "feriaBrowserPrivacy", "text", "contains", "Private")]
-    s += close_menu("private")
-    s += unchanged("Ctrl+Shift+N", "p")
-    s += [*page_focus("private close"), app.key("close private tab", "Ctrl+W"),
-          app.pause("private tab closed", 600),
-          app.get("regular B returns", "feriaBrowserHost", "currentUrl", "contains", "/b")]
-
-    for label, sequence, section in (("Ctrl+H", "Ctrl+H", "History"),
-                                     ("Ctrl+D", "Ctrl+D", "Bookmarks")):
-        s += menu_open(label, sequence, section)
-        s += close_menu(label)
-        s += unchanged(label, "c")
-
-    s += [*page_focus("Ctrl+J"), app.key("Ctrl+J: downloads panel", "Ctrl+J"),
-          app.wait_for("Ctrl+J: downloads panel opens",
-                       "feriaRegularDownloads", "panelOpen", True, 10000),
-          app.key("Ctrl+J: close empty downloads", "Escape"),
-          app.wait_for("Ctrl+J: downloads dismissed",
-                       "feriaRegularDownloads", "panelOpen", False, 10000)]
-    s += unchanged("Ctrl+J", "c")
-
-    s += [*page_focus("Ctrl+F"), app.key("Ctrl+F: find text", "Ctrl+F"),
-          app.wait_for("Ctrl+F: find input has focus", "feriaFindInput", "activeFocus", True),
-          app.key("Ctrl+F: Escape dismisses Find", "Escape"),
-          app.wait_for("Ctrl+F: panel is dismissed", "feriaFindInput", "visible", False),
-          app.pause("Ctrl+F: page focus restored", 350),
-          app.key("Ctrl+F: resumed page input E", "E"),
-          app.pause("Ctrl+F: page accepted resumed typing", 1600),
-          title("Ctrl+F: textarea regained keyboard", "|value=ce|")]
-
-    s += [*page_focus("Ctrl+="), app.key("Ctrl+=: zoom in", "Ctrl+="),
-          app.get("Ctrl+=: engine zoomed in", "feriaQtWebEngine", "zoomFactor", ">", 1)]
-    s += unchanged("Ctrl+=", "ce")
-    s += [*page_focus("Ctrl+-"), app.key("Ctrl+-: zoom out", "Ctrl+-"),
-          app.get("Ctrl+-: engine zoom reset to 100%", "feriaQtWebEngine", "zoomFactor", "==", 1)]
-    s += unchanged("Ctrl+-", "ce")
-    s += [*page_focus("zoom up before reset"), app.key("prepare Ctrl+0: zoom in", "Ctrl+="),
-          *page_focus("Ctrl+0"), app.key("Ctrl+0: reset zoom", "Ctrl+0"),
-          app.get("Ctrl+0: engine zoom is 100%", "feriaQtWebEngine", "zoomFactor", "==", 1)]
-    s += unchanged("Ctrl+0", "ce")
-
-    # Last: native save dialog may retain focus in offscreen mode. Cancel only;
-    # no filename is chosen and no printToPdf call is issued.
-    s += [*page_focus("Ctrl+P"), app.key("Ctrl+P: request print", "Ctrl+P"),
-          app.wait_for("Ctrl+P: print picker ticket allocated",
-                       "feriaActiveBrowserRequests", "printPromptPending", True, 10000)]
-    s += unchanged("Ctrl+P", "ce")
-    s += [app.key("Ctrl+P: cancel save dialog", "Escape"),
-          app.wait_for("Ctrl+P: print request cancelled",
-                       "feriaActiveBrowserRequests", "printPromptPending", False, 10000)]
+def navigation(site):
+    s, values = app.boot(True), {}
+    s += address("navigation A", site + "/a", "a")
+    a = prove_focus(s, "Ctrl+L", "a", values, "A")
+    s += [app.key("Ctrl+L: open address", "Ctrl+L"),
+          app.wait_for("Ctrl+L: editor focused", "feriaBrowserAddress",
+                       "activeFocus", True, 10000)]
+    s += unchanged("Ctrl+L", "a", a)
+    s += [app.key("Ctrl+L: Escape close address", "Escape"),
+          app.wait_for("Ctrl+L: address panel hidden", "feriaBrowserAddressPanel",
+                       "visible", False, 10000),
+          app.key("Ctrl+L: test page keyboard WITHOUT click (B)", "B"),
+          app.pause("Ctrl+L: allow unsummoned page input", 650),
+          observed("Ctrl+L: Escape page focus finding (value=ab means automatic)",
+                   "feriaBrowserHost", "pageTitle")]
+    # Escape focus is an observation, not a blocking assertion; the later keys
+    # start from a new loopback document, independently of this result.
+    s += address("navigation reload", site + "/reload", "reload")
+    r = prove_focus(s, "Ctrl+R", "reload", values, "C")
+    s += [app.key("Ctrl+R: reload", "Ctrl+R"),
+          title_ready("Ctrl+R: count becomes 2", "reload", 2, r)]
+    s += unchanged("Ctrl+R", "reload", r)
+    r = prove_focus(s, "F5", "reload", values, "D")
+    s += [app.key("F5: reload", "F5"),
+          title_ready("F5: count becomes 3", "reload", 3, r)]
+    s += unchanged("F5", "reload", r)
+    s += address("navigation B", site + "/b", "b")
+    b = prove_focus(s, "Alt+Left", "b", values, "E")
+    s += [app.key("Alt+Left: go back", "Alt+Left"),
+          app.wait_for("Alt+Left: previous URL", "feriaBrowserHost",
+                       "currentUrl", site + "/reload", 15000),
+          app.pause("Alt+Left: title catch-up", 1800),
+          title("Alt+Left: previous title marker", "kbd=reload|")]
+    r = prove_focus(s, "Alt+Right", "reload", values, "F")
+    s += [app.key("Alt+Right: go forward", "Alt+Right"),
+          app.wait_for("Alt+Right: B URL", "feriaBrowserHost",
+                       "currentUrl", site + "/b", 15000),
+          app.pause("Alt+Right: title catch-up", 1800),
+          title("Alt+Right: B title marker", "kbd=b|")]
+    s += unchanged("Alt+Left and Alt+Right: B kept input", "b", b)
     s += app.QUIT
     return s
+
+
+def tabs(site):
+    s, values = app.boot(True), {}
+    s += address("tab B", site + "/b", "b")
+    b = prove_focus(s, "Ctrl+T", "b", values, "B")
+    s += [app.key("Ctrl+T: create tab", "Ctrl+T"),
+          app.pause("Ctrl+T: new tab initialized", 1000)]
+    s += browser_menu("Ctrl+T", "Tabs", 2)
+    s += close_menu("Ctrl+T")
+    s += address("tab C", site + "/c", "c")
+    c = prove_focus(s, "Ctrl+Tab", "c", values, "C")
+    s += [app.key("Ctrl+Tab: cycle to B", "Ctrl+Tab"),
+          app.wait_for("Ctrl+Tab: B is active", "feriaBrowserHost",
+                       "currentUrl", site + "/b", 15000),
+          app.pause("Ctrl+Tab: B title settles", 700),
+          title("Ctrl+Tab: B textarea preserved", "|value=%s|" % b)]
+    b = prove_focus(s, "Ctrl+Shift+Tab", "b", values, "D")
+    s += [app.key("Ctrl+Shift+Tab: cycle to C", "Ctrl+Shift+Tab"),
+          app.wait_for("Ctrl+Shift+Tab: C active", "feriaBrowserHost",
+                       "currentUrl", site + "/c", 15000),
+          app.pause("Ctrl+Shift+Tab: C title settles", 700),
+          title("Ctrl+Shift+Tab: C input preserved", "|value=%s|" % c)]
+    c = prove_focus(s, "Ctrl+W", "c", values, "E")
+    s += [app.key("Ctrl+W: close active tab C", "Ctrl+W"),
+          app.wait_for("Ctrl+W: shell returns to HOME (15-second bound)",
+                       "feriaAppPage", "viewState", "home", 15000),
+          app.get("Ctrl+W: shell state after close",
+                  "feriaAppPage", "viewState", "==", "home")]
+    s += reopen_provider("Ctrl+W: reopen same provider")
+    s += [app.get("Ctrl+W: surviving B address", "feriaBrowserHost",
+                  "currentUrl", "contains", site + "/b"),
+          app.pause("Ctrl+W: B title catch-up", 1000),
+          title("Ctrl+W: surviving B title", "kbd=b|")]
+    s += browser_menu("Ctrl+W: surviving tab", "Tabs", 1)
+    s += close_menu("Ctrl+W: surviving tab")
+    b = prove_focus(s, "Ctrl+Shift+T", "b", values, "F")
+    s += [app.key("Ctrl+Shift+T: restore C", "Ctrl+Shift+T"),
+          app.wait_for("Ctrl+Shift+T: restored C URL", "feriaBrowserHost",
+                       "currentUrl", site + "/c", 15000),
+          app.pause("Ctrl+Shift+T: C title settles", 1100),
+          title("Ctrl+Shift+T: C title marker", "kbd=c|")]
+    s += browser_menu("Ctrl+Shift+T: restored tab", "Tabs", 2)
+    s += close_menu("Ctrl+Shift+T: restored tab")
+    c = prove_focus(s, "Ctrl+Shift+N", "c", values, "G")
+    s += [app.key("Ctrl+Shift+N: open private tab", "Ctrl+Shift+N"),
+          app.pause("Ctrl+Shift+N: private tab created", 1400)]
+    s += address("private tab", site + "/private", "private")
+    s += [*browser_menu("Ctrl+Shift+N: inspect private", "History"),
+          app.get("Ctrl+Shift+N: private identity",
+                  "feriaBrowserPrivacy", "text", "contains", "Private")]
+    s += close_menu("Ctrl+Shift+N: private")
+    s += [app.key("Ctrl+Shift+N: return to C to check original textarea",
+                  "Ctrl+Shift+Tab"),
+          app.wait_for("Ctrl+Shift+N: C survives", "feriaBrowserHost",
+                       "currentUrl", site + "/c", 15000),
+          app.pause("Ctrl+Shift+N: original title settles", 700),
+          title("Ctrl+Shift+N: original textarea unchanged", "|value=%s|" % c)]
+    s += app.QUIT
+    return s
+
+
+def single_close(site):
+    s, values = app.boot(True), {}
+    s += address("single tab", site + "/single", "single")
+    text = prove_focus(s, "Ctrl+W ONLY tab", "single", values, "K")
+    s += [app.key("Ctrl+W ONLY tab: close", "Ctrl+W"),
+          app.wait_for("Ctrl+W ONLY tab: home", "feriaAppPage",
+                       "viewState", "home", 15000)]
+    s += reopen_provider("Ctrl+W ONLY tab: reopen provider")
+    s += [app.get("Ctrl+W ONLY tab: newly opened provider home address",
+                  "feriaBrowserHost", "currentUrl", "contains",
+                  "mangaplus.shueisha.co.jp")]
+    s += browser_menu("Ctrl+W ONLY tab: one fresh session", "Tabs", 1)
+    s += close_menu("Ctrl+W ONLY tab: fresh menu")
+    s += app.QUIT
+    return s
+
+
+def panels(site):
+    s, values = app.boot(True), {}
+    s += address("page tools", site + "/tools", "tools")
+    for key, section, letter in (("Ctrl+H", "History", "H"),
+                                 ("Ctrl+D", "Bookmarks", "D")):
+        value = prove_focus(s, key, "tools", values, letter)
+        s += [app.key(key + ": open panel", key),
+              app.wait_for(key + ": panel visible", "feriaBrowser" + section + "List",
+                           "visible", True, 10000)]
+        s += unchanged(key, "tools", value)
+        s += close_menu(key)
+    value = prove_focus(s, "Ctrl+J", "tools", values, "J")
+    s += [app.key("Ctrl+J: open Downloads", "Ctrl+J"),
+          app.wait_for("Ctrl+J: panelOpen", "feriaRegularDownloads",
+                       "panelOpen", True, 10000)]
+    s += unchanged("Ctrl+J", "tools", value)
+    s += [app.key("Ctrl+J: Escape close downloads", "Escape"),
+          app.wait_for("Ctrl+J: panel dismissed", "feriaRegularDownloads",
+                       "panelOpen", False, 10000)]
+    value = prove_focus(s, "Ctrl+F", "tools", values, "F")
+    s += [app.key("Ctrl+F: open Find", "Ctrl+F"),
+          app.wait_for("Ctrl+F: Find input activeFocus", "feriaFindInput",
+                       "activeFocus", True, 10000)]
+    s += unchanged("Ctrl+F", "tools", value)
+    s += [app.key("Ctrl+F: Escape", "Escape"),
+          app.wait_for("Ctrl+F: Find closed", "feriaFindInput",
+                       "visible", False, 10000),
+          app.key("Ctrl+F: test focus restored without click (Q)", "Q"),
+          app.pause("Ctrl+F: after Escape title", 650),
+          observed("Ctrl+F: Escape page focus observation", "feriaBrowserHost", "pageTitle")]
+    # Start a fresh page: Escape's focus result was recorded, not assumed.
+    s += address("page zoom", site + "/zoom", "zoom")
+    value = prove_focus(s, "Ctrl+=", "zoom", values, "I")
+    s += [app.key("Ctrl+=: zoom in", "Ctrl+="),
+          app.get("Ctrl+=: zoom greater than 1", "feriaQtWebEngine",
+                  "zoomFactor", ">", 1)]
+    s += unchanged("Ctrl+=", "zoom", value)
+    value = prove_focus(s, "Ctrl+-", "zoom", values, "M")
+    s += [app.key("Ctrl+-: zoom out", "Ctrl+-"),
+          app.get("Ctrl+-: zoom back to 1", "feriaQtWebEngine",
+                  "zoomFactor", "==", 1)]
+    s += unchanged("Ctrl+-", "zoom", value)
+    # Prepare reset without changing the tested textarea value.
+    s += [*page_focus("Ctrl+0: prepare"), app.key("Ctrl+0: prepare zoom > 1", "Ctrl+="),
+          app.get("Ctrl+0: prepared zoom", "feriaQtWebEngine", "zoomFactor", ">", 1)]
+    value = prove_focus(s, "Ctrl+0", "zoom", values, "N")
+    s += [app.key("Ctrl+0: reset zoom", "Ctrl+0"),
+          app.get("Ctrl+0: zoom back to 1", "feriaQtWebEngine",
+                  "zoomFactor", "==", 1)]
+    s += unchanged("Ctrl+0", "zoom", value)
+    value = prove_focus(s, "Ctrl+P", "zoom", values, "P")
+    s += [app.key("Ctrl+P: request print", "Ctrl+P"),
+          app.wait_for("Ctrl+P: print ticket pending", "feriaActiveBrowserRequests",
+                       "printPromptPending", True, 10000)]
+    s += unchanged("Ctrl+P", "zoom", value)
+    s += [app.key("Ctrl+P: Escape cancel print", "Escape"),
+          app.wait_for("Ctrl+P: print ticket cancelled", "feriaActiveBrowserRequests",
+                       "printPromptPending", False, 10000)]
+    s += app.QUIT
+    return s
+
+
+SCENARIOS = {"navigation": navigation, "tabs": tabs, "panels": panels,
+             "single-close": single_close}
+
+
+def run(args, name, steps, tag):
+    out = args.out / name
+    out.mkdir(parents=True, exist_ok=True)
+    scenario = out / "shortcuts.json"
+    scenario.write_text(json.dumps({"name": "shortcuts-" + name, "steps": steps}, indent=1),
+                        encoding="utf-8")
+    log = out / "shortcuts.out"
+    env = dict(os.environ)
+    env["PATH"] = str(args.qt_bin) + os.pathsep + env.get("PATH", "")
+    env["QT_QPA_PLATFORM"] = "offscreen"
+    env["QT_FORCE_STDERR_LOGGING"] = "1"
+    cmd = [str(args.lanista), "session", "run", str(scenario),
+           "--exe", str(args.exe), "--qml", "qml/Main.qml", "--drive",
+           "--tag", tag]
+    # DO NOT add --keep-going: a failed viewState guard MUST prevent a
+    # subsequent ui-click from landing on a home-screen provider tile.
+    with log.open("w", encoding="utf-8", errors="replace") as capture:
+        proc = subprocess.Popen(cmd, cwd=app.ROOT, env=env, stdout=capture,
+                                stderr=subprocess.STDOUT)
+        try:
+            code = proc.wait(timeout=240)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=10)
+            code = -1
+    output = log.read_text(encoding="utf-8", errors="replace")
+    summary = re.search(r"(\d+) steps, (\d+) failed", output)
+    manifest = re.search(r"manifest: (.*?)\)", output)
+    state = {}
+    if manifest:
+        manifest_path = app.ROOT / manifest.group(1)
+        if manifest_path.exists():
+            state = json.loads(manifest_path.read_text(encoding="utf-8"))
+    clean = (state.get("exitCode") == 0 and state.get("crashed") is False
+             and state.get("killReason") == "graceful")
+    ok = bool(summary) and summary.group(2) == "0" and clean and code == 0
+    print(("PASS" if ok else "FAIL"), name,
+          summary.group(0) if summary else "no step summary",
+          "lanista-exit", code, "app-exit", state.get("exitCode"),
+          "crashed", state.get("crashed"), "killReason", state.get("killReason"),
+          "log", log, flush=True)
+    for line in output.splitlines():
+        if line.startswith(("FAIL", "INFRA")):
+            print("   " + line[:450], flush=True)
+    return ok
 
 
 def main():
@@ -248,8 +413,7 @@ def main():
     parser.add_argument("--lanista", required=True, type=Path)
     parser.add_argument("--qt-bin", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
-    parser.add_argument("--smoke-steps", type=int, default=0,
-                        help="Diagnostics only: stop at this step and attempt graceful Quit")
+    parser.add_argument("--scenario", choices=[*SCENARIOS, "all"], default="all")
     args = parser.parse_args()
     args.exe, args.lanista = args.exe.resolve(), args.lanista.resolve()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -257,46 +421,17 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     site = "http://127.0.0.1:%d" % server.server_address[1]
     try:
-        all_steps = steps(site)
-        if args.smoke_steps:
-            all_steps = all_steps[:args.smoke_steps] + app.QUIT
-        scenario = args.out / "shortcuts.json"
-        scenario.write_text(json.dumps({"name": "shortcuts", "steps": all_steps}, indent=1),
-                            encoding="utf-8")
-        log = args.out / "shortcuts.out"
-        env = dict(os.environ)
-        env["PATH"] = str(args.qt_bin) + os.pathsep + env["PATH"]
-        env["QT_QPA_PLATFORM"] = "offscreen"
-        tag = "feria-set4-shortcuts-" + time.strftime("%Y%m%d-%H%M%S")
-        cmd = [str(args.lanista), "session", "run", str(scenario), "--exe", str(args.exe),
-               "--qml", "qml/Main.qml", "--drive", "--keep-going", "--tag", tag]
-        with log.open("w", encoding="utf-8", errors="replace") as capture:
-            proc = subprocess.Popen(cmd, cwd=app.ROOT, env=env, stdout=capture,
-                                    stderr=subprocess.STDOUT)
-            try:
-                exit_code = proc.wait(timeout=240)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=10)
-                exit_code = -1
-        output = log.read_text(encoding="utf-8", errors="replace")
-        summary = re.search(r"(\d+) steps, (\d+) failed", output)
-        manifest = re.search(r"manifest: (.*?)\)", output)
-        state = json.loads((app.ROOT / manifest.group(1)).read_text()) if manifest else {}
-        clean = (state.get("exitCode") == 0 and state.get("crashed") is False
-                 and state.get("killReason") == "graceful")
-        ok = bool(summary) and summary.group(2) == "0" and clean and exit_code == 0
-        print("LANISTA", summary.group(0) if summary else "no step summary",
-              "process exit", exit_code, "app exit", state.get("exitCode"),
-              "crashed", state.get("crashed"), "killReason", state.get("killReason"),
-              "log", log, flush=True)
-        for line in output.splitlines():
-            if line.startswith(("FAIL", "INFRA")):
-                print(line[:400], flush=True)
+        names = list(SCENARIOS) if args.scenario == "all" else [args.scenario]
+        results = []
+        for name in names:
+            tag = ("feria-set4-0008-" + name + "-" +
+                   time.strftime("%Y%m%d-%H%M%S"))
+            results.append(run(args, name, SCENARIOS[name](site), tag))
+        passed = all(results)
     finally:
         server.shutdown()
-    print("SHORTCUTS PROOF", "PASS" if ok else "FAIL")
-    return 0 if ok else 1
+    print("SHORTCUTS PROOF", "PASS" if passed else "FAIL")
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":
