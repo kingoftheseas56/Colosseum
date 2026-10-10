@@ -12,7 +12,7 @@ Endpoint (Rule 28): this branch merges into `master` together with, or after, th
 
 ## How this set was made
 
-Through the Preflight loop: nine bounded tasks, each to a fresh worker, each reviewed by rerunning its evidence before the next was sent. The mission folders `C:\Users\Suprabha\Desktop\Loop-Missions\feria-set4-01945259` and `-02` to `-09` hold every task, reply and reviewer note. Two workers stopped without a final reply and one could not author; their work was reviewed from the branch and continued by the next task. The owner's bar for the set: a functioning browser, not Chrome parity.
+Through the Preflight loop: ten bounded tasks, each to a fresh worker, each reviewed by rerunning its evidence before the next was sent. The mission folders `C:\Users\Suprabha\Desktop\Loop-Missions\feria-set4-01945259` and `-02` to `-10` hold every task, reply and reviewer note. Two workers stopped without a final reply and one could not author; their work was reviewed from the branch and continued by the next task. The owner's bar for the set: a functioning browser, not Chrome parity.
 
 ## Set 4 against the plan
 
@@ -76,6 +76,7 @@ Windows 11 Pro 10.0.26200, MSVC 2022, 2026-10-10 and 2026-10-11. Everything ran 
 | Suite | Stock | Codec |
 | --- | --- | --- |
 | `tests/feria_daily_probe` (real engine: PDFs, context menu, discovery cases) | 34 / 0 / 0 | 34 / 0 / 0 |
+| `tests/feria_signout_probe` (real engine: 25 sign-out cycles) | 3 / 0 / 0 | 3 / 0 / 0 |
 | `run_app_suggestions.py` (full application, five scenarios, each run twice) | history 87/0, keyboard 95/0, bookmarks 76/0, private 81/0, escape 78/0; all ten launches exit code 0 | not run |
 | `run_app_shortcuts.py` (full application) | tabs 174/0, single-close 61/0, escape-focus 47/0, navigation 124/0, each with exit code 0; panels 171/0 without a clean exit | not run |
 
@@ -90,7 +91,7 @@ Not proven by action: Cut, Copy, Paste, Copy link address and Copy image address
 | `feria_account_store_test` | 215 checks, exit 0 | 215 checks, exit 0 |
 | `feria_runtime_test`, `feria_operations_test`, `feria_foundation_policy_test`, `feria_session_ownership_test`, `feria_hosting_state_test`, `feria_hosting_geometry_test` | 17, 15, 26, 8, 15, 6 passed, 0 failed | same |
 | `feria_interaction_probe` | 10 / 0 / 0 | 10 / 0 / 0 |
-| `feria_history_probe` | 9 / 0 / 0 | 9 / 0 / 0 in six runs; crashed in one, see below |
+| `feria_history_probe` | 9 / 0 / 0 | 9 / 0 / 0; one crash before the sign-out fix, see below |
 | `feria_runtime_probe` | 15 / 0 / 0 | 15 / 0 / 0 |
 | `feria_foundation_probe` | 18 / 0 / 1 | 18 / 0 / 1 |
 | `feria_session_probe` | 12 / 0 / 0 | 12 / 0 / 0 |
@@ -106,9 +107,18 @@ Not proven by action: Cut, Copy, Paste, Copy link address and Copy image address
 | Set 3 interaction proof (full application) | 75 steps, 0 failed, exit code 0 | not run |
 | Set 2 restart proof (full application, two launches) | pass, both exits 0 | not run |
 
-### Found during the final regression, not fixed here
+### Found during the final regression, and fixed
 
-**Signing out of a service can crash the engine.** In one of seven runs on the codec-enabled runtime, `feria_history_probe` died with an access violation in `test_signOutClearsOneSiteAndNothingElse`: `WebContentsAdapter` destructor, `didRunJavaScript`, `QQuickWebEngineViewPrivate`, `QJSEngine`. That is the engine boundary recorded in set 1: destroying a view that still owes script callbacks. `qml/feria/FeriaSessionCleaner.qml` deactivates its cleaner view as soon as the storage cleanup reports, while that view can still owe a polling script; every run of the case, passing or not, logs "attempted to evaluate a function in an invalid context". The cleaner predates this set and was not changed by it. It is the production sign-out path. Set 1's rule applies: a view is released only when drained, or discarded first. Queued as the next task.
+**Signing out of a service could crash the engine.** In one of seven runs on the codec-enabled runtime, `feria_history_probe` died with an access violation in `test_signOutClearsOneSiteAndNothingElse`: `WebContentsAdapter` destructor, `didRunJavaScript`, `QQuickWebEngineViewPrivate`, `QJSEngine`. That is the engine boundary recorded in set 1: destroying a view that still owes script callbacks. `qml/feria/FeriaSessionCleaner.qml`, the production sign-out path, deactivated its cleaner view as soon as the storage cleanup reported; every run of the case, passing or not, logged "attempted to evaluate a function in an invalid context". The cleaner predates this set.
+
+Fixed as loop task 10: every path that released the cleaner's view now goes through one release step that asks the wrapper to drain (`prepareForClose`, `safeToDestroy`) and deactivates the view on the next event-loop turn; if a view does not drain in five seconds its web contents are discarded first. `finished(success)` still fires once with the same value.
+
+| | Before | After |
+| --- | --- | --- |
+| Sign-out stress, 25 cycles a run, both runtimes | 150 cycles, 150 "invalid context" warnings | 150 cycles by the worker and 50 by the reviewer: 0 warnings, 0 crashes, every release after the drain signal, none with work pending |
+| `feria_history_probe` on the codec runtime | 1 crash in 7 runs; the warning in every run | 9 / 0 / 0 in five reviewer runs; no warning |
+
+New `tests/feria_signout_probe` keeps it guarded: it fails on that warning. Not forced by any test: the five second discard fallback, the failure path and the 60 second deadline. The WebView2 branch of the cleaner keeps its old immediate release and was not run. Sign-out through the real app's account manager was not driven.
 
 ### Not verified
 
