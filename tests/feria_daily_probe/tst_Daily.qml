@@ -4,12 +4,14 @@ import QtQuick.Window
 import QtTest
 import QtWebEngine
 import "../../qml/feria" as Feria
+import "../../qml" as Colosseum
 
 // Set 4 daily-browser contract: drive the production deck and real QtWebEngine offscreen.
 Item {
     id: root
     width: 1060
     height: 760
+    Colosseum.Theme { id: menuTheme }
     Item { id: embedded; x: 25; y: 125; width: 820; height: 580 }
     Feria.FeriaSessionDeck {
         id: deck
@@ -250,6 +252,21 @@ Item {
                 verify(!!item && item.visible && item.objectName === expected[i])
             }
         }
+        function menuStructure(menu) {
+            var rows = []
+            // Inspect the actual MenuItem and MenuSeparator sequence, not a
+            // predicted group list (hidden separators must never be counted).
+            for (var i = 0; i < menu.count; ++i) {
+                var item = menu.itemAt(i)
+                if (item && item.visible) rows.push(String(item.objectName))
+            }
+            return rows
+        }
+        function checkMenuStructure(menu, expected, message) {
+            var observed = menuStructure(menu)
+            compare(observed.join("|"), expected.join("|"), message)
+            return observed
+        }
         function choose(menu, objectName) {
             var item = menu.entry(objectName)
             verify(item !== null && item.visible && item.enabled,
@@ -274,6 +291,10 @@ Item {
             var menu = menuFor(page, 430, 45)
             menuRows(menu, ["feriaPageMenuBack","feriaPageMenuForward",
                 "feriaPageMenuReload"])
+            var layout = checkMenuStructure(menu, [
+                "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"],
+                "empty page has only three navigation rows, no separator")
+            console.log("DAILY_ASSERT_MENU_EMPTY_STRUCTURE " + layout.join(","))
             var overlay = menuLabelsInOverlay()
             verify(overlay.indexOf("Back") >= 0 && overlay.indexOf("Reload") >= 0)
             for (var unwanted of ["Save page", "View page source",
@@ -326,6 +347,12 @@ Item {
             var menu = menuFor(source, 70, 95)
             menuRows(menu, ["feriaPageMenuOpenLink","feriaPageMenuCopyLinkAddress",
                 "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"])
+            var layout = checkMenuStructure(menu, [
+                "feriaPageMenuOpenLink","feriaPageMenuCopyLinkAddress",
+                "feriaPageMenuBeforeNavigationDivider",
+                "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"],
+                "link and navigation have exactly one separator")
+            console.log("DAILY_ASSERT_MENU_LINK_STRUCTURE " + layout.join(","))
             verify(menu.entry("feriaPageMenuCopyLinkAddress").enabled,
                 "Copy link address is wired; deliberately not triggered")
             choose(menu, "feriaPageMenuOpenLink")
@@ -395,6 +422,12 @@ Item {
             menuRows(menu, ["feriaPageMenuCut","feriaPageMenuCopy",
                 "feriaPageMenuPaste","feriaPageMenuSelectAll",
                 "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"])
+            var layout = checkMenuStructure(menu, [
+                "feriaPageMenuCut","feriaPageMenuCopy","feriaPageMenuPaste",
+                "feriaPageMenuSelectAll","feriaPageMenuBeforeNavigationDivider",
+                "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"],
+                "editable and navigation have exactly one separator")
+            console.log("DAILY_ASSERT_MENU_EDIT_STRUCTURE " + layout.join(","))
             compare(menu.isEditable, true)
             compare(menu.entry("feriaPageMenuCut").enabled, false)
             compare(menu.entry("feriaPageMenuCopy").enabled, false)
@@ -474,6 +507,80 @@ Item {
             tryCompare(menu, "visible", false, 5000)
             compare(menu.contextActive, false)
             console.log("DAILY_ASSERT_MENU_HIDDEN closed=true sourceVisible=" + page.visible)
+        }
+
+        function test_context_disabledTextColorUnderBasicStyle() {
+            var id = open("/a", false)
+            var page = go(id, "/b")
+            tryVerify(function() { return page.navCanGoBack && !page.navCanGoForward }, 5000)
+            var menu = menuFor(page, 340, 45)
+            var back = menu.entry("feriaPageMenuBack")
+            var forward = menu.entry("feriaPageMenuForward")
+            compare(back.enabled, true)
+            compare(forward.enabled, false)
+            verify(back.contentItem !== null && forward.contentItem !== null)
+            var backColor = String(back.contentItem.color)
+            var forwardColor = String(forward.contentItem.color)
+            compare(backColor, String(menuTheme.ink), "enabled row's actual text uses ink")
+            compare(forwardColor, String(menuTheme.inkDimmer),
+                "disabled row's actual text uses inkDimmer")
+            verify(backColor !== forwardColor, "disabled row is visibly dimmer")
+            console.log("DAILY_ASSERT_MENU_DISABLED_COLOR back=" + backColor
+                + " forward=" + forwardColor + " ink=" + String(menuTheme.ink))
+        }
+        function test_context_imageWithinLinkHasThreeGroups() {
+            var id = open("/daily", false)
+            var page = deck.browserForSession(id)
+            tryVerify(function() {
+                return js(page, "document.getElementById('dailyImage').complete") === true
+            }, 5000)
+            var wrapper = js(page, "(function(){var image=document.getElementById('dailyImage');"
+                + "var link=document.createElement('a');link.href='/b';"
+                + "image.parentNode.insertBefore(link,image);link.appendChild(image);"
+                + "return image.parentElement.tagName;})()")
+            compare(wrapper, "A")
+            var menu = menuFor(page, 65, 175)
+            compare(menu.hasLink, true)
+            compare(menu.hasImage, true)
+            menuRows(menu, ["feriaPageMenuOpenLink","feriaPageMenuCopyLinkAddress",
+                "feriaPageMenuOpenImage","feriaPageMenuSaveImage",
+                "feriaPageMenuCopyImageAddress","feriaPageMenuBack",
+                "feriaPageMenuForward","feriaPageMenuReload"])
+            var layout = checkMenuStructure(menu, [
+                "feriaPageMenuOpenLink","feriaPageMenuCopyLinkAddress",
+                "feriaPageMenuLinkImageDivider",
+                "feriaPageMenuOpenImage","feriaPageMenuSaveImage",
+                "feriaPageMenuCopyImageAddress","feriaPageMenuBeforeNavigationDivider",
+                "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"],
+                "linked image has three groups and exactly two separators")
+            console.log("DAILY_ASSERT_MENU_IMAGE_LINK_STRUCTURE " + layout.join(","))
+        }
+        function test_context_requestPositionUsed() {
+            var id = open("/a", false)
+            var page = deck.browserForSession(id)
+            var requestedX = 340
+            var requestedY = 64
+            var menu = menuFor(page, requestedX, requestedY)
+            verify(Math.abs(menu.x - requestedX) <= 4,
+                "menu x must follow the browser request, not mouse cursor")
+            verify(Math.abs(menu.y - requestedY) <= 4,
+                "menu y must follow the browser request, not mouse cursor")
+            console.log("DAILY_ASSERT_MENU_POSITION request=" + requestedX + "," + requestedY
+                + " opened=" + menu.x + "," + menu.y)
+        }
+        function test_context_edgePositionClampedInsideBrowser() {
+            var id = open("/a", false)
+            var page = deck.browserForSession(id)
+            var x = page.width - 25
+            var y = page.height - 25
+            var menu = menuFor(page, x, y)
+            verify(menu.x >= -1 && menu.y >= -1, "menu must not start outside browser")
+            verify(menu.x + menu.width <= page.width + 2, "menu must fit right edge")
+            verify(menu.y + menu.height <= page.height + 2, "menu must fit bottom edge")
+            console.log("DAILY_ASSERT_MENU_EDGE request=" + x + "," + y
+                + " bounds=" + menu.x + "," + menu.y
+                + "," + menu.width + "," + menu.height
+                + " browser=" + page.width + "," + page.height)
         }
 
     }

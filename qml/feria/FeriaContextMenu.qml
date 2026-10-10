@@ -14,6 +14,10 @@ Menu {
     palette.window: theme.biblioWashTop
     palette.windowText: theme.ink
     palette.text: theme.ink
+    palette.buttonText: theme.ink
+    palette.disabled.buttonText: theme.inkDimmer
+    palette.disabled.text: theme.inkDimmer
+    palette.disabled.windowText: theme.inkDimmer
     palette.highlight: theme.glassHi
     palette.highlightedText: theme.ink
     font.family: theme.ui
@@ -72,9 +76,13 @@ Menu {
         documentGeneration = browser.navigationGeneration
         contextActive = true
         ++contextSerial
-        x = hitX
-        y = hitY
-        popup()
+        // popup() without coordinates uses the mouse cursor, which is wrong
+        // for keyboard and programmatically requested context positions.
+        const menuWidth = Math.max(pageMenu.width, pageMenu.implicitWidth)
+        const menuHeight = Math.max(pageMenu.height, pageMenu.implicitHeight)
+        const popupX = Math.max(0, Math.min(hitX, browser.width - menuWidth))
+        const popupY = Math.max(0, Math.min(hitY, browser.height - menuHeight))
+        popup(popupX, popupY)
     }
     function invoke(action) {
         if (!live()) return
@@ -130,6 +138,10 @@ Menu {
         visible: pageMenu.hasLink
         onTriggered: pageMenu.invoke(WebEngineView.CopyLinkToClipboard)
     }
+    MenuSeparator {
+        objectName: "feriaPageMenuLinkImageDivider"
+        visible: pageMenu.hasLink && pageMenu.hasImage
+    }
     MenuItem {
         id: openImage
         objectName: "feriaPageMenuOpenImage"
@@ -150,6 +162,11 @@ Menu {
         text: "Copy image address"
         visible: pageMenu.hasImage
         onTriggered: pageMenu.invoke(WebEngineView.CopyImageUrlToClipboard)
+    }
+    MenuSeparator {
+        objectName: "feriaPageMenuBeforeEditDivider"
+        visible: (pageMenu.isEditable || pageMenu.hasSelection)
+            && (pageMenu.hasLink || pageMenu.hasImage)
     }
     MenuItem {
         id: cutText
@@ -183,6 +200,11 @@ Menu {
         visible: pageMenu.isEditable
         enabled: (pageMenu.editFlags & ContextMenuRequest.CanSelectAll) !== 0
         onTriggered: pageMenu.invoke(WebEngineView.SelectAll)
+    }
+    MenuSeparator {
+        objectName: "feriaPageMenuBeforeNavigationDivider"
+        visible: pageMenu.hasLink || pageMenu.hasImage
+            || pageMenu.isEditable || pageMenu.hasSelection
     }
     MenuItem {
         id: back
