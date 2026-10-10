@@ -128,6 +128,11 @@ def prove_focus(steps, label, name, values, letter):
 
 
 def address(label, url, name, loads=1, value=""):
+    # Session restoration and private space can initiate extra loads. When the
+    # load count is not the subject of the test, assert the stable marker only.
+    marker = ([title_ready(label, name, loads, value)] if loads is not None
+              else [app.pause(label + ": dynamic title settles", 2500),
+                    title(label + ": dynamic page title marker", "kbd=" + name + "|")])
     # Do not attempt to address a browser that has returned to Feria home.
     return [host_guard(label), app.click(label + ": open address", "feriaBrowserAddressToggle"),
             app.pause(label + ": address ready", 350),
@@ -137,7 +142,7 @@ def address(label, url, name, loads=1, value=""):
                          "feriaBrowserHost", "loadSucceeded", True, 30000),
             app.get(label + ": local address", "feriaBrowserHost",
                     "currentUrl", "contains", url),
-            title_ready(label, name, loads, value)]
+            *marker]
 
 
 def browser_menu(label, section, count=None):
@@ -278,7 +283,7 @@ def tabs(site):
     c = prove_focus(s, "Ctrl+Shift+N", "c", values, "G")
     s += [app.key("Ctrl+Shift+N: open private tab", "Ctrl+Shift+N"),
           app.pause("Ctrl+Shift+N: private tab created", 1400)]
-    s += address("private tab", site + "/private", "private")
+    s += address("private tab", site + "/private", "private", loads=None)
     s += [*browser_menu("Ctrl+Shift+N: inspect private", "History"),
           app.get("Ctrl+Shift+N: private identity",
                   "feriaBrowserPrivacy", "text", "contains", "Private")]
