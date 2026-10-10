@@ -20,6 +20,44 @@ Item {
     property bool canGoForward: false
     property bool loading: false
     property bool browserReady: false
+    property var accountStore: null
+    property bool addressEdited: false
+    property var suggestionRows: []
+    function clearSuggestions() {
+        suggestionRows = []
+        suggestions.currentIndex = -1
+    }
+    function updateSuggestions() {
+        suggestions.currentIndex = -1
+        if (!addressPanel.visible || !addressEdited || !accountStore
+                || !address.text.trim().length) {
+            clearSuggestions()
+            return
+        }
+        // The native store performs matching and ordering. QML only merges.
+        var query = address.text.trim()
+        var groups = [accountStore.searchBrowserBookmarks(query),
+                      accountStore.searchBrowserHistory(query)]
+        var rows = []
+        var seen = new Set()
+        for (var g = 0; g < groups.length && rows.length < 6; ++g) {
+            for (var i = 0; i < groups[g].length && rows.length < 6; ++i) {
+                var row = groups[g][i]
+                var url = row && row.url ? String(row.url) : ""
+                if (!url.length || seen.has(url)) continue
+                seen.add(url)
+                rows.push({url: url, title: row.title ? String(row.title) : ""})
+            }
+        }
+        suggestionRows = rows
+        suggestions.currentIndex = -1
+    }
+    function openSuggestion(index) {
+        if (index < 0 || index >= suggestionRows.length) return
+        var url = suggestionRows[index].url
+        hideAddress()
+        addressAccepted(url)
+    }
     signal backRequested()
     signal forwardRequested()
     signal reloadRequested()
@@ -28,6 +66,8 @@ Item {
     signal addressEditingStarted()
     signal findRequested()
     function focusAddress() {
+        addressEdited = false
+        clearSuggestions()
         addressEditingStarted()
         addressPanel.open()
         address.forceActiveFocus()
@@ -37,7 +77,6 @@ Item {
     function cancelAddressEditing() {
         if (!addressPanel.visible) return false
         addressMenu.close()
-        address.text = root.currentUrl
         hideAddress()
         root.editingCancelled()
         return true
@@ -88,18 +127,28 @@ Item {
         x: root.overlay ? Math.min(0, root.overlay.width - root.mapToItem(root.overlay, 0, 0).x - width - 12) : 0
         y: root.height + 8
         width: root.overlay ? Math.min(520, Math.max(0, root.overlay.width - 24)) : 520
-        height: 52
+        height: 52 + (suggestions.count > 0 && root.addressEdited
+                      ? 6 + suggestions.count * 46 : 0)
         padding: 8
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
-        onClosed: { addressMenu.close(); address.text = root.currentUrl }
+        onClosed: {
+            root.addressEdited = false
+            root.clearSuggestions()
+            addressMenu.close()
+            address.text = root.currentUrl
+        }
         background: Rectangle {
             radius: 12
             color: theme.biblioWashTop
             border.color: theme.edge
         }
-        contentItem: TextField {
+        contentItem: Column {
+            spacing: 6
+            TextField {
             id: address
+            width: parent.width
+            height: 36
             objectName: "feriaBrowserAddress"
             focus: true
             leftPadding: 12
@@ -119,8 +168,29 @@ Item {
                 value: root.currentUrl
                 restoreMode: Binding.RestoreNone
             }
-            onAccepted: root.addressAccepted(text)
+            onAccepted: {
+                if (suggestions.currentIndex >= 0)
+                    root.openSuggestion(suggestions.currentIndex)
+                else root.addressAccepted(text)
+            }
+            onTextChanged: {
+                if (addressPanel.visible && address.activeFocus) {
+                    root.addressEdited = true
+                    root.updateSuggestions()
+                }
+            }
             Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Down && suggestions.count > 0) {
+                    suggestions.currentIndex = Math.min(suggestions.count - 1,
+                                                        suggestions.currentIndex + 1)
+                    event.accepted = true
+                    return
+                }
+                if (event.key === Qt.Key_Up && suggestions.currentIndex >= 0) {
+                    suggestions.currentIndex -= 1
+                    event.accepted = true
+                    return
+                }
                 if (event.key === Qt.Key_F && (event.modifiers & Qt.ControlModifier)) {
                     root.findRequested()
                     event.accepted = true
@@ -156,6 +226,62 @@ Item {
                 MenuItem { objectName: "feriaAddressDelete"; text: "Delete"; enabled: address.selectedText.length > 0; onTriggered: address.remove(address.selectionStart, address.selectionEnd) }
                 MenuSeparator {}
                 MenuItem { text: "Select all"; enabled: address.text.length > 0; onTriggered: address.selectAll() }
+            }
+        }
+
+            ListView {
+                id: suggestions
+                objectName: "feriaAddressSuggestions"
+                width: parent.width
+                height: visible ? count * 46 : 0
+                visible: root.addressEdited && count > 0
+                model: root.suggestionRows
+                currentIndex: -1
+                interactive: false
+                clip: true
+                spacing: 2
+                delegate: Rectangle {
+                    required property int index
+                    required property var modelData
+                    objectName: "feriaAddressSuggestion_" + index
+                    width: suggestions.width
+                    height: 44
+                    radius: 8
+                    color: index === suggestions.currentIndex ? theme.glassHi : "transparent"
+                    Column {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        anchors.topMargin: 5
+                        spacing: 2
+                        Text {
+                            objectName: "feriaAddressSuggestionTitle_" + index
+                            width: parent.width
+                            text: modelData.title || modelData.url
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            wrapMode: Text.NoWrap
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            objectName: "feriaAddressSuggestionUrl_" + index
+                            width: parent.width
+                            text: modelData.url
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            wrapMode: Text.NoWrap
+                            color: theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: 11
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.openSuggestion(index)
+                    }
+                }
             }
         }
     }

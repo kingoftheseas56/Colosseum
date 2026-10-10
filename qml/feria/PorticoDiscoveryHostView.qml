@@ -501,6 +501,7 @@ Item {
                 canGoForward: root.engineCanGoForward
                 loading: root.pageLoading
                 browserReady: root.browserReady
+                accountStore: root.controller.accountStore
                 onBackRequested: root.pageBack()
                 onForwardRequested: root.pageForward()
                 onReloadRequested: root.reloadOrStop()
