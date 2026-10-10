@@ -398,11 +398,14 @@ Window {
     }
     // Slice S3: the Profile tab is a plain list of doors to pages the app already has.
     readonly property var profileRows: [
-        { key: "downloads",  label: "Downloads",        note: "Everything saved on this device" },
-        { key: "extensions", label: "Extensions",       note: "Add-ons and sources for every world" },
-        { key: "history",    label: "History and stats", note: "What you watched and read" },
-        { key: "sync",       label: "Sync and account", note: "Trackers and your Colosseum account" },
-        { key: "openFile",   label: "Open a file",      note: "Play or read something stored on this device" }
+        // The same doors the desktop has, under the names the app already uses for them
+        // (Hemanth, 2026-10-10): the account page, Your Colosseum, trackers, and Stremio.
+        { key: "downloads",  label: "Downloads",      note: "Everything saved on this device" },
+        { key: "extensions", label: "Extensions",     note: "Add-ons and sources for every world" },
+        { key: "colosseum",  label: "Your Colosseum", note: "History, highlights and stats" },
+        { key: "trackers",   label: "Trackers",       note: "Connections to other libraries" },
+        { key: "stremio",    label: "Stremio",        note: "Bring your Stremio library across" },
+        { key: "account",    label: "Account",        note: "Sign in, devices and security" }
     ]
     function openProfilePage() { profileLayer.active = true }
     function closeProfilePage() { profileLayer.active = false }
@@ -413,14 +416,18 @@ Window {
         if (extensionsLayer.active) win.closeExtensionsPage()
         if (historyStatsLayer.active) win.closeHistoryStatsPage()
         if (syncCenterLayer.active) win.closeSyncCenterPage()
+        stremioPanel.shown = false
+        if (accountFlyout.visible) accountFlyout.close()
     }
     function openProfileRow(key) {
         switch (key) {
         case "downloads":  win.openDownloadsPage(); return
         case "extensions": win.openExtensionsPage(); return
-        case "history":    win.openHistoryStatsPage(); return
-        case "sync":       win.openSyncCenterPage(); return
-        case "openFile":   openMediaDialog.open(); return
+        case "colosseum":  win.openHistoryStatsPage(); return
+        case "trackers":   win.openSyncCenterPage(); return
+        case "stremio":    win.openStremioSyncPanel(); return
+        // the account door the top bar's pill opens: signed out it offers Sign in
+        case "account":    accountFlyout.toggleAt(win.width - 16, 76); return
         }
     }
     function enterAndroidStartWorld() {

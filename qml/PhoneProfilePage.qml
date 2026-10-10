@@ -35,14 +35,14 @@ Item {
             spacing: 0
 
             Text {
-                text: "PROFILE"
+                text: "COLOSSEUM"
                 color: theme.gold
                 font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.5
             }
             Item { width: 1; height: 8 }
             Text {
                 width: parent.width
-                text: "Your Colosseum"
+                text: "Profile"
                 color: theme.ink
                 wrapMode: Text.WordWrap
                 font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold
