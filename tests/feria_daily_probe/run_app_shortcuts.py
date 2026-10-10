@@ -138,8 +138,13 @@ def address(label, url, name, loads=1, value=""):
 
 def browser_menu(label, section, count=None):
     steps = [app.key(label + ": open browser menu", "Ctrl+H"),
-             app.wait_for(label + ": " + section + " section visible",
-                          "feriaBrowser" + section + "List", "visible", True, 10000)]
+             app.wait_for(label + ": History opens first",
+                          "feriaBrowserHistoryList", "visible", True, 10000)]
+    if section != "History":
+        steps += [app.click(label + ": choose " + section + " section",
+                            "feriaBrowser" + section + "Section"),
+                  app.wait_for(label + ": " + section + " section visible",
+                               "feriaBrowser" + section + "List", "visible", True, 10000)]
     if count is not None:
         steps.append(app.wait_for(label + ": tabs count " + str(count),
                                   "feriaBrowserTabsList", "count", count, 10000))
