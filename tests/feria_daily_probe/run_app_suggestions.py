@@ -72,6 +72,10 @@ def go(label, site, name):
         app.pause(label + ": address ready", 350),
         *app.typed(label + ": type local URL", "feriaBrowserAddress", url),
         app.key(label + ": navigate", "Return"),
+        # loadSucceeded may still be true for the PREVIOUS document.
+        # Guard the actual target URL before trusting its load state.
+        app.wait_for(label + ": navigation reached expected URL", "feriaBrowserHost",
+                     "currentUrl", url, 30000),
         app.wait_for(label + ": loaded", "feriaBrowserHost", "loadSucceeded", True, 30000),
         app.get(label + ": page address", "feriaBrowserHost", "currentUrl", "contains", "/" + name),
         app.get(label + ": page title", "feriaBrowserHost", "pageTitle", "contains", TITLES[name]),
