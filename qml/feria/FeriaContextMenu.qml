@@ -16,6 +16,8 @@ Menu {
     palette.text: theme.ink
     palette.highlight: theme.glassHi
     palette.highlightedText: theme.ink
+    // Group dividers use the app's hairline, not the style's bright default.
+    palette.mid: theme.edge
     font.family: theme.ui
     Colosseum.Theme { id: theme }
 
