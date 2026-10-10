@@ -11,6 +11,8 @@ import "../account" as Account
 
 Item {
     id: root
+    // Headless inspection of the existing Downloads panel, without changing its behaviour.
+    objectName: privateBrowsing ? "feriaPrivateDownloads" : "feriaRegularDownloads"
     // One instance per shared profile, owned by the session deck, never by a tab.
     required property var profile
     property var accountStore: null
