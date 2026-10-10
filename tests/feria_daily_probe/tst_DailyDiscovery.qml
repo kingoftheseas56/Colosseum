@@ -50,7 +50,7 @@ Item {
                 editFlags: Number(request.editFlags)
             }
             console.log("DAILY_CONTEXT_REQUEST " + JSON.stringify(root.lastContext))
-            // Do not accept the request: observe QtWebEngine's genuine default.
+            // The wrapper has already accepted it: inspect only Feria's menu.
         }
         function onOptionsRequested() { root.optionSignals += 1 }
     }
@@ -132,7 +132,8 @@ Item {
             wait(350)
             log("CONTEXT_CASE", {name:label, signalled:root.contextSerial > before,
                 request: root.contextSerial > before ? root.lastContext : null,
-                visibleOverlay:menuSnapshot()})
+                feriaOpen:page.pageMenu.visible,
+                feriaRows:page.pageMenu.visibleEntries(), visibleOverlay:menuSnapshot()})
             keyClick(Qt.Key_Escape)
             wait(120)
         }
@@ -216,22 +217,23 @@ Item {
             try { walk(Overlay.overlay, 0) } catch (e) {}
             return found
         }
-        function test_05a_defaultMenuOpenLinkInTab() {
+        function test_05a_feriaMenuOpenLinkInTab() {
             var page = open("/daily")
             var before = Sessions.browsers().length
             mouseClick(page, 70, 95, Qt.RightButton)
             wait(300)
-            var entry = visibleMenuItem("Open link in new tab")
+            var entry = page.pageMenu.entry("feriaPageMenuOpenLink")
             if (entry) {
                 mouseClick(entry)
                 wait(1500)
             }
             var records = Sessions.browsers()
             log("CONTEXT_ACTION", {name:"open link in new tab",
-                offered:!!entry, tabsBefore:before, tabsAfter:records.length,
+                source:"Feria", accepted:root.lastContext.accepted,
+                offered:!!entry && entry.visible, tabsBefore:before, tabsAfter:records.length,
                 urls:records.map(function(r) { return String(r.target ? r.target.url : r.url) })})
         }
-        function test_05b_defaultMenuBack() {
+        function test_05b_feriaMenuBack() {
             var page = open("/daily")
             var id = deck.sessions.activeId
             verify(deck.navigateSession(id, FixtureUrl + "/b", 0, null, null))
@@ -240,13 +242,15 @@ Item {
             }, 15000)
             mouseClick(page, 420, 45, Qt.RightButton)
             wait(350)
-            var entry = visibleMenuItem("Back")
+            var entry = page.pageMenu.entry("feriaPageMenuBack")
             var enabled = entry ? entry.enabled : false
             if (entry && enabled) {
                 mouseClick(entry)
                 wait(1000)
             }
-            log("CONTEXT_ACTION", {name:"back", offered:!!entry, enabled:enabled,
+            log("CONTEXT_ACTION", {name:"back", source:"Feria",
+                accepted:root.lastContext.accepted, offered:!!entry && entry.visible,
+                enabled:enabled,
                 engineCanGoBack:Boolean(page.canGoBack), wrapperCanGoBack:Boolean(page.navCanGoBack),
                 backItemCount:page.navigation.backCount, resultingUrl:String(page.url),
                 expectedUrl:FixtureUrl + "/daily"})

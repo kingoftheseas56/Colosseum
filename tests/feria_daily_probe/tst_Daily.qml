@@ -1,10 +1,11 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 import QtTest
 import QtWebEngine
 import "../../qml/feria" as Feria
 
-// Set 4 PDF contract: drive the production deck and real QtWebEngine offscreen.
+// Set 4 daily-browser contract: drive the production deck and real QtWebEngine offscreen.
 Item {
     id: root
     width: 1060
@@ -230,5 +231,236 @@ Item {
                 + " response=" + JSON.stringify(message)
                 + " bytes=" + file.length + " magic=" + file.magic)
         }
+        // Every action below is driven by the real WebEngineView in the
+        // disposable loopback fixture. Clipboard actions are NEVER executed.
+        function menuFor(page, x, y) {
+            mouseClick(page, x, y, Qt.RightButton)
+            var menu = page.pageMenu
+            tryCompare(menu, "visible", true, 4000)
+            return menu
+        }
+        function menuRows(menu, expected) {
+            var actual = menu.visibleEntries()
+            compare(actual.join("|"), expected.join("|"), "exactly the applicable menu items")
+            for (var i = 0; i < expected.length; ++i) {
+                var item = menu.entry(expected[i])
+                verify(!!item && item.visible && item.objectName === expected[i])
+            }
+        }
+        function choose(menu, objectName) {
+            var item = menu.entry(objectName)
+            verify(item !== null && item.visible && item.enabled,
+                "visible, enabled menu entry: " + objectName)
+            mouseClick(item)
+        }
+        function menuLabelsInOverlay() {
+            var found = []
+            function walk(item, depth) {
+                if (!item || depth > 6) return
+                if (item.visible && typeof item.text === "string" && item.text.length)
+                    found.push(String(item.text))
+                var children = item.children || []
+                for (var i = 0; i < children.length; ++i) walk(children[i], depth + 1)
+            }
+            walk(Overlay.overlay, 0)
+            return found
+        }
+        function test_context_emptyNoStock() {
+            var id = open("/daily", false)
+            var page = deck.browserForSession(id)
+            var menu = menuFor(page, 430, 45)
+            menuRows(menu, ["feriaPageMenuBack","feriaPageMenuForward",
+                "feriaPageMenuReload"])
+            var overlay = menuLabelsInOverlay()
+            verify(overlay.indexOf("Back") >= 0 && overlay.indexOf("Reload") >= 0)
+            for (var unwanted of ["Save page", "View page source",
+                "Open link in new window", "Inspect", "Undo", "Redo"]) {
+                verify(overlay.indexOf(unwanted) < 0, "no Qt stock action: " + unwanted)
+            }
+            compare(menu.entry("feriaPageMenuBack").enabled, false)
+            compare(menu.entry("feriaPageMenuForward").enabled, false)
+            console.log("DAILY_ASSERT_MENU_EMPTY rows=" + menu.visibleEntries().join(",")
+                + " stockActions=0 backEnabled=false forwardEnabled=false")
+        }
+        function test_context_backAndForwardRealHistory() {
+            var id = open("/a", false)
+            var page = go(id, "/b")
+            tryVerify(function() { return page.navCanGoBack }, 5000)
+            var menu = menuFor(page, 420, 45)
+            compare(menu.entry("feriaPageMenuBack").enabled, true)
+            choose(menu, "feriaPageMenuBack")
+            loaded(page, "/a")
+            tryVerify(function() { return page.navCanGoForward }, 5000)
+            menu = menuFor(page, 420, 45)
+            compare(menu.entry("feriaPageMenuForward").enabled, true)
+            choose(menu, "feriaPageMenuForward")
+            loaded(page, "/b")
+            var freshId = open("/a", false)
+            var fresh = deck.browserForSession(freshId)
+            menu = menuFor(fresh, 420, 45)
+            compare(menu.entry("feriaPageMenuBack").enabled, false)
+            console.log("DAILY_ASSERT_MENU_HISTORY back=/a forward=/b"
+                + " noHistoryBackEnabled=" + menu.entry("feriaPageMenuBack").enabled)
+        }
+        function test_context_reloadAdvancesNavigation() {
+            var id = open("/a", false)
+            var page = deck.browserForSession(id)
+            var before = page.navigationGeneration
+            var menu = menuFor(page, 420, 45)
+            choose(menu, "feriaPageMenuReload")
+            tryVerify(function() {
+                return page.navigationGeneration > before && page.documentReady
+                    && !page.loading && !page.replacementLoadPending
+                    && String(page.url) === FixtureUrl + "/a"
+            }, 15000)
+            console.log("DAILY_ASSERT_MENU_RELOAD before=" + before
+                + " after=" + page.navigationGeneration + " ready=" + page.documentReady)
+        }
+        function test_context_linkOpensOwnedTab() {
+            var id = open("/daily", false)
+            var source = deck.browserForSession(id)
+            var before = Sessions.browsers().length
+            var menu = menuFor(source, 70, 95)
+            menuRows(menu, ["feriaPageMenuOpenLink","feriaPageMenuCopyLinkAddress",
+                "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"])
+            verify(menu.entry("feriaPageMenuCopyLinkAddress").enabled,
+                "Copy link address is wired; deliberately not triggered")
+            choose(menu, "feriaPageMenuOpenLink")
+            tryVerify(function() { return Sessions.browsers().length === before + 1 }, 10000)
+            var targetId = Sessions.activeId
+            verify(targetId !== id, "a new canonical tab must be selected")
+            var target = deck.browserForSession(targetId)
+            loaded(target, "/b")
+            compare(String(source.url), FixtureUrl + "/daily")
+            console.log("DAILY_ASSERT_MENU_LINK before=" + before
+                + " after=" + Sessions.browsers().length
+                + " source=" + source.url + " target=" + target.url
+                + " copyLink=wired-not-action-proven")
+        }
+        function test_context_imageSaveExactBytes() {
+            var id = open("/daily", false)
+            var page = deck.browserForSession(id)
+            // Must be installed before any action with download potential.
+            deck.sharedProfile.downloadPath = Fixture.downloadRoot
+            tryVerify(function() {
+                return js(page, "document.getElementById('dailyImage').complete") === true
+            }, 5000)
+            var before = deck.downloads.items.length
+            var menu = menuFor(page, 65, 175)
+            menuRows(menu, ["feriaPageMenuOpenImage","feriaPageMenuSaveImage",
+                "feriaPageMenuCopyImageAddress","feriaPageMenuBack",
+                "feriaPageMenuForward","feriaPageMenuReload"])
+            verify(menu.entry("feriaPageMenuCopyImageAddress").enabled,
+                "Copy image address is wired; deliberately not triggered")
+            choose(menu, "feriaPageMenuSaveImage")
+            tryVerify(function() {
+                return deck.downloads.items.length === before + 1
+            }, 10000, "Save image must reach the existing download owner")
+            var item = deck.downloads.items[before]
+            tryCompare(item, "completed", true, 15000)
+            verify(item.path.indexOf(Fixture.downloadRoot) === 0)
+            var data = new Uint8Array(Fixture.downloadedContent(item.path))
+            var signature = Array.from(data.slice(0, 8)).join(",")
+            compare(signature, "137,80,78,71,13,10,26,10", "PNG signature intact")
+            compare(data.length, 70, "saved bytes must equal loopback fixture PNG")
+            console.log("DAILY_ASSERT_MENU_IMAGE_SAVE file=" + item.path
+                + " bytes=" + data.length + " signature=" + signature
+                + " copyImage=wired-not-action-proven")
+        }
+        function test_context_imageOpensTab() {
+            var id = open("/daily", false)
+            var source = deck.browserForSession(id)
+            var before = Sessions.browsers().length
+            var menu = menuFor(source, 65, 175)
+            choose(menu, "feriaPageMenuOpenImage")
+            tryVerify(function() { return Sessions.browsers().length === before + 1 }, 10000)
+            var targetId = Sessions.activeId
+            verify(targetId !== id)
+            loaded(deck.browserForSession(targetId), "/daily-image.png")
+            compare(String(source.url), FixtureUrl + "/daily")
+            console.log("DAILY_ASSERT_MENU_IMAGE_TAB source=" + source.url
+                + " target=" + deck.browserForSession(targetId).url
+                + " tabs=" + Sessions.browsers().length)
+        }
+        function test_context_editableFlagsAndSelectAll() {
+            var id = open("/daily", false)
+            var page = deck.browserForSession(id)
+            var menu = menuFor(page, 65, 270)
+            menuRows(menu, ["feriaPageMenuCut","feriaPageMenuCopy",
+                "feriaPageMenuPaste","feriaPageMenuSelectAll",
+                "feriaPageMenuBack","feriaPageMenuForward","feriaPageMenuReload"])
+            compare(menu.isEditable, true)
+            compare(menu.entry("feriaPageMenuCut").enabled, false)
+            compare(menu.entry("feriaPageMenuCopy").enabled, false)
+            var pasteEnabled = menu.entry("feriaPageMenuPaste").enabled
+            // Paste only inspected: never call it or read the user's clipboard.
+            compare(pasteEnabled, (menu.editFlags & 16) !== 0)
+            compare(menu.entry("feriaPageMenuSelectAll").enabled, true)
+            choose(menu, "feriaPageMenuSelectAll")
+            var state = js(page, "(function(){var e=document.getElementById('dailyEdit');"
+                + "return {start:e.selectionStart,end:e.selectionEnd,len:e.value.length};})()")
+            compare(state.start, 0)
+            compare(state.end, state.len)
+            console.log("DAILY_ASSERT_MENU_EDITABLE flags=" + menu.editFlags
+                + " cut=false copy=false pasteEnabled=" + pasteEnabled
+                + " selectRange=" + state.start + ".." + state.end
+                + " cutCopyPaste=wired-not-action-proven")
+        }
+        function test_context_selectedTextAtRealRectangle() {
+            var id = open("/daily", false)
+            var page = deck.browserForSession(id)
+            var rect = js(page, "(function(){var e=document.getElementById('dailyText');"
+                + "var r=document.createRange();r.selectNodeContents(e.firstChild);"
+                + "var sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);"
+                + "var box=r.getBoundingClientRect();"
+                + "return {x:Math.round(box.x+Math.min(20,box.width/3)),"
+                + "y:Math.round(box.y+box.height/2),w:box.width,h:box.height,"
+                + "selected:sel.toString()};})()")
+            verify(rect.w > 60 && rect.h > 5 && rect.selected.length > 0,
+                "selection rectangle is from the actual text range")
+            var menu = menuFor(page, rect.x, rect.y)
+            var requested = String(menu.selectedText)
+            console.log("DAILY_CONTEXT_SELECTION_AT_RECT x=" + rect.x + " y=" + rect.y
+                + " width=" + rect.w + " height=" + rect.h
+                + " dom=" + JSON.stringify(rect.selected)
+                + " request=" + JSON.stringify(requested))
+            compare(requested, rect.selected,
+                "Qt's actual right-click request must retain the selection at its computed rectangle")
+            menuRows(menu, ["feriaPageMenuCopy","feriaPageMenuBack",
+                "feriaPageMenuForward","feriaPageMenuReload"])
+            verify(menu.entry("feriaPageMenuCopy").enabled)
+            menu.cancel()
+            menu = menuFor(page, 430, 45)
+            menuRows(menu, ["feriaPageMenuBack","feriaPageMenuForward",
+                "feriaPageMenuReload"])
+            console.log("DAILY_ASSERT_MENU_SELECTION selected=" + JSON.stringify(requested)
+                + " copyPresent=true plainCopyPresent=false copy=wired-not-action-proven")
+        }
+        function test_context_navigationWithdrawsLateAction() {
+            var id = open("/a", false)
+            var page = deck.browserForSession(id)
+            var menu = menuFor(page, 420, 45)
+            verify(menu.visible && menu.contextActive)
+            go(id, "/b")
+            tryCompare(menu, "visible", false, 5000)
+            compare(menu.contextActive, false)
+            var before = page.navigationGeneration
+            menu.navigate("back") // stale invocation must be refused
+            compare(String(page.url), FixtureUrl + "/b")
+            compare(page.navigationGeneration, before)
+            console.log("DAILY_ASSERT_MENU_WITHDRAW closed=true lateBackNoOp=true"
+                + " generation=" + before)
+        }
+        function test_context_hiddenTabWithdraws() {
+            var id = open("/daily", false)
+            var page = deck.browserForSession(id)
+            var menu = menuFor(page, 430, 45)
+            var next = open("/a", false)
+            verify(next !== id)
+            tryCompare(menu, "visible", false, 5000)
+            compare(menu.contextActive, false)
+            console.log("DAILY_ASSERT_MENU_HIDDEN closed=true sourceVisible=" + page.visible)
+        }
+
     }
 }

@@ -354,6 +354,15 @@ public slots:
                         });
                         return;
                     }
+                    if (path == "/daily-image.png") {
+                        body = QByteArray::fromBase64(
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n"
+                            "Content-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
                     if (path == "/daily") {
                         body = R"HTML(<!doctype html><html><head><title>Fixture daily</title></head>
 <body style="background:#173044;color:white;font:16px sans-serif">
@@ -361,7 +370,7 @@ public slots:
 <a id="dailyLink" href="/b" style="position:absolute;left:25px;top:80px;width:180px;height:35px;color:white">Daily fixture link</a>
 <img id="dailyImage" alt="Fixture image" width="90" height="70"
  style="position:absolute;left:25px;top:140px"
- src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==">
+ src="/daily-image.png">
 <textarea id="dailyEdit" spellcheck="true" style="position:absolute;left:25px;top:235px;width:300px;height:80px">spelingg wurd</textarea>
 <p id="dailyText" style="position:absolute;left:25px;top:340px;width:450px;height:50px">Selected daily context menu sentence.</p>
 <input id="dailyInput" style="position:absolute;left:25px;top:420px;width:300px;height:40px" value="plain input">
