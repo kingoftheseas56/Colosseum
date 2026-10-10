@@ -32,6 +32,8 @@ private slots:
     void ownerRootAwayFlipsWithMarkRootAwayAndReverts();
     void offlineBrowseAtServesGroupsWhenRootDirectoryIsGone();
     void offlineBrowseAtIsEmptyWithoutPriorPublishedRows();
+    void offlineNestedSeasonUsesPhysicalFileParents_data();
+    void offlineNestedSeasonUsesPhysicalFileParents();
 
 private:
     static VaultIndex::FileRow fileRow(const QString& id, const QString& rootPath,
@@ -199,6 +201,76 @@ void VaultBrowseAwayTest::offlineBrowseAtIsEmptyWithoutPriorPublishedRows()
     const QVariantList rows =
         VaultBrowseAway::offlineBrowseAt(&index, config.roots(), QStringLiteral("D:/never-scanned"));
     QCOMPARE(rows.size(), 0);
+}
+
+void VaultBrowseAwayTest::offlineNestedSeasonUsesPhysicalFileParents_data()
+{
+    QTest::addColumn<int>("episodeCount");
+    QTest::addColumn<bool>("uppercaseRequest");
+    QTest::newRow("one-episode-season") << 1 << false;
+    QTest::newRow("two-episode-season") << 2 << false;
+#ifdef Q_OS_WIN
+    QTest::newRow("case-insensitive-request") << 2 << true;
+#endif
+}
+
+void VaultBrowseAwayTest::offlineNestedSeasonUsesPhysicalFileParents()
+{
+    QFETCH(int, episodeCount);
+    QFETCH(bool, uppercaseRequest);
+    QTemporaryDir fixture;
+    QTemporaryDir storage;
+    QVERIFY(fixture.isValid());
+    QVERIFY(storage.isValid());
+    const QString root = fixture.filePath(QStringLiteral("library"));
+    const QString show = root + QStringLiteral("/Fixture Show");
+    const QString season = show + QStringLiteral("/Season 1");
+    QVERIFY(QDir().mkpath(season));
+    for (int i = 1; i <= episodeCount; ++i) {
+        const QString name = QStringLiteral("Fixture.S01E0%1.mp4").arg(i);
+        QFile f(season + QLatin1Char('/') + name);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        QCOMPARE(f.write("fixture"), qint64(7));
+    }
+    VaultConfig config(storage.path());
+    config.addRoot(root);
+    config.confirmRoot(root);
+    const auto roots = config.roots();
+    const QString indexedRoot = roots.first().toMap().value(QStringLiteral("path")).toString();
+    VaultIndex index(storage.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    // The scanner deliberately collapses both seasons into their show subtree.
+    // That grouping must not erase the physical parent used by offline browsing.
+    QList<VaultIndex::FileRow> indexedRows;
+    for (int i = 1; i <= episodeCount; ++i)
+        indexedRows.append(fileRow(QStringLiteral("vault:e%1").arg(i), indexedRoot, show,
+                                  season + QStringLiteral("/Fixture.S01E0%1.mp4").arg(i)));
+    const QString sibling = show + QStringLiteral("/Season 2");
+    QVERIFY(QDir().mkpath(sibling));
+    QFile otherEpisode(sibling + QStringLiteral("/Fixture.S02E01.mp4"));
+    QVERIFY(otherEpisode.open(QIODevice::WriteOnly));
+    QCOMPARE(otherEpisode.write("fixture"), qint64(7));
+    otherEpisode.close();
+    indexedRows.append(fileRow(QStringLiteral("vault:sibling"), indexedRoot, show,
+                              sibling + QStringLiteral("/Fixture.S02E01.mp4")));
+    QVERIFY(index.publish(indexedRows));
+    QVERIFY(QDir().rename(root, fixture.filePath(QStringLiteral("disconnected-library"))));
+    QVERIFY(index.markRootAway(indexedRoot, true));
+    const auto showChildren = VaultBrowseAway::offlineBrowseAt(&index, roots,
+                                                              uppercaseRequest ? show.toUpper() : show);
+    QCOMPARE(showChildren.size(), 2);
+    QCOMPARE(showChildren.first().toMap().value(QStringLiteral("path")).toString(), season);
+    QCOMPARE(showChildren.first().toMap().value(QStringLiteral("nodeType")).toString(), QStringLiteral("season"));
+    const auto episodes = VaultBrowseAway::offlineBrowseAt(&index, roots,
+                                                          uppercaseRequest ? season.toUpper() : season);
+    QCOMPARE(episodes.size(), episodeCount);
+    for (int i = 0; i < episodes.size(); ++i) {
+        const auto row = episodes[i].toMap();
+        QCOMPARE(row.value(QStringLiteral("path")).toString(),
+                 season + QStringLiteral("/Fixture.S01E0%1.mp4").arg(i + 1));
+        QCOMPARE(row.value(QStringLiteral("nodeType")).toString(), QStringLiteral("episode"));
+        QVERIFY(row.value(QStringLiteral("away")).toBool());
+    }
 }
 
 QTEST_MAIN(VaultBrowseAwayTest)

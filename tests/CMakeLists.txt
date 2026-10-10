@@ -802,6 +802,8 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
 # QTemporaryDir index + real small fixture trees per run.
 add_executable(tst_vault_browse_away
     auto/vault/tst_vault_browse_away.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
@@ -1512,6 +1514,29 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 # offscreen gate.
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
+add_executable(vault_browse_restore_qml_tests qml/vault_browse_restore_main.cpp)
+target_compile_definitions(vault_browse_restore_qml_tests PRIVATE
+    COLOSSEUM_VAULT_BROWSE_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/qml/fixtures/VaultBrowseRestoreFixture.qml")
+target_link_libraries(vault_browse_restore_qml_tests PRIVATE
+    Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+set_target_properties(vault_browse_restore_qml_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET vault_browse_restore_qml_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:vault_browse_restore_qml_tests>
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>" "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+        COMMAND_EXPAND_LISTS)
+endif()
+add_test(NAME colosseum.qml.vault_offline_restore
+    COMMAND vault_browse_restore_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vault_offline_restore.qml")
+set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
+    LABELS "qml"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")

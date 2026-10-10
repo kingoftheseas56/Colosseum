@@ -796,14 +796,16 @@ Item {
         if (!roots.length) return
         let restored = []
         try { restored = JSON.parse(browseSettings.lastCrumbJson || "[]") } catch (e) { restored = [] }
-        let rootAvailable = false
+        let rootRegistered = false
         if (restored && restored.length) {
             const savedRootPath = restored[0].key
             for (let i = 0; i < roots.length; ++i) {
-                if (roots[i].path === savedRootPath && roots[i].available) { rootAvailable = true; break }
+                if (roots[i].path === savedRootPath) { rootRegistered = true; break }
             }
         }
-        if (restored && restored.length && rootAvailable) {
+        // A disconnected registered root still owns its indexed hierarchy. Keep
+        // the saved season/folder so the offline projection can display it.
+        if (restored && restored.length && rootRegistered) {
             root.crumbStack = restored
             root.currentBrowsePath = restored[restored.length - 1].key
             return
