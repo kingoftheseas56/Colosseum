@@ -31,6 +31,15 @@ Item {
         accountStore: root.suggestionStore
     }
     Item { id: embedded; x: 25; y: 125; width: 820; height: 580 }
+    Component {
+        id: savedProfileFactory
+        WebEngineProfile {
+            storageName: "feria"
+            offTheRecord: false
+            persistentStoragePath: FeriaBrowserPolicy.storageRoot + "/qtwebengine"
+            cachePath: FeriaBrowserPolicy.storageRoot + "/qtwebengine-cache"
+        }
+    }
     Feria.FeriaSessionDeck {
         id: deck
         parent: embedded
@@ -321,13 +330,12 @@ Item {
 
         function test_permissionAllowPersistsUntilReset() {
             var id = open("/a"), page = deck.browserForSession(id)
-            var ask = "Notification.requestPermission().then(function(r){ document.title = 'asked:' + r })"
-            compare(js(page, "Notification.permission"), "default")
+            var ask = "navigator.geolocation.getCurrentPosition(function(){},function(){},{timeout:1000})"
             start(page, ask)
             var requests = asked(page, "permission")
-            compare(part(page, "feriaRequestMessage").text, "Allow " + FixtureUrl + " to send notifications?")
+            compare(part(page, "feriaRequestMessage").text, "Allow " + FixtureUrl + " to use your location?")
             press(page, "feriaRequestAccept")
-            titled(page, "asked:granted")
+            compare(page.profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).state, WebEnginePermission.State.Granted)
 
             // The decision belongs to the site: it survives a reload and is not
             // asked again.
@@ -335,16 +343,75 @@ Item {
             verify(deck.reload(id))
             tryVerify(function() { return page.navigationGeneration > generation && page.documentReady && !page.loading
                 && !page.replacementLoadPending }, 15000)
-            compare(js(page, "Notification.permission"), "granted")
+            start(page, "navigator.permissions.query({name:'geolocation'}).then(function(r){document.title='location:'+r.state})")
+            titled(page, "location:granted")
             compare(requests.currentSitePermissions().length, 1)
 
             // Reset this site's permissions: the site has to ask again.
             compare(requests.resetSitePermissions(), 1)
-            tryVerify(function() { return js(page, "Notification.permission") === "default" }, 5000)
+            compare(page.profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).state, WebEnginePermission.State.Ask)
             start(page, ask)
             asked(page, "permission")
             press(page, "feriaRequestCancel")
-            titled(page, "asked:denied")
+            compare(page.profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).state, WebEnginePermission.State.Denied)
+        }
+
+        function test_notificationsDisabled_data() {
+            return [{tag: "ordinary", privateBrowsing: false}, {tag: "private", privateBrowsing: true}]
+        }
+        function test_notificationsDisabled(data) {
+            var id = open("/a", {privateBrowsing: data.privateBrowsing}), page = deck.browserForSession(id)
+            start(page, "Notification.requestPermission().then(function(r){document.title='notice:'+r})")
+            titled(page, "notice:denied")
+            compare(page.browserRequests.current, null)
+            compare(page.browserRequests.pending.length, 0)
+            compare(js(page, "Notification.permission"), "denied")
+            compare(page.browserRequests.resetSitePermissions(), 0)
+            var generation = page.navigationGeneration
+            verify(deck.reload(id))
+            tryVerify(function() { return page.navigationGeneration > generation }, 10000)
+            loaded(page, "/a")
+            compare(js(page, "Notification.permission"), "denied")
+        }
+
+        function test_notificationsOldGrantsRevoked() {
+            var id = open("/a"), page = deck.browserForSession(id), profile = deck.sharedProfile
+            // Seed the existing engine store, including an origin other than the
+            // page being opened. A newly attached request owner must revoke both.
+            profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Notifications).grant()
+            profile.queryPermission("https://old-notice.example", WebEnginePermission.PermissionType.Notifications).grant()
+            profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).grant()
+            compare(profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Notifications).state, WebEnginePermission.State.Granted)
+            var next = open("/b"), replacement = deck.browserForSession(next)
+            compare(js(replacement, "Notification.permission"), "denied")
+            compare(profile.queryPermission("https://old-notice.example", WebEnginePermission.PermissionType.Notifications).state, WebEnginePermission.State.Denied)
+            compare(profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).state, WebEnginePermission.State.Granted)
+            start(replacement, "Notification.requestPermission().then(function(r){document.title='old-notice:'+r})")
+            titled(replacement, "old-notice:denied")
+            compare(replacement.browserRequests.current, null)
+        }
+
+        function test_notificationsSavedGrantsRevoked() {
+            var saved = savedProfileFactory.createObject(root)
+            verify(saved !== null)
+            saved.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Notifications).grant()
+            saved.queryPermission("https://saved-notice.example", WebEnginePermission.PermissionType.Notifications).grant()
+            saved.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).grant()
+            saved.destroy()
+            wait(250)
+            // Reopen the disk store independently to prove the grant really
+            // survived profile destruction before production gets that store.
+            var reopened = savedProfileFactory.createObject(root)
+            compare(reopened.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Notifications).state,
+                    WebEnginePermission.State.Granted)
+            reopened.destroy()
+            wait(250)
+            var id = open("/a"), page = deck.browserForSession(id)
+            compare(js(page, "Notification.permission"), "denied")
+            compare(page.profile.queryPermission("https://saved-notice.example", WebEnginePermission.PermissionType.Notifications).state,
+                    WebEnginePermission.State.Denied)
+            compare(page.profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Geolocation).state,
+                    WebEnginePermission.State.Granted)
         }
 
         function test_downloadCompletesAndIsListed() {

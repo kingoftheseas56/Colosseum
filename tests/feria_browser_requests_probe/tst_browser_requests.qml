@@ -186,15 +186,31 @@ Item {
             requests.answer(requests.current.id, true)
             compare(request.granted, 0)
         }
+        function test_notifications_never_enter_permission_queue() {
+            var request = permission("https://subframe.example")
+            request.permissionType = WebEnginePermission.PermissionType.Notifications
+            browser.permissionRequested(request)
+            compare(request.denied, 1); compare(request.granted, 0)
+            compare(requests.current, null); compare(requests.pending.length, 0)
+            browser.visible = false
+            var hidden = permission("https://hidden.example")
+            hidden.permissionType = WebEnginePermission.PermissionType.Notifications
+            browser.permissionRequested(hidden)
+            compare(hidden.denied, 1); compare(hidden.granted, 0)
+            compare(requests.current, null)
+        }
         function test_reset_site_permissions_uses_full_native_origin_lookup() {
             browser.url = "https://page.example:8443/path?q=1"
             var row = {isValid: true, resets: 0, reset: function() { this.resets++ }}
             var invalid = {isValid: false, resets: 0, reset: function() { this.resets++ }}
-            profile.originPermissions = [row, invalid]
+            var notification = {isValid: true, permissionType: WebEnginePermission.PermissionType.Notifications,
+                resets: 0, reset: function() { this.resets++ }}
+            profile.originPermissions = [row, invalid, notification]
             compare(requests.currentSitePermissions().length, 2)
             compare(profile.queriedOrigin, "https://page.example:8443/path?q=1")
             compare(requests.resetSitePermissions(), 1)
             compare(row.resets, 1); compare(invalid.resets, 0)
+            compare(notification.resets, 0)
             verify(notices.signalArguments[0][0].indexOf("https://page.example:8443") >= 0)
         }
         function test_desktop_requires_explicit_source_then_navigation_cancels() {

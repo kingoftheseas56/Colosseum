@@ -22,8 +22,11 @@ PAGES = {
     '/alert': "setTimeout(function(){ alert('Saved.'); document.title = 'alert:returned' }, 300)",
     '/confirm': "setTimeout(function(){ document.title = 'confirm:' + confirm('Delete this?') }, 300)",
     '/prompt': "setTimeout(function(){ document.title = 'prompt:' + prompt('Name?', 'Luffy') }, 300)",
-    '/permission': "Notification.requestPermission().then(function(r){ document.title = 'asked:' + r })",
-    '/remembered': "document.title = 'remembered:' + Notification.permission",
+    '/permission': "navigator.permissions.query({name:'geolocation'}).then(function(r){"
+                   "r.onchange=function(){document.title='asked:'+r.state}});"
+                   "setTimeout(function(){navigator.geolocation.getCurrentPosition(function(){},function(){},{timeout:1000})},300)",
+    '/remembered': "navigator.permissions.query({name:'geolocation'}).then(function(r){document.title='remembered:'+r.state})",
+    '/notifications': "Notification.requestPermission().then(function(r){document.title='notifications:'+r})",
 }
 
 
@@ -93,9 +96,11 @@ def steps(site):
 
         *go('permission page', site + '/permission'), asked('the permission question is showing'),
         app.get('it names the site and the permission', 'feriaRequestMessage', 'text', '==',
-                'Allow ' + site + ' to send notifications?'),
+                'Allow ' + site + ' to use your location?'),
         app.click('Allow', 'feriaRequestAccept'), reported('the page was granted', 'asked:granted'),
         *go('same site again', site + '/remembered'), reported('the decision is remembered', 'remembered:granted'),
+        *go('notification page', site + '/notifications'), reported('notifications are disabled', 'notifications:denied'),
+        app.get('no permission dialog is offered', 'feriaBrowserPermissionDialog', 'visible', '==', 'false'),
     ] + app.QUIT
 
 

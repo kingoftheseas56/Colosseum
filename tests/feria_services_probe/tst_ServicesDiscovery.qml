@@ -169,18 +169,12 @@ Item {
                 + " pageHost=127.0.0.1 subresourceHost=localhost"
                 + " profileInterceptorProperty=" + typeof deck.sharedProfile.urlRequestInterceptor)
         }
-        function test_04_notificationDelivery() {
+        function test_04_notificationsDisabled() {
             var id = open("/a"), page = deck.browserForSession(id)
             console.log("SERVICES_NOTIFICATION_PERMISSION_INITIAL " + js(page, "Notification.permission"))
             start(page, "Notification.requestPermission().then(function(value){document.title='services:permission:'+value})")
-            tryVerify(function() {
-                return page.browserRequests.current !== null
-                    && page.browserRequests.current.kind === "permission"
-            }, 10000)
-            var accept = findChild(page.browserRequests, "feriaRequestAccept")
-            verify(accept !== null && accept.visible)
-            mouseClick(accept)
-            titled(page, "services:permission:granted")
+            titled(page, "services:permission:denied")
+            compare(page.browserRequests.current, null)
             js(page, "window.__noticeEvents={show:0,click:0,close:0};true")
             start(page, "var n=new Notification('Fixture notice',{body:'Fixture body'});"
                 + "n.onshow=function(){window.__noticeEvents.show++};"
@@ -189,19 +183,22 @@ Item {
             wait(1000)
             console.log("SERVICES_NOTIFICATION_DELIVERY count=" + root.noticeCount
                 + " pageEventsBefore=" + JSON.stringify(js(page, "window.__noticeEvents")))
-            if (root.capturedNotice) {
-                // QML engine methods dispatch page events. No Windows toast or
-                // tray surface is instantiated by this test.
-                root.capturedNotice.show()
-                wait(100)
-                console.log("SERVICES_NOTIFICATION_SHOW "
-                    + JSON.stringify(js(page, "window.__noticeEvents")))
-                root.capturedNotice.click()
-                root.capturedNotice.close()
-                wait(100)
-                console.log("SERVICES_NOTIFICATION_CLICK_CLOSE "
-                    + JSON.stringify(js(page, "window.__noticeEvents")))
-            }
+            compare(root.noticeCount, 0)
+            compare(js(page, "window.__noticeEvents.show"), 0)
+        }
+        function test_04b_lateNotificationClosed() {
+            var id = open("/a"), page = deck.browserForSession(id)
+            // Simulate a page already holding a grant when policy takes effect.
+            // This test-only grant lets a late engine event exercise the close
+            // path; the ordinary flow above never grants notifications.
+            page.profile.queryPermission(FixtureUrl, WebEnginePermission.PermissionType.Notifications).grant()
+            js(page, "window.__noticeEvents={show:0,close:0};true")
+            start(page, "var n=new Notification('Late fixture notice');"
+                + "n.onshow=function(){window.__noticeEvents.show++};"
+                + "n.onclose=function(){window.__noticeEvents.close++}")
+            tryCompare(root, "noticeCount", 1, 10000)
+            tryVerify(function() { return js(page, "window.__noticeEvents.close") === 1 }, 5000)
+            compare(js(page, "window.__noticeEvents.show"), 0)
         }
         function test_05_mediaPageObservation() {
             var id = open("/services-media"), page = deck.browserForSession(id)

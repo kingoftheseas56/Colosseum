@@ -18,6 +18,7 @@ Item {
     objectName: browser && browser.visible ? "feriaActiveBrowserRequests" : ""
     readonly property bool printPromptPending: printTicket !== null
     required property var browser
+    readonly property var permissionProfile: browser ? browser.profile : null
     property bool closingSession: browser ? !!browser.closingSession : false
     property bool active: browser && browser.visible && !closingSession
     signal message(string text)
@@ -72,7 +73,26 @@ Item {
     }
     function currentSitePermissions() {
         if (!active || !browser.profile || typeof browser.profile.listPermissionsForOrigin !== "function") return []
-        return browser.profile.listPermissionsForOrigin(browser.url)
+        // Notification denial is browser policy, not a resettable site choice.
+        return browser.profile.listPermissionsForOrigin(browser.url).filter(function(permission) {
+            return permission.permissionType !== WebEnginePermission.PermissionType.Notifications
+        })
+    }
+    function disableNotifications() {
+        var profile = permissionProfile
+        if (!profile || typeof profile.listPermissionsForPermissionType !== "function") return
+        profile.isPushServiceEnabled = false
+        // Saved grants bypass permissionRequested. Revoke them before using a
+        // profile, without resetting location, clipboard or other site choices.
+        var saved = profile.listPermissionsForPermissionType(WebEnginePermission.PermissionType.Notifications)
+        for (var i = 0; i < saved.length; ++i) if (saved[i].isValid) saved[i].deny()
+        denyNotificationsForUrl(browser.url)
+    }
+    function denyNotificationsForUrl(url) {
+        if (!permissionProfile || typeof permissionProfile.queryPermission !== "function"
+                || !/^https?:\/\//i.test(String(url))) return
+        var permission = permissionProfile.queryPermission(url, WebEnginePermission.PermissionType.Notifications)
+        if (permission.isValid) permission.deny()
     }
     function resetSitePermissions() {
         var permissions = currentSitePermissions()
@@ -94,6 +114,12 @@ Item {
         else if (entry.kind === "dialog" || entry.kind === "signin") entry.request.dialogReject()
     }
     function enqueue(kind, request, origin) {
+        // Website notifications are disabled for now, including subframes and
+        // hidden views. Do not offer a grant the browser cannot deliver.
+        if (kind === "permission" && request.permissionType === WebEnginePermission.PermissionType.Notifications) {
+            if (request.isValid) request.deny()
+            return
+        }
         var entry = {id: ++nextId, generation: generation, kind: kind, work: -1,
                      request: request, origin: kind === "certificate" ? certificateHostLabel(origin)
                         : kind === "webauth" ? String(origin || originLabel(browser.url))
@@ -344,8 +370,16 @@ Item {
     }
     onActiveChanged: if (!active) cancelPending()
     onBrowserChanged: cancelPending()
+    onPermissionProfileChanged: disableNotifications()
     onCurrentChanged: { refreshAuthState(); refreshFields() }
+    Component.onCompleted: disableNotifications()
     Component.onDestruction: cancelPending()
+    Connections {
+        target: root.permissionProfile
+        ignoreUnknownSignals: true
+        // Close a late notification from an already running page or worker.
+        function onPresentNotification(notification) { notification.close() }
+    }
     Connections {
         target: root.browser
         ignoreUnknownSignals: true
@@ -373,8 +407,11 @@ Item {
             root.enqueue("dialog", request, request.securityOrigin)
         }
         function onFileDialogRequested(request) { root.chooseFiles(request) }
-        function onNavigationRequested(request) { if (request.isMainFrame) root.cancelPending() }
-        function onUrlChanged() { root.cancelPending() }
+        function onNavigationRequested(request) {
+            if (request.isMainFrame) root.cancelPending()
+            root.denyNotificationsForUrl(request.url)
+        }
+        function onUrlChanged() { root.cancelPending(); root.denyNotificationsForUrl(root.browser.url) }
         function onWindowCloseRequested() { root.cancelPending() }
         function onPrintRequested() { root.requestPrint() }
         function onPdfPrintingFinished(path, success) {

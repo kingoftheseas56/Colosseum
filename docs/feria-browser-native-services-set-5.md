@@ -2,6 +2,12 @@
 
 Status: DISCOVERY COMPLETE, nothing built. Each of the five services was observed in the real engine; four need no work for the browser's purpose and one waits on an owner decision. Branch `codex/feria-native-services`. Pushed, not merged.
 
+Follow-up (2026-10-11): the owner chose to disable website notifications for now. The QtWebEngine request owner on `codex/feria-release-packaging` denies notification requests without a prompt, revokes saved notification grants when a profile is attached, disables push service, and closes any late notification. Resetting site permissions cannot re-enable notifications; location and other permissions retain their existing behavior. The observations and recommendations below describe the original discovery, before this decision.
+
+Follow-up verification: the complete `feria_interaction_probe` passed on stock QtWebEngine 6.11.1 and the existing codec-enabled 6.11.2 runtime (15 passed, 0 failed each; clean process exit). This includes ordinary/private denial, reload, revocation across views, revocation after reopening the on-disk permission store, and location grant/reload/reset/denial. The two notification service cases passed on stock (4 passed including setup/cleanup): no presentation for a denied request, and a late engine notification is closed without a show event. Five focused request-owner cases passed (7 including setup/cleanup), covering hidden/subframe-origin requests and reset filtering. This is real engine fixture evidence, not a rebuilt/installed application or a real provider check. The full-app interaction script was updated and syntax-checked but not executed; WebView2 compatibility policy was not changed or qualified in this QtWebEngine slice.
+
+Separate baseline issue: the broader `feria_browser_requests_probe` run had 26 passed and 1 failed before adding the new denial case. `test_download_old_account_authorization_cannot_record_in_new_account` leaves `downloadToken` as `grant-1` instead of clearing it; its no-history-write assertion passes. The identical failure was reproduced against the unchanged Claude checkout. It is not a green full-suite result and was left outside this notification change.
+
 Set 1 (`docs/feria-browser-foundation-set-1.md`) stays the owner map. Set 4 (`docs/feria-browser-daily-features-set-4.md`) is the base of this branch.
 
 ## Base and merge endpoint
