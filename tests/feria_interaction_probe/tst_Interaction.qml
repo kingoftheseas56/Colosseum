@@ -11,6 +11,25 @@ import "../../qml/feria" as Feria
 Item {
     id: root
     width: 1060; height: 760
+    // Fixed, disposable saved-address results for the accessibility/keyboard probe.
+    property var suggestionStore: ({
+        searchBrowserBookmarks: function(query) {
+            return [{url: FixtureUrl + "/a", title: "Fixture page A"}]
+        },
+        searchBrowserHistory: function(query) {
+            return [
+                {url: FixtureUrl + "/b", title: ""},
+                {url: FixtureUrl + "/daily", title: FixtureUrl + "/daily"}
+            ]
+        }
+    })
+    Feria.FeriaBrowserToolbar {
+        id: toolbar
+        x: 10; y: 10; width: 470; height: 36
+        browserReady: true
+        currentUrl: FixtureUrl + "/a"
+        accountStore: root.suggestionStore
+    }
     Item { id: embedded; x: 25; y: 125; width: 820; height: 580 }
     Feria.FeriaSessionDeck {
         id: deck
@@ -25,6 +44,8 @@ Item {
         when: windowShown
         property int serial: 0
         SignalSpy { id: messageSpy; signalName: "message" }
+        SignalSpy { id: addressAcceptedSpy; target: toolbar; signalName: "addressAccepted" }
+        SignalSpy { id: addressCancelledSpy; target: toolbar; signalName: "editingCancelled" }
 
         function init() {
             failOnWarning(/TypeError|ReferenceError|incompatible arguments|Could not convert argument/)
@@ -95,6 +116,73 @@ Item {
             return false
         }
 
+        function test_addressSuggestionsAccessibilityAndKeyboard() {
+            addressAcceptedSpy.clear()
+            addressCancelledSpy.clear()
+            toolbar.focusAddress()
+            tryVerify(function() {
+                var field = findChild(toolbar.overlay, "feriaBrowserAddress")
+                return field !== null && field.visible && field.activeFocus
+            }, 5000, "address TextField must own keyboard focus")
+            var field = findChild(toolbar.overlay, "feriaBrowserAddress")
+            verify(field !== null, "address field found by objectName")
+            field.text = "fixture"
+            tryVerify(function() {
+                var list = findChild(toolbar.overlay, "feriaAddressSuggestions")
+                return list !== null && list.visible && list.count === 3
+            }, 5000, "three real suggestion delegates must appear")
+            var list = findChild(toolbar.overlay, "feriaAddressSuggestions")
+            var first = findChild(list, "feriaAddressSuggestion_0")
+            var second = findChild(list, "feriaAddressSuggestion_1")
+            var third = findChild(list, "feriaAddressSuggestion_2")
+            verify(first !== null && second !== null && third !== null,
+                "three delegates found by objectName")
+            compare(list.Accessible.role, Accessible.List)
+            compare(String(list.Accessible.name), "Address suggestions")
+            compare(first.Accessible.role, Accessible.ListItem)
+            compare(second.Accessible.role, Accessible.ListItem)
+            compare(third.Accessible.role, Accessible.ListItem)
+            compare(String(first.Accessible.name), "Fixture page A - " + FixtureUrl + "/a")
+            compare(String(second.Accessible.name), FixtureUrl + "/b", "empty title uses only URL")
+            compare(String(third.Accessible.name), FixtureUrl + "/daily", "identical title uses only URL")
+            compare(first.Accessible.selected, false)
+            keyClick(field, Qt.Key_Down)
+            compare(list.currentIndex, 0)
+            compare(first.Accessible.selected, true)
+            keyClick(field, Qt.Key_Down)
+            compare(list.currentIndex, 1)
+            compare(first.Accessible.selected, false)
+            compare(second.Accessible.selected, true)
+            keyClick(field, Qt.Key_Up)
+            compare(list.currentIndex, 0)
+            compare(first.Accessible.selected, true)
+            compare(second.Accessible.selected, false)
+            keyClick(field, Qt.Key_Up)
+            compare(list.currentIndex, -1)
+            compare(first.Accessible.selected, false)
+            console.log("ACCESSIBILITY_ASSERT_SUGGESTIONS listRole=" + list.Accessible.role
+                + " itemRole=" + first.Accessible.role + " firstName="
+                + JSON.stringify(String(first.Accessible.name))
+                + " fallbackNames=true selectedDownUp=true")
+            keyClick(field, Qt.Key_Down)
+            compare(list.currentIndex, 0)
+            keyClick(field, Qt.Key_Return)
+            tryCompare(addressAcceptedSpy, "count", 1, 5000)
+            compare(String(addressAcceptedSpy.signalArguments[0][0]), FixtureUrl + "/a")
+            console.log("ACCESSIBILITY_ASSERT_ADDRESS_ENTER url="
+                + String(addressAcceptedSpy.signalArguments[0][0]))
+            toolbar.focusAddress()
+            tryVerify(function() { return field.visible && field.activeFocus }, 5000)
+            field.text = "fixture"
+            tryVerify(function() { return list.visible && list.count === 3 }, 5000)
+            keyClick(field, Qt.Key_Escape)
+            tryCompare(addressCancelledSpy, "count", 1, 5000)
+            tryCompare(list, "visible", false, 5000)
+            compare(addressAcceptedSpy.count, 1, "Escape must not open another address")
+            console.log("ACCESSIBILITY_ASSERT_ADDRESS_ESCAPE closed=true acceptedCount="
+                + addressAcceptedSpy.count + " cancelledCount=" + addressCancelledSpy.count)
+        }
+
         function test_pageDialogsAnswerThePage() {
             var page = deck.browserForSession(open("/a"))
             start(page, "alert('Saved.'); document.title = 'alert:returned'")
@@ -122,6 +210,9 @@ Item {
             var input = part(page, "feriaDialogInput")
             verify(input.visible)
             compare(input.text, "Luffy", "the field starts from the page's default")
+            compare(String(input.Accessible.name), "Answer to the page's question")
+            console.log("ACCESSIBILITY_ASSERT_PROMPT name=" + JSON.stringify(String(input.Accessible.name))
+                + " visible=" + input.visible + " requestKind=" + page.browserRequests.current.kind)
             input.text = "Zoro"
             press(page, "feriaRequestAccept")
             titled(page, "prompt:Zoro")

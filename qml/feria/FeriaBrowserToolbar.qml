@@ -232,6 +232,8 @@ Item {
             ListView {
                 id: suggestions
                 objectName: "feriaAddressSuggestions"
+                Accessible.role: Accessible.List
+                Accessible.name: qsTr("Address suggestions")
                 width: parent.width
                 height: visible ? count * 46 : 0
                 visible: root.addressEdited && count > 0
@@ -244,6 +246,11 @@ Item {
                     required property int index
                     required property var modelData
                     objectName: "feriaAddressSuggestion_" + index
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: modelData.title && modelData.title !== modelData.url
+                                     ? modelData.title + " - " + modelData.url : modelData.url
+                    Accessible.selected: index === suggestions.currentIndex
+                    Accessible.onPressAction: root.openSuggestion(index)
                     width: suggestions.width
                     height: 44
                     radius: 8

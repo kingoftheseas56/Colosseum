@@ -461,6 +461,7 @@ Item {
             PromptField {
                 id: dialogInput
                 objectName: "feriaDialogInput"
+                Accessible.name: qsTr("Answer to the page's question")
                 Layout.fillWidth: true
                 visible: root.pageDialog && root.pageDialogType === JavaScriptDialogRequest.DialogTypePrompt
                 onAccepted: if (root.current) root.answer(root.current.id, true)
