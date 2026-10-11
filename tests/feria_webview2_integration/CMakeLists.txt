@@ -42,6 +42,27 @@ add_custom_command(TARGET feria_wv2_integration POST_BUILD
             "$<TARGET_FILE:unofficial::webview2::webview2>"
             "$<TARGET_FILE_DIR:feria_wv2_integration>/WebView2Loader.dll")
 enable_testing()
+# Runs the production native host against disposable local permission stores.
+get_target_property(notification_sources feria_wv2_integration SOURCES)
+list(REMOVE_ITEM notification_sources runtime.cpp)
+add_executable(feria_wv2_notifications notifications.cpp ${notification_sources})
+target_include_directories(feria_wv2_notifications PRIVATE
+    "${ROOT}/native" "${ROOT}/native/feria" "${ROOT}/native/feria/provider-host"
+    "${ROOT}/native/feria/app-state")
+target_link_libraries(feria_wv2_notifications PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Test Qt6::Network Qt6::Sql
+    Qt6::WebEngineQuick unofficial::webview2::webview2 ole32 user32)
+target_compile_definitions(feria_wv2_notifications PRIVATE
+    FERIA_HAS_WEBVIEW2 FERIA_TEST_CONTROLS UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+get_target_property(notification_loader_type unofficial::webview2::webview2 TYPE)
+if(notification_loader_type STREQUAL "SHARED_LIBRARY")
+    add_custom_command(TARGET feria_wv2_notifications POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:unofficial::webview2::webview2>"
+                "$<TARGET_FILE_DIR:feria_wv2_notifications>/WebView2Loader.dll")
+endif()
+add_test(NAME webview2_notifications COMMAND feria_wv2_notifications)
+set_tests_properties(webview2_notifications PROPERTIES TIMEOUT 120)
 add_test(NAME webview2_close_integration
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_integration.py
             $<TARGET_FILE:feria_wv2_integration>

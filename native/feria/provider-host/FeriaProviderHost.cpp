@@ -286,6 +286,97 @@ struct FeriaProviderHost::Impl
         }
     }
 
+    void prepareNotificationPolicy(ICoreWebView2 *view, const std::function<void(bool)> &done)
+    {
+        // Notification permission is disabled in both engines. Existing saved
+        // grants bypass PermissionRequested, so revoke them before a view is
+        // admitted to navigation (including authentication popups).
+        ComPtr<ICoreWebView2_13> version;
+        ComPtr<ICoreWebView2Profile> baseProfile;
+        ComPtr<ICoreWebView2Profile4> profile;
+        ComPtr<ICoreWebView2_24> notifications;
+        if (FAILED(view->QueryInterface(IID_PPV_ARGS(&version)))
+                || FAILED(version->get_Profile(&baseProfile))
+                || FAILED(baseProfile.As(&profile)) || FAILED(view->QueryInterface(IID_PPV_ARGS(&notifications)))) {
+            log(QStringLiteral("NOTIFICATIONS_POLICY_FAILED unsupported-runtime"));
+            done(false);
+            return;
+        }
+        EventRegistrationToken token{};
+        const HRESULT requests = view->add_PermissionRequested(
+            Callback<ICoreWebView2PermissionRequestedEventHandler>(
+                [](ICoreWebView2 *, ICoreWebView2PermissionRequestedEventArgs *args) -> HRESULT {
+                    COREWEBVIEW2_PERMISSION_KIND kind;
+                    const HRESULT result = args->get_PermissionKind(&kind);
+                    if (FAILED(result)) return result;
+                    if (kind == COREWEBVIEW2_PERMISSION_KIND_NOTIFICATIONS)
+                        return args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+                    return S_OK;
+                }).Get(), &token);
+        // Suppress any late page/worker notification as well as denying new
+        // requests. Handled must precede ReportClosed; otherwise WebView2 can
+        // display its own Windows notification UI.
+        const HRESULT delivery = notifications->add_NotificationReceived(
+            Callback<ICoreWebView2NotificationReceivedEventHandler>(
+                [](ICoreWebView2 *, ICoreWebView2NotificationReceivedEventArgs *args) -> HRESULT {
+                    const HRESULT handled = args->put_Handled(TRUE);
+                    if (FAILED(handled)) return handled;
+                    ComPtr<ICoreWebView2Notification> notification;
+                    const HRESULT result = args->get_Notification(&notification);
+                    return SUCCEEDED(result) && notification ? notification->ReportClosed() : result;
+                }).Get(), &token);
+        if (FAILED(requests) || FAILED(delivery)) { done(false); return; }
+        const HRESULT list = profile->GetNonDefaultPermissionSettings(
+            Callback<ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler>(
+                [profile, done](HRESULT hr, ICoreWebView2PermissionSettingCollectionView *rows) -> HRESULT {
+                    UINT32 count = 0;
+                    if (FAILED(hr) || !rows || FAILED(rows->get_Count(&count))) { done(false); return S_OK; }
+                    std::vector<std::wstring> grants;
+                    for (UINT32 i = 0; i < count; ++i) {
+                        ComPtr<ICoreWebView2PermissionSetting> row;
+                        COREWEBVIEW2_PERMISSION_KIND kind;
+                        COREWEBVIEW2_PERMISSION_STATE state;
+                        if (FAILED(rows->GetValueAtIndex(i, &row)) || !row
+                                || FAILED(row->get_PermissionKind(&kind))
+                                || FAILED(row->get_PermissionState(&state))) { done(false); return S_OK; }
+                        if (kind != COREWEBVIEW2_PERMISSION_KIND_NOTIFICATIONS
+                                || state != COREWEBVIEW2_PERMISSION_STATE_ALLOW) continue;
+                        LPWSTR origin = nullptr;
+                        const HRESULT result = row->get_PermissionOrigin(&origin);
+                        if (FAILED(result) || !origin) { CoTaskMemFree(origin); done(false); return S_OK; }
+                        grants.emplace_back(origin);
+                        CoTaskMemFree(origin);
+                    }
+                    if (grants.empty()) { done(true); return S_OK; }
+                    struct Updates { size_t pending; bool ok = true; };
+                    auto updates = std::make_shared<Updates>();
+                    updates->pending = grants.size();
+                    auto settled = [updates, done](HRESULT result) {
+                        updates->ok = updates->ok && SUCCEEDED(result);
+                        if (--updates->pending == 0) done(updates->ok);
+                    };
+                    for (const auto &origin : grants) {
+                        const HRESULT call = profile->SetPermissionState(
+                            COREWEBVIEW2_PERMISSION_KIND_NOTIFICATIONS, origin.c_str(), COREWEBVIEW2_PERMISSION_STATE_DENY,
+                            Callback<ICoreWebView2SetPermissionStateCompletedHandler>(
+                                [settled](HRESULT result) -> HRESULT { settled(result); return S_OK; }).Get());
+                        if (FAILED(call)) settled(call);
+                    }
+                    return S_OK;
+                }).Get());
+        if (FAILED(list)) done(false);
+    }
+
+    void prepareView(ICoreWebView2 *view, bool observeYouTube, const std::function<void(bool)> &done)
+    {
+        const ComPtr<ICoreWebView2> retainedView(view);
+        prepareNotificationPolicy(view,
+            [guard = QPointer<FeriaProviderHost>(q), retainedView, observeYouTube, done](bool ok) {
+                if (!guard || !ok) { done(false); return; }
+                guard->m_impl->prepareDocumentScripts(retainedView.Get(), observeYouTube, done);
+            });
+    }
+
     bool isAllowed(const QString &rawUri) const
     {
         return FeriaBrowserPolicy::allows(QUrl(rawUri));
@@ -505,8 +596,15 @@ struct FeriaProviderHost::Impl
             }
         }
         popup->window->resize(900, 700);
+#ifdef FERIA_TEST_CONTROLS
+        // Native policy probes keep the renderer active in an unshown parent.
+        if (qEnvironmentVariable("FERIA_HIDE_TEST_POPUPS") != QStringLiteral("1")) {
+#endif
         popup->window->show();
         popup->window->requestActivate();
+#ifdef FERIA_TEST_CONTROLS
+        }
+#endif
 
         PopupState *popupRaw = popup.get();
         const HWND popupHwnd =
@@ -583,7 +681,7 @@ struct FeriaProviderHost::Impl
                                 }).Get(),
                             &popupToken);
 
-                        prepareDocumentScripts(popupRaw->webView.Get(), false,
+                        prepareView(popupRaw->webView.Get(), false,
                             [guard, popupRaw, argsRef, deferral, uri](bool ok) {
                                 if (guard && ok) argsRef->put_NewWindow(popupRaw->webView.Get());
                                 argsRef->put_Handled(TRUE);
@@ -900,10 +998,10 @@ void FeriaProviderHost::initialize(quintptr parentWindowId,
                             impl.installMainEvents();
                             guard->setPhysicalBounds(impl.requestedBounds);
                             guard->setVisible(impl.visible);
-                            impl.prepareDocumentScripts(impl.webView.Get(), impl.youtubeObserver,
+                            impl.prepareView(impl.webView.Get(), impl.youtubeObserver,
                                 [guard, fail](bool ok) {
                                     if (!guard) return;
-                                    if (!ok) { fail(QStringLiteral("WebView2 document scripts could not be installed")); return; }
+                                    if (!ok) { fail(QStringLiteral("WebView2 notification policy or document scripts could not be installed; update the WebView2 runtime.")); return; }
                                     guard->m_impl->ready = true;
                                     guard->m_impl->initializing = false;
                                     emit guard->readyChanged(true);
