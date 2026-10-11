@@ -1,6 +1,6 @@
 # Feria browser, set 7: release readiness
 
-Status: DISCOVERY COMPLETE, nothing built. The browser is not release-ready: the release path ships the stock engine without the paid codecs, and nothing proves an upgrade keeps browser state. Branch `codex/feria-release-readiness`. Pushed, not merged.
+Status: DISCOVERY COMPLETE, one small fix built (accessible names, finding 9). The browser is not release-ready: the release path ships the stock engine without the paid codecs, and nothing proves an upgrade keeps browser state. Branch `codex/feria-release-readiness`. Pushed, not merged.
 
 Set 1 (`docs/feria-browser-foundation-set-1.md`) stays the owner map. Set 5 (`docs/feria-browser-native-services-set-5.md`) is the base of this branch.
 
@@ -36,13 +36,17 @@ Read-only. A loop worker read the packaging scripts, the release workflow, the i
 | 12 | The Lanista dev bridge is on in release builds for reads and screen grabs, by the owner's 2026-08-01 ruling; clicking, typing and writes need an environment switch. It is a same-user local pipe, not a network port. A process running as the same user can already read the browser's profile folder on disk, so the bridge adds little exposure. | `native/main.cpp:2086-2092`; `native/devtools/LanistaServer.cpp:266-280,386-405` | Owner decision; recommendation: leave |
 | 13 | Engine age: the engine is whatever Qt kit the release was built with (stock 6.11.1: Chromium 140, security patch 148.0.7778.96; codec runtime 6.11.2: patch 147.0.7727.138, older than stock). Nothing warns when it goes stale. | set 1 record; release workflow pin | Should fix when the codec runtime enters the release |
 
+## Fixed on this branch
+
+Finding 9 (`e4bb91b4`, tests `54a3a7c9`, `24dd4e8c`). The page-prompt answer field is named "Answer to the page's question". The suggestion list is a named list; each row is a list item named by its title and address, reports whether it is selected, and opens on the accessibility press action. Keyboard behaviour, layout and Tab order are unchanged. Proof: `tests/feria_interaction_probe` reads the names, roles and selection from the live items and re-checks Down, Up, Enter and Escape; 11 passed 0 failed on both runtimes, `tests/feria_daily_probe` 34 passed 0 failed on both, by the worker and again by the reviewer (`C:\b\ff-results\set7\task-0002`, `review-0002`). No screen reader was run.
+
 ## Left out on purpose
 
 Registering Colosseum as the Windows default browser. Feria exists so a set of services run inside Colosseum; taking over links system-wide serves nothing there and adds obligations.
 
 ## Order of work
 
-1. Accessible names for the prompt field and the suggestion rows (QML, provable headless).
+1. Accessible names for the prompt field and the suggestion rows: done, see below.
 2. Over-install cleanup in the installer and the fuller smoke list (provable only in CI: it needs a built installer).
 3. An upgrade test that carries a real account file and engine profile from one version to the next (CI).
 4. The codec-enabled runtime as the release's engine, with its version and patch level recorded (large; decides whether the paid services play at all in a release).
