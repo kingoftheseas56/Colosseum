@@ -317,7 +317,17 @@ if (navigator.mediaSession && window.MediaMetadata) {
   });
 }
 </script>)HTML";
-                    } else if (path == "/auth") {
+                    }
+                    // Service fixture branches are terminal. Never let the
+                    // later generic /a fallback replace their HTML or PNG.
+                    if (path.startsWith("/services-")) {
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: " + mime
+                            + "\r\nContent-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/auth") {
                         // HTTP Basic challenge: the page exists only for reader:fixture-pass.
                         const bool authorized = buffer.left(headerEnd).contains(
                             "Authorization: Basic " + QByteArray("reader:fixture-pass").toBase64());
