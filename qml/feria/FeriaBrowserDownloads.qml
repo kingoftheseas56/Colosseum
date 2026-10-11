@@ -55,6 +55,7 @@ Item {
         var entry = downloadEntry.createObject(root, {
             request: request, privateDownload: privateDownload,
             metadataStore: accountStore, owningProfile: profile, downloadToken: token,
+            accountGeneration: accountStore ? accountStore.browserGeneration : 0,
             sessionId: sessionId, visitToken: visitToken, work: work
         })
         if (!entry) {
@@ -96,11 +97,17 @@ Item {
             property var metadataStore: null
             property var owningProfile: null
             property string downloadToken: ""
+            property int accountGeneration: 0
             property bool privateDownload: false
             property string sessionId: ""
             property string visitToken: ""
             property real work: -1
             function workLive() { return work < 0 || (root.runtime && root.runtime.workValid(work)) }
+            function metadataLive() {
+                return workLive() && root.active && owningProfile === root.profile
+                    && metadataStore && metadataStore === root.accountStore
+                    && accountGeneration === metadataStore.browserGeneration
+            }
             function releaseWork() {
                 if (work > 0 && root.runtime) root.runtime.releaseWork(work)
                 if (work > 0) work = 0
@@ -127,18 +134,21 @@ Item {
                 if (request.state === WebEngineDownloadRequest.DownloadCancelled) { releaseAuthorization(); releaseWork() }
                 if (request.state === WebEngineDownloadRequest.DownloadCompleted && !recorded) {
                     if (!notified) { notified = true; root.message(qsTr("Downloaded %1.").arg(name)) }
-                    if (!privateDownload && downloadToken.length && workLive() && root.active && owningProfile === root.profile
-                            && metadataStore && metadataStore === root.accountStore && typeof metadataStore.recordBrowserDownload === "function") {
+                    if (!privateDownload && downloadToken.length && metadataLive()
+                            && typeof metadataStore.recordBrowserDownload === "function") {
                         recorded = metadataStore.recordBrowserDownload({url: sourceUrl, path: path, fileName: name,
                             mimeType: request.mimeType, receivedBytes: request.receivedBytes,
                             totalBytes: Math.max(0, request.totalBytes), state: "completed",
                             sessionId: sessionId, visitToken: visitToken, downloadToken: downloadToken}) === true
-                        metadataPending = !recorded
-                        if (!recorded) {
+                        // An account switch revokes the grant, including a
+                        // switch during the store's synchronous save callback.
+                        metadataPending = !recorded && metadataLive()
+                        if (metadataPending) {
                             root.message(qsTr("The file downloaded, but its history could not be saved. Retry saving history."))
                             return // Native retains failed grants until retry or retirement.
                         }
-                    } else recorded = true // Private/unowned downloads do not enter history.
+                    }
+                    recorded = true // Private/unowned/stale downloads do not enter history.
                     metadataPending = false
                     releaseAuthorization()
                     releaseWork()

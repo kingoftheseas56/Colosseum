@@ -42,6 +42,7 @@ Item {
         property var grants: ({})
         property int nextGrant: 0
         property int accountEpoch: 0
+        readonly property int browserGeneration: accountEpoch
         property bool visitLive: true
         function authorizeBrowserDownload(sessionId, visitToken) {
             if (!visitLive || sessionId !== "session-a" || visitToken !== "visit-a") return ""
@@ -410,6 +411,8 @@ Item {
             request.state = WebEngineDownloadRequest.DownloadCompleted
             compare(store.browserDownloadHistory.length, 0)
             compare(downloads.items[0].downloadToken, "")
+            compare(downloads.items[0].metadataPending, false)
+            compare(downloads.items[0].recorded, true)
         }
         function test_download_cancel_releases_authorization() {
             var request = createTemporaryObject(downloadMock, stage)
