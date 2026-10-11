@@ -132,11 +132,17 @@ Item {
                 return list !== null && list.visible && list.count === 3
             }, 5000, "three real suggestion delegates must appear")
             var list = findChild(toolbar.overlay, "feriaAddressSuggestions")
-            var first = findChild(list, "feriaAddressSuggestion_0")
-            var second = findChild(list, "feriaAddressSuggestion_1")
-            var third = findChild(list, "feriaAddressSuggestion_2")
-            verify(first !== null && second !== null && third !== null,
-                "three delegates found by objectName")
+            // ListView delegates live in its contentItem and are created asynchronously.
+            tryVerify(function() {
+                return list.itemAtIndex(0) !== null && list.itemAtIndex(1) !== null
+                    && list.itemAtIndex(2) !== null
+            }, 5000, "ListView must materialize all three visible delegates")
+            var first = list.itemAtIndex(0)
+            var second = list.itemAtIndex(1)
+            var third = list.itemAtIndex(2)
+            compare(first.objectName, "feriaAddressSuggestion_0")
+            compare(second.objectName, "feriaAddressSuggestion_1")
+            compare(third.objectName, "feriaAddressSuggestion_2")
             compare(list.Accessible.role, Accessible.List)
             compare(String(list.Accessible.name), "Address suggestions")
             compare(first.Accessible.role, Accessible.ListItem)
