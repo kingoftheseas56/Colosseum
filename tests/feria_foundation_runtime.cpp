@@ -262,7 +262,62 @@ public slots:
                         socket->disconnectFromHost();
                         return;
                     }
-                    if (path == "/auth") {
+                    // Set 5 service discovery: private loopback-only origins and dummy credentials.
+                    if (path == "/services-login-post") {
+                        const bool valid = requestBody.contains("username=reader")
+                            && requestBody.contains("password=fixture-pass");
+                        socket->write((valid ? QByteArray("HTTP/1.1 303 See Other\r\nLocation: /services-login\r\n"
+                            "Set-Cookie: feria_fixture_auth=ok; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax\r\n")
+                            : QByteArray("HTTP/1.1 403 Forbidden\r\n"))
+                            + "Content-Length: 0\r\nConnection: close\r\n\r\n");
+                        qInfo().noquote() << "SERVICES_LOGIN_POST accepted=" << valid;
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/services-login") {
+                        const bool signedIn = buffer.left(headerEnd).contains("feria_fixture_auth=ok");
+                        body = signedIn ? QByteArray("<!doctype html><title>services:signed-in</title>"
+                            "<p id='signed-in'>Session retained</p>")
+                            : QByteArray("<!doctype html><title>services:sign-in</title>"
+                            "<form id='login' method='post' action='/services-login-post' autocomplete='on'>"
+                            "<input id='username' name='username' autocomplete='username' value='reader'>"
+                            "<input id='password' name='password' type='password' autocomplete='current-password' value='fixture-pass'>"
+                            "<button type='submit'>Fixture login</button></form>");
+                        qInfo().noquote() << "SERVICES_LOGIN_PAGE signedIn=" << signedIn;
+                    } else if (path.startsWith("/services-autofill")) {
+                        body = "<!doctype html><title>services:form</title>"
+                            "<form method='get' action='/services-autofill' autocomplete='on'>"
+                            "<input id='topic' name='topic' type='text' autocomplete='on'>"
+                            "<button type='submit'>Submit</button></form>";
+                    } else if (path == "/services-resource-page") {
+                        body = "<!doctype html><title>services:pending</title>"
+                            "<img id='resource' src='http://localhost:"
+                            + QByteArray::number(m_server.serverPort())
+                            + "/services-tracker-pixel' onload=\"document.title='services:loaded'\" "
+                            "onerror=\"document.title='services:failed'\">";
+                    } else if (path == "/services-tracker-pixel") {
+                        qInfo().noquote() << "SERVICES_RESOURCE_HIT host=localhost";
+                        body = QByteArray::fromBase64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
+                        mime = "image/png";
+                    } else if (path == "/services-media") {
+                        body = R"HTML(<!doctype html><title>services:media</title>
+<audio id="serviceAudio" loop src="/tone.wav" preload="auto"></audio>
+<script>
+window.serviceActions = {play:0,pause:0,seekto:0,nexttrack:0,previoustrack:0};
+if (navigator.mediaSession && window.MediaMetadata) {
+  navigator.mediaSession.metadata = new MediaMetadata({title:"Fixture song",artist:"Fixture artist",album:"Feria"});
+  ["play","pause","seekto","nexttrack","previoustrack"].forEach(function(action) {
+    try { navigator.mediaSession.setActionHandler(action,function(details) {
+      window.serviceActions[action]++;
+      var audio=document.getElementById("serviceAudio");
+      if (action==="pause") audio.pause();
+      if (action==="play") audio.play().catch(function(){});
+      if (action==="seekto" && details.seekTime != null) audio.currentTime=details.seekTime;
+    }); } catch (_) {}
+  });
+}
+</script>)HTML";
+                    } else if (path == "/auth") {
                         // HTTP Basic challenge: the page exists only for reader:fixture-pass.
                         const bool authorized = buffer.left(headerEnd).contains(
                             "Authorization: Basic " + QByteArray("reader:fixture-pass").toBase64());
