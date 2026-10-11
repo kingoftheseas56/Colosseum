@@ -2,6 +2,8 @@
 
 Status: DISCOVERY COMPLETE, one small fix built (accessible names, finding 9). The browser is not release-ready: the release path ships the stock engine without the paid codecs, and nothing proves an upgrade keeps browser state. Branch `codex/feria-release-readiness`. Pushed, not merged.
 
+Packaging follow-up, 2026-10-11: ordinary over-install QML replacement and a shared browser-runtime inventory check are implemented on `codex/feria-release-packaging`, based on this branch. Verified with disposable NSIS installers and runtime-file fixtures as detailed below. These checks do not qualify an installed full application or close the remaining release blockers.
+
 Set 1 (`docs/feria-browser-foundation-set-1.md`) stays the owner map. Set 5 (`docs/feria-browser-native-services-set-5.md`) is the base of this branch.
 
 ## Base and merge endpoint
@@ -55,4 +57,19 @@ Registering Colosseum as the Windows default browser. Feria exists so a set of s
 
 ## Not verified
 
-No installer was built, installed, upgraded or removed. No installed Colosseum was found at `C:\Program Files\Colosseum` or `%LOCALAPPDATA%\Programs\Colosseum`. Finding 3 was derived from the code, not reproduced. No screen reader was run.
+The original discovery built or ran no installer; finding 3 was derived from source at that point. The follow-up below reproduces it using disposable fixture installers. No installed full application, real browser-state upgrade or screen reader was tested in this follow-up.
+
+## Packaging follow-up
+
+Ordinary installs now move the prior immutable `qml/` payload aside before extraction, so deleted files cannot survive and change the startup fingerprint. Successful extraction removes the old QML backup. An existing backup is refused; an extraction error restores the previous QML where possible and returns failure. This is QML restoration, not rollback of the entire installer payload. Install-local data and external profiles are outside the replacement tree.
+
+The disposable NSIS test also reproduced that recursive removal follows a nested junction and deletes its target's files. The installer therefore scans the old QML tree and rejects links or unreadable paths before renaming or extracting anything. The existing root reparse checks remain in use.
+
+`scripts/installer/verify_browser_runtime.ps1` checks 15 nonempty runtime files: engine libraries and process, Chromium resource packs, ICU and V8 data, the fallback locale, and WebEngine/WebChannel QML imports and plugins. Both `package_release.sh` and the installed-release smoke invoke it. The inventory follows the [Qt 6.11 deployment requirements](https://doc.qt.io/qt-6.11/qtwebengine-deploying.html) and the Windows Quick kit's plugin names. It checks presence and nonempty files, not DLL compatibility, signatures, codec capability or actual browser launch.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File tests/installer/update_matrix.ps1`: passed. Real compiled NSIS fixtures cover fresh install, ordinary over-install with exact QML file/hash comparison, install-local and external data retention, nested-junction refusal, existing-backup preservation, injected extraction failure with QML restoration, and the prior update/wait/backup/rollback matrix. The stale-file check failed before the fix. The fixture now includes the installer's required icon and safe cleanup even when compilation fails.
+- `python -m unittest tests.test_browser_runtime_package -v`: passed. A complete fixture is accepted; each of the 15 missing components, an empty engine DLL and a directory in place of that DLL are rejected.
+
+Still outstanding: a real installed build and upgrade carrying an actual account file and browser engine profile; codec runtime delivery; Widevine delivery; installed PDF playback; screen-reader checks. No full application build, CI release job, merge or release was performed for this slice.

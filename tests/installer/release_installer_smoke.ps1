@@ -56,6 +56,8 @@ $required = @(
 foreach ($relative in $required) {
     Require (Test-Path -LiteralPath (Join-Path $installRoot $relative)) "missing runtime file: $relative"
 }
+& (Join-Path $PSScriptRoot "..\..\scripts\installer\verify_browser_runtime.ps1") `
+    -RuntimeRoot (Join-Path $installRoot "native\build-msvc")
 
 $appExe = Join-Path $installRoot "native\build-msvc\colosseum.exe"
 $binaryVersion = (& $appExe --version | Out-String).Trim()

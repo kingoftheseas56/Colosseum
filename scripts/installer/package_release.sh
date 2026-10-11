@@ -82,6 +82,12 @@ for sentinel in \
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
 
+# Refuse an incomplete browser before compressing it into an installer. The
+# installed-release smoke uses the same check, so the two inventories agree.
+powershell.exe -NoProfile -ExecutionPolicy Bypass \
+  -File "$(cygpath -w "$REPO/scripts/installer/verify_browser_runtime.ps1")" \
+  -RuntimeRoot "$(cygpath -w "$STAGE/native/build-msvc")"
+
 # Function 0001 bootstrap integrity: the executable's build manifest must describe
 # the exact qml/ tree staged from the release tag. This catches a clean native build
 # accidentally packaged with QML from a different commit before NSIS can ship it.

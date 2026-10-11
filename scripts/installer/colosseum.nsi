@@ -86,6 +86,7 @@ Var UpdateWaitResult
 Var UpdateError
 Var UpdateLogHandle
 Var UpdateLaunchHandle
+Var InstallQmlBackup
 
 Function .onInit
   StrCpy $UpdateMode "0"
@@ -124,13 +125,21 @@ Section "Colosseum"
   ${If} $UpdateMode == "1"
     Call UpdateInstall
   ${Else}
-    SetOutPath "$INSTDIR"
+    Call InstallPrepareQml
   ${EndIf}
+  ClearErrors
   File /r "${STAGE}\*.*"
+!ifdef COLOSSEUM_INSTALL_TEST_EXTRACT_FAIL
+  ; Isolated installer matrix hook: exercise the QML restoration path.
+  ${If} $UpdateMode == "0"
+    SetErrors
+  ${EndIf}
+!endif
 
   ${If} $UpdateMode == "1"
     Call UpdateFinish
   ${Else}
+    Call InstallFinishQml
     ; shortcuts — straight to the exe (it anchors its own working directory)
     CreateShortCut "${COLOSSEUM_DESKTOP_LINK}" "$INSTDIR\native\build-msvc\colosseum.exe" "" "" 0
     CreateShortCut "${COLOSSEUM_START_LINK}" "$INSTDIR\native\build-msvc\colosseum.exe" "" "" 0
@@ -155,6 +164,110 @@ Section "Colosseum"
                    "InstallLocation" "$INSTDIR"
   ${EndIf}
 SectionEnd
+
+Function InstallPrepareQml
+  ; QML is immutable release payload. Overlaying it retains retired files and
+  ; breaks the startup fingerprint; browser state lives outside this tree.
+  StrCpy $InstallQmlBackup "0"
+  Push "$INSTDIR"
+  Call UpdateCheckPath
+  Push "$INSTDIR\qml"
+  Call UpdateCheckPath
+  IfFileExists "$INSTDIR\qml.__install-old" install_qml_prepare_failed
+  IfFileExists "$INSTDIR\qml\." 0 install_qml_prepare_done
+  Push "$INSTDIR\qml"
+  Call InstallCheckQmlTree
+  ClearErrors
+  Rename "$INSTDIR\qml" "$INSTDIR\qml.__install-old"
+  IfErrors install_qml_prepare_failed
+  StrCpy $InstallQmlBackup "1"
+install_qml_prepare_done:
+  ClearErrors
+  SetOutPath "$INSTDIR"
+  IfErrors install_qml_prepare_failed
+  Return
+install_qml_prepare_failed:
+  DetailPrint "Cannot replace the previous QML tree; close Colosseum and retry."
+  SetErrorLevel 1
+  Quit
+FunctionEnd
+
+Function InstallCheckQmlTree
+  ; NSIS RMDir /r follows nested junctions. Reject them before any rename or
+  ; extraction, so retiring QML cannot remove data outside the payload tree.
+  Exch $0
+  Push $1
+  Push $2
+  Push $3
+  Push $4
+  FindFirst $1 $2 "$0\*"
+  ${If} ${Errors}
+    Goto install_qml_tree_unsafe
+  ${EndIf}
+  ${While} $2 != ""
+    ${If} $2 != "."
+    ${AndIf} $2 != ".."
+      StrCpy $3 "$0\$2"
+      System::Call 'kernel32::GetFileAttributes(t r3) i .r4'
+      ${If} $4 == -1
+        Goto install_qml_tree_unsafe
+      ${EndIf}
+      IntOp $3 $4 & 0x400
+      ${If} $3 != 0
+        Goto install_qml_tree_unsafe
+      ${EndIf}
+      IntOp $3 $4 & 0x10
+      ${If} $3 != 0
+        Push "$0\$2"
+        Call InstallCheckQmlTree
+      ${EndIf}
+    ${EndIf}
+    FindNext $1 $2
+  ${EndWhile}
+  FindClose $1
+  Pop $4
+  Pop $3
+  Pop $2
+  Pop $1
+  Pop $0
+  Return
+install_qml_tree_unsafe:
+  FindClose $1
+  DetailPrint "The QML tree contains a link or unreadable path; replacement was refused."
+  SetErrorLevel 1
+  Quit
+FunctionEnd
+
+Function InstallFinishQml
+  ${If} ${Errors}
+    ; Restore the prior QML if extraction failed. Keep its backup when a lock
+    ; prevents restoration; never report this partial installation as success.
+    SetOutPath "$TEMP"
+    Push "$INSTDIR\qml"
+    Call UpdateCheckPath
+    ClearErrors
+    RMDir /r "$INSTDIR\qml"
+    ${IfNot} ${Errors}
+      ${If} $InstallQmlBackup == "1"
+        Rename "$INSTDIR\qml.__install-old" "$INSTDIR\qml"
+      ${EndIf}
+    ${EndIf}
+    SetErrorLevel 1
+    Quit
+  ${EndIf}
+  ${If} $InstallQmlBackup == "1"
+    SetOutPath "$TEMP"
+    Push "$INSTDIR\qml.__install-old"
+    Call UpdateCheckPath
+    ClearErrors
+    RMDir /r "$INSTDIR\qml.__install-old"
+    ${If} ${Errors}
+      SetErrorLevel 1
+      Quit
+    ${EndIf}
+  ${EndIf}
+  SetOutPath "$INSTDIR"
+FunctionEnd
 
 Function UpdateFinish
   ; File extraction changes the process current directory to the new sibling;
