@@ -13,6 +13,7 @@ Item {
     property int noticeCount: 0
     property var lastSample: null
     property int sampleCount: 0
+    property bool captureMedia: false
     Item { id: embedded; x: 25; y: 125; width: 820; height: 580 }
     Feria.FeriaSessionDeck {
         id: deck
@@ -40,6 +41,7 @@ Item {
         target: deck.activeBrowser
         ignoreUnknownSignals: true
         function onPlaybackObserved(sample) {
+            if (!root.captureMedia) return
             root.lastSample = sample
             ++root.sampleCount
             console.log("SERVICES_MEDIA_SAMPLE " + JSON.stringify(sample))
@@ -62,7 +64,7 @@ Item {
             deck.displayed = true
             deck.suppressed = false
             root.capturedNotice = null; root.noticeCount = 0
-            root.lastSample = null; root.sampleCount = 0
+            root.lastSample = null; root.sampleCount = 0; root.captureMedia = false
         }
         function cleanup() {
             root.capturedNotice = null
@@ -203,6 +205,7 @@ Item {
         }
         function test_05_mediaPageObservation() {
             var id = open("/services-media"), page = deck.browserForSession(id)
+            root.captureMedia = true
             page.audioMuted = true // tests never play through speakers
             start(page, "document.getElementById('serviceAudio').play().then(function(){"
                 + "navigator.mediaSession.playbackState='playing'}).catch(function(e){"
