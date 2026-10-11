@@ -280,8 +280,8 @@ public slots:
                             "<p id='signed-in'>Session retained</p>")
                             : QByteArray("<!doctype html><title>services:sign-in</title>"
                             "<form id='login' method='post' action='/services-login-post' autocomplete='on'>"
-                            "<input id='username' name='username' autocomplete='username' value='reader'>"
-                            "<input id='password' name='password' type='password' autocomplete='current-password' value='fixture-pass'>"
+                            "<input id='username' name='username' autocomplete='username'>"
+                            "<input id='password' name='password' type='password' autocomplete='current-password'>"
                             "<button type='submit'>Fixture login</button></form>");
                         qInfo().noquote() << "SERVICES_LOGIN_PAGE signedIn=" << signedIn;
                     } else if (path.startsWith("/services-autofill")) {
