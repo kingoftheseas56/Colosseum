@@ -118,6 +118,8 @@ Item {
         function test_01_loginCookieClosingAndReopening() {
             var id = open("/services-login"), page = deck.browserForSession(id)
             var initiallySignedIn = page.title === "services:signed-in"
+            if (Fixture.expectSignedIn)
+                verify(initiallySignedIn, "Second process must retain the existing cookie without signing in again")
             console.log("SERVICES_COOKIE_BEGIN restartStartSignedIn=" + initiallySignedIn
                 + " profileOffRecord=" + deck.sharedProfile.offTheRecord
                 + " policy=" + deck.sharedProfile.persistentCookiesPolicy)

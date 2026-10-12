@@ -28,6 +28,7 @@
 #include <QtQuickTest/quicktest.h>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 #include <cmath>
+#include <future>
 #ifdef Q_OS_LINUX
 #include <sys/types.h>
 #include <signal.h>
@@ -37,6 +38,9 @@
 #endif
 #include <windows.h>
 #include <tlhelp32.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Media.Control.h>
 #endif
 
 #ifdef Q_OS_WIN
@@ -109,6 +113,43 @@ public:
     // Journey runs (--journey) are whole-process scenarios that end through
     // the application's own exit path instead of the QuickTest teardown.
     QString journey() const { return qEnvironmentVariable("FERIA_JOURNEY"); }
+    Q_PROPERTY(QString serviceUrl READ serviceUrl CONSTANT)
+    QString serviceUrl() const { return qEnvironmentVariable("FERIA_SERVICE_URL"); }
+    Q_PROPERTY(bool expectSignedIn READ expectSignedIn CONSTANT)
+    bool expectSignedIn() const { return qEnvironmentVariableIntValue("FERIA_EXPECT_SIGNED_IN") == 1; }
+    // Query/control only the OS session bearing this test page's unique title.
+    // Run WinRT async operations on a worker apartment, never block a UI STA.
+    Q_INVOKABLE QVariantMap systemMediaSession(const QString &title, const QString &action = {}) {
+#ifdef Q_OS_WIN
+        const QString application = QFileInfo(QCoreApplication::applicationFilePath()).fileName();
+        return std::async(std::launch::async, [title, action, application]() -> QVariantMap {
+            try {
+                winrt::init_apartment();
+                const auto apartment = qScopeGuard([] { winrt::uninit_apartment(); });
+                const auto manager = winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager::RequestAsync().get();
+                for (const auto &session : manager.GetSessions()) {
+                    const auto metadata = session.TryGetMediaPropertiesAsync().get();
+                    if (QString::fromWCharArray(session.SourceAppUserModelId().c_str()) != application
+                        || QString::fromWCharArray(metadata.Title().c_str()) != title) continue;
+                    bool dispatched = false;
+                    if (action == "play-pause") dispatched = session.TryTogglePlayPauseAsync().get();
+                    else if (action == "play") dispatched = session.TryPlayAsync().get();
+                    else if (action == "pause") dispatched = session.TryPauseAsync().get();
+                    else if (action == "next") dispatched = session.TrySkipNextAsync().get();
+                    else if (action == "previous") dispatched = session.TrySkipPreviousAsync().get();
+                    return {{"available", true}, {"dispatched", dispatched},
+                        {"application", QString::fromWCharArray(session.SourceAppUserModelId().c_str())}};
+                }
+                return {{"available", false}};
+            } catch (const winrt::hresult_error &error) {
+                return {{"available", false}, {"error", QString::fromWCharArray(error.message().c_str())}};
+            }
+        }).get();
+#else
+        Q_UNUSED(title); Q_UNUSED(action);
+        return {{"available", false}, {"error", "Windows-only check"}};
+#endif
+    }
     // A caller-owned root lets two processes share one disposable profile, to
     // prove what survives a clean restart. Default: a per-process temp dir.
     QString profileRoot(const QString &name) const {
@@ -440,18 +481,19 @@ if (navigator.mediaSession && window.MediaMetadata) {
 <p id="dailyText" style="position:absolute;left:25px;top:340px;width:450px;height:50px">Selected daily context menu sentence.</p>
 <input id="dailyInput" style="position:absolute;left:25px;top:420px;width:300px;height:40px" value="plain input">
 </body></html>)HTML";
-                    } else if (path == "/tone.wav") {
+                    } else if (path == "/tone.wav" || path == "/media-keys.wav") {
 
                         mime = "audio/wav";
                         QDataStream out(&body, QIODevice::WriteOnly);
                         out.setByteOrder(QDataStream::LittleEndian);
-                        constexpr int frames = 8000 * 4;
+                        const bool silent = path == "/media-keys.wav";
+                        const int frames = 8000 * (silent ? 8 : 4);
                         out.writeRawData("RIFF", 4); out << quint32(36 + frames * 2);
                         out.writeRawData("WAVEfmt ", 8); out << quint32(16) << quint16(1) << quint16(1);
                         out << quint32(8000) << quint32(16000) << quint16(2) << quint16(16);
                         out.writeRawData("data", 4); out << quint32(frames * 2);
                         for (int i = 0; i < frames; ++i)
-                            out << qint16(1200 * std::sin(6.283185307179586 * 440 * i / 8000));
+                            out << qint16(silent ? 0 : 1200 * std::sin(6.283185307179586 * 440 * i / 8000));
                     } else {
                         body = "<!doctype html><title>Fixture " + QString::fromUtf8(path).toHtmlEscaped().toUtf8() + "</title>"
                             "<body style='background:#173044;color:white'><h1>Retained page " + QString::fromUtf8(path).toHtmlEscaped().toUtf8()

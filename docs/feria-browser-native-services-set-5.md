@@ -1,12 +1,12 @@
 # Feria browser, set 5: native browser services
 
-Status: DISCOVERY COMPLETE, nothing built. Each of the five services was observed in the real engine; four need no work for the browser's purpose and one waits on an owner decision. Branch `codex/feria-native-services`. Pushed, not merged.
+Status: notification policy implemented; native-services verification extended on Windows. Windows media commands, persistent sign-in cookies and public playback have agent-runtime proof. A signed-in real-provider account and physical keyboard-device check remain unverified. Work is on `codex/feria-release-packaging`, pushed separately from the original discovery branch; not merged or released.
 
 Follow-up (2026-10-11): the owner chose to disable website notifications for now. The QtWebEngine request owner on `codex/feria-release-packaging` denies notification requests without a prompt, revokes saved notification grants when a profile is attached, disables push service, and closes any late notification. Resetting site permissions cannot re-enable notifications; location and other permissions retain their existing behavior. The observations and recommendations below describe the original discovery, before this decision.
 
 Follow-up verification: the complete `feria_interaction_probe` passed on stock QtWebEngine 6.11.1 and the existing codec-enabled 6.11.2 runtime (15 passed, 0 failed each; clean process exit). This includes ordinary/private denial, reload, revocation across views, revocation after reopening the on-disk permission store, and location grant/reload/reset/denial. The two notification service cases passed on stock (4 passed including setup/cleanup): no presentation for a denied request, and a late engine notification is closed without a show event. Five focused request-owner cases passed (7 including setup/cleanup), covering hidden/subframe-origin requests and reset filtering. This is real engine fixture evidence, not a rebuilt/installed application or a real provider check. The full-app interaction script was updated and syntax-checked but not executed; WebView2 compatibility policy was not changed or qualified in this QtWebEngine slice.
 
-Separate baseline issue: the broader `feria_browser_requests_probe` run had 26 passed and 1 failed before adding the new denial case. `test_download_old_account_authorization_cannot_record_in_new_account` leaves `downloadToken` as `grant-1` instead of clearing it; its no-history-write assertion passes. The identical failure was reproduced against the unchanged Claude checkout. It is not a green full-suite result and was left outside this notification change.
+Download follow-up: the original broader request-probe failure was fixed separately in `bacf9a40`. The download owner captures the account generation, clears revoked grants on completion/retry and keeps actual save failures retryable. The requests probe passed 28 checks and the metadata probe passed 8 checks on stock and codec runtimes, with clean exits.
 
 WebView2 follow-up (2026-10-11): compatibility mode now installs the same notification-denial policy before allowing either its main view or an owned popup to navigate. The native host denies new notification requests, replaces only saved notification grants with denials, and claims/closes late notification delivery without displaying Windows notification UI. Other permission kinds retain their stored choices. A runtime that cannot install the policy fails initialization; it does not load an unprotected compatibility view. This requires the profile-permission API and notification-delivery API (`ICoreWebView2Profile4` and `ICoreWebView2_24`; the latter was introduced in SDK 1.0.2739.15). API references: [saved permission management](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2profile4?view=webview2-1.0.4191.47), [notification delivery](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2notificationreceivedeventargs?view=webview2-1.0.3912.50).
 
@@ -17,6 +17,24 @@ Final result: the focused target built with MSVC and passed 5 checks (3 test cas
 To build this test, configure `tests/feria_webview2_integration` with Qt and the WebView2 SDK prefixes, then build target `feria_wv2_notifications` in Release and run it with the Qt DLL directory on `PATH`. The `FERIA_HIDE_TEST_POPUPS` hook is compiled only in test builds; shipped popup behavior is unchanged.
 
 Set 1 (`docs/feria-browser-foundation-set-1.md`) stays the owner map. Set 4 (`docs/feria-browser-daily-features-set-4.md`) is the base of this branch.
+
+## Native-services acceptance follow-up, 2026-10-12
+
+The focused foundation runtime was rebuilt from this branch with MSVC. The complete `feria_services_probe` passed on stock QtWebEngine 6.11.1 and the existing codec-enabled 6.11.2 overlay: 14 passed, 0 failed, 1 skipped each, process exit 0. The skipped case is the deliberately opt-in public network check below.
+
+`tst_MediaKeys.qml` checks a production browser view's real Windows media session. The native test helper checks the test application's ID and the fixture page's unique title before sending Windows Pause, Play, Next and Previous commands. All four reach the page's registered Media Session action handlers exactly once; the audio pauses and resumes. The helper does not invoke those handlers through page script and does not control another application's session. An unmuted, silent eight-second WAV allows the engine to register its OS session without playing sound through speakers. The earlier muted fixture could not establish this session. No product code or extra media bridge was needed. Physical keyboard keys and the visual Windows overlay were not manually tested; the OS command path was.
+
+The login-cookie case now supports `FERIA_EXPECT_SIGNED_IN=1`, which asserts that the second process starts signed in before any login submission. Two clean launches over one disposable profile and fixed loopback port passed on both runtimes (3 checks per launch). The first process signed in; the second sent no login POST and restored the existing cookie. A fresh-profile control with that expectation fails at the intended assertion rather than silently signing in again. These are real engine cookie checks with dummy fixture credentials, not a third-party account login.
+
+`tst_LiveService.qml` is an opt-in public playback check using `FERIA_SERVICE_URL`. Two final codec-runtime runs against the Blender Foundation's public YouTube video at `https://www.youtube.com/watch?v=aqz-KE-bpKQ` decoded video, advanced its playback clock and paused successfully. Both close checks drained every view/profile and exited 0 (3 passed each). An initial run passed playback but timed out on the 15-second close assertion; no product fix was made for that observation. It remains recorded as an intermittent close concern, rather than being erased by later passing runs.
+
+Still unverified: sign-in and restart with an actual provider account (an account/service was requested from the owner and has not been supplied), protected-provider playback, physical media-key hardware, and a rebuilt/installed full application. Public YouTube playback does not qualify every provider, H.264/AAC delivery or Widevine packaging. Password-manager and ad-filtering recommendations in the original discovery below are unchanged.
+
+Reproduce with a freshly built `feria_foundation_runtime` from `tests/feria_foundation_build`:
+
+- Run `-input tests/feria_services_probe` on Windows for the service and OS media-command cases. The Windows target links `windowsapp` for the test helper.
+- For cookie restart, use one disposable `FERIA_FIXTURE_ROOT` and one fixed `FERIA_FIXTURE_PORT`; run `FeriaServicesDiscovery::test_01_loginCookieClosingAndReopening` first with `FERIA_EXPECT_SIGNED_IN=0`, then with `1`.
+- For public playback, set `FERIA_SERVICE_URL` and run `FeriaLiveService::test_publicPlayback`. When testing a relocated codec overlay, set its plugin, QML, WebEngine resource, locale and process paths explicitly. The test uses a disposable profile, never an existing personal browser profile.
 
 ## Base and merge endpoint
 
@@ -52,7 +70,7 @@ Real engine, headless, loopback fixture, throwaway profiles. Probe: `tests/feria
 3. **Ad filtering.** Recommendation: leave out.
 4. **Media keys.** Needs one check with a real keyboard and a playing service, on screen: do Play/Pause and Next reach the page? If they do, nothing to build. That check takes a person; it cannot be done headless.
 
-## Not verified
+## Original discovery limits (follow-up results above)
 
 - Whether the engine itself ever offers to save a password or suggests typed form values to a real person typing: the probe submitted forms by script.
 - Hardware media keys and the Windows media overlay.
