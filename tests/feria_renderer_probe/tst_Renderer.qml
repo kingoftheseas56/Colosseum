@@ -22,6 +22,10 @@ Item {
             tryVerify(function() { var p = deck.browserForSession(id); return p && p.documentReady && !p.loading }, 15000)
             var page = deck.browserForSession(id)
             verify(page.evaluateJavaScript("(()=>{var until=Date.now()+3000;while(Date.now()<until){};return true})()"))
+            // Keep this engine alive to exercise the distinct loss terminal.
+            // Ordinary retirement now discards web contents with pending work.
+            page.closingSession = true
+            FeriaBrowserPolicy.runtime.beginRetirement(page)
             deck.startQuiescence(false)
             tryCompare(page, "closingSession", true, 1000)
             verify(page.pendingJavaScript > 0)

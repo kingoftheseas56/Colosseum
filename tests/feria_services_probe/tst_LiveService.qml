@@ -21,6 +21,9 @@ Item {
             wait(600)
             console.log("SERVICES_LIVE_CLOSE " + JSON.stringify({quiescing:deck.quiescing,
                 scripts:closing ? Object.keys(closing.javascriptTickets || {}) : [],
+                pendingWork:closing ? FeriaBrowserPolicy.runtime.pendingWork(closing) : 0,
+                lifecycle:closing ? closing.lifecycleState : -1,
+                renderer:closing ? closing.renderProcessPid : 0,
                 views:FeriaBrowserPolicy.runtimeViewCount,profiles:FeriaBrowserPolicy.runtimeProfileCount}))
             tryCompare(deck, "quiescing", false, 15000)
             compare(FeriaBrowserPolicy.runtimeViewCount, 0)
@@ -60,6 +63,10 @@ Item {
             js(page, "document.querySelector('video').pause();true")
             compare(js(page, "document.querySelector('video').paused"), true)
             console.log("SERVICES_LIVE_PLAYBACK decoded=true advanced=true paused=true")
+            console.log("SERVICES_LIVE_PENDING " + JSON.stringify(Object.keys(page.javascriptTickets).map(function(id) {
+                var ticket = page.javascriptTickets[id]
+                return {id:id,work:ticket.work,valid:FeriaBrowserPolicy.runtime.workValid(ticket.work)}
+            })))
         }
     }
 }

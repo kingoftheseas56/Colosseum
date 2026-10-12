@@ -131,7 +131,7 @@ def run(args, name, steps, tag, out_dir):
     scenario.write_text(json.dumps({'name': name, 'steps': steps}, indent=1))
     env = dict(os.environ)
     env['PATH'] = str(args.qt_bin) + os.pathsep + env['PATH']
-    env['QT_QPA_PLATFORM'] = 'offscreen'   # no window on the desktop, no focus taken
+    env['QT_QPA_PLATFORM'] = getattr(args, 'platform', 'offscreen')
     result = subprocess.run([str(args.lanista), 'session', 'run', str(scenario), '--exe', str(args.exe),
                              '--qml', 'qml/Main.qml', '--drive', '--keep-going', '--tag', tag],
                             cwd=ROOT, env=env, capture_output=True, text=True)

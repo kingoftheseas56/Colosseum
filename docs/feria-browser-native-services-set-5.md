@@ -1,6 +1,6 @@
 # Feria browser, set 5: native browser services
 
-Status: notification policy implemented; native-services verification extended on Windows. Windows media commands, persistent sign-in cookies and public playback have agent-runtime proof. A signed-in real-provider account and physical keyboard-device check remain unverified. Work is on `codex/feria-release-packaging`, pushed separately from the original discovery branch; not merged or released.
+Status: Set 5's service-app implementation and account-free automated acceptance are complete. The owner confirmed persistent sign-in without adding a password manager or ad blocker, with website notifications disabled. Windows media commands, resource management, persistent cookies, private isolation and public playback have agent-runtime proof, including a rebuilt full application. Actual provider accounts are the next qualification stage. Physical keyboard input and the visible Windows media overlay remain unverified. Work is on `codex/feria-release-packaging`, pushed separately from the original discovery branch; not merged or released.
 
 Follow-up (2026-10-11): the owner chose to disable website notifications for now. The QtWebEngine request owner on `codex/feria-release-packaging` denies notification requests without a prompt, revokes saved notification grants when a profile is attached, disables push service, and closes any late notification. Resetting site permissions cannot re-enable notifications; location and other permissions retain their existing behavior. The observations and recommendations below describe the original discovery, before this decision.
 
@@ -26,15 +26,39 @@ The focused foundation runtime was rebuilt from this branch with MSVC. The compl
 
 The login-cookie case now supports `FERIA_EXPECT_SIGNED_IN=1`, which asserts that the second process starts signed in before any login submission. Two clean launches over one disposable profile and fixed loopback port passed on both runtimes (3 checks per launch). The first process signed in; the second sent no login POST and restored the existing cookie. A fresh-profile control with that expectation fails at the intended assertion rather than silently signing in again. These are real engine cookie checks with dummy fixture credentials, not a third-party account login.
 
-`tst_LiveService.qml` is an opt-in public playback check using `FERIA_SERVICE_URL`. Two final codec-runtime runs against the Blender Foundation's public YouTube video at `https://www.youtube.com/watch?v=aqz-KE-bpKQ` decoded video, advanced its playback clock and paused successfully. Both close checks drained every view/profile and exited 0 (3 passed each). An initial run passed playback but timed out on the 15-second close assertion; no product fix was made for that observation. It remains recorded as an intermittent close concern, rather than being erased by later passing runs.
+`tst_LiveService.qml` is an opt-in public playback check using `FERIA_SERVICE_URL`. Two initial codec-runtime runs against the Blender Foundation's public YouTube video at `https://www.youtube.com/watch?v=aqz-KE-bpKQ` decoded video, advanced its playback clock and paused successfully. Both close checks drained every view/profile and exited 0 (3 passed each). An earlier run passed playback but timed out on the 15-second close assertion. This initially remained an unresolved intermittent concern; the account-free closure follow-up below reproduced and fixed it.
 
-Still unverified: sign-in and restart with an actual provider account (an account/service was requested from the owner and has not been supplied), protected-provider playback, physical media-key hardware, and a rebuilt/installed full application. Public YouTube playback does not qualify every provider, H.264/AAC delivery or Widevine packaging. Password-manager and ad-filtering recommendations in the original discovery below are unchanged.
+At this stage, actual provider sign-in, protected-provider playback, physical media-key hardware and a rebuilt/installed full application were unverified. The follow-up below adds rebuilt full-app proof; actual provider checks follow the account-free work by owner direction. Public YouTube playback does not qualify every provider, H.264/AAC distribution or Widevine packaging. The owner has accepted the original recommendation to omit a password manager and ad blocker.
 
 Reproduce with a freshly built `feria_foundation_runtime` from `tests/feria_foundation_build`:
 
 - Run `-input tests/feria_services_probe` on Windows for the service and OS media-command cases. The Windows target links `windowsapp` for the test helper.
 - For cookie restart, use one disposable `FERIA_FIXTURE_ROOT` and one fixed `FERIA_FIXTURE_PORT`; run `FeriaServicesDiscovery::test_01_loginCookieClosingAndReopening` first with `FERIA_EXPECT_SIGNED_IN=0`, then with `1`.
 - For public playback, set `FERIA_SERVICE_URL` and run `FeriaLiveService::test_publicPlayback`. When testing a relocated codec overlay, set its plugin, QML, WebEngine resource, locale and process paths explicitly. The test uses a disposable profile, never an existing personal browser profile.
+
+## Account-free closure follow-up, 2026-10-12
+
+Repeated public playback reproduced the close failure with twelve outstanding script tickets and twelve native work records. Retirement waited for results before destroying web contents, while Qt can deliver script results during web-contents destruction. See the [Qt script-callback contract](https://doc.qt.io/qt-6.11/qwebenginepage.html#runJavaScript).
+
+`FeriaQtWebEngine.prepareForClose()` now hides and discards retiring web contents when script work remains. Only an observed `Discarded` lifecycle state releases outstanding tickets, severing their consumer and QML-owner references while the QML view still exists. This follows the existing admitted close/retirement path and keeps native work/profile draining intact. It adds no arbitrary timeout. A fault-injection regression first failed on the old implementation's close barrier, then passed after the fix; an explicitly late result after retirement cannot invoke its consumer.
+
+Final verification on stock QtWebEngine 6.11.1 and the existing codec-enabled 6.11.2 WebEngine overlay:
+
+- The services probe passed 20 checks, 0 failed, 1 skipped on each runtime, with exit 0. Its public-network case is deliberately opt-in and was run separately below. Windows Pause, Play, Next and Previous each reached the fixture's Media Session handler once.
+- Resource management used the actual 30-second delay: idle tabs froze after 30,113 ms on stock and 30,103 ms on the codec overlay, then woke on activation. Disabling freezing kept idle tabs active; background audio stayed active. Four cycles of eight tabs, split evenly between ordinary/private profiles, closed with pending scripts and returned all view/profile counts to zero without consumer callbacks. This proves those bounded cycles, not an unlimited memory soak.
+- The directly affected lifecycle, native-runtime, renderer-loss and hosting probes passed 21, 15, 4 and 40 checks respectively on each runtime, with exit 0. Hosting has one existing guarded skip: adopted-popup input requires a separately compiled Qt engine patch. Both tested runtimes retain that guard.
+- Five fresh codec-runtime public-video processes decoded, advanced, paused and closed successfully after the fix: 3 checks each, exit 0, all views/profiles drained. The original failing run remains the baseline evidence for the fix.
+- The native app and Lanista were rebuilt from this branch. `run_app_services.py` passed two launches on each runtime: 51 first-launch steps and 25 second-launch steps, zero failures. The fixture cookie survived the process restart without reseeding; private tabs did not inherit it. Ordinary/private notification requests and requests after restart reported denial without a native permission request. All four app processes exited gracefully with code 0. The test runs the real app with this branch's QML source, not an installed-package upgrade.
+
+The Windows Computer Use helper failed to initialize, including after a reset, with OS error 3 while writing kernel assets. Physical keyboard input and the visible Windows media overlay therefore remain unverified; the real Windows media-session command path passed. No provider signup, personal profile or real-provider sign-in was used. Actual account/provider qualification follows this slice. Installed-package, upgrade and protected-codec/Widevine delivery remain separate release checks.
+
+For full-app reproduction, supply a freshly built app/Lanista pair and the chosen runtime's DLL directory:
+
+```powershell
+python tests/feria_services_probe/run_app_services.py --exe "$appBuild/colosseum.exe" --lanista "$appBuild/lanista.exe" --qt-bin "$qtBin" --platform windows
+```
+
+For a codec overlay, also set its plugin, QML import, WebEngine resource, locale and helper-process paths before running. The script owns a loopback server and two launches over one disposable profile. It opens the first visible service tile to initialize the production browser owner, then navigates to its local fixture; that opening is not a provider qualification check.
 
 ## Base and merge endpoint
 

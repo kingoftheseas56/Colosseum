@@ -230,13 +230,14 @@ Item {
             tryCompare(page, "pendingJavaScript", 0, 5000)
             compare(oldEffect, false)
         }
-        function test_liveCloseStillDrainsPhysicalCallbacks() {
+        function test_liveCloseDrainsOrDiscardsPhysicalCallbacks() {
             tryCompare(page, "pendingJavaScript", 0, 5000)
             var effect = false
             verify(page.evaluateJavaScript("(()=>{var until=Date.now()+300;while(Date.now()<until){};return true})()", function() { effect = true }))
             page.prepareForClose(false)
             compare(page.closingSession, true)
-            verify(page.pendingJavaScript > 0, "Live close must retain its callback barrier")
+            verify(page.pendingJavaScript > 0 || page.lifecycleState === WebEngineView.LifecycleState.Discarded,
+                "Release requires returned callbacks or an observed web-contents discard")
             tryCompare(page, "pendingJavaScript", 0, 5000)
             compare(effect, false)
         }

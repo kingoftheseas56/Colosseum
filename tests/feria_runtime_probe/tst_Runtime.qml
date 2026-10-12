@@ -270,11 +270,14 @@ Item {
             Sessions.close(a)                     // the canonical record goes first
             compare(page.closingSession, true)
             compare(runtime.phase(a), "retiring")
-            verify(runtime.pendingWork(page) > 0, "The engine still owes this view a callback")
+            var discarded = page.lifecycleState === WebEngineView.LifecycleState.Discarded
+            verify(runtime.pendingWork(page) > 0 || discarded,
+                "Pending callbacks remain fenced until they return or web contents are discarded")
             compare(FeriaBrowserPolicy.runtimeViewCount, 1)
-            compare(destroyedWithWork, -1)
+            if (!discarded) compare(destroyedWithWork, -1)
             verify(!page.evaluateJavaScript("1"), "A retiring view admits no new work")
-            // Destruction waits for the callback, and the callback cannot act.
+            // No outstanding work may survive the destruction notification,
+            // and neither returned nor late discarded callbacks may act.
             tryVerify(function() { return destroyedWithWork === 0 }, 10000)
             tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 0, 10000)
             compare(effect, false)

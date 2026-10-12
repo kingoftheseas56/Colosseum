@@ -221,6 +221,17 @@ WebEngineView {
         // before deferred parent/Loader destruction reaches the native view.
         focus = false
         documentCheck.stop(); cleanupPoll.stop()
+        if (pendingJavaScript !== 0) {
+            // Qt may deliver a script result only when web contents die. Waiting
+            // for every result before destroying those contents can deadlock.
+            // Discard while this QML view is intact; only the observed engine
+            // terminal releases remaining tickets. Library callbacks are then
+            // severed before the owner can destroy the view/context.
+            visible = false
+            lifecycleState = WebEngineView.LifecycleState.Discarded
+            if (lifecycleState === WebEngineView.LifecycleState.Discarded)
+                invalidateJavaScriptTickets()
+        }
         notifySafeToDestroy()
     }
     // Application exit only: there is no event loop left to drain into. With
