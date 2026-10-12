@@ -17,6 +17,10 @@ Item {
     objectName: "biblioBookDetail"   // test-only seam: Lanista qml-get reads localPath/readError/pendingReadTransport
     property var book: ({})
     property Item backdrop
+    readonly property bool androidHost: !!(detail.Window.window && detail.Window.window.androidHost)
+    readonly property bool stackedLayout: androidHost && width < 840
+    readonly property bool compactLayout: stackedLayout && width < 600
+    readonly property real pageMargin: stackedLayout ? (compactLayout ? 18 : 28) : theme.margin
     property var editions: []
     property bool edLoading: false
     property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
@@ -658,8 +662,8 @@ Item {
     Glass {
         id: bar
         backdrop: detail.backdrop
-        x: theme.margin; y: 22
-        width: detail.width - theme.margin * 2
+        x: detail.pageMargin; y: 22
+        width: detail.width - detail.pageMargin * 2
         height: 64; radius: 16
 
         Row {
@@ -684,6 +688,7 @@ Item {
         Row {
             anchors.right: parent.right; anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
+            visible: !detail.androidHost
             spacing: 6
             Repeater {
                 model: [ { g: "—", a: "min" }, { g: "⛶", a: "fs" }, { g: "⏻", a: "pow" } ]   // min · fullscreen · power (fullscreen rule removed 2026-07-20)
@@ -728,20 +733,25 @@ Item {
 
         Item {
             id: body
-            x: theme.margin
-            width: detail.width - theme.margin * 2
-            implicitHeight: Math.max(coverCol.implicitHeight, textCol.implicitHeight) + 36
+            x: detail.pageMargin
+            width: detail.width - detail.pageMargin * 2
+            implicitHeight: (detail.stackedLayout
+                ? textCol.y + textCol.implicitHeight
+                : Math.max(coverCol.implicitHeight, textCol.implicitHeight)) + 36
 
             // ── cover column ──
             Column {
                 id: coverCol
-                width: 268
+                x: detail.stackedLayout ? (parent.width - width) / 2 : 0
+                width: Math.min(268, parent.width)
                 topPadding: 16
-                spacing: 28
+                spacing: detail.compactLayout ? 20 : 28
 
                 // the book as a physical object: soft shadow + cover + spine + page edge
                 Item {
-                    width: 268; height: 402
+                    x: (coverCol.width - width) / 2
+                    width: detail.compactLayout ? Math.min(180, coverCol.width) : coverCol.width
+                    height: width * 1.5
 
                     Rectangle {                       // page edge (right)
                         anchors.right: parent.right; anchors.rightMargin: -5
@@ -784,7 +794,7 @@ Item {
                 }
 
                 Column {                              // actions
-                    width: 268; spacing: 12
+                    width: parent.width; spacing: 12
                     Rectangle {
                         id: primaryCta
                         objectName: "biblioPrimaryRead"
@@ -835,12 +845,14 @@ Item {
             // ── text column ──
             Column {
                 id: textCol
-                anchors.left: coverCol.right; anchors.leftMargin: 64
-                anchors.right: parent.right
+                x: detail.stackedLayout ? 0 : coverCol.width + 64
+                y: detail.stackedLayout ? coverCol.implicitHeight + 24 : 0
+                width: detail.stackedLayout ? parent.width : parent.width - x
                 topPadding: 18
                 spacing: 0
 
                 Text {                                // eyebrow
+                    width: parent.width; wrapMode: Text.WordWrap
                     text: (detail.book && detail.book.genreLine ? detail.book.genreLine : "").toUpperCase()
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8
@@ -848,7 +860,8 @@ Item {
                 Item { width: 1; height: 14 }
                 Text {                                // title
                     text: detail.book && detail.book.title ? detail.book.title : ""
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 54
+                    color: theme.ink; font.family: theme.display
+                    font.pixelSize: detail.compactLayout ? 32 : (detail.stackedLayout ? 42 : 54)
                     width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.02
                 }
                 Item { width: 1; height: 20 }
@@ -856,7 +869,8 @@ Item {
                     visible: text.length > 0
                     text: detail.book && detail.book.tagline ? "“" + detail.book.tagline + "”" : ""
                     color: theme.ink; opacity: 0.92
-                    font.family: theme.display; font.italic: true; font.pixelSize: 28
+                    font.family: theme.display; font.italic: true
+                    font.pixelSize: detail.compactLayout ? 22 : 28
                     width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3
                 }
                 Item { width: 1; height: 30 }
@@ -967,6 +981,7 @@ Item {
                                         color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                                     }
                                     Text {                       // seeders · size · pack
+                                        width: parent.width; elide: Text.ElideRight
                                         text: "▲ " + torRow.modelData.seeders + "   " + torRow.modelData.size
                                               + (torRow.modelData.pack ? "   ·  PACK" : "")
                                         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
@@ -1059,7 +1074,8 @@ Item {
                                 id: edRow
                                 required property var modelData
                                 required property int index
-                                width: parent.width; height: 52
+                                width: parent.width
+                                height: detail.androidHost ? Math.max(52, editionMeta.implicitHeight + 24) : 52
                                 // Explicit edition rows are acquisition controls; Read lives at the hero.
                                 readonly property var initialStatus: detail._status(detail.booksRef, String(modelData.md5 || ""))
                                 property string dlState: String(initialStatus.state || "none") === "none"
@@ -1082,9 +1098,12 @@ Item {
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
                                     anchors.left: parent.left; anchors.leftMargin: 18
+                                    anchors.right: detail.androidHost ? editionIndicator.left : undefined
+                                    anchors.rightMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 16
                                     Rectangle {
+                                        id: editionFormat
                                         width: Math.max(54, fmtT.implicitWidth + 16); height: 24; radius: 7; color: "transparent"
                                         border.width: 1
                                         border.color: modelData.best ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
@@ -1094,6 +1113,9 @@ Item {
                                             font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 }
                                     }
                                     Text {
+                                        id: editionMeta
+                                        width: detail.androidHost ? Math.max(0, parent.width - editionFormat.width - parent.spacing) : implicitWidth
+                                        wrapMode: detail.androidHost ? Text.Wrap : Text.NoWrap
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: detail.edMeta(modelData)
                                         textFormat: Text.RichText
@@ -1101,6 +1123,7 @@ Item {
                                     }
                                 }
                                 Text {
+                                    id: editionIndicator
                                     anchors.right: parent.right; anchors.rightMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: edRow.dlState === "done" ? "✓"
@@ -1201,7 +1224,8 @@ Item {
                                 id: abRow
                                 required property var modelData
                                 required property int index
-                                width: parent.width; height: 52
+                                width: parent.width
+                                height: detail.androidHost ? Math.max(52, audiobookMeta.implicitHeight + 24) : 52
                                 // this row reflects the download state ONLY if it's the active pick
                                 readonly property string rowState: (modelData.slug === abCol.abActiveSlug) ? abCol.abState : "idle"
                                 Rectangle { anchors.fill: parent; color: audiobookList.activeFocus && audiobookList.currentIndex === index
@@ -1210,7 +1234,10 @@ Item {
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
                                     anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter; spacing: 16
+                                    anchors.right: detail.androidHost ? audiobookIndicator.left : undefined
+                                    anchors.rightMargin: 12
                                     Rectangle {
+                                        id: audiobookFormat
                                         width: 58; height: 24; radius: 7; color: "transparent"; border.width: 1; border.color: theme.edge
                                         anchors.verticalCenter: parent.verticalCenter
                                         Text { anchors.centerIn: parent
@@ -1218,10 +1245,14 @@ Item {
                                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.6 }
                                     }
                                     Text { anchors.verticalCenter: parent.verticalCenter
+                                        id: audiobookMeta
+                                        width: detail.androidHost ? Math.max(0, parent.width - audiobookFormat.width - parent.spacing) : implicitWidth
+                                        wrapMode: detail.androidHost ? Text.Wrap : Text.NoWrap
                                         text: [abRow.modelData.size, abRow.modelData.language, abRow.modelData.posted].filter(function(s){return s}).join("   ·   ")
                                         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
                                 }
                                 Text {
+                                    id: audiobookIndicator
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                     text: abRow.rowState === "done" ? "✓"
                                         : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
@@ -1257,7 +1288,7 @@ Item {
         Glass {
             id: readChoiceCard
             anchors.centerIn: parent
-            width: Math.min(620, detail.width - theme.margin * 2)
+            width: Math.min(620, detail.width - detail.pageMargin * 2)
             height: Math.min(detail.height - 120, readChoiceCol.implicitHeight + 48)
             radius: 18
             backdrop: detail.backdrop
