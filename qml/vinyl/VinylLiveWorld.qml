@@ -59,12 +59,12 @@ Item {
             spacing:12;width:parent.width
             TextField {
                 id:query;objectName:"vinylSearchInput";width:Math.min(640,parent.width-130)
-                placeholderText:"Album or artist on YouTube Music"
+                placeholderText:"Search albums or artists"
                 onAccepted:session.search(text)
             }
             Button {objectName:"vinylSearchSubmit";text:"Search";onClicked:session.search(query.text)}
         }
-        Text {text:session.browsing ? "Searching YouTube Music…" : session.results.length ? "Choose a release" : "Search the catalogue without an account."
+        Text {text:session.browsing ? "Searching…" : session.results.length ? "Choose a release" : "Find an album to start listening."
             color:theme.inkDim;font.family:theme.ui}
     }
     ListView {

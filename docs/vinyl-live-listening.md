@@ -8,8 +8,13 @@ design for the approved Home/Discover experience.
 
 ## Ownership and reference choices
 
-- YouTube Music is the primary playable catalogue. MusicBrainz enrichment is
-  optional and is not needed to identify, open or play an album.
+- YouTube Music is the primary catalogue, not the only catalogue. Search copy
+  stays provider-neutral; other catalogue adapters remain part of the product.
+  MusicBrainz enrichment is optional and is not needed to open or play an album.
+- Catalogue priority and playback priority are separate. Torrent streaming is
+  the preferred playback source; YouTube is the secondary, inexpensive fallback.
+  This first slice proves the YouTube fallback path only. Its current direct
+  resolver does not implement the intended torrent-first source selection.
 - `VinylProvider` is a replaceable, asynchronous process transport. Its two
   independently cancellable lanes are catalogue browsing and stream resolution.
 - `scripts/vinyl/provider.py` uses pinned `ytmusicapi` and `yt-dlp` dependencies.
