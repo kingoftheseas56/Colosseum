@@ -54,6 +54,33 @@ Supabase Free offers a 500 MB database, 5 GB ordinary egress, 5 GB cached egress
 
 This recommendation is based on product fit, current scale and documented pricing. No cross-provider latency test or account-level capacity audit has been performed; R2 has not been proven the fastest provider.
 
+## Metadata sources: Wikidata plus specialist providers
+
+Asset URLs solve artwork delivery; they do not supply a metadata library. Add a shared enrichment layer above the existing catalogues. Use Wikidata as the preferred cross-media relationship and external-ID source, while retaining medium-specific providers and Colosseum curation. MusicBrainz is a music specialist, not a replacement for books, films, manga or comics. This is an architectural recommendation; no representative coverage/match-quality audit has yet been run.
+
+| Layer | Role in Colosseum |
+|---|---|
+| Existing Colosseum canonical IDs | Stable identity for saved library items, progress and routing |
+| Wikidata QIDs | External aliases; creators, relationships, dates, languages and other structured facts where present |
+| Existing screen/anime/manga/comics providers | Medium-specific metadata and episode/volume/issue detail; continued use subject to each source's permitted access/reuse |
+| Open Library and existing book providers | Work/edition/author/ISBN facts; preserve existing Biblio canonicalization and field precedence |
+| MusicBrainz | Artists, musical works, recordings and releases when soundtrack/music metadata is needed |
+| Colosseum curation | Universe membership, canon choices, reading/watch order, Tribute narrative and presentation |
+
+Wikidata's structured data is CC0 and accessible through entity retrieval, search and SPARQL interfaces. Use known-ID retrieval through the documented Action API (`wbgetentities`) or entity JSON; use `wbsearchentities` only to generate candidates. Bounded external-ID queries can help establish mappings. Do not call a broad SPARQL traversal from each catalogue-card request. Observe meaningful User-Agent identification, bounded concurrency, `maxlag` where applicable and Retry-After. [Wikidata access guidance](https://www.wikidata.org/wiki/Wikidata:Data_access), [API search and discovery](https://www.mediawiki.org/wiki/API:Search_and_discovery), [Wikimedia rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits).
+
+Do not assume Wikidata contains a complete franchise chronology, every episode/edition, rich plot prose or a usable poster for every work. Missing facts remain missing, and providers can disagree. A franchise, original work, adaptation, edition and soundtrack are different entity types. Preserve existing `ct1:` IDs; attach verified QIDs/MBIDs/provider identifiers as aliases rather than replacing identity. Exact identifier plus compatible entity type is the preferred match. Title-only results remain unresolved until corroborated by year, creator, medium or an explicit curated mapping. A book adaptation relationship is not identity equivalence.
+
+Store provenance per field/relationship: source entity, source revision or observation time, language, qualifiers, matching basis and publication status. Retain multiple dated/territorial release facts rather than collapsing them into one arbitrary date. Curated canon/order overrides automatic relationship ordering. Wikidata's data license does not automatically cover a linked Wikipedia article or an image: preserve the actual source and attribution/license of text and assets separately. [Wikidata licensing](https://www.wikidata.org/wiki/Wikidata:Licensing).
+
+MusicBrainz's public API documents a maximum of one request per second per client application, meaningful User-Agent identification and free non-commercial use. Its core database is CC0, while supplementary data has different terms; cover art is a separate source. Therefore only activate a MusicBrainz adapter for needed music records after checking applicable usage and fields. Do not assume that a free-to-download Colosseum binary alone establishes non-commercial eligibility. [MusicBrainz API](https://musicbrainz.org/doc/MusicBrainz_API), [data licensing](https://musicbrainz.org/doc/About/Data_License). Direct documentation fetches returned 429 during this research; indexed official documentation supplied these details, not a live API integration test.
+
+Free-tier implementation: the existing local publisher runs bounded enrichment jobs, beginning with the current Universe roster and frequently used catalogue works. It fetches provider records once, validates mappings, writes only changed approved facts into the D1 query projection, and emits larger immutable detail documents into the internal static-content area. Batch detail records where necessary to stay below the 20,000-file cap; never create one hosted file for every external entity by default. The API returns a single Colosseum response with provenance/freshness. Cached base metadata remains usable when enrichment is unavailable; an app detail request does not trigger an unbounded multi-provider fan-out.
+
+Keep enrichment cursors, failed-match records and raw evidence locally with the publisher. Apply provider-specific budgets and the D1 daily write budget; a per-isolate timer is not a global API rate limiter. Proposed refresh defaults are 30 days for established facts and shorter, explicitly budgeted intervals for ongoing works. Only changed facts consume publication writes. Never mirror all of Wikidata or MusicBrainz into D1 Free. Access to a large external knowledge base does not require owning a full copy.
+
+Before implementation, qualify a 100-record sample spanning One Piece, Star Wars, DCAU and Cosmere, plus books/editions, ambiguous same-name works and relevant soundtrack examples. Record entity coverage, match precision, field completeness, API requests, storage bytes and write amplification. Include deliberately wrong film/book/edition candidates. The gate is zero incorrect accepted identity merges in the reviewed sample; missing coverage must have an explicit specialist-source or curated fallback. The sample is a proposed task, not completed evidence. Full new-title discovery beyond the seeded catalogue requires a separately budgeted provider-search adapter; cached enrichment alone does not constitute a complete worldwide catalogue.
+
 ## Proposed serving architecture
 
 ```mermaid
@@ -168,7 +195,7 @@ Use `wrangler deploy` for Worker/static content and bounded D1 imports for the q
 | Step | Concrete work / suggested location | Exit evidence |
 |---|---|---|
 | 1. Freeze contracts and inventory | OpenAPI, JSON schemas, route/query map and source manifest under a proposed `server/content-api/`; record every current caller and canonical ID rule | Each existing catalogue operation mapped; eligible assets/source ownership known; no automatic inclusion of dirty work |
-| 2. Build query qualification fixture | Read-only exporters and representative query fixtures under proposed `tools/content-publisher/` and `server/content-api/tests/` | Search/filter/order results match selected existing fixtures; query plans avoid unjustified scans; canonical identities unchanged |
+| 2. Qualify metadata and query fixtures | Read-only exporters, the 100-record metadata coverage/matching sample and query fixtures under proposed `tools/content-publisher/` and `server/content-api/tests/` | No incorrect accepted identity merges in the reviewed sample; provenance and source gaps recorded; query results preserve semantics; unjustified scans removed |
 | 3. Local vertical slice | Free Worker gateway, local D1 and Static Assets; one catalogue page plus One Piece overview/one sea and URL-based art | No DB/package client transfer; async loading/cancellation; scene/cursor tests; direct asset requests skip Worker |
 | 4. Provision free staging | Confirm Free plans, remaining account quotas, workers.dev hostname; create staging D1/Worker and scoped Cloudflare publisher credentials | No R2 or billable add-on; authenticated cache HIT/MISS, expired token, direct static URL and internal-path bypass probes pass |
 | 5. Decide query store with quota-bounded load | Run local load plus small remote/regional probes; quantify import writes and CPU; compare Supabase Free only if needed | Measured latency/scans/CPU fit Free; projected footprint and multi-day bootstrap schedule recorded |
