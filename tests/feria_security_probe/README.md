@@ -1,4 +1,43 @@
-# Feria transport security fixture
+# Feria security fixtures
+
+## Built-application native boundary
+
+`run_boundaries.py --exe <built-colosseum.exe> --out <fresh-directory>` loads a
+fixture scene through the real executable's native context. Supply compatible Qt
+DLL/plugin/QML/helper paths in the environment. It checks remote globals, empty
+channel registration, local-file/qrc fetch denial, same/cross-origin frames and
+replacement navigation. Run again with a different directory and `--expose-control`
+to attach only a harmless fixture WebChannel object: detection and native exit 7
+are required. This never registers production privileged objects remotely.
+
+Inspect the recorded executable, source and loaded-module hashes against the
+intended build. The driver records actual loaded modules; it does not qualify
+their provenance, renderer sandbox, the installed package or the full shell.
+
+## Focused real-wrapper checks
+
+Build `feria_foundation_runtime` from `tests/feria_foundation_build` against the
+current native policy. Run one selected case with `-input tests/feria_security_probe`:
+
+- `FeriaObservationOrigin::test_pageCannotAttributePlaybackToAnotherOrigin` uses
+  a real page prototype setter to forge the production probe's URL. It requires
+  cross-origin rejection, recovery and same-origin canonical-route acceptance.
+- `FeriaPopupBoundaries::test_clickOpenedPopupHasNoNativeBridge` uses a real click
+  and POST popup. Use the Windows platform and `FERIA_FIXTURE_FOREGROUND=1` for the
+  existing first-exposure fixture activation; its focus assertion must remain.
+
+Set `FERIA_FIXTURE_PORT=0`, a disposable `FERIA_FIXTURE_ROOT` and
+`FERIA_SESSION_EVIDENCE_DIR`, and the intended runtime's paths. Record the direct
+native exit, source hashes, loaded module/helper identities and child cleanup.
+Do not overlap browser runs or substitute the old runner for one rebuilt with
+`sameWebOrigin()`. The tests inspect emitted observations, not saved account rows.
+The standalone build also exposes `feria_wrapper_qml_test`; its focused
+`FeriaWrapperStore::test_pending_restore:QtWebEngine` case in
+`tests/feria_wrapper_probe` preserves deterministic resume/store assertions with
+inline HTML at the sample's origin. It does not contact the streaming service or
+qualify the separate WebView2 row.
+
+## TLS and origin fixture
 
 Run `run_transport.py` with Python 3.11+, `cryptography` and `psutil`, an accepted
 candidate manifest and a fresh output directory:

@@ -6,6 +6,32 @@
 class FoundationPolicyTest : public QObject {
     Q_OBJECT
 private slots:
+    void sameWebOrigin_data() {
+        QTest::addColumn<QString>("claimed");
+        QTest::addColumn<QString>("engine");
+        QTest::addColumn<bool>("expected");
+        QTest::newRow("spa-path-query-userinfo") << "https://user:pw@example.org/watch?v=1" << "https://example.org/browse?q=2#spa" << true;
+        QTest::newRow("case-default-https") << "HTTPS://EXAMPLE.ORG:443/a" << "https://example.org/b" << true;
+        QTest::newRow("default-http") << "http://example.org/a" << "http://example.org:80/b" << true;
+        QTest::newRow("idn") << QString::fromUtf8("https://bücher.de/a") << "https://xn--bcher-kva.de/b" << true;
+        QTest::newRow("ipv6") << "http://[::1]:8123/a" << "http://[::1]:8123/b" << true;
+        QTest::newRow("wrong-port") << "https://example.org:8443/a" << "https://example.org/a" << false;
+        QTest::newRow("wrong-scheme") << "http://example.org/a" << "https://example.org/a" << false;
+        QTest::newRow("wrong-host") << "https://other.example/a" << "https://example.org/a" << false;
+        QTest::newRow("engine-blob") << "https://example.org/watch" << "blob:https://example.org/token" << true;
+        QTest::newRow("claimed-blob") << "blob:https://example.org/token" << "https://example.org/a" << true;
+        QTest::newRow("both-blob") << "blob:https://example.org/one" << "blob:https://example.org:443/two" << true;
+        QTest::newRow("blob-wrong-origin") << "blob:https://other.example/token" << "https://example.org/a" << false;
+        for (const auto *input : {"", "https://", "https://example.org:bad/a", "https://[broken/a", "file:///C:/private", "data:text/html,test", "about:blank", "javascript:alert(1)", "blob:null/token", "blob:file:///C:/private", "blob:blob:https://example.org/token"}) {
+            QTest::newRow(qPrintable(QString("claimed-") + input)) << QString(input) << "https://example.org/a" << false;
+            QTest::newRow(qPrintable(QString("engine-") + input)) << "https://example.org/a" << QString(input) << false;
+        }
+    }
+    void sameWebOrigin() {
+        QFETCH(QString, claimed); QFETCH(QString, engine); QFETCH(bool, expected);
+        FeriaBrowserPolicy policy;
+        QCOMPARE(policy.sameWebOrigin(QUrl(claimed, QUrl::StrictMode), QUrl(engine, QUrl::StrictMode)), expected);
+    }
     void displayedOrigin_data() {
         QTest::addColumn<QString>("input");
         QTest::addColumn<QString>("expected");

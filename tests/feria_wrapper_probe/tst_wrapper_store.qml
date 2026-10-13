@@ -33,6 +33,15 @@ TestCase {
         browser=component.createObject(stage.contentItem,{width:800,height:600,sourceUrl:"about:blank",
             providerId:"ytmusic",profilePath:feriaTestRoot+"/"+row.tag})
         verify(browser!==null)
+        if (row.tag === "QtWebEngine") {
+            // Inline, resource-free HTML supplies the engine's authoritative
+            // document URL without contacting the provider. Injected samples
+            // must belong to that document's origin, just like real probes.
+            tryCompare(browser,"documentReady",true,15000)
+            browser.loadHtml("<!doctype html><html><head><title>Controlled wrapper fixture</title></head><body>Local fixture</body></html>", sample.href)
+            tryVerify(function(){return String(browser.url) === sample.href && browser.documentReady},15000)
+            compare(String(browser.url),sample.href)
+        }
         gate=findChild(browser,"feriaMediaSession");verify(gate!==null)
         gate.clock=function(){return suite.nowMs}
         browser.captureProtectionChanged.connect(function(blocked){account.setMediaCaptureBlocked(blocked)})

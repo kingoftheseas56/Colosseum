@@ -303,7 +303,17 @@ WebEngineView {
     signal captureProtectionChanged(bool blocked, string visitToken)
     function cancelMediaResume(freshStart) { mediaGate.cancelResume(freshStart) }
     function samplePlayback() { mediaGate.poll() }
-    function receiveMediaResult(label, frame) { mediaGate.acceptResult(label, frame) }
+    function receiveMediaResult(label, frame) {
+        // MainWorld scripts and their returned metadata are controlled by the
+        // page. Bind attribution to the engine's current origin before the
+        // resume gate can use a claimed URL or emit a trusted visit token.
+        // Same-origin canonical media URLs and SPA routes remain supported.
+        if (frame && frame.outcome === "observation" && frame.sample
+                && (typeof frame.sample.href !== "string"
+                    || !FeriaBrowserPolicy.sameWebOrigin(frame.sample.href, browser.url)))
+            frame = {outcome: "error", reason: "observation-origin-mismatch"}
+        mediaGate.acceptResult(label, frame)
+    }
     FeriaMediaSession {
         id: mediaGate
         providerId: browser.providerId; sourceUrl: String(browser.sourceUrl)

@@ -25,11 +25,13 @@ features are verified and extended where needed, not rebuilt by default. The
 checkpoints are historical evidence, not a fresh runtime audit performed during
 this planning refresh.
 
-**Next bounded task: F1.3 browser/native separation.** Trace remote-content access
-to native objects, custom schemes and injected scripts, then close the first
-demonstrated boundary gap with a focused regression. The preceding startup,
-mixed-content and site-identity slice has the bounded results recorded below.
-No loop or scheduled worker is needed.
+**Next bounded task: F1.4 subframe permission ownership.** Exercise a request from
+a cross-origin iframe, remove or navigate that frame before answering, and verify
+that no stale grant reaches a replacement document. The browser/native separation
+slice now rejects a reproduced cross-origin playback-attribution forgery; its
+bounded proof is recorded below. Sol 6.1 subagents and narrowly scoped Preflight
+work are authorized. Codex owns receiving review and integration; use the loop
+only for dispatched independent work, with quiet twenty-minute checks while pending.
 
 ## Outcome and scope
 
@@ -79,6 +81,18 @@ Native origin policy passes 48/0/0; Windows component/host identity checks pass
 Two affected input/POST hosting journeys pass 4/0/0, root 0. The security ledger
 records exact scope and failed receipts. Full-shell/installed proof and complete
 native-boundary review remain open. No phase is complete from these narrower results.
+
+Additional checkpoint: the built app's native context passed 20 remote-boundary
+checks across top-level, same/cross-origin frame and replacement documents; a
+harmless exposed-channel control was detected with expected exit 7. A Windows
+click-opened popup passed its native-global/transport checks (3/0/0, exit 0).
+A real page prototype setter reproduced forged cross-origin playback attribution
+(2/1/0, exit 1). The native origin guard now rejects it before resume processing
+and observation emission. Final stock/codec regressions pass 3/0/0, exit 0 each,
+including recovery and same-origin canonical routes; native policy passes 82/0/0.
+These checks do not authenticate page-provided media metadata or qualify an
+installed package. Subframe permission ownership remains the next boundary gap
+to investigate, rather than an established exploitable defect.
 
 | Phase | Objective | Depends on | Completion gate |
 | --- | --- | --- | --- |
@@ -319,11 +333,12 @@ deciding which additional checks are necessary.
 
 **Result:** the bounded slice's verification record is in the security ledger.
 This does not close all of F1 or qualify full-shell/installed/provider behavior.
-**Next: F1.3 browser/native separation**, while bringing forward F2 runtime and
-streaming feasibility checks as their prerequisites are met. Start with live
-registration and script/scheme exposure in `native/main.cpp`, `native/feria` and
-`qml/feria`; prove a concrete boundary with a hostile-page regression rather than
-equating QML context objects with remote-page access.
+**Next: F1.4 subframe permission ownership**, while bringing forward F2 runtime
+and streaming feasibility checks as their prerequisites are met. The F1.3 slice
+above provides bounded source/runtime proof; it is not exhaustive bridge, scheme,
+file-picker or native permission qualification. A separate source-only Preflight
+task is researching the codec recipe's disabled browser features, without build
+or repository-write ownership.
 
 **Blockers:** no known account requirement for this next task. D: evidence and
 runtime availability were confirmed during this receiving slice; recheck before

@@ -1,0 +1,106 @@
+import QtQuick
+import QtQuick.Window
+import QtWebEngine
+import QtWebChannel
+import @FERIA_IMPORT@ as Feria
+import "BoundaryConfig.js" as Config
+
+Window {
+    id: scene
+    width: 800; height: 600; visible: true
+    property int phase: 0
+    property bool evaluating: false
+    property int checks: 0
+    property bool finished: false
+    function require(value, label) {
+        if (finished) return false
+        if (!value) {
+            finished = true
+            console.error("FERIA_BOUNDARY_FAIL " + label)
+            Qt.exit(7)
+            return false
+        }
+        ++checks
+        console.log("FERIA_BOUNDARY_CHECK " + label)
+        return true
+    }
+    function inspect(callback) {
+        if (evaluating || finished) return
+        evaluating = true
+        if (!page.evaluateJavaScript("window.boundaryReport || null", function(result) {
+            evaluating = false
+            if (result) callback(result)
+        })) evaluating = false
+    }
+    function reportSafe(report, label) {
+        console.log("FERIA_BOUNDARY_REPORT " + label + " " + JSON.stringify(report))
+        if (!require(report.ready === true, label + ": page JavaScript executed")) return false
+        if (!require(report.exposed.length === 0, label + ": no privileged globals or transport")) return false
+        if (!require(report.fileFetch === "blocked", label + ": local file fetch denied")) return false
+        return require(report.resourceFetch === "blocked", label + ": qrc fetch denied")
+    }
+    Component.onCompleted: {
+        // Positive native-side control: absence in the page means separation,
+        // not that this fixture forgot to register the production owners.
+        if (!require(typeof Sessions !== "undefined" && !!Sessions
+            && typeof FeriaAccount !== "undefined" && !!FeriaAccount
+            && typeof FeriaBrowserPolicy !== "undefined" && !!FeriaBrowserPolicy
+            && typeof LocalLaunch !== "undefined" && !!LocalLaunch
+            && typeof Clipboard !== "undefined" && !!Clipboard,
+            "production native context exists")) return
+        if (Config.values.exposeControl) page.webChannel = controlChannel
+        page.sourceUrl = Config.values.primary + "/top"
+    }
+    WebChannel {
+        id: controlChannel
+        registeredObjects: [QtObject {
+            WebChannel.id: "boundaryControl"
+            property string marker: "harmless test-only control"
+        }]
+    }
+    WebEngineProfilePrototype { id: prototype }
+    property var isolatedProfile: prototype.instance()
+    Feria.FeriaQtWebEngine {
+        id: page
+        anchors.fill: parent
+        sourceUrl: "about:blank"
+        profilePath: Config.values.profile
+        sharedProfile: scene.isolatedProfile
+        appLayout: false; appKeyboard: false; observationEnabled: false
+    }
+    Timer {
+        interval: 100; running: !scene.finished; repeat: true
+        onTriggered: {
+            if (!page.documentReady) return
+            scene.inspect(function(report) {
+                if (scene.phase === 0) {
+                    if (!report.ready || report.frames.length !== 2) return
+                    if (!scene.reportSafe(report, "top")) return
+                    for (var frame of report.frames) {
+                        if (!scene.reportSafe(frame.report, frame.label)) return
+                    }
+                    // Qt's getter lazily allocates an empty channel. It must
+                    // contain no registered objects; page transport is checked above.
+                    if (!scene.require(page.webChannel.registeredObjects.length === 0,
+                        "remote view registers no native objects")) return
+                    if (!scene.require(report.frames.filter(function(frame) { return frame.label === "cross-frame" }).length === 1
+                        && report.frames.filter(function(frame) { return frame.label === "same-frame" }).length === 1,
+                        "each same-origin and cross-origin frame executed its own probe")) return
+                    scene.phase = 1
+                    page.sourceUrl = Config.values.secondary + "/replacement"
+                } else if (scene.phase === 1 && report.path === "/replacement") {
+                    if (!scene.reportSafe(report, "replacement navigation")) return
+                    if (!scene.require(page.webChannel.registeredObjects.length === 0,
+                        "replacement registers no native objects")) return
+                    scene.finished = true
+                    console.log("FERIA_BOUNDARY_PASS " + scene.checks)
+                    Qt.quit()
+                }
+            })
+        }
+    }
+    Timer {
+        interval: 30000; running: true
+        onTriggered: scene.require(false, "boundary fixture deadline")
+    }
+}

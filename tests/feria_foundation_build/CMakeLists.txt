@@ -19,6 +19,10 @@ add_executable(feria_foundation_policy_test "${ROOT}/tests/feria_foundation_poli
 target_link_libraries(feria_foundation_policy_test PRIVATE foundation_owners Qt6::Test)
 add_executable(feria_foundation_runtime "${ROOT}/tests/feria_foundation_runtime.cpp")
 target_link_libraries(feria_foundation_runtime PRIVATE foundation_owners Qt6::QuickTest Qt6::WebEngineQuick Qt6::Network)
+# Explicit deterministic wrapper/store integration, run only in a GUI session.
+add_executable(feria_wrapper_qml_test "${ROOT}/tests/feria_resume_qml_test.cpp")
+target_compile_definitions(feria_wrapper_qml_test PRIVATE FERIA_WRAPPER_RUNTIME)
+target_link_libraries(feria_wrapper_qml_test PRIVATE foundation_owners Qt6::QuickTest Qt6::Qml Qt6::WebEngineQuick)
 if(WIN32)
     target_link_libraries(feria_foundation_runtime PRIVATE windowsapp)
 endif()

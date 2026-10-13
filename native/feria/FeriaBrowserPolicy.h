@@ -73,6 +73,28 @@ public:
     Q_INVOKABLE QRect clampWindowGeometry(const QRect &requested, const QRect &workArea,
                                           const QMargins &frameMargins) const;
     Q_INVOKABLE bool allowsNavigation(const QUrl &url) const { return allows(url); }
+    Q_INVOKABLE bool sameWebOrigin(const QUrl &claimed, const QUrl &engineUrl) const {
+        // A blob document inherits its HTTP(S) creator origin. Accept that
+        // single inner origin on either side, never opaque or nested blobs.
+        const auto webUrl = [](const QUrl &input) {
+            if (!input.isValid() || input.isEmpty()) return QUrl();
+            const QUrl url = input.scheme().compare(QStringLiteral("blob"), Qt::CaseInsensitive) == 0
+                ? QUrl(input.toString(QUrl::FullyEncoded).mid(5), QUrl::StrictMode) : input;
+            const QString scheme = url.scheme().toLower();
+            if (!url.isValid() || url.host().isEmpty()
+                || (scheme != QStringLiteral("http") && scheme != QStringLiteral("https"))) return QUrl();
+            return url;
+        };
+        const QUrl left = webUrl(claimed), right = webUrl(engineUrl);
+        if (left.isEmpty() || right.isEmpty()) return false;
+        const QString scheme = left.scheme().toLower();
+        const int defaultPort = scheme == QStringLiteral("https") ? 443 : 80;
+        // QUrl canonicalizes case, IDNs and IP literals. Authority userinfo,
+        // document paths, queries and fragments are not origin components.
+        return scheme == right.scheme().toLower()
+            && left.host(QUrl::FullyEncoded) == right.host(QUrl::FullyEncoded)
+            && left.port(defaultPort) == right.port(defaultPort);
+    }
     Q_INVOKABLE QString displayOrigin(const QUrl &url) const {
         if (!url.isValid()) return {};
         if (url == QUrl(QStringLiteral("about:blank"))) return QStringLiteral("about:blank");

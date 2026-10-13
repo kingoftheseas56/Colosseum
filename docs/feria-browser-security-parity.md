@@ -107,6 +107,69 @@ own actual-host checks, not a retroactive transport qualification claim.
 - `verify_browser_runtime.ps1` checks required files exist and are nonempty.
   That alone does not establish matching hashes, sandbox activity or security fixes.
 
+### Browser/native boundary checkpoint, 2026-10-14
+
+Source review found no Feria WebChannel registration exposing the native context
+to remote pages. The local Reader2 channel is a separate view. QML context objects
+alone do not create remote JavaScript globals. In the built Colosseum executable,
+an explicit fixture scene passed 20 checks across top-level content, same-origin
+and cross-origin frames, and replacement navigation: production native owners
+existed on the QML side; tested native globals/transport were absent remotely;
+local-file and qrc fetches were denied. A negative control registering only a
+harmless fixture object exposed the transport and was detected (expected root 7).
+The positive run exited 0. These runs used the stock SDK modules, not the patched
+popup pairing, and record their exact paths/hashes and no remaining sampled children.
+
+A separate Windows real-click POST popup check passed 3/0/0, root 0 against the
+patched stock runtime, with page JavaScript execution and native globals/transport
+absence. The first attempt failed focus before opening the popup. A dedicated
+first-exposure test window corrected setup while retaining the focus assertion;
+that failed receipt remains. This is not complete popup qualification.
+
+The injected playback probe did have a concrete integrity gap: a hostile page's
+prototype setter could rewrite its returned `href` to another origin. The real
+wrapper regression reproduced one forged `playbackObserved` event (2/1/0, root 1).
+`sameWebOrigin()` now compares canonical HTTP(S) scheme, host and effective port
+against the engine URL before the resume gate receives an observation; mismatches
+settle as errors, before any trusted visit token is attached. Native policy tests
+pass 82/0/0. Final stock and codec runtime tests pass 3/0/0, root 0 each, proving
+the setter actually runs, forged output is rejected, later valid output recovers,
+and different same-origin canonical routes still work. Source hashes stayed stable,
+observed modules/helpers matched the accepted manifests, and sampled children exited.
+This establishes origin ownership, not truthfulness of same-origin titles or media
+measurements; header/account-store effects are inferred from the rejection point,
+not independently recorded by this fixture.
+The existing Qt wrapper/store deterministic integration was updated to load
+resource-free inline HTML at its injected sample's HTTPS origin instead of
+`about:blank`. Its unchanged resume, hold/error, out-of-order result and store
+assertions pass 3/0/0, root 0 on stock (`feria-wrapper-origin-20261014-stock`).
+This uses synthetic samples and makes no provider or WebView2 qualification claim.
+
+Evidence identifiers: `feria-native-boundary-20261014-05` and
+`feria-native-boundary-20261014-control-02` (`result.json`, logs),
+`feria-popup-boundary-20261014-01` (failed focus) and `-02` (passing receipt),
+`feria-observation-origin-20261014-red-02`,
+`feria-observation-origin-20261014-final-stock`,
+`feria-observation-origin-20261014-final-codec` (`result.json`, `qtest.txt`), and
+`feria-origin-trust-20261014-sol` (`red.txt`, `green.txt`). The built-app scene has
+media observation disabled and tests native-context separation using an earlier
+executable; the rebuilt foundation runner supplies the guard's final-source
+runtime proof. No installed
+app or renderer-sandbox claim follows.
+
+Remaining F1 work includes custom-scheme/external-protocol and file-picker paths,
+subframe request invalidation, and full-shell/installed verification. Review found
+that permission objects supply their own origin, but file/capture UI sometimes
+uses the top-level URL. An iframe removal/navigation fixture must establish actual
+request invalidation before deciding any product change. Do not reject legitimate
+iframe requests merely because their origin differs from the top-level site.
+The next candidate is a real `LocalFontsAccess` request from a delegated iframe:
+first prove the API exists in the selected runtime, then remove/navigate the
+requester and answer through the application's existing prompt route. Qt's
+permission object's validity checks profile/origin support, not frame lifetime;
+source inspection alone does not prove the old answer will grant anything.
+Use disposable profiles, an actual click and no font-content/name logging.
+
 ## Required capabilities and acceptance work
 
 “Open” below means implementation or proof remains; it does not imply every feature
@@ -116,7 +179,7 @@ is absent. Each slice must first inspect its existing owner and existing tests.
 | --- | --- | --- |
 | Engine and updates | Supported Chromium security fixes, reproducible Qt patches, compatible DLL/helper/resources/plugins; timely signed upgrades | Open. Record native engine/base Chromium/security-patch versions and source provenance separately. Verify exact loaded modules and signed package/update integrity. Review startup flags, renderer sandbox and isolation in the shipped runtime. |
 | Transport and origin security | HTTPS defaults; reject invalid, expired and wrong-host certificates; enforce same-origin, CORS, CSP and mixed-content restrictions | Policy and bounded stock/codec TLS/origin/mixed-fetch fixtures pass; connection disclosure has component/native-host proof above. Open full-shell/installed checks, remaining redirect/downgrade cases, custom schemes and complete local-file/permission review. |
-| Browser/native boundary | Remote pages cannot call privileged native stores, file/process APIs or forge application permission UI | Open targeted bridge/scheme review and hostile-page probes. Review injected scripts, subframes, new windows and navigation replacement. User-selected upload/download must not expose arbitrary local paths. |
+| Browser/native boundary | Remote pages cannot call privileged native stores, file/process APIs or forge application permission UI | Bounded built-app/frame/popup probes pass; reproduced cross-origin playback attribution is fixed with stock/codec regressions. Open scheme/file-picker coverage, subframe permission ownership and installed verification. User-selected upload/download must not expose arbitrary local paths. |
 | Identity and login | Cookies, cross-site redirects, popup login, HTTP/proxy auth, passkeys and client certificates work with correct consent and cancellation | Existing request UI; open actual authentication flows. Use supported external login where required. Verify PIN cancellation/cleanup, origin display, private profiles and no stale grants. Hardware passkey acceptance needs an authenticator. |
 | Persistence and privacy | Correct cookies, localStorage, IndexedDB, cache/service-worker state, session restoration and private-mode isolation | Existing stores/tests; open reported retention-cookie failure and two-launch proof of the final runtime. Test clearing site data/sign-out across related origins, permission revocation, private disk absence and crash recovery. Never infer all storage from localStorage alone. |
 | Tabs and popups | Real typing/clicking after opener closes; correct target reuse, focus, back/forward, beforeunload, private ownership and clean shutdown | Open final receiving review of ordinary/private/nested popup evidence and installed-runtime journeys. Preserve the baseline lifetime safeguard until the patched runtime is qualified. |
@@ -136,8 +199,9 @@ establishes a concrete dependency. Notifications remain deliberately off.
 
 1. HTTPS source change and native tests are preserved in `46c2261c`. The evidence
    drive is restored; the freeze change is integrated with receiving verification.
-2. Continue runtime launch/packaging security review directly. Hemanth stopped the
-   Preflight loop and scheduled checks; already-sent replies may still arrive.
+2. Continue runtime launch/packaging security review with Codex receiving review.
+   Hemanth reauthorized Sol 6.1 subagents and selective Preflight Spawn/Loop use;
+   use independent bounded scopes and twenty-minute checks for dispatched work.
    Preserve every failed receipt and the original worker's hosting-test edit.
 3. Implement the smallest proven security gap, with a regression and negative
    controls. Keep each direct development slice to one objective. Codex owns review,
