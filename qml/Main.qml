@@ -41,6 +41,21 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    property var vinylWorld: null
+    property var pendingVinylResume: null
+    function openVinylResume(entry, play) {
+        pendingVinylResume={entry:entry,play:play}
+        openWorld("Vinyl")
+        if (vinylWorld) applyVinylResume()
+    }
+    function applyVinylResume() {
+        if (!vinylWorld || !pendingVinylResume) return
+        vinylWorld.session.snapshot()
+        vinylWorld.session.restore(pendingVinylResume.entry)
+        vinylWorld.page=pendingVinylResume.play ? "song" : "album"
+        if (pendingVinylResume.play) vinylWorld.session.paused=false
+        pendingVinylResume=null
+    }
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -1027,6 +1042,7 @@ Window {
     // world with its covers INTACT instead of re-downloading them. Real mode pages route to their
     // own QML; unbuilt modes fall back to DemoWorld.qml.
     function worldSourceFor(medium) {
+        if (medium === "Vinyl") return "vinyl/VinylLiveWorld.qml"
         if (medium === "Tankoban") return "TankobanWorld.qml"
         if (medium === "Theatre") return "TheatreWorld.qml"
         if (medium === "Biblio") return "BiblioWorld.qml"
@@ -1738,6 +1754,7 @@ Window {
     Connections {
         target: win
         function onPlayerOpenChanged() {
+            if (win.playerOpen && win.vinylWorld) win.vinylWorld.session.paused=true
             if (win.playerOpen || !win.pendingResolves.length)
                 return
             var p = win.pendingResolves.shift()
@@ -2563,6 +2580,7 @@ Window {
     //  resume (center play/read icon):
     function resumeContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") {openVinylResume(entry,true);return}
         var r = entry.resume || ({})
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
@@ -2612,6 +2630,7 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") {openVinylResume(entry,false);return}
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
         var title = entry.title || entry.caption || presentation.title || ""
@@ -3649,6 +3668,19 @@ Window {
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
+                    if (mode === "Vinyl") {
+                        win.vinylWorld=item
+                        item.minimizeClicked.connect(win.minimizeShell)
+                        item.fullscreenClicked.connect(win.toggleFullscreenShell)
+                        item.powerClicked.connect(function() { Qt.quit() })
+                        item.playbackRequested.connect(function() {
+                            audioSession.paused = true
+                            if (playerLayer.item && playerLayer.item.suspendForMinimize)
+                                playerLayer.item.suspendForMinimize()
+                        })
+                        win.applyVinylResume()
+                        return
+                    }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
@@ -4238,6 +4270,12 @@ Window {
     // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
     // and Audio tab both drive this session. ----
     AudiobookSession { id: audioSession }
+    Connections {
+        target: audioSession
+        function onPausedChanged() {
+            if (!audioSession.paused && win.vinylWorld) win.vinylWorld.session.paused=true
+        }
+    }
 
     Loader {
         id: bookReaderLayer

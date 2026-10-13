@@ -13,6 +13,8 @@ KeyboardAction {
     readonly property bool playing: pageData.isPlayingTrack(trackIndex)
     objectName: "vinylTrackRow_" + trackIndex
     accessibleName: track.title
+    enabled: track.available !== false
+    opacity: enabled ? 1 : 0.4
     height: artistLine ? 62 : 57
     onTriggered: pageData.playTrack(trackIndex)
     Theme {
@@ -74,7 +76,7 @@ KeyboardAction {
         x: 44
         y: parent.height - 2
         height: 2
-        width: (parent.width - 44) * root.pageData.position / root.pageData.duration
+        width: root.pageData.duration > 0 ? (parent.width - 44) * root.pageData.position / root.pageData.duration : 0
         color: theme.gold
         visible: root.playing
     }

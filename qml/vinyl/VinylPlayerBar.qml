@@ -9,7 +9,7 @@ Item {
     required property Item backdrop
     property string page: "album"
     readonly property int toolCount: page === "song" ? 6 : 1
-    readonly property bool busy: pageData.sourceState !== "playing"
+    readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying"
     readonly property real seekFraction: pageData.duration > 0 ? pageData.position / pageData.duration : 0
     signal songRequested
     signal creditsRequested
@@ -247,6 +247,7 @@ Item {
             visible: root.page === "song"
             glyph: "♙"
             accessibleName: "Credits"
+            enabled: root.pageData.playingCredits === undefined || root.pageData.playingCredits.length > 0
             onTriggered: root.creditsRequested()
         }
         Tool {
@@ -265,7 +266,7 @@ Item {
                 id: chip
                 objectName: "vinylBarChip"
                 anchors.centerIn: parent
-                text: root.pageData.sourceState === "finding" ? "Finding a source" : root.pageData.sourceState === "retrying" ? "Trying another source" : "AAC · 256 kbps"
+                text: root.pageData.sourceState === "finding" ? "Finding a source" : root.pageData.sourceState === "retrying" ? "Trying another source" : (root.pageData.qualityLabel !== undefined ? root.pageData.qualityLabel : "AAC · 256 kbps")
                 color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 10

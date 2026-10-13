@@ -264,6 +264,7 @@ Item {
             Pill { label: "Tankoban" }
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
+            Pill { label: "Vinyl"; visible: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled }
             Pill { label: "Universes" }
             Pill { label: "Feria" }
         }

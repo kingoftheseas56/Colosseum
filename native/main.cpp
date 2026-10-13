@@ -138,6 +138,7 @@
 #include "feria/PorticoComposition.h"
 #include "feria/FeriaBrowserPolicy.h"
 #include "feria/FeriaAccountStore.h"
+#include "vinyl/VinylProvider.h"
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -1801,6 +1802,11 @@ int main(int argc, char *argv[]) {
     // designed. Replaces the four raw store constructions this block used to
     // hold — the split-brain risk of two owners binding the same QML names is
     // closed by construction.
+    // Register the final checkpoint BEFORE ProgressStore registers its writer shutdown.
+    auto *vinylProvider = new VinylProvider(
+        QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
+            .absoluteFilePath("scripts/vinyl/provider.py"), &engine);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, vinylProvider, &VinylProvider::shuttingDown);
     auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
@@ -1998,6 +2004,14 @@ int main(int argc, char *argv[]) {
                      feriaAccount, bindFeriaProfile);
     engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
     FeriaBrowserPolicy::registerTypes();
+    engine.rootContext()->setContextProperty("VinylProvider", vinylProvider);
+    engine.rootContext()->setContextProperty("VinylLiveEnabled", qEnvironmentVariableIntValue("COLOSSEUM_VINYL_LIVE") == 1);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
+                     vinylProvider, &VinylProvider::checkpointRequested);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     vinylProvider, &VinylProvider::profileLeaving);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     vinylProvider, &VinylProvider::profileEntered);
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
