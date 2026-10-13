@@ -34,20 +34,45 @@ H.264 test does not prove subscription playback, HD quality or Widevine eligibil
   and all options outside a reviewed graphics/logging list are refused with exit
   78; raw values are not logged. Policy baseline: 8 passed/39 failed with no guard;
   implementation: 52 passed/0 failed, including native subprocess checks of argv
-  and inherited environment. The changed launcher translation unit compiled in the
-  ongoing full application build; complete-app launch proof is still pending.
+  and inherited environment. A built Colosseum executable then passed six native
+  process checks: four unsafe launches exited 78 before the engine marker, and
+  default/allowed-graphics launches rendered a fixture document, executed its
+  JavaScript and exited 0. This uses the real launcher with an explicit fixture
+  scene; it is not full-shell, installed-package or sandbox-token proof.
   See [permitted options](build/windows.md#webengine-startup-configuration).
-- The new real-wrapper transport fixture passed 9/0/0 with native exit 0 on each
+- The real-wrapper transport fixture passed 10/0/0 with native exit 0 on each
   accepted stock and codec candidate. It proves valid HTTPS, rejection of expired,
   wrong-host and untrusted certificates, a redirect to expired TLS, CORS with a
   positive control, cross-origin iframe rejection, CSP with a positive control,
-  local-file fetch rejection and absence of selected native globals. Test CA trust
+  local-file fetch rejection and absence of selected native globals. A working
+  non-trustworthy HTTP origin is the positive control for an HTTPS-to-HTTP fetch
+  rejected with Chromium's mixed-content diagnostic. Test CA trust
   is profile-only; OS trust was unchanged. Source hashes stayed stable and observed
-  WebEngine modules matched the candidate manifest. Stock additionally recorded
-  sampled helper identities and their exits; codec's initial run had an independent
-  post-run process check. Retain offscreen GPU errors and existing profile-creation
+  WebEngine modules matched the candidate manifest. Both final runs recorded
+  sampled helper identities and zero remaining sampled children. Retain offscreen GPU errors and existing profile-creation
   deprecation warnings: these runs do not prove GPU/media rendering, every native
-  boundary, mixed-content handling, sandbox activity or installed-provider behavior.
+  boundary, all mixed-content types, sandbox activity or installed-provider behavior.
+- Site identity now uses a native origin formatter that omits URL credentials,
+  paths and query strings and displays ASCII IDNs. Main-host and popup headers
+  distinguish HTTP, connecting, unverified and loaded HTTPS states without labeling
+  a site trustworthy. Native policy tests: 48/0/0. Windows component and real-host
+  identity tests: 15/0/0, exit 0, with inspected screenshots. The minimum 320-pixel
+  host initially hid the identity; a dedicated row fixes the reproduced failure.
+  Two existing hosting journeys additionally passed (4/0/0 including setup/cleanup),
+  covering typed input through host transfer and original POST popup geometry.
+  Windows runs use the fixture's existing first-exposure foreground activation;
+  earlier missing-focus and offscreen-load failures are preserved. The worker-owned
+  hosting file was not edited or adopted wholesale. Full-shell/installed identity
+  acceptance and broader popup qualification remain open.
+
+Evidence identifiers for these bounded checks: `feria-security-startup-20261014`
+(`app-check-01/result.json`), `feria-security-transport-20261014-stock-02` and
+`feria-security-transport-20261014-codec-02` (`result.json`, `qtest.txt`), and
+`feria-origin-build-20261014` (`origin-green.txt`, `identity-final.txt`,
+`identity-final-exit.txt`, `identity-final-evidence`, `hosting-final-result.json`).
+The startup receipt identifies the tested executable by SHA-256; transport receipts
+identify the pre-header wrapper hashes. The later popup/header changes have their
+own actual-host checks, not a retroactive transport qualification claim.
 
 - `FeriaBrowserPolicy::navigationUrl()` now defaults bare public addresses to HTTPS,
   including ports. Explicit HTTP is preserved, as are `localhost`, `127.0.0.1` and
@@ -90,7 +115,7 @@ is absent. Each slice must first inspect its existing owner and existing tests.
 | Area | Required behavior | Remaining proof / implementation route |
 | --- | --- | --- |
 | Engine and updates | Supported Chromium security fixes, reproducible Qt patches, compatible DLL/helper/resources/plugins; timely signed upgrades | Open. Record native engine/base Chromium/security-patch versions and source provenance separately. Verify exact loaded modules and signed package/update integrity. Review startup flags, renderer sandbox and isolation in the shipped runtime. |
-| Transport and origin security | HTTPS defaults; reject invalid, expired and wrong-host certificates; enforce same-origin, CORS, CSP and mixed-content restrictions | HTTPS address policy tested. Open real negative TLS/origin fixtures, HTTP connection disclosure and redirect/downgrade behavior. Review local-file access, custom schemes and permission handling without weakening Chromium controls. |
+| Transport and origin security | HTTPS defaults; reject invalid, expired and wrong-host certificates; enforce same-origin, CORS, CSP and mixed-content restrictions | Policy and bounded stock/codec TLS/origin/mixed-fetch fixtures pass; connection disclosure has component/native-host proof above. Open full-shell/installed checks, remaining redirect/downgrade cases, custom schemes and complete local-file/permission review. |
 | Browser/native boundary | Remote pages cannot call privileged native stores, file/process APIs or forge application permission UI | Open targeted bridge/scheme review and hostile-page probes. Review injected scripts, subframes, new windows and navigation replacement. User-selected upload/download must not expose arbitrary local paths. |
 | Identity and login | Cookies, cross-site redirects, popup login, HTTP/proxy auth, passkeys and client certificates work with correct consent and cancellation | Existing request UI; open actual authentication flows. Use supported external login where required. Verify PIN cancellation/cleanup, origin display, private profiles and no stale grants. Hardware passkey acceptance needs an authenticator. |
 | Persistence and privacy | Correct cookies, localStorage, IndexedDB, cache/service-worker state, session restoration and private-mode isolation | Existing stores/tests; open reported retention-cookie failure and two-launch proof of the final runtime. Test clearing site data/sign-out across related origins, permission revocation, private disk absence and crash recovery. Never infer all storage from localStorage alone. |

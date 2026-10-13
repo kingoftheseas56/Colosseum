@@ -643,10 +643,19 @@ WebEngineView {
         Window {
             id: popup
             title: popupView.title || "Feria"
+            color: browser.backgroundColor
             width: 900
             height: 700
             required property var sharedProfile
             readonly property alias view: popupView
+            FeriaSiteIdentity {
+                id: popupIdentity
+                anchors { top: parent.top; left: parent.left; right: parent.right; margins: 6 }
+                height: implicitHeight
+                currentUrl: popupView.url
+                loading: popupView.loading
+                documentLoaded: popupView.identityDocumentLoaded
+            }
             onClosing: {
                 browser.popups = browser.popups.filter(function(item) { return item !== popup })
                 destroy()
@@ -654,7 +663,13 @@ WebEngineView {
             WebEngineView {
                 id: popupView
                 anchors.fill: parent
+                anchors.topMargin: popupIdentity.height + 12
                 profile: popup.sharedProfile
+                property bool identityDocumentLoaded: false
+                onLoadingChanged: function(info) {
+                    identityDocumentLoaded = info.status === WebEngineView.LoadSucceededStatus
+                }
+                onRenderProcessTerminated: identityDocumentLoaded = false
                 readonly property string accountSessionId: browser.accountSessionId
                 readonly property string accountVisitToken: browser.accountVisitToken
                 Component.onCompleted: FeriaBrowserPolicy.registerRuntimeView(popupView)

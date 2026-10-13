@@ -120,6 +120,10 @@ def main():
         threading.Thread(target=server.serve_forever, daemon=True).start()
         servers.append(server)
         config[name] = "https://127.0.0.1:" + str(server.server_port)
+    plain_server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=plain_server.serve_forever, daemon=True).start()
+    servers.append(plain_server)
+    config["insecure"] = "http://insecure.fixture.test:" + str(plain_server.server_port)
     secret = out / "local-secret.txt"
     secret.write_text("must-not-reach-page")
     config["secretFile"] = secret.as_uri()
@@ -142,11 +146,18 @@ def main():
                QTWEBENGINE_LOCALES_PATH=str(runtime / "translations/qtwebengine_locales"),
                FERIA_FIXTURE_PORT="0", FERIA_FIXTURE_ROOT=str(out / "profiles"),
                QT_QUICK_CONTROLS_STYLE="Basic")
+    # Test-only DNS mapping makes a genuinely non-trustworthy HTTP origin reach
+    # our loopback server. localhost/127.0.0.1 would be trustworthy exceptions
+    # and could not prove mixed-content enforcement. This changes resolution,
+    # not TLS, CSP, origin security or sandbox policy; the app guard intentionally
+    # does not permit this diagnostic switch in normal launches.
+    env["QTWEBENGINE_CHROMIUM_FLAGS"] = '"--host-resolver-rules=MAP insecure.fixture.test 127.0.0.1"'
     command = [str(executable), "-input", str(qml), "-o", str(out / "qtest.txt") + ",txt"]
     source_hashes = {str(path.relative_to(repo)): digest(path) for path in
                      (repo / "qml/feria/FeriaQtWebEngine.qml", repo / "qml/feria/FeriaBrowserRequests.qml")}
     receipt = {"command": command, "runnerSha256": digest(executable), "verifiedModules": verified,
-               "sourceBefore": source_hashes, "systemTrustChanged": False, "modulePaths": []}
+               "sourceBefore": source_hashes, "systemTrustChanged": False, "modulePaths": [],
+               "testOnlyChromiumFlags": env["QTWEBENGINE_CHROMIUM_FLAGS"]}
     (out / "launch.json").write_text(json.dumps(receipt, indent=2))
     try:
         with (out / "stdout.log").open("wb") as stdout, (out / "stderr.log").open("wb") as stderr:

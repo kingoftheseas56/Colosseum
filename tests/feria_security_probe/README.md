@@ -28,6 +28,12 @@ expired, wrong-host and untrusted failures, including an HTTPS redirect to an
 expired endpoint. It checks CORS denial with a successful CORS control, cross-origin
 iframe denial, CSP enforcement with an inline-script control, local-file fetch
 denial and absence of selected native objects in the remote JavaScript context.
+An additional plain HTTP listener provides a positive control at
+`insecure.fixture.test`. A test-only Chromium host-resolver rule maps that name to
+the local listener, avoiding the trustworthy-loopback exception. The HTTPS page
+must fail its HTTP fetch with an actual mixed-content diagnostic. The production
+startup guard intentionally rejects this diagnostic resolver switch. No TLS,
+origin or sandbox bypass is enabled.
 
 It records the native root exit directly with file-backed stdout/stderr, source
 hashes, observed module/helper paths and remaining sampled child processes. A
@@ -36,7 +42,7 @@ start another browser test until ownership/activity is resolved. The runner does
 not kill an unknown or timed-out process.
 
 Scope limits: this is a real-engine fixture, not the installed app, a full bridge
-audit, mixed-content qualification, sandbox-token proof or provider acceptance.
+audit, exhaustive mixed-content coverage, sandbox-token proof or provider acceptance.
 Offscreen graphics warnings do not establish working GPU playback. The wrapper's
 existing fallback profile currently emits Qt's profile-construction deprecation
 warning; retain it in the raw log rather than hiding it.

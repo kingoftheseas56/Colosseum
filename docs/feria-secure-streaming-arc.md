@@ -3,8 +3,9 @@
 Plan created 2026-10-14. Baseline: `60b12d129b6075e2a9b83ea4fb915431950f6cf4`
 on `codex/feria-release-packaging`. Planning refresh: 2026-10-14, inspected HEAD
 `8a1cfd667877596060eb009b1409f0315853659f`. This refresh organizes the full scope;
-it does not begin implementation. Checkpoints below record earlier progress;
-release remains a separate gate.
+it did not begin implementation. The subsequent active-goal continuation resumed
+direct implementation; checkpoints below record bounded progress. Release remains
+a separate gate.
 
 ## Arc at a glance
 
@@ -24,11 +25,11 @@ features are verified and extended where needed, not rebuilt by default. The
 checkpoints are historical evidence, not a fresh runtime audit performed during
 this planning refresh.
 
-**First bounded task when development resumes: finish receiving review of the
-in-progress security slice.** Inspect the existing startup/mixed-content results
-and origin-display changes, resolve only demonstrated gaps, and preserve the
-verified slice before opening another implementation task. The exact acceptance
-checklist is at the end of this document. No loop or scheduled worker is needed.
+**Next bounded task: F1.3 browser/native separation.** Trace remote-content access
+to native objects, custom schemes and injected scripts, then close the first
+demonstrated boundary gap with a focused regression. The preceding startup,
+mixed-content and site-identity slice has the bounded results recorded below.
+No loop or scheduled worker is needed.
 
 ## Outcome and scope
 
@@ -70,11 +71,14 @@ even when a later bounded regression passes.
 ## Work sequence
 
 Implementation checkpoint, 2026-10-14: F1.1's source guard and 52 policy/process
-checks pass; full-app build/launch verification remains in progress. F1.2 has new
-stock and codec real-wrapper TLS/origin fixtures (9/0/0, root exit 0 each), covering
-the cases recorded in the security ledger. Mixed content, complete native-boundary
-review and installed runtime proof remain open. No phase is marked complete from
-these narrower results.
+checks pass, followed by six checks of a built app's real launcher with a fixture
+scene (unsafe launches exit 78; accepted launches execute page JavaScript and exit
+0). F1.2 stock/codec TLS/origin/mixed-fetch fixtures pass 10/0/0, root 0 each.
+Native origin policy passes 48/0/0; Windows component/host identity checks pass
+15/0/0, root 0. A minimum-width popup identity regression was reproduced and fixed.
+Two affected input/POST hosting journeys pass 4/0/0, root 0. The security ledger
+records exact scope and failed receipts. Full-shell/installed proof and complete
+native-boundary review remain open. No phase is complete from these narrower results.
 
 | Phase | Objective | Depends on | Completion gate |
 | --- | --- | --- | --- |
@@ -289,37 +293,40 @@ accounts/devices remain explicitly unverified while independent work proceeds.
 | DRM/CDM, embedded-login policy, accounts, region and hardware | Early F2.4 feasibility separates external constraints from fixable Feria defects; final provider proof waits only on the relevant prerequisite |
 | No final installed/provider qualification for the latest changes | Remains open through F6/F7; source and fixture success cannot close it |
 
-## Next task and stop line
+## Completed bounded receiving slice and next task
 
-**Task: close the in-progress F1 security slice through receiving review.**
+**Receiving slice: startup, mixed-content fetch and site-identity changes.**
 
 The planning refresh found uncommitted origin-display, transport-test and startup
 test-driver changes alongside the original worker-owned hosting test. Their
 presence is not acceptance. Review the current bytes and existing receipts before
 deciding which additional checks are necessary.
 
-- [ ] Review `tests/webengine_startup_build/run_app.py` and its existing native
+- [x] Review `tests/webengine_startup_build/run_app.py` and its existing native
   process receipts: rejected configurations must exit before WebEngine starts;
   accepted configurations must run actual page JavaScript and exit cleanly.
-- [ ] Review `tests/feria_security_probe/run_transport.py` and
+- [x] Review `tests/feria_security_probe/run_transport.py` and
   `tst_transport.qml.in`: distinguish a working HTTP positive control from actual
   mixed-content blocking, and keep any fixture-only DNS setting out of production.
-- [ ] Review `native/feria/FeriaBrowserPolicy.h`, `FeriaSiteIdentity.qml` and its
+- [x] Review `native/feria/FeriaBrowserPolicy.h`, `FeriaSiteIdentity.qml` and its
   three host integrations. Confirm the displayed origin removes credentials and
   URL secrets, follows navigation, and does not equate HTTPS with site trust.
-- [ ] Check existing policy and site-identity results; finish only missing visual,
+- [x] Check existing policy and site-identity results; finish only missing visual,
   host geometry or input checks affected by the new header. Preserve earlier
   failures and `tests/feria_hosting_probe/tst_Hosting.qml` ownership.
-- [ ] Update the security ledger with exact source/runtime evidence and limitations;
+- [x] Update the security ledger with exact source/runtime evidence and limitations;
   review the final diff, commit explicit owned paths and verify GitLab preservation.
 
-**Done:** a reviewable, preserved security slice with its actual verification
-record. This does not close all of F1 or qualify installed/provider behavior.
-Next, address F1.3 browser/native separation while bringing forward F2 runtime
-and streaming feasibility checks as their prerequisites are met.
+**Result:** the bounded slice's verification record is in the security ledger.
+This does not close all of F1 or qualify full-shell/installed/provider behavior.
+**Next: F1.3 browser/native separation**, while bringing forward F2 runtime and
+streaming feasibility checks as their prerequisites are met. Start with live
+registration and script/scheme exposure in `native/main.cpp`, `native/feria` and
+`qml/feria`; prove a concrete boundary with a hostile-page regression rather than
+equating QML context objects with remote-page access.
 
-**Blockers:** no known account requirement for this first task. D: evidence and
-runtime availability must be checked when execution resumes; this planning refresh
-did not verify that drive. An unavailable build or receipt blocks only the claim
+**Blockers:** no known account requirement for this next task. D: evidence and
+runtime availability were confirmed during this receiving slice; recheck before
+later runtime work. An unavailable build or receipt blocks only the claim
 that depends on it. Preserve unowned changes. Provider accounts, DRM availability,
 region and hardware can block later individual checks, not independent source work.

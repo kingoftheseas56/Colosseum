@@ -29,10 +29,14 @@ Item {
         property var browser: null
         property var errors: []
         property var completion: null
+        property var consoleMessages: []
         Connections {
             target: suite.browser
             function onCertificateError(error) {
                 suite.errors = suite.errors.concat([Number(error.type)])
+            }
+            function onJavaScriptConsoleMessage(level, message, lineNumber, sourceId) {
+                suite.consoleMessages = suite.consoleMessages.concat([String(message)])
             }
             function onCompleted(location, success) {
                 if (String(location) !== "about:blank")
@@ -45,7 +49,7 @@ Item {
             verify(stage.testProfile.offTheRecord)
         }
         function init() {
-            errors = []; completion = null
+            errors = []; completion = null; consoleMessages = []
             browser = browserFactory.createObject(stage)
             verify(browser !== null)
         }
@@ -117,6 +121,21 @@ Item {
             compare(js("window.inlineRan"), true)
             navigate(Config.values.valid + "/csp", true)
             compare(js("typeof window.inlineRan"), "undefined")
+        }
+        function test_httpWorksButMixedContentIsBlocked() {
+            // Positive HTTP control proves DNS/server availability; this must
+            // be a non-loopback origin from the browser's security perspective.
+            navigate(Config.values.insecure + "/page", true)
+            compare(js("window.isSecureContext"), false)
+            compare(js("window.inlineRan"), true)
+            navigate(Config.values.valid + "/page", true)
+            js("window.mixed='pending';fetch(" + JSON.stringify(Config.values.insecure + "/cors")
+                + ").then(r=>r.text()).then(()=>window.mixed='leaked').catch(()=>window.mixed='blocked');true")
+            tryVerify(function() { return js("window.mixed") !== "pending" }, 5000)
+            compare(js("window.mixed"), "blocked")
+            verify(consoleMessages.some(function(message) {
+                return message.indexOf("Mixed Content") >= 0 && message.indexOf("blocked") >= 0
+            }), "Require a mixed-content diagnostic, not just an arbitrary fetch error")
         }
     }
 }

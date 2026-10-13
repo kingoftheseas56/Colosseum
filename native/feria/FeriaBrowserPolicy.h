@@ -73,6 +73,23 @@ public:
     Q_INVOKABLE QRect clampWindowGeometry(const QRect &requested, const QRect &workArea,
                                           const QMargins &frameMargins) const;
     Q_INVOKABLE bool allowsNavigation(const QUrl &url) const { return allows(url); }
+    Q_INVOKABLE QString displayOrigin(const QUrl &url) const {
+        if (!url.isValid()) return {};
+        if (url == QUrl(QStringLiteral("about:blank"))) return QStringLiteral("about:blank");
+        const QUrl origin = url.scheme() == QStringLiteral("blob")
+            ? QUrl(url.toString().mid(5)) : url;
+        const QString scheme = origin.scheme().toLower();
+        if (!origin.isValid() || (scheme != QStringLiteral("http") && scheme != QStringLiteral("https"))
+            || origin.host().isEmpty()) return {};
+        // Never display userinfo, paths or query credentials as site identity.
+        // ASCII IDNs avoid presenting visually confusable Unicode hostnames.
+        const QString host = origin.host().contains(QLatin1Char(':'))
+            ? QLatin1Char('[') + origin.host().toLower() + QLatin1Char(']')
+            : QString::fromLatin1(QUrl::toAce(origin.host())).toLower();
+        if (host.isEmpty()) return {};
+        const QString port = origin.port() < 0 ? QString() : QLatin1Char(':') + QString::number(origin.port());
+        return scheme + QStringLiteral("://") + host + port;
+    }
     Q_INVOKABLE QUrl navigationUrl(const QString &text) const;
     Q_INVOKABLE QUrl omniboxUrl(const QString &text, const QString &searchEngine = QStringLiteral("duckduckgo")) const;
     static bool allows(const QUrl &url)

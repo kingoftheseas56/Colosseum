@@ -482,14 +482,14 @@ Item {
                 glyphKey: Data.P[controller.hostApp] ? controller.hostApp : "portico"
                 tone: controller.ink
             }
-            Text {
-                text: controller.providerName(controller.hostApp)
+            FeriaSiteIdentity {
+                currentUrl: root.currentUrl
+                loading: root.pageLoading
+                documentLoaded: root.loadSucceeded && root.errorText.length === 0
                 Layout.maximumWidth: strip.width < 900 ? 120 : 240
                 Layout.minimumWidth: 0
-                elide: Text.ElideRight
-                color: controller.ink
-                font.family: controller.uiFont
-                font.pixelSize: 14
+                Layout.preferredHeight: implicitHeight
+                foreground: controller.ink
             }
             FeriaBrowserToolbar {
                 id: navigationBar

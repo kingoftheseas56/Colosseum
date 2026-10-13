@@ -6,6 +6,26 @@
 class FoundationPolicyTest : public QObject {
     Q_OBJECT
 private slots:
+    void displayedOrigin_data() {
+        QTest::addColumn<QString>("input");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("no-path-or-query") << "https://example.org/account?token=secret#private" << "https://example.org";
+        QTest::newRow("userinfo-impostor") << "https://netflix.com:secret@evil.example/login" << "https://evil.example";
+        QTest::newRow("http-port") << "http://example.org:8080/a" << "http://example.org:8080";
+        QTest::newRow("normalize-case") << "HTTPS://EXAMPLE.ORG/a" << "https://example.org";
+        QTest::newRow("ipv6") << "http://[::1]:8123/a" << "http://[::1]:8123";
+        QTest::newRow("idn-ascii") << QString::fromUtf8("https://bücher.de/read") << "https://xn--bcher-kva.de";
+        QTest::newRow("blob-origin") << "blob:https://example.org/id" << "https://example.org";
+        QTest::newRow("blank") << "about:blank" << "about:blank";
+        QTest::newRow("local-file") << "file:///C:/private/path" << "";
+        QTest::newRow("script") << "javascript:alert(1)" << "";
+        QTest::newRow("empty") << "" << "";
+    }
+    void displayedOrigin() {
+        QFETCH(QString, input); QFETCH(QString, expected);
+        FeriaBrowserPolicy policy;
+        QCOMPARE(policy.displayOrigin(QUrl(input)), expected);
+    }
     void independentAdoptionRequiresPatchedRegisteredRuntime() {
         FeriaBrowserPolicy policy;
         QObject view;
