@@ -85,6 +85,116 @@ Item {
             verify(deck.activate(idle.id))
             tryCompare(idle.page, "lifecycleState", WebEngineView.LifecycleState.Active, 5000)
         }
+        function test_syntheticTicketDrainAfterRealDeadline() {
+            var idle = open("/a", false)
+            compare(idle.page.freezeDelay, 30000)
+            var callbacks = 0, callbackValue = null, callbackWasActive = false
+            var work = FeriaBrowserPolicy.runtime.admitWork(idle.page, "script")
+            verify(work > 0, "Native synthetic script work must be admitted")
+            var ticket = JavaScript.ticket(idle.page, ++idle.page.javascriptTicketSerial,
+                work, function(value) {
+                    callbackValue = value
+                    callbackWasActive = idle.page.lifecycleState === WebEngineView.LifecycleState.Active
+                    ++callbacks
+                })
+            var tickets = Object.assign({}, idle.page.javascriptTickets)
+            tickets[ticket.id] = ticket
+            idle.page.javascriptTickets = tickets
+            var redeem = JavaScript.resultCallback(ticket)
+            open("/b", false)
+            tryVerify(function() {
+                return !idle.page.visible && idle.page.freezeBackground
+                    && !idle.page.closingSession && !idle.page.rendererLost
+                    && !idle.page.adoptingWindowRequest && !idle.page.lifecycleBlocked
+                    && !idle.page.recentlyAudible
+                    && idle.page.recommendedState !== WebEngineView.LifecycleState.Active
+                    && idle.page.lifecycleState === WebEngineView.LifecycleState.Active
+            }, 10000)
+            var eligibleAt = Date.now()
+            wait(31000) // Real, unmodified 30000ms production deadline.
+            compare(idle.page.freezeDelay, 30000)
+            compare(idle.page.lifecycleState, WebEngineView.LifecycleState.Active,
+                "Pending admitted work must prohibit freezing even after the deadline")
+            verify(ticket.valid && idle.page.javascriptTickets[ticket.id] === ticket)
+            verify(idle.page.pendingJavaScript > 0)
+            verify(!idle.page.visible && !idle.page.closingSession && !idle.page.rendererLost
+                && !idle.page.adoptingWindowRequest && !idle.page.lifecycleBlocked
+                && !idle.page.recentlyAudible
+                && idle.page.recommendedState !== WebEngineView.LifecycleState.Active,
+                "The page must remain freeze-eligible except for its pending JS ticket")
+            var redeemAt = Date.now()
+            redeem(true) // Normal ticket redemption, native ledger and consumer/finally.
+            compare(callbacks, 1)
+            compare(callbackValue, true)
+            verify(callbackWasActive, "Consumer must finish while page is Active")
+            verify(!ticket.valid && idle.page.javascriptTickets[ticket.id] === undefined)
+            compare(idle.page.pendingJavaScript, 0)
+            console.log("SERVICES_RESOURCE_TICKET_DRAIN " + JSON.stringify({
+                eligibleElapsedMs: redeemAt - eligibleAt, pending: idle.page.pendingJavaScript,
+                callbacks: callbacks, ticketInvalid: !ticket.valid, consumerWasActive: callbackWasActive,
+                visible: idle.page.visible, blocked: idle.page.lifecycleBlocked,
+                audible: idle.page.recentlyAudible, recommended: idle.page.recommendedState,
+                closing: idle.page.closingSession, rendererLost: idle.page.rendererLost,
+                adopting: idle.page.adoptingWindowRequest}))
+            tryCompare(idle.page, "lifecycleState", WebEngineView.LifecycleState.Frozen, 3000)
+            console.log("SERVICES_RESOURCE_PROMPT_FREEZE delayAfterRedemptionMs=" + (Date.now() - redeemAt))
+        }
+        function heldScript(page, consumer) {
+            var work = FeriaBrowserPolicy.runtime.admitWork(page, "script")
+            verify(work > 0)
+            var ticket = JavaScript.ticket(page, ++page.javascriptTicketSerial, work, consumer)
+            var tickets = Object.assign({}, page.javascriptTickets)
+            tickets[ticket.id] = ticket
+            page.javascriptTickets = tickets
+            return {ticket: ticket, redeem: JavaScript.resultCallback(ticket)}
+        }
+        function test_freezeWaitsForSuccessorAdmittedByConsumer() {
+            var idle = open("/a", false), successor = null, consumerActive = false
+            idle.page.freezeDelay = 500
+            var first = heldScript(idle.page, function() {
+                consumerActive = idle.page.lifecycleState === WebEngineView.LifecycleState.Active
+                successor = heldScript(idle.page, function() {})
+            })
+            open("/b", false)
+            tryVerify(function() { return !idle.page.visible && idle.page.recommendedState !== WebEngineView.LifecycleState.Active })
+            wait(1000)
+            first.redeem(true)
+            verify(consumerActive && successor !== null)
+            wait(100)
+            compare(idle.page.lifecycleState, WebEngineView.LifecycleState.Active)
+            verify(successor.ticket.valid && idle.page.pendingJavaScript > 0)
+            successor.redeem(true)
+            tryCompare(idle.page, "lifecycleState", WebEngineView.LifecycleState.Frozen, 2000)
+        }
+        function test_freezeDeadlineResetsAfterEligibilityLoss() {
+            var idle = open("/a", false)
+            idle.page.freezeDelay = 1000
+            var pending = heldScript(idle.page, function() {})
+            open("/b", false)
+            tryVerify(function() { return !idle.page.visible && idle.page.recommendedState !== WebEngineView.LifecycleState.Active })
+            wait(1500)
+            idle.page.lifecycleBlocked = true
+            pending.redeem(true)
+            wait(100)
+            compare(idle.page.lifecycleState, WebEngineView.LifecycleState.Active)
+            idle.page.lifecycleBlocked = false
+            wait(300)
+            compare(idle.page.lifecycleState, WebEngineView.LifecycleState.Active)
+            tryCompare(idle.page, "lifecycleState", WebEngineView.LifecycleState.Frozen, 3000)
+        }
+        function test_freezeDeadlineResetsWhenDelayChanges() {
+            var idle = open("/a", false)
+            idle.page.freezeDelay = 500
+            var pending = heldScript(idle.page, function() {})
+            open("/b", false)
+            tryVerify(function() { return !idle.page.visible && idle.page.recommendedState !== WebEngineView.LifecycleState.Active })
+            wait(1000)
+            idle.page.freezeDelay = 1500
+            pending.redeem(true)
+            wait(300)
+            compare(idle.page.lifecycleState, WebEngineView.LifecycleState.Active)
+            tryCompare(idle.page, "lifecycleState", WebEngineView.LifecycleState.Frozen, 3000)
+        }
         function test_repeatedMixedTabCloseWithPendingScripts() {
             for (var cycle = 0; cycle < 4; ++cycle) {
                 var pages = [], callbacks = 0

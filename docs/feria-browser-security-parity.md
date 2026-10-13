@@ -6,6 +6,15 @@ for that expanded scope. It is not a claim of full Chrome parity or a secure rel
 QtWebEngine remains the production engine route. Website notifications remain
 disabled; the earlier service scope did not include a password manager or ad blocker.
 
+Hemanth clarified that streaming sites define the compatibility target. Use the
+existing `PorticoData.js` watch catalog: Netflix, Prime Video, HBO Max, Disney+,
+JioHotstar, Apple TV, Crunchyroll, YouTube, Hulu and MUBI. Include its streaming
+music catalog: Spotify, YouTube Music and Apple Music. These are the current
+repository entries, not verified current service URLs or availability promises.
+Prioritize sign-in and persistent sessions, protected playback, seek/subtitles/audio
+selection, fullscreen and media controls. For each site, separately record public
+access, authenticated playback and account/entitlement or regional blockers.
+
 ## Security and site acceptance are different gates
 
 Valid TLS, sandboxing, origin isolation and an up-to-date engine protect the user.
@@ -32,11 +41,21 @@ H.264 test does not prove subscription playback, HD quality or Widevine eligibil
   physical-device or provider qualification.
 - Shutdown fixture correction was verified and preserved in commit `a526c0f4`.
   Popup binary qualification and installation remain separate outstanding gates.
-- The idle-freeze postponement mechanism was reproduced with a synthetic pending
-  JavaScript ticket. The proposed fix has no valid red/green result: its worker
-  reported a stalled first process, no QtTest output and no captured root exit.
-  Candidate evidence and patched binaries are currently on an unavailable drive.
-  Do not integrate the candidate from its report alone.
+- The idle-freeze postponement regression now has a valid failing baseline:
+  the callback completed after the real 30-second deadline, but the page stayed
+  Active (QtTest 2 passed/1 failed, native exit 1). The fix retains the elapsed
+  deadline while JavaScript drains and defers freezing until callbacks finish,
+  rechecking eligibility and pending work. Losing eligibility or changing the
+  configured delay resets the countdown. Codec candidate: 4/0/0, native exit 0;
+  stock candidate: 8/0/0, native exit 0, including the original default/audio
+  cases and new callback-handoff/eligibility-reset/delay-reset checks. These are
+  synthetic regression and runtime-fixture proofs, not streaming-site acceptance
+  or attribution of every historical full-suite failure. The earlier stalled
+  run and unknown exit remain recorded separately.
+  Final repository-source codec check: 7/0/0, native exit 0, covering the three
+  new safety cases plus repeated mixed-tab closure and discarded late callbacks.
+  Each passing run used disposable profiles, checked exact runtime module
+  identities and left no candidate processes. No installed-package claim.
 - The checked-in codec recipe explicitly disables printing/PDF, spellchecking,
   WebRTC, geolocation and extensions. It cannot be assumed to satisfy this target.
   This is evidence about the recipe, not proof of features in every existing binary.
@@ -56,7 +75,7 @@ is absent. Each slice must first inspect its existing owner and existing tests.
 | Identity and login | Cookies, cross-site redirects, popup login, HTTP/proxy auth, passkeys and client certificates work with correct consent and cancellation | Existing request UI; open actual authentication flows. Use supported external login where required. Verify PIN cancellation/cleanup, origin display, private profiles and no stale grants. Hardware passkey acceptance needs an authenticator. |
 | Persistence and privacy | Correct cookies, localStorage, IndexedDB, cache/service-worker state, session restoration and private-mode isolation | Existing stores/tests; open reported retention-cookie failure and two-launch proof of the final runtime. Test clearing site data/sign-out across related origins, permission revocation, private disk absence and crash recovery. Never infer all storage from localStorage alone. |
 | Tabs and popups | Real typing/clicking after opener closes; correct target reuse, focus, back/forward, beforeunload, private ownership and clean shutdown | Open final receiving review of ordinary/private/nested popup evidence and installed-runtime journeys. Preserve the baseline lifetime safeguard until the patched runtime is qualified. |
-| Lifecycle and reliability | Idle tabs freeze without losing callbacks; audio/capture/download work stays alive; renderer failure recovers safely | Open freeze candidate red/green, independent stock verification, eligibility-reset/callback tests and root-exit proof. Retain shutdown and renderer failure controls. |
+| Lifecycle and reliability | Idle tabs freeze without losing callbacks; audio/capture/download work stays alive; renderer failure recovers safely | Freeze fix has red/green, independent stock and final-source callback/retirement proof. Open final-package and provider/capture interactions. Retain shutdown and renderer failure controls. |
 | Media | HTML audio/video, required codecs, MSE/EME, fullscreen, seek, subtitles, audio selection, media session, hardware acceleration and PiP where required | Existing local codec evidence; open target-site playback and final-package tests. Treat DRM/CDM approval, actual media keys, device routing and capture as separate checks. |
 | Calls and devices | WebRTC audio/video, desktop capture, clipboard and geolocation with explicit origin-scoped consent and revocation | Open browser-capable build and real capture/cancel/revoke flows. Preserve operating-system permission gates. USB/Bluetooth/serial/MIDI need separate need/API assessment before exposure; do not grant them globally. |
 | Everyday browser tools | Upload/download, safe filenames, progress/cancel/retry, find, zoom, selection, context menus, PDF/print, spellcheck, keyboard/IME, accessibility and touch | Much exists; open reported context-image failure, packaged PDF/print/spellcheck, accessibility/IME and actual input checks. Keep keyboard/assistive-device evidence distinct from offscreen fixtures. |
@@ -70,13 +89,13 @@ establishes a concrete dependency. Notifications remain deliberately off.
 
 ## Execution order and ownership
 
-1. Close the small HTTPS source change and its native tests. Independently assess
-   runtime launch/packaging security while the patched-engine drive is unavailable.
-2. Recover access to existing candidate artifacts, verify their hashes and current
-   process ownership, then investigate the stalled freeze regression in a fresh
-   lane. Preserve every failed receipt and the original worker's hosting-test edit.
+1. HTTPS source change and native tests are preserved in `46c2261c`. The evidence
+   drive is restored; the freeze change is integrated with receiving verification.
+2. Continue runtime launch/packaging security review directly. Hemanth stopped the
+   Preflight loop and scheduled checks; already-sent replies may still arrive.
+   Preserve every failed receipt and the original worker's hosting-test edit.
 3. Implement the smallest proven security gap, with a regression and negative
-   controls. Keep each Preflight assignment to one objective. Codex owns review,
+   controls. Keep each direct development slice to one objective. Codex owns review,
    integration, explicit-path commits and GitLab preservation.
 4. Select/build a runtime configuration that retains required browser features,
    carries the popup fix and records security-patch provenance. Qualify features

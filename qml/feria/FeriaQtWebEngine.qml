@@ -137,18 +137,30 @@ WebEngineView {
         else contextMenuController.cancel()
     }
     onFreezeBackgroundChanged: if (!freezeBackground) wakePage()
+    // The deadline belongs to uninterrupted eligibility, not each JS callback.
+    readonly property bool freezeEligible: freezeBackground && !visible && !closingSession
+        && !lifecycleBlocked && !rendererLost && !adoptingWindowRequest
+        && !recentlyAudible
+        && recommendedState !== WebEngineView.LifecycleState.Active
+        && lifecycleState === WebEngineView.LifecycleState.Active
+    property bool freezeIdleDeadlineElapsed: false
+    onFreezeEligibleChanged: if (!freezeEligible) freezeIdleDeadlineElapsed = false
+    onFreezeDelayChanged: freezeIdleDeadlineElapsed = false
+    function tryFreezeAfterIdleDeadline() {
+        if (freezeIdleDeadlineElapsed && freezeEligible && pendingJavaScript === 0)
+            lifecycleState = WebEngineView.LifecycleState.Frozen
+    }
+    function deferFreezeAfterJavaScript() {
+        if (freezeIdleDeadlineElapsed && freezeEligible && pendingJavaScript === 0)
+            Qt.callLater(function() { browser.tryFreezeAfterIdleDeadline() })
+    }
     Timer {
         id: freezeTimer
         interval: browser.freezeDelay
-        running: browser.freezeBackground && !browser.visible && !browser.closingSession
-            && !browser.lifecycleBlocked && !browser.rendererLost && !browser.adoptingWindowRequest
-            && !browser.recentlyAudible
-            && browser.recommendedState !== WebEngineView.LifecycleState.Active
-            && browser.lifecycleState === WebEngineView.LifecycleState.Active
+        running: browser.freezeEligible && !browser.freezeIdleDeadlineElapsed
         onTriggered: {
-            if (browser.pendingJavaScript === 0 && !browser.lifecycleBlocked)
-                browser.lifecycleState = WebEngineView.LifecycleState.Frozen
-            else restart()
+            browser.freezeIdleDeadlineElapsed = true
+            browser.tryFreezeAfterIdleDeadline()
         }
     }
     // Drain callbacks before the owner destroys this view. In Qt 6.11.1 a
@@ -177,6 +189,7 @@ WebEngineView {
         javascriptTickets = ({})
         // The engine will never answer these; the native ledger drops them too.
         if (runtime) runtime.retireWork(browser)
+        deferFreezeAfterJavaScript()
     }
     function finishJavaScript(ticket, result, callback) {
         if (javascriptTickets[ticket.id] !== ticket) return
@@ -192,6 +205,7 @@ WebEngineView {
                     && typeof callback === "function") callback(result)
         } finally {
             notifySafeToDestroy()
+            deferFreezeAfterJavaScript()
         }
     }
     function evaluateJavaScript(script, callback) {
