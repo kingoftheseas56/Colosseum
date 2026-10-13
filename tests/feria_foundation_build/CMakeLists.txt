@@ -25,6 +25,12 @@ endif()
 add_executable(feria_session_ownership_test "${ROOT}/tests/feria_session_ownership_test.cpp")
 target_link_libraries(feria_session_ownership_test PRIVATE foundation_owners Qt6::Test)
 enable_testing()
+add_executable(webengine_startup_policy_test
+    "${ROOT}/tests/webengine_startup_policy_test.cpp"
+    "${ROOT}/native/WebEngineStartupPolicy.cpp")
+target_include_directories(webengine_startup_policy_test PRIVATE "${ROOT}/native")
+target_link_libraries(webengine_startup_policy_test PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME startup_policy COMMAND webengine_startup_policy_test)
 add_test(NAME foundation_policy COMMAND feria_foundation_policy_test)
 add_test(NAME session_ownership COMMAND feria_session_ownership_test)
 add_executable(feria_hosting_state_test "${ROOT}/tests/feria_hosting_state_test.cpp")

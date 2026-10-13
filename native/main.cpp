@@ -41,6 +41,7 @@
 #include <functional>
 
 #include "ClipboardHelper.h"
+#include "WebEngineStartupPolicy.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
 #include "CollectionStore.h"
@@ -533,6 +534,14 @@ int main(int argc, char *argv[]) {
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
         std::printf("Colosseum %s\n", COLOSSEUM_VERSION);
         return 0;
+    }
+    // Before QApplication and WebEngine initialization: inherited Chromium
+    // switches must not turn ordinary browser/EPUB launches into unsafe ones.
+    if (const auto error = WebEngineStartupPolicy::currentViolation(argc, argv);
+        !error.isEmpty()) {
+        std::fprintf(stderr, "Colosseum cannot start WebEngine safely: %s\n",
+                     qPrintable(error));
+        return 78;
     }
     // mpvqt renders through OpenGL, so the whole Quick scene must use the OpenGL RHI
     // backend (set process-wide, before the QGuiApplication). Proven 2026-06-27 that

@@ -1,0 +1,42 @@
+# Feria transport security fixture
+
+Run `run_transport.py` with Python 3.11+, `cryptography` and `psutil`, an accepted
+candidate manifest and a fresh output directory:
+
+```powershell
+python tests/feria_security_probe/run_transport.py `
+  --manifest <candidate-manifest.json> --variant codec --out <new-evidence-directory>
+```
+
+Repeat with `--variant stock` and another output directory for the stock pairing.
+The manifest uses the existing popup-candidate contract: `pairings`, each with
+`variant`, `runtimeRoot` and `selectedBinaries` containing `path` and `sha256`.
+The selected runtime must contain the accepted `feria_foundation_runtime` runner.
+The script records its hash as well as checking the manifest's selected files;
+receiving review must match the recorded runner to the accepted build. It refuses
+to launch while an existing foundation runner or WebEngine helper is observed.
+
+Five ephemeral HTTPS listeners bind only to 127.0.0.1. A generated CA is trusted
+only by the fixture's off-the-record WebEngine profile, through
+`WebEngineProfilePrototype.additionalTrustedCertificateFiles`. The system trust
+store is never modified. Certificate keys, profiles and evidence stay in the output
+directory and must not be committed or distributed with the app.
+
+The generated QML imports the current repository's real `FeriaQtWebEngine` and its
+request controller. It proves successful trusted TLS before asserting distinct
+expired, wrong-host and untrusted failures, including an HTTPS redirect to an
+expired endpoint. It checks CORS denial with a successful CORS control, cross-origin
+iframe denial, CSP enforcement with an inline-script control, local-file fetch
+denial and absence of selected native objects in the remote JavaScript context.
+
+It records the native root exit directly with file-backed stdout/stderr, source
+hashes, observed module/helper paths and remaining sampled child processes. A
+timeout is an incomplete run, not success: inspect its recorded PID and do not
+start another browser test until ownership/activity is resolved. The runner does
+not kill an unknown or timed-out process.
+
+Scope limits: this is a real-engine fixture, not the installed app, a full bridge
+audit, mixed-content qualification, sandbox-token proof or provider acceptance.
+Offscreen graphics warnings do not establish working GPU playback. The wrapper's
+existing fallback profile currently emits Qt's profile-construction deprecation
+warning; retain it in the raw log rather than hiding it.

@@ -1,0 +1,122 @@
+import QtQuick
+import QtTest
+import QtWebEngine
+import @FERIA_IMPORT@ as Feria
+import "FixtureConfig.js" as Config
+
+Item {
+    id: stage
+    width: 900; height: 700
+    WebEngineProfilePrototype {
+        id: prototype
+        additionalTrustedCertificateFiles: [Config.values.caFile]
+    }
+    Component {
+        id: browserFactory
+        Feria.FeriaQtWebEngine {
+            width: 900; height: 700
+            sourceUrl: "about:blank"
+            profilePath: Config.values.profilePath
+            sharedProfile: stage.testProfile
+            appLayout: false; appKeyboard: false; observationEnabled: false
+        }
+    }
+    property var testProfile: null
+    TestCase {
+        id: suite
+        name: "FeriaTransportSecurity"
+        when: windowShown
+        property var browser: null
+        property var errors: []
+        property var completion: null
+        Connections {
+            target: suite.browser
+            function onCertificateError(error) {
+                suite.errors = suite.errors.concat([Number(error.type)])
+            }
+            function onCompleted(location, success) {
+                if (String(location) !== "about:blank")
+                    suite.completion = {url: String(location), success: success}
+            }
+        }
+        function initTestCase() {
+            stage.testProfile = prototype.instance()
+            verify(stage.testProfile !== null)
+            verify(stage.testProfile.offTheRecord)
+        }
+        function init() {
+            errors = []; completion = null
+            browser = browserFactory.createObject(stage)
+            verify(browser !== null)
+        }
+        function cleanup() {
+            if (!browser) return
+            browser.prepareForClose(false)
+            tryCompare(browser, "destructionNotified", true, 10000)
+            browser.destroy(); browser = null
+            tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 0, 10000)
+        }
+        function navigate(url, success) {
+            completion = null
+            browser.sourceUrl = url
+            tryVerify(function() { return completion !== null }, 15000)
+            compare(completion.success, success)
+        }
+        function js(source) {
+            var done = false, result
+            verify(browser.evaluateJavaScript(source, function(value) { result = value; done = true }))
+            tryVerify(function() { return done }, 5000)
+            return result
+        }
+        function test_tls_data() {
+            return [
+                {tag: "trusted-valid", endpoint: "valid", success: true, error: 0},
+                {tag: "expired", endpoint: "expired", success: false, error: -201},
+                {tag: "wrong-host", endpoint: "wrongHost", success: false, error: -200},
+                {tag: "untrusted", endpoint: "untrusted", success: false, error: -202}
+            ]
+        }
+        function test_tls(row) {
+            navigate(Config.values[row.endpoint] + "/page", row.success)
+            if (row.success) {
+                compare(errors.length, 0)
+                compare(js("document.getElementById('fixture').textContent"), "accepted")
+                compare(js("window.isSecureContext"), true)
+            } else {
+                verify(errors.indexOf(row.error) >= 0, "Expected certificate error " + row.error + ", observed " + errors)
+                verify(String(browser.url).indexOf("http://") !== 0, "No HTTP fallback")
+            }
+        }
+        function test_redirectToInvalidTlsFails() {
+            navigate(Config.values.valid + "/redirect", false)
+            verify(errors.indexOf(-201) >= 0)
+        }
+        function test_originCorsAndNativeBoundary() {
+            navigate(Config.values.valid + "/page", true)
+            compare(js("typeof window.qt + ',' + typeof FeriaBrowserPolicy + ',' + typeof Sessions"),
+                    "undefined,undefined,undefined")
+            js("window.cors='pending';fetch(" + JSON.stringify(Config.values.crossOrigin + "/secret")
+                + ").then(r=>r.text()).then(()=>window.cors='leaked').catch(()=>window.cors='blocked');true")
+            tryVerify(function() { return js("window.cors") !== "pending" }, 5000)
+            compare(js("window.cors"), "blocked")
+            js("window.cors='pending';fetch(" + JSON.stringify(Config.values.crossOrigin + "/cors")
+                + ").then(r=>r.text()).then(t=>window.cors=t).catch(()=>window.cors='failed');true")
+            tryVerify(function() { return js("window.cors") !== "pending" }, 5000)
+            compare(js("window.cors"), "fixture-secret")
+            js("window.frameReady=false;let f=document.createElement('iframe');f.id='foreign';f.onload=()=>window.frameReady=true;f.src="
+                + JSON.stringify(Config.values.crossOrigin + "/page") + ";document.body.appendChild(f);true")
+            tryVerify(function() { return js("window.frameReady") === true }, 5000)
+            compare(js("(()=>{try{return document.getElementById('foreign').contentWindow.document.body.textContent}catch(e){return e.name}})()"), "SecurityError")
+            js("window.fileRead='pending';fetch(" + JSON.stringify(Config.values.secretFile)
+                + ").then(r=>r.text()).then(()=>window.fileRead='leaked').catch(()=>window.fileRead='blocked');true")
+            tryVerify(function() { return js("window.fileRead") !== "pending" }, 5000)
+            compare(js("window.fileRead"), "blocked")
+        }
+        function test_cspBlocksInlineScript() {
+            navigate(Config.values.valid + "/page", true)
+            compare(js("window.inlineRan"), true)
+            navigate(Config.values.valid + "/csp", true)
+            compare(js("typeof window.inlineRan"), "undefined")
+        }
+    }
+}

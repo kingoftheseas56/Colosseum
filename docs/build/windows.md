@@ -89,6 +89,40 @@ The release installer additionally bundles the Stremio stream-server runtime and
 
 ## Verification
 
+### WebEngine startup configuration
+
+The production launcher validates inherited engine options before constructing the
+application or initializing WebEngine. Unsafe or unreviewed configuration exits
+with code 78 and a diagnostic on stderr. `--version` remains a metadata-only path.
+This applies to both Feria and the shared EPUB engine.
+
+Remove `QTWEBENGINE_DISABLE_SANDBOX` entirely: Qt treats even an empty value or
+`0` as disabling sandboxing. `QTWEBENGINE_REMOTE_DEBUGGING` is also rejected.
+There is no production debug bypass. Use a separate owned diagnostic harness when
+debugging an engine; do not browse signed-in services through unsafe harness flags.
+
+`QTWEBENGINE_CHROMIUM_FLAGS` and arguments following `--webEngineArgs` accept only:
+
+- `--disable-gpu`, `--disable-gpu-compositing`,
+  `--disable-accelerated-video-decode`, `--disable-accelerated-video-encode`;
+- `--use-gl=desktop`, `--use-gl=egl`, `--use-gl=angle`;
+- `--use-angle=default`, `--use-angle=d3d11`, `--use-angle=gl`;
+- `--enable-logging`, `--disable-logging`, `--log-level=0` through `3`,
+  and `--v=0` through `3`.
+
+Use exact unquoted options separated by ASCII spaces in the environment variable;
+use a single `--name=value` argument for valued command-line options. Both sources
+are validated, including argv options currently overridden by the environment.
+Additional options require policy review. Ordinary Qt graphics configuration,
+such as `QSG_RHI_BACKEND`, and the existing player selection remain untouched.
+
+This guard constrains launch inputs; it does not verify the runtime's build,
+sandbox activity or security-patch level. Those remain separate qualification gates.
+
+The isolated policy suite is configured from `tests/webengine_startup_build` with
+Qt Core/Test. It is also registered in `tests/feria_foundation_build`. The actual
+transport fixture is documented in [the security probe](../../tests/feria_security_probe/README.md).
+
 A build is only compilation evidence. Run the tests or assembled-app journey relevant to the change you made, then report exactly what passed.
 
 The repository's public verification references are indexed from [../README.md](../README.md). For contribution expectations, see [../../CONTRIBUTING.md](../../CONTRIBUTING.md).

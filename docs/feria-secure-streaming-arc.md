@@ -1,8 +1,9 @@
 # Feria: secure streaming browser arc
 
 Plan created 2026-10-14. Baseline: `60b12d129b6075e2a9b83ea4fb915431950f6cf4`
-on `codex/feria-release-packaging`. This document authorizes no release and records
-no new implementation. Hemanth requested the arc before further development.
+on `codex/feria-release-packaging`. Hemanth subsequently authorized implementing
+the complete arc directly. Checkpoints below record progress; release remains a
+separate gate.
 
 ## Outcome and scope
 
@@ -42,6 +43,13 @@ home page as completed provider qualification. Historical failures remain eviden
 even when a later bounded regression passes.
 
 ## Work sequence
+
+Implementation checkpoint, 2026-10-14: F1.1's source guard and 52 policy/process
+checks pass; full-app build/launch verification remains in progress. F1.2 has new
+stock and codec real-wrapper TLS/origin fixtures (9/0/0, root exit 0 each), covering
+the cases recorded in the security ledger. Mixed content, complete native-boundary
+review and installed runtime proof remain open. No phase is marked complete from
+these narrower results.
 
 | Phase | Objective | Depends on | Completion gate |
 | --- | --- | --- | --- |
@@ -256,6 +264,7 @@ accounts/devices remain explicitly unverified while independent work proceeds.
 | DRM/CDM, embedded-login policy, accounts, region and hardware | Early F2.4 feasibility separates external constraints from fixable Feria defects; final provider proof waits only on the relevant prerequisite |
 | No final installed/provider qualification for the latest changes | Remains open through F6/F7; source and fixture success cannot close it |
 
-**First implementation slice when Hemanth resumes: F1.1, the production WebEngine
-startup guard.** No known source-work blocker. Runtime proof is conditional on the
-required build artifacts being available. The arc itself does not start that work.
+**Current implementation slice: F1.1 production startup verification, followed by
+the remaining F1 security boundaries.** The startup policy and transport fixture
+checks above pass. Complete-app build/launch verification remains in progress;
+subsequent phases retain their original scope and completion requirements.

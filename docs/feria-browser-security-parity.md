@@ -29,6 +29,26 @@ H.264 test does not prove subscription playback, HD quality or Widevine eligibil
 
 ## Evidence at this checkpoint
 
+- Production startup now validates external Chromium options before WebEngine and
+  application initialization. Presence-based sandbox disabling, remote debugging
+  and all options outside a reviewed graphics/logging list are refused with exit
+  78; raw values are not logged. Policy baseline: 8 passed/39 failed with no guard;
+  implementation: 52 passed/0 failed, including native subprocess checks of argv
+  and inherited environment. The changed launcher translation unit compiled in the
+  ongoing full application build; complete-app launch proof is still pending.
+  See [permitted options](build/windows.md#webengine-startup-configuration).
+- The new real-wrapper transport fixture passed 9/0/0 with native exit 0 on each
+  accepted stock and codec candidate. It proves valid HTTPS, rejection of expired,
+  wrong-host and untrusted certificates, a redirect to expired TLS, CORS with a
+  positive control, cross-origin iframe rejection, CSP with a positive control,
+  local-file fetch rejection and absence of selected native globals. Test CA trust
+  is profile-only; OS trust was unchanged. Source hashes stayed stable and observed
+  WebEngine modules matched the candidate manifest. Stock additionally recorded
+  sampled helper identities and their exits; codec's initial run had an independent
+  post-run process check. Retain offscreen GPU errors and existing profile-creation
+  deprecation warnings: these runs do not prove GPU/media rendering, every native
+  boundary, mixed-content handling, sandbox activity or installed-provider behavior.
+
 - `FeriaBrowserPolicy::navigationUrl()` now defaults bare public addresses to HTTPS,
   including ports. Explicit HTTP is preserved, as are `localhost`, `127.0.0.1` and
   `::1` loopback defaults. There is no automatic HTTP retry on TLS failure. This is

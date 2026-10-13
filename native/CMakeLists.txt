@@ -230,6 +230,8 @@ add_executable(colosseum
     engine/TankoyomiNetworkPolicy.cpp
     engine/TankoyomiNetworkPolicy.h
     main.cpp
+    WebEngineStartupPolicy.cpp
+    WebEngineStartupPolicy.h
     bootstrap/InstanceLock.cpp
     bootstrap/InstanceLock.h
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
