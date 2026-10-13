@@ -1,9 +1,34 @@
 # Feria: secure streaming browser arc
 
 Plan created 2026-10-14. Baseline: `60b12d129b6075e2a9b83ea4fb915431950f6cf4`
-on `codex/feria-release-packaging`. Hemanth subsequently authorized implementing
-the complete arc directly. Checkpoints below record progress; release remains a
-separate gate.
+on `codex/feria-release-packaging`. Planning refresh: 2026-10-14, inspected HEAD
+`8a1cfd667877596060eb009b1409f0315853659f`. This refresh organizes the full scope;
+it does not begin implementation. Checkpoints below record earlier progress;
+release remains a separate gate.
+
+## Arc at a glance
+
+| Order | In Hemanth's terms | What lets us move on |
+| --- | --- | --- |
+| 1 | Make the browser safe, and show which site you are actually using | Startup protections, connection/origin display and hostile-page boundary checks |
+| 2 | Make sure our engine can actually support streaming | Pinned engine, observed sandbox, required build features, early DRM and login feasibility |
+| 3 | Make windows, sign-in storage and restarts dependable | Popup input, ordinary/private separation, storage retention and clean lifecycle journeys |
+| 4 | Make playback and permitted devices work properly | Media controls, web APIs, capture consent, revocation and appropriate freeze behavior |
+| 5 | Finish the browser tools people need day to day | Navigation, files, PDFs, input, accessibility and harmful-content handling |
+| 6 | Make the installed app as reliable as the development build | Exact packaged runtime, install/upgrade checks and authenticated updates |
+| 7 | Prove the streaming sites work | Separate public, account, retained-login and actual playback results for each provider |
+| 8 | Decide what we can ship and keep it secure | Evidence-linked release decision, stated limitations and an engine maintenance process |
+
+All eight phases remain open until their detailed gates below are met. Existing
+features are verified and extended where needed, not rebuilt by default. The
+checkpoints are historical evidence, not a fresh runtime audit performed during
+this planning refresh.
+
+**First bounded task when development resumes: finish receiving review of the
+in-progress security slice.** Inspect the existing startup/mixed-content results
+and origin-display changes, resolve only demonstrated gaps, and preserve the
+verified slice before opening another implementation task. The exact acceptance
+checklist is at the end of this document. No loop or scheduled worker is needed.
 
 ## Outcome and scope
 
@@ -69,7 +94,7 @@ earlier task. Do not require unrelated optional features before testing streamin
 
 ### Phase 1 — Secure startup and privileged boundaries
 
-- **F1.1 — Next task: guard production WebEngine startup.** Inspect all effective
+- **F1.1 — Guard production WebEngine startup.** Inspect all effective
   environment and command-line inputs before `QtWebEngineQuick::initialize()`.
   Reject configurations that disable the sandbox, bypass certificate checks,
   weaken origin security or expose remote debugging. Preserve legitimate graphics
@@ -264,7 +289,37 @@ accounts/devices remain explicitly unverified while independent work proceeds.
 | DRM/CDM, embedded-login policy, accounts, region and hardware | Early F2.4 feasibility separates external constraints from fixable Feria defects; final provider proof waits only on the relevant prerequisite |
 | No final installed/provider qualification for the latest changes | Remains open through F6/F7; source and fixture success cannot close it |
 
-**Current implementation slice: F1.1 production startup verification, followed by
-the remaining F1 security boundaries.** The startup policy and transport fixture
-checks above pass. Complete-app build/launch verification remains in progress;
-subsequent phases retain their original scope and completion requirements.
+## Next task and stop line
+
+**Task: close the in-progress F1 security slice through receiving review.**
+
+The planning refresh found uncommitted origin-display, transport-test and startup
+test-driver changes alongside the original worker-owned hosting test. Their
+presence is not acceptance. Review the current bytes and existing receipts before
+deciding which additional checks are necessary.
+
+- [ ] Review `tests/webengine_startup_build/run_app.py` and its existing native
+  process receipts: rejected configurations must exit before WebEngine starts;
+  accepted configurations must run actual page JavaScript and exit cleanly.
+- [ ] Review `tests/feria_security_probe/run_transport.py` and
+  `tst_transport.qml.in`: distinguish a working HTTP positive control from actual
+  mixed-content blocking, and keep any fixture-only DNS setting out of production.
+- [ ] Review `native/feria/FeriaBrowserPolicy.h`, `FeriaSiteIdentity.qml` and its
+  three host integrations. Confirm the displayed origin removes credentials and
+  URL secrets, follows navigation, and does not equate HTTPS with site trust.
+- [ ] Check existing policy and site-identity results; finish only missing visual,
+  host geometry or input checks affected by the new header. Preserve earlier
+  failures and `tests/feria_hosting_probe/tst_Hosting.qml` ownership.
+- [ ] Update the security ledger with exact source/runtime evidence and limitations;
+  review the final diff, commit explicit owned paths and verify GitLab preservation.
+
+**Done:** a reviewable, preserved security slice with its actual verification
+record. This does not close all of F1 or qualify installed/provider behavior.
+Next, address F1.3 browser/native separation while bringing forward F2 runtime
+and streaming feasibility checks as their prerequisites are met.
+
+**Blockers:** no known account requirement for this first task. D: evidence and
+runtime availability must be checked when execution resumes; this planning refresh
+did not verify that drive. An unavailable build or receipt blocks only the claim
+that depends on it. Preserve unowned changes. Provider accounts, DRM availability,
+region and hardware can block later individual checks, not independent source work.
