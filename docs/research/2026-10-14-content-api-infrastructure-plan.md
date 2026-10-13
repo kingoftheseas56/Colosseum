@@ -64,7 +64,8 @@ Asset URLs solve artwork delivery; they do not supply a metadata library. Add a 
 | Wikidata QIDs | External aliases; creators, relationships, dates, languages and other structured facts where present |
 | Existing screen/anime/manga/comics providers | Medium-specific metadata and episode/volume/issue detail; continued use subject to each source's permitted access/reuse |
 | Open Library and existing book providers | Work/edition/author/ISBN facts; preserve existing Biblio canonicalization and field precedence |
-| MusicBrainz | Artists, musical works, recordings and releases when soundtrack/music metadata is needed |
+| YouTube Music (Vinyl) | Primary live music catalogue; retain provider browse/video IDs and selected release context |
+| MusicBrainz | Optional Vinyl identity/metadata enrichment; never a prerequisite for YouTube browsing or playback |
 | Colosseum curation | Universe membership, canon choices, reading/watch order, Tribute narrative and presentation |
 
 Wikidata's structured data is CC0 and accessible through entity retrieval, search and SPARQL interfaces. Use known-ID retrieval through the documented Action API (`wbgetentities`) or entity JSON; use `wbsearchentities` only to generate candidates. Bounded external-ID queries can help establish mappings. Do not call a broad SPARQL traversal from each catalogue-card request. Observe meaningful User-Agent identification, bounded concurrency, `maxlag` where applicable and Retry-After. [Wikidata access guidance](https://www.wikidata.org/wiki/Wikidata:Data_access), [API search and discovery](https://www.mediawiki.org/wiki/API:Search_and_discovery), [Wikimedia rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits).
@@ -80,6 +81,26 @@ Free-tier implementation: the existing local publisher runs bounded enrichment j
 Keep enrichment cursors, failed-match records and raw evidence locally with the publisher. Apply provider-specific budgets and the D1 daily write budget; a per-isolate timer is not a global API rate limiter. Proposed refresh defaults are 30 days for established facts and shorter, explicitly budgeted intervals for ongoing works. Only changed facts consume publication writes. Never mirror all of Wikidata or MusicBrainz into D1 Free. Access to a large external knowledge base does not require owning a full copy.
 
 Before implementation, qualify a 100-record sample spanning One Piece, Star Wars, DCAU and Cosmere, plus books/editions, ambiguous same-name works and relevant soundtrack examples. Record entity coverage, match precision, field completeness, API requests, storage bytes and write amplification. Include deliberately wrong film/book/edition candidates. The gate is zero incorrect accepted identity merges in the reviewed sample; missing coverage must have an explicit specialist-source or curated fallback. The sample is a proposed task, not completed evidence. Full new-title discovery beyond the seeded catalogue requires a separately budgeted provider-search adapter; cached enrichment alone does not constitute a complete worldwide catalogue.
+
+## Vinyl Arc 62 integration
+
+Arc 62's later R17/R18 decisions supersede the older MusicBrainz-only baseline: anonymous YouTube Music is the primary catalogue, MusicBrainz supplies optional metadata/identity enrichment, and Vinyl owns history, play counts, taste, Home and recommendations. A Google account is an optional sync adapter. The current Vinyl implementation owner confirms that backend contracts are prototypes and that no new production music database has been selected. Evidence: `Preflight-Architect/arcs/62-vinyl/claude-brainstorm-review-post-wave3/CLAUDE-REVIEW-RESPONSE.md`, R11/R17/R18 and the subsequent algorithm correction; the 2026-10-14 Vinyl gap review; the implementation owner's coordination update in this planning chat. These are research/review artifacts, not operating instructions.
+
+Keep three distinct data paths:
+
+| Path | Owner and API treatment |
+|---|---|
+| Shared metadata and curated relationships | This content API can publish approved MusicBrainz/Wikidata facts, aliases, credits, soundtrack-to-work relationships and artwork URLs. D1 holds the compact query projection; no full music corpus import is required. |
+| Live catalogue and playback resolution | Vinyl's provider adapter supplies YouTube search, releases and track IDs. Resolve expiring audio URLs at playback time; never put them in immutable snapshots or treat an old resolution as current playability. Stable artwork URLs and expiring stream URLs are different classes. |
+| Private profile state | Existing Colosseum library/history/preferences/progress owners remain authoritative. Do not create a shared D1 music-library table or new local store merely for enrichment. The first listening slice is inspecting reuse of profile-scoped ProgressStore; this is work in progress, not final adoption. |
+
+The title-registry guidance above applies where that registry already owns identity. Vinyl's direction is `entity kind + canonical UUID`: an MBID where already known, otherwise deterministic UUIDv5 from a defined provider-origin/source-key namespace. Preserve YouTube source mappings and saved UUIDs when later enrichment finds an MB match. Record reversible equivalence/redirect evidence; do not collapse release groups, releases, recordings, videos or musical works by title. Accommodate this identity owner instead of forcing music into the title registry. Namespace/key encoding and cross-registry links require contract qualification before publication.
+
+The implementation owner reports live anonymous search, album browsing and one Opus stream resolution through ytmusicapi/yt-dlp. Those are provider probes, not proof of completed native playback, production deployment or a working Cloudflare-hosted resolver. The first milestone remains search → chosen album → real sound → quit → resume. Full MusicBrainz ingestion / Arc 65 is outside its critical path.
+
+For the eventual service architecture, retain separate catalogue/enrichment/resolver interfaces. Proposed shared API additions are batch music identity lookup and typed cross-media relationships; the native adapter can consume them without a database download. Hosting the live YouTube adapter/resolver on Workers Free is a separate feasibility gate: prove runtime compatibility, provider reachability, request/CPU budgets and playback from the actual client network. A remotely resolved stream URL may not behave like a client-resolved URL. R2 and D1 do not solve that; local Python provider probes do not prove free hosted feasibility. Keep the current local adapter as the development path until that gate is qualified; it does not settle the eventual deployment location.
+
+Vinyl's algorithm work is also reusable direction: use Brainz-style methods and medium-specific evidence to build Colosseum-owned discovery across worlds. Metadata relationships alone cannot supply trending or personalized ranking. Retain timestamps, provenance and confidence for public observations; keep private listening evidence profile-scoped. Do not publish provider charts as if they were Vinyl's own computed lists. Algorithm implementation remains the Vinyl lane's responsibility.
 
 ## Proposed serving architecture
 
