@@ -1,8 +1,10 @@
 # Colosseum content API: infrastructure decision and action plan
 
-Research date: 14 October 2026. Status: recommended architecture; not provisioned or runtime-qualified.
+Research date: 14 October 2026. Status: final recommended plan, including hosted YouTube feasibility; deployment and cloud playback remain unqualified.
 
 **Recommendation under the final constraints: Cloudflare Workers Free + D1 Free for the content API, URL references for externally hosted assets, and Workers Static Assets for Colosseum-owned artwork and scene documents. Do not provision R2 for the initial service.** This replaces the earlier paid-Workers/R2 recommendation. Keep Supabase Free as a query-store comparison if D1's import or query limits prove unsuitable; it is not an automatic migration or paid fallback.
+
+**YouTube decision:** a hosted catalogue/resolver API is technically feasible, but the existing Python/yt-dlp helper is not a drop-in Workers deployment. Qualify it on an OCI Always Free VM behind the same API contract. This is a conditional runtime selection, not a claim that an available free VM or working cross-network playback has been secured. If no free host passes, retain Vinyl's current local adapter during development and report central-only music delivery as incomplete; do not silently replace the requested architecture or activate paid infrastructure.
 
 The user's constraints are decisive: only free services; no GitHub REST API dependency; only Colosseum apps initially; all catalogue, Universe and Tribute content served through APIs; no client database downloads or post-release content-pack installation. Asset records may contain URLs. Reading an image or JSON response transfers bytes normally, but never triggers a dataset sync or package installation. The native app owns rendering and interaction. User library, history and progress retain their existing ownership. API access is controlled; externally hosted images and our free static images are public URL resources, not protected media.
 
@@ -96,11 +98,103 @@ Keep three distinct data paths:
 
 The title-registry guidance above applies where that registry already owns identity. Vinyl's direction is `entity kind + canonical UUID`: an MBID where already known, otherwise deterministic UUIDv5 from a defined provider-origin/source-key namespace. Preserve YouTube source mappings and saved UUIDs when later enrichment finds an MB match. Record reversible equivalence/redirect evidence; do not collapse release groups, releases, recordings, videos or musical works by title. Accommodate this identity owner instead of forcing music into the title registry. Namespace/key encoding and cross-registry links require contract qualification before publication.
 
-The implementation owner reports live anonymous search, album browsing and one Opus stream resolution through ytmusicapi/yt-dlp. Those are provider probes, not proof of completed native playback, production deployment or a working Cloudflare-hosted resolver. The first milestone remains search → chosen album → real sound → quit → resume. Full MusicBrainz ingestion / Arc 65 is outside its critical path.
+The implementation owner reports live anonymous search, album browsing, one Opus stream resolution through ytmusicapi/yt-dlp, and an initial native Qt/MpvItem run persisting position 13.38 seconds for video `InEXiAJCOuA` in ProgressStore. Restart verification is still in progress in that chat. These are reported local results, not cloud deployment or cross-network playback evidence, and this infrastructure lane has not repeated them. Full MusicBrainz ingestion / Arc 65 is outside the first listening milestone's critical path.
 
-For the eventual service architecture, retain separate catalogue/enrichment/resolver interfaces. Proposed shared API additions are batch music identity lookup and typed cross-media relationships; the native adapter can consume them without a database download. Hosting the live YouTube adapter/resolver on Workers Free is a separate feasibility gate: prove runtime compatibility, provider reachability, request/CPU budgets and playback from the actual client network. A remotely resolved stream URL may not behave like a client-resolved URL. R2 and D1 do not solve that; local Python provider probes do not prove free hosted feasibility. Keep the current local adapter as the development path until that gate is qualified; it does not settle the eventual deployment location.
+Retain separate catalogue/enrichment/resolver interfaces and reuse the existing JSON helper operations `search(query)`, `album(browseId)` and `resolve(videoId)`. Search/album retain canonical UUIDs and original source IDs; resolve returns a transient HTTPS URL, request headers and codec/bitrate description that stay out of persisted progress. Proposed shared API additions are batch music identity lookup and typed cross-media relationships. The hosting decision and qualification gates below extend that seam without duplicating Vinyl's implementation.
 
 Vinyl's algorithm work is also reusable direction: use Brainz-style methods and medium-specific evidence to build Colosseum-owned discovery across worlds. Metadata relationships alone cannot supply trending or personalized ranking. Retain timestamps, provenance and confidence for public observations; keep private listening evidence profile-scoped. Do not publish provider charts as if they were Vinyl's own computed lists. Algorithm implementation remains the Vinyl lane's responsibility.
+
+## Hosted YouTube: feasibility and selected route
+
+**Yes to an API service; no claim of a reliable, unlimited, free hosted music backend yet.** Reuse the Vinyl chat's Vanced/ReVanced/InnerTune/Metrolist research: an Android client is not evidence that its provider access is performed by a central service. The relevant hosted precedents are Invidious, whose API exposes search/playlists/video formats, and Piped, whose deployment includes backend and proxy services. They establish architectural feasibility, not that their public instances are a free production dependency for Colosseum. [Invidious API](https://docs.invidious.io/api/), [Piped self-hosting](https://docs.piped.video/docs/self-hosting/).
+
+Four constraints determine the deployment:
+
+1. **Runtime:** Workers can run a small fetch/JSON adapter but cannot launch the current yt-dlp executable: `node:child_process` is a non-functional stub. Python support does not imply a normal server environment or support for all helper dependencies. A Worker-native port would be separate implementation and CPU qualification. Cloudflare Containers requires Workers Paid, so it is excluded. [Workers compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/), [Containers pricing](https://developers.cloudflare.com/containers/platform/pricing/).
+2. **Playback context:** the extractor's URL may depend on source IP, session or headers. A valid URL on the resolver machine is not proof it will play from a user's network. yt-dlp explicitly documents this class of failure; Invidious also documents direct Google-video delivery, so it is equally wrong to assume every stream always requires a relay. Measure the selected format/client path. [yt-dlp FAQ](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#i-extracted-a-video-url-but-it-does-not-play-on-another-machine--in-my-web-browser), [Invidious FAQ](https://docs.invidious.io/faq/).
+3. **Availability:** central traffic shares an origin network. Piped and Invidious document upstream IP blocking, and yt-dlp documents changing token requirements. Keep versioned dependencies, bounded retries and circuit breakers. Do not build the free budget around purchased proxies, user-cookie pooling, or public-instance hopping. [Invidious errors](https://docs.invidious.io/youtube-errors-explained/), [yt-dlp token guide](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide).
+4. **Provider permission:** successful extraction and open-source software are not a YouTube service agreement. The official Data API is not a drop-in native audio resolver; its policies restrict separated audio, background playback and API redistribution. Keep this distinction explicit when deciding production distribution; do not describe the unofficial adapter as an officially supported YouTube API. [YouTube API policies](https://developers.google.com/youtube/terms/developer-policies).
+
+| Runtime option | Result under the $0 constraint |
+|---|---|
+| Workers Free | Selected for authenticated gateway, shared metadata and queries. A small catalogue adapter might fit; no need to duplicate the existing helper before proving a benefit. Not selected to execute yt-dlp. |
+| OCI Always Free VM | First hosted-helper candidate. Normal Linux runtime can run the existing Python helper and required supported JS runtime. Current docs list A1 allowance equivalent to 2 OCPUs/12 GB, 200 GB combined block storage and 10 TB/month outbound. Capacity can be unavailable and idle instances can be reclaimed. Confirm actual tenancy allowance, Always Free labels and billing boundaries before provisioning; no trial credits or PAYG upgrade assumed. |
+| Render Free | Optional closed smoke test: Python runtime is suitable, but services sleep after 15 minutes, restart can take about a minute, and high service-initiated traffic can trigger suspension. Use only a billing configuration that suspends instead of charging. Not selected for dependable instant playback or a media relay. |
+| Existing always-on machine | Possible controlled beta origin with no new hosting subscription, if one is explicitly allocated. Electricity, connectivity, uptime and secure ingress remain requirements; an ordinary development laptop is not assumed to be an always-on server. |
+| Cloudflare Containers / paid VPS / paid proxy | Excluded by the current budget. |
+
+Sources: [OCI Always Free](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm), [Render Free](https://render.com/docs/free). No OCI tenancy or available VM has been verified. A read-only Cloudflare check confirmed the existing `getcolosseum.world` zone and its account; subsequent subscription/Worker inspection returned authentication error, so remaining quotas and deployment access are still unverified. No resources were created or plans changed.
+
+### Music service contract and operation
+
+Put the existing helper behind a small HTTP adapter on the qualified host; preserve its operations rather than maintaining an unrelated second catalogue parser. Pin the helper and dependencies in a reproducible deployment, give upstream requests deadlines, cap worker concurrency, and kill timed-out child processes. Deploy dependency fixes server-side without a client content download. Include adapter version in diagnostics and retain the previous working image/package for rollback.
+
+Proposed app-facing routes:
+
+| Route | Result |
+|---|---|
+| `GET /v1/music/search?q=...&kind=album&region=IN&language=en&cursor=...` | Canonical ID, source IDs, selected release facts and artwork URLs; bounded continuation; no stream URL |
+| `GET /v1/music/albums/{browseId}` | Exact release and ordered tracks; provider provenance and freshness |
+| `POST /v1/music/resolve` | Validated video ID plus playback capabilities; returns `transport`, transient `url`, allowlisted playback headers, codec, `expiresAt` when known, `contextId` and resolver version |
+| `POST /v1/metadata/batch` | Bounded canonical-ID lookup and approved external aliases/relationships, using the existing content API |
+
+Search/album travel app → authenticated Worker gateway → origin helper; the gateway forwards only validated fields and a short-lived origin credential. The origin also verifies authorization so a discovered origin hostname cannot bypass the gateway. Media travels directly to the provider when cross-network tests permit it. Resolve is private/no-store at shared caches; session-bound results must never be served from an album cache. If expiry is unknown, say so and resolve close to playback rather than inventing a long TTL.
+
+Only cache anonymous catalogue results shared across identical provider region, language, operation, arguments and adapter version. Proposed initial TTLs: search 2 minutes, album 15 minutes with a labelled stale display fallback up to 24 hours. Playability is rechecked separately. Coalesce duplicate requests, cancel abandoned searches, debounce input, and do not send one remote lookup per tile. Private account responses never enter shared caches. Provider continuation tokens remain bound to their originating context.
+
+Return distinct `UPSTREAM_BLOCKED`, `REGION_UNAVAILABLE`, `ITEM_REMOVED`, `RESOLVE_EXPIRED`, `UPSTREAM_CHANGED`, `QUOTA_EXHAUSTED` and `TEMPORARY_UNAVAILABLE` outcomes, with retryability and Retry-After where appropriate. A search failure is not an empty result. Cancellation/request generations fence stale results. Log IDs, timings and error classes; redact signed URL query strings, cookies and tokens.
+
+If direct delivery fails specifically because the origin-resolved stream cannot be consumed from the client network, test a **bounded relay on the same qualified origin**, without permanently storing audio. Relay URLs are short-lived, authenticated capabilities tied to an allowed video/format and concurrency budget. Handle Range, cancellation, expiry and seeking; never accept arbitrary proxy URLs. Origin resolution and origin fetch must share a compatible upstream context. The public media path must not pass through R2, Static Assets or an unqualified Worker bandwidth proxy.
+
+Relay volume is material even without storage: 160 kbit/s is approximately 72 MB/hour. At 1,000 daily listeners × 1 hour × 30 days, that is about 2.16 TB/month before overhead; 5,000 listeners would be about 10.8 TB. OCI's advertised 10 TB allowance is finite and shared. This is arithmetic, not measured capacity. Track bytes/concurrency, reserve headroom and fail closed before the permitted budget is exhausted. Do not promise permanent free relay capacity or use a trial-funded path.
+
+### Qualification without repeating Vinyl's work
+
+Reuse the existing anonymous-search/album/native-playback fixtures and known video IDs from **Audit vinyl arc gaps and plan**. Its owner explicitly confirms no cloud-hosted tests have been performed. Only run the following new hosting checks:
+
+1. Confirm an actual Always Free runtime and deploy the existing helper behind the proposed authenticated HTTP contract. Record versions and origin region. If provisioning/capacity is unavailable, record that blocker; the rest of the content API is independent.
+2. Verify hosted search and exact-album results against the already-captured local fixtures. Test continuation, region/language cache separation, rate limiting and upstream failure responses.
+3. Resolve on the host, then test playback from a genuinely different client egress network. Verify received media and progress in the existing native harness, not just HTTP 200 or the presence of a URL. Exercise one seek, expiry/re-resolve and network change. Use the already-authorized test content; no media mirroring.
+4. If necessary, test the bounded relay with the same cases. Record direct versus relay outcomes per format/context. No assertion that all formats share one binding rule.
+5. Run a small, quota-bounded multi-day stability sample, including process restart, upstream 403/429 and expired lease handling. Proposed acceptance targets: hosted catalogue p95 <=2 seconds warm, resolve p95 <=5 seconds warm, first sound <=8 seconds warm for the selected sample, correct release in every accepted mapping, and zero cross-profile leakage. These targets are not current results.
+6. Publish a capability result (`hostedCatalogue`, `directPlayback`, `relayPlayback`) based on evidence. Central-only Vinyl is complete only when the deployed path works from supported clients. A local fallback is a separately disclosed product choice, not evidence that this requirement passed.
+
+## Coverage across worlds, Tributes and metadata
+
+This is one shared content service with medium-specific adapters. It does not rename worlds or turn Tributes into another world. Include Vinyl as its active music surface without changing the existing navigation taxonomy in this infrastructure task.
+
+| Surface | Shared service content | Existing/private or provider-side responsibility |
+|---|---|---|
+| Tankoban | Manga/comics catalogue, aliases, series/volume/issue structure, filters, artwork URLs, curated links | Reader, files, progress, library and current content-provider resolution retain their owners |
+| Biblio | Work/edition/author/ISBN facts, search and provenance; reuse Open Library and existing Biblio field precedence | Local ebooks/audiobooks, reading/listening state and licensed/provider access |
+| Theatre | Film/series/anime catalogue, seasons/episodes, credits, external IDs and curated collections | Native playback and changing source availability/resolution; source hosts are not copied into the metadata store |
+| Universes | Structured franchise membership, canon branches, orders, characters/places and cross-media edges | Colosseum curation determines membership/order; user completion is private |
+| Tributes | Per-experience manifest, scenes, routes, hotspots, text, palettes, asset URLs and capability requirements | Existing native bespoke renderers and interaction; new executable mechanics still require an app release |
+| Vinyl | Hosted live music browse/resolve through the separately qualified origin; shared MB/Wikidata enrichment and cross-media links | Existing native player and profile library/history/progress/taste; no music DB mirror or permanent stream URLs |
+| Vault | Optional metadata lookup and enrichment for identified local items | Local paths, files, indexing, private collections and offline operation remain on the device; no automatic uploads |
+
+For every Universe and Tribute, publish its own logical catalogue (`catalogueId`, `universeId`, optional `tributeId`, revision), not a new physical database. A Universe can have multiple Tribute experiences. Shared work IDs prevent copies of the same book/film/song becoming unrelated records. Each manifest declares `rendererId`, `schemaVersion`, minimum capabilities, sections and asset references. New compatible data can appear without reinstalling; unsupported new behavior receives a clear compatibility response.
+
+Start with the existing One Piece, DCAU, Star Wars and Cosmere experiences, then every remaining inventory entry. Coverage is complete only when each surface's hardcoded/bundled content dependency has a mapped API owner, including text, map coordinates, ordering and variant images. Scene manifests must not contain executable QML/JS. Preserve native design and input behavior.
+
+Shared metadata is a typed graph, not a universal unqualified blob: `work`, `edition`, `episode`, `volume`, `issue`, `recording`, `release`, `person`, `character`, `place`, `universe`, with typed edges such as `adaptationOf`, `partOf`, `composedBy`, `performedBy`, `soundtrackFor` and curated `orderedAfter`. Every accepted edge carries provenance/confidence and relevant qualifiers. A soundtrack is related to a film, not identical to it. Respect ct1 title identity and Vinyl's UUID namespace without silently rewriting either.
+
+Wikidata supplies cross-media links where coverage exists; MusicBrainz supplies music structure; Open Library and current medium providers supply specialist facts. Keep source-specific license/attribution and freshness. Enrich selected entities server-side, never mirror the whole web into D1 or query every external provider on each screen. Colosseum computes shared discovery lists from eligible timestamped evidence; personal ranking uses private profile signals and remains independently owned. No new recommender database is mandated by this plan.
+
+```mermaid
+flowchart LR
+    App[Colosseum native apps] --> Gateway[Workers Free authenticated API]
+    Gateway --> D1[D1 catalogue and relationship projection]
+    Gateway --> Scenes[Internal versioned scene documents]
+    App --> Art[External artwork URLs and free Static Assets]
+    Gateway --> Music[Qualified free VM: Vinyl catalogue and resolver]
+    Music --> YT[Live YouTube provider]
+    App --> Playback[Direct provider media or bounded origin relay]
+    Publisher[Local publisher and bounded enrichment] --> D1
+    Publisher --> Scenes
+    Publisher --> Art
+    App --> Private[Existing local profile stores]
+```
 
 ## Proposed serving architecture
 
@@ -201,6 +295,8 @@ Illustrative assumptions: two sessions/user/day, 12 API responses/session, one c
 
 These are request-budget examples, not capacity promises. They exclude retries, background requests, quota consumed by other services, URL-health jobs and longer sessions requiring renewal. At the assumed interaction pattern, 10,000 DAU exceeds Workers Free regardless of asset URL savings. At zero JSON cache hits, 1,000 DAU would read 2.4 million D1 rows/day at 100 rows/query. A single unindexed 61,585-row search repeated 82 times can exceed 5 million reads. Fix scans before launch.
 
+Hosted music consumes this same gateway allowance. For example, another 20 resolve calls and 8 music browse calls per daily listener add 28,000 gateway requests at 1,000 listeners; combined with the 26,000-request catalogue example that is 54,000/day, before retries. D1 is not queried for every audio segment. Direct media or origin relay traffic is accounted separately in its own host budget. Measure the combined usage of all worlds; independent feature budgets cannot each assume the full free allowance.
+
 Set an initial operating target below 50,000 gateway requests and 2.5 million D1 rows read per day across the available account allocation, leaving room for bursts. Treat 80% consumption as a publication/prefetch reduction threshold; telemetry is not an exact admission-control counter. When a hard quota is reached, show cached results and an honest temporary-unavailability state. Do not weaken authentication or auto-enable payment. Fresh discovery can be unavailable until the quota reset. No free-only design can promise unlimited protected API traffic.
 
 Generate variants and perform ingestion locally. Exclude paid image/video transformation, new paid databases, paid runners and paid backup subscriptions. Measure CPU, query scans, active data size, asset count, latency, cache hit rates and errors. Sample/redact logs. Keep local archives and a tested rollback. Do not create multiple accounts to evade service limits.
@@ -220,10 +316,11 @@ Use `wrangler deploy` for Worker/static content and bounded D1 imports for the q
 | 3. Local vertical slice | Free Worker gateway, local D1 and Static Assets; one catalogue page plus One Piece overview/one sea and URL-based art | No DB/package client transfer; async loading/cancellation; scene/cursor tests; direct asset requests skip Worker |
 | 4. Provision free staging | Confirm Free plans, remaining account quotas, workers.dev hostname; create staging D1/Worker and scoped Cloudflare publisher credentials | No R2 or billable add-on; authenticated cache HIT/MISS, expired token, direct static URL and internal-path bypass probes pass |
 | 5. Decide query store with quota-bounded load | Run local load plus small remote/regional probes; quantify import writes and CPU; compare Supabase Free only if needed | Measured latency/scans/CPU fit Free; projected footprint and multi-day bootstrap schedule recorded |
+| 5M. Qualify hosted music alongside the content work | Infrastructure lane deploys Vinyl's existing helper on an available Always Free origin; Vinyl lane owns native contract/playback integration. Reuse its existing provider evidence | Hosted search/album, different-network playback, seek/expiry, restart and limited stability sample pass; direct/relay and spend limits documented. No free host or failed playback means this gate remains open |
 | 6. Build publication lifecycle | Stage candidate data/assets, validate, activate, roll back, restore into empty staging | Failed/partial publication never activates; concurrent publish and replica lag covered; rollback restores complete experience |
 | 7. Migrate native catalogue clients | Existing engine owners and QML callers; start IMDb, then MAL/Tankoban/comics, then Biblio ingestion/ranking | Search, filtering, infinite scroll, work routing, local-library behavior and provider-outage cases pass per domain |
 | 8. Migrate Universes and Tributes | Existing extension payload seam and all bespoke/template pages; extract each scene's data/assets | One Piece, DCAU, Star Wars, Cosmere and remaining roster have mapped content dependencies; visual/input parity; unsupported renderer behavior verified |
-| 9. Free production rollout | Production Worker/D1 within shared free quotas, staged client rollout, existing recovery copy, quota monitoring | Fresh install uses API only; content publication appears without reinstall; no catalogue updater, paid service or GitHub REST request; outage/quota/token-renewal tests pass |
+| 9. Free production rollout | Production Worker/D1 within shared free quotas, qualified music origin when 5M passes, staged client rollout, existing recovery copy, quota monitoring | Fresh install uses API only; content publication appears without reinstall; no catalogue updater, paid service or GitHub REST request; outage/quota/token-renewal tests pass. Do not claim central-only Vinyl before 5M passes |
 
 Steps 1-3 can begin immediately without R2 or GitHub REST. Steps 4-6 establish free-tier evidence before broad client conversion. Publication must stop cleanly when the day's write budget is insufficient and resume later. No purchase or paid upgrade is part of any step.
 
@@ -231,4 +328,4 @@ Proposed completion criteria: content updates are visible within 60 seconds of a
 
 ## Remaining decisions and evidence limits
 
-The recommendation selects free Worker/D1 qualification and URL-based art with free static hosting for owned assets. Remaining evidence: actual account Free-plan availability/remaining quotas, complete external URL inventory and suitability, query projection size, import write amplification, regional performance, guest-session abuse behavior and actual usage. These affect capacity and setup, not the API-only contract. No infrastructure resources, credentials, application code or source databases were changed during this research. R2 is unnecessary for the initial design; reconsider it only if a later explicit budget decision permits metered object storage.
+The recommendation selects Workers Free/D1 qualification, URL-based art and free static hosting for owned assets, plus an OCI Always Free origin candidate for the unchanged Vinyl helper. Remaining evidence: actual account Free-plan availability/remaining quotas and deployment permissions, available free VM capacity, cross-network music delivery, complete external URL inventory and suitability, query projection size, import write amplification, regional performance, guest-session abuse behavior and combined usage. The existing Cloudflare domain was verified read-only; deeper account inspection failed authentication. No hosted YouTube experiment has been executed, and no hosting/playback result is inferred from Vinyl's local probes. No infrastructure resources, credentials, application code or source databases were changed during this research. R2 is unnecessary for the initial design; reconsider it only if a later explicit budget decision permits metered object storage. If no zero-cost music origin qualifies, report that constraint conflict explicitly rather than presenting a local-only resolver as fulfillment of the hosted requirement.
