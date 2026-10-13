@@ -22,6 +22,7 @@ public:
     QString categoryFor(const QString& mediaType) const override {
         if (mediaType == QStringLiteral("books"))      return QStringLiteral("601");
         if (mediaType == QStringLiteral("audiobooks")) return QStringLiteral("102");
+        if (mediaType == QStringLiteral("music"))      return QStringLiteral("100");
         return {};
     }
 

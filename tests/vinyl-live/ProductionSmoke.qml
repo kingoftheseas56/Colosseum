@@ -7,6 +7,7 @@ Main {
     id:root
     property string probeStage:"open"
     property int probeTicks:0
+    property bool sawTorrent:false
     Timer {
         interval:250;running:true;repeat:true
         onTriggered: {
@@ -15,6 +16,7 @@ Main {
             if (root.probeStage==="open") {root.openWorld("Vinyl");root.probeStage="loaded";return;}
             if (!root.vinylWorld) return;
             var s=root.vinylWorld.session;
+            if(s.sourceKind==="torrent") root.sawTorrent=true;
             if (s.error || s.browseError) {console.error("VINYL_PRODUCTION_FAILURE",s.error || s.browseError);Qt.exit(9);return;}
             if (root.probeStage==="loaded") {s.search("Idhayathai Thirudathe Ilaiyaraaja");root.probeStage="search";}
             else if (root.probeStage==="search" && !s.browsing) {
@@ -26,7 +28,8 @@ Main {
                 s.playTrack(0);root.probeStage="play";
             } else if (root.probeStage==="play" && s.loaded && s.position>2) {
                 console.log("VINYL_PRODUCTION_OK",JSON.stringify({videoId:s.playingTrack.videoId,position:s.position,
-                    codec:s.player.mpvProperty("audio-codec"),channels:s.player.mpvProperty("audio-params/channel-count")}));
+                    codec:s.player.mpvProperty("audio-codec"),channels:s.player.mpvProperty("audio-params/channel-count"),
+                    source:s.sourceKind,torrentAttempted:root.sawTorrent,fallbackReason:s.fallbackReason}));
                 Qt.quit();
             }
         }

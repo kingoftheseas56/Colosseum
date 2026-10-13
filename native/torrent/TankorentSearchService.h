@@ -35,7 +35,7 @@ public:
                                     QObject* parent = nullptr);
     ~TankorentSearchService() override;
 
-    // mediaType: "books" / "audiobooks" / "videos" / "comics" / ""
+    // mediaType: "books" / "audiobooks" / "videos" / "comics" / "music" / ""
     //   When set, restricts to indexers in the internal allowlist for that
     //   type. Empty means no media-type filter (only sourceFilter applies).
     // sourceFilter: "all" or a specific indexer id (e.g. "piratebay"). When

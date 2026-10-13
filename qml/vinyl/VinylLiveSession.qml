@@ -36,6 +36,11 @@ Item {
     property int browseRequest: -1
     property string browseOperation: ""
     property int playRequest: -1
+    property var torrentProvider: typeof VinylTorrentProvider !== "undefined" ? VinylTorrentProvider : null
+    property int torrentRequest: -1
+    property string sourceKind: ""
+    property string fallbackReason: ""
+    property bool audioAdvanced: false
     property int epoch: 0
     property bool resetting: false
     property bool saved: false
@@ -122,16 +127,37 @@ Item {
         var old=player; player=null; loaded=false; seekPending=false;
         if (old) {old.pause=true;old.destroy();}
         VinylProvider.cancel("play"); playRequest=-1;
+        if (torrentProvider) torrentProvider.cancel();
+        torrentRequest=-1; audioAdvanced=false;
     }
     function beginTrack(seconds) {
         retirePlayer(); resumeSeconds=Math.max(0,seconds); error="";
-        sourceState="finding"; qualityLabel="YouTube Music";
-        if (!playingTrack.videoId || playingTrack.available===false) {
-            sourceState="error";error="This track is unavailable on YouTube. Choose another track.";paused=true;return;
-        }
+        sourceState="finding"; qualityLabel="Finding torrent";fallbackReason="";
         playbackRequested();
         paused=false;
+        if (torrentProvider) {
+            sourceKind="torrent";
+            torrentRequest=torrentProvider.resolve({artist:playingTrack.artist || playingEdition.artist,
+                album:playingEdition.title || playingEdition.name,title:playingTrack.title,
+                trackNumber:playingIndex+1,discNumber:playingDisc+1,durationMs:playingTrack.seconds*1000});
+        } else startYoutube("Torrent provider unavailable.");
+    }
+    function startYoutube(reason) {
+        var checkpoint=position;
+        retirePlayer();resumeSeconds=checkpoint;sourceKind="youtube";
+        fallbackReason=reason || "";sourceState="finding";qualityLabel="YouTube fallback";
+        if (!playingTrack.videoId || playingTrack.available===false) {
+            sourceState="error";error="No playable torrent or YouTube source is available for this track.";paused=true;return;
+        }
         playRequest=VinylProvider.request("play","resolve",playingTrack.videoId);
+    }
+    function playbackFailed(message) {
+        if (sourceKind==="torrent") {startYoutube(message);return;}
+        error=message;sourceState="error";paused=true;
+    }
+    function loadAudio(url,headers) {
+        player=audioComponent.createObject(root,{generation:epoch});
+        player.loadFileWithHeaders(url,headers || {});player.pause=paused;
     }
     function next(delta) {
         if (!queue.length) return;
@@ -181,6 +207,7 @@ Item {
         shownEdition=emptyEdition;playingEdition=emptyEdition;playingIndex=-1;queue=[];queueIndex=-1;
         results=[];library=[];saved=false;browsing=false;error="";browseError="";resumeSeconds=0;
         paused=true;sourceState="idle";resetting=false;
+        sourceKind="";fallbackReason="";
     }
     Component {
         id: audioComponent
@@ -197,6 +224,7 @@ Item {
             onPositionChanged: {
                 if (!current() || !root.loaded) return;
                 if (root.seekPending && Math.abs(position-root.resumeSeconds)<2) root.seekPending=false;
+                if (!root.seekPending && audioTracks.length>0 && position>root.resumeSeconds+0.1) root.audioAdvanced=true;
             }
             onEndFile: reason => {
                 if (!current() || !root.loaded) return;
@@ -204,11 +232,11 @@ Item {
                     if (root.queueIndex+1<root.queue.length) root.next(1);
                     else {root.resumeSeconds=root.duration;root.loaded=false;root.sourceState="ended";root.paused=true;root.snapshot();}
                 }
-                else if (reason==="error") {root.error="Playback stopped. Retry this track.";root.sourceState="error";root.paused=true;}
+                else if (reason==="error") root.playbackFailed("Playback stopped. Retry this track.");
             }
             onPlaybackError: (code,message) => {
                 if (!current()) return;
-                root.error="YouTube audio could not play. Retry this track.";root.sourceState="error";root.paused=true;
+                root.playbackFailed("The audio could not play. Retry this track.");
             }
         }
     }
@@ -225,9 +253,7 @@ Item {
                     root.sourceState="error";root.error=failure || "The source did not match this track.";root.paused=true;return;
                 }
                 root.qualityLabel=data.qualityLabel;
-                root.player=audioComponent.createObject(root,{generation:root.epoch});
-                root.player.loadFileWithHeaders(data.url,data.headers);
-                root.player.pause=root.paused;
+                root.loadAudio(data.url,data.headers);
             }
         }
         function onProfileLeaving() { root.clearProfile(); }
@@ -235,10 +261,21 @@ Item {
         function onCheckpointRequested() { root.snapshot(); }
         function onShuttingDown() { root.snapshot();root.resetting=true; }
     }
+    Connections {
+        target: root.torrentProvider
+        function onCompleted(id,data,failure) {
+            if (id!==root.torrentRequest || root.sourceKind!=="torrent") return;
+            root.torrentRequest=-1;
+            if (failure || !data.url) {root.startYoutube(failure || "No matching torrent file.");return;}
+            root.qualityLabel=data.qualityLabel || "Torrent audio";
+            root.loadAudio(data.url,{});
+        }
+    }
     Timer {interval:5000;repeat:true;running:root.loaded;onTriggered:root.snapshot()}
     Timer {
-        interval:30000;running:root.player!==null && !root.loaded && root.sourceState==="finding"
-        onTriggered:{root.retirePlayer();root.sourceState="error";root.error="The audio did not start. Retry this track.";root.paused=true;}
+        interval:root.sourceKind==="torrent" ? 15000 : 30000
+        running:root.player!==null && !root.audioAdvanced && !root.paused && root.sourceState!=="error"
+        onTriggered:root.playbackFailed("The audio did not start in time. Retry this track.")
     }
     Component.onCompleted: {restore();refreshLibrary();}
     Component.onDestruction: retirePlayer()

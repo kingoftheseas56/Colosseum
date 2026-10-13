@@ -2782,7 +2782,10 @@ target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Netw
 # (default ON); OFF skips registration entirely and changes nothing else — the
 # harness targets above build either way, exactly as before this seam existed.
 include(CTest)
-target_sources(colosseum PRIVATE vinyl/VinylProvider.h)
+target_sources(colosseum PRIVATE vinyl/VinylProvider.h
+    vinyl/VinylTorrentProvider.h vinyl/VinylTorrentProvider.cpp
+    torrent/MusicTorrentMatcher.h torrent/MusicTorrentMatcher.cpp
+    torrent/MusicTorrentQueryPlanner.h torrent/MusicTorrentQueryPlanner.cpp)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")

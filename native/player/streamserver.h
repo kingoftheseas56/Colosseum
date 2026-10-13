@@ -17,11 +17,16 @@
 #define COLOSSEUM_STREAMSERVER_H
 
 #include <QList>
+#include <QHash>
+#include <QPointer>
+#include <QSharedPointer>
+#include <QVariantList>
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
 
 class QProcess;
+class QNetworkReply;
 class QNetworkAccessManager;
 class QTimer;
 
@@ -48,6 +53,12 @@ public:
     // into mpv. (PlayerPage.qml loads EVERY streamReady it hears.)
     Q_INVOKABLE void prefetch(const QString &infoHash, int fileIdx);
 
+    // Request-scoped torrent access: independent of Theatre and download signals.
+    // IDs are caller-owned opaque tokens. Reusing an ID cancels its previous request.
+    Q_INVOKABLE virtual void requestManifest(const QString &requestId, const QString &infoHash);
+    Q_INVOKABLE virtual void requestFile(const QString &requestId, const QString &infoHash, int fileIdx);
+    Q_INVOKABLE virtual void cancelRequest(const QString &requestId);
+
     // Bring the engine up BEFORE anything is played. It used to spawn lazily on the first play(), so
     // every session paid a cold start at the worst possible moment -- the instant Play was pressed. A
     // cold server has an empty DHT and no tracker answers, so it must bootstrap, announce, handshake
@@ -72,6 +83,9 @@ public:
     Q_INVOKABLE void unwatchStats();
 
 Q_SIGNALS:
+    void torrentManifestReady(const QString &requestId, const QString &infoHash, const QVariantList &files);
+    void torrentStreamReady(const QString &requestId, const QString &url, const QString &infoHash, int fileIdx);
+    void torrentRequestError(const QString &requestId, const QString &message);
     void readyChanged();
     void startingChanged();
     void engineUnavailableChanged();
@@ -82,6 +96,20 @@ Q_SIGNALS:
     void streamStats(const QString &infoHash, int fileIdx, const QVariantMap &stats);
 
 private:
+    struct TorrentRequest {
+        QString id;
+        QString hash;
+        int fileIdx = -1;
+        int attempts = 0;
+        QPointer<QNetworkReply> reply;
+        QTimer *deadline = nullptr;
+        QTimer *retry = nullptr;
+    };
+    void beginTorrentRequest(const QString &id, const QString &hash, int fileIdx);
+    void registerTorrentRequest(const QSharedPointer<TorrentRequest> &request);
+    void failTorrentRequest(const QString &id, const QString &message);
+    QHash<QString, QSharedPointer<TorrentRequest>> m_torrentRequests;
+
     struct Pending {
         QString infoHash;
         int fileIdx;
@@ -104,6 +132,7 @@ private:
     QNetworkAccessManager *m_nam = nullptr;
     int m_port = -1;
     bool m_starting = false;
+    bool m_scopedStartup = false;
     bool m_engineUnavailable = false;
     QString m_stdoutBuf;
     QList<Pending> m_pending;

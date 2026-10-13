@@ -1,7 +1,7 @@
 # Vinyl live listening slice
 
 This implements anonymous YouTube Music album search, exact-release browsing,
-audio playback, seek, album queue, saved albums, and paused restoration after
+torrent-first audio playback with YouTube fallback, seek, album queue, saved albums, and paused restoration after
 restart. Claude's existing album, song and transport components are reused.
 The search/library wrapper is a development entry surface, not a replacement
 design for the approved Home/Discover experience.
@@ -13,8 +13,9 @@ design for the approved Home/Discover experience.
   MusicBrainz enrichment is optional and is not needed to open or play an album.
 - Catalogue priority and playback priority are separate. Torrent streaming is
   the preferred playback source; YouTube is the secondary, inexpensive fallback.
-  This first slice proves the YouTube fallback path only. Its current direct
-  resolver does not implement the intended torrent-first source selection.
+  The first delivery proved the YouTube fallback. The subsequent
+  [Tankorent 2.0 slice](tankorent-2-audit.md) adds bounded torrent acquisition,
+  exact file admission and audio startup fallback through the existing stream server.
 - `VinylProvider` is a replaceable, asynchronous process transport. Its two
   independently cancellable lanes are catalogue browsing and stream resolution.
 - `scripts/vinyl/provider.py` uses pinned `ytmusicapi` and `yt-dlp` dependencies.
@@ -110,10 +111,10 @@ Always check the process exit code, not only the success marker.
 
 ## Remaining boundaries
 
-No hosted resolver, cross-network URL validity, expiry recovery during playback,
+No hosted YouTube resolver, cross-network URL validity, expiry recovery during playback,
 relay, mobile/background service, installer dependency bundle, Google sync,
 MusicBrainz/Wikidata enrichment, listening-history/recommendation ingestion,
-lossless lane, lyrics, annotations or video mode is implemented by this slice.
+general lossless catalogue qualification, lyrics, annotations or video mode is implemented by this slice.
 Provider unavailability stops with an explicit retry action; it does not substitute
 a similarly named upload or loop through failing tracks. Album queues stop at
 the end. The provider is unofficial and can require adapter updates.

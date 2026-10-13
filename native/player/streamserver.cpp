@@ -5,6 +5,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QJsonArray>
+#include <cmath>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -72,10 +74,18 @@ StreamServer::StreamServer(QObject *parent)
     : QObject(parent)
 {
     m_nam = new QNetworkAccessManager(this);
+    connect(this, &StreamServer::readyChanged, this, [this]() {
+        if (!ready()) return;
+        const auto requests = m_torrentRequests.values();
+        for (const auto &request : requests)
+            if (!request->reply && !request->retry->isActive()) registerTorrentRequest(request);
+    });
 }
 
 StreamServer::~StreamServer()
 {
+    const auto ids = m_torrentRequests.keys();
+    for (const auto &id : ids) cancelRequest(id);
     if (m_proc) {
         // Teardown is not a startup failure. Disconnect lifecycle callbacks before
         // stopping the owned runtime so an intentional exit cannot emit the
@@ -109,9 +119,12 @@ void StreamServer::markEngineUnavailable(const QString &message)
 {
     // Requests queued before a terminal startup failure belong to the failed
     // attempt. Do not replay them later if the installation is repaired.
+    const bool reportLegacy = !m_pending.isEmpty() || !m_scopedStartup;
     m_pending.clear();
     setEngineUnavailable(true);
-    Q_EMIT streamError(message);
+    const auto ids = m_torrentRequests.keys();
+    for (const auto &id : ids) failTorrentRequest(id, message);
+    if (reportLegacy) Q_EMIT streamError(message);
 }
 
 QString StreamServer::findRuntimeDir() const
@@ -150,6 +163,7 @@ QString StreamServer::findRuntimeDir() const
 
 void StreamServer::warmUp()
 {
+    m_scopedStartup = false;
     // Deliberately nothing but ensureStarted(): no new state and no second code path. Warming and
     // playing must go through the SAME adopt-first probe, or a warm-up could spawn a child that then
     // clashes with the official service on :11470 -- the silent failure diagnosed 2026-07-05.
@@ -333,6 +347,7 @@ QString StreamServer::streamUrl(const QString &infoHash, int fileIdx) const
 
 void StreamServer::play(const QString &infoHash, int fileIdx)
 {
+    m_scopedStartup = false;
     if (infoHash.isEmpty()) {
         Q_EMIT streamError(QStringLiteral("This source has no torrent hash to play."));
         return;
@@ -347,6 +362,7 @@ void StreamServer::play(const QString &infoHash, int fileIdx)
 
 void StreamServer::prefetch(const QString &infoHash, int fileIdx)
 {
+    m_scopedStartup = false;
     if (infoHash.isEmpty()) {
         Q_EMIT streamError(QStringLiteral("This source has no torrent hash to fetch."));
         return;
@@ -357,6 +373,142 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx)
     }
     m_pending.append({infoHash, fileIdx, true});
     ensureStarted();
+}
+
+void StreamServer::requestManifest(const QString &requestId, const QString &infoHash)
+{
+    beginTorrentRequest(requestId, infoHash, -1);
+}
+
+void StreamServer::requestFile(const QString &requestId, const QString &infoHash, int fileIdx)
+{
+    if (fileIdx < 0) {
+        cancelRequest(requestId);
+        Q_EMIT torrentRequestError(requestId, QStringLiteral("Invalid torrent file index."));
+        return;
+    }
+    beginTorrentRequest(requestId, infoHash, fileIdx);
+}
+
+void StreamServer::cancelRequest(const QString &requestId)
+{
+    const auto request = m_torrentRequests.take(requestId);
+    if (!request) return;
+    request->deadline->stop();
+    request->deadline->deleteLater();
+    request->retry->stop();
+    request->retry->deleteLater();
+    // Removing the token first makes even a synchronous abort completion stale.
+    if (request->reply) request->reply->abort();
+}
+
+void StreamServer::failTorrentRequest(const QString &id, const QString &message)
+{
+    if (!m_torrentRequests.contains(id)) return;
+    cancelRequest(id);
+    Q_EMIT torrentRequestError(id, message);
+}
+
+void StreamServer::beginTorrentRequest(const QString &id, const QString &hash, int fileIdx)
+{
+    cancelRequest(id);
+    static const QRegularExpression validHash(QStringLiteral("^[a-fA-F0-9]{40}$"));
+    if (id.isEmpty() || !validHash.match(hash).hasMatch()) {
+        Q_EMIT torrentRequestError(id, QStringLiteral("Invalid torrent request or info hash."));
+        return;
+    }
+    auto request = QSharedPointer<TorrentRequest>::create();
+    request->id = id;
+    request->hash = hash.toLower();
+    request->fileIdx = fileIdx;
+    request->deadline = new QTimer(this);
+    request->retry = new QTimer(this);
+    request->deadline->setSingleShot(true);
+    request->retry->setSingleShot(true);
+    m_torrentRequests.insert(id, request);
+    connect(request->deadline, &QTimer::timeout, this, [this, request]() {
+        if (m_torrentRequests.value(request->id) == request)
+            failTorrentRequest(request->id, QStringLiteral("Torrent metadata request timed out."));
+    });
+    connect(request->retry, &QTimer::timeout, this, [this, request]() {
+        registerTorrentRequest(request);
+    });
+    request->deadline->start(45000);
+    if (ready()) registerTorrentRequest(request);
+    else {
+        if (!m_starting && !m_proc && m_pending.isEmpty()) m_scopedStartup = true;
+        ensureStarted();
+    }
+}
+
+void StreamServer::registerTorrentRequest(const QSharedPointer<TorrentRequest> &request)
+{
+    if (m_torrentRequests.value(request->id) != request || request->reply) return;
+    if (!ready()) { ensureStarted(); return; }
+    ++request->attempts;
+    const int port = m_port;
+    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/%2/create")
+                                .arg(port).arg(request->hash)));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setTransferTimeout(12000);
+    QNetworkReply *reply = m_nam->post(req, QByteArrayLiteral("{}"));
+    request->reply = reply;
+    reply->setReadBufferSize(2 * 1024 * 1024 + 1);
+    // Reject oversized metadata during receipt, before reading it into a document.
+    connect(reply, &QNetworkReply::readyRead, this, [this, request, reply]() {
+        if (m_torrentRequests.value(request->id) == request && reply->bytesAvailable() > 2 * 1024 * 1024)
+            failTorrentRequest(request->id, QStringLiteral("Torrent metadata exceeds the size limit."));
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, request, reply, port]() {
+        reply->deleteLater();
+        if (m_torrentRequests.value(request->id) != request) return;
+        request->reply.clear();
+        const QByteArray body = reply->readAll();
+        if (body.size() > 2 * 1024 * 1024) {
+            failTorrentRequest(request->id, QStringLiteral("Torrent metadata exceeds the size limit."));
+            return;
+        }
+        QJsonParseError parseError;
+        const auto document = QJsonDocument::fromJson(body, &parseError);
+        const auto files = document.object().value(QStringLiteral("files")).toArray();
+        if (reply->error() != QNetworkReply::NoError || parseError.error != QJsonParseError::NoError
+            || files.isEmpty()) {
+            if (request->attempts < 3) request->retry->start(1000);
+            else failTorrentRequest(request->id, QStringLiteral("Torrent metadata unavailable after three attempts."));
+            return;
+        }
+        QVariantList manifest;
+        for (int i = 0; i < files.size(); ++i) {
+            const auto file = files.at(i).toObject();
+            const QString name = file.value(QStringLiteral("name")).toString();
+            const double length = file.value(QStringLiteral("length")).toDouble(-1);
+            if (name.isEmpty() || !std::isfinite(length) || length <= 0
+                || length > 9007199254740991.0 || std::floor(length) != length) continue;
+            manifest.append(QVariantMap{{QStringLiteral("fileIdx"), i},
+                                        {QStringLiteral("name"), name},
+                                        {QStringLiteral("path"), file.value(QStringLiteral("path")).toString(name)},
+                                        {QStringLiteral("length"), static_cast<qint64>(length)}});
+        }
+        if (manifest.isEmpty()) {
+            failTorrentRequest(request->id, QStringLiteral("Torrent manifest has no valid files."));
+            return;
+        }
+        if (request->fileIdx < 0) {
+            cancelRequest(request->id);
+            Q_EMIT torrentManifestReady(request->id, request->hash, manifest);
+            return;
+        }
+        bool found = false;
+        for (const auto &file : manifest)
+            if (file.toMap().value(QStringLiteral("fileIdx")).toInt() == request->fileIdx) found = true;
+        if (!found || m_port != port) {
+            failTorrentRequest(request->id, QStringLiteral("Selected torrent file is unavailable."));
+            return;
+        }
+        const QString url = streamUrl(request->hash, request->fileIdx);
+        cancelRequest(request->id);
+        Q_EMIT torrentStreamReady(request->id, url, request->hash, request->fileIdx);
+    });
 }
 
 void StreamServer::flushPending()

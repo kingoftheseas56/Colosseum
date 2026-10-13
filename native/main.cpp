@@ -139,6 +139,7 @@
 #include "feria/FeriaBrowserPolicy.h"
 #include "feria/FeriaAccountStore.h"
 #include "vinyl/VinylProvider.h"
+#include "vinyl/VinylTorrentProvider.h"
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -1807,6 +1808,9 @@ int main(int argc, char *argv[]) {
         QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
             .absoluteFilePath("scripts/vinyl/provider.py"), &engine);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, vinylProvider, &VinylProvider::shuttingDown);
+    auto *vinylTorrent = new VinylTorrentProvider(dlNam, stream, &engine);
+    QObject::connect(vinylProvider, &VinylProvider::profileLeaving, vinylTorrent, &VinylTorrentProvider::cancel);
+    QObject::connect(vinylProvider, &VinylProvider::shuttingDown, vinylTorrent, &VinylTorrentProvider::cancel);
     auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
@@ -2005,6 +2009,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
     FeriaBrowserPolicy::registerTypes();
     engine.rootContext()->setContextProperty("VinylProvider", vinylProvider);
+    engine.rootContext()->setContextProperty("VinylTorrentProvider", vinylTorrent);
     engine.rootContext()->setContextProperty("VinylLiveEnabled", qEnvironmentVariableIntValue("COLOSSEUM_VINYL_LIVE") == 1);
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
                      vinylProvider, &VinylProvider::checkpointRequested);
