@@ -1,0 +1,104 @@
+# Feria browser compatibility and security
+
+Hemanth resumed development on 2026-10-14 with the goal of the Chrome capabilities
+needed for real services and safe general browsing. This is the acceptance ledger
+for that expanded scope. It is not a claim of full Chrome parity or a secure release.
+QtWebEngine remains the production engine route. Website notifications remain
+disabled; the earlier service scope did not include a password manager or ad blocker.
+
+## Security and site acceptance are different gates
+
+Valid TLS, sandboxing, origin isolation and an up-to-date engine protect the user.
+They do not guarantee that a provider accepts an embedded browser. Google explicitly
+restricts embedded user agents for OAuth. A provider-supported system-browser flow
+can authenticate a native integration; it does not automatically sign the embedded
+website into the same session. Do not copy cookies or spoof a successful security
+check to close this gap. Record the actual site, error and supported route.
+
+DRM similarly needs a compatible CDM, codec support and service acceptance. A local
+H.264 test does not prove subscription playback, HD quality or Widevine eligibility.
+
+## Evidence at this checkpoint
+
+- `FeriaBrowserPolicy::navigationUrl()` now defaults bare public addresses to HTTPS,
+  including ports. Explicit HTTP is preserved, as are `localhost`, `127.0.0.1` and
+  `::1` loopback defaults. There is no automatic HTTP retry on TLS failure. This is
+  address normalization, not a browser-wide HTTPS-only or HSTS implementation.
+  New regression: 6 expected failures before the fix; full native policy suite:
+  37 passed, 0 failed, root exit 0 after the fix. No installed-app claim.
+- `FeriaBrowserRequests.qml` rejects certificate errors and exposes origin-scoped
+  permission, client-certificate and WebAuthn flows. Existing request tests cover
+  cancellation, stale owners and certificate rejection; presence is not fresh
+  physical-device or provider qualification.
+- Shutdown fixture correction was verified and preserved in commit `a526c0f4`.
+  Popup binary qualification and installation remain separate outstanding gates.
+- The idle-freeze postponement mechanism was reproduced with a synthetic pending
+  JavaScript ticket. The proposed fix has no valid red/green result: its worker
+  reported a stalled first process, no QtTest output and no captured root exit.
+  Candidate evidence and patched binaries are currently on an unavailable drive.
+  Do not integrate the candidate from its report alone.
+- The checked-in codec recipe explicitly disables printing/PDF, spellchecking,
+  WebRTC, geolocation and extensions. It cannot be assumed to satisfy this target.
+  This is evidence about the recipe, not proof of features in every existing binary.
+- `verify_browser_runtime.ps1` checks required files exist and are nonempty.
+  That alone does not establish matching hashes, sandbox activity or security fixes.
+
+## Required capabilities and acceptance work
+
+“Open” below means implementation or proof remains; it does not imply every feature
+is absent. Each slice must first inspect its existing owner and existing tests.
+
+| Area | Required behavior | Remaining proof / implementation route |
+| --- | --- | --- |
+| Engine and updates | Supported Chromium security fixes, reproducible Qt patches, compatible DLL/helper/resources/plugins; timely signed upgrades | Open. Record native engine/base Chromium/security-patch versions and source provenance separately. Verify exact loaded modules and signed package/update integrity. Review startup flags, renderer sandbox and isolation in the shipped runtime. |
+| Transport and origin security | HTTPS defaults; reject invalid, expired and wrong-host certificates; enforce same-origin, CORS, CSP and mixed-content restrictions | HTTPS address policy tested. Open real negative TLS/origin fixtures, HTTP connection disclosure and redirect/downgrade behavior. Review local-file access, custom schemes and permission handling without weakening Chromium controls. |
+| Browser/native boundary | Remote pages cannot call privileged native stores, file/process APIs or forge application permission UI | Open targeted bridge/scheme review and hostile-page probes. Review injected scripts, subframes, new windows and navigation replacement. User-selected upload/download must not expose arbitrary local paths. |
+| Identity and login | Cookies, cross-site redirects, popup login, HTTP/proxy auth, passkeys and client certificates work with correct consent and cancellation | Existing request UI; open actual authentication flows. Use supported external login where required. Verify PIN cancellation/cleanup, origin display, private profiles and no stale grants. Hardware passkey acceptance needs an authenticator. |
+| Persistence and privacy | Correct cookies, localStorage, IndexedDB, cache/service-worker state, session restoration and private-mode isolation | Existing stores/tests; open reported retention-cookie failure and two-launch proof of the final runtime. Test clearing site data/sign-out across related origins, permission revocation, private disk absence and crash recovery. Never infer all storage from localStorage alone. |
+| Tabs and popups | Real typing/clicking after opener closes; correct target reuse, focus, back/forward, beforeunload, private ownership and clean shutdown | Open final receiving review of ordinary/private/nested popup evidence and installed-runtime journeys. Preserve the baseline lifetime safeguard until the patched runtime is qualified. |
+| Lifecycle and reliability | Idle tabs freeze without losing callbacks; audio/capture/download work stays alive; renderer failure recovers safely | Open freeze candidate red/green, independent stock verification, eligibility-reset/callback tests and root-exit proof. Retain shutdown and renderer failure controls. |
+| Media | HTML audio/video, required codecs, MSE/EME, fullscreen, seek, subtitles, audio selection, media session, hardware acceleration and PiP where required | Existing local codec evidence; open target-site playback and final-package tests. Treat DRM/CDM approval, actual media keys, device routing and capture as separate checks. |
+| Calls and devices | WebRTC audio/video, desktop capture, clipboard and geolocation with explicit origin-scoped consent and revocation | Open browser-capable build and real capture/cancel/revoke flows. Preserve operating-system permission gates. USB/Bluetooth/serial/MIDI need separate need/API assessment before exposure; do not grant them globally. |
+| Everyday browser tools | Upload/download, safe filenames, progress/cancel/retry, find, zoom, selection, context menus, PDF/print, spellcheck, keyboard/IME, accessibility and touch | Much exists; open reported context-image failure, packaged PDF/print/spellcheck, accessibility/IME and actual input checks. Keep keyboard/assistive-device evidence distinct from offscreen fixtures. |
+| Web platform compatibility | Service workers, fetch/WebSockets, storage quotas, WASM, canvas/WebGL and required modern APIs | Open small capability fixtures and actual target-site journeys against the pinned engine. Detect unsupported APIs honestly. A user-agent string change cannot supply a missing implementation. |
+| Harmful sites and files | Clear origin/connection display, popup abuse controls, safe external protocols, download consent, reputation protection and OS attachment provenance | Open source/API assessment. Do not assume Chrome Safe Browsing or malware scanning is included. Verify Windows attachment markings/launch behavior and choose a supported reputation integration if needed. |
+| Provider acceptance | Must-use sites load, sign in, retain sessions and perform their core action in the installed build | Open per-site matrix. Record exact URL, runtime identity, account-free result, account/DRM requirement, failure category and final result. A successful home page is insufficient. |
+
+Chrome account sync, Chrome Web Store compatibility, a password vault, payments,
+translation and extensions are separate product decisions unless a must-use service
+establishes a concrete dependency. Notifications remain deliberately off.
+
+## Execution order and ownership
+
+1. Close the small HTTPS source change and its native tests. Independently assess
+   runtime launch/packaging security while the patched-engine drive is unavailable.
+2. Recover access to existing candidate artifacts, verify their hashes and current
+   process ownership, then investigate the stalled freeze regression in a fresh
+   lane. Preserve every failed receipt and the original worker's hosting-test edit.
+3. Implement the smallest proven security gap, with a regression and negative
+   controls. Keep each Preflight assignment to one objective. Codex owns review,
+   integration, explicit-path commits and GitLab preservation.
+4. Select/build a runtime configuration that retains required browser features,
+   carries the popup fix and records security-patch provenance. Qualify features
+   in the actual package rather than infer them from build flags.
+5. Complete targeted browser journeys and installed-package restart/update checks.
+   Then run the named provider matrix, using Hemanth only where account consent,
+   an authenticator, paid entitlement or physical hardware is actually required.
+
+Automated fixtures and agent-operated runtime checks handle most work. Human
+testing is not a blanket prerequisite. Account/device checks remain explicitly
+unverified until performed. No aggregate “all secure” or “all sites supported”
+claim follows from passing component tests.
+
+## Primary references (checked 2026-10-14)
+
+- [Qt 6.11 security considerations](https://doc.qt.io/qt-6.11/qtwebengine-security.html)
+- [Qt settings and security defaults](https://doc.qt.io/qt-6.11/qwebenginesettings.html)
+- [Qt browser features, codecs and DRM](https://doc.qt.io/qt-6.11/qtwebengine-features.html)
+- [Qt Chromium base and backported security versions](https://wiki.qt.io/QtWebEngine/ChromiumVersions)
+- [Google OAuth browser policy](https://developers.google.com/identity/protocols/oauth2/policies#use-secure-browsers)
+
+Qt's current table lists 6.11.1 with Chromium base 140.0.7339.264 and security fixes
+through 148.0.7778.96, and 6.11.2 with the same base and security fixes through
+151.0.7922.71. These are upstream release facts, not verification of Feria's custom
+binaries. Verify the source/security metadata and actual package before adopting it.

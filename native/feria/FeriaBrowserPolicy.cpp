@@ -76,8 +76,19 @@ QUrl FeriaBrowserPolicy::navigationUrl(const QString &text) const
     if (input.isEmpty() || input.startsWith('/') || input.startsWith('\\')) return {};
     // Qt parsing, with no QFileInfo/fromLocalFile shortcut from the examples.
     // Host:port must be classified before a generic scheme (localhost:8123).
-    const QUrl url = QUrl::fromUserInput(hostWithPort(input)
+    const bool hasPort = hostWithPort(input);
+    QUrl url = QUrl::fromUserInput(hasPort
         ? QStringLiteral("http://") + input : input);
+    static const QRegularExpression explicitScheme(QStringLiteral("^[a-zA-Z][a-zA-Z0-9+.-]*:"));
+    const bool suppliedScheme = !hasPort && explicitScheme.match(input).hasMatch();
+    const QString host = url.host().toLower();
+    const bool localAddress = host == QStringLiteral("localhost")
+        || host == QStringLiteral("127.0.0.1") || host == QStringLiteral("::1");
+    // Bare public addresses start securely, including explicit ports. Preserve
+    // deliberate HTTP URLs and local fixture/device entry points. A failed TLS
+    // connection must not silently retry over HTTP.
+    if (!suppliedScheme && !localAddress && url.scheme() == QStringLiteral("http"))
+        url.setScheme(QStringLiteral("https"));
     const QString scheme = url.scheme().toLower();
     return (scheme == "http" || scheme == "https") && allows(url)
         && url.userInfo().isEmpty() ? url : QUrl{};

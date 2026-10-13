@@ -66,6 +66,27 @@ private slots:
         QCOMPARE(QUrlQuery(url).queryItems().size(), 1);
         QCOMPARE(QUrlQuery(policy.omniboxUrl("httpfoo")).queryItemValue("q"), "httpfoo");
     }
+    void secureAddressDefaults_data() {
+        QTest::addColumn<QString>("input");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("bare-host") << "example.org/path?q=one#part" << "https://example.org/path?q=one#part";
+        QTest::newRow("public-port") << "example.org:8443/path" << "https://example.org:8443/path";
+        QTest::newRow("public-ip") << "192.0.2.1/path" << "https://192.0.2.1/path";
+        QTest::newRow("public-ipv6") << "[2001:db8::1]:8443/path" << "https://[2001:db8::1]:8443/path";
+        QTest::newRow("explicit-http") << "http://example.org/path" << "http://example.org/path";
+        QTest::newRow("explicit-https") << "https://example.org/path" << "https://example.org/path";
+        QTest::newRow("local-fixture") << "localhost:8123/path" << "http://localhost:8123/path";
+        QTest::newRow("loopback-v4") << "127.0.0.1:8123/path" << "http://127.0.0.1:8123/path";
+        QTest::newRow("loopback-v6") << "[::1]:8123/path" << "http://[::1]:8123/path";
+        QTest::newRow("localhost-lookalike") << "localhost.example.org/path" << "https://localhost.example.org/path";
+        QTest::newRow("loopback-lookalike") << "127.0.0.1.example.org/path" << "https://127.0.0.1.example.org/path";
+    }
+    void secureAddressDefaults() {
+        QFETCH(QString, input); QFETCH(QString, expected);
+        FeriaBrowserPolicy policy;
+        QCOMPARE(policy.navigationUrl(input).toString(), expected);
+        QCOMPARE(policy.omniboxUrl(input).toString(), expected);
+    }
     void rejectedInput_data() {
         QTest::addColumn<QString>("input");
         for (const auto *text : {"javascript:alert(1)", "file:///tmp/test", "data:text/html,test",
