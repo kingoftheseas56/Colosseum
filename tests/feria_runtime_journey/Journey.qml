@@ -65,6 +65,33 @@ Window {
     // still outstanding when the application leaves.
     function shutdownJourney() {
         var ids = {}
+        var sawFive = false
+        var sawRetiring = false
+        function liveIds() { return [ids.a, ids.twin, ids.secret, ids.slow] }
+        function bound(all) {
+            return all.every(function(id) {
+                var view = page(id)
+                return !!view && runtime.hasView(view) && runtime.instance(id).bound === true
+            })
+        }
+        function partitionsCorrect(includeLeaving) {
+            var ordinary = [ids.a, ids.twin, ids.slow]
+            if (includeLeaving) ordinary.push(ids.leaving)
+            return !!deck.sharedProfile && !!deck.privateProfile
+                && deck.sharedProfile !== deck.privateProfile
+                && runtime.hasProfile(deck.sharedProfile) && runtime.hasProfile(deck.privateProfile)
+                && ordinary.every(function(id) {
+                    var view = page(id)
+                    return !!view && view.profile === deck.sharedProfile
+                })
+                && !!page(ids.secret) && page(ids.secret).profile === deck.privateProfile
+        }
+        function retiredGone() {
+            return runtime.phase(ids.leaving) === "absent"
+                && runtime.instance(ids.leaving).bound !== true
+                && page(ids.leaving) === null
+                && !Sessions.browsers().some(function(record) { return record.id === ids.leaving })
+        }
         return [
             {name: "open pages", run: function() {
                 ids.a = deck.open(descriptor("/a"), true, false, true)
@@ -72,12 +99,22 @@ Window {
                 ids.secret = deck.open(descriptor("/b", {privateBrowsing: true}), true, false, false)
                 ids.slow = deck.open(descriptor("/c"), true, false, false)
                 ids.leaving = deck.open(descriptor("/d"), true, false, false)
-                return ids.a && ids.twin && ids.secret && ids.slow && ids.leaving && ids.a !== ids.twin ? "" : "open refused"
+                var opened = [ids.a, ids.twin, ids.secret, ids.slow, ids.leaving]
+                return opened.every(function(id) { return !!id }) && new Set(opened).size === 5
+                    ? "" : "open refused or duplicate session IDs"
             }, until: function() {
-                return loaded(ids.a, "/a") && loaded(ids.twin, "/a") && loaded(ids.secret, "/b")
-                    && loaded(ids.slow, "/c") && loaded(ids.leaving, "/d")
+                if (!(loaded(ids.a, "/a") && loaded(ids.twin, "/a") && loaded(ids.secret, "/b")
+                    && loaded(ids.slow, "/c") && loaded(ids.leaving, "/d"))) return false
+                if (runtime.viewCount !== 5 || runtime.profileCount !== 2)
+                    return "five-view allocation failed: views=" + runtime.viewCount + " profiles=" + runtime.profileCount
+                if (!bound([ids.a, ids.twin, ids.secret, ids.slow, ids.leaving])
+                        || !partitionsCorrect(true)) return "five live, correctly partitioned engines not proven"
+                sawFive = true
+                return true
             }},
             {name: "leave work outstanding", run: function() {
+                if (!sawFive || runtime.viewCount !== 5 || runtime.profileCount !== 2)
+                    return "five-view baseline was lost before retirement"
                 // A script still running in the renderer, a navigation the
                 // server has not answered, and a download in flight.
                 if (!page(ids.a).evaluateJavaScript(
@@ -93,19 +130,34 @@ Window {
                 Sessions.close(ids.leaving)
                 if (!leaving.closingSession || runtime.phase(ids.leaving) !== "retiring")
                     return "closed page did not start retiring"
+                sawRetiring = true
                 return ""
             }, until: function() {
+                if (!retiredGone()) return false
+                if (runtime.viewCount !== 4 || runtime.profileCount !== 2) return false
                 return page(ids.slow).loading && deck.downloads.items.length === 1
                     && runtime.pendingWork(page(ids.a)) > 0
             }},
             {name: "exit", run: function() {
+                var activeScriptView = page(ids.a), slowView = page(ids.slow)
+                var pending = activeScriptView ? runtime.pendingWork(activeScriptView) : 0
+                var loading = !!slowView && slowView.loading
+                var downloads = deck.downloads.items.length
+                var releasable = runtime.profileReleasable(deck.sharedProfile)
                 var summary = "views=" + runtime.viewCount + " profiles=" + runtime.profileCount
-                    + " pendingScript=" + runtime.pendingWork(page(ids.a))
-                    + " loading=" + page(ids.slow).loading
-                    + " downloads=" + deck.downloads.items.length
-                    + " sharedReleasable=" + runtime.profileReleasable(deck.sharedProfile)
-                if (runtime.viewCount !== 5 || runtime.profileCount !== 2) return "unexpected engines: " + summary
-                if (runtime.profileReleasable(deck.sharedProfile)) return "a profile with views and a download was releasable"
+                    + " allocatedFive=" + sawFive + " sawRetiring=" + sawRetiring
+                    + " retiredPhase=" + runtime.phase(ids.leaving)
+                    + " retiredBound=" + (runtime.instance(ids.leaving).bound === true)
+                    + " pendingScript=" + pending + " loading=" + loading
+                    + " downloads=" + downloads + " sharedReleasable=" + releasable
+                if (!sawFive || !sawRetiring || !retiredGone()) return "retirement unproven: " + summary
+                if (runtime.viewCount !== 4 || runtime.profileCount !== 2
+                        || Sessions.browsers().length !== 4) return "unexpected survivors: " + summary
+                if (!bound(liveIds()) || !partitionsCorrect(false))
+                    return "surviving engines or ordinary/private partitions invalid: " + summary
+                if (pending <= 0 || !loading || downloads !== 1)
+                    return "script, slow navigation or download not in flight: " + summary
+                if (releasable) return "shared profile was releasable: " + summary
                 Fixture.finish(true, summary)
                 return ""
             }}
