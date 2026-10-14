@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls.Basic
 import "OnePieceNewWorldData.js" as Story
 import "OnePieceNewWorldAdapter.js" as Adapter
@@ -9,6 +10,7 @@ import "OnePieceAtlasBadgeLayout.js" as BadgeLayout
 
 FocusScope {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     focus: true
     property bool reducedMotion: false
     property string displayFamily: "Georgia"
@@ -25,16 +27,16 @@ FocusScope {
     property real previewX: 18
     property real previewY: 88
     property int viewGeneration: 0
-    readonly property var arcEntries: Story.arcs
-    readonly property var markerEntries: Atlas.canonMarkers
-    readonly property var selectedArc: Story.arc(selectedArcId)
-    readonly property var selectedLocation: selectedArc ? Atlas.location(selectedArc.locationId) : null
-    readonly property var selectedVisits: selectedArc ? Story.arcsForLocation(selectedArc.locationId) : []
+    readonly property var arcEntries: (root.universeContentGeneration, Story.arcs)
+    readonly property var markerEntries: (root.universeContentGeneration, Atlas.canonMarkers)
+    readonly property var selectedArc: (root.universeContentGeneration, Story.arc)(selectedArcId)
+    readonly property var selectedLocation: selectedArc ? (root.universeContentGeneration, Atlas.location)(selectedArc.locationId) : null
+    readonly property var selectedVisits: selectedArc ? (root.universeContentGeneration, Story.arcsForLocation)(selectedArc.locationId) : []
     readonly property bool transientOpen: previewVisible || indexVisible
     readonly property bool captureReady: chartLoader.status === Loader.Ready
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
     readonly property real sealDiameter: 84 * root.stageGeometry.scale
-    readonly property var badgeProtectedAreas: BadgeLayout.protectedAreas(chartLoader.item, Atlas.locations)
+    readonly property var badgeProtectedAreas: BadgeLayout.protectedAreas(chartLoader.item, (root.universeContentGeneration, Atlas.locations))
     readonly property var badgePlacements: BadgeLayout.placeBadges(root.markerEntries,
         root.sealDiameter / Math.max(0.01, root.stageGeometry.scale), root.badgeProtectedAreas,
         9 / Math.max(0.01, root.stageGeometry.scale))
@@ -44,7 +46,7 @@ FocusScope {
     signal beyondWanoRequested()
 
     function markerItem(id) {
-        var marker = Atlas.marker(id)
+        var marker = (root.universeContentGeneration, Atlas.marker)(id)
         if (!marker) return null
         for (var i = 0; i < markerRepeater.count; ++i) {
             var item = markerRepeater.itemAt(i)
@@ -53,11 +55,11 @@ FocusScope {
         return null
     }
     function openPreview(id, arcId) {
-        var marker = Atlas.marker(id)
+        var marker = (root.universeContentGeneration, Atlas.marker)(id)
         if (!marker || !root.visible) return false
         var selected = arcId || (id === root.selectedMarkerId ? root.selectedArcId : "")
         if (!selected) selected = marker.arcIds[0]
-        var arc = Story.arc(selected)
+        var arc = (root.universeContentGeneration, Story.arc)(selected)
         if (!arc || marker.arcIds.indexOf(selected) < 0) return false
         closeGrace.stop()
         root.indexVisible = false
@@ -109,7 +111,7 @@ FocusScope {
     }
     function openSelectedArc() {
         var arc = root.selectedArc
-        var payload = Adapter.cataloguePayload(arc)
+        var payload = (root.universeContentGeneration, Adapter.cataloguePayload)(arc)
         if (!payload) return
         root.closePreview(true)
         root.arcRequested(payload)
@@ -169,8 +171,8 @@ FocusScope {
         root.clampViewport()
     }
     function focusArc(arcId) {
-        var arc = Story.arc(arcId)
-        var marker = Atlas.markerForArc(arcId)
+        var arc = (root.universeContentGeneration, Story.arc)(arcId)
+        var marker = (root.universeContentGeneration, Atlas.markerForArc)(arcId)
         if (!arc || !marker || !root.visible) return false
         root.closeIndex(false)
         root.revealMarker(marker)
@@ -182,12 +184,12 @@ FocusScope {
         return true
     }
     function focusLocation(locationId) {
-        var marker = Atlas.markerForLocation(locationId)
+        var marker = (root.universeContentGeneration, Atlas.markerForLocation)(locationId)
         return marker ? root.focusArc(marker.arcIds[0]) : false
     }
     function moveMarker(id, direction) {
         var next = Geometry.nextMarker(root.markerEntries, id, direction)
-        var marker = next ? Atlas.marker(next) : null
+        var marker = next ? (root.universeContentGeneration, Atlas.marker)(next) : null
         if (marker) root.focusArc(marker.arcIds[0])
     }
     function updatePreviewGeometry() {
@@ -301,11 +303,11 @@ FocusScope {
                 model: root.markerEntries
                 delegate: NewWorldMarker {
                     required property var modelData
-                    property var firstArc: Story.arc(modelData.arcIds[0])
+                    property var firstArc: (root.universeContentGeneration, Story.arc)(modelData.arcIds[0])
                     markerId: modelData.id
                     title: firstArc ? firstArc.title : modelData.id
                     sealText: firstArc ? String(firstArc.order).padStart(2, "0") : ""
-                    markerSource: firstArc ? Qt.resolvedUrl(Adapter.markerSourceForArc(firstArc)) : ""
+                    markerSource: firstArc ? Qt.resolvedUrl((root.universeContentGeneration, Adapter.markerSourceForArc)(firstArc)) : ""
                     diameter: root.sealDiameter
                     fontFamily: root.bodyFamily
                     reducedMotion: root.reducedMotion
@@ -318,7 +320,7 @@ FocusScope {
                     z: selected ? 4 : 3
                     onFocusEntered: function(id) {
                         if (!root.suppressFocusPreview && !root.indexVisible && root.visible) {
-                            root.revealMarker(Atlas.marker(id))
+                            root.revealMarker((root.universeContentGeneration, Atlas.marker)(id))
                             root.openPreview(id)
                         }
                     }
@@ -449,7 +451,7 @@ FocusScope {
         }
         Text {
             x: 18; y: parent.height - 111; width: parent.width - 36
-            text: "30 / " + Story.worldContext.title + " takes place at Mary Geoise. Luffy does not visit; it has no voyage marker."
+            text: "30 / " + (root.universeContentGeneration, Story.worldContext).title + " takes place at Mary Geoise. Luffy does not visit; it has no voyage marker."
             color: "#826747"; font.family: root.bodyFamily; font.pixelSize: 11; wrapMode: Text.WordWrap
         }
         NewWorldInkButton {
@@ -511,7 +513,7 @@ FocusScope {
                         objectName: "newWorldPreviewHero"
                         anchors.fill: parent
                         anchors.margins: 4
-                        source: root.selectedArc ? Qt.resolvedUrl(Adapter.heroSourceForArc(root.selectedArc)) : ""
+                        source: root.selectedArc ? Qt.resolvedUrl((root.universeContentGeneration, Adapter.heroSourceForArc)(root.selectedArc)) : ""
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
                         mipmap: true

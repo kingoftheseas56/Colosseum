@@ -15,11 +15,13 @@ import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
+import "UniverseContentApi.js" as UniverseContent
 import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
+import "CatalogDelivery.js" as CatalogDelivery
 import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
@@ -150,6 +152,11 @@ Window {
             if (target)
                 target.setEpisodeMetadataBridgeReady(true)
         }
+    }
+
+    Connections {
+        target: typeof Content !== "undefined" ? Content : null
+        function onGenerationChanged() { UniverseContent.reload(Content.generation) }
     }
 
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
@@ -545,8 +552,14 @@ Window {
         // transport off the GUI thread's JS). Installed once, here, because a .pragma library
         // holds one shared instance per QML engine. FIRST in this handler on purpose: the dev
         // harnesses below can `return` early, and a universe with no reader renders empty.
-        if (typeof Extensions !== "undefined")
-            UniverseApi.setReader(function (f) { return Extensions.universePayload(f) })
+        if (typeof Content !== "undefined") {
+            UniverseContent.setAssetResolver(function (path) { return Content.assetUrl(path) })
+            UniverseContent.setReader(function (key) { return Content.document(key) })
+            UniverseContent.reload(Content.generation)
+            UniverseApi.setReader(function (file) { return JSON.stringify(Content.document("universe-" + file)) })
+        } else if (typeof Extensions !== "undefined") {
+            UniverseApi.setReader(function (file) { return Extensions.universePayload(file) })
+        }
         // Efficiency gate: play a given local file through the real player as soon as the shell is
         // up, so both backends can be measured under identical conditions.
         if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
@@ -814,6 +827,7 @@ Window {
         identityCeremonyDialog.close()
     }
     function handleEscape() {
+        win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
         case "consume": return
@@ -1021,7 +1035,7 @@ Window {
         if (medium === "Universes") return "UniversesWorld.qml"
         return "DemoWorld.qml"
     }
-    function openWorld(medium) {
+    function openWorld(medium) { win.cancelCatalogueRoute();
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
         if (requestedWorld === "feria" || requestedWorld === "vinyl") return
@@ -1056,7 +1070,7 @@ Window {
             win.openBook({ id: sid, title: identity.title || "", synopsis: identity.synopsis || "" })
         }
     }
-    function closeWorld() {
+    function closeWorld() { win.cancelCatalogueRoute();
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
@@ -1194,7 +1208,7 @@ Window {
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile, requestedVolumeNumber) {
+    function openSeries(title, malId, profile, requestedVolumeNumber) { win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
@@ -1224,7 +1238,7 @@ Window {
     }
 
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
-    function openSeriesAt(title, seriesId, chapterId) {
+    function openSeriesAt(title, seriesId, chapterId) { win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
@@ -1244,7 +1258,33 @@ Window {
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
+    property int _catalogueRouteGeneration: 0
+    property var _catalogueRouteCancel: null
+    function cancelCatalogueRoute() {
+        _catalogueRouteGeneration++;
+        if (typeof _catalogueRouteCancel === "function") _catalogueRouteCancel();
+        _catalogueRouteCancel = null;
+    }
+    function catalogueRouteSnapshot() {
+        return String(currentSurface) + "|" + JSON.stringify(win.shellEscapeState());
+    }
     function openWestern(d) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            var title = (d && d.title) || "";
+            var hit = win.comicsDbHit(title);
+            if (CatalogDelivery.available(catalog)) catalog.exactMatches(title);
+            return hit;
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openWesternReady(d, false);
+        });
+    }
+    function _openWesternReady(d, skipGcd) {
         westernLayer.baked = null
         if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         // DB-first (Hemanth 2026-07-15): the catalog series view is THE series
@@ -1259,7 +1299,7 @@ Window {
         // catalogue redirect (spec 2026-07-17): exactly ONE run bears this title ->
         // its run-scoped page. Multiple same-name runs -> the live shelf keeps the
         // whole-franchise view; never guess a run.
-        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
+        if (!skipGcd && typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)) {
             var ex = ComicsCatalog.exactMatches((d && d.title) || "")
             if (ex.length === 1) {
                 win.openGcdSeries({ gcdId: ex[0].gcdId, title: (d && d.title) || "",
@@ -1281,7 +1321,7 @@ Window {
         if (!westernLayer.tagSlug.length && westernLayer.item) westernLayer.item.resolve()
     }
     // open a western series AND jump straight into the reader (Continue / session resume)
-    function openWesternAt(title, tagSlug, chapterId) {
+    function openWesternAt(title, tagSlug, chapterId) { win.cancelCatalogueRoute();
         westernLayer.baked = null
         if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         westernLayer.title = title || ""
@@ -1294,7 +1334,7 @@ Window {
             westernLayer.item.openChapterId = chapterId || ""
         } else westernLayer.active = true
     }
-    function closeWestern() { westernLayer.active = false }
+    function closeWestern() { win.cancelCatalogueRoute(); westernLayer.active = false }
 
     // ---- catalogue run page: the western shelf in baked mode (spec 2026-07-17).
     //      d: { gcdId, title?, cover?, resumeChapterId? } ----
@@ -1326,16 +1366,31 @@ Window {
     }
 
     function openGcdSeries(d) {
-        if (typeof ComicsCatalog === "undefined" || !ComicsCatalog.ready()) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            if (!CatalogDelivery.available(catalog)) return null;
+            var id = Number((d && d.gcdId) || 0);
+            return { series: catalog.series(id), downloads: catalog.downloadsFor(id) };
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openGcdSeriesReady(d);
+        });
+    }
+    function _openGcdSeriesReady(d) {
+        if (typeof ComicsCatalog === "undefined" || !CatalogDelivery.available(ComicsCatalog)) {
             if (_openPinnedGcdSeries(d)) return
-            if (d && d.title) win.openWestern({ title: d.title })
+            if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
         var gcdId = Number((d && d.gcdId) || 0)
         var s = ComicsCatalog.series(gcdId)
         if (!s || s.gcdId === undefined) {
             if (_openPinnedGcdSeries(d)) return
-            if (d && d.title) win.openWestern({ title: d.title })
+            if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
         var rows = ComicsCatalog.downloadsFor(gcdId)
@@ -1394,7 +1449,7 @@ Window {
                  packRole: String(r.packRole || ""), packOrder: Number(r.packOrder || 0),
                  packId: String(r.id || ""), pages: Number(r.pages || 0) }
     }
-    function openPackSeries(d) {
+    function openPackSeries(d) { win.cancelCatalogueRoute();
         var seriesId = String((d && d.seriesId) || "")
         if (!seriesId.length) { console.warn("pack: openPackSeries — no seriesId"); return }
         var pv = (typeof Comics !== "undefined") ? Comics.packVolumes(seriesId) : { mains: [], extras: [] }
@@ -1509,6 +1564,20 @@ Window {
     }
 
     function openComicSeries(d) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            if (!CatalogDelivery.available(catalog)) return null;
+            return catalog.curatedSeries(String((d && d.id) || "").replace(/^locg:/, ""));
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openComicSeriesReady(d);
+        });
+    }
+    function _openComicSeriesReady(d) {
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -1521,7 +1590,7 @@ Window {
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
         } else comicSeriesLayer.active = true
     }
-    function closeComicSeries() { comicSeriesLayer.active = false }
+    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -1555,7 +1624,7 @@ Window {
 
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
-    function openTheatreSeries(item) {
+    function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
         if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
         else theatreSeriesLayer.active = true
@@ -2469,7 +2538,7 @@ Window {
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
-    function openBook(b) {
+    function openBook(b) { win.cancelCatalogueRoute();
         win.pendingBookReturn = null
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
@@ -2511,7 +2580,7 @@ Window {
 
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
-    function openSearch() {
+    function openSearch() { win.cancelCatalogueRoute();
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current

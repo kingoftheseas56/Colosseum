@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 var hubs = [
     { id: "gotham", title: "Gotham", environment: "gotham", portal: "gotham.jpg", portalImdb: "tt0103359",
@@ -59,3 +60,12 @@ function progressBelongsToJustice(entry) {
     }
     return false
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    var data = ContentApi.document("tribute-dcau");
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.hubs !== undefined && (Array.isArray(hubs) ? Array.isArray(data.hubs) : typeof data.hubs === typeof hubs)) hubs = data.hubs;
+}
+ContentApi.register(syncContent);

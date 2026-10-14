@@ -1,10 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Shapes
 import "OnePieceParadiseAtlasData.js" as Atlas
 
 Item {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     width: 1680
     height: 960
     clip: true
@@ -51,16 +53,16 @@ Item {
 
     function routeInk(group) {
         var path = "";
-        for (var i = 0; i < Atlas.routeLegs.length; ++i) {
-            var leg = Atlas.routeLegs[i];
+        for (var i = 0; i < (root.universeContentGeneration, Atlas.routeLegs).length; ++i) {
+            var leg = (root.universeContentGeneration, Atlas.routeLegs)[i];
             var category = leg.route;
             if (leg.kind === "ascent" || leg.kind === "descent") category = "altitude";
             else if (leg.kind === "sea-train") category = "train";
             else if (leg.kind === "kuma") category = "kuma";
             else if (leg.kind === "return" || leg.kind === "reunion") category = "returns";
             if (category !== group) continue;
-            var from = Atlas.location(leg.from);
-            var to = Atlas.location(leg.to);
+            var from = (root.universeContentGeneration, Atlas.location)(leg.from);
+            var to = (root.universeContentGeneration, Atlas.location)(leg.to);
             if (!from || !to) continue;
             path += "M" + from.x * 1680 + " " + from.y * 960 + " C"
                     + leg.c1[0] * 1680 + " " + leg.c1[1] * 960 + " "
@@ -243,7 +245,7 @@ Item {
     }
 
     Repeater {
-        model: Atlas.locations
+        model: (root.universeContentGeneration, Atlas.locations)
         delegate: ParadiseLandform {
             required property var modelData
             visible: modelData.kind !== "region"
@@ -255,7 +257,7 @@ Item {
         }
     }
     Repeater {
-        model: Atlas.locations
+        model: (root.universeContentGeneration, Atlas.locations)
         delegate: Column {
             required property var modelData
             visible: modelData.label.length > 0

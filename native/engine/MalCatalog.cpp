@@ -76,13 +76,14 @@ bool MalCatalog::openAt(const QString& dbPath)
     ++m_filterGeneration;
     m_filterCache.clear();
     // resolve beside the exe first (deployed), then the repo layout (dev run)
+    if (dbPath.isEmpty()) return false;
     QString path = dbPath;
-    if (!QFileInfo::exists(path)) {
+    if (!QFileInfo(path).isFile()) {
         const QString beside = QCoreApplication::applicationDirPath()
                                + QStringLiteral("/../../") + dbPath;
-        if (QFileInfo::exists(beside)) path = beside;
+        if (QFileInfo(beside).isFile()) path = beside;
     }
-    if (!QFileInfo::exists(path))
+    if (!QFileInfo(path).isFile())
         return false;                             // no catalog — live ladder carries the pages
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
     m_db.setDatabaseName(path);
@@ -93,6 +94,9 @@ bool MalCatalog::openAt(const QString& dbPath)
 MalCatalog::MalCatalog(const QString& dbPath, QObject* parent)
     : QObject(parent), m_conn(QStringLiteral("mal_catalog"))
 {
+    m_remote = new CatalogRemote(QStringLiteral("mal"), this);
+    connect(m_remote, &CatalogRemote::changed, this, &MalCatalog::revisionChanged);
+    connect(m_remote, &CatalogRemote::failed, this, &MalCatalog::requestFailed);
     m_ok = openAt(dbPath);
     warmDiscoverFilters();
 }
@@ -138,6 +142,7 @@ void MalCatalog::closeForSwap()
 QVariantList MalCatalog::genreEntries(const QString& medium, const QString& genre,
                                       const QString& order, int limit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("genreEntries"), QVariantList{medium, genre, order, limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok || !validMedium(medium) || genre.isEmpty())
         return out;
@@ -198,6 +203,7 @@ QVariantList MalCatalog::genreEntries(const QString& medium, const QString& genr
 
 QVariantList MalCatalog::animeCatalog(const QVariantMap& query, int offset, int limit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("animeCatalog"), QVariantList{query, offset, limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -309,6 +315,7 @@ QVariantList MalCatalog::animeCatalog(const QVariantMap& query, int offset, int 
 QVariantList MalCatalog::matchByTitle(const QString& title, int year,
                                       const QString& medium) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{VaultKit::normalizedTitle(title), year, medium}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -372,6 +379,7 @@ QVariantList MalCatalog::matchByTitle(const QString& title, int year,
 
 QVariantMap MalCatalog::mangaById(int malId) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("mangaById"), QVariantList{malId}, QVariantMap{}).toMap();
     if (!m_ok || malId <= 0)
         return {};
     QSqlQuery q(m_db);
@@ -415,6 +423,7 @@ QVariantMap MalCatalog::mangaById(int malId) const
 
 QVariantList MalCatalog::search(const QString& text, int limit, const QString& medium) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit, medium}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -479,6 +488,7 @@ QVariantList MalCatalog::search(const QString& text, int limit, const QString& m
 
 QVariantList MalCatalog::discoverFilters(const QString& axis, bool includeExplicit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("discoverFilters"), QVariantList{axis, includeExplicit}, QVariantList{}).toList();
     const QString cacheKey = axis + (includeExplicit ? QStringLiteral("|x") : QStringLiteral("|"));
     const auto cached = m_filterCache.constFind(cacheKey);
     if (cached != m_filterCache.constEnd())
@@ -491,6 +501,7 @@ QVariantList MalCatalog::discoverFilters(const QString& axis, bool includeExplic
 
 QVariantList MalCatalog::cachedDiscoverFilters(const QString& axis, bool includeExplicit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("discoverFilters"), QVariantList{axis, includeExplicit}, QVariantList{}).toList();
     return m_filterCache.value(axis + (includeExplicit ? QStringLiteral("|x") : QStringLiteral("|")));
 }
 
@@ -552,6 +563,7 @@ QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& fi
 QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVariantList& filters,
                                              bool includeExplicit, int offset, int limit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("discoverPageFiltered"), QVariantList{catalogId, filters, includeExplicit, offset, limit}, QVariantMap{{QStringLiteral("items"), QVariantList{}}, {QStringLiteral("nextOffset"), std::max(0, offset)}, {QStringLiteral("exhausted"), true}, {QStringLiteral("freshness"), QStringLiteral("bundled")}, {QStringLiteral("fallbackCatalog"), catalogId == QStringLiteral("trending") ? QStringLiteral("popular") : QString()}}).toMap();
     // Deterministic vote-confidence floor for the Top Rated Bayesian weight (m in
     // WR = (v/(v+m))*R + (m/(v+m))*C). A few thousand votes is the confidence bar:
     // a 9.9 from ~120 voters is pulled hard toward the catalogue mean C and cannot
@@ -694,6 +706,7 @@ QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVa
 
 int MalCatalog::genreCount(const QString& medium, const QString& genre) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("genreCount"), QVariantList{medium, genre}, 0).toInt();
     if (!m_ok || !validMedium(medium))
         return 0;
     QSqlQuery q(m_db);
@@ -705,6 +718,7 @@ int MalCatalog::genreCount(const QString& medium, const QString& genre) const
 
 QVariantList MalCatalog::genreCounts(const QString& medium) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("genreCounts"), QVariantList{medium}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok || !validMedium(medium))
         return out;

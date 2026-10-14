@@ -100,6 +100,12 @@ Item {
     // shelf-less page, never a guess (identity-key vocabulary, plan Standing constraints).
     property int resolvedMalId: 0
     property var catalogRow: ({})   // the mangaById() row backing the masthead facts
+    Timer { id: malSemanticRetry; interval: 75; onTriggered: page.resolve() }
+    Connections {
+        target: page.malCatalogRef
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (Object.keys(page.catalogRow).length === 0) malSemanticRetry.restart() }
+    }
     property string seriesId: ""
     property string seriesUrl: ""
     property string banner: ""

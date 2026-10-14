@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 var SEA_ID = "paradise";
 var SEA_LABEL = "Paradise";
@@ -213,3 +214,17 @@ function arcsForLocation(id) {
         if (arcs[i].locationId === id) result.push(arcs[i]);
     return result;
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    var data = ContentApi.document("tribute-one-piece-paradise").story;
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.SEA_ID !== undefined && (Array.isArray(SEA_ID) ? Array.isArray(data.SEA_ID) : typeof data.SEA_ID === typeof SEA_ID)) SEA_ID = data.SEA_ID;
+    if (data.SEA_LABEL !== undefined && (Array.isArray(SEA_LABEL) ? Array.isArray(data.SEA_LABEL) : typeof data.SEA_LABEL === typeof SEA_LABEL)) SEA_LABEL = data.SEA_LABEL;
+    if (data.BADGE_ROOT !== undefined && (Array.isArray(BADGE_ROOT) ? Array.isArray(data.BADGE_ROOT) : typeof data.BADGE_ROOT === typeof BADGE_ROOT)) BADGE_ROOT = data.BADGE_ROOT;
+    if (data.BANNER_ROOT !== undefined && (Array.isArray(BANNER_ROOT) ? Array.isArray(data.BANNER_ROOT) : typeof data.BANNER_ROOT === typeof BANNER_ROOT)) BANNER_ROOT = data.BANNER_ROOT;
+    if (data.onePacePrefixByArc !== undefined && (Array.isArray(onePacePrefixByArc) ? Array.isArray(data.onePacePrefixByArc) : typeof data.onePacePrefixByArc === typeof onePacePrefixByArc)) onePacePrefixByArc = data.onePacePrefixByArc;
+    if (data.arcs !== undefined && (Array.isArray(arcs) ? Array.isArray(data.arcs) : typeof data.arcs === typeof arcs)) arcs = data.arcs;
+}
+ContentApi.register(syncContent);

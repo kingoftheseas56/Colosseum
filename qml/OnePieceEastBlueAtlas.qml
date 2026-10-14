@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import QtQuick.Controls.Basic
 import "OnePieceEastBlueAtlasData.js" as AtlasData
@@ -7,6 +8,8 @@ import "OnePieceEastBlueData.js" as EastBlue
 
 FocusScope {
     id: root
+    function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
 
     property bool reducedMotion: false
     property real zoom: 1.0
@@ -47,7 +50,7 @@ FocusScope {
     }
 
     function arcFor(id) {
-        var result = EastBlue.arc(id)
+        var result = (root.universeContentGeneration, EastBlue.arc)(id)
         return result && result.id === id ? result : null
     }
 
@@ -317,7 +320,7 @@ FocusScope {
                 id: mapPlate
                 objectName: "eastBlueAtlasPlate"
                 anchors.fill: parent
-                source: "../assets/universes/one-piece/east-blue/east-blue-atlas.png"
+                source: root.resolveContentAsset("../assets/universes/one-piece/east-blue/east-blue-atlas.png")
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 smooth: true
@@ -334,7 +337,7 @@ FocusScope {
 
             Repeater {
                 id: markerRepeater
-                model: AtlasData.canonMarkers
+                model: (root.universeContentGeneration, AtlasData.canonMarkers)
 
                 delegate: FocusScope {
                     id: marker
@@ -401,7 +404,7 @@ FocusScope {
                         background: null
                         contentItem: Image {
                             id: badgeImage
-                            source: AtlasData.badgeSource(marker.markerId)
+                            source: (root.universeContentGeneration, AtlasData.badgeSource)(marker.markerId)
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                             mipmap: true
@@ -609,14 +612,14 @@ FocusScope {
                     spacing: 6
 
                     Repeater {
-                        model: root.nonCanonMode ? 0 : AtlasData.canonMarkers.length
+                        model: root.nonCanonMode ? 0 : (root.universeContentGeneration, AtlasData.canonMarkers).length
                         delegate: Button {
                             id: canonRowButton
                             required property int index
-                            objectName: "eastBlueCanonRow-" + AtlasData.canonMarkers[index].id
+                            objectName: "eastBlueCanonRow-" + (root.universeContentGeneration, AtlasData.canonMarkers)[index].id
                             width: indexContent.width
                             height: 46
-                            text: String(index + 1).padStart(2, "0") + "   " + EastBlue.arc(AtlasData.canonMarkers[index].id).title
+                            text: String(index + 1).padStart(2, "0") + "   " + (root.universeContentGeneration, EastBlue.arc)((root.universeContentGeneration, AtlasData.canonMarkers)[index].id).title
                             font.family: atlasBodyFont.name
                             font.pixelSize: 14
                             palette.buttonText: "#523a25"
@@ -624,7 +627,7 @@ FocusScope {
                             focusPolicy: Qt.StrongFocus
                             hoverEnabled: true
                             background: Rectangle {
-                                objectName: "eastBlueCanonRowBackground-" + AtlasData.canonMarkers[canonRowButton.index].id
+                                objectName: "eastBlueCanonRowBackground-" + (root.universeContentGeneration, AtlasData.canonMarkers)[canonRowButton.index].id
                                 radius: 2
                                 color: canonRowButton.pressed ? "#d8ba7c"
                                        : canonRowButton.activeFocus ? "#f6e5bb"
@@ -643,7 +646,7 @@ FocusScope {
                             }
                             onClicked: {
                                 root.indexVisible = false
-                                root.focusMarker(AtlasData.canonMarkers[index].id)
+                                root.focusMarker((root.universeContentGeneration, AtlasData.canonMarkers)[index].id)
                             }
                         }
                     }
@@ -673,7 +676,7 @@ FocusScope {
 
                     Repeater {
                         id: nonCanonRepeater
-                        model: root.nonCanonMode ? AtlasData.nonCanonEntries : []
+                        model: root.nonCanonMode ? (root.universeContentGeneration, AtlasData.nonCanonEntries) : []
                         delegate: Row {
                             id: nonCanonRow
                             required property var modelData
@@ -815,10 +818,10 @@ FocusScope {
                     property bool canonPosterFallback: false
                     property bool posterFallback: false
                     source: {
-                        var marker = root.selectedArc ? AtlasData.canonMarker(root.selectedArc.id) : null
+                        var marker = root.selectedArc ? (root.universeContentGeneration, AtlasData.canonMarker)(root.selectedArc.id) : null
                         return marker ? (posterFallback ? marker.badge
                                        : canonPosterFallback ? marker.poster
-                                       : AtlasData.bannerSource(marker.id)) : ""
+                                       : (root.universeContentGeneration, AtlasData.bannerSource)(marker.id)) : ""
                     }
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true

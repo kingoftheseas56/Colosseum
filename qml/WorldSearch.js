@@ -4,6 +4,7 @@
 //   • Theatre → Cinemeta (the Theatre world's own source)
 //   • Tankoban → AniList GraphQL (manga) + the local SQLite catalogue (comics)
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 
 var REQUEST_TIMEOUT_MS = 15000;
 
@@ -219,7 +220,7 @@ function searchManga(query, done) {
 // `engine` is the ComicsCatalog context property, passed in from QML — a .pragma
 // library can't see context properties itself.
 function searchCatalogDb(query, engine) {
-    if (!engine || !engine.ready()) return [];
+    if (!CatalogDelivery.available(engine)) return [];
     var q = String(query || "").trim();
     if (q.length < 2) return [];
     var hits = engine.search(q, 30), out = [];
@@ -255,12 +256,18 @@ function mergeSearchLanes(query, manga, catalogDb) {
 
 function searchTankoban(query, done, catalogEngine) {
     if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
-    // Comics answer synchronously from the local catalogue; only manga is async. The local
-    // rows SURVIVE an AniList outage — the lane failure rides along as the error arg.
-    var catalogDb = searchCatalogDb(query, catalogEngine);
-    return searchManga(query, function(manga, error) {
-        done(mergeSearchLanes(query, manga || [], catalogDb), error || "");
+    var cancelled = false, remaining = 2, mangaRows = [], comicRows = [], mangaError = "";
+    function finish() {
+        remaining--;
+        if (!cancelled && remaining === 0) done(mergeSearchLanes(query, mangaRows, comicRows), mangaError);
+    }
+    var cancelCatalog = CatalogDelivery.wait(catalogEngine, function() {
+        return searchCatalogDb(query, catalogEngine);
+    }, function(rows) { comicRows = rows; finish(); });
+    var cancelManga = searchManga(query, function(rows, error) {
+        mangaRows = rows || []; mangaError = error || ""; finish();
     });
+    return function() { cancelled = true; cancelCatalog(); if (typeof cancelManga === "function") cancelManga(); };
 }
 
 function searchFor(mode, query, done, catalogEngine) {

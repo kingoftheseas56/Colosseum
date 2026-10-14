@@ -11,6 +11,7 @@
 // sub-catalogues, so the split IS the need (not a lazy row-wall).
 
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import "Catalog.js" as Catalog
 import "ComicsDb.js" as ComicsDb
 import "NextUp.js" as NextUp
@@ -124,7 +125,7 @@ WorldPage {
         // Catalogue shelf rows (browse-landing, ratified lineup): each row computes its
         // model once from ComicsCatalog.shelf(kind, arg, 24); rows with no rows just don't
         // render (Repeater below skips empty entries via a length check on the delegate).
-        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
+        if (typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)) {
             var shelfSpecs = [
                 { label: "Most Stocked", kind: "stocked", arg: "" },
                 { label: "Marvel", kind: "publisher", arg: "Marvel" },
@@ -183,6 +184,16 @@ WorldPage {
     // The shelf queries wait one frame so the tab reacts to the click before they run.
     onActiveTabChanged: if (tanko.activeTab === "comics") comicCatalogueTimer.restart()
     Timer { id: comicCatalogueTimer; interval: 30; onTriggered: tanko.initializeComicCatalogue() }
+    Connections {
+        target: typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
+        ignoreUnknownSignals: true
+        function onRevisionChanged() {
+            tanko._catalogueInitialized = false;
+            tanko.wireComicEngine();
+            if (tanko.lifecycleActive && tanko.activeTab === "comics") comicCatalogueTimer.restart();
+        }
+    }
+
 
     property string activeTab: "discover"
 

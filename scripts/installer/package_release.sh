@@ -58,10 +58,8 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
-# Data-vault adoption (2026-08-22): the app now fetches all four catalogue dbs
-# (mal, tankoban, comics, imdb) from the public kingoftheseas56/Colosseum-Data GitHub
-# release into AppData on first launch (CatalogVaultClient). The installer no longer
-# carries any catalogue db — nothing to guard or overlay here.
+# API builds use semantic queries and never download whole catalogues. The
+# checksummed staging step below also removes the delivered tribute artwork.
 
 echo "[1/6] clean stage -> $STAGE"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -81,6 +79,12 @@ for sentinel in \
   "$STAGE/native/build-msvc/Qt6Core.dll"; do
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
+
+# API builds ship a small offline metadata starter and fetch content-addressed
+# artwork on demand. Whole catalogue databases never enter this package.
+if grep -Eq '^COLOSSEUM_CONTENT_API_URL:STRING=https://' "$BUILD_DIR/CMakeCache.txt"; then
+  python "$REPO/scripts/stage_api_content.py" --stage "$STAGE" --apply
+fi
 
 # Function 0001 bootstrap integrity: the executable's build manifest must describe
 # the exact qml/ tree staged from the release tag. This catches a clean native build

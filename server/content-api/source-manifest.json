@@ -1,0 +1,24 @@
+{
+  "sources": {
+    "imdb": {
+      "sha256": "5f11ab2a794519c76a742e03775c1eba1108b94711d61f7f97dd6ddb50c5d0f8",
+      "bytes": 21528576
+    },
+    "mal": {
+      "sha256": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+      "bytes": 41381888
+    },
+    "comics": {
+      "sha256": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+      "bytes": 98865152
+    },
+    "tankoban": {
+      "sha256": "04d485c6a559fdc7b6d1d651a622befd77af8bf93b2c7bdbcf7ebbd7bdd7e5a1",
+      "bytes": 2850816
+    }
+  },
+  "sourceBytes": 164626432,
+  "tables": 24,
+  "rows": 1133337,
+  "estimatedRowWrites": 2823109
+}

@@ -14,6 +14,7 @@
 // registry, the global showExplicit flag, and (optionally) an XMLHttpRequest factory
 // (the page injects the real one; the harness injects a fake).
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 .import "ExplicitContentPolicy.js" as Policy
 
 // Exposed for a static-contract grep (the harness asserts no Comic Vine / Metron
@@ -394,6 +395,21 @@ function comicsAxis(filterGroup) {
 }
 
 function fetchMangaPage(deps, state, cursor, generation, done) {
+    var remoteCatalog = deps.malCatalog;
+    if (!deps._semanticDelivered && remoteCatalog && remoteCatalog.remoteEnabled) {
+        var facetsForRequest = nativeFilters(state, mangaAxis);
+        var requestedOffset = (cursor !== null && cursor !== undefined) ? cursor : 0;
+        return CatalogDelivery.wait(remoteCatalog, function() {
+            return remoteCatalog.discoverPageFiltered(state.catalogKey, facetsForRequest,
+                                                       deps.showExplicit, requestedOffset, 24);
+        }, function() {
+            var deliveredDeps = {};
+            for (var key in deps) deliveredDeps[key] = deps[key];
+            deliveredDeps._semanticDelivered = true;
+            fetchMangaPage(deliveredDeps, state, cursor, generation, done);
+        });
+    }
+
     var mal = deps.malCatalog;
     var facets = nativeFilters(state, mangaAxis);
     var axis = facets.length ? facets[0].axis : "";
@@ -482,6 +498,21 @@ function parseJikanResponse(text) {
 }
 
 function fetchComicsPage(deps, state, cursor, generation, done) {
+    var remoteCatalog = deps.comicsCatalog;
+    if (!deps._semanticDelivered && remoteCatalog && remoteCatalog.remoteEnabled) {
+        var facetsForRequest = nativeFilters(state, comicsAxis);
+        var requestedOffset = (cursor !== null && cursor !== undefined) ? cursor : 0;
+        return CatalogDelivery.wait(remoteCatalog, function() {
+            return remoteCatalog.discoverPageFiltered(state.catalogKey, facetsForRequest,
+                                                       deps.showExplicit, requestedOffset, 24);
+        }, function() {
+            var deliveredDeps = {};
+            for (var key in deps) deliveredDeps[key] = deps[key];
+            deliveredDeps._semanticDelivered = true;
+            fetchComicsPage(deliveredDeps, state, cursor, generation, done);
+        });
+    }
+
     var comics = deps.comicsCatalog;
     var facets = nativeFilters(state, comicsAxis);
     var axis = facets.length ? facets[0].axis : "";
@@ -547,6 +578,10 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
             var keepFilter = canonical.length > 0
                              && validateFilterKey(base.type, canonical, base.filterKey,
                                                   deps.malCatalog, deps.comicsCatalog, deps.showExplicit);
+            var facetCatalog = base.type === "comics" ? deps.comicsCatalog : deps.malCatalog;
+            if (!keepFilter && canonical.length && base.filterKey && facetCatalog
+                    && facetCatalog.remoteEnabled && facetCatalog.remotePending && facetCatalog.remotePending())
+                keepFilter = true;
             return {
                 missing: false,
                 type: base.type,
@@ -557,8 +592,8 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
             };
         },
         fetchPage: function(state, cursor, generation, done) {
-            if (state.type === "comics") fetchComicsPage(deps, state, cursor, generation, done);
-            else fetchMangaPage(deps, state, cursor, generation, done);
+            if (state.type === "comics") return fetchComicsPage(deps, state, cursor, generation, done);
+            return fetchMangaPage(deps, state, cursor, generation, done);
         }
     };
 }

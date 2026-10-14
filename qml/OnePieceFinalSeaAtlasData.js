@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 // Interpretive chart composition. No official coordinates, bearings, distances or scale.
 var designWidth = 1672;
@@ -129,3 +130,19 @@ function markerForLocation(id) {
     var place = location(id);
     return place && place.arcId ? markerForArc(place.arcId) : null;
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    var data = ContentApi.document("tribute-one-piece-final-sea").atlas;
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.designWidth !== undefined && (Array.isArray(designWidth) ? Array.isArray(data.designWidth) : typeof data.designWidth === typeof designWidth)) designWidth = data.designWidth;
+    if (data.designHeight !== undefined && (Array.isArray(designHeight) ? Array.isArray(data.designHeight) : typeof data.designHeight === typeof designHeight)) designHeight = data.designHeight;
+    if (data.locations !== undefined && (Array.isArray(locations) ? Array.isArray(data.locations) : typeof data.locations === typeof locations)) locations = data.locations;
+    if (data.regions !== undefined && (Array.isArray(regions) ? Array.isArray(data.regions) : typeof data.regions === typeof regions)) regions = data.regions;
+    if (data.canonMarkers !== undefined && (Array.isArray(canonMarkers) ? Array.isArray(data.canonMarkers) : typeof data.canonMarkers === typeof canonMarkers)) canonMarkers = data.canonMarkers;
+    if (data.primaryVoyage !== undefined && (Array.isArray(primaryVoyage) ? Array.isArray(data.primaryVoyage) : typeof data.primaryVoyage === typeof primaryVoyage)) primaryVoyage = data.primaryVoyage;
+    if (data.internalVoyage !== undefined && (Array.isArray(internalVoyage) ? Array.isArray(data.internalVoyage) : typeof data.internalVoyage === typeof internalVoyage)) internalVoyage = data.internalVoyage;
+    if (data.routeLegs !== undefined && (Array.isArray(routeLegs) ? Array.isArray(data.routeLegs) : typeof data.routeLegs === typeof routeLegs)) routeLegs = data.routeLegs;
+}
+ContentApi.register(syncContent);

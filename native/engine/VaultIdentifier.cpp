@@ -7,6 +7,7 @@
 #include "VaultKit.h"
 
 #include <QVariantList>
+#include <QTimer>
 #include <QVariantMap>
 #include <QRegularExpression>
 #include <QStringList>
@@ -69,11 +70,36 @@ VaultIdentifier::VaultIdentifier(VaultIndex* index, ComicsCatalog* comics,
                                  QObject* parent)
     : QObject(parent), m_index(index), m_comics(comics), m_mal(mal), m_imdb(imdb)
 {
+    auto retry = [this] {
+        if (m_retryScheduled || m_pendingGroups.isEmpty()) return;
+        m_retryScheduled = true;
+        QTimer::singleShot(0, this, [this] { m_retryScheduled = false; retryPending(); });
+    };
+    if (m_comics) connect(m_comics, &ComicsCatalog::revisionChanged, this, retry);
+    if (m_mal) connect(m_mal, &MalCatalog::revisionChanged, this, retry);
+    if (m_imdb) connect(m_imdb, &ImdbCatalog::revisionChanged, this, retry);
+}
+
+void VaultIdentifier::retryPending()
+{
+    const auto groups = m_pendingGroups;
+    for (const auto& group : groups) {
+        m_pendingGroups.remove(group);
+        const auto rows = m_index ? m_index->rowsForGroup(group) : QList<VaultIndex::FileRow>{};
+        bool eligible = !rows.isEmpty();
+        for (const auto& row : rows)
+            if (!row.identityId.isEmpty() || row.identitySuppressed || row.away || !row.errorState.isEmpty()) eligible = false;
+        if (!eligible) continue;
+        const auto match = matchGroup(group);
+        if (match.adopted) applyGroup(group, match);
+        else if (match.candidateCount > 1) recordAmbiguous(group, match.candidateCount);
+    }
 }
 
 VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) const
 {
     Match match;
+    m_pendingGroups.remove(groupKey);
     if (!m_index || groupKey.isEmpty())
         return match;
 
@@ -121,7 +147,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
 
     if (row.kind == QLatin1String("comic")) {
         QVariantList comics;
-        if (m_comics && m_comics->ready())
+        if (m_comics && m_comics->available())
             for (const QVariant& value : m_comics->exactMatches(title)) {
                 const QVariantMap hit = value.toMap();
                 if (VaultKit::normalizedTitle(hit.value(QStringLiteral("title")).toString())
@@ -129,12 +155,16 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
                     comics.append(value);
             }
 
+        if (m_comics && m_comics->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+
         QVariantList mal;
         // ComicsCatalog owns the western-comics lane. Only fall back to MAL when
         // it has no exact western candidate, so a title present in both corpora
         // never becomes an artificial cross-source ambiguity.
-        if (comics.isEmpty() && m_mal && m_mal->ready())
+        if (comics.isEmpty() && m_mal && m_mal->available())
             mal = m_mal->matchByTitle(normalizedTitle, lookup.year, {});
+
+        if (m_mal && m_mal->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
 
         // One exact candidate across the allowed offline catalogues is the
         // certainty threshold. An ambiguity stays filename-honest.
@@ -149,6 +179,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             if (gcdId <= 0)
                 return Match();
             const QVariantMap series = m_comics->series(gcdId);
+            if (m_comics->remoteWaiting()) { m_pendingGroups.insert(groupKey); return Match(); }
             match.adopted = true;
             match.source = QStringLiteral("COMICS");
             match.sourceId = QStringLiteral("comics:") + QString::number(gcdId);
@@ -181,9 +212,10 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     }
 
     if (row.kind == QLatin1String("video")) {
-        if (!m_imdb || !m_imdb->ready())
+        if (!m_imdb || !m_imdb->available())
             return match;
         const QVariantList hits = m_imdb->matchByTitle(normalizedTitle, lookup.year);
+        if (m_imdb->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
         match.candidateCount = hits.size();
         if (hits.size() != 1)
             return match;

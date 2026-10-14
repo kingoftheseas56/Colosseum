@@ -5,6 +5,7 @@
 // A .pragma library can't see context properties, so Main.qml pushes the installed
 // list in via setExtensions() at boot and on every registry change.
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 .import "AddonClient.js" as AddonClient
 .import "TheatreCatalogRules.js" as Rules
 
@@ -722,7 +723,7 @@ function imdbRowsFor(imdb, recipe, offset, limit) {
 
 // drop live-row items the index disqualifies: anime always; shovelware on recent shelves.
 function filterLiveItems(imdb, items, dropLowVotes) {
-    if (!imdb || !imdb.ready || !imdb.ready()) return items;
+    if (!CatalogDelivery.available(imdb)) return items;
     var ids = items.map(function(it) { return it.id; })
                    .filter(function(id) { return String(id).indexOf("tt") === 0; });
     var facts = imdb.titleFacts(ids) || {};
@@ -788,7 +789,7 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     }
 
     // phase 1 — the index paints every offline shelf synchronously
-    if (imdb && imdb.ready && imdb.ready()) {
+    if (CatalogDelivery.available(imdb)) {
         for (var i = 0; i < defs.length; i++) {
             var recipe = defs[i].recipe;
             if (Rules.indexQueriesFor(recipe).length === 0) continue;   // live recipe
@@ -946,7 +947,7 @@ function loadAnimePageDeep(options, push) {
     }
 
     // Phase 1 — bundled MAL paints instantly (synchronous).
-    if (mal && mal.ready && mal.ready()) {
+    if (CatalogDelivery.available(mal)) {
         for (var i = 0; i < defs.length; i++) {
             var rows = malRowsFor(mal, defs[i].recipe, 0, PREVIEW_ROW_CAP);
             if (rows && rows.length) rowData[defs[i].key] = rows.map(mapJikan);
@@ -1002,27 +1003,39 @@ function loadAnimeRowPage(pin, offset, limit, options, done) {
         var params = {};
         for (var p in spec.params) params[p] = spec.params[p];
         params.page = page;
-        return jikanFetch(spec.path, params, limit, function(items) {
+        var cancelled = false, cancelFallback = null;
+        var cancelLive = jikanFetch(spec.path, params, limit, function(items) {
+            if (cancelled) return;
             if (items && items.length) {
                 if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
                 done({ generation: generation, items: items, hasMore: items.length >= limit, error: "" });
-            } else if (mal && mal.ready && mal.ready()) {
-                var rows = malRowsFor(mal, def.recipe, offset, limit);
-                var fbItems = rows.map(mapJikan);
-                if (explicitFilter) fbItems = fbItems.filter(function(it) { return explicitFilter(it, showExplicit); });
-                done({ generation: generation, items: fbItems, hasMore: rows.length >= limit, error: "" });
+            } else if (CatalogDelivery.available(mal)) {
+                cancelFallback = CatalogDelivery.wait(mal, function() { return malRowsFor(mal, def.recipe, offset, limit); }, function(rows) {
+                    if (cancelled) return;
+                    var fbItems = rows.map(mapJikan);
+                    if (explicitFilter) fbItems = fbItems.filter(function(it) { return explicitFilter(it, showExplicit); });
+                    done({ generation: generation, items: fbItems, hasMore: rows.length >= limit, error: "" });
+                });
             } else {
                 done({ generation: generation, items: [], hasMore: false, error: "anime catalogue offline" });
             }
         });
+        return function() {
+            cancelled = true;
+            if (typeof cancelLive === "function") cancelLive();
+            if (typeof cancelFallback === "function") cancelFallback();
+        };
     }
-    if (!mal || !mal.ready || !mal.ready()) {
+    if (!CatalogDelivery.available(mal)) {
         done({ generation: generation, items: [], hasMore: false, error: "anime catalogue offline" }); return;
     }
-    var rows = malRowsFor(mal, def.recipe, offset, limit);
-    var items = rows.map(mapJikan);
-    if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
-    done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
+    return CatalogDelivery.wait(mal, function() {
+        return malRowsFor(mal, def.recipe, offset, limit);
+    }, function(rows) {
+        var items = rows.map(mapJikan);
+        if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
+        done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
+    });
 }
 // Extension See-all paging. If the pinned catalogue is no longer installed/enabled/browsable,
 // return an honest missing state that NAMES the provider (spec §8) — never a silent different
@@ -1124,7 +1137,7 @@ function loadRowPage(pin, offset, limit, options, done) {
     if (pin.sourceKind === "extension" || pin.sourceKind === "service-extension") {
         return loadExtensionRowPage(pin, offset, limit, options, done);
     }
-    if (pin.pageKey === "anime") { loadAnimeRowPage(pin, offset, limit, options, done); return; }
+    if (pin.pageKey === "anime") return loadAnimeRowPage(pin, offset, limit, options, done);
     var type = pin.pageKey === "shows" ? "series" : "movie";
     var def = findDef(pin.pageKey, pin.rowKey);
     if (!def) { done({ generation: generation, items: [], hasMore: false, error: "unknown row: " + pin.rowKey }); return; }
@@ -1134,14 +1147,17 @@ function loadRowPage(pin, offset, limit, options, done) {
     var queries = Rules.indexQueriesFor(def.recipe);
     if (queries.length > 0) {                          // index shelf: page the artifact
         var imdb = options.imdbCatalog || null;
-        if (!imdb || !imdb.ready || !imdb.ready()) {
+        if (!CatalogDelivery.available(imdb)) {
             done({ generation: generation, items: [], hasMore: false, error: "catalogue index offline" });
             return;
         }
-        var rows = imdbRowsFor(imdb, def.recipe, offset, limit);
-        var items = rows.map(mapImdb);
-        if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
-        done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
+        return CatalogDelivery.wait(imdb, function() {
+            return imdbRowsFor(imdb, def.recipe, offset, limit);
+        }, function(rows) {
+            var items = rows.map(mapImdb);
+            if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
+            done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
+        });
         return;
     }
     // live shelf (top-10 / recently-released / recently-premiered / currently-airing)
@@ -1287,21 +1303,22 @@ function moreLikeThis(mediaType, requestedId, resolvedId, firstGenre, malCatalog
     selfIds[String(requestedId || "")] = true
     selfIds[String(resolvedId || "")] = true
     if (animeIdFor(requestedId) || String(requestedId || "").match(/^(kitsu|anidb):/)) {
-        if (!malCatalog || !malCatalog.ready()) { done([]); return }
-        var rows = malCatalog.genreEntries("anime", firstGenre, "members", 13) || []
-        var out = []
-        for (var i = 0; i < rows.length && out.length < 12; i++) {
-            var r = rows[i]
-            var rid = "mal:" + r.mal_id
-            if (selfIds[rid]) continue
-            out.push({ "id": rid, "type": "series",
-                       "title": r.title_english || r.title || "",
-                       "cover": (r.images && r.images.jpg && r.images.jpg.large_image_url) || "" })
-        }
-        done(out)
-        return
+        if (!CatalogDelivery.available(malCatalog)) { done([]); return }
+        return CatalogDelivery.wait(malCatalog, function() {
+            return malCatalog.genreEntries("anime", firstGenre, "members", 13) || [];
+        }, function(rows) {
+            var out = [];
+            for (var i = 0; i < rows.length && out.length < 12; i++) {
+                var r = rows[i];
+                var rid = "mal:" + r.mal_id;
+                if (selfIds[rid]) continue;
+                out.push({id:rid, type:"series", title:r.title_english || r.title || "",
+                          cover:(r.images && r.images.jpg && r.images.jpg.large_image_url) || ""});
+            }
+            done(out);
+        });
     }
-    catalogFetch(mediaType, firstGenre, 13, function(cards) {
+    return catalogFetch(mediaType, firstGenre, 13, function(cards) {
         var out = []
         for (var i = 0; i < (cards || []).length && out.length < 12; i++) {
             var c = cards[i]

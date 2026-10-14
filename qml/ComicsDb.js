@@ -23,7 +23,8 @@ var _bySid = {};                // "<locg_id>" -> series record, for O(1) series
 // the fixture/test lane and is untouched. Engine takes priority when both are present.
 var _engine = null;
 function setEngine(e) {
-    _engine = (e && e.curatedReady && e.curatedReady()) ? e : null;
+    _engine = (e && ((typeof e.available === "function" && e.available())
+                    || (e.curatedReady && e.curatedReady()))) ? e : null;
     _byTitle = null;
     return _engine !== null;
 }

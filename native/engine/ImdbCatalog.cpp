@@ -14,13 +14,14 @@
 
 bool ImdbCatalog::openAt(const QString& dbPath)
 {
+    if (dbPath.isEmpty()) return false;
     QString path = dbPath;
-    if (!QFileInfo::exists(path)) {
+    if (!QFileInfo(path).isFile()) {
         const QString beside = QCoreApplication::applicationDirPath()
                                + QStringLiteral("/../../") + dbPath;
-        if (QFileInfo::exists(beside)) path = beside;
+        if (QFileInfo(beside).isFile()) path = beside;
     }
-    if (!QFileInfo::exists(path))
+    if (!QFileInfo(path).isFile())
         return false;                    // shelves omit honestly without the index
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
     m_db.setDatabaseName(path);
@@ -31,6 +32,9 @@ bool ImdbCatalog::openAt(const QString& dbPath)
 ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent)
     : QObject(parent), m_conn(QStringLiteral("imdb_catalog"))
 {
+    m_remote = new CatalogRemote(QStringLiteral("imdb"), this);
+    connect(m_remote, &CatalogRemote::changed, this, &ImdbCatalog::revisionChanged);
+    connect(m_remote, &CatalogRemote::failed, this, &ImdbCatalog::requestFailed);
     m_ok = openAt(dbPath);
 }
 
@@ -71,6 +75,7 @@ void ImdbCatalog::closeForSwap()
 
 QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int limit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("titleCatalog"), QVariantList{query, offset, limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok) return out;
 
@@ -173,6 +178,7 @@ QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int
 
 QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{VaultKit::normalizedTitle(title), year}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -219,6 +225,7 @@ QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
 
 QVariantList ImdbCatalog::search(const QString& text, int limit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -263,6 +270,7 @@ QVariantList ImdbCatalog::search(const QString& text, int limit) const
 
 QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("titleFacts"), QVariantList{QVariant::fromValue(ids)}, QVariantMap{}).toMap();
     QVariantMap out;
     if (!m_ok || ids.isEmpty()) return out;
     for (int start = 0; start < ids.size(); start += 100) {
@@ -285,6 +293,7 @@ QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
 
 QVariantMap ImdbCatalog::titlePresentation(const QString& id) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("titlePresentation"), QVariantList{id}, QVariantMap{}).toMap();
     if (!m_ok || !id.startsWith(QStringLiteral("tt"))) return {};
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("SELECT title, type FROM title WHERE tt = ?"));

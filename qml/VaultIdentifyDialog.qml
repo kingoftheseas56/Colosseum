@@ -1,6 +1,7 @@
 // VaultIdentifyDialog — the small explicit identity gesture. The native VaultIdentifier remains
 // the certainty gate; this surface is deliberately honest when no single offline candidate exists.
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import QtQuick.Controls
 import "TheatreApi.js" as TheatreApi
 
@@ -82,7 +83,7 @@ Popup {
             return
         }
         if (dialog.kind === "video") {
-            var imdbRows = (typeof ImdbCatalog !== "undefined" && ImdbCatalog.ready())
+            var imdbRows = (typeof ImdbCatalog !== "undefined" && CatalogDelivery.available(ImdbCatalog))
                 ? ImdbCatalog.search(text, 20) : []
             if (imdbRows.length) { setRows(imdbRows, "IMDB"); return }
             // Network is deliberately reachable only from this explicit video-miss branch.
@@ -91,14 +92,30 @@ Popup {
             })
             return
         }
-        var comicRows = (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready())
+        var comicRows = (typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog))
             ? ComicsCatalog.search(text, 20) : []
         if (comicRows.length) { setRows(comicRows, "COMICS"); return }
-        var malRows = (typeof MalCatalog !== "undefined" && MalCatalog.ready())
+        var malRows = (typeof MalCatalog !== "undefined" && CatalogDelivery.available(MalCatalog))
             ? MalCatalog.search(text, 20, "") : []
         setRows(malRows, "MAL")
     }
 
+    Timer { id: remoteIdentifyTimer; interval: 75; onTriggered: if (dialog.opened) dialog.searchNow() }
+    Connections {
+        target: typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (dialog.opened) remoteIdentifyTimer.restart() }
+    }
+    Connections {
+        target: typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (dialog.opened) remoteIdentifyTimer.restart() }
+    }
+    Connections {
+        target: typeof MalCatalog !== "undefined" ? MalCatalog : null
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (dialog.opened) remoteIdentifyTimer.restart() }
+    }
     onOpened: {
         dialog.query = dialog.titleText
         dialog.searchNow()

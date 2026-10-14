@@ -559,6 +559,10 @@ add_executable(colosseum
     engine/TankobanChapterMigration.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
+    engine/SourceContentStore.cpp
+    engine/SourceContentStore.h
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h
     engine/CatalogVaultClient.cpp  # data-vault adoption, Slice 1/2 (2026-08-22)
     engine/CatalogVaultClient.h
     engine/LocalDownloads.cpp
@@ -2388,7 +2392,9 @@ add_executable(lanista_harness
     engine/MalCatalog.h
     reader/BookStores.cpp
     reader/BookStores.h
-)
+
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h)
 target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/player)
 # The windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and
@@ -2505,9 +2511,11 @@ endif()
 add_executable(comics_catalog_engine_harness
     ../tests/comics_catalog_engine_harness.cpp
     engine/ComicsCatalog.cpp
-    engine/ComicsCatalog.h)
+    engine/ComicsCatalog.h
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h)
 target_include_directories(comics_catalog_engine_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)
+target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
 
 # Arc 21 comics catalogue intelligence (curated_source/coverage layer, 2026-08-23):
 # curated acquisition/coverage reads, format+availability discover facets, four new
@@ -2515,9 +2523,11 @@ target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)
 add_executable(comics_catalog_arc21_harness
     ../tests/comics_catalog_arc21_harness.cpp
     engine/ComicsCatalog.cpp
-    engine/ComicsCatalog.h)
+    engine/ComicsCatalog.h
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h)
 target_include_directories(comics_catalog_arc21_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comics_catalog_arc21_harness PRIVATE Qt6::Core Qt6::Sql)
+target_link_libraries(comics_catalog_arc21_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
 
 # ── Deep Theatre catalogue (spec 2026-08-01): paged offline anime query contract ──
 add_executable(mal_catalog_rows_harness
@@ -2525,9 +2535,11 @@ add_executable(mal_catalog_rows_harness
     engine/MalCatalog.cpp
     engine/MalCatalog.h
     engine/VaultKit.cpp
-    engine/VaultKit.h)
+    engine/VaultKit.h
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h)
 target_include_directories(mal_catalog_rows_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent)
+target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network)
 
 # ── Deep Theatre catalogue (spec 2026-08-02): imdb index query contract ──
 add_executable(imdb_catalog_harness
@@ -2535,9 +2547,11 @@ add_executable(imdb_catalog_harness
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
     engine/VaultKit.cpp
-    engine/VaultKit.h)
+    engine/VaultKit.h
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h)
 target_include_directories(imdb_catalog_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(imdb_catalog_harness PRIVATE Qt6::Core Qt6::Sql)
+target_link_libraries(imdb_catalog_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Network)
 
 # ── Tankoban Discover (spec 2026-08-01): paged offline MANGA discovery contract ──
 add_executable(mal_catalog_discover_harness
@@ -2545,9 +2559,11 @@ add_executable(mal_catalog_discover_harness
     engine/MalCatalog.cpp
     engine/MalCatalog.h
     engine/VaultKit.cpp
-    engine/VaultKit.h)
+    engine/VaultKit.h
+    engine/CatalogRemote.cpp
+    engine/CatalogRemote.h)
 target_include_directories(mal_catalog_discover_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent)
+target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network)
 
 # Live triage probe (2026-07-18): the audiobook delivery chain end-to-end —
 # real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.
@@ -2823,3 +2839,31 @@ if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
 endif()
+
+# Versioned universe/tribute data over the existing bounded semantic transport.
+add_executable(source_content_store_harness
+    ../tests/source_content_store_harness.cpp
+    engine/SourceContentStore.cpp engine/SourceContentStore.h
+    engine/CatalogRemote.cpp engine/CatalogRemote.h)
+target_include_directories(source_content_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(source_content_store_harness PRIVATE Qt6::Core Qt6::Network)
+add_test(NAME colosseum.source_content_store_harness COMMAND source_content_store_harness)
+
+add_executable(source_content_refresh_harness
+    ../tests/source_content_refresh_harness.cpp
+    engine/SourceContentStore.cpp engine/SourceContentStore.h
+    engine/CatalogRemote.cpp engine/CatalogRemote.h)
+target_include_directories(source_content_refresh_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(source_content_refresh_harness PRIVATE Qt6::Core Qt6::Network)
+add_test(NAME colosseum.source_content_refresh_harness COMMAND source_content_refresh_harness)
+
+add_executable(catalog_remote_harness
+    ../tests/catalog_remote_harness.cpp
+    engine/CatalogRemote.cpp engine/CatalogRemote.h
+    engine/ImdbCatalog.cpp engine/ImdbCatalog.h
+    engine/MalCatalog.cpp engine/MalCatalog.h
+    engine/ComicsCatalog.cpp engine/ComicsCatalog.h
+    engine/VaultKit.cpp engine/VaultKit.h)
+target_include_directories(catalog_remote_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(catalog_remote_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
+add_test(NAME colosseum.catalog_remote_harness COMMAND catalog_remote_harness)

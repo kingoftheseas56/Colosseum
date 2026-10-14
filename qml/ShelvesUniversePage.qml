@@ -11,6 +11,7 @@
 // Layout authority: Brotherhood/agents/colosseum-universe-shelves-all-mock.html, 1280x720.
 // Data: SagaApi.loadShelves, from the universe's curated `shelves` (or derived for anime).
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "Universes.js" as UDB
@@ -18,6 +19,8 @@ import "UniverseApi.js" as CoverApi
 
 Item {
     id: root
+    onUniverseContentGenerationChanged: reload()
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
 
     // shell contract — the same verbs the other template pages speak (Main's template
@@ -45,7 +48,7 @@ Item {
     readonly property string uiFace: shelfUi.name
     readonly property string displayFace: shelfDisplay.name
     property bool reducedMotion: true
-    readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
+    readonly property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName || root.uni.name)
     readonly property color worldColor: root.uni.color || root.guide.c1 || "#221c30"
     readonly property color paper: theme.ink
     readonly property color hair: Qt.rgba(1, 1, 1, 0.09)
@@ -651,7 +654,7 @@ Item {
     }).slice(0, 4)
     // the other anime universes with a working page
     readonly property var siblings: {
-        const all = UDB.universes.concat(UDB.archive)
+        const all = (root.universeContentGeneration, UDB.universes).concat((root.universeContentGeneration, UDB.archive))
         return all.filter(function(u) { return (!!u.shelves || !!u.manga) && u.name !== (root.universeName || root.uni.name) })
                   .slice(0, 4)
     }

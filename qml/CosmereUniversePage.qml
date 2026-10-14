@@ -2,12 +2,15 @@
 // entry portals, then the connected planetary systems. Curated strings may label the map,
 // but an action only becomes live when CosmereApi has resolved a full Biblio book object.
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "CosmereApi.js" as Cosmere
 import "Universes.js" as UDB
 
 Item {
     id: root
+    onUniverseContentGenerationChanged: reload()
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
 
     property Item backdrop: null
@@ -28,14 +31,16 @@ Item {
     readonly property color cognitiveBlue: "#78cfe3"
     readonly property color stormlight: "#d9e8ff"
     readonly property color copper: "#b8734a"
-    property var guide: UDB.configFor(root.universeName)
+    property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName)
     property var uni: ({ name: "Cosmere", blurb: "", banner: "", metaline: "",
                          starters: [], worlds: [], series: [] })
 
+    property int loadGeneration: 0
     function reload() {
-        root.guide = UDB.configFor(root.universeName)
+        root.guide = (root.universeContentGeneration, UDB.configFor)(root.universeName)
         if (!root.universeName.length) return
-        Cosmere.loadAtlas(root.universeName, function(atlas) { if (atlas) root.uni = atlas })
+        const generation = ++root.loadGeneration
+        Cosmere.loadAtlas(root.universeName, function(atlas) { if (generation === root.loadGeneration && atlas) root.uni = atlas })
     }
     function portalFor(query) {
         var portals = root.uni.starters || []

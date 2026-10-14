@@ -1,10 +1,16 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "UniverseExtApi.js" as UniverseExtApi
 
 Item {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
+    onUniverseContentGenerationChanged: reload()
+    readonly property var contentLayout: { root.universeContentGeneration; return UniverseContent.resolveAssets(UniverseContent.document("tribute-star-wars")) }
+    readonly property var destinations: contentLayout.destinations || UniverseContent.resolveAssets(starterDestinations)
+    readonly property var skywalkerDestination: contentLayout.skywalkerDestination || starterSkywalkerDestination
     objectName: "galaxyUniversePage"
     anchors.fill: parent
     focus: true
@@ -38,7 +44,7 @@ Item {
     Keys.onReleased: (event) => destinationKeyboardScroll.handleRelease(event)
 
     property bool reducedMotion: false
-    readonly property var destinations: [
+    readonly property var starterDestinations: [
         { id:"high", name:"HIGH REPUBLIC", title:"High Republic", world:"VALO", env:"../assets/universes/star-wars/valo.jpg", orbit:170, angle:3.4915926536, speed:.000030, size:27, y:5, light:"#e8e4d8", mid:"#9d9a91", dark:"#242525", mark:"../assets/universes/star-wars/marks/high-republic.png", shelves:[ {ids:["high-republic-screen"],medium:"Theatre",note:"High Republic series"}, {ids:["high-republic-books","high-republic-ya"],medium:"Biblio",note:"Canon novels + young adult"}, {ids:["high-republic-comics"],medium:"Tankoban",note:"Collected comic lines"} ] },
         { id:"fall", name:"FALL OF THE JEDI", title:"Fall of the Jedi", world:"CORUSCANT", env:"../assets/universes/star-wars/coruscant.jpg", orbit:245, angle:2.36, speed:.000024, size:32, y:-4, light:"#b9a08a", mid:"#6f5747", dark:"#211918", mark:"../assets/universes/star-wars/marks/republic.svg", shelves:[ {ids:["fall-of-the-jedi-screen"],medium:"Theatre",note:"Republic era"}, {ids:["republic-books"],medium:"Biblio",note:"Republic era novels"}, {ids:["fall-empire-comics"],medium:"Tankoban",note:"Spans Fall of the Jedi + Reign of the Empire"} ] },
         { id:"empire", name:"REIGN OF THE EMPIRE", title:"Reign of the Empire", world:"MUSTAFAR", env:"../assets/universes/star-wars/mustafar.jpg", orbit:330, angle:4.56, speed:.000019, size:42, y:8, light:"#858b93", mid:"#343a40", dark:"#0f1215", mark:"../assets/universes/star-wars/marks/empire.svg", shelves:[ {ids:["reign-of-the-empire-screen"],medium:"Theatre",note:"Imperial era"}, {ids:["imperial-books"],medium:"Biblio",note:"Imperial era novels"}, {ids:["fall-empire-comics"],medium:"Tankoban",note:"Spans Fall of the Jedi + Reign of the Empire"} ] },
@@ -49,7 +55,7 @@ Item {
         { id:"across", name:"ACROSS THE ERAS", title:"Across the Eras", world:"CANON · CROSS-ERA", radius:820, angle:2.72, y:30, node:true, shelves:[ {ids:["canon-anthologies-screen"],medium:"Theatre",note:"Canon anthologies"}, {ids:["young-adult-books"],medium:"Biblio",note:"Young adult stories across eras"} ] },
         { id:"outside", name:"BEYOND CANON", title:"Beyond Canon", world:"ADJACENT CONTINUITIES", radius:760, angle:-.17, y:26, node:true, shelves:[ {ids:["visions-screen","vintage-screen","lego-screen"],medium:"Theatre",note:"Visions · Vintage & Legends · LEGO"}, {ids:["visions-manga"],medium:"Tankoban",note:"Visions manga"} ] }
     ]
-    readonly property var skywalkerDestination: ({
+    readonly property var starterSkywalkerDestination: ({
         id:"skywalker", name:"SKYWALKER SAGA", title:"Skywalker Saga",
         world:"EPISODES I–IX", env:"",
         shelves:[ {ids:["skywalker-saga-screen"],medium:"Theatre",note:"Episodes I–IX"} ]

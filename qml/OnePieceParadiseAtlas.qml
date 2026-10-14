@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls.Basic
 import "OnePieceParadiseData.js" as Story
 import "OnePieceParadiseAdapter.js" as ParadiseAdapter
@@ -9,6 +10,7 @@ import "OnePieceAtlasBadgeLayout.js" as BadgeLayout
 
 FocusScope {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     focus: true
     property bool reducedMotion: false
     property string displayFamily: "Georgia"
@@ -25,19 +27,19 @@ FocusScope {
     property real previewX: 18
     property real previewY: 88
     property int viewGeneration: 0
-    readonly property var arcEntries: Story.arcs
-    readonly property var markerEntries: Atlas.canonMarkers
-    readonly property var selectedArc: Story.arc(selectedArcId)
+    readonly property var arcEntries: (root.universeContentGeneration, Story.arcs)
+    readonly property var markerEntries: (root.universeContentGeneration, Atlas.canonMarkers)
+    readonly property var selectedArc: (root.universeContentGeneration, Story.arc)(selectedArcId)
     property bool selectedPosterFailed: false
-    readonly property var selectedRoute: ParadiseAdapter.resolveArc(root.selectedArc)
+    readonly property var selectedRoute: (root.universeContentGeneration, ParadiseAdapter.resolveArc)(root.selectedArc)
     onSelectedArcIdChanged: selectedPosterFailed = false
-    readonly property var selectedLocation: selectedArc ? Atlas.location(selectedArc.locationId) : null
-    readonly property var selectedVisits: selectedArc ? Story.arcsForLocation(selectedArc.locationId) : []
+    readonly property var selectedLocation: selectedArc ? (root.universeContentGeneration, Atlas.location)(selectedArc.locationId) : null
+    readonly property var selectedVisits: selectedArc ? (root.universeContentGeneration, Story.arcsForLocation)(selectedArc.locationId) : []
     readonly property bool transientOpen: previewVisible || indexVisible
     readonly property bool captureReady: chartLoader.status === Loader.Ready
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
     readonly property real sealDiameter: 84 * root.stageGeometry.scale
-    readonly property var badgeProtectedAreas: BadgeLayout.protectedAreas(chartLoader.item, Atlas.locations)
+    readonly property var badgeProtectedAreas: BadgeLayout.protectedAreas(chartLoader.item, (root.universeContentGeneration, Atlas.locations))
     readonly property var badgePlacements: BadgeLayout.placeBadges(root.markerEntries,
         root.sealDiameter / Math.max(0.01, root.stageGeometry.scale), root.badgeProtectedAreas,
         9 / Math.max(0.01, root.stageGeometry.scale))
@@ -55,11 +57,11 @@ FocusScope {
     }
 
     function openPreview(id, arcId) {
-        var marker = Atlas.marker(id)
+        var marker = (root.universeContentGeneration, Atlas.marker)(id)
         if (!marker || !root.visible) return false
         var selected = arcId || (id === root.selectedMarkerId ? root.selectedArcId : "")
         if (!selected) selected = marker.arcIds[0]
-        var arc = Story.arc(selected)
+        var arc = (root.universeContentGeneration, Story.arc)(selected)
         if (!arc || marker.arcIds.indexOf(selected) < 0) return false
         closeGrace.stop()
         root.indexVisible = false
@@ -118,7 +120,7 @@ FocusScope {
     }
 
     function openSelectedArc() {
-        var payload = ParadiseAdapter.cataloguePayload(root.selectedArc)
+        var payload = (root.universeContentGeneration, ParadiseAdapter.cataloguePayload)(root.selectedArc)
         if (!payload) return
         root.closePreview(true)
         root.arcRequested(payload)
@@ -189,8 +191,8 @@ FocusScope {
     }
 
     function focusArc(arcId) {
-        var arc = Story.arc(arcId)
-        var marker = Atlas.markerForArc(arcId)
+        var arc = (root.universeContentGeneration, Story.arc)(arcId)
+        var marker = (root.universeContentGeneration, Atlas.markerForArc)(arcId)
         if (!arc || !marker || !root.visible) return false
         root.closeIndex(false)
         root.revealMarker(marker)
@@ -204,7 +206,7 @@ FocusScope {
 
     function moveMarker(id, direction) {
         var next = Geometry.nextMarker(root.markerEntries, id, direction)
-        var marker = next ? Atlas.marker(next) : null
+        var marker = next ? (root.universeContentGeneration, Atlas.marker)(next) : null
         if (marker) root.focusArc(marker.arcIds[0])
     }
 
@@ -328,8 +330,8 @@ FocusScope {
                 delegate: ParadiseMarker {
                     id: seal
                     required property var modelData
-                    property var firstArc: Story.arc(modelData.arcIds[0])
-                    badgeSource: ParadiseAdapter.markerSourceForArc(
+                    property var firstArc: (root.universeContentGeneration, Story.arc)(modelData.arcIds[0])
+                    badgeSource: (root.universeContentGeneration, ParadiseAdapter.markerSourceForArc)(
                         root.selectedMarkerId === markerId && root.selectedArc ? root.selectedArc : firstArc)
                     markerId: modelData.id
                     title: firstArc ? firstArc.title + (modelData.arcIds.length > 1 ? ", including return visit" : "") : modelData.id
@@ -346,7 +348,7 @@ FocusScope {
                     z: selected ? 4 : 3
                     onFocusEntered: function(id) {
                         if (!root.suppressFocusPreview && !root.indexVisible && root.visible) {
-                            root.revealMarker(Atlas.marker(id))
+                            root.revealMarker((root.universeContentGeneration, Atlas.marker)(id))
                             root.openPreview(id)
                         }
                     }

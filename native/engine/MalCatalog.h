@@ -8,6 +8,7 @@
 // Missing db => ready()==false and every accessor returns empty — the pages
 // fall through to their live Jikan/AniList/Kitsu ladder untouched.
 #include <QObject>
+#include "CatalogRemote.h"
 #include <QHash>
 #include <QSqlDatabase>
 #include <QVariantList>
@@ -15,6 +16,8 @@
 
 class MalCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int revision READ revision NOTIFY revisionChanged)
+    Q_PROPERTY(bool remoteEnabled READ remoteEnabled NOTIFY revisionChanged)
     // No Q_PROPERTY(ready) here on purpose (data-vault Slice 4, 2026-08-22 fix): a
     // Q_PROPERTY and a Q_INVOKABLE sharing the name "ready" collide in QML's property
     // lookup — `.ready()` resolves to the property's bool VALUE first, then throws
@@ -28,6 +31,16 @@ public:
     ~MalCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Service availability is distinct from complete local SQLite readiness.
+    Q_INVOKABLE bool available() const { return m_ok || m_remote->available(); }
+    bool remoteEnabled() const { return m_remote->enabled(); }
+    int revision() const { return m_remote->revision(); }
+    Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
+    Q_INVOKABLE bool remoteWaiting() const { return m_remote->waiting(); }
+    void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& cachePath = {}) {
+        m_remote->configure(nam, endpoint, cachePath);
+    }
+
     // Data-vault Slice 2 (2026-08-22): reopen at a fresh path (e.g. after
     // CatalogVaultClient lands a new download over this db) — closes any
     // existing connection first. Returns the new ready() state.
@@ -98,6 +111,8 @@ public:
 
 signals:
     void readyChanged();
+    void revisionChanged();
+    void requestFailed(QString method, QString reason);
     void filterCacheReady();
 
 private:
@@ -105,6 +120,7 @@ private:
     void warmDiscoverFilters();
     QVariantList discoverFiltersUncached(const QString& axis, bool includeExplicit) const;
 
+    CatalogRemote* m_remote;
     QSqlDatabase m_db;
     bool m_ok = false;
     QString m_conn;    // discoverFilters() answers per axis/explicit flag, computed once per opened database:
