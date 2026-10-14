@@ -21,7 +21,7 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
-    readonly property bool compactChrome: width < 1200
+    readonly property bool compactChrome: width < 1000
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -178,7 +178,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1000 ? 24 : 34))
+        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))
         implicitHeight: 34
 
         Rectangle {
@@ -297,7 +297,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.compactChrome ? 10 : 20
+        spacing: bar.width < 1200 ? 10 : 20
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
