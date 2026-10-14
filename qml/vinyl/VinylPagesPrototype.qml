@@ -64,7 +64,7 @@ Window {
         });
     }
     function openArtistAlbum(record) {
-        if (!pageData.loadAlbum(record, worldData.artwork(record.cover))) return;
+        if (!pageData.loadAlbum(record, artistData.artwork(record.cover))) return;
         albumReturnPage = "artist";
         root.page = "album";
     }
@@ -119,11 +119,12 @@ Window {
     VinylArtistData {
         id: artistData
         catalogue: worldData.catalogue
+        artworkRoot: worldData.artworkRoot
     }
     VinylBackdrop {
         id: backdrop
         anchors.fill: parent
-        source: root.page === "artist" ? (artistData.record.releases.length ? worldData.artwork(artistData.record.releases[0].album.cover) : Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")) : root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
+        source: root.page === "artist" ? (artistData.record.releases.length ? artistData.artwork(artistData.record.releases[0].album.cover) : Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")) : root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
         wordsShown: root.page === "song" && pageData.lyricsShown
         tallFixture: root.page === "song" && pageData.playingEdition.id === "mounamela"
         Rectangle {
@@ -244,7 +245,7 @@ Window {
         onArtistRequested: name => root.openArtist(name)
         onAlbumRequested: record => root.openArtistAlbum(record)
         onSongRequested: song => {
-            if (pageData.loadAlbum(song.album, worldData.artwork(song.album.cover)))
+            if (pageData.loadAlbum(song.album, artistData.artwork(song.album.cover)))
                 pageData.playTrack(song.index);
         }
     }

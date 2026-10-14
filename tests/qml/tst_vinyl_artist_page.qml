@@ -12,6 +12,8 @@ TestCase {
         verify(component.status === Component.Ready, component.errorString());
         host = component.createObject(null);
         verify(host !== null);
+        compare(host.artistData.name, "Eminem");
+        host.artistData.open("Ilaiyaraaja");
         host.pageData.frozen = true;
         tryCompare(host, "ready", true);
     }
@@ -128,13 +130,43 @@ TestCase {
         compare(item("vinylArtistName").text, "Uncatalogued artist");
         verify(item("vinylArtistSave").visible);
     }
+    function test_eminemSectionsPlaylistAndSingleRoundTrip() {
+        host.artistData.open("Eminem");
+        compare(host.artistData.record.name, "Eminem");
+        verify(host.artistData.releases.length >= 6);
+        compare(host.artistData.singles.length, 3);
+        verify(host.artistData.context.history.length > 0);
+        compare(host.artistData.songs[0].track.title, "Without Me");
+        verify(!host.artistData.createPlaylist("   "));
+        verify(host.artistData.createPlaylist("My Eminem mix"));
+        compare(host.artistData.playlists.length, 2);
+        compare(host.artistData.playlists[1].songs.length, 5);
+        item("vinylArtistPlaylist_1").activate();
+        tryVerify(function() { return item("vinylArtistPlaylistSong_0") !== null; });
+        var selected = host.artistData.playlists[1].songs[0];
+        mouseClick(item("vinylArtistPlaylistSong_0"));
+        compare(host.pageData.playingTrack.title, selected.track.title);
+        item("vinylArtistNav_4").activate();
+        verify(host.artistScroll.contentY > 0);
+        var oldY = host.artistScroll.contentY;
+        item("vinylArtistSingle_0").activate();
+        compare(host.page, "album");
+        compare(host.pageData.shownEdition.name, "Somebody Save Me");
+        item("vinylAlbumBack").activate();
+        compare(host.page, "artist");
+        compare(host.artistScroll.contentY, oldY);
+        host.artistData.open("Joni Mitchell");
+        compare(host.artistData.playlists.length, 1);
+        host.artistData.open("Eminem");
+        compare(host.artistData.playlists[1].name, "My Eminem mix");
+    }
     function test_captureStates() {
         if (typeof VinylCaptureDirectory === "undefined" || !VinylCaptureDirectory)
             skip("Set VINYL_CAPTURE_DIR for visual captures");
         var cases = [
-            {name:"Ilaiyaraaja",width:1280,height:720,y:0,tag:"artist-1280"},
-            {name:"Ilaiyaraaja",width:1600,height:900,y:0,tag:"artist-1600"},
-            {name:"Ilaiyaraaja",width:1280,height:720,y:540,tag:"artist-songs"},
+            {name:"Eminem",width:1280,height:720,y:0,tag:"artist-1280"},
+            {name:"Eminem",width:1600,height:900,y:0,tag:"artist-1600"},
+            {name:"Eminem",width:1280,height:720,y:0,nav:4,tag:"artist-about"},
             {name:"S. P. Balasubrahmanyam",width:1280,height:720,y:0,tag:"artist-credits"},
             {name:"Joni Mitchell",width:960,height:720,y:0,tag:"artist-thin"}
         ];
@@ -151,6 +183,7 @@ TestCase {
             tryCompare(host, "width", data.width);
             tryCompare(host, "height", data.height);
             host.artistScroll.contentY = data.y;
+            if (data.nav !== undefined) item("vinylArtistNav_" + data.nav).activate();
             for (var cover = 0; cover < host.artistData.releases.length; ++cover)
                 tryCompare(item("vinylArtistAlbumArt_" + cover), "ready", true);
             host.requestUpdate();

@@ -7,11 +7,15 @@ Artist cards, album credits and the song's artist label open the artist surface.
 
 ## Design
 
-The artist's records serve as the portrait: a small fan of album covers beside
-the name, followed by discography, songs and shared credits. No separate artist
-photography, invented biography, popularity ranking or follower count is added.
-This extends the approved October 7 song/album and October 8 Home/Discover
-designs; those designs did not themselves approve an artist page.
+Eminem is the default artist. The first viewport pairs artist identity and a
+short blurb with five selected songs. Albums, singles/EPs, session playlists,
+biography, facts, career milestones and shared credits fill the scroll surface.
+Section links jump to the corresponding content. Album artwork supplies the
+backdrop; there is no separate portrait or invented follower/popularity count.
+
+The information structure draws from [Spotify's artist profile](https://artists.spotify.com/en/blog/making-the-most-of-your-artist-profile-on-spotify)
+and [YouTube Music's artist sections](https://ytmusicapi.readthedocs.io/en/stable/reference/browsing.html).
+Harbor is a reference for information density, not a literal page template.
 
 Existing Theme tokens remain authoritative: gold `#f0c44a`, ink `#f7f7f5`, muted
 ink `#c9c8d0`, secondary ink `#9a99a5`, background `#06070b`. Fraunces identifies
@@ -37,7 +41,9 @@ artist credit open a chooser instead of creating a composite artist identity.
 - Browsing an artist or album preserves playing state. Selecting a song invokes
   the existing prototype player state. Back restores the prior artist filters,
   scroll position and browsed album. It does not resume an old playing track.
-- Save artist is session-only demonstration state. No new store is created.
+- Save artist and custom playlists are session-only demonstration state.
+  Create playlist starts with the displayed songs; opening a playlist exposes
+  its tracks, whose selection uses the same prototype playback path. No new store is created.
   The prototype simulates transport; it does not fetch or decode live audio.
 - Production navigation and the opt-in live Vinyl session are not connected to
   this surface. The optional song artist link defaults off outside the preview.
@@ -48,9 +54,16 @@ defines this page's navigation or search wording.
 
 ## Review and integration follow-through
 
-The deliberate tradeoff is an artwork-led discography, with songs below it.
-The first viewport favours browsing records. Long album titles are elided on
-cards but remain complete in their accessible names and destination page.
+Selected songs are an editorial fixture order, not live charts. Eminem's
+additional releases and the Ilaiyaraaja singles are a public, account-free
+YouTube Music snapshot from 2026-10-14 (IN, ytmusicapi 1.12.3); each record
+retains a source URL, exact release ID, type and track credits. This is a
+bounded selection, not a complete discography. New thumbnails load directly
+from provider URLs and need network access; existing artwork remains local.
+Short authored biography summaries and milestones link to Wikipedia/Wikidata
+in the page and in `ArtistContext.js`. Genius documentation returned HTTP 403
+during this pass. No Genius metadata or lyrics are presented as retrieved;
+verified song-level enrichment remains an integration gap.
 
 Before production integration: settle this layout with Hemanth/Claude; resolve
 artists through provider-qualified IDs into Colosseum's existing identity owner;
@@ -58,13 +71,15 @@ add real paginated artist releases and track credits; carry explicit composer,
 singer and lyricist roles when supplied; use existing collection ownership for
 saved artists; and connect song selection to the existing torrent-first session.
 Distinguish loading, cached and failed requests without inventing catalogue data.
-Biography, videos and recommendations require sourced content before appearing.
+Live enrichment, videos and recommendations require matched, sourced content before appearing.
 
 ## Verification
 
 `tests/qml/tst_vinyl_artist_page.qml` covers identity separation, world/credit
 routes, nested back navigation, preservation of playing state, song selection,
 keyboard sort/save, appearance filtering, multiple-name selection and thin data.
+It also checks Eminem releases, singles navigation, biography section jumping,
+playlist creation and per-artist playlist isolation.
 The existing Vinyl album, song and page-data suites exercise shared behaviour.
 
 Set `VINYL_CAPTURE_DIR` when running the artist suite through
