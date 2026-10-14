@@ -753,6 +753,83 @@ int main()
         require(edition.state() == UpdateService::Available,
                 "legacy manifest still orders by version alone");
 
+        // Downgrade protection: a strictly older displayed version is never
+        // offered, whatever sequence it carries.
+        offer = validResult(manifestFor("1.1.8", "1.1.0", 9));
+        edition.checkNow();
+        require(edition.state() == UpdateService::UpToDate && !edition.updateAvailable(),
+                "older displayed version with a higher sequence is never offered");
+
+        // A sequenced offer against a missing/corrupt installed identity
+        // (sequence 0 — no verified seed) must not treat sequence as proof:
+        // equal displayed version -> UpToDate; genuinely newer version ->
+        // still offered by version alone.
+        {
+            QTemporaryDir unknownRoot;
+            require(unknownRoot.isValid(), "unknown-identity temp root");
+            ReleaseCheckResult unknownOffer = validResult(manifestFor("1.1.9", "1.1.0", 5));
+            UpdateServiceHooks unknownHooks;
+            unknownHooks.nowMs = [&clock] { return clock; };
+            unknownHooks.checkLatest = [&unknownOffer](const QString&,
+                                                        UpdateReleaseClient::Callback done) {
+                done(unknownOffer);
+            };
+            UpdateService unknown(version("1.1.9"), unknownRoot.path(), unknownHooks);
+            unknown.checkNow();
+            require(unknown.state() == UpdateService::UpToDate,
+                    "sequenced equal-version offer against a missing installed identity "
+                    "is not treated as newer");
+            unknownOffer = validResult(manifestFor("1.2.0", "1.1.0", 5));
+            unknown.checkNow();
+            require(unknown.state() == UpdateService::Available,
+                    "genuinely newer displayed version is offered without installed identity");
+        }
+
+        // Restart persistence through the durable signed-fixture path: a
+        // seen release restores from the same cache root on a fresh service
+        // without a new unseen badge. The seen/failed latches ride the same
+        // release-key identity the sequenced flow uses ("seq:N" keys for
+        // sequenced manifests, canonical version for legacy ones); a signed
+        // SEQUENCED fixture would need the test signing key, which is not
+        // present on this machine, so the durable restore is proven on the
+        // legacy form and the sequenced keying is asserted in-process above.
+        {
+            QTemporaryDir persistRoot;
+            require(persistRoot.isValid(), "edition-persistence temp root");
+            UpdateServiceHooks persistHooks;
+            persistHooks.nowMs = [&clock] { return clock; };
+            persistHooks.checkLatest = [](const QString&,
+                                           UpdateReleaseClient::Callback done) {
+                done(signedLanistaResult());
+            };
+            persistHooks.startDownload =
+                [](const DownloadRequest&, UpdateServiceHooks::DownloadProgress,
+                   UpdateServiceHooks::DownloadCompleted, UpdateServiceHooks::DownloadFailed) {};
+            UpdateService first(version("1.1.0"), persistRoot.path(), persistHooks);
+            first.checkNow();
+            require(first.state() == UpdateService::Available && first.unseenUpdate(),
+                    "signed offer is unseen on first check");
+            first.markSeen();
+
+            QFile stateFile(QDir(persistRoot.path())
+                                .filePath(QStringLiteral("service-state.json")));
+            require(stateFile.open(QIODevice::ReadOnly), "persisted service state exists");
+            const QByteArray persisted = stateFile.readAll();
+            stateFile.close();
+            require(persisted.contains("\"seen\""),
+                    "persisted state records the seen latch flag");
+
+            UpdateService restarted(version("1.1.0"), persistRoot.path(), persistHooks);
+            require(restarted.state() == UpdateService::Available
+                        && !restarted.unseenUpdate(),
+                    "seen release persists across restart without a new badge");
+            restarted.checkNow();
+            require(restarted.state() == UpdateService::Available
+                        && !restarted.unseenUpdate(),
+                    "re-check after restart keeps the seen latch (release key, not "
+                    "displayed version)");
+        }
+
         // Failure latch is sequence-keyed: a broken seq-2 publication latches,
         // and a corrected seq-3 republication of the SAME displayed version
         // is offered again instead of staying suppressed forever.

@@ -233,3 +233,60 @@ builds. To roll back the candidate: revert this commit (the wiring, gates,
 tests and doc are one commit). Hosted rollback is recorded on the server
 branch (guest lane returns to fail-closed without the secret/vars; imported
 rows are additive and inert until `ready=1`).
+
+## Review-findings resolution, third pass (2026-10-14)
+
+**F1 — rotation: DONE (see the server-branch note).** Tool corrected to the
+raw-secret bearer contract (the old HMAC derivation is proven rejected by a
+new worker contract test), recovery-safe, staged with preflight; executed:
+new token 200, exposed token 401. Worker deployed (guest gate open,
+503-not-ready honest until volumes complete).
+
+**F2 — no-account storage-error routing: DONE.** New
+`qml/account/AccountLocalRecovery.qml` renders the actual storage error
+message and diagnostic code with a single Continue-local retry;
+`AccountOnboarding` routes mode "error" to it whenever
+`accountFeaturesAvailable === false` — regardless of onboarding completion,
+so a returning user can no longer land on the sign-in route through an
+error. Sign-in/registration/recovery remain unreachable in the edition.
+Standard-edition routing (error -> welcome/signIn by onboarding state) is
+preserved. Verified against the REAL components: cases 7-10 of
+`no_account_shell_gating` assert the rendered route, displayed error text
+and code, that retry invokes `continueWithoutAccount`, and the preserved
+standard route.
+
+**F3 — update ordering/downgrade protection: DONE.** The comparator now:
+never offers a strictly older displayed version regardless of sequence;
+uses signed sequence ordering only when BOTH sides carry a verified
+sequence; and treats a missing/corrupt/unverified installed identity
+(sequence 0 — no verified seed) as NO ordering proof, falling back to
+version-only order. The installed identity comes from the signed chronicle
+seed path (`loadInstalledChronicle`); `setTestingInstalledSequence` remains
+harness-only. Also fixed two real restart-persistence defects the new
+coverage exposed: `persist()` never wrote the `seen` flag the loader
+required, and the loader compared the seen key against the displayed
+version instead of the release key — both now ride the release-key identity
+(persisted as `latestReleaseKey`; old state files keep legacy behavior).
+Covered in `update_service_harness`: later same-version build, equal/older
+sequence, older displayed version with higher sequence, newer legacy
+version, missing installed identity (equal-version sequenced -> UpToDate,
+newer-version -> Available), in-process seen/failed latches on sequenced
+keys, and durable restart persistence through the signed-fixture path
+(signed sequenced fixtures need the test signing key, which is not on this
+machine — constraint recorded in the harness comment).
+
+**F4 — real personal-state preservation: DONE.** The runtime test now seeds
+representative Progress/Collection/History records through the REAL bound
+owners (the same instances QML uses), flushes, restarts the full runtime,
+and reads values plus the canonical `mal:13` identity back through those
+owners — explicitly on BOTH routes: LegacyLocal (fresh install) and
+LocalOnly (activated through a real committed ProfileAdoption journal
+satisfying ProfileAdoption's exact root/digest match rules). Remembered
+credentials, pending deletion, failure/retry and account-tree isolation
+retain their coverage. 7 substantive cases, 9/9 green with init/cleanup.
+
+**F5 — cutover: worker deployed and rotation done (above); Tankoban data
+completes on the next UTC day (3,335 rows, 7,720 estimated writes, resume
+command recorded); IMDb/MAL/Comics endpoint implementation, imports and
+native consumer integration remain the next engineering increments per the
+consumer matrix — not claimed qualified.**

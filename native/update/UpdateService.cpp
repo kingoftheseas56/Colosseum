@@ -251,16 +251,23 @@ void UpdateService::loadPersisted()
     // the newly installed release's seen/failed version state.
     m_seenVersion = persistedSeenVersion;
     m_failedVersion = persistedFailedVersion;
-    if (!restoreManifest(manifestBytes, signatureBytes,
-                         stateFromName(object.value(QStringLiteral("state")).toString()),
-                         persistedSeenVersion.isEmpty()
-                             ? false : persistedSeenVersion
-                                   == object.value(QStringLiteral("latestVersion")).toString(),
-                         &error)) {
-        m_seenVersion.clear();
-        m_failedVersion.clear();
-        loadSeedState();
-        return;
+    {
+        const QString persistedReleaseKey =
+            object.value(QStringLiteral("latestReleaseKey")).toString();
+        const QString persistedOfferKey = persistedReleaseKey.isEmpty()
+            ? object.value(QStringLiteral("latestVersion")).toString()
+            : persistedReleaseKey;
+        if (!restoreManifest(manifestBytes, signatureBytes,
+                             stateFromName(object.value(QStringLiteral("state")).toString()),
+                             persistedSeenVersion.isEmpty()
+                                 ? false
+                                 : persistedSeenVersion == persistedOfferKey,
+                             &error)) {
+            m_seenVersion.clear();
+            m_failedVersion.clear();
+            loadSeedState();
+            return;
+        }
     }
     m_lastCheckMs = object.value(QStringLiteral("lastCheckMs")).toInteger(-1);
     m_etag = object.value(QStringLiteral("etag")).toString();
@@ -338,19 +345,32 @@ bool UpdateService::applyManifest(const Manifest& manifest, const QByteArray& ma
     if (seen)
         m_seenVersion = m_latestReleaseKey;
 
-    // Signed release ordering across editions of one displayed version
-    // (no-account 1.1.9 -> account 1.1.9): a manifest carrying a sequence
-    // orders strictly by it, so the later approved account build is offered
-    // to the earlier no-account build while equal/older sequences stay
-    // UpToDate (no repeat offers). Legacy manifests without a sequence keep
-    // the historical version-only order. The installed side comes from the
-    // bundled signed chronicle seed, so both ends of the comparison are
-    // signed artifacts — never unsigned headers or ignored build metadata.
+    // Signed release ordering with downgrade protection. Sequences
+    // distinguish approved builds at the SAME displayed version (no-account
+    // 1.1.9 -> account 1.1.9); both ends are signed (manifest field, and the
+    // installed side read from the verified chronicle seed in
+    // loadInstalledChronicle). Rules:
+    //   - Sequenced offer vs verified installed sequence: a strictly OLDER
+    //     displayed version is never offered regardless of sequence; equal or
+    //     newer displayed versions order by sequence, so the later approved
+    //     account build reaches the earlier no-account build while
+    //     equal/older sequences stay UpToDate (no repeat offers).
+    //   - Legacy (unsequenced) offers keep version-only order.
+    //   - A sequenced offer against a MISSING/CORRUPT/unverified installed
+    //     identity (sequence 0) does NOT treat the sequence as proof: with no
+    //     trusted installed ordering identity, only a strictly newer
+    //     displayed version may be offered.
     const int installedComparison = manifest.version.compare(m_installedVersion);
-    const int order = manifest.sequence > 0
-        ? (manifest.sequence == m_installedSequence ? 0
-            : (manifest.sequence > m_installedSequence ? 1 : -1))
-        : installedComparison;
+    int order;
+    if (manifest.sequence > 0 && m_installedSequence > 0) {
+        order = installedComparison < 0
+            ? -1
+            : (manifest.sequence == m_installedSequence
+                   ? 0
+                   : (manifest.sequence > m_installedSequence ? 1 : -1));
+    } else {
+        order = installedComparison;
+    }
     if (manifest.minimumUpdaterVersion.compare(m_installedVersion) > 0) {
         m_updateAvailable = false;
         m_unseenUpdate = false;
@@ -531,7 +551,18 @@ void UpdateService::persist()
     object.insert(QStringLiteral("latestVersion"), m_latestVersion);
     object.insert(QStringLiteral("lastCheckMs"), m_lastCheckMs);
     object.insert(QStringLiteral("etag"), m_etag);
+    // loadPersisted() re-keys the seen latch from this flag after restoring
+    // the manifest; writing it keeps a seen release seen across restarts
+    // (legacy and sequenced release keys alike). Older state files without
+    // the flag keep their historical reload behavior.
+    object.insert(QStringLiteral("seen"),
+                  !m_latestReleaseKey.isEmpty()
+                      && m_seenVersion == m_latestReleaseKey);
     object.insert(QStringLiteral("seenVersion"), m_seenVersion);
+    // Release identity for restoring the seen/failed latches: the release
+    // key ("seq:N" for sequenced manifests, canonical version for legacy).
+    // Older state files without it keep the legacy latestVersion comparison.
+    object.insert(QStringLiteral("latestReleaseKey"), m_latestReleaseKey);
     object.insert(QStringLiteral("failedVersion"), m_failedVersion);
     object.insert(QStringLiteral("receivedBytes"), m_receivedBytes);
     object.insert(QStringLiteral("totalBytes"), m_totalBytes);

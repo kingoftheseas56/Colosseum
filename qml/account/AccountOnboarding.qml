@@ -27,6 +27,14 @@ Item {
         if (controller.mode === "locked")
             return "signIn"
 
+        // No-account edition: storage failures route to the local recovery
+        // surface regardless of onboarding completion — a returning user
+        // must never be dropped onto the sign-in route by an error, and the
+        // error/retry pair is the only thing reachable from there.
+        if (controller.mode === "error"
+            && controller.accountFeaturesAvailable === false)
+            return "localRecovery"
+
         if (controller.mode === "signedOut"
             || controller.mode === "authenticating"
             || controller.mode === "error") {
@@ -49,7 +57,11 @@ Item {
 
         if (force
             || routeName === "recoveryKey"
-            || routeName === "deviceApproval") {
+            || routeName === "deviceApproval"
+            // An error must always re-resolve its route: the no-account
+            // edition routes storage failures to localRecovery, and the
+            // standard edition re-resolves to welcome/signIn as before.
+            || controllerMode === "error") {
             routeName = baseRoute()
         }
     }
@@ -116,6 +128,8 @@ Item {
                 return recoveryKeyComponent
             case "deviceApproval":
                 return deviceApprovalComponent
+            case "localRecovery":
+                return localRecoveryComponent
             default:
                 return welcomeComponent
             }
@@ -187,6 +201,15 @@ Item {
             controller: root.controller
             backdrop: root.backdrop
             onSignInRequested: root.goSignIn()
+        }
+    }
+
+    Component {
+        id: localRecoveryComponent
+
+        AccountLocalRecovery {
+            controller: root.controller
+            backdrop: root.backdrop
         }
     }
 

@@ -76,6 +76,51 @@ Item {
                && findByObjectName(welcomeStub, "accountWelcomeCreateAccount").visible === true,
                "case6: a stub controller keeps the legacy welcome entries")
 
+            // ── Case 7: edition — storage error routes to local recovery ──
+            var recovery = makeOnboardingWith({
+                mode: "error", onboardingRequired: true,
+                accountFeaturesAvailable: false,
+                lastErrorMessage: "Local-only personal state could not be prepared safely.",
+                lastErrorCode: "local_profile_prepare_failed"
+            })
+            ck(recovery.routeName === "localRecovery",
+               "case7: edition storage error must route to localRecovery (fresh onboarding)")
+            ck(findByObjectName(recovery, "accountLocalRecovery") !== null,
+               "case7: the local recovery page is the rendered route")
+
+            // ── Case 8: edition — returning user (completed onboarding) ──
+            var returning = makeOnboardingWith({
+                mode: "error", onboardingRequired: false,
+                accountFeaturesAvailable: false,
+                lastErrorMessage: "Local-only personal state could not be prepared safely.",
+                lastErrorCode: "local_profile_prepare_failed"
+            })
+            ck(returning.routeName === "localRecovery",
+               "case8: a returning user's storage error must NOT route to signIn")
+            ck(findByObjectName(returning, "accountLocalRecovery") !== null,
+               "case8: the local recovery page renders for returning users")
+
+            // ── Case 9: the rendered error text and retry action are real ──
+            var recoveryTexts = collectTexts(findByObjectName(returning, "accountLocalRecovery"))
+            ck(recoveryTexts.indexOf("Local-only personal state could not be prepared safely.") >= 0,
+               "case9: the actual storage error message is displayed")
+            ck(recoveryTexts.join(" ").indexOf("local_profile_prepare_failed") >= 0,
+               "case9: the diagnostic code is displayed")
+            var retry = findByObjectName(returning, "accountLocalRetry")
+            ck(retry !== null, "case9: the retry action renders")
+            var callsBefore = returning.controller.controllerContinueCalls
+            retry.chosen()
+            ck(returning.controller.controllerContinueCalls === callsBefore + 1,
+               "case9: retry triggers continueWithoutAccount on the controller")
+
+            // ── Case 10: standard edition — error still routes by onboarding ──
+            var standard = makeOnboardingWith({
+                mode: "error", onboardingRequired: false,
+                lastErrorMessage: "x", lastErrorCode: "y"
+            })
+            ck(standard.routeName === "signIn",
+               "case10: standard edition preserves the legacy error->signIn route")
+
             console.log("NO_ACCOUNT_SHELL_GATING_OK")
             Qt.exit(0)
         } catch (e) {
@@ -170,6 +215,41 @@ Item {
         if (!created)
             throw new Error("AccountWelcome createObject failed")
         return created
+    }
+
+    function makeOnboardingWith(args) {
+        var comp = Qt.createComponent("../qml/account/AccountOnboarding.qml")
+        if (comp.status !== Component.Ready)
+            throw new Error("AccountOnboarding component: " + comp.errorString())
+        var fields = "property string mode: " + JSON.stringify(args.mode)
+            + "\nproperty bool onboardingRequired: " + (args.onboardingRequired === true)
+            + "\nproperty string lastErrorMessage: " + JSON.stringify(args.lastErrorMessage || "")
+            + "\nproperty string lastErrorCode: " + JSON.stringify(args.lastErrorCode || "")
+            + "\nproperty int controllerContinueCalls: 0"
+            + "\nfunction continueWithoutAccount() { controllerContinueCalls++ }"
+        if (args.accountFeaturesAvailable !== undefined)
+            fields += "\nproperty bool accountFeaturesAvailable: " + args.accountFeaturesAvailable
+        var fake = Qt.createQmlObject("import QtQuick; QtObject { " + fields + " }", harness)
+        var recovery = Qt.createQmlObject(
+            "import QtQuick; QtObject { property bool active: false }", harness)
+        var created = comp.createObject(harness, { controller: fake, recoveryPresenter: recovery })
+        if (!created)
+            throw new Error("AccountOnboarding createObject failed")
+        return created
+    }
+
+    function collectTexts(root) {
+        var out = []
+        var stack = [root]
+        while (stack.length) {
+            var item = stack.pop()
+            if (item instanceof Text && item.text)
+                out.push(item.text)
+            var children = item.children
+            for (var i = 0; i < children.length; i++)
+                stack.push(children[i])
+        }
+        return out
     }
 
     Timer { interval: 100; running: true; repeat: false; onTriggered: harness.runChecks() }

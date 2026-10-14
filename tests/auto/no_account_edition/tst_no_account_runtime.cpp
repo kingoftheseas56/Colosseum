@@ -16,6 +16,7 @@
 #include "../../support/account/MemoryAccountCredentialStore.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -144,6 +145,80 @@ struct EditionHarness {
             found << info.fileName();
         return found;
     }
+
+    // Seed representative personal state through the REAL bound owners
+    // (the same Progress/Collection/History instances QML uses), read it back
+    // through those owners, and check values plus the canonical "mal:13"
+    // identity — not file existence.
+    void seedPersonalState()
+    {
+        QObject *progress = bound("Progress");
+        QObject *collection = bound("Collection");
+        QObject *history = bound("ProfileHistory");
+        QVERIFY(progress && collection && history);
+
+        QVariantMap progressEntry;
+        progressEntry.insert(QStringLiteral("kind"), QStringLiteral("manga"));
+        progressEntry.insert(QStringLiteral("id"), QStringLiteral("mal:13"));
+        progressEntry.insert(QStringLiteral("title"), QStringLiteral("One Piece"));
+        progressEntry.insert(QStringLiteral("position"), 42.0);
+        QVERIFY(QMetaObject::invokeMethod(progress, "record",
+                                          Q_ARG(QVariantMap, progressEntry)));
+
+        QVariantMap collectionEntry;
+        collectionEntry.insert(QStringLiteral("id"), QStringLiteral("mal:13"));
+        collectionEntry.insert(QStringLiteral("title"), QStringLiteral("One Piece"));
+        bool added = false;
+        QVERIFY(QMetaObject::invokeMethod(collection, "add",
+                                          Q_RETURN_ARG(bool, added),
+                                          Q_ARG(QString, QStringLiteral("manga")),
+                                          Q_ARG(QVariantMap, collectionEntry)));
+        QVERIFY(added);
+
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        QVERIFY(QMetaObject::invokeMethod(history, "recordActivity",
+                                          Q_ARG(QString, QStringLiteral("manga")),
+                                          Q_ARG(QString, QStringLiteral("mal:13")),
+                                          Q_ARG(qint64, now)));
+        bool marked = false;
+        QVERIFY(QMetaObject::invokeMethod(history, "markCompleted",
+                                          Q_RETURN_ARG(bool, marked),
+                                          Q_ARG(QString, QStringLiteral("manga")),
+                                          Q_ARG(QString, QStringLiteral("mal:13")),
+                                          Q_ARG(qint64, now)));
+        QVERIFY(marked);
+
+        QMetaObject::invokeMethod(progress, "flush");
+        QMetaObject::invokeMethod(collection, "flush");
+    }
+
+    void verifyPersonalState()
+    {
+        QVariantMap entry;
+        QVERIFY(QMetaObject::invokeMethod(bound("Progress"), "get",
+                                          Q_RETURN_ARG(QVariantMap, entry),
+                                          Q_ARG(QString, QStringLiteral("manga")),
+                                          Q_ARG(QString, QStringLiteral("mal:13"))));
+        QCOMPARE(entry.value(QStringLiteral("id")).toString(),
+                 QStringLiteral("mal:13"));
+        QCOMPARE(entry.value(QStringLiteral("title")).toString(),
+                 QStringLiteral("One Piece"));
+        QCOMPARE(entry.value(QStringLiteral("position")).toDouble(), 42.0);
+
+        bool has = false;
+        QVERIFY(QMetaObject::invokeMethod(bound("Collection"), "has",
+                                          Q_RETURN_ARG(bool, has),
+                                          Q_ARG(QString, QStringLiteral("manga")),
+                                          Q_ARG(QString, QStringLiteral("mal:13"))));
+        QVERIFY(has);
+
+        bool completed = false;
+        QVERIFY(QMetaObject::invokeMethod(bound("ProfileHistory"), "completed",
+                                          Q_RETURN_ARG(bool, completed),
+                                          Q_ARG(QString, QStringLiteral("manga")),
+                                          Q_ARG(QString, QStringLiteral("mal:13"))));
+        QVERIFY(completed);
+    }
 };
 
 }
@@ -153,7 +228,8 @@ class tst_no_account_runtime : public QObject {
 
 private slots:
     void freshStartupSettlesLocalBindsStoresZeroSends();
-    void populatedLocalProfileRestartPreservesState();
+    void legacyRoutePreservesRealPersonalStateAcrossRestart();
+    void localOnlyAdoptedRoutePreservesRealPersonalState();
     void rememberedCredentialsArePreservedNotRestored();
     void pendingDeletionStaysPendingWithoutResume();
     void legacyAndAccountTreesArePreserved();
@@ -205,56 +281,90 @@ freshStartupSettlesLocalBindsStoresZeroSends() {
 }
 
 void tst_no_account_runtime::
-populatedLocalProfileRestartPreservesState() {
-    EditionHarness harness("no-account-runtime-restart");
+legacyRoutePreservesRealPersonalStateAcrossRestart() {
+    EditionHarness harness("no-account-runtime-legacy-restart");
 
+    // A fresh install settles onto the LEGACY-LOCAL profile explicitly (the
+    // route a real no-account user's first startup takes).
     harness.prepare();
+    QCOMPARE(harness.runtime->profileStores()->activeProfile().kind(),
+             ProfilePaths::Kind::LegacyLocal);
     QCOMPARE(harness.runtime->controller()->mode(), QStringLiteral("localOnly"));
-    const ProfilePaths active =
-        harness.runtime->profileStores()->activeProfile();
-    QVERIFY(active.kind() == ProfilePaths::Kind::LegacyLocal
-            || active.kind() == ProfilePaths::Kind::LocalOnly);
 
-    // Durable user state written through the real bound stores survives a
-    // full second startup. A local-only profile rides its dedicated ini
-    // files; a legacy-local profile keeps QSettings-backed stores (its
-    // progressIniPath is empty by design), so the marker rides the same
-    // default QSettings scope the legacy backend uses.
-    const bool localOnlyProfile =
-        active.kind() == ProfilePaths::Kind::LocalOnly;
-    QString progressPath;
-    if (localOnlyProfile) {
-        progressPath = active.progressIniPath();
-        QVERIFY(!progressPath.isEmpty());
-        QDir().mkpath(QFileInfo(progressPath).absolutePath());
-        QFile progress(progressPath);
-        QVERIFY(progress.open(QIODevice::Append));
-        progress.write("preserve-marker=1\n");
-        progress.close();
-    } else {
-        QSettings legacy;
-        legacy.setValue(QStringLiteral("progress/preserve-marker"), 1);
-        legacy.sync();
-    }
+    harness.seedPersonalState();
 
     harness.runtime.reset();
     harness.engine.reset();
     harness.prepare();
 
+    QCOMPARE(harness.runtime->profileStores()->activeProfile().kind(),
+             ProfilePaths::Kind::LegacyLocal);
     QCOMPARE(harness.runtime->controller()->mode(), QStringLiteral("localOnly"));
-    QVERIFY(!harness.runtime->controller()->onboardingRequired());
+    QCOMPARE(harness.runtime->controller()->lastErrorCode(), QString());
+    harness.verifyPersonalState();
+    QCOMPARE(harness.listener.connections(), 0);
+    QCOMPARE(harness.listener.requests(), 0);
+}
+
+void tst_no_account_runtime::
+localOnlyAdoptedRoutePreservesRealPersonalState() {
+    EditionHarness harness("no-account-runtime-localonly-restart");
+
+    // LOCAL-ONLY route explicitly: a previously adopted profile (committed
+    // adoption journal + existing promoted account root) makes
+    // prepareLocalOnly activate the dedicated local-only profile instead of
+    // reloading legacy stores. Seeded through the real ProfileAdoption
+    // journal contract, not a coordinator stub.
+    const QString accountId = QStringLiteral(
+        "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+    const auto accountPaths = ProfilePaths::account(accountId);
+    QVERIFY(accountPaths.has_value());
+    QVERIFY(QDir().mkpath(accountPaths->profileRoot()));
+
+    // The journal must match the account profile exactly (ProfileAdoption
+    // validates accountId/staging/final/backup roots and requires a
+    // non-empty source digest), so seed it from the real ProfilePaths API.
+    const QString adoptionRoot = QDir(ProfilePaths::localOnly().appDataRoot())
+        .filePath(QStringLiteral("profile-adoption"));
+    QVERIFY(QDir().mkpath(adoptionRoot));
+    const QString journalJson = QStringLiteral(
+        "{\"version\":1,\"state\":\"committed\",\"account_id\":\"%1\","
+        "\"source_semantic_digest\":\"%2\","
+        "\"target_semantic_digest\":\"\","
+        "\"legacy_backup_semantic_digest\":\"\","
+        "\"legacy_backup_root\":\"%3\","
+        "\"staging_root\":\"%4\","
+        "\"final_root\":\"%5\","
+        "\"activity_source_digest\":\"\","
+        "\"activity_target_digest\":\"\"}")
+        .arg(accountId,
+             QString(QStringLiteral("ab").repeated(32)),
+             accountPaths->adoptionBackupRoot(),
+             accountPaths->accountStagingRoot(),
+             accountPaths->profileRoot());
+    QFile journal(adoptionRoot + QStringLiteral("/") + accountId
+                  + QStringLiteral(".json"));
+    QVERIFY(journal.open(QIODevice::WriteOnly));
+    journal.write(journalJson.toUtf8());
+    journal.close();
+
+    harness.prepare();
+    QCOMPARE(harness.runtime->profileStores()->activeProfile().kind(),
+             ProfilePaths::Kind::LocalOnly);
+    QCOMPARE(harness.runtime->controller()->mode(), QStringLiteral("localOnly"));
     QCOMPARE(harness.runtime->controller()->lastErrorCode(), QString());
 
-    if (localOnlyProfile) {
-        QFile reread(
-            harness.runtime->profileStores()->activeProfile().progressIniPath());
-        QVERIFY(reread.open(QIODevice::ReadOnly));
-        QVERIFY(reread.readAll().contains("preserve-marker=1"));
-    } else {
-        QSettings legacy;
-        QCOMPARE(legacy.value(QStringLiteral("progress/preserve-marker")).toInt(), 1);
-    }
+    harness.seedPersonalState();
 
+    harness.runtime.reset();
+    harness.engine.reset();
+    harness.prepare();
+
+    QCOMPARE(harness.runtime->profileStores()->activeProfile().kind(),
+             ProfilePaths::Kind::LocalOnly);
+    QCOMPARE(harness.runtime->controller()->mode(), QStringLiteral("localOnly"));
+    QCOMPARE(harness.runtime->controller()->lastErrorCode(), QString());
+    harness.verifyPersonalState();
     QCOMPARE(harness.listener.connections(), 0);
     QCOMPARE(harness.listener.requests(), 0);
 }
