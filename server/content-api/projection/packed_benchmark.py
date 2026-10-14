@@ -42,4 +42,3 @@ def benchmark(source_dir,artifact):
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--source-dir',type=Path,required=True);p.add_argument('--artifact',type=Path,required=True);a=p.parse_args()
     r=benchmark(a.source_dir,a.artifact);a.artifact.with_name('packed-benchmark.json').write_text(encode(r)+'\n',encoding='utf-8')
-

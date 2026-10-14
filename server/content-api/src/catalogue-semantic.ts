@@ -138,4 +138,3 @@ export async function catalogueMethod(db:CatalogueDb,dataset:string,method:strin
  if(dataset==='mal'&&catalogueMethods.mal.includes(method))return malMethod(db,method,args);
  throw new Error('UNKNOWN_CATALOGUE_METHOD');
 }
-
