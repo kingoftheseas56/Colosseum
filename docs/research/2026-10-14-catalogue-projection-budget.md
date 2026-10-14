@@ -38,13 +38,13 @@ The largest detail group—mirror, download, canonical issue, volume, curated ed
 
 Live source anchors, relative to the repository root:
 
-- `native/engine/ImdbCatalog.cpp:72` (`titleCatalog`), `:186` (exact match), `:233` (substring search), `:273` (batch enrichment).
+- `native/engine/ImdbCatalog.cpp:72` (`titleCatalog`), `:186` (exact match), `:233-238` (prefix search, bound `norm + '%'`), `:273` (batch enrichment).
 - `native/engine/MalCatalog.cpp:54` (scoped facet counts), `:154` (tag ranking), `:199` (anime filters), `:332` (exact resolution), `:438` (search), `:552` (filtered discovery), `:700` (tag counts).
 - `native/engine/ComicsCatalog.cpp:93` (series/stats), `:126` (search), `:165` (downloads), `:187` (mirrors), `:297` (edition details), `:425` (genre counts), `:597` (facet counts), `:695` (discovery predicates), `:806` (release-year projection), `:851` (native ranking).
 - `native/engine/TankobanCatalog.cpp:110` and `:136` (volume-count provenance and volume details).
 - `native/engine/ColosseumTitleIdentityRegistry.cpp:106` (existing `ct1:` derivation and identity space).
 
-IMDb needs exact normalized-name resolution with optional year and substring `LIKE` search; genre membership and exclusions; type, rating, vote, year, runtime, language, anime and episode predicates; and vote/rating/year/episode ordering. Genre membership cannot simply disappear into an unread object if arbitrary combinations remain supported.
+IMDb needs exact normalized-name resolution with optional year and prefix `LIKE` search (`norm + '%'`); genre membership and exclusions; type, rating, vote, year, runtime, language, anime and episode predicates; and vote/rating/year/episode ordering. Optional exploratory substring queries are additional workloads, not current native IMDb parity requirements. Genre membership cannot simply disappear into an unread object if arbitrary combinations remain supported.
 
 MAL needs both title-normalization fields, exact/search ranking, numeric/type/status/date predicates, tag membership and axis-aware classification. Manga discovery intersects multiple genre/demographic facets case-insensitively, applies explicit-content policy, and computes its Bayesian ranking mean over the same filtered population. New-release results depend on the request date; trending honestly falls back to popular. A global precomputed score or unfiltered facet count would change behavior.
 
@@ -84,6 +84,6 @@ After authorized R2 activation, implement API-mediated object publication/read b
 
 Preserve IMDb IDs, MAL medium/IDs, GCD IDs, curated LOCG/edition IDs, source/claim/issue keys and all relationship references. The existing native identity registry remains authoritative for `ct1:` identity and alias reconciliation; a hosted object ID or provider ID must not silently replace it. Keep local library/history/progress and provider resolution outside catalogue ownership.
 
-Prove exact resolution, escaped substring behavior, missing/null values, case normalization, multi-facet intersections, explicit gating, scoped counts/means, sort/ties, date boundaries, pagination and fallback/freshness metadata. Verify per-series downloads/mirrors and curated editions/sources/claims/issues with their ordering and evidence fields. Identify currently unspecified SQL ties before promising stable cross-engine pagination. Compare native Comics ranking, not merely its source SQL.
+Prove exact resolution, native IMDb prefix matching, Comics escaped all-word substring behavior, missing/null values, case normalization, multi-facet intersections, explicit gating, scoped counts/means, sort/ties, date boundaries, pagination and fallback/freshness metadata. Verify per-series downloads/mirrors and curated editions/sources/claims/issues with their ordering and evidence fields. Identify currently unspecified SQL ties before promising stable cross-engine pagination. Compare native Comics ranking, not merely its source SQL.
 
 Measure D1 writes/reads/query plans and object bytes/counts for the final schema; validate budgets for actual client traffic and repeated snapshot updates. Until these checks pass, retain the native catalogue route as baseline and describe the hybrid as a migration proposal. No cloud mutations or native-client migration were performed for this note.

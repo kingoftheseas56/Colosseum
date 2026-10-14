@@ -36,7 +36,7 @@ Preserve `ready()` as an invokable: the existing headers explain its QML propert
 
 | Existing C++ owner | Semantic API coverage required before its remote cutover |
 | --- | --- |
-| `ImdbCatalog.h/.cpp` | `titleCatalog`, `matchByTitle`, substring `LIKE` search, bounded batch `titleFacts`, `titlePresentation` |
+| `ImdbCatalog.h/.cpp` | `titleCatalog`, `matchByTitle`, prefix `LIKE` search (`norm + '%'`, `ImdbCatalog.cpp:233-238`), bounded batch `titleFacts`, `titlePresentation` |
 | `MalCatalog.h/.cpp` | `genreEntries`, true `genreCount`/`genreCounts`, `animeCatalog`, title identity/search, `mangaById`, Discover facets and AND-filtered pages |
 | `ComicsCatalog.h/.cpp` | series/detail/search/exact matches, downloads with mirrors, curated rank/detail/coverage/by-normalized-title/genre shelves/downloadability, shelves and AND-filtered Discover pages |
 | `TankobanCatalog.h/.cpp` | `seriesInfo` and complete per-series `volumes` result with numeric-aware order and count-based synthesis |
