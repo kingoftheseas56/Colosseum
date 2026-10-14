@@ -22,21 +22,11 @@ option(COLOSSEUM_UPDATE_TESTING
 option(COLOSSEUM_NO_ACCOUNT_EDITION
     "Build the no-account edition: account features hidden and inert, local-only profiles only"
     OFF)
-if(COLOSSEUM_NO_ACCOUNT_EDITION)
-    # The edition candidate ships with the semantic Tankoban endpoint compiled
-    # in by default. This must run BEFORE the plain default below so a fresh
-    # edition configure seeds the URL; an explicitly passed (possibly empty)
-    # COLOSSEUM_CONTENT_API_URL always wins, letting a builder keep remote
-    # enrichment disabled in an edition build.
-    if(NOT COLOSSEUM_CONTENT_API_URL)
-        set(COLOSSEUM_CONTENT_API_URL
-            "https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev"
-            CACHE STRING
-            "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")
-        message(STATUS
-            "No-account edition: defaulting the semantic catalogue endpoint to staging")
-    endif()
-endif()
+# The semantic catalogue endpoint is NEVER enabled by an edition switch: the
+# staging endpoint ships only in explicit qualification builds
+# (-DCOLOSSEUM_CONTENT_API_URL=...), and a release build compiles it in only
+# after data readiness, deployed API contracts and native-to-Worker tests
+# pass. An explicitly cached empty value always stays empty.
 
 set(COLOSSEUM_CONTENT_API_URL "" CACHE STRING
     "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")

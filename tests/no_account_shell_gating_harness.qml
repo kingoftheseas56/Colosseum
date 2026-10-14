@@ -53,6 +53,29 @@ Item {
             ck(hostStub.accountFlowVisible === true,
                "case4: a stub controller keeps the legacy signed-out cover behavior")
 
+            // ── Case 4b: edition build — storage failure keeps the cover visible ──
+            var hostError = makeHostWith({ mode: "error", accountFeaturesAvailable: false })
+            ck(hostError.accountFlowVisible === true,
+               "case4b: mode error must stay visible so a storage failure is not concealed")
+
+            // ── Case 5: edition build — welcome hides sign-in/create entries ──
+            var welcomeEdition = makeWelcomeWith({ mode: "signedOut", accountFeaturesAvailable: false })
+            ck(findByObjectName(welcomeEdition, "accountWelcomeSignIn") !== null
+               && findByObjectName(welcomeEdition, "accountWelcomeSignIn").visible === false,
+               "case5: welcome sign-in entry must be hidden in the no-account edition")
+            ck(findByObjectName(welcomeEdition, "accountWelcomeCreateAccount") !== null
+               && findByObjectName(welcomeEdition, "accountWelcomeCreateAccount").visible === false,
+               "case5: welcome create-account entry must be hidden in the no-account edition")
+            ck(findByObjectName(welcomeEdition, "accountWelcomeContinueLocal") !== null
+               && findByObjectName(welcomeEdition, "accountWelcomeContinueLocal").visible === true,
+               "case5: welcome continue-local stays available as the retry surface")
+
+            // ── Case 6: stub controller — welcome keeps all three entries ──
+            var welcomeStub = makeWelcomeWith({ mode: "signedOut" })
+            ck(findByObjectName(welcomeStub, "accountWelcomeSignIn").visible === true
+               && findByObjectName(welcomeStub, "accountWelcomeCreateAccount").visible === true,
+               "case6: a stub controller keeps the legacy welcome entries")
+
             console.log("NO_ACCOUNT_SHELL_GATING_OK")
             Qt.exit(0)
         } catch (e) {
@@ -112,16 +135,41 @@ Item {
     }
 
     function findAccountButton(root) {
+        return findByObjectName(root, "colosseumTopbarAccountButton")
+    }
+
+    function findByObjectName(root, objectName) {
         var stack = [root]
         while (stack.length) {
             var item = stack.pop()
-            if (item.objectName === "colosseumTopbarAccountButton")
+            if (item.objectName === objectName)
                 return item
             var children = item.children
             for (var i = 0; i < children.length; i++)
                 stack.push(children[i])
         }
         return null
+    }
+
+    function makeWelcomeWith(args) {
+        var comp = Qt.createComponent("../qml/account/AccountWelcome.qml")
+        if (comp.status !== Component.Ready)
+            throw new Error("AccountWelcome component: " + comp.errorString())
+        var fake
+        if (args.accountFeaturesAvailable === undefined) {
+            fake = Qt.createQmlObject(
+                "import QtQuick; QtObject { property string mode: " + JSON.stringify(args.mode) + " }",
+                harness)
+        } else {
+            fake = Qt.createQmlObject(
+                "import QtQuick; QtObject { property string mode: " + JSON.stringify(args.mode) +
+                "; property bool accountFeaturesAvailable: " + args.accountFeaturesAvailable + " }",
+                harness)
+        }
+        var created = comp.createObject(harness, { controller: fake })
+        if (!created)
+            throw new Error("AccountWelcome createObject failed")
+        return created
     }
 
     Timer { interval: 100; running: true; repeat: false; onTriggered: harness.runChecks() }

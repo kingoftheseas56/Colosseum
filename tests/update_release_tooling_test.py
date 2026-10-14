@@ -246,6 +246,39 @@ class UpdateReleaseToolingTests(unittest.TestCase):
         finally:
             os.chdir(previous_cwd)
 
+    def test_presentation_sequence_orders_editions_in_signed_manifest(self):
+        """The optional presentation 'sequence' lands in the signed manifest;
+        invalid values fail generation so a release cannot mis-order editions."""
+        presentation_path = ROOT / "release/presentation/1.1.0.json"
+        presentation = json.loads(presentation_path.read_text(encoding="utf-8"))
+        previous_cwd = Path.cwd()
+        os.chdir(ROOT)
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                installer = root / "Colosseum-1.1.0-setup.exe"
+                installer.write_bytes(b"edition-ordering dummy installer")
+
+                legacy = json.loads(manifest_bytes("1.1.0", installer, presentation_path))
+                self.assertNotIn("sequence", legacy,
+                                 "legacy presentations stay version-ordered")
+
+                sequenced = dict(presentation)
+                sequenced["sequence"] = 2
+                sequenced_path = root / "sequenced-presentation.json"
+                sequenced_path.write_text(json.dumps(sequenced), encoding="utf-8")
+                manifest = json.loads(manifest_bytes("1.1.0", installer, sequenced_path))
+                self.assertEqual(manifest["sequence"], 2)
+
+                for index, bad in enumerate((0, -1, 2.5, "3", True)):
+                    broken = dict(presentation)
+                    broken["sequence"] = bad
+                    broken_path = root / f"broken-sequence-{index}.json"
+                    broken_path.write_text(json.dumps(broken), encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "sequence"):
+                        manifest_bytes("1.1.0", installer, broken_path)
+        finally:
+            os.chdir(previous_cwd)
 
     def test_nsis_uses_product_branding_and_official_icon(self):
         script = (ROOT / "scripts/installer/colosseum.nsi").read_text(encoding="utf-8")

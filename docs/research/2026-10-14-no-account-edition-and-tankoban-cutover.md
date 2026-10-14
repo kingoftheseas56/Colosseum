@@ -123,6 +123,80 @@ matrix above is the required coverage definition. Release-time GitHub REST
 removal is re-evaluated per lane as each endpoint set is implemented,
 imported and qualified.
 
+## 6. Review-findings resolution (2026-10-14, second pass, post-dd2d8363)
+
+**F3 — premature endpoint activation (resolved).** The edition switch no
+longer seeds `COLOSSEUM_CONTENT_API_URL`; a fresh edition configure now
+leaves it empty (verified: `COLOSSEUM_CONTENT_API_URL:STRING=` in a clean
+`-DCOLOSSEUM_NO_ACCOUNT_EDITION=ON` cache). The staging endpoint ships only
+via explicit qualification overrides, and a release build compiles it in only
+after data readiness, deployed API contracts and native-to-Worker tests pass.
+Explicit empty overrides stay empty.
+
+**F5 — ordered update identity (implemented and proven).** The signed
+manifest gains an optional `sequence` field (positive 32-bit integer;
+zero/negative/fractional/string forms rejected by the parser). A manifest
+carrying a sequence orders strictly by it, so the later approved account
+1.1.9 (sequence 2) is offered to the earlier no-account 1.1.9 (sequence 1)
+at an equal displayed version, while equal/older sequences stay `UpToDate`
+(no repeat offers). Legacy unsequenced manifests keep version-only order —
+safe because only 1.1.9+ clients read the first-party feed (1.1.8 updater
+remains on its dead GitHub API path; first-party feed clients are all new
+parsers). The installed side comes from the bundled signed chronicle seed
+(`loadInstalledChronicle` reads its sequence), so both ends of the
+comparison are signed artifacts. The seen/failed latches key by release
+identity (`seq:N` when sequenced), so a corrected re-publication of the same
+displayed version is offered again instead of staying suppressed. Release
+process: author `sequence` in the presentation JSON (generator validates);
+every published release gets a strictly higher sequence regardless of
+displayed version. Proof: `update_service_harness` edition-ordering
+scenarios (offer/equal/older/legacy/failure-latch/re-publication),
+`update_manifest_trust_harness` sequence parse cases, tooling test
+`test_presentation_sequence_orders_editions_in_signed_manifest` (11/11
+pass).
+
+**F4 — real runtime startup proof (implemented and proven).**
+`tst_no_account_runtime` (edition builds only) drives the REAL
+AccountRuntime/ProfileStoreRuntime/FirstAccountProfileCoordinator through
+`prepareForQml()` with real profile ownership under per-case tagged
+test-mode AppData. Six substantive cases (init/cleanup excluded), all green:
+fresh startup settles a local profile with every personal store bound and a
+loopback listener observing ZERO account-service requests; a populated
+local profile restart preserves durable progress state; remembered
+credentials are NOT restored (no traffic) yet remain stored for the account
+edition; a pending account deletion stays pending without resume; legacy
+and account profile trees are preserved untouched; a REAL coordinator
+failure (corrupt profile-adoption journal) surfaces `mode "error"` +
+`local_profile_prepare_failed` instead of being concealed, and recovers on
+retry. The QML side was hardened to match: the onboarding host stays
+visible in `mode "error"` under the edition, and AccountWelcome hides its
+sign-in/create entries (leaving Continue-local as the retry surface) —
+covered case-by-case in the extended `no_account_shell_gating` harness.
+Known honest boundary: this is runtime + component proof, not a packaged
+full-app launch; installer preservation remains separately blocked.
+
+**F6 — cutover status correction (recorded; work continues).** The Tankoban
+lane remains the only qualified lane. Volumes: 25,504/28,839 rows imported;
+the remaining 3,335 rows (~7,720 estimated writes including chunk overhead)
+are blocked by the 2026-10-14 budget day (58,978 reserved) and resume on
+2026-10-15 UTC with the recorded one-command publisher resume. Budget
+accounting correction: the publisher ledger counts RESERVED ESTIMATED
+writes, not actual D1 rows written; actual account-wide usage is observable
+only through Cloudflare analytics (blocked with the rest of wrangler auth),
+so no free-plan headroom is claimed from the ledger. The MAL/Comics/IMDb
+endpoint sets, their imports (~2.7M estimated writes ≈ 45-60 more publisher
+days at the conservative 45-60K/day), native consumer integration, and
+downloader disablement remain open in that order; the consumer matrix above
+is the per-lane checklist. The downloader stays enabled; a fresh profile
+still depends on it for every non-Tankoban lane.
+
+**F1/F2 — credential rotation and worker configuration** live on the server
+branch (`codex/content-api-free`); see
+`docs/research/2026-10-14-d1-volumes-import-and-guest-gate.md` there for the
+rotation tool, its derivation proof, the fixed rate-limit namespace, the
+actual-config dry-run validation, and the exact wrangler-auth blocker that
+keeps rotation/deploy unexecuted (and the incident unresolved).
+
 ## 4. Verification actually run (2026-10-14)
 
 Isolated focused builds (MSVC 2022 / Qt 6.11.1 / Ninja), sources = this

@@ -19,6 +19,17 @@ constexpr qint64 kAutomaticCheckIntervalMs = 6LL * 60LL * 60LL * 1000LL;
 constexpr qint64 kArtworkCapBytes = 8LL * 1024LL * 1024LL;
 constexpr int kServiceSchemaVersion = 1;
 
+// Stable identity of an offered release for the seen/failed latches. Editions
+// share a displayed version (no-account 1.1.9 vs account 1.1.9), so a
+// sequenced manifest is keyed by its signed sequence; legacy manifests keep
+// the version string (persisted latch values from older builds remain valid).
+QString releaseKey(const Manifest& manifest)
+{
+    return manifest.sequence > 0
+        ? QStringLiteral("seq:") + QString::number(manifest.sequence)
+        : manifest.version.canonical();
+}
+
 QString normalizedRoot(QString root)
 {
     return QDir::cleanPath(root.isEmpty() ? UpdateCache::productionRoot() : std::move(root));
@@ -175,6 +186,11 @@ void UpdateService::setState(State state)
 }
 
 #ifdef COLOSSEUM_UPDATE_TESTING
+void UpdateService::setTestingInstalledSequence(int sequence)
+{
+    m_installedSequence = qMax(0, sequence);
+}
+
 void UpdateService::setTestingPresentationState(State state, qint64 received, qint64 total)
 {
     if (!m_hasChronicle)
@@ -286,7 +302,7 @@ void UpdateService::loadSeedState()
     if (!restoreManifest(manifestFile.readAll(), readVerifiedSignature(signatureFile.readAll()),
                          requested, seen, &error))
         return;
-    m_seenVersion = seen ? m_latestVersion : QString();
+    m_seenVersion = seen ? m_latestReleaseKey : QString();
     rebuildPresentation();
 }
 
@@ -315,28 +331,41 @@ bool UpdateService::applyManifest(const Manifest& manifest, const QByteArray& ma
     }
     m_manifest = manifest;
     m_latestVersion = manifest.version.canonical();
+    m_latestReleaseKey = releaseKey(manifest);
     m_verifiedManifestBytes = manifestBytes;
     m_verifiedSignatureBytes = signatureBytes;
     m_hasChronicle = true;
     if (seen)
-        m_seenVersion = m_latestVersion;
+        m_seenVersion = m_latestReleaseKey;
 
+    // Signed release ordering across editions of one displayed version
+    // (no-account 1.1.9 -> account 1.1.9): a manifest carrying a sequence
+    // orders strictly by it, so the later approved account build is offered
+    // to the earlier no-account build while equal/older sequences stay
+    // UpToDate (no repeat offers). Legacy manifests without a sequence keep
+    // the historical version-only order. The installed side comes from the
+    // bundled signed chronicle seed, so both ends of the comparison are
+    // signed artifacts — never unsigned headers or ignored build metadata.
     const int installedComparison = manifest.version.compare(m_installedVersion);
+    const int order = manifest.sequence > 0
+        ? (manifest.sequence == m_installedSequence ? 0
+            : (manifest.sequence > m_installedSequence ? 1 : -1))
+        : installedComparison;
     if (manifest.minimumUpdaterVersion.compare(m_installedVersion) > 0) {
         m_updateAvailable = false;
         m_unseenUpdate = false;
         m_state = ManualUpdateRequired;
-    } else if (installedComparison <= 0) {
+    } else if (order <= 0) {
         m_updateAvailable = false;
         m_unseenUpdate = false;
         m_state = UpToDate;
-    } else if (m_failedVersion == m_latestVersion) {
+    } else if (m_failedVersion == m_latestReleaseKey) {
         m_updateAvailable = false;
         m_unseenUpdate = false;
         m_state = VerificationFailure;
     } else {
         m_updateAvailable = true;
-        m_unseenUpdate = m_seenVersion != m_latestVersion;
+        m_unseenUpdate = m_seenVersion != m_latestReleaseKey;
         if (requestedState == Ready || requestedState == Installing || requestedState == Paused
             || requestedState == RecoverableError || requestedState == VerificationFailure
             || requestedState == ManualUpdateRequired)
@@ -443,8 +472,12 @@ void UpdateService::loadInstalledChronicle()
                                            m_hooks.installedChronicleSignaturePath,
                                            m_hooks.installedChronicleArtworkRoot,
                                            m_installedVersion, &error);
-    if (loaded)
+    if (loaded) {
+        // The bundled seed is signed, so its sequence is the trusted
+        // installed-side ordering identity for edition comparisons.
+        m_installedSequence = loaded->manifest.sequence;
         m_installedChronicle = std::move(loaded);
+    }
     // On failure (bad signature, corrupt manifest, version mismatch) we leave
     // m_installedChronicle empty — the gallery degrades honestly to the
     // empty-list fallback at rest. No unverified chronicle is ever exposed.
@@ -568,9 +601,9 @@ void UpdateService::handleRelease(const ReleaseCheckResult& result)
         return;
     }
 
-    if (m_failedVersion != result.manifest.version.canonical())
+    if (m_failedVersion != releaseKey(result.manifest))
         m_failedVersion.clear();
-    const bool seen = m_seenVersion == result.manifest.version.canonical();
+    const bool seen = m_seenVersion == releaseKey(result.manifest);
     QString error;
     bool accepted = false;
     if (!result.verifiedManifestBytes.isEmpty() && !result.verifiedSignatureBytes.isEmpty()) {
@@ -646,7 +679,7 @@ void UpdateService::handleDownloadFailed(const QString& errorCode, bool resumabl
     } else if (errorCode.contains(QStringLiteral("sha256"))
                || errorCode.contains(QStringLiteral("signature"))
                || errorCode == QStringLiteral("verification_failed")) {
-        m_failedVersion = m_latestVersion;
+        m_failedVersion = m_latestReleaseKey;
         m_updateAvailable = false;
         m_unseenUpdate = false;
         setState(VerificationFailure);
@@ -671,7 +704,7 @@ void UpdateService::markSeen()
 {
     if (!m_hasChronicle || m_latestVersion.isEmpty())
         return;
-    m_seenVersion = m_latestVersion;
+    m_seenVersion = m_latestReleaseKey;
     m_unseenUpdate = false;
     persist();
     emitChanged();

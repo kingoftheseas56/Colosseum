@@ -17,7 +17,7 @@ REPO = "kingoftheseas56/Colosseum"
 VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 TAG_RE = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 DER_PREFIX = bytes.fromhex("302a300506032b6570032100")
-ROOT_KEYS = {"eyebrow", "title", "summary", "notes_url", "highlights", "artwork"}
+ROOT_KEYS = {"eyebrow", "title", "summary", "notes_url", "highlights", "artwork", "sequence"}
 HIGHLIGHT_KEYS = {
     "kind", "section", "title", "body", "value", "context",
     "before_caption", "after_caption", "artwork_assets",
@@ -135,7 +135,18 @@ def load_presentation(path: Path, version: str) -> dict[str, Any]:
         artwork.append({"asset": name, "sha256": digest})
         seen.add(name)
 
-    return {
+    # Optional signed release ordering across editions of one displayed
+    # version (no-account 1.1.9 -> account 1.1.9): a positive integer that
+    # increases with every published release. Absent keeps the legacy
+    # version-only order understood by every manifest parser; an authored
+    # value must be a positive 32-bit integer (the native parser rejects
+    # zero/negative/fractional forms in served manifests the same way).
+    sequence = data.get("sequence")
+    if sequence is not None and (not isinstance(sequence, int) or isinstance(sequence, bool)
+                                 or not 1 <= sequence <= 2147483647):
+        fail("sequence must be a positive 32-bit integer or absent")
+
+    result = {
         "schemaVersion": 1,
         "version": version,
         "tag": tag,
@@ -148,6 +159,9 @@ def load_presentation(path: Path, version: str) -> dict[str, Any]:
         "highlights": highlights,
         "artwork": artwork,
     }
+    if sequence is not None:
+        result["sequence"] = sequence
+    return result
 
 
 def manifest_bytes(version: str, installer: Path, presentation: Path) -> bytes:

@@ -14,12 +14,15 @@ Item {
     property real topInset: 74
     property Item focusReturnItem: null
 
-    // No-account edition gate: accountFeaturesAvailable === false compiles the
-    // whole onboarding cover out of the UX (startup settles local-only on the
-    // native side). Stub controllers without the property keep legacy behavior.
+    // No-account edition gate: accountFeaturesAvailable === false hides the
+    // welcome/sign-in/registration cover — the native side settles local-only
+    // at startup — EXCEPT mode "error", which stays visible so a local
+    // profile/storage failure can never be concealed by the hidden flow (the
+    // welcome page renders the error and a retryable Continue action).
+    // Stub controllers without the property keep legacy behavior.
     readonly property bool accountFlowVisible:
         (controller.accountFeaturesAvailable === false)
-        ? false
+        ? controller.mode === "error"
         : (controller.signOutSyncWarningPending
            || recoveryPresenter.active
            || controller.mode === "signedOut"

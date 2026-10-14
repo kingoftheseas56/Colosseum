@@ -8,6 +8,8 @@
 #include <QSet>
 #include <QUrl>
 
+#include <cmath>
+
 namespace Colosseum::Update {
 namespace {
 
@@ -83,7 +85,8 @@ std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* e
 
     const QJsonObject root = document.object();
     if (!exactKeys(root, {QStringLiteral("schemaVersion"), QStringLiteral("version"),
-                          QStringLiteral("tag"), QStringLiteral("eyebrow"),
+                          QStringLiteral("sequence"), QStringLiteral("tag"),
+                          QStringLiteral("eyebrow"),
                           QStringLiteral("title"), QStringLiteral("summary"),
                           QStringLiteral("installer"), QStringLiteral("minimumUpdaterVersion"),
                           QStringLiteral("notesUrl"), QStringLiteral("highlights"),
@@ -96,6 +99,18 @@ std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* e
 
     Manifest manifest;
     manifest.schemaVersion = 1;
+    // Optional signed ordering across editions of one displayed version.
+    // Absent (or explicitly 0) keeps the legacy version-only order.
+    const QJsonValue sequenceValue = root.value(QStringLiteral("sequence"));
+    if (!sequenceValue.isUndefined()) {
+        const double sequenceNumber = sequenceValue.toDouble(-1);
+        if (sequenceNumber != std::floor(sequenceNumber)
+            || sequenceNumber < 1 || sequenceNumber > 2147483647.0) {
+            fail(error, QStringLiteral("invalid_sequence"));
+            return std::nullopt;
+        }
+        manifest.sequence = static_cast<int>(sequenceNumber);
+    }
     const auto version = Version::parseCanonical(root.value(QStringLiteral("version")).toString());
     const auto tagVersion = Version::parseTag(root.value(QStringLiteral("tag")).toString());
     if (!version || !tagVersion || version->compare(*tagVersion) != 0) {
