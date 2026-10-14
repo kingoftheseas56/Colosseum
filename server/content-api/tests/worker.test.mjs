@@ -9,11 +9,12 @@ const schema = JSON.parse(await readFile(new URL('../src/source-schema.json', im
 const admin = 'local-test-admin-secret';
 const signingSecret = 'local-test-signing-secret-with-enough-length';
 
-async function fixture(t) {
+async function fixture(t, guest = false, options = {}) {
   const mf = new Miniflare(convertV4MiniflareOptions({
     modules: true, scriptPath: fileURLToPath(new URL('../dist/index.js', import.meta.url)),
     compatibilityDate: '2026-10-06',
-    bindings: { ADMIN_TOKEN: admin, SESSION_SECRET: signingSecret, ENVIRONMENT: 'staging' },
+    bindings: { ADMIN_TOKEN: admin, SESSION_SECRET: signingSecret, ENVIRONMENT: 'staging', ...(guest ? {TANKOBAN_GUEST_ENABLED:'true'} : {}), ...(options.bindings ?? {}) },
+    ratelimits: guest && !options.noLimiter ? {GUEST_RATE_LIMITER:{simple:{limit:options.rateLimit ?? 1000,period:60},namespace_id:'1001'}} : {},
     d1Databases: { CATALOG: 'catalog', METADATA: 'metadata' },
   }));
   t.after(() => mf.dispose());
@@ -27,7 +28,7 @@ async function fixture(t) {
   }
   const request = (path, token, body) => mf.dispatchFetch(`https://test.invalid${path}`, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    headers: { 'CF-Connecting-IP':'192.0.2.1', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { request, catalog, metadata };
@@ -159,4 +160,68 @@ test('MusicBrainz enrichments are validated and cached locally', async t => {
   assert.equal((await request('/admin/enrichment', admin, { ...body, payload: { id: 'different-id' } })).status, 400);
   assert.equal((await request('/admin/enrichment', admin, { ...body, fetchedAt: 'not-a-date' })).status, 400);
   assert.equal((await request('/admin/enrichment', admin, { ...body, payload: null })).status, 400);
+});
+
+async function readyTankoban(catalog) {
+  for (const name of ['tankoban__series','tankoban__volumes']) await catalog.prepare('UPDATE _source_tables SET imported_rows=?,ready=1 WHERE name=?').bind(schema[name].rowCount,name).run();
+}
+test('guest capability is disabled by default', async t => {
+  const {request}=await fixture(t);
+  assert.equal((await request('/v1/guest/session',null,{appId:'colosseum',apiVersion:1})).status,503);
+});
+test('guest semantic lease preserves scope, revision, readiness and native overlays', async t => {
+  const {request,catalog}=await fixture(t,true);
+  const guest={appId:'colosseum',apiVersion:1};
+  assert.equal((await request('/v1/guest/session',null,guest)).status,503);
+  await readyTankoban(catalog);
+  for (const invalid of [{appId:'other',apiVersion:1},{appId:'colosseum',apiVersion:2},{...guest,scope:'admin'}]) assert.equal((await request('/v1/guest/session',null,invalid)).status,400);
+  const issued=await (await request('/v1/guest/session',null,guest)).json();
+  const claims=JSON.parse(Buffer.from(issued.token.split('.')[0],'base64url'));
+  assert.equal(claims.exp-claims.iat,300);
+  for (const path of ['/admin/status','/v1/catalogues','/v1/catalogues/tankoban__series']) assert.equal((await request(path,issued.token)).status,401);
+  const empty=await (await request('/v1/tankoban/series/1',issued.token)).json();
+  assert.deepEqual(empty.seriesInfo,{});assert.deepEqual(empty.volumes,[]);
+  await catalog.prepare('INSERT INTO tankoban__series VALUES(?,?,?)').bind(1,3,'known').run();
+  for(const row of [['2','cover','two'],['01','leading','one'],['10','','ten']]) await catalog.prepare('INSERT INTO tankoban__volumes VALUES(?,?,?,?)').bind(1,...row).run();
+  const result=await (await request('/v1/tankoban/series/1',issued.token)).json();
+  assert.equal(result.apiVersion,1);assert.equal(result.sourceHash,schema.tankoban__series.sourceHash);
+  assert.deepEqual(result.volumes.map(v=>v.number),['1','01','2','3','10']);
+  assert.deepEqual(result.volumes.find(v=>v.number==='2'),{number:'2',cover:'cover',name:'two'});
+  for(const override of [{exp:claims.iat-1},{scope:'read'},{sourceHash:'stale'},{aud:'other'},{apiVersion:2}]) {
+    const b=Buffer.from(JSON.stringify({...claims,...override})).toString('base64url');
+    const tok=b+'.'+createHmac('sha256',signingSecret).update(b).digest('base64url');
+    assert.equal((await request('/v1/tankoban/series/1',tok)).status,401);
+  }
+  await catalog.prepare('UPDATE tankoban__series SET volume_count=2001 WHERE mal_id=1').run();
+  assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,503);
+  await catalog.prepare('UPDATE tankoban__series SET volume_count=3 WHERE mal_id=1').run();
+  await catalog.prepare('UPDATE tankoban__volumes SET name=? WHERE mal_id=1 AND number=?').bind('x'.repeat(524289),'2').run();
+  assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,503);
+  await catalog.prepare('DELETE FROM tankoban__volumes WHERE mal_id=1').run();
+  await catalog.prepare("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<2001) INSERT INTO tankoban__volumes(mal_id,number,cover_url,name) SELECT 1,CAST(x AS TEXT),'','' FROM n").run();
+  assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,503);
+  await catalog.prepare("UPDATE _source_tables SET source_hash='stale' WHERE name='tankoban__volumes'").run();
+  assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,503);
+  assert.equal((await request('/v1/guest/session',null,guest)).status,503);
+});
+
+
+
+test('guest configuration and limiter fail closed', async t => {
+  for(const options of [{noLimiter:true},{bindings:{SESSION_SECRET:'short'}}]) {
+    const {request}=await fixture(t,true,options);
+    const response=await request('/v1/guest/session',null,{appId:'colosseum',apiVersion:1});
+    assert.equal(response.status,503); assert.deepEqual(await response.json(),{error:'GUEST_UNAVAILABLE'});
+  }
+  const {request,catalog}=await fixture(t,true,{rateLimit:1}); await readyTankoban(catalog);
+  const issued=await (await request('/v1/guest/session',null,{appId:'colosseum',apiVersion:1})).json();
+  assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,429);
+});
+
+test('guest database errors return a bounded generic failure', async t => {
+  const {request,catalog}=await fixture(t,true); await readyTankoban(catalog);
+  const issued=await (await request('/v1/guest/session',null,{appId:'colosseum',apiVersion:1})).json();
+  await catalog.prepare('DROP TABLE tankoban__series').run();
+  const response=await request('/v1/tankoban/series/1',issued.token);
+  assert.equal(response.status,503);assert.deepEqual(await response.json(),{error:'SERVICE_UNAVAILABLE'});
 });

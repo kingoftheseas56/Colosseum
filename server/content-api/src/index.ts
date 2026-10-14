@@ -1,6 +1,6 @@
 import schema from './source-schema.json';
 
-interface Env { CATALOG: D1Database; METADATA: D1Database; ADMIN_TOKEN: string; SESSION_SECRET: string; ENVIRONMENT: string }
+interface Env { CATALOG: D1Database; METADATA: D1Database; ADMIN_TOKEN: string; SESSION_SECRET: string; ENVIRONMENT: string; TANKOBAN_GUEST_ENABLED?: string; GUEST_RATE_LIMITER?: RateLimit }
 type Table = { columns: string[]; rowCount: number; sourceHash: string; writeWeight: number };
 const tables: Record<string, Table> = schema;
 const encoder = new TextEncoder();
@@ -18,7 +18,7 @@ async function admin(token: string, secret: string) {
   const signature = await crypto.subtle.sign('HMAC', k, encoder.encode(secret));
   return crypto.subtle.verify('HMAC', k, signature, encoder.encode(token));
 }
-async function lease(token: string, secret: string) {
+async function lease(token: string, secret: string, semantic = false) {
   if (!secret || token.length > 2048) return false;
   try {
     const [body, sig, extra] = token.split('.');
@@ -26,6 +26,7 @@ async function lease(token: string, secret: string) {
     if (!await crypto.subtle.verify('HMAC', await key(secret), decode(sig), encoder.encode(body))) return false;
     const claims = JSON.parse(new TextDecoder().decode(decode(body)));
     const now = Math.floor(Date.now() / 1000);
+    if (semantic && claims.aud === 'colosseum-content-api') return claims.scope === 'tankoban:read' && claims.apiVersion === 1 && claims.sourceHash === tables.tankoban__series.sourceHash && Number.isInteger(claims.iat) && claims.iat <= now && Number.isInteger(claims.exp) && claims.exp > now && claims.exp - claims.iat === 300 && claims.exp <= now + 300;
     return claims.aud === 'content-api' && claims.scope === 'read' && Number.isInteger(claims.exp) && claims.exp > now && claims.exp <= now + 1800;
   } catch { return false; }
 }
@@ -54,16 +55,76 @@ function metadataKey(kind: unknown, mbid: unknown) {
   if (typeof kind !== 'string' || !kinds.has(kind) || typeof mbid !== 'string' || !uuid.test(mbid)) throw new Failure(400, 'INVALID_MUSICBRAINZ_ID');
 }
 
+async function guestGate(request: Request, env: Env) {
+  if (env.TANKOBAN_GUEST_ENABLED !== 'true' || !env.SESSION_SECRET || env.SESSION_SECRET.length < 32 || !env.GUEST_RATE_LIMITER) throw new Failure(503, 'GUEST_UNAVAILABLE');
+  const ip = request.headers.get('CF-Connecting-IP');
+  if (!ip) throw new Failure(503, 'GUEST_UNAVAILABLE');
+  if (!(await env.GUEST_RATE_LIMITER.limit({ key: ip })).success) throw new Failure(429, 'RATE_LIMITED');
+}
+async function tankobanReady(env: Env) {
+  const names = ['tankoban__series', 'tankoban__volumes'];
+  if (tables[names[0]].sourceHash !== tables[names[1]].sourceHash) throw new Failure(503, 'CATALOGUE_NOT_READY');
+  const rows = await env.CATALOG.prepare('SELECT name,ready,source_hash,expected_rows,imported_rows FROM _source_tables WHERE name IN (?,?)').bind(...names).all();
+  for (const name of names) {
+    const row = rows.results.find(r => r.name === name);
+    if (!row || row.ready !== 1 || row.source_hash !== tables[name].sourceHash || row.expected_rows !== tables[name].rowCount || row.imported_rows !== tables[name].rowCount) throw new Failure(503, 'CATALOGUE_NOT_READY');
+  }
+}
+function naturalKey(value: string) { return value.toLowerCase().replace(/\p{Nd}+/gu, run => run.padStart(12, '0')); }
+async function tankoban(env: Env, malId: number) {
+  await tankobanReady(env);
+  const info = await env.CATALOG.prepare('SELECT volume_count,count_basis FROM tankoban__series WHERE mal_id=?').bind(malId).first<{volume_count:number;count_basis:string}>();
+  let seriesInfo: object = {}; const volumes: {number:string;cover:string;name:string}[] = [];
+  if (info) {
+    if (!Number.isInteger(info.volume_count) || info.volume_count < 0 || info.volume_count > 2000 || typeof info.count_basis !== 'string') throw new Failure(503, 'CATALOGUE_INVALID');
+    seriesInfo = {volumeCount:info.volume_count,countBasis:info.count_basis};
+    // Bound row count and aggregate UTF-8 bytes in SQLite before fetching baked facts.
+    const total = await env.CATALOG.prepare("SELECT COUNT(*) AS n,coalesce(SUM(length(CAST(number AS BLOB))+length(CAST(coalesce(cover_url,'') AS BLOB))+length(CAST(coalesce(name,'') AS BLOB))),0) AS bytes FROM tankoban__volumes WHERE mal_id=?").bind(malId).first<{n:number;bytes:number}>();
+    if (!total || total.n > 2000 || total.bytes > 524288) throw new Failure(503, 'RESPONSE_TOO_LARGE');
+    const baked = await env.CATALOG.prepare('SELECT number,cover_url,name FROM tankoban__volumes WHERE mal_id=? ORDER BY number LIMIT 2001').bind(malId).all();
+    if (total.n !== baked.results.length || baked.results.length > 2000) throw new Failure(503, 'RESPONSE_TOO_LARGE');
+    const overlay = new Map<string,{number:string;cover:string;name:string}>();
+    for (const row of baked.results) {
+      if (typeof row.number !== 'string' || (row.cover_url !== null && typeof row.cover_url !== 'string') || (row.name !== null && typeof row.name !== 'string')) throw new Failure(503, 'CATALOGUE_INVALID');
+      overlay.set(row.number,{number:row.number,cover:(row.cover_url as string) ?? '',name:(row.name as string) ?? ''});
+    }
+    for (let n=1;n<=info.volume_count;n++) { const number=String(n); volumes.push(overlay.get(number) ?? {number,cover:'',name:''}); overlay.delete(number); }
+    volumes.push(...overlay.values());
+    if (volumes.length > 2000) throw new Failure(503, 'RESPONSE_TOO_LARGE');
+    volumes.sort((a,b) => {const x=naturalKey(a.number),y=naturalKey(b.number); return x<y?-1:x>y?1:0;});
+  }
+  const value = {apiVersion:1,sourceHash:tables.tankoban__series.sourceHash,ready:true,seriesInfo,volumes};
+  if (encoder.encode(JSON.stringify(value)).byteLength > 524288) throw new Failure(503, 'RESPONSE_TOO_LARGE');
+  return json(value);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
       const url = new URL(request.url); const path = url.pathname;
       if (request.method === 'GET' && path === '/healthz') return json({ ok: true, environment: env.ENVIRONMENT });
+      const semantic = path.match(/^\/v1\/tankoban\/series\/([1-9][0-9]*)$/);
+      if (request.method === 'POST' && path === '/v1/guest/session') {
+        await guestGate(request, env);
+        const input = await body(request);
+        if (input.appId !== 'colosseum' || input.apiVersion !== 1 || Object.keys(input).length !== 2) throw new Failure(400, 'INVALID_GUEST_REQUEST');
+        await tankobanReady(env);
+        const iat = Math.floor(Date.now()/1000), exp = iat+300;
+        const claims = base64(encoder.encode(JSON.stringify({aud:'colosseum-content-api',scope:'tankoban:read',apiVersion:1,sourceHash:tables.tankoban__series.sourceHash,iat,exp})));
+        const signature = base64(new Uint8Array(await crypto.subtle.sign('HMAC',await key(env.SESSION_SECRET),encoder.encode(claims))));
+        return json({token:`${claims}.${signature}`,expiresAt:new Date(exp*1000).toISOString()});
+      }
+      if (semantic) await guestGate(request, env);
       const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1] ?? '';
       const isAdmin = path.startsWith('/admin/');
-      if (!(isAdmin ? await admin(token, env.ADMIN_TOKEN) : await lease(token, env.SESSION_SECRET))) throw new Failure(401, 'UNAUTHORIZED');
+      if (!(isAdmin ? await admin(token, env.ADMIN_TOKEN) : await lease(token, env.SESSION_SECRET, !!semantic))) throw new Failure(401, 'UNAUTHORIZED');
+      if (request.method === 'GET' && semantic) {
+        const malId = Number(semantic[1]);
+        if (!Number.isSafeInteger(malId) || malId > 2147483647) throw new Failure(400, 'INVALID_MAL_ID');
+        return await tankoban(env, malId);
+      }
       if (request.method === 'POST' && path === '/admin/session') {
-        // Staging integration only. Production leases must come from the existing account/guest service.
+        // Preserve the staging-only broad read lease; guest leases above remain semantic-only.
         if (env.ENVIRONMENT !== 'staging') throw new Failure(404, 'NOT_FOUND');
         const exp = Math.floor(Date.now() / 1000) + 1800;
         const claims = base64(encoder.encode(JSON.stringify({ aud: 'content-api', scope: 'read', exp })));
