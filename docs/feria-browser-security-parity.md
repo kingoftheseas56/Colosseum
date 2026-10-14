@@ -109,6 +109,33 @@ own actual-host checks, not a retroactive transport qualification claim.
 
 ### Browser/native boundary checkpoint, 2026-10-14
 
+Windows process-token checkpoint: `observe_windows_tokens.py` sampled actual
+renderer primary tokens while the real wrapper ran the default 30-second freeze
+fixture. Stock and codec each passed 3/0/0 with native/driver exit 0, matching
+loaded module/helper identities, stable source and no remaining observed children.
+The final observer binds creation FILETIME, image path and token query to one
+retained Windows process handle; API failures remain explicit evidence errors.
+
+Stock recorded 60 renderer samples across two processes (57 untrusted-integrity,
+3 early low-integrity); codec recorded 62 (59 untrusted, 3 early low). Every sample
+had one restricting SID and agreed with `IsTokenRestricted`; each renderer's last
+sample was untrusted. All were members of a job, without AppContainer membership.
+The ordinary observer/browser had medium integrity and no restricting SID list;
+`TokenHasRestrictions` was still true, so that flag alone is not sufficient proof.
+There were no observation errors. Evidence: `sandbox-stock-handle-20261014` and
+`sandbox-codec-handle-20261014`, each with `tokens.json`, `receiving.json` and
+native test/module/exit receipts. Earlier recordings are retained separately;
+their observer used a cached psutil creation-time comparison and is superseded
+by the handle-bound observer (SHA256
+`19dd482e5443afa5a8a1aa5fd9650a710aa53befe74d0516ed825e5af4079c9d`).
+
+This establishes sampled primary-token restrictions in the two pinned offscreen
+fixtures. It does not establish job limits, thread impersonation, desktop
+isolation, mitigation settings, broker policy, installed runtime or provider
+acceptance. Job membership alone is not a Chromium sandbox policy measurement.
+See [Chromium's Windows sandbox design](https://chromium.googlesource.com/chromium/src/+/main/docs/design/sandbox.md)
+and [Microsoft's token information classes](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ne-winnt-token_information_class).
+
 Source review found no Feria WebChannel registration exposing the native context
 to remote pages. The local Reader2 channel is a separate view. QML context objects
 alone do not create remote JavaScript globals. In the built Colosseum executable,

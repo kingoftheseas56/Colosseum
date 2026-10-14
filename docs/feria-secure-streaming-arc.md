@@ -98,6 +98,20 @@ stored grant after requesting-frame removal on both engine pairings (2/1/0,
 native 1 each). Final-source stock reproduction also fails at that assertion;
 the live grant/reset/deny control passes 3/0/0, native 0. F1.4 remains open.
 
+Runtime selection checkpoint: exact Conda and Sigil package inspection rejected
+both as complete replacements (see the prebuilt assessment). The official Qt
+6.11.1 source archive has been downloaded and matches its publisher checksum;
+host tools are staged without global installation. No full engine has been
+configured or compiled from that source yet. An observed filesystem repair flag
+on the prior research volume moved new staging to a healthy volume; accepted
+runtime files remain unchanged and were hash-checked before use.
+
+F2 now has bounded Windows renderer primary-token observations: two renderers
+per stock/codec pairing reached restricted, untrusted-integrity tokens while
+their default-freeze fixtures passed 3/0/0, native 0 each. The observer and exact
+limitations are recorded in the security ledger. This does not close the full
+sandbox, installed-runtime or provider gates.
+
 | Phase | Objective | Depends on | Completion gate |
 | --- | --- | --- | --- |
 | 1 | Secure startup and browser/native boundaries | Current source | Unsafe configurations rejected and hostile-page negative tests pass |

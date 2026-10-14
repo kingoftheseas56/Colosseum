@@ -1,5 +1,31 @@
 # Feria security fixtures
 
+## Windows renderer token observation
+
+`python observe_windows_tokens.py <new-output-directory> <test-driver-command...>`
+observes foundation/helper descendants of that exact driver. Use a pinned runtime,
+disposable profiles and a driver that records the native root exit, actual loaded
+module/helper identities and cleanup. The observer does not launch a second test,
+inject code, change sandbox flags or kill processes. It requires Windows and psutil.
+
+The inspector obtains process creation FILETIME, image path and primary token
+through the same process handle, cross-checks enumeration identity, and records
+integrity RID, restricting-SID count, AppContainer status and job membership.
+It checks the restricting-SID count against `IsTokenRestricted`. The ordinary
+observer/browser provide a comparison: `TokenHasRestrictions` can be true even
+without restricting SIDs, so it is not sufficient sandbox evidence by itself.
+
+The observer's exit follows its driver's exit; it is not a qualification verdict.
+Receiving review must require successful native test/root exits, matching binary
+identities, nonempty renderer coverage, zero observation errors, stable source
+and child cleanup. Inspect samples from actual page execution and each renderer's
+final samples. A missing sample/API error is unknown, not proof of isolation.
+Retain early low-integrity samples alongside later untrusted-integrity samples.
+
+This proves only sampled primary-token properties. Membership in some job does
+not establish Chromium job limits. Thread impersonation, desktop isolation,
+mitigations, broker policy, installed builds and provider sessions remain separate.
+
 ## Built-application native boundary
 
 `run_boundaries.py --exe <built-colosseum.exe> --out <fresh-directory>` loads a

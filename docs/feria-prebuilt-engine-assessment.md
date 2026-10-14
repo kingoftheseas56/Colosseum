@@ -9,7 +9,7 @@ The target remains QtWebEngine with the secure streaming arc's full gates.
 | --- | --- | --- |
 | Existing GoldenDict-ng codec overlay | Local overlay manifest identifies `Goldendict-ng-260529-win64-qt6111.7z`, archive SHA256 `e833a49ccbf66679070932a981f1a6ddd22e4724a554f4290ea67671a0399897`; H.264/AAC decoding was observed, engine API reports 6.11.2 on Qt 6.11.1 | Keep as measured codec baseline. Full feature configuration and exact publisher source provenance remain unresolved; its stale-frame permission regression fails. |
 | [Conda-forge qt6-webengine](https://api.anaconda.org/package/conda-forge/qt6-webengine) | Downloaded Windows x64 asset `qt6-webengine-6.11.2-pl5321h80dc20f_1.conda`, SHA256 `e047f59a3527359013dd5bd5ccc8ffb75c678ce1167d53a084fd29c628781314`, 189584408 bytes, uploaded 2026-10-03. Requires matching `qt6-main 6.11.2.*` and additional Conda dependencies | Rejected as a complete replacement: packaged generated headers explicitly disable proprietary codecs AND geolocation. PDF/printing, spellchecker and WebRTC are enabled. Quick/Core/helper/plugin/import libraries exist in archive inventory. No runtime qualification performed. |
-| [Doug Massay / Sigil Qt builds](https://github.com/dougmassay/win-qtwebkit-5.212/releases/tag/v5.212-1) | Release metadata includes Qt 6.9.2/6.9.3 VS2022 and 6.10.2 VS2026 archives. `Windows.Qt6.build.info.txt` explicitly configures proprietary codecs in its Qt 6.9.2 example | Credible codec publisher lead, but the build-info example does not establish exact flags/modules of every archive. Older Qt/toolchain combinations are not qualified replacements for Feria's current pairings. |
+| [Doug Massay / Sigil Qt builds](https://github.com/dougmassay/win-qtwebkit-5.212/releases/tag/v5.212-1) | Downloaded `Qt6.10.2ci_x64_VS2026a.7z`, 139145832 bytes; publisher SHA256 `a25d85fd192711653d20a5665c45cfa4b118261b09e699c6917ce5a99149d154` matches. Packaged headers enable proprietary codecs, WebRTC, PDF/printing and spellcheck; geolocation is disabled | Rejected as a complete replacement: no WebEngineQuick DLL/import library/CMake package/QML plugin. Core/Widgets SDK exists, but no generated Chromium headers/buildflags or exact source pin. Qt 6.10.2/MSVC 19.50.35723 metadata does not establish compatibility with Feria. No binary executed. |
 | [Calibre / bypy](https://github.com/kovidgoyal/bypy/blob/master/bypy/pkgs/qt_webengine.py) | Recipe explicitly enables proprietary codecs and Widgets, disables WebEngineQuick | Potential Core donor only. Matching Quick would still need compilation and private ABI/source verification; no packaged artifact was accepted. |
 | [qutebrowser Windows releases](https://github.com/qutebrowser/qutebrowser/blob/main/doc/install.asciidoc) | Publisher documents codec-free Windows builds | Does not solve our proprietary-codec requirement. |
 
@@ -25,6 +25,11 @@ source and VS2022 compiler variant. Receipt directory:
 `archive-inventory.json`, `config-header-snippets.txt`). No DLL/EXE/LIB was
 extracted or executed. Generated headers establish packaged configuration,
 not independent proof that every binary corresponds to those headers.
+Sigil receiving inspection verified the publisher archive digest and all 93
+selected metadata/configuration hashes. Its full inventory distinguishes general
+Qt Quick modules (present) from WebEngineQuick (absent). Evidence:
+`sigil-inspection-20261014`, including `archive-inventory.json`,
+`feature-summary.json`, `selected-hashes.json` and publisher asset metadata.
 The current GoldenDict ordinary release workflow uses official Qt packages; its
 vcpkg dependency export is not a Qt SDK. The exact older codec archive's public
 release/recipe was not recovered in this bounded search.
