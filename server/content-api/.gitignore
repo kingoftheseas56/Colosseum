@@ -5,3 +5,5 @@ dist/
 .publisher/
 worker-configuration.d.ts
 __pycache__/
+
+generated/

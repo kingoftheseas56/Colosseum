@@ -1,6 +1,8 @@
 import schema from './source-schema.json';
+import {contentDelivery} from './content-delivery';
+import {catalogueMethod, catalogueMethods} from './catalogue-semantic.ts';
 
-interface Env { CATALOG: D1Database; METADATA: D1Database; ADMIN_TOKEN: string; SESSION_SECRET: string; ENVIRONMENT: string; TANKOBAN_GUEST_ENABLED?: string; GUEST_RATE_LIMITER?: RateLimit }
+type AppEnv = Cloudflare.Env & { ADMIN_TOKEN: string; SESSION_SECRET: string; LIBRARY?: D1Database; LIBRARY_REVISION?: string };
 type Table = { columns: string[]; rowCount: number; sourceHash: string; writeWeight: number };
 const tables: Record<string, Table> = schema;
 const encoder = new TextEncoder();
@@ -26,7 +28,7 @@ async function lease(token: string, secret: string, semantic = false) {
     if (!await crypto.subtle.verify('HMAC', await key(secret), decode(sig), encoder.encode(body))) return false;
     const claims = JSON.parse(new TextDecoder().decode(decode(body)));
     const now = Math.floor(Date.now() / 1000);
-    if (semantic && claims.aud === 'colosseum-content-api') return claims.scope === 'tankoban:read' && claims.apiVersion === 1 && claims.sourceHash === tables.tankoban__series.sourceHash && Number.isInteger(claims.iat) && claims.iat <= now && Number.isInteger(claims.exp) && claims.exp > now && claims.exp - claims.iat === 300 && claims.exp <= now + 300;
+    if (semantic && claims.aud === 'colosseum-content-api') return (claims.scope === 'tankoban:read' || claims.scope === 'content:read') && claims.apiVersion === 1 && claims.sourceHash === tables.tankoban__series.sourceHash && Number.isInteger(claims.iat) && claims.iat <= now && Number.isInteger(claims.exp) && claims.exp > now && claims.exp - claims.iat === 300 && claims.exp <= now + 300;
     return claims.aud === 'content-api' && claims.scope === 'read' && Number.isInteger(claims.exp) && claims.exp > now && claims.exp <= now + 1800;
   } catch { return false; }
 }
@@ -55,13 +57,13 @@ function metadataKey(kind: unknown, mbid: unknown) {
   if (typeof kind !== 'string' || !kinds.has(kind) || typeof mbid !== 'string' || !uuid.test(mbid)) throw new Failure(400, 'INVALID_MUSICBRAINZ_ID');
 }
 
-async function guestGate(request: Request, env: Env) {
+async function guestGate(request: Request, env: AppEnv) {
   if (env.TANKOBAN_GUEST_ENABLED !== 'true' || !env.SESSION_SECRET || env.SESSION_SECRET.length < 32 || !env.GUEST_RATE_LIMITER) throw new Failure(503, 'GUEST_UNAVAILABLE');
   const ip = request.headers.get('CF-Connecting-IP');
   if (!ip) throw new Failure(503, 'GUEST_UNAVAILABLE');
   if (!(await env.GUEST_RATE_LIMITER.limit({ key: ip })).success) throw new Failure(429, 'RATE_LIMITED');
 }
-async function tankobanReady(env: Env) {
+async function tankobanReady(env: AppEnv) {
   const names = ['tankoban__series', 'tankoban__volumes'];
   if (tables[names[0]].sourceHash !== tables[names[1]].sourceHash) throw new Failure(503, 'CATALOGUE_NOT_READY');
   const rows = await env.CATALOG.prepare('SELECT name,ready,source_hash,expected_rows,imported_rows FROM _source_tables WHERE name IN (?,?)').bind(...names).all();
@@ -71,7 +73,7 @@ async function tankobanReady(env: Env) {
   }
 }
 function naturalKey(value: string) { return value.toLowerCase().replace(/\p{Nd}+/gu, run => run.padStart(12, '0')); }
-async function tankoban(env: Env, malId: number) {
+async function tankoban(env: AppEnv, malId: number) {
   await tankobanReady(env);
   const info = await env.CATALOG.prepare('SELECT volume_count,count_basis FROM tankoban__series WHERE mal_id=?').bind(malId).first<{volume_count:number;count_basis:string}>();
   let seriesInfo: object = {}; const volumes: {number:string;cover:string;name:string}[] = [];
@@ -98,26 +100,89 @@ async function tankoban(env: Env, malId: number) {
   return json(value);
 }
 
+// QVariantMap keys and JavaScript object insertion order share one cache key.
+function canonicalArgs(value: any): any {
+  if (Array.isArray(value)) return value.map(canonicalArgs);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonicalArgs(value[k])]));
+  return value;
+}
+async function bodyTag(value: string | ArrayBuffer) {
+  const bytes = typeof value === 'string' ? encoder.encode(value) : value;
+  return '"'+Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(v=>v.toString(16).padStart(2,'0')).join('')+'"';
+}
+function matchesTag(request: Request, tag: string) {
+  const candidates=request.headers.get('If-None-Match')?.match(/(?:W\/)?"[^"]*"|\*/g) ?? [];
+  return candidates.some(v=>v==='*'||v.replace(/^W\/\s*/,'')===tag.replace(/^W\/\s*/,''));
+}
+async function catalogueResponse(request: Request, source: Response): Promise<Response> {
+  const headers=new Headers(source.headers);
+  headers.set('Cache-Control','private, max-age=3600');headers.set('X-Content-Type-Options','nosniff');
+  if(source.status===304)return new Response(null,{status:304,headers});
+  let payload: BodyInit | null=source.body;
+  if(!headers.has('ETag')){const bytes=await source.arrayBuffer();headers.set('ETag',await bodyTag(bytes));payload=bytes;}
+  if(matchesTag(request,headers.get('ETag')!)){headers.delete('Content-Length');return new Response(null,{status:304,headers});}
+  return new Response(payload,{status:source.status,headers});
+}
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: AppEnv, ctx?: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url); const path = url.pathname;
       if (request.method === 'GET' && path === '/healthz') return json({ ok: true, environment: env.ENVIRONMENT });
       const semantic = path.match(/^\/v1\/tankoban\/series\/([1-9][0-9]*)$/);
+      if (path.startsWith('/internal/')) return json({error:'NOT_FOUND'},404);
+      const catalogueRpc = path.match(/^\/v1\/catalogue\/(imdb|mal|comics)\/([A-Za-z][A-Za-z0-9]{0,63})$/);
+      const contentRpc = path === '/v1/catalogue/content/bundle' && request.method === 'POST';
+      const contentGet = request.method === 'GET' && (path === '/v1/content/manifest' || /^\/v1\/content\/documents\/[a-z][a-z0-9-]{0,100}$/.test(path));
       if (request.method === 'POST' && path === '/v1/guest/session') {
         await guestGate(request, env);
         const input = await body(request);
         if (input.appId !== 'colosseum' || input.apiVersion !== 1 || Object.keys(input).length !== 2) throw new Failure(400, 'INVALID_GUEST_REQUEST');
         await tankobanReady(env);
         const iat = Math.floor(Date.now()/1000), exp = iat+300;
-        const claims = base64(encoder.encode(JSON.stringify({aud:'colosseum-content-api',scope:'tankoban:read',apiVersion:1,sourceHash:tables.tankoban__series.sourceHash,iat,exp})));
+        const claims = base64(encoder.encode(JSON.stringify({aud:'colosseum-content-api',scope:'content:read',apiVersion:1,sourceHash:tables.tankoban__series.sourceHash,iat,exp})));
         const signature = base64(new Uint8Array(await crypto.subtle.sign('HMAC',await key(env.SESSION_SECRET),encoder.encode(claims))));
         return json({token:`${claims}.${signature}`,expiresAt:new Date(exp*1000).toISOString()});
       }
       if (semantic) await guestGate(request, env);
       const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1] ?? '';
       const isAdmin = path.startsWith('/admin/');
-      if (!(isAdmin ? await admin(token, env.ADMIN_TOKEN) : await lease(token, env.SESSION_SECRET, !!semantic))) throw new Failure(401, 'UNAUTHORIZED');
+      if (!(isAdmin ? await admin(token, env.ADMIN_TOKEN) : await lease(token, env.SESSION_SECRET, !!semantic || !!catalogueRpc || contentRpc || contentGet))) throw new Failure(401, 'UNAUTHORIZED');
+      if (contentRpc || contentGet) {
+        if (contentRpc) {
+          const input = await body(request);
+          if (Object.keys(input).length !== 1 || !Array.isArray(input.args) || input.args.length !== 0) throw new Failure(400,'INVALID_CONTENT_REQUEST');
+        }
+        const response = await contentDelivery(request, env.ASSETS);
+        if (!response) throw new Failure(404,'NOT_FOUND');
+        return response;
+      }
+      if (request.method === 'POST' && catalogueRpc) {
+        const [,dataset,method] = catalogueRpc;
+        if (!catalogueMethods[dataset]?.includes(method)) throw new Failure(400,'UNKNOWN_CATALOGUE_METHOD');
+        const input = await body(request);
+        if (Object.keys(input).length !== 1 || !Array.isArray(input.args) || input.args.length > 16
+            || encoder.encode(JSON.stringify(input.args)).byteLength > 32768) throw new Failure(400,'INVALID_CATALOGUE_REQUEST');
+        if (!env.LIBRARY || !env.LIBRARY_REVISION) throw new Failure(503,'CATALOGUE_NOT_READY');
+        const state = await env.LIBRARY.prepare('SELECT revision,ready FROM _library_state WHERE id=1').first<{revision:string;ready:number}>();
+        if (!state || state.ready !== 1 || state.revision !== env.LIBRARY_REVISION) throw new Failure(503,'CATALOGUE_NOT_READY');
+        const fingerprint = (await bodyTag(JSON.stringify(canonicalArgs(input.args)))).slice(1,-1);
+        const staticUrl = new URL(`/internal/catalogue/${dataset}/${method}/${fingerprint}.json`,url.origin);
+        const assetHeaders=new Headers();const conditional=request.headers.get('If-None-Match');if(conditional)assetHeaders.set('If-None-Match',conditional);
+        const prepared = await env.ASSETS.fetch(new Request(staticUrl,{headers:assetHeaders}));
+        if (prepared.status === 200 || prepared.status === 304) return catalogueResponse(request,prepared);
+        const cacheKey = new Request(new URL(`/internal-cache/catalogue/${env.LIBRARY_REVISION}/${dataset}/${method}/${fingerprint}`,url.origin));
+        const hit = await caches.default.match(cacheKey);
+        if (hit) return catalogueResponse(request,hit);
+        let result: unknown;
+        try { result = await catalogueMethod(env.LIBRARY,dataset,method,input.args); }
+        catch(error) { if (error instanceof Error && error.message === 'UNKNOWN_CATALOGUE_METHOD') throw new Failure(400,error.message); throw error; }
+        const value = JSON.stringify({apiVersion:1,revision:env.LIBRARY_REVISION,method,result});
+        if (encoder.encode(value).byteLength > 4*1024*1024) throw new Failure(503,'RESPONSE_TOO_LARGE');
+        const response = new Response(value,{headers:{'Content-Type':'application/json','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff','ETag':await bodyTag(value)}});
+        if (ctx) ctx.waitUntil(caches.default.put(cacheKey,response.clone()));
+        return catalogueResponse(request,response);
+      }
       if (request.method === 'GET' && semantic) {
         const malId = Number(semantic[1]);
         if (!Number.isSafeInteger(malId) || malId > 2147483647) throw new Failure(400, 'INVALID_MAL_ID');

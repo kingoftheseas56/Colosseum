@@ -1,6 +1,31 @@
-# Colosseum content API staging foundation
+# Colosseum content API
 
-This Worker serves imported catalogue rows and cached MusicBrainz metadata through authenticated HTTP APIs. It does not migrate the native clients, introduce a hosted Vinyl resolver, download databases to clients, or replace Colosseum's existing identity, library, history, progress, or preference owners. Core local use remains independent of third-party accounts.
+The 1.1.9 no-account candidate uses semantic catalogue APIs for IMDb, MAL, Comics and Tankoban, versioned universe/tribute documents, and immutable artwork URLs. Identity, library, history, progress and preferences remain local Colosseum-owned state. Neon, Biblio migration, Feria and Vinyl services are outside this cutover.
+
+## 1.1.9 delivery and updates
+
+`LIBRARY` is `colosseum-library-staging` (`235b323c-b88f-4891-8226-7e1f396e7c61`). Its packed JSON1 representation preserves the source SQLite values and ordering while reducing import writes. The qualified import contains 42 physical tables, occupies 278,306,816 bytes before the readiness record, and used 13,504 writes. `_library_state` must match `LIBRARY_REVISION` and be ready before any prepared or dynamic catalogue response is served. Do not replace a live snapshot in place: build and verify a separate version, then switch the binding, revision and prepared responses together.
+
+Clients obtain a five-minute `content:read` lease from `POST /v1/guest/session` with `{appId:"colosseum",apiVersion:1}`. This is account-free application access, not proof of an exclusive installed client: another client can imitate that request. Admin publication credentials never ship in the application.
+
+- `POST /v1/catalogue/{imdb|mal|comics}/{method}` accepts `{args:[...]}` for an allowlisted native catalogue operation, never client SQL. Arguments have canonical cache keys. Common recipes have 88 prepared responses; other responses use the edge cache. ETags support conditional refresh.
+- `POST /v1/catalogue/content/bundle` with `{args:[]}` returns one atomic manifest/document generation. Authenticated manifest and document GET routes are under `/v1/content/`.
+- `/assets/content/{sha256}.{extension}` delivers artwork directly through Cloudflare Static Assets. Artwork is public, immutable, and fetched on demand. `/internal/*` is never publicly readable. No R2 registration, Imgur, GitHub REST API or whole-database client download is required.
+
+Native caches retain validated query results and the last complete content generation. The package retains a small metadata starter and strips the manifest-declared artwork and four catalogue databases. Cold offline users do not have artwork they have never fetched. Existing installed database files may remain on disk after upgrade, but cannot shadow the configured API.
+
+To publish content without an application release:
+
+1. Update the curated source data and artwork using the existing document shapes. Run `scripts/export_universe_content.cjs` tests in the native checkout.
+2. Run `python projection/publish_content.py --native-source <native-checkout> --output <fresh-output> --starter <native-checkout>/assets/content-starter/bundle.json`. Keep source images unchanged; the publisher creates hashed URLs and checks file/count limits. Copy the current prepared catalogue assets into the output's `internal/catalogue` directory, preserving their matching library revision.
+3. Point the Wrangler assets directory at that complete output; run publisher tests, typecheck, HTTP tests and dry-run build. Deploy the existing Worker, then verify document checksums and artwork URLs. Metadata-only changes still require service publication, but no desktop release.
+4. Running apps check content on startup and every 15 minutes while active. Validated content swaps atomically and open pages refresh through `Content.generation`. New layouts or native behavior still require an application release.
+
+Free limits remain finite: Workers Free 100,000 dynamic requests/day; D1 5,000,000 rows read/day and 100,000 rows written/day, 500 MB/database. JSON-expanded rows count as reads. Cache misses and source updates need measured budgets; a free plan is not a guarantee of unlimited users. Static asset requests that bypass the Worker and asset storage are free; retain the asset-first routing configuration. [Cloudflare limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
+
+## Original staging foundation record
+
+The following bootstrap record describes the older raw-table import lane. Its incomplete raw tables do not describe the separate, complete semantic `LIBRARY` snapshot above. MusicBrainz enrichment remains optional and no Vinyl resolver is introduced.
 
 Staging Worker: https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev
 
