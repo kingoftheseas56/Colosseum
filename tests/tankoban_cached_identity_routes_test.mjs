@@ -16,7 +16,8 @@ function context() {
     ctx.win = ctx;
     for (const name of ['clearSeriesEditionProfile', 'applySeriesEditionProfile',
                         'restoreSeriesEditionProfile', 'detailContinue', 'resumeContinue',
-                        'openComicSession', 'openSeriesAt', 'routeUniverseSeries'])
+                        'openComicSession', 'openSeriesAt', 'routeUniverseSeries',
+                        'openCollectionEntry'])
         vm.runInContext(extract(main, name), ctx);
     if (main.includes('function canonicalMalId('))
         vm.runInContext(extract(main, 'canonicalMalId'), ctx);
@@ -63,6 +64,41 @@ test('resume edition profiles keep color and unknown namespaces unchanged', () =
     ctx.restoreSeriesEditionProfile('anilist:30013');
     assert.equal(ctx.seriesLayer.malId, '');
     assert.equal(ctx.seriesLayer.seriesIdOverride, '');
+});
+function collectionContext(reused = false) {
+    const ctx = context();
+    // Execute the actual destination as well as the Collection router. Merely
+    // checking a mocked openSeries call misses the profile reset on entry.
+    vm.runInContext(extract(main, 'openSeries'), ctx);
+    ctx.seriesLayer.malId = '42';
+    ctx.seriesLayer.active = reused;
+    if (reused) ctx.seriesLayer.item = {malId: '42'};
+    return ctx;
+}
+test('saved manga cold detail keeps canonical identity for restored catalogue facts', () => {
+    const ctx = collectionContext();
+    ctx.openCollectionEntry({world: 'tankoban', type: 'manga', id: 'mal:13', title: 'One Piece'});
+    assert.equal(ctx.seriesLayer.malId, '13');
+    assert.equal(ctx.seriesLayer.title, 'One Piece');
+    assert.equal(ctx.seriesLayer.active, true);
+    assert.equal(ctx.seriesLayer.seriesIdOverride, '');
+});
+test('saved manga reused detail replaces both loader and item identities', () => {
+    const ctx = collectionContext(true);
+    ctx.openCollectionEntry({world: 'tankoban', type: 'manga', id: 'mal:13', title: 'One Piece'});
+    assert.equal(ctx.seriesLayer.malId, '13');
+    assert.equal(ctx.seriesLayer.item.malId, '13');
+    assert.equal(ctx.seriesLayer.item.seriesTitle, 'One Piece');
+    assert.equal(ctx.seriesLayer.item.openEntryKind, 'manga');
+});
+test('saved manga does not reinterpret unknown, suffixed or out-of-range identities', () => {
+    for (const id of ['anilist:30013', 'mal:13:color', 'mal:13:volume:1', 'mal:2147483648', 'mal:13\n', 'One Piece', '']) {
+        const ctx = collectionContext(true);
+        ctx.openCollectionEntry({world: 'tankoban', type: 'manga', id, title: 'One Piece'});
+        assert.equal(ctx.seriesLayer.malId, '', id);
+        assert.equal(ctx.seriesLayer.item.malId, '', id);
+        assert.equal(ctx.seriesLayer.seriesIdOverride, '', id);
+    }
 });
 function arcContext(color) {
     const ctx = context();

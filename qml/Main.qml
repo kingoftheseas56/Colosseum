@@ -2619,7 +2619,7 @@ Window {
 
     // A Collection tile always opens the DETAIL surface (saved is a bookmark, not a
     // promise it's downloaded/started). Routes by world + saved snapshot; the gc:/gcd:/
-    // locg: prefixes pick the comics lane; manga reopens BY TITLE.
+    // locg: prefixes pick the comics lane; manga keeps its canonical MAL identity.
     function openCollectionEntry(e) {
         if (!e || !e.world) return
         var id = String(e.id || "")
@@ -2629,7 +2629,7 @@ Window {
         } else if (e.world === "biblio") {
             win.openBook((e.payload && e.payload.book) || e)
         } else if (e.world === "tankoban") {
-            if (e.type === "manga") { win.openSeries(e.title || id); return }
+            if (e.type === "manga") { win.openSeries(e.title || id, canonicalMalId(id)); return }
             if (id.indexOf("locg:") === 0) {
                 win.openComicSeries({ "id": id, "title": e.title || "", "cover": e.cover || "",
                                       "locgMeta": (e.payload && e.payload.locgMeta) || null })
