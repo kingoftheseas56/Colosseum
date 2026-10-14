@@ -217,6 +217,16 @@ Item {
                     shelf("Books", "book", [ { label: "", items: works("Book", "book", 3) } ]) ] }
             tryVerify(function() { const m = findChild(shelves, "shelvesMedium_books"); return m && m.width > 0 })
         }
+        function test_aDegradedCatalogueMarksItsLimitedCoverage() {
+            const u = animeUni(1, 1, [])
+            u.catalogueNotice = "Partial catalogue — the archive could not be loaded"
+            shelves.uni = u
+            const note = findChild(shelves, "shelvesCatalogueNotice")
+            verify(note.visible)
+            compare(note.text, u.catalogueNotice)
+            shelves.uni = animeUni(1, 1, [])
+            verify(!note.visible, "full catalogue pages must not display a fallback warning")
+        }
         function test_shelvesTabsAndKickerComeFromData() {
             generalUniverse()
             compare(shelves.tabs.map(function(t) { return t.title }).join("|"), "Films|Series|Books|About")

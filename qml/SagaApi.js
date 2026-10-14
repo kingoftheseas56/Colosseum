@@ -11,6 +11,7 @@
 .pragma library
 .import "Universes.js" as UDB
 .import "BiblioApi.js" as Biblio
+.import "UniverseExtApi.js" as UniverseExt
 
 var CINEMETA = "https://v3-cinemeta.strem.io";
 
@@ -513,29 +514,93 @@ function shelfItem(work, kind, key, index) {
     return item;
 }
 
+// The Star Wars Tribute owns ONE bundled cross-medium archive. Its standard Universe
+// consumes that exact validated payload, not a second hand-maintained list of titles.
+// Nine films are cross-listed in the Tribute's Skywalker synopsis; the plain archive
+// displays each IMDb identity once, in its dedicated chronological era.
+function starWarsSpecsFromPayload(payload) {
+    var sections = (payload && payload.sections) || [];
+    var shelves = [
+        { title: "Films", kind: "movie", runs: [] },
+        { title: "Series", kind: "series", runs: [] },
+        { title: "Books", kind: "book", runs: [] }
+    ];
+    var seen = { movie: {}, series: {}, book: {} };
+    for (var i = 0; i < sections.length; ++i) {
+        var section = sections[i];
+        // The nine Saga films also occur in their respective historical eras.
+        if (section.id === "skywalker-saga-screen") continue;
+        if (section.kind !== "video" && section.kind !== "book") continue;
+        var label = String(section.title || "").replace(/\s*·\s*Screen$/i, "");
+        var runs = [
+            { label: label, works: [] },
+            { label: label, works: [] },
+            { label: label, works: [] }
+        ];
+        var entries = section.entries || [];
+        for (var j = 0; j < entries.length; ++j) {
+            var e = entries[j];
+            if (!e || !e.title || !e.id) continue;
+            var kind = section.kind === "book" ? "book" : e.type;
+            var at = kind === "movie" ? 0 : kind === "series" ? 1 : kind === "book" ? 2 : -1;
+            if (at < 0 || seen[kind][String(e.id)]) continue;
+            if (kind === "book" && (e.provider !== "applebooks" || !/^\d+$/.test(String(e.id)))) continue;
+            seen[kind][String(e.id)] = true;
+            if (kind === "book")
+                runs[at].works.push({ t: e.title, apple: Number(e.id), author: e.author || "",
+                                      year: e.year || "", cover: e.cover || "" });
+            else
+                runs[at].works.push({ t: e.title, id: e.id, year: e.year || "", poster: e.poster || "" });
+        }
+        for (var k = 0; k < shelves.length; ++k)
+            if (runs[k].works.length) shelves[k].runs.push(runs[k]);
+    }
+    return shelves.filter(function(s) { return s.runs.length > 0 });
+}
+
 // loadShelves(name, push) -> push({ name, category, blurb, blurbSource, banner, wallpaper,
 // color, shelves: [{ title, tab, pill, key, kind, form, order, asOf, runs: [{ label, items }] }] })
 // exactly ONCE: curation is complete, so the page never rebuilds under the reader.
 function loadShelves(name, push) {
     var cfg = UDB.configFor(name);
-    var shelves = shelfSpecsFor(cfg).map(function(spec, si) {
-        var key = shelfKeyOf(spec.title, si), index = 0;
-        return { title: spec.title || "", tab: spec.tab || "", pill: spec.pill || "", key: key,
-                 kind: spec.kind || "movie", form: spec.form || "", order: spec.order || "",
-                 asOf: spec.asOf || "",
-                 runs: (spec.runs || []).map(function(run) {
-                     return { label: run.label || "",
-                              items: (run.works || []).map(function(w) {
-                                  var item = shelfItem(w, spec.kind || "movie", key, index++);
-                                  item.shelfTitle = spec.title || "";
-                                  return item;
-                              }) };
-                 }) };
-    });
-    push({ name: name, category: cfg.shelves ? (cfg.category || "") : "anime",
-           blurb: cfg.blurb || "", blurbSource: cfg.blurbSource || "",
-           banner: cfg.banner || "", wallpaper: cfg.wallpaper || "", color: cfg.c1 || "#221c30",
-           shelves: shelves, detailRevision: ++_detailRevision });
+    function emit(specs, catalogueNotice) {
+        var shelves = specs.map(function(spec, si) {
+            var key = shelfKeyOf(spec.title, si), index = 0;
+            return { title: spec.title || "", tab: spec.tab || "", pill: spec.pill || "", key: key,
+                     kind: spec.kind || "movie", form: spec.form || "", order: spec.order || "",
+                     asOf: spec.asOf || "",
+                     runs: (spec.runs || []).map(function(run) {
+                         return { label: run.label || "",
+                                  items: (run.works || []).map(function(w) {
+                                      var item = shelfItem(w, spec.kind || "movie", key, index++);
+                                      item.shelfTitle = spec.title || "";
+                                      return item;
+                                  }) };
+                     }) };
+        });
+        push({ name: name, category: cfg.shelves ? (cfg.category || "") : "anime",
+               blurb: cfg.blurb || "", blurbSource: cfg.blurbSource || "",
+               banner: cfg.banner || "", wallpaper: cfg.wallpaper || "", color: cfg.c1 || "#221c30",
+               shelves: shelves, catalogueNotice: catalogueNotice || "",
+               detailRevision: ++_detailRevision });
+    }
+    if (name === "Star Wars") {
+        UniverseExt.load("com.colosseum.universe.starwars", function(payload) {
+            var specs = starWarsSpecsFromPayload(payload);
+            if (specs.length >= 3) {
+                // The same bundle powers the Tribute. Standard Universe shows its unique
+                // film/series/book identities, with no second provider catalogue to drift.
+                emit(specs, "Films, series and books from the Star Wars archive. Comics and manga remain in the Tribute for now.");
+            } else {
+                // The C++ reader is absent in standalone QML tests; do not misrepresent
+                // the old 28-work static subset as the comprehensive Star Wars archive.
+                console.warn("Star Wars: full bundled archive unavailable; using limited static shelves");
+                emit(shelfSpecsFor(cfg), "Partial catalogue — the Star Wars archive could not be loaded");
+            }
+        });
+        return null;
+    }
+    emit(shelfSpecsFor(cfg), "");
     return null;
 }
 
