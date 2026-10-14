@@ -1344,6 +1344,7 @@ Window {
             it.bakedReleases = null
             it.seriesTitle = westernLayer.title
             it.poster = westernLayer.baked.cover || ""
+            it.packSeriesId = ""                 // release a previous post/pack identity
             it.gcdId = gcdId
             it.bakedReleases = rel
             it.tagId = 0; it.tagSlug = ""
@@ -1391,6 +1392,7 @@ Window {
             // and the shell's first presentation writes page 1 over the real record.
             // Confirmed via runtime trace 2026-08-06 (save under gcd:119237, restore under
             // gc:). Set identity first; open the reader last, when seriesId is stable.
+            it.packSeriesId = ""                 // release a previous post/pack identity
             it.gcdId = westernLayer.baked.gcdId
             it.bakedReleases = westernLayer.baked.releases   // seriesId now "gcd:<id>" (non-null baked)
             it.tagId = 0; it.tagSlug = ""                    // resolve() guard true (baked non-null), no stray live lookup
@@ -1445,22 +1447,30 @@ Window {
         } else westernLayer.active = true
     }
 
-    // ---- a universe's comic row: the entry pins VERIFIED GetComics post IDs, so there is
-    //      no tag to resolve and no catalogue series. Mirrors openGcdSeries' baked injection
+    // ---- a universe's comic row: each entry pins explicit GetComics post IDs and,
+    //      when known, an exact GCD series ID. Mirrors openGcdSeries' baked injection
     //      (Main.qml:578) — an explicit release list, tagSlug/tagId deliberately empty.
     //      `?p=<id>` is GetComics' permalink; ComicSeries.qml:531 feeds it to downloadIssue.
-    //      d: { title, posts:[Number], year? } ----
+    //      d: { title, posts:[Number], year?, gcdId? } ----
     function openUniverseComic(d) {
         var posts = (d && d.posts) || []
         if (!posts.length) { console.warn("universes: openUniverseComic — no posts for", (d && d.title) || "(untitled)"); return }
+        var gcdId = Number((d && d.gcdId) || 0)
+        if (!Number.isInteger(gcdId) || gcdId <= 0) gcdId = 0
+        // GCD is authoritative only for an unambiguous series. An era collection may
+        // contain multiple GCD runs, so use its pinned first GetComics post as a stable
+        // independent identity; never let several collections share "gcd:0".
+        var fallbackId = gcdId ? "" : "gc:posts:" + String(posts[0])
+        var year = parseInt(String((d && d.year) || "").slice(0, 4), 10) || 0
         var rel = []
         for (var i = 0; i < posts.length; i++)
             rel.push({ id: String(posts[i]),
                        url: "https://getcomics.org/?p=" + posts[i],
                        name: d.title || "", cover: "",
-                       year: Number(d.year || 0), sizeMB: 0, synopsis: "",
+                       year: year, sizeMB: 0, synopsis: "",
                        date: "", collection: true })
-        westernLayer.baked = { gcdId: 0, releases: rel, cover: "" }
+        westernLayer.baked = { gcdId: gcdId, packSeriesId: fallbackId,
+                               releases: rel, cover: (d && d.cover) || "" }
         westernLayer.title = (d.title || "") + (d.year ? " (" + d.year + ")" : "")
         westernLayer.tagSlug = ""; westernLayer.tagId = 0
         westernLayer.resumeChapterId = ""
@@ -1469,10 +1479,11 @@ Window {
             it.bakedReleases = null                 // reset first so re-injection repaints
             it.openChapterId = ""
             it.seriesTitle = westernLayer.title
-            it.poster = ""
-            it.gcdId = 0
-            it.bakedReleases = westernLayer.baked.releases   // triggers paint (bakedReleases now non-null)
-            it.tagId = 0; it.tagSlug = ""                    // reset LAST — resolve() guard is true, no stray live lookup
+            it.poster = westernLayer.baked.cover
+            it.packSeriesId = fallbackId           // identity FIRST; also clears stale pack IDs
+            it.gcdId = gcdId
+            it.bakedReleases = rel                  // stable gcd:/gc:posts: identity before mount
+            it.tagId = 0; it.tagSlug = ""           // no name/tag lookup
         } else westernLayer.active = true
     }
 
@@ -2033,6 +2044,8 @@ Window {
             sourceSearchAliases: e.sourceSearchAliases || [],
             sourceRequiredMarkers: e.sourceRequiredMarkers || []
         }, requested)
+        else if (e && e.provider === "anilist" && Number(e.malId) > 0)
+            win.openSeries(e.title || "", String(e.malId), null, requested)
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }

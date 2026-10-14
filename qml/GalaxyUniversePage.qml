@@ -121,7 +121,9 @@ Item {
         else if (kind === "manga")
             root.seriesRequested(entry)
         else if (kind === "comic")
-            root.comicsArchiveRequested({ title: entry.title, posts: entry.posts, year: entry.year })
+            root.comicsArchiveRequested({ title: entry.title, posts: entry.posts,
+                                          year: entry.year, gcdId: entry.gcdId || 0,
+                                          gcdIds: entry.gcdIds || [] })
     }
 
     Component.onCompleted: { reload(); Qt.callLater(root.takeKeyboardFocus) }

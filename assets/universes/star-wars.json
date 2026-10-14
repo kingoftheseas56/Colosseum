@@ -879,6 +879,7 @@
             "provider": "getcomics",
             "title": "The High Republic · Phase I",
             "year": "2021–2022",
+            "gcdIds": [168398, 190281],
             "posts": [
               214639,
               267513,
@@ -890,6 +891,7 @@
             "provider": "getcomics",
             "title": "The High Republic: Trail of Shadows",
             "year": "2021–2022",
+            "gcdId": 183906,
             "posts": [
               276678
             ]
@@ -898,6 +900,7 @@
             "provider": "getcomics",
             "title": "The High Republic: Eye of the Storm",
             "year": "2022",
+            "gcdId": 180371,
             "posts": [
               264449,
               268758
@@ -907,6 +910,7 @@
             "provider": "getcomics",
             "title": "The High Republic: Shadows of Starlight",
             "year": "2023–2024",
+            "gcdId": 211799,
             "posts": [
               340727
             ]
@@ -915,6 +919,7 @@
             "provider": "getcomics",
             "title": "The High Republic · Phase II",
             "year": "2022–2023",
+            "gcdId": 199757,
             "posts": [
               319606,
               314666
@@ -925,6 +930,7 @@
             "provider": "getcomics",
             "title": "The High Republic Adventures · Complete Phase I",
             "year": "2021–2023",
+            "gcdId": 204447,
             "posts": [
               318128
             ]
@@ -942,6 +948,7 @@
             "provider": "getcomics",
             "title": "The High Republic: Edge of Balance - Precedent",
             "year": "2023",
+            "gcdId": 200946,
             "posts": [
               328774
             ]
@@ -950,6 +957,7 @@
             "provider": "getcomics",
             "title": "The High Republic: The Blade",
             "year": "2022–2023",
+            "gcdId": 194233,
             "posts": [
               310048
             ]
@@ -958,6 +966,7 @@
             "provider": "getcomics",
             "title": "The High Republic · Phase III",
             "year": "2023–2025",
+            "gcdIds": [212980, 221157],
             "posts": [
               343451,
               355781,
@@ -969,6 +978,7 @@
             "provider": "getcomics",
             "title": "The High Republic: The Finale",
             "year": "2025",
+            "gcdId": 225708,
             "posts": [
               374787
             ]
@@ -984,6 +994,7 @@
             "provider": "getcomics",
             "title": "Star Wars: Jedi Knights",
             "year": "2025–2026",
+            "gcdId": 221564,
             "posts": [
               383037,
               394958
@@ -994,6 +1005,7 @@
             "provider": "getcomics",
             "title": "Darth Maul",
             "year": "2017",
+            "gcdId": 111821,
             "posts": [
               65203
             ]
@@ -1002,6 +1014,7 @@
             "provider": "getcomics",
             "title": "Obi-Wan & Anakin",
             "year": "2016",
+            "gcdId": 104354,
             "posts": [
               39568
             ]
@@ -1010,6 +1023,7 @@
             "provider": "getcomics",
             "title": "Age of Republic",
             "year": "2018–2019",
+            "gcdId": 176916,
             "posts": [
               159051
             ]
@@ -1018,6 +1032,7 @@
             "provider": "getcomics",
             "title": "Darth Maul: Son of Dathomir",
             "year": "2014",
+            "gcdId": 80858,
             "posts": [
               7004
             ]
@@ -1026,6 +1041,7 @@
             "provider": "getcomics",
             "title": "Darth Vader by Charles Soule",
             "year": "2017–2018",
+            "gcdId": 114713,
             "posts": [
               277237
             ]
@@ -1034,6 +1050,7 @@
             "provider": "getcomics",
             "title": "Kanan",
             "year": "2015–2016",
+            "gcdId": 88034,
             "posts": [
               156988
             ]
@@ -1042,6 +1059,7 @@
             "provider": "getcomics",
             "title": "Jedi: Fallen Order - Dark Temple",
             "year": "2019",
+            "gcdId": 175981,
             "posts": [
               179898
             ]
@@ -1050,6 +1068,7 @@
             "provider": "getcomics",
             "title": "Obi-Wan: A Jedi’s Purpose",
             "year": "2022",
+            "gcdId": 193836,
             "posts": [
               294073
             ]
@@ -1058,6 +1077,7 @@
             "provider": "getcomics",
             "title": "Han Solo: Imperial Cadet",
             "year": "2018–2019",
+            "gcdId": 133144,
             "posts": [
               131538
             ]
@@ -1066,6 +1086,7 @@
             "provider": "getcomics",
             "title": "Lando: Double or Nothing",
             "year": "2018",
+            "gcdId": 125344,
             "posts": [
               112833
             ]
@@ -1074,6 +1095,7 @@
             "provider": "getcomics",
             "title": "TIE Fighter",
             "year": "2019",
+            "gcdId": 144180,
             "posts": [
               143338
             ]
@@ -1089,6 +1111,7 @@
             "provider": "getcomics",
             "title": "Star Wars (2015)",
             "year": "2015–2019",
+            "gcdId": 85861,
             "posts": [
               26442
             ],
@@ -1098,6 +1121,7 @@
             "provider": "getcomics",
             "title": "Darth Vader (2015)",
             "year": "2015–2016",
+            "gcdId": 86508,
             "posts": [
               118465
             ],
@@ -1107,6 +1131,7 @@
             "provider": "getcomics",
             "title": "Doctor Aphra (2016)",
             "year": "2016–2020",
+            "gcdId": 115048,
             "posts": [
               157677
             ],
@@ -1116,6 +1141,7 @@
             "provider": "getcomics",
             "title": "Princess Leia",
             "year": "2015",
+            "gcdId": 86986,
             "posts": [
               158373
             ]
@@ -1124,6 +1150,7 @@
             "provider": "getcomics",
             "title": "Lando",
             "year": "2015",
+            "gcdId": 90563,
             "posts": [
               158347
             ]
@@ -1132,6 +1159,7 @@
             "provider": "getcomics",
             "title": "Chewbacca",
             "year": "2015–2016",
+            "gcdId": 93072,
             "posts": [
               158330
             ]
@@ -1140,6 +1168,7 @@
             "provider": "getcomics",
             "title": "Han Solo",
             "year": "2016",
+            "gcdId": 103030,
             "posts": [
               39352
             ]
@@ -1148,6 +1177,7 @@
             "provider": "getcomics",
             "title": "Age of Rebellion",
             "year": "2019",
+            "gcdId": 160925,
             "posts": [
               161969
             ]
@@ -1156,6 +1186,7 @@
             "provider": "getcomics",
             "title": "Star Wars (2020)",
             "year": "2020–2024",
+            "gcdId": 154267,
             "posts": [
               150155,
               152263,
@@ -1214,6 +1245,7 @@
             "provider": "getcomics",
             "title": "Darth Vader (2020)",
             "year": "2020–2024",
+            "gcdId": 155697,
             "posts": [
               152957,
               156383,
@@ -1272,6 +1304,7 @@
             "provider": "getcomics",
             "title": "Bounty Hunters",
             "year": "2020–2024",
+            "gcdId": 157280,
             "posts": [
               156380,
               157882,
@@ -1322,6 +1355,7 @@
             "provider": "getcomics",
             "title": "Doctor Aphra (2020)",
             "year": "2020–2024",
+            "gcdId": 159999,
             "posts": [
               158743,
               168023,
@@ -1370,6 +1404,7 @@
             "provider": "getcomics",
             "title": "War of the Bounty Hunters",
             "year": "2021",
+            "gcdId": 172928,
             "posts": [
               264204
             ]
@@ -1378,6 +1413,7 @@
             "provider": "getcomics",
             "title": "Crimson Reign",
             "year": "2021–2022",
+            "gcdId": 179130,
             "posts": [
               283345
             ]
@@ -1386,6 +1422,7 @@
             "provider": "getcomics",
             "title": "Hidden Empire",
             "year": "2022–2023",
+            "gcdId": 201767,
             "posts": [
               312076
             ]
@@ -1394,6 +1431,7 @@
             "provider": "getcomics",
             "title": "Dark Droids",
             "year": "2023–2024",
+            "gcdId": 210501,
             "posts": [
               335553
             ]
@@ -1409,6 +1447,7 @@
             "provider": "getcomics",
             "title": "Shattered Empire",
             "year": "2015",
+            "gcdId": 92254,
             "posts": [
               158343
             ]
@@ -1417,6 +1456,7 @@
             "provider": "getcomics",
             "title": "The Battle of Jakku",
             "year": "2024–2025",
+            "gcdId": 224370,
             "posts": [
               370531
             ]
@@ -1425,6 +1465,7 @@
             "provider": "getcomics",
             "title": "Age of Resistance",
             "year": "2019",
+            "gcdId": 169777,
             "posts": [
               179892
             ]
@@ -1433,6 +1474,7 @@
             "provider": "getcomics",
             "title": "Captain Phasma",
             "year": "2017",
+            "gcdId": 116563,
             "posts": [
               66476
             ]
@@ -1441,6 +1483,7 @@
             "provider": "getcomics",
             "title": "The Rise of Kylo Ren",
             "year": "2019–2020",
+            "gcdId": 153716,
             "posts": [
               156957
             ]
@@ -1449,6 +1492,7 @@
             "provider": "getcomics",
             "title": "Galaxy's Edge",
             "year": "2019",
+            "gcdId": 144404,
             "posts": [
               143931
             ]
@@ -1457,6 +1501,7 @@
             "provider": "getcomics",
             "title": "The Halcyon Legacy",
             "year": "2022",
+            "gcdId": 181138,
             "posts": [
               292041
             ]
@@ -1465,6 +1510,7 @@
             "provider": "getcomics",
             "title": "Star Wars (2025)",
             "year": "2025–2026",
+            "gcdId": 222376,
             "posts": [
               367547,
               370871,
@@ -1483,6 +1529,7 @@
             "provider": "getcomics",
             "title": "Legacy of Vader",
             "year": "2025–2026",
+            "gcdId": 228313,
             "posts": [
               380917,
               393980
@@ -1493,6 +1540,7 @@
             "provider": "getcomics",
             "title": "Han Solo: Hunt for the Falcon",
             "year": "2025–2026",
+            "gcdId": 236336,
             "posts": [
               396815
             ]
@@ -1501,6 +1549,7 @@
             "provider": "getcomics",
             "title": "Boba Fett: Black, White & Red",
             "year": "2025",
+            "gcdId": 227061,
             "posts": [
               378938,
               382286,
@@ -1512,6 +1561,7 @@
             "provider": "getcomics",
             "title": "Doctor Aphra: Chaos Agent",
             "year": "2025–2026",
+            "gcdId": 237023,
             "posts": [
               397350
             ]
@@ -1520,6 +1570,7 @@
             "provider": "getcomics",
             "title": "Tales from the Nightlands",
             "year": "2025",
+            "gcdId": 227462,
             "posts": [
               378409,
               381841,
@@ -1530,6 +1581,7 @@
             "provider": "getcomics",
             "title": "Galaxy's Edge: Echoes of the Empire",
             "year": "2026",
+            "gcdId": 235330,
             "posts": [
               395170,
               397582,
@@ -1567,11 +1619,13 @@
         "kind": "manga",
         "entries": [
           {
-            "id": "01J76XYH9A1Q8SN0BX2T162VTM",
-            "provider": "weebcentral",
+            "id": "148967",
+            "provider": "anilist",
+            "malId": "154395",
+            "cover": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx148967-Bqd0CjhPpMqZ.jpg",
             "title": "Star Wars: Visions: The Manga Anthology",
             "year": "2022",
-            "note": "ANILIST 148967"
+            "note": "AniList 148967; MAL 154395"
           }
         ]
       },

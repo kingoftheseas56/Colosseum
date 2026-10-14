@@ -819,7 +819,7 @@ var universes = [
                        "The Book of Boba Fett", "Ahsoka", "The Acolyte", "Skeleton Crew",
                        "clone wars", "tales of the jedi", "tales of the empire",
                        "tales of the underworld", "young jedi adventures" ],
-      chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
+      chips: [ { t: "20 Films", ic: "movies" }, { t: "29 Series", ic: "movies" }, { t: "72 Books", ic: "books" }, { t: "53 Comics", ic: "comics" }, { t: "1 Manga", ic: "manga" } ] },
     { name: "Dune", c1: "#3a2a18", category: "saga",
       wallpaper: "../assets/wallpaper/sagas/dune.jpg",
       sagaBranches: [{ title: "Dune on television", shows: [0, 1, 2] }],
@@ -1490,7 +1490,7 @@ var shelfOverlays = {
   "Star Wars": {
     blurb: "Star Wars is an American media franchise created by George Lucas. The space opera saga began with the original Star Wars film (1977) and quickly became a worldwide pop culture phenomenon. It has expanded into various films and other media, including television series, video games, novels, comic books, theme park attractions, and themed areas, comprising an all-encompassing fictional universe. Star Wars is one of the highest-grossing media franchises of all time and has a large following.",
     blurbSource: "Wikipedia — Star Wars",
-    chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" } ],
+    chips: [ { t: "20 Films", ic: "movies" }, { t: "29 Series", ic: "movies" }, { t: "72 Books", ic: "books" }, { t: "53 Comics", ic: "comics" }, { t: "1 Manga", ic: "manga" } ],
     shelves: [
       { title: "Films", kind: "movie",
         runs: [

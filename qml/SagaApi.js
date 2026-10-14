@@ -481,6 +481,16 @@ function shelfItem(work, kind, key, index) {
         if (!work.id) item.resolved = false;
         if (work.upcoming === true) item.upcoming = true;
         if (work.live === true) item.live = true;
+    } else if (kind === "comic") {
+        var posts = work.posts || [];
+        var gcdId = Number(work.gcdId || 0);
+        var identity = gcdId > 0 ? "gcd:" + gcdId
+                                 : "gc:posts:" + String(posts[0] || "");
+        item = { id: identity, seriesId: identity, title: work.t || "",
+                 cover: work.cover || "", year: String(work.year || ""),
+                 provider: "getcomics", posts: posts.slice(),
+                 gcdId: gcdId, gcdIds: (work.gcdIds || []).slice(),
+                 resolved: posts.length > 0 };
     } else if (kind === "manga") {
         item = { title: work.t || "", cover: work.cover || "", query: work.q || work.t || "",
                  al: work.al || 0, mal: work.mal || 0, by: work.by || "",
@@ -523,32 +533,43 @@ function starWarsSpecsFromPayload(payload) {
     var shelves = [
         { title: "Films", kind: "movie", runs: [] },
         { title: "Series", kind: "series", runs: [] },
-        { title: "Books", kind: "book", runs: [] }
+        { title: "Books", kind: "book", runs: [] },
+        { title: "Comics", kind: "comic", runs: [] },
+        { title: "Manga", kind: "manga", runs: [] }
     ];
-    var seen = { movie: {}, series: {}, book: {} };
+    var seen = { movie: {}, series: {}, book: {}, comic: {}, manga: {} };
     for (var i = 0; i < sections.length; ++i) {
         var section = sections[i];
-        // The nine Saga films also occur in their respective historical eras.
+        // The Skywalker films are also listed in their chronological eras.
         if (section.id === "skywalker-saga-screen") continue;
-        if (section.kind !== "video" && section.kind !== "book") continue;
+        if (["video", "book", "comic", "manga"].indexOf(section.kind) < 0) continue;
         var label = String(section.title || "").replace(/\s*·\s*Screen$/i, "");
-        var runs = [
-            { label: label, works: [] },
-            { label: label, works: [] },
-            { label: label, works: [] }
-        ];
+        var runs = shelves.map(function() { return { label: label, works: [] }; });
         var entries = section.entries || [];
         for (var j = 0; j < entries.length; ++j) {
             var e = entries[j];
-            if (!e || !e.title || !e.id) continue;
-            var kind = section.kind === "book" ? "book" : e.type;
-            var at = kind === "movie" ? 0 : kind === "series" ? 1 : kind === "book" ? 2 : -1;
-            if (at < 0 || seen[kind][String(e.id)]) continue;
-            if (kind === "book" && (e.provider !== "applebooks" || !/^\d+$/.test(String(e.id)))) continue;
-            seen[kind][String(e.id)] = true;
+            if (!e || !e.title) continue;
+            var kind = section.kind === "video" ? e.type : section.kind;
+            var at = kind === "movie" ? 0 : kind === "series" ? 1 : kind === "book" ? 2
+                   : kind === "comic" ? 3 : kind === "manga" ? 4 : -1;
+            if (at < 0) continue;
+            var key = kind === "comic" ? (e.posts || []).join(",") : String(e.id || "");
+            if (!key || seen[kind][key]) continue;
+            if (kind === "book" && (e.provider !== "applebooks" || !/^\d+$/.test(key))) continue;
+            if (kind === "comic" && (e.provider !== "getcomics"
+                    || !(e.posts || []).length || e.posts.some(function(p) { return !(Number(p) > 0); }))) continue;
+            if (kind === "manga" && (e.provider !== "anilist"
+                    || !/^\d+$/.test(key) || !/^\d+$/.test(String(e.malId || "")))) continue;
+            seen[kind][key] = true;
             if (kind === "book")
                 runs[at].works.push({ t: e.title, apple: Number(e.id), author: e.author || "",
                                       year: e.year || "", cover: e.cover || "" });
+            else if (kind === "comic")
+                runs[at].works.push({ t: e.title, year: e.year || "", posts: e.posts.slice(),
+                                      gcdId: e.gcdId || 0, gcdIds: (e.gcdIds || []).slice() });
+            else if (kind === "manga")
+                runs[at].works.push({ t: e.title, al: Number(e.id), mal: Number(e.malId),
+                                      year: e.year || "", cover: e.cover || "", q: e.title });
             else
                 runs[at].works.push({ t: e.title, id: e.id, year: e.year || "", poster: e.poster || "" });
         }
@@ -587,10 +608,10 @@ function loadShelves(name, push) {
     if (name === "Star Wars") {
         UniverseExt.load("com.colosseum.universe.starwars", function(payload) {
             var specs = starWarsSpecsFromPayload(payload);
-            if (specs.length >= 3) {
-                // The same bundle powers the Tribute. Standard Universe shows its unique
-                // film/series/book identities, with no second provider catalogue to drift.
-                emit(specs, "Films, series and books from the Star Wars archive. Comics and manga remain in the Tribute for now.");
+            if (specs.length === 5) {
+                // Every medium comes from the same pinned Tribute payload, with
+                // cross-listed Skywalker films shown once in the standard Universe.
+                emit(specs, "");
             } else {
                 // The C++ reader is absent in standalone QML tests; do not misrepresent
                 // the old 28-work static subset as the comprehensive Star Wars archive.
