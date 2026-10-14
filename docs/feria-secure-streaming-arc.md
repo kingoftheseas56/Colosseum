@@ -254,6 +254,16 @@ results only when that hardware is actually available and exercised.
   cancel/retry, safe filenames/path handling, completion ownership and external-open
   consent. Determine Windows attachment provenance and safe handling of executable
   or misleading files. Avoid silent execution or arbitrary local-file exposure.
+  Bounded download-opening slice implemented: the native owner resolves genuine
+  engine completion and existing history through single-use opening authority;
+  private downloads remain ephemeral. Focused native tests pass (10/0), metadata
+  regressions pass (8/0), and stock Qt 6.11.1 download fixtures pass (5/0, root exit 0)
+  with private/history cancellation and actual `ZoneId=3` marking. Windows
+  `IAttachmentExecute` integration is compiled, but real Execute/dialog ownership,
+  scanner/reputation outcomes, custom-codec and installed behavior remain unverified.
+  Execute currently uses null HWND and null process handle (asynchronous); its
+  message-pump/long-lived-window contract still needs runtime qualification.
+  This evidence does not complete F5.2 or Phase 5.
 - **F5.3 — Documents and input.** Verify PDF viewing/printing, spellcheck, keyboard
   shortcuts, IME, focus traversal, accessibility and touch in the selected build.
   Check actual native dialogs and assistive input where fixtures cannot prove them.

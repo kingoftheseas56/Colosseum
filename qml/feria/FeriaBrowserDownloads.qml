@@ -25,11 +25,43 @@ Item {
     property bool active: profile !== null
     property bool panelOpen: false
     property var items: []
+    property var opening: null
+    property var openingStore: null
     readonly property var history: !privateBrowsing && accountStore ? accountStore.browserDownloadHistory || [] : []
     signal message(string text)
     Theme { id: theme }
 
     function openPanel() { panelOpen = true }
+    function syncOpeningAuthority() {
+        if (accountStore && runtime && typeof accountStore.watchBrowserDownloads === "function")
+            accountStore.watchBrowserDownloads(profile, runtime)
+    }
+    function openingMessage(reason) {
+        if (reason === "canceled" || reason === "os-canceled") return qsTr("Opening canceled.")
+        if (reason === "os-blocked") return qsTr("Windows prevented opening this download. Check Windows Security or open its folder to inspect it.")
+        if (reason === "os-unavailable") return qsTr("Windows attachment checks are unavailable. The file was not opened.")
+        if (reason === "file-changed" || reason === "provenance-changed") return qsTr("The file changed while you were confirming. Select Open again to inspect the current file.")
+        return qsTr("This download could not be verified or is no longer available. Open its folder to inspect it, or download it again.")
+    }
+    function finishOpening(confirmed) {
+        const selected = opening, owner = openingStore
+        opening = null; openingStore = null
+        openPrompt.close()
+        if (!selected || !owner) return
+        const result = owner.finishBrowserDownloadOpen(selected.ticket, confirmed)
+        if (!result.ok && result.reason !== "canceled") message(openingMessage(result.reason))
+    }
+    function openDownload(id, current) {
+        if (opening) finishOpening(false)
+        if (!accountStore || typeof accountStore.prepareBrowserDownloadOpen !== "function") {
+            message(openingMessage("unowned-download")); return
+        }
+        const selected = accountStore.prepareBrowserDownloadOpen(id, accountStore.browserGeneration, !!current)
+        if (!selected.ok) { message(openingMessage(selected.reason)); return }
+        opening = selected; openingStore = accountStore
+        if (selected.requiresConfirmation) openPrompt.open()
+        else finishOpening(true)
+    }
     function cancelActive() { retire() }
     function fileUrl(path) {
         var normalized = String(path || "").replace(/\\/g, "/")
@@ -65,9 +97,11 @@ Item {
         }
         items = items.concat([entry])
         request.accept()
+        Qt.callLater(function() { if (root.items.indexOf(entry) >= 0) entry.update() })
         panelOpen = true
     }
     function retire() {
+        if (opening) finishOpening(false)
         var previous = items
         items = []
         panelOpen = false
@@ -76,14 +110,26 @@ Item {
             if (entry.request && !entry.request.isFinished) entry.request.cancel()
             entry.releaseAuthorization()
             entry.releaseWork()
+            if (entry.openingAuthority && entry.metadataStore && typeof entry.metadataStore.forgetBrowserDownloadAuthority === "function")
+                entry.metadataStore.forgetBrowserDownloadAuthority(entry.openingAuthority)
             entry.request = null
             entry.destroy()
         }
     }
-    onProfileChanged: retire()
-    onAccountStoreChanged: retire()
+    onProfileChanged: { retire(); syncOpeningAuthority() }
+    onAccountStoreChanged: { retire(); syncOpeningAuthority() }
+    onRuntimeChanged: syncOpeningAuthority()
+    Component.onCompleted: syncOpeningAuthority()
     onActiveChanged: if (!active) retire()
     Component.onDestruction: retire()
+    Connections {
+        target: root.runtime; ignoreUnknownSignals: true
+        function onProfileCountChanged() { root.syncOpeningAuthority() }
+    }
+    Connections {
+        target: root.accountStore; ignoreUnknownSignals: true
+        function onProfileChanged() { if (root.opening) root.finishOpening(false); root.syncOpeningAuthority() }
+    }
     Connections {
         target: root.profile
         ignoreUnknownSignals: true
@@ -115,6 +161,7 @@ Item {
             property bool recorded: false
             property bool metadataPending: false
             property bool notified: false
+            property string openingAuthority: ""
             property string name: request ? request.downloadFileName : ""
             property string directory: request ? request.downloadDirectory : ""
             readonly property string path: directory.replace(/[\\/]$/, "") + "/" + name
@@ -133,13 +180,22 @@ Item {
                 if (!request) return
                 if (request.state === WebEngineDownloadRequest.DownloadCancelled) { releaseAuthorization(); releaseWork() }
                 if (request.state === WebEngineDownloadRequest.DownloadCompleted && !recorded) {
+                    if (!metadataLive()) {
+                        recorded = true; metadataPending = false
+                        releaseAuthorization(); releaseWork(); return
+                    }
+                    const nativeOpening = metadataStore && typeof metadataStore.browserDownloadAuthority === "function"
+                    if (nativeOpening) openingAuthority = metadataStore.browserDownloadAuthority(request)
+                    if (nativeOpening && !openingAuthority) { metadataPending = true; return }
                     if (!notified) { notified = true; root.message(qsTr("Downloaded %1.").arg(name)) }
                     if (!privateDownload && downloadToken.length && metadataLive()
                             && typeof metadataStore.recordBrowserDownload === "function") {
-                        recorded = metadataStore.recordBrowserDownload({url: sourceUrl, path: path, fileName: name,
+                        var descriptor = {url: sourceUrl, path: path, fileName: name,
                             mimeType: request.mimeType, receivedBytes: request.receivedBytes,
                             totalBytes: Math.max(0, request.totalBytes), state: "completed",
-                            sessionId: sessionId, visitToken: visitToken, downloadToken: downloadToken}) === true
+                            sessionId: sessionId, visitToken: visitToken, downloadToken: downloadToken}
+                        if (nativeOpening) descriptor.openingAuthority = openingAuthority
+                        recorded = metadataStore.recordBrowserDownload(descriptor) === true
                         // An account switch revokes the grant, including a
                         // switch during the store's synchronous save callback.
                         metadataPending = !recorded && metadataLive()
@@ -165,11 +221,39 @@ Item {
                 else request.pause()
             }
             function cancel() { if (request && !completed) request.cancel() }
+            function engineChanged() {
+                if (root.runtime && root.runtime.hasProfile(owningProfile)
+                        && metadataStore && typeof metadataStore.browserDownloadAuthority === "function")
+                    Qt.callLater(function() { if (root.items.indexOf(entry) >= 0) entry.update() })
+                else update()
+            }
             property var observer: Connections {
                 target: entry.request
                 ignoreUnknownSignals: true
-                function onStateChanged() { entry.update() }
-                function onIsFinishedChanged() { entry.update() }
+                // Native completion capture shares these engine signals. Wait
+                // until all direct handlers finish before consuming its row.
+                function onStateChanged() { entry.engineChanged() }
+                function onIsFinishedChanged() { entry.engineChanged() }
+            }
+        }
+    }
+    Dialog {
+        id: openPrompt
+        objectName: "feriaDownloadOpenConfirmation"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(480, parent ? parent.width - 32 : 480)
+        modal: true
+        title: qsTr("Open downloaded file?")
+        closePolicy: Popup.CloseOnEscape
+        onRejected: root.finishOpening(false)
+        contentItem: ColumnLayout {
+            Text { Layout.fillWidth: true; textFormat: Text.PlainText; wrapMode: Text.Wrap; text: root.opening ? root.opening.fileName : ""; color: theme.ink }
+            Text { Layout.fillWidth: true; textFormat: Text.PlainText; wrapMode: Text.Wrap; text: root.opening ? root.opening.warning : ""; color: theme.inkDim }
+            Text { Layout.fillWidth: true; textFormat: Text.PlainText; wrapMode: Text.Wrap; text: root.opening && root.opening.source ? qsTr("From %1").arg(FeriaBrowserPolicy.displayOrigin(root.opening.source)) : qsTr("Source website unknown"); color: theme.inkDim }
+            RowLayout {
+                Account.AccountButton { Layout.fillWidth: true; text: qsTr("Cancel"); onClicked: root.finishOpening(false) }
+                Account.AccountButton { Layout.fillWidth: true; text: qsTr("Open"); onClicked: root.finishOpening(true) }
             }
         }
     }
@@ -221,7 +305,7 @@ Item {
                         }
                         Account.AccountButton {
                             implicitWidth: 110; implicitHeight: 36; visible: modelData.completed
-                            text: qsTr("Open"); onClicked: Qt.openUrlExternally(root.fileUrl(modelData.path))
+                            text: qsTr("Open"); onClicked: root.openDownload(modelData.openingAuthority, true)
                         }
                         Account.AccountButton {
                             implicitWidth: 130; implicitHeight: 36; visible: modelData.completed
@@ -239,7 +323,7 @@ Item {
                             Text { Layout.fillWidth: true; text: modelData.fileName || qsTr("Downloaded file"); textFormat: Text.PlainText; elide: Text.ElideMiddle; color: theme.inkDim; font.family: theme.ui }
                             Account.AccountButton {
                                 implicitWidth: 90; implicitHeight: 36
-                                text: qsTr("Open"); onClicked: Qt.openUrlExternally(root.fileUrl(modelData.path))
+                                text: qsTr("Open"); onClicked: root.openDownload(modelData.id, false)
                             }
                             Account.AccountButton {
                                 implicitWidth: 120; implicitHeight: 36

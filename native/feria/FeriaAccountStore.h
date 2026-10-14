@@ -5,6 +5,8 @@
 #include <QVariantMap>
 #include <QVariantList>
 #include <QHash>
+#include <QPointer>
+#include <functional>
 
 // Local, profile-owned Feria activity. Provider credentials stay in the browser.
 class FeriaAccountStore final : public QObject {
@@ -84,6 +86,16 @@ public:
     Q_INVOKABLE bool cancelBrowserDownload(const QString &downloadToken);
     Q_INVOKABLE bool recordBrowserDownload(const QVariantMap &descriptor);
     Q_INVOKABLE bool clearBrowserDownloads();
+    // Registration observes the real engine signal on a registered profile;
+    // callers never supply completion state, opening paths or source URLs.
+    Q_INVOKABLE bool watchBrowserDownloads(QObject *profile, QObject *runtime = nullptr);
+    Q_INVOKABLE QString browserDownloadAuthority(QObject *request) const;
+    Q_INVOKABLE void forgetBrowserDownloadAuthority(const QString &authority);
+    Q_INVOKABLE QVariantMap prepareBrowserDownloadOpen(const QString &id, int generation, bool current = false);
+    Q_INVOKABLE QVariantMap finishBrowserDownloadOpen(const QString &ticket, bool confirmed);
+#ifdef FERIA_TEST_CONTROLS
+    void setDownloadOpenerForTesting(std::function<QVariantMap(const QString &, const QString &)> opener) { m_downloadOpener = std::move(opener); }
+#endif
 signals:
     void changed();
     void profileChanged();
@@ -102,6 +114,20 @@ private:
         QString profilePath, providerId;
         bool committing = false;
     };
+    struct DownloadCapture {
+        QString authority;
+        int generation = 0;
+        QPointer<QObject> profile, runtime;
+        QVariantMap row;
+    };
+    struct DownloadOpenTicket {
+        QString id, source;
+        int generation = 0;
+        bool current = false;
+        QVariantMap snapshot;
+    };
+    void captureDownloadCompletion(QObject *request);
+    QVariantMap downloadOpenRow(const QString &id, bool current) const;
     Visit *visitFor(const QString &sessionId, const QString &token);
     bool observeVisit(Visit &visit, const QVariantMap &sample);
     bool saveReadingPlace(Visit &visit, const QString &url, const QString &title);
@@ -114,4 +140,8 @@ private:
     int m_generation = 1;
     bool m_restoreCaptured = false;
     bool m_writeFailed = false;
+    std::function<QVariantMap(const QString &, const QString &)> m_downloadOpener;
+    QHash<QObject *, QMetaObject::Connection> m_downloadProfiles;
+    QHash<QObject *, DownloadCapture> m_downloadCaptures;
+    QHash<QString, DownloadOpenTicket> m_downloadOpenTickets;
 };

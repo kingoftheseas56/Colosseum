@@ -186,6 +186,10 @@ void FeriaAccountStore::setStoragePath(const QString &path) {
     m_writeFailed = false;
     m_visits.clear();
     m_downloadAuthorizations.clear();
+    for (const auto &connection : m_downloadProfiles) disconnect(connection);
+    m_downloadProfiles.clear();
+    m_downloadCaptures.clear();
+    m_downloadOpenTickets.clear();
     m_legacyToken.clear();
     m_path = path;
     m_state = {};
@@ -414,6 +418,15 @@ bool FeriaAccountStore::cancelBrowserDownload(const QString &downloadToken) {
 
 bool FeriaAccountStore::recordBrowserDownload(const QVariantMap &descriptor) {
     if (descriptor.value("privateBrowsing").toBool()) return false;
+    QVariantMap download = descriptor;
+    QVariantMap nativeCompletion;
+    if (descriptor.contains("openingAuthority")) {
+        nativeCompletion = downloadOpenRow(descriptor.value("openingAuthority").toString(), true);
+        if (nativeCompletion.isEmpty() || nativeCompletion.value("privateBrowsing").toBool()
+            || nativeCompletion.value("state") != "completed") return false;
+        for (const auto *key : {"id", "url", "path", "fileName", "mimeType", "state"})
+            download.insert(key, nativeCompletion.value(key));
+    }
     const bool authorized = descriptor.contains("downloadToken");
     const QString downloadToken = descriptor.value("downloadToken").toString();
     QString authorizedProvider;
@@ -426,13 +439,14 @@ bool FeriaAccountStore::recordBrowserDownload(const QVariantMap &descriptor) {
         const Visit *visit = visitFor(descriptor.value("sessionId").toString(), descriptor.value("visitToken").toString());
         if (!visit || visit->privateBrowsing) return false;
     } else return false;
-    const QString url = browserUrl(descriptor.value("url").toString(), true);
+    const QString url = browserUrl(download.value("url").toString(), true);
     if (url.isEmpty()) return false;
-    QString id = descriptor.value("id").toString().left(100);
+    QString id = download.value("id").toString().left(100);
     if (id.isEmpty()) id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QVariantMap row{{"id", id}, {"url", url}, {"at", QDateTime::currentMSecsSinceEpoch()}};
     for (const auto &key : {"title", "fileName", "path", "state", "providerId", "mimeType"})
-        if (descriptor.contains(key)) row.insert(key, descriptor.value(key).toString().left(2048));
+        if (download.contains(key)) row.insert(key, download.value(key).toString().left(2048));
+    if (!nativeCompletion.isEmpty()) row.insert("downloadSnapshot", nativeCompletion.value("downloadSnapshot"));
     if (authorized) row.insert("providerId", authorizedProvider);
     for (const auto &key : {"receivedBytes", "totalBytes"})
         if (descriptor.contains(key)) {

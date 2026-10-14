@@ -370,6 +370,19 @@ testing is not a blanket prerequisite. Account/device checks remain explicitly
 unverified until performed. No aggregate “all secure” or “all sites supported”
 claim follows from passing component tests.
 
+Download-opening checkpoint: native authority now comes from registered typed
+engine completion, with existing historical rows, ephemeral private downloads,
+single-use confirmation and revalidation before opening. Focused native tests
+pass (10/0), metadata regressions pass (8/0), and stock Qt 6.11.1 download fixtures
+pass (5/0, root exit 0), including private/history cancellation and observed
+`Zone.Identifier` with `ZoneId=3`. This enforces opening policy; Chromium's existing
+attachment marking was not absent. Compiled `IAttachmentExecute` integration has
+not actually launched a file or verified Windows dialog ownership, scanner or
+reputation outcomes. Null HWND/null process handle asynchronous Execute still
+needs its message-pump/long-lived-window contract qualified. Custom-codec and
+installed behavior, OS launch races and metadata-preserving edits remain open;
+F5.2 and Phase 5 are not complete.
+
 ## Primary references (checked 2026-10-14)
 
 - [Qt 6.11 security considerations](https://doc.qt.io/qt-6.11/qtwebengine-security.html)

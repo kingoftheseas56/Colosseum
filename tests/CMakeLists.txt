@@ -167,6 +167,10 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 # per-case reporting, data rows, selectable by function/tag.
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
+add_executable(feria_download_open_test feria_download_open_test.cpp)
+target_compile_definitions(feria_download_open_test PRIVATE FERIA_TEST_CONTROLS)
+target_link_libraries(feria_download_open_test PRIVATE feria_discovery Qt6::Test)
+add_test(NAME colosseum.feria_download_open_test COMMAND feria_download_open_test)
 
 add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
     "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")

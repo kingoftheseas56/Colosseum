@@ -7,6 +7,7 @@ set(ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
 add_library(foundation_owners STATIC
     "${ROOT}/native/SessionStore.h"
     "${ROOT}/native/feria/FeriaAccountStore.cpp"
+    "${ROOT}/native/feria/FeriaDownloadOpening.cpp"
     "${ROOT}/native/feria/FeriaBrowserPolicy.cpp"
     "${ROOT}/native/feria/FeriaBrowserOperations.cpp"
     "${ROOT}/native/feria/FeriaBrowserRuntime.cpp"
@@ -14,7 +15,10 @@ add_library(foundation_owners STATIC
 target_include_directories(foundation_owners PUBLIC "${ROOT}/native" "${ROOT}/native/feria")
 # Deliberate unsafe RED controls compile only into test builds.
 target_compile_definitions(foundation_owners PRIVATE FERIA_TEST_CONTROLS)
-target_link_libraries(foundation_owners PUBLIC Qt6::Core Qt6::Gui Qt6::Qml Qt6::Sql)
+target_link_libraries(foundation_owners PUBLIC Qt6::Core Qt6::Gui Qt6::Qml Qt6::Sql Qt6::WebEngineQuick)
+if(WIN32)
+    target_link_libraries(foundation_owners PRIVATE ole32 uuid)
+endif()
 add_executable(feria_foundation_policy_test "${ROOT}/tests/feria_foundation_policy_test.cpp")
 target_link_libraries(feria_foundation_policy_test PRIVATE foundation_owners Qt6::Test)
 add_executable(feria_foundation_runtime "${ROOT}/tests/feria_foundation_runtime.cpp")
@@ -46,6 +50,10 @@ add_test(NAME hosting_geometry COMMAND feria_hosting_geometry_test)
 add_executable(feria_account_store_test "${ROOT}/tests/feria_account_store_test.cpp")
 target_link_libraries(feria_account_store_test PRIVATE foundation_owners)
 add_test(NAME account_store COMMAND feria_account_store_test)
+add_executable(feria_download_open_test "${ROOT}/tests/feria_download_open_test.cpp")
+target_compile_definitions(feria_download_open_test PRIVATE FERIA_TEST_CONTROLS)
+target_link_libraries(feria_download_open_test PRIVATE foundation_owners Qt6::Test)
+add_test(NAME download_open COMMAND feria_download_open_test)
 add_executable(feria_operations_test "${ROOT}/tests/feria_operations_test.cpp")
 target_link_libraries(feria_operations_test PRIVATE foundation_owners Qt6::Test)
 add_test(NAME operations_fence COMMAND feria_operations_test)
