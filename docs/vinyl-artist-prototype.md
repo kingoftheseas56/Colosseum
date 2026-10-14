@@ -7,11 +7,16 @@ Artist cards, album credits and the song's artist label open the artist surface.
 
 ## Design
 
-Eminem is the default artist. The first viewport pairs artist identity and a
-short blurb with five selected songs. Albums, singles/EPs, session playlists,
-optional sourced biography, facts, release history and shared credits fill the scroll surface.
-Section links jump to the corresponding content. Album artwork supplies the
-backdrop; there is no separate portrait or invented follower/popularity count.
+Eminem is the default artist. The reference-led design pass keeps blurred album
+artwork as the atmosphere and adds a sourced portrait to the hero when available.
+A missing or failed portrait falls back to existing release artwork. Artist identity
+and the existing sourced blurb lead into a full-width, thumbnail-led song list.
+There are no invented follower, audience, play or ranking metrics.
+
+Albums, singles/EPs, videos, live performances, library releases, featured playlists,
+artist-owned playlists, user-created playlists and related artists share reusable
+sections. Missing data removes both the section and its jump link. Optional sourced
+biography, facts, catalogue-generated release history and shared credits remain.
 
 The information structure draws from [Spotify's artist profile](https://artists.spotify.com/en/blog/making-the-most-of-your-artist-profile-on-spotify)
 and [YouTube Music's artist sections](https://ytmusicapi.readthedocs.io/en/stable/reference/browsing.html).
@@ -23,8 +28,12 @@ the artist and sections; Segoe UI carries controls and metadata. Blurred album
 art supplies the atmosphere. Text sits on the backdrop. Transport remains in
 the bottom bar, with no hero Play/Shuffle controls.
 
-The initial layout uses six album columns on larger windows and four at 960
-pixels. Missing sections are omitted. A single-release artist retains the same
+`VinylArtistHero`, `VinylArtistSongs` and `VinylArtistShelf` separate presentation
+from the existing data owners. Shelves use square, landscape or circular artwork
+and show one responsive row, with Show all / Show fewer for additional records.
+The layout uses up to six album columns on larger windows and four at 960 pixels.
+Keyboard focus reveals offscreen controls; Down/Up and Page Down/Up scroll the page.
+Missing sections are omitted. A single-release artist retains the same
 hierarchy without fabricated recommendations. Separate names in a combined
 artist credit open a chooser instead of creating a composite artist identity.
 
@@ -44,7 +53,14 @@ artist credit open a chooser instead of creating a composite artist identity.
 - Save artist and custom playlists are session-only demonstration state.
   Create playlist starts with the displayed songs; opening a playlist exposes
   its tracks, whose selection uses the same prototype playback path. No new store is created.
+  There is no automatically generated sampler playlist or fabricated curation.
   The prototype simulates transport; it does not fetch or decode live audio.
+- Library releases are projected from `VinylWorldData.profileRecord.saved`, matched
+  to exact available release IDs. No separate library, identity or progress store is added.
+- Video and provider-playlist cards open native source-details dialogs. Their explicit
+  source action opens the browser; it never silently substitutes audio or claims
+  video playback. Related artists use the existing native artist navigation.
+  Provider-qualified media records are optional, separately sourced presentation data.
 - Production navigation and the opt-in live Vinyl session are not connected to
   this surface. The optional song artist link defaults off outside the preview.
 
@@ -58,8 +74,17 @@ Selected songs are an editorial fixture order, not live charts. Eminem's
 additional releases and the Ilaiyaraaja singles are a public, account-free
 YouTube Music snapshot from 2026-10-14 (IN, ytmusicapi 1.12.3); each record
 retains a source URL, exact release ID, type and track credits. This is a
-bounded selection, not a complete discography. New thumbnails load directly
-from provider URLs and need network access; existing artwork remains local.
+bounded selection, not a complete discography. `ArtistMedia.js` adds six supplied
+videos and six provider-associated artists each for Eminem and Ilaiyaraaja, plus
+their sourced hero images. No live-performance or provider-playlist records were
+present in these inspected snapshots, so those sections remain hidden.
+
+The artist artwork and existing remote release/single thumbnails are now frozen
+locally for repeatable, network-independent preview captures.
+`tests/fixtures/vinyl-world/artist-media/sources.json` records each original public
+thumbnail URL, byte count and SHA-256. Catalogue source URLs, release IDs, dates,
+tracks and the release-history algorithm are unchanged. These are publisher
+images retained as prototype fixtures, not AI-generated replacement artwork.
 Short authored biography summaries link to Wikipedia/Wikidata in the page and
 in `ArtistContext.js`. The release-history cards are generated from the same
 dated catalogue records for every artist: one representative album credit per
@@ -67,8 +92,7 @@ year, then a single/EP or appearance if needed, sampled across the available
 years. They open the corresponding album and are labelled as part of this
 collection, since its snapshot is incomplete. Artists with no dated releases
 have no release-history cards. No per-artist timeline prose is required.
-Genius documentation returned HTTP 403
-during this pass. No Genius metadata or lyrics are presented as retrieved;
+The earlier enrichment research recorded HTTP 403 from Genius documentation. No Genius metadata or lyrics are presented as retrieved;
 verified song-level enrichment remains an integration gap.
 
 Before production integration: settle this layout with Hemanth/Claude; resolve
@@ -77,7 +101,11 @@ add real paginated artist releases and track credits; carry explicit composer,
 singer and lyricist roles when supplied; use existing collection ownership for
 saved artists; and connect song selection to the existing torrent-first session.
 Distinguish loading, cached and failed requests without inventing catalogue data.
-Live enrichment, videos and recommendations require matched, sourced content before appearing.
+Live refresh, in-app video playback and provider playlist playback remain integration
+gaps. Do not derive live performances from fuzzy title matching or manufacture
+artist-owned playlists, audience metrics or personalized recommendations.
+The read-only Harness map inspection reports BRANCH_DRIFT against this branch;
+these targeted Qt tests are not a production Harness completion certificate.
 
 ## Verification
 
@@ -86,7 +114,10 @@ routes, nested back navigation, preservation of playing state, song selection,
 keyboard sort/save, appearance filtering, multiple-name selection and thin data.
 It also checks Eminem releases, singles navigation, biography section jumping,
 generic release-history selection and album routing, playlist creation and
-per-artist playlist isolation.
+per-artist playlist isolation. New cases cover optional-section gating, provenance
+rejection, discarded unknown metrics, exact library projection, related-artist
+routing, shelf expansion, native source dialogs, pointer activation, keyboard
+scrolling and focus reveal. Empty/malformed records do not become visible cards.
 The existing Vinyl album, song and page-data suites exercise shared behaviour.
 
 Set `VINYL_CAPTURE_DIR` when running the artist suite through

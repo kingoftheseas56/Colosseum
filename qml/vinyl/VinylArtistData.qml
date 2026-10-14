@@ -7,6 +7,8 @@ import "../../tests/fixtures/vinyl-world/EminemReleases.js" as Eminem
 QtObject {
     id: root
     property var catalogue: ({albums: []})
+    property var mediaCatalogue: ({})
+    property var libraryRecord: ({saved:[]})
     property string name: "Eminem"
     property string filter: "all"
     property bool newestFirst: true
@@ -26,6 +28,11 @@ QtObject {
     readonly property var singles: name === "Eminem" ? Eminem.data.filter(function(a) { return a.releaseType !== "Album"; }) : context.singlesArtist ? Singles.data : []
     readonly property var releases: Catalogue.releases(record, filter, newestFirst)
     readonly property var releaseHistory: Catalogue.releaseHistory(record, singles, 4)
+    readonly property var media: Catalogue.mediaForArtist(mediaCatalogue, record.name)
+    readonly property var libraryReleases: Catalogue.libraryReleases(record, singles, libraryRecord)
+    readonly property var albumCards: Catalogue.releaseCards(releases)
+    readonly property var singleCards: Catalogue.releaseCards(singles)
+    readonly property var libraryCards: Catalogue.releaseCards(libraryReleases)
     readonly property bool saved: savedNames.indexOf(record.name) >= 0
     readonly property var songOrder: {
         var first = [], rest = [], seen = {};
@@ -45,11 +52,9 @@ QtObject {
         return first.concat(rest);
     }
     readonly property var songs: allSongs ? songOrder : songOrder.slice(0, 5)
-    readonly property var playlists: {
-        var out = [];
-        if (songOrder.length) out.push({name:"Across the albums",owner:"Vinyl selection",artist:record.name,songs:songOrder.slice(0,12)});
-        return out.concat(customPlaylists.filter(function(p) { return p.artist === root.record.name; }));
-    }
+    // Only user-created session playlists belong here. Provider playlists have
+    // their own sourced records and must not be synthesized from selected songs.
+    readonly property var playlists: customPlaylists.filter(function(p) { return p.artist === root.record.name; })
     function artwork(file) {
         return /^https?:\/\//.test(file) ? file : file && artworkRoot ? String(artworkRoot) + "/" + file : "";
     }

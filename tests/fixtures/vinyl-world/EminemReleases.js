@@ -10,7 +10,7 @@ var data = [
     ],
     "year": "2025",
     "releaseType": "Album",
-    "cover": "https://yt3.googleusercontent.com/xIN67aenJGjjn7dl1SugpJFocYQiXMiYoFfaukVxJJ7NGhLZhm18n8Pr2-k7m8wr9-wJy5BdpMloqzS8=w544-h544-l90-rj",
+    "cover": "artist-media/cover-09299d40deb1204db6c0.jpg",
     "source": "https://music.youtube.com/browse/MPREb_DmBhgAVua1o",
     "tracks": [
       {
@@ -120,7 +120,7 @@ var data = [
     ],
     "year": "2025",
     "releaseType": "Album",
-    "cover": "https://yt3.googleusercontent.com/1ecKTaGoX6fqHS38i_xeAQz5ue6C7hJdyd7geaEGkrAjSv01BcGCyyfZDuwfkc6ILC7aHW0CE5GfK_c=w544-h544-l90-rj",
+    "cover": "artist-media/cover-26754d2b40cae4181c65.jpg",
     "source": "https://music.youtube.com/browse/MPREb_BEDvMqhixtx",
     "tracks": [
       {
@@ -293,7 +293,7 @@ var data = [
     ],
     "year": "2024",
     "releaseType": "Album",
-    "cover": "https://yt3.googleusercontent.com/Xx3dX1EJDirqwpfQL05uAgmKGYpzTcFDXjjHqjNpIhgY5MWTJRLSlOjaYVtup2Ku6gBYEqXoxw5aGKC3=w544-h544-l90-rj",
+    "cover": "artist-media/cover-8f2eed2e69edc934fbe6.jpg",
     "source": "https://music.youtube.com/browse/MPREb_VfwB9V2ZGFR",
     "tracks": [
       {
@@ -469,7 +469,7 @@ var data = [
     ],
     "year": "2004",
     "releaseType": "Album",
-    "cover": "https://yt3.googleusercontent.com/oWyLklmIlgBVjLy63kmFrXfgmzK8EIwpzyXneeLu3Ly6eqB_Usf7zZhZzo-LlwbxMx4WugYNW1Lp-ec=w544-h544-l90-rj",
+    "cover": "artist-media/cover-26ca544507082a966d79.jpg",
     "source": "https://music.youtube.com/browse/MPREb_xFN2XG22AXC",
     "tracks": [
       {
@@ -642,7 +642,7 @@ var data = [
     ],
     "year": "2010",
     "releaseType": "Album",
-    "cover": "https://yt3.googleusercontent.com/IUuZFSUqFLMQlejTtsnLM_cB16A0T1g-savL7DYbWz5NFh2-DOw5-v9_PREJt9keX48NSan-8yUQCPM=w544-h544-l90-rj",
+    "cover": "artist-media/cover-4955b7525cc6ae02dcbd.jpg",
     "source": "https://music.youtube.com/browse/MPREb_UUFKiZYr3uO",
     "tracks": [
       {
@@ -792,7 +792,7 @@ var data = [
     ],
     "year": "2024",
     "releaseType": "Single",
-    "cover": "https://yt3.googleusercontent.com/t4q-b1JIIzrix-_T5uBcNSNKm6TrdwEhXjMiZkly1WNP3xktKSgST0wX2ODJepauplDhGLL37wsiT-Kt=w544-h544-l90-rj",
+    "cover": "artist-media/cover-9ea46ff51c6dcf691c3e.jpg",
     "source": "https://music.youtube.com/browse/MPREb_jKo15BXoYmR",
     "tracks": [
       {
@@ -814,7 +814,7 @@ var data = [
     ],
     "year": "2024",
     "releaseType": "Single",
-    "cover": "https://yt3.googleusercontent.com/CQyUJawPkic5ab9xRAfLULZd4WaKLxdPsxZrKeV7KpNrCu_9TExzSEyl3QtWu516l8wQTlo8Jmjx-hfQ=w544-h544-l90-rj",
+    "cover": "artist-media/cover-0098708401378225e603.jpg",
     "source": "https://music.youtube.com/browse/MPREb_rvNEKlC0c6B",
     "tracks": [
       {
@@ -836,7 +836,7 @@ var data = [
     ],
     "year": "2022",
     "releaseType": "Single",
-    "cover": "https://yt3.googleusercontent.com/XvlkHCNeuPMfq5lD2J3Iv9YjgMnG7Uy1M1gw5mCQQ8yXrF4FSS8Iyc5pRrjioJsU1J9yzcGBArRkqejYqA=w544-h544-l90-rj",
+    "cover": "artist-media/cover-04b322a67d8ef85bd2c0.jpg",
     "source": "https://music.youtube.com/browse/MPREb_k15oukterJY",
     "tracks": [
       {

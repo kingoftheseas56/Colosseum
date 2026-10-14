@@ -77,3 +77,54 @@ function releaseHistory(record, singles, limit) {
     }
     return selected;
 }
+
+// Optional, provider-qualified presentation records. Absence is not a request
+// to infer a recommendation, a live recording, or an artist-owned playlist.
+function mediaForArtist(catalogue, name) {
+    var source = (catalogue || {})[name];
+    var result = {portrait:{cover:""}, videos:[], livePerformances:[],
+        featuredPlaylists:[], artistPlaylists:[], relatedArtists:[], provider:"", sourceUrl:""};
+    function sourced(value) {
+        return value && typeof value.sourceUrl === "string" && /^https:\/\/[^\s/]+\//.test(value.sourceUrl);
+    }
+    if (!sourced(source) || typeof source.name !== "string" || identity(source.name) !== name
+            || typeof source.provider !== "string" || !source.provider.trim())
+        return result;
+    result.provider = source.provider;
+    result.sourceUrl = source.sourceUrl;
+    if (sourced(source.portrait) && typeof source.portrait.cover === "string" && source.portrait.cover)
+        result.portrait = {cover:source.portrait.cover, sourceUrl:source.portrait.sourceUrl};
+    ["videos", "livePerformances", "featuredPlaylists", "artistPlaylists", "relatedArtists"].forEach(function(key) {
+        var seen = Object.create(null);
+        result[key] = (Array.isArray(source[key]) ? source[key] : []).filter(function(item) {
+            if (!sourced(item) || typeof item.id !== "string" || !item.id.trim()
+                    || typeof item.title !== "string" || !item.title.trim() || seen[item.id]) return false;
+            seen[item.id] = true;
+            return true;
+        }).map(function(item) {
+            return {id:item.id, title:item.title, cover:typeof item.cover === "string" ? item.cover : "",
+                subtitle:typeof item.subtitle === "string" && item.subtitle ? item.subtitle : source.provider, provider:source.provider,
+                sourceUrl:item.sourceUrl, snapshotAt:source.snapshotAt || "", kind:key};
+        });
+    });
+    return result;
+}
+
+function releaseCards(records) {
+    return (records || []).map(function(record) {
+        var album = record.album || record;
+        var type = record.credit === "track" ? "Appears on" : album.releaseType || "Album";
+        var year = Number(album.year);
+        return {id:album.id, title:album.title, cover:album.cover || "", album:album,
+            subtitle:[Number.isInteger(year) && year > 0 ? String(year) : "", type].filter(Boolean).join(" · ")};
+    });
+}
+
+function libraryReleases(record, singles, profile) {
+    var saved = Array.isArray((profile || {}).saved) ? profile.saved : [];
+    var records = (record.releases || []).concat((singles || []).map(function(album) { return {album:album}; }));
+    return records.filter(function(release, index) {
+        return saved.indexOf(release.album.id) >= 0
+            && records.findIndex(function(other) { return other.album.id === release.album.id; }) === index;
+    });
+}

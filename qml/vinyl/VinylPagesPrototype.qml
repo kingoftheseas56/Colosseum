@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 import "../../tests/fixtures/vinyl-world/Catalogue.js" as WorldSnapshot
+import "../../tests/fixtures/vinyl-world/ArtistMedia.js" as ArtistMedia
 
 Window {
     id: root
@@ -120,6 +121,8 @@ Window {
         id: artistData
         catalogue: worldData.catalogue
         artworkRoot: worldData.artworkRoot
+        mediaCatalogue: ArtistMedia.data
+        libraryRecord: worldData.profileRecord
     }
     VinylBackdrop {
         id: backdrop

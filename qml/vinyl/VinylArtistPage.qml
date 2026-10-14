@@ -10,10 +10,28 @@ Flickable {
     signal albumRequested(var album)
     signal songRequested(var song)
     signal artistRequested(string name)
-    property real gutter: width < 1100 ? 36 : 54
+    property real gutter: width < 720 ? 24 : width < 1100 ? 36 : 54
     readonly property real bodyWidth: width - gutter * 2
-    readonly property int columns: bodyWidth < 1100 ? 4 : 6
     function jumpTo(section) { contentY = Math.min(section.y, Math.max(0, contentHeight - height)); }
+    function reveal(item) {
+        var y = item.mapToItem(body, 0, 0).y;
+        if (y < contentY) contentY = Math.max(0, y - 8);
+        else if (y + item.height > contentY + height)
+            contentY = Math.min(Math.max(0, contentHeight - height), y + item.height - height + 8);
+    }
+    function showMedia(record) { mediaDialog.selection = record; mediaDialog.open(); }
+    Keys.onDownPressed: contentY = Math.min(Math.max(0, contentHeight - height), contentY + 64)
+    Keys.onUpPressed: contentY = Math.max(0, contentY - 64)
+    Keys.onPressed: event => {
+        if (event.key !== Qt.Key_PageDown && event.key !== Qt.Key_PageUp) return;
+        var delta = height * (event.key === Qt.Key_PageDown ? 0.85 : -0.85);
+        contentY = Math.max(0, Math.min(Math.max(0, contentHeight - height), contentY + delta));
+        event.accepted = true;
+    }
+    Connections {
+        target: root.artistData
+        function onNameChanged() { mediaDialog.close(); playlistDialog.close(); createDialog.close(); }
+    }
     contentWidth: width
     contentHeight: body.height + 24
     clip: true
@@ -26,268 +44,178 @@ Flickable {
         id: body
         x: root.gutter
         width: root.bodyWidth
-        spacing: 24
-        Row {
-            spacing: 26
+        spacing: 32
+        Flow {
+            width: parent.width
+            spacing: 22
             Repeater {
-                model: ["Overview", "Albums", "Singles & EPs", "Playlists", "About"]
+                model: [
+                    {key:0,label:"Overview",section:body},
+                    {key:1,label:"Albums",section:albumsSection},
+                    {key:2,label:"Singles & EPs",section:singlesSection},
+                    {key:5,label:"Videos",section:videosSection},
+                    {key:6,label:"Live",section:liveSection},
+                    {key:7,label:"Library",section:librarySection},
+                    {key:8,label:"Featured on",section:featuredSection},
+                    {key:9,label:"Artist playlists",section:artistPlaylistsSection},
+                    {key:3,label:"Your playlists",section:playlistsSection},
+                    {key:10,label:"Related artists",section:relatedSection},
+                    {key:4,label:"About",section:about}
+                ]
                 delegate: KeyboardAction {
-                    required property string modelData
-                    required property int index
-                    objectName: "vinylArtistNav_" + index
-                    width: navLabel.implicitWidth; height: 30
-                    visible: index === 0 || index === 1 && root.artistData.releases.length > 0 || index === 2 && root.artistData.singles.length > 0 || index === 3 && root.artistData.playlists.length > 0 || index === 4 && about.visible
-                    accessibleName: modelData
-                    onTriggered: { if (index === 0) root.contentY = 0; else root.jumpTo([body, albumsSection, singlesSection, playlistsSection, about][index]); }
-                    Text { id: navLabel; text: modelData; color: parent.interactionActive ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-                }
-            }
-        }
-        Row {
-            width: parent.width
-            spacing: 36
-            Column {
-                width: parent.width * 0.38 - 36
-                spacing: 16
-                Text { text: root.artistData.context.roles.toUpperCase(); color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.8 }
-                Text { objectName: "vinylArtistName"; width: parent.width; text: root.artistData.record.name; color: theme.ink; font.family: theme.display; font.pixelSize: root.width < 1100 ? 48 : 64; wrapMode: Text.WordWrap }
-                Text { width: parent.width; visible: text.length > 0; text: root.artistData.context.blurb; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; lineHeight: 1.35; wrapMode: Text.WordWrap }
-                KeyboardAction {
-                    objectName: "vinylArtistSave"; width: 120; height: 36
-                    accessibleName: root.artistData.saved ? "Remove saved artist" : "Save artist"
-                    onTriggered: root.artistData.toggleSaved()
-                    Rectangle { anchors.fill: parent; radius: 18; color: parent.interactionActive ? theme.glassHi : theme.glassTint; border.color: root.artistData.saved ? theme.gold : theme.edge }
-                    Text { anchors.centerIn: parent; text: root.artistData.saved ? "✓  Saved" : "+  Save artist"; color: root.artistData.saved ? theme.gold : theme.ink; font.family: theme.ui; font.pixelSize: 12 }
-                }
-                KeyboardAction {
-                    width: 140; height: 28; visible: root.artistData.context.history.length > 0
-                    accessibleName: "About the artist"; onTriggered: root.jumpTo(about)
-                    Text { text: "The story behind the music ↗"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12 }
-                }
-            }
-        Column {
-            width: parent.width * 0.62
-            spacing: 8
-            visible: root.artistData.songs.length > 0
-            Text {
-                text: "Selected songs"
-                color: theme.ink
-                font.family: theme.display
-                font.pixelSize: 28
-            }
-            Repeater {
-                model: root.artistData.songs
-                delegate: Row {
                     required property var modelData
-                    required property int index
-                    width: parent.width
-                    height: root.height < 650 ? 40 : 48
-                    spacing: 18
-                    KeyboardAction {
-                        objectName: "vinylArtistSong_" + index
-                        width: parent.width * 0.59
-                        height: parent.height
-                        accessibleName: "Play " + modelData.track.title
-                        onTriggered: root.songRequested(modelData)
-                        Rectangle { anchors.fill: parent; radius: 6; color: theme.glassTint; visible: parent.interactionActive }
-                        Text {
-                            x: 8; anchors.verticalCenter: parent.verticalCenter
-                            text: index + 1; color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 12
-                        }
-                        Column {
-                            x: 40; width: parent.width - 52; anchors.verticalCenter: parent.verticalCenter; spacing: 4
-                            Text {
-                                width: parent.width; text: modelData.track.title; elide: Text.ElideRight
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14
-                            }
-                            Text {
-                                width: parent.width; text: (modelData.track.artists && modelData.track.artists.length ? modelData.track.artists : modelData.album.artists || []).join(" · "); elide: Text.ElideRight
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
-                            }
-                        }
-                    }
-                    KeyboardAction {
-                        objectName: "vinylArtistSongAlbum_" + index
-                        width: parent.width * 0.31
-                        height: parent.height
-                        accessibleName: "Open " + modelData.album.title
-                        onTriggered: root.albumRequested(modelData.album)
-                        Text {
-                            width: parent.width; anchors.verticalCenter: parent.verticalCenter
-                            text: modelData.album.title; elide: Text.ElideRight
-                            color: parent.interactionActive ? theme.gold : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
-                        }
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: Math.floor(modelData.track.seconds / 60) + ":" + ("0" + modelData.track.seconds % 60).slice(-2)
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    }
-                }
-            }
-            KeyboardAction {
-                objectName: "vinylArtistAllSongs"
-                width: 150; height: 34
-                visible: root.artistData.record.songs.length > 5
-                accessibleName: root.artistData.allSongs ? "Show fewer songs" : "Show all songs"
-                onTriggered: root.artistData.allSongs = !root.artistData.allSongs
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter; text: parent.accessibleName
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                    objectName: "vinylArtistNav_" + modelData.key
+                    width: navLabel.implicitWidth; height: 28
+                    visible: modelData.key === 0 || modelData.section.visible
+                    accessibleName: modelData.label
+                    onTriggered: root.jumpTo(modelData.section)
+                    Text { id: navLabel; text: modelData.label; color: parent.interactionActive ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
                 }
             }
         }
-        }
-        Column {
+        VinylArtistHero {
+            objectName: "vinylArtistHero"
             width: parent.width
+            artistData: root.artistData
+            onCreatePlaylistRequested: { playlistName.text = ""; createDialog.open(); }
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistSongs {
+            objectName: "vinylArtistSongsSection"
+            width: parent.width
+            artistData: root.artistData
+            onSongRequested: song => root.songRequested(song)
+            onAlbumRequested: album => root.albumRequested(album)
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
             id: albumsSection
-            spacing: 20
-            visible: root.artistData.record.releases.length > 0
-            Row {
-                width: parent.width
-                height: 36
-                Text {
-                    width: parent.width - filters.width - sort.width - 24
-                    text: "Albums"
-                    color: theme.ink
-                    font.family: theme.display
-                    font.pixelSize: 28
-                }
-                Row {
-                    id: filters
+            objectName: "vinylArtistAlbumsSection"
+            width: parent.width
+            title: "Albums"
+            subtitle: "Releases in this collection"
+            records: root.artistData.albumCards
+            artistData: root.artistData
+            prefix: "vinylArtistAlbum"
+            onActivated: record => root.albumRequested(record.album)
+            onItemFocused: item => root.reveal(item)
+            toolbar: Component {
+                Flow {
                     spacing: 6
                     Repeater {
                         model: root.artistData.filters
                         delegate: KeyboardAction {
+                            id: filter
                             required property var modelData
                             objectName: "vinylArtistFilter_" + modelData.key
                             width: filterText.implicitWidth + 24
                             height: 34
                             accessibleName: modelData.label
                             onTriggered: root.artistData.filter = modelData.key
+                            onActiveFocusChanged: if (activeFocus) root.reveal(filter)
                             Rectangle {
-                                anchors.fill: parent
-                                radius: 17
+                                anchors.fill: parent; radius: 17
                                 color: root.artistData.filter === modelData.key ? theme.glassHi : "transparent"
                                 border.color: root.artistData.filter === modelData.key ? theme.edge : "transparent"
                             }
                             Text {
-                                id: filterText
-                                anchors.centerIn: parent
-                                text: modelData.label
+                                id: filterText; anchors.centerIn: parent; text: modelData.label
                                 color: root.artistData.filter === modelData.key ? theme.gold : theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 12
+                                font.family: theme.ui; font.pixelSize: 12
                             }
                         }
                     }
-                }
-                KeyboardAction {
-                    id: sort
-                    objectName: "vinylArtistSort"
-                    width: 126
-                    height: 34
-                    accessibleName: root.artistData.newestFirst ? "Sort oldest first" : "Sort newest first"
-                    onTriggered: root.artistData.newestFirst = !root.artistData.newestFirst
-                    Text {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.artistData.newestFirst ? "Newest first ↓" : "Oldest first ↑"
-                        color: theme.inkDim
-                        font.family: theme.ui
-                        font.pixelSize: 12
-                    }
-                }
-            }
-            Grid {
-                width: parent.width
-                columns: root.columns
-                columnSpacing: 22
-                rowSpacing: 22
-                Repeater {
-                    model: root.artistData.releases
-                    delegate: KeyboardAction {
-                        required property var modelData
-                        required property int index
-                        objectName: "vinylArtistAlbum_" + index
-                        width: (root.bodyWidth - (root.columns - 1) * 22) / root.columns
-                        height: width + 66
-                        accessibleName: modelData.album.title + ", " + modelData.album.year
-                        onTriggered: root.albumRequested(modelData.album)
-                        RoundedPosterImage {
-                            objectName: "vinylArtistAlbumArt_" + index
-                            width: parent.width
-                            height: width
-                            radius: 10
-                            sources: [root.artistData.artwork(modelData.album.cover)]
-                            hovered: parent.interactionActive
-                        }
+                    KeyboardAction {
+                        id: sort
+                        objectName: "vinylArtistSort"; width: 138; height: 34
+                        accessibleName: root.artistData.newestFirst ? "Sort oldest first" : "Sort newest first"
+                        onTriggered: root.artistData.newestFirst = !root.artistData.newestFirst
+                        onActiveFocusChanged: if (activeFocus) root.reveal(sort)
                         Text {
-                            y: parent.width + 12
-                            width: parent.width
-                            text: modelData.album.title
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            y: parent.width + 36
-                            text: modelData.album.year + (modelData.credit === "track" ? "  ·  Appears on" : "")
-                            color: theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 12
+                            anchors.centerIn: parent
+                            text: root.artistData.newestFirst ? "Newest first ↓" : "Oldest first ↑"
+                            color: parent.interactionActive ? theme.gold : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 12
                         }
                     }
                 }
             }
         }
-        VinylArtistReleaseShelf {
+        VinylArtistShelf {
             id: singlesSection
-            width: parent.width
-            visible: records.length > 0
-            title: "Singles & EPs"
-            records: root.artistData.singles
-            artistData: root.artistData
-            columns: root.columns
-            onAlbumRequested: album => root.albumRequested(album)
+            objectName: "vinylArtistSinglesSection"
+            width: parent.width; title: "Singles & EPs"
+            records: root.artistData.singleCards; artistData: root.artistData
+            prefix: "vinylArtistSingle"
+            onActivated: record => root.albumRequested(record.album)
+            onItemFocused: item => root.reveal(item)
         }
-        Column {
+        VinylArtistShelf {
+            id: videosSection
+            objectName: "vinylArtistVideosSection"
+            width: parent.width; title: "Videos"; shape: "wide"; badge: "VIDEO"
+            subtitle: root.artistData.media.provider + " catalogue"
+            records: root.artistData.media.videos; artistData: root.artistData
+            prefix: "vinylArtistVideo"
+            onActivated: record => root.showMedia(record)
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
+            id: liveSection
+            objectName: "vinylArtistLiveSection"
+            width: parent.width; title: "Live performances"; shape: "wide"; badge: "LIVE"
+            records: root.artistData.media.livePerformances; artistData: root.artistData
+            prefix: "vinylArtistLive"
+            onActivated: record => root.showMedia(record)
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
+            id: librarySection
+            objectName: "vinylArtistLibrarySection"
+            width: parent.width; title: "From your library"
+            records: root.artistData.libraryCards; artistData: root.artistData
+            prefix: "vinylArtistLibrary"
+            onActivated: record => root.albumRequested(record.album)
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
+            id: featuredSection
+            objectName: "vinylArtistFeaturedSection"
+            width: parent.width; title: "Featured on"; badge: "PLAYLIST"
+            records: root.artistData.media.featuredPlaylists; artistData: root.artistData
+            prefix: "vinylArtistFeatured"
+            onActivated: record => root.showMedia(record)
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
+            id: artistPlaylistsSection
+            objectName: "vinylArtistArtistPlaylistsSection"
+            width: parent.width; title: "Playlists by " + root.artistData.record.name; badge: "PLAYLIST"
+            records: root.artistData.media.artistPlaylists; artistData: root.artistData
+            prefix: "vinylArtistArtistPlaylist"
+            onActivated: record => root.showMedia(record)
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
             id: playlistsSection
-            width: parent.width; spacing: 18
-            visible: root.artistData.playlists.length > 0
-            Row {
-                width: parent.width
-                Text { width: parent.width - 180; text: "Playlists"; color: theme.ink; font.family: theme.display; font.pixelSize: 28 }
-                KeyboardAction {
-                    objectName: "vinylArtistCreatePlaylist"; width: 180; height: 36; accessibleName: "Create playlist"
-                    onTriggered: { playlistName.text = ""; createDialog.open(); }
-                    Text { anchors.right: parent.right; text: "+  Create playlist"; color: theme.gold; font.family: theme.ui; font.pixelSize: 13 }
-                }
-            }
-            Flow {
-                width: parent.width; spacing: 18
-                Repeater {
-                    model: root.artistData.playlists
-                    delegate: KeyboardAction {
-                        required property var modelData
-                        required property int index
-                        objectName: "vinylArtistPlaylist_" + index
-                        width: (root.bodyWidth - 36) / 3; height: 100; accessibleName: modelData.name
-                        onTriggered: { playlistDialog.selection = modelData; playlistDialog.open(); }
-                        Rectangle { anchors.fill: parent; radius: 10; color: parent.interactionActive ? theme.glassHi : theme.glassTint; border.color: theme.edge }
-                        Image { x: 10; y: 10; width: 80; height: 80; source: root.artistData.artwork(modelData.songs[0].album.cover); fillMode: Image.PreserveAspectCrop }
-                        Column {
-                            x: 104; width: parent.width - 118; anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                            Text { width: parent.width; text: modelData.name; elide: Text.ElideRight; color: theme.ink; font.family: theme.ui; font.pixelSize: 14 }
-                            Text { width: parent.width; text: modelData.owner + " · " + modelData.songs.length + " songs"; wrapMode: Text.WordWrap; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11 }
-                        }
-                    }
-                }
-            }
+            width: parent.width; title: "Your playlists"; subtitle: "Created in this preview session"
+            records: root.artistData.playlists.map(function(p) {
+                return {title:p.name, subtitle:p.songs.length + " songs", playlist:p,
+                    cover:p.songs.length ? p.songs[0].album.cover : ""};
+            })
+            artistData: root.artistData; prefix: "vinylArtistPlaylist"
+            onActivated: record => { playlistDialog.selection = record.playlist; playlistDialog.open(); }
+            onItemFocused: item => root.reveal(item)
+        }
+        VinylArtistShelf {
+            id: relatedSection
+            objectName: "vinylArtistRelatedSection"
+            width: parent.width; title: "Related artists"; shape: "round"
+            subtitle: root.artistData.media.provider + " catalogue associations"
+            records: root.artistData.media.relatedArtists; artistData: root.artistData
+            prefix: "vinylArtistRelated"
+            onActivated: record => root.artistRequested(record.title)
+            onItemFocused: item => root.reveal(item)
         }
         Column {
             id: about
@@ -385,10 +313,50 @@ Flickable {
         }
     }
     Dialog {
+        id: mediaDialog
+        objectName: "vinylArtistMediaDialog"
+        property var selection: ({title:"",cover:"",provider:"",sourceUrl:"",kind:"",snapshotAt:""})
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(560, parent.width - 48)
+        modal: true
+        focus: true
+        title: selection.title
+        palette.window: "#17181d"
+        palette.windowText: theme.ink
+        palette.text: theme.ink
+        palette.button: "#292a30"
+        palette.buttonText: theme.ink
+        standardButtons: Dialog.Close
+        contentItem: Column {
+            spacing: 16
+            RoundedPosterImage {
+                width: parent.width; height: Math.min(220, width * 9 / 16); radius: 8
+                visible: mediaDialog.selection.cover.length > 0
+                sources: [root.artistData.artwork(mediaDialog.selection.cover)]
+            }
+            Label {
+                width: parent.width; textFormat: Text.PlainText; wrapMode: Text.WordWrap
+                text: mediaDialog.selection.provider + (mediaDialog.selection.snapshotAt ? " · Snapshot " + mediaDialog.selection.snapshotAt : "")
+            }
+            Label {
+                width: parent.width; textFormat: Text.PlainText; wrapMode: Text.WordWrap; color: theme.inkDim
+                text: "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
+            }
+            KeyboardAction {
+                objectName: "vinylArtistMediaSource"; width: parent.width; height: 40
+                accessibleName: "Open catalogue source in browser"
+                accessibleDescription: mediaDialog.selection.sourceUrl
+                onTriggered: Qt.openUrlExternally(mediaDialog.selection.sourceUrl)
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "Open catalogue source ↗"; color: theme.gold; font.family: theme.ui; font.pixelSize: 14 }
+            }
+        }
+    }
+    Dialog {
         id: createDialog
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: 420
+        width: Math.min(420, parent.width - 48)
         title: "Create playlist"
         modal: true
         palette.window: "#17181d"
@@ -413,7 +381,7 @@ Flickable {
         property var selection: ({name:"",songs:[]})
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: 520; height: Math.min(500, parent.height - 80)
+        width: Math.min(520, parent.width - 48); height: Math.min(500, parent.height - 80)
         title: selection.name
         modal: true
         palette.window: "#17181d"

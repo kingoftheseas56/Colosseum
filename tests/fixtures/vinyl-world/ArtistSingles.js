@@ -10,7 +10,7 @@ var data = [
     ],
     "year": "2026",
     "releaseType": "Single",
-    "cover": "https://yt3.googleusercontent.com/l3XtmunN_SczRxtnQ8U0mgYFPYtVJ3xOZsJAvUGatyNEgb5gL6zA-ByIHft8DIjJo2sWEShsuqbITNad=w544-h544-l90-rj",
+    "cover": "artist-media/cover-adf40cc9a2f24721cc8f.jpg",
     "tracks": [
       {
         "title": "Kanagamani (From \"Dorothy\")",
@@ -31,7 +31,7 @@ var data = [
     ],
     "year": "2026",
     "releaseType": "Single",
-    "cover": "https://yt3.googleusercontent.com/vSp4185DLFCXyfsB5YsHR026V8JKTy9WaOar6DpxZmnP3Xift-M1t1jgtxquVfd_dinN19g3KToosT7S=w544-h544-l90-rj",
+    "cover": "artist-media/cover-2167fe2315787d327cd8.jpg",
     "tracks": [
       {
         "title": "Tharapadham",
@@ -61,7 +61,7 @@ var data = [
     ],
     "year": "2026",
     "releaseType": "EP",
-    "cover": "https://yt3.googleusercontent.com/0FgNF2Pi4OMavoLM3QfkAjhv-EVRj41alnMyNs-x8CCB2U_dZYD8D0YYZ_rDQMp-uHF8c1jAkGALzoPc=w544-h544-l90-rj",
+    "cover": "artist-media/cover-5dc1c28d581447565963.jpg",
     "tracks": [
       {
         "title": "Panthu Thattanam",

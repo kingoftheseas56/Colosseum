@@ -172,11 +172,11 @@ TestCase {
         compare(host.artistData.songs[0].track.title, "Without Me");
         verify(!host.artistData.createPlaylist("   "));
         verify(host.artistData.createPlaylist("My Eminem mix"));
-        compare(host.artistData.playlists.length, 2);
-        compare(host.artistData.playlists[1].songs.length, 5);
-        item("vinylArtistPlaylist_1").activate();
+        compare(host.artistData.playlists.length, 1);
+        compare(host.artistData.playlists[0].songs.length, 5);
+        item("vinylArtistPlaylist_0").activate();
         tryVerify(function() { return item("vinylArtistPlaylistSong_0") !== null; });
-        var selected = host.artistData.playlists[1].songs[0];
+        var selected = host.artistData.playlists[0].songs[0];
         mouseClick(item("vinylArtistPlaylistSong_0"));
         compare(host.pageData.playingTrack.title, selected.track.title);
         item("vinylArtistNav_4").activate();
@@ -195,10 +195,127 @@ TestCase {
         compare(host.page, "artist");
         compare(host.artistScroll.contentY, oldY);
         host.artistData.open("Joni Mitchell");
-        compare(host.artistData.playlists.length, 1);
+        compare(host.artistData.playlists.length, 0);
         compare(host.artistData.releaseHistory.length, 1);
         host.artistData.open("Eminem");
-        compare(host.artistData.playlists[1].name, "My Eminem mix");
+        compare(host.artistData.playlists[0].name, "My Eminem mix");
+    }
+    function test_referenceBreadthIsDataGated() {
+        host.artistData.open("Eminem");
+        verify(host.artistData.media !== undefined, "Artist media projection must exist");
+        verify(host.artistData.media.videos.length >= 3);
+        verify(host.artistData.media.relatedArtists.length >= 3);
+        verify(host.artistData.media.portrait.cover.length > 0);
+        compare(host.artistData.media.livePerformances.length, 0);
+        compare(host.artistData.media.featuredPlaylists.length, 0);
+        compare(host.artistData.media.artistPlaylists.length, 0);
+        compare(host.artistData.playlists.length, 0);
+        verify(!item("vinylArtistLiveSection").visible);
+        verify(!item("vinylArtistFeaturedSection").visible);
+        verify(!item("vinylArtistArtistPlaylistsSection").visible);
+        verify(!item("vinylArtistLibrarySection").visible);
+        var playing = host.pageData.playingEditionId;
+        item("vinylArtistVideo_0").activate();
+        tryVerify(function() { return item("vinylArtistMediaSource").visible; });
+        compare(item("vinylArtistMediaSource").accessibleDescription, host.artistData.media.videos[0].sourceUrl);
+        compare(host.pageData.playingEditionId, playing);
+        keyClick(Qt.Key_Escape);
+        tryVerify(function() { var source = item("vinylArtistMediaSource"); return !source || !source.visible; });
+        var related = host.artistData.media.relatedArtists[0].title;
+        item("vinylArtistRelated_0").activate();
+        compare(host.artistData.record.name, related);
+    }
+    function test_optionalSectionsNeedRecordsAndProvenance() {
+        host.artistData.open("Test artist");
+        var record = {id:"fixture",title:"Test record",sourceUrl:"https://example.test/record",cover:""};
+        host.artistData.mediaCatalogue = {"Test artist": {
+            name:"Test artist",provider:"Test provider",sourceUrl:"https://example.test/artist",
+            livePerformances:[null,{},record],featuredPlaylists:[record],artistPlaylists:[record],
+            videos:[{id:"unsafe",title:"Unsafe",sourceUrl:"javascript:void(0)"}]
+        }};
+        verify(host.artistData.media !== undefined);
+        compare(host.artistData.media.livePerformances.length, 1);
+        compare(host.artistData.media.videos.length, 0);
+        verify(item("vinylArtistLiveSection").visible);
+        verify(item("vinylArtistFeaturedSection").visible);
+        verify(item("vinylArtistArtistPlaylistsSection").visible);
+        item("vinylArtistLive_0").activate();
+        compare(item("vinylArtistMediaSource").accessibleDescription, record.sourceUrl);
+        keyClick(Qt.Key_Escape);
+        tryVerify(function() { var source = item("vinylArtistMediaSource"); return !source || !source.visible; });
+        host.artistData.open("Uncatalogued artist");
+        compare(host.artistData.media.livePerformances.length, 0);
+        verify(!item("vinylArtistLiveSection").visible);
+    }
+    function test_libraryProjectsExistingProfileWithoutCrossArtistLeak() {
+        var album = host.artistData.record.releases[0].album;
+        var catalogue = Object.assign({}, host.worldData.catalogue);
+        catalogue.profiles = {new:{saved:[album.id,"unknown-id"],history:[]}};
+        host.worldData.catalogue = catalogue;
+        verify(host.artistData.libraryReleases !== undefined);
+        compare(host.artistData.libraryReleases.length, 1);
+        compare(host.artistData.libraryReleases[0].album.id, album.id);
+        verify(item("vinylArtistLibrarySection").visible);
+        item("vinylArtistLibrary_0").activate();
+        compare(host.pageData.shownEditionId, album.id);
+        host.artistData.open("Uncatalogued artist");
+        compare(host.artistData.libraryReleases.length, 0);
+    }
+    function test_shelfExpansionAndNarrowSongLayout() {
+        host.artistData.open("Eminem");
+        host.width = 960;
+        wait(50);
+        var shelf = item("vinylArtistAlbumsSection");
+        verify(shelf !== null);
+        compare(shelf.expanded, false);
+        item("vinylArtistAlbumMore").activate();
+        compare(shelf.expanded, true);
+        host.width = 960;
+        wait(50);
+        var songs = item("vinylArtistSongsSection");
+        verify(songs.width >= host.artistScroll.bodyWidth - 1);
+        verify(item("vinylArtistSongAlbum_0").width > 150);
+    }
+    function test_provenanceAndUnknownMetricsAreNotPromoted() {
+        var source = {name:"Artist",provider:"Catalogue",sourceUrl:"https://example.test/artist",
+            monthlyListeners:999, biography:"Unsourced", videos:[
+                {id:"v",title:"Video",sourceUrl:"https://example.test/video",views:123},
+                {id:"v",title:"Duplicate",sourceUrl:"https://example.test/video"}],
+            relatedArtists:{title:"Not an array"}};
+        var result = Catalogue.mediaForArtist({Artist:source}, "Artist");
+        compare(result.videos.length, 1);
+        compare(result.videos[0].views, undefined);
+        compare(result.monthlyListeners, undefined);
+        compare(result.biography, undefined);
+        compare(result.relatedArtists.length, 0);
+        source.videos.push({id:"__proto__",title:"Opaque provider ID",sourceUrl:"https://example.test/opaque"});
+        source.videos.push({id:"bad-title",title:{name:"Not text"},sourceUrl:"https://example.test/bad"});
+        result = Catalogue.mediaForArtist({Artist:source}, "Artist");
+        compare(result.videos.length, 2);
+        compare(result.videos[1].id, "__proto__");
+        compare(Catalogue.mediaForArtist({Other:source}, "Other").videos.length, 0);
+        source.sourceUrl = "file:///private";
+        compare(Catalogue.mediaForArtist({Artist:source}, "Artist").videos.length, 0);
+        compare(Catalogue.releaseCards([{id:"x",title:"Undated"}])[0].subtitle, "Album");
+    }
+    function test_keyboardScrollingAndFocusReveal() {
+        host.artistData.open("Eminem");
+        host.artistScroll.contentY = 0;
+        host.artistScroll.forceActiveFocus();
+        keyClick(Qt.Key_Down);
+        compare(host.artistScroll.contentY, 64);
+        keyClick(Qt.Key_PageDown);
+        verify(host.artistScroll.contentY > 64);
+        keyClick(Qt.Key_PageUp);
+        fuzzyCompare(host.artistScroll.contentY, 64, 0.1);
+        var card = item("vinylArtistVideo_0");
+        card.forceActiveFocus();
+        verify(host.artistScroll.contentY > 64);
+        mouseClick(card, card.width / 2, card.artHeight / 2);
+        tryCompare(item("vinylArtistMediaSource"), "visible", true);
+        compare(item("vinylArtistMediaSource").accessibleDescription, host.artistData.media.videos[0].sourceUrl);
+        keyClick(Qt.Key_Escape);
+        tryVerify(function() { var source = item("vinylArtistMediaSource"); return !source || !source.visible; });
     }
     function test_captureStates() {
         if (typeof VinylCaptureDirectory === "undefined" || !VinylCaptureDirectory)
@@ -206,6 +323,13 @@ TestCase {
         var cases = [
             {name:"Eminem",width:1280,height:720,y:0,tag:"artist-1280"},
             {name:"Eminem",width:1600,height:900,y:0,tag:"artist-1600"},
+            {name:"Eminem",width:1280,height:720,y:0,nav:1,tag:"artist-albums"},
+            {name:"Eminem",width:1280,height:720,y:0,nav:5,tag:"artist-videos"},
+            {name:"Eminem",width:1280,height:720,y:0,nav:10,tag:"artist-related"},
+            {name:"Eminem",width:960,height:720,y:0,tag:"artist-960"},
+            {name:"Eminem",width:960,height:720,y:0,nav:1,tag:"artist-albums-960"},
+            {name:"Eminem",width:960,height:720,y:0,nav:5,tag:"artist-videos-960"},
+            {name:"Ilaiyaraaja",width:960,height:720,y:0,tag:"artist-ilaiyaraaja-960"},
             {name:"Eminem",width:1280,height:720,y:0,nav:4,tag:"artist-about"},
             {name:"S. P. Balasubrahmanyam",width:1280,height:720,y:0,tag:"artist-credits"},
             {name:"Joni Mitchell",width:960,height:720,y:0,tag:"artist-thin"}
@@ -224,8 +348,12 @@ TestCase {
             tryCompare(host, "height", data.height);
             host.artistScroll.contentY = data.y;
             if (data.nav !== undefined) item("vinylArtistNav_" + data.nav).activate();
-            for (var cover = 0; cover < host.artistData.releases.length; ++cover)
+            for (var cover = 0; cover < item("vinylArtistAlbumsSection").shownRecords.length; ++cover)
                 tryCompare(item("vinylArtistAlbumArt_" + cover), "ready", true);
+            if (host.artistData.media.portrait.cover)
+                tryCompare(item("vinylArtistPortrait"), "status", Image.Ready);
+            for (var mediaIndex = 0; mediaIndex < item("vinylArtistVideosSection").shownRecords.length; ++mediaIndex)
+                tryCompare(item("vinylArtistVideoArt_" + mediaIndex), "ready", true);
             host.requestUpdate();
             wait(600); // Allow the shared poster primitive's 280 ms ready fade to finish.
             waitForRendering(host.contentItem);
