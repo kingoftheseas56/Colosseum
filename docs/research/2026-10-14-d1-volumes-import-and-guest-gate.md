@@ -80,3 +80,50 @@ No `CLOUDFLARE_API_TOKEN` is present in the environment. Requires Hemanth
 Rollback: `npx wrangler secret delete SESSION_SECRET` (or remove the var and
 redeploy) returns the guest lane to fail-closed 503; the imported rows are
 additive and inert until `ready=1`.
+
+## Review-findings addendum (2026-10-14, second pass)
+
+**ADMIN_TOKEN rotation — prepared, NOT executed; incident NOT resolved.**
+Exact blocker: every authorized Cloudflare route from this machine is
+closed. `npx wrangler whoami` reports the OAuth token expired and
+non-refreshable non-interactively; no `CLOUDFLARE_API_TOKEN` exists in the
+User or Machine environment; the historical house pattern (watchparty-relay
+DEPLOYMENT.md) is a one-time interactive `wrangler login` by the account
+owner. Rotation requires rewriting the `ADMIN_TOKEN` Worker secret, which
+only Cloudflare-side authorization can do. What is ready:
+`tools/rotate-admin-token.py --apply` performs the whole rotation in one
+authorized shell — generates the new secret (never printed, piped straight
+to `wrangler secret put`), derives the publisher bearer exactly like the
+Worker's `admin()` (derivation cross-proven against node crypto on a fixed
+vector: identical standard-base64 HMAC), atomically rewrites
+`.publisher/config.json`, then verifies the OLD token is rejected (401) and
+the NEW token accepted (200) against `/admin/status`, printing only status
+codes. `--verify-only` re-checks the current token. The exposed credential
+remains valid until this runs; treat the staging admin surface as exposed
+until then. SESSION_SECRET is untouched — no independent reason to rotate
+it (it has not appeared in any transcript).
+
+**Rate-limit namespace fixed and the real config validated.** The limiter
+`namespace_id` is now the account-unique positive integer string `"1001"`
+(matching the test fixture; no other Worker on the account declares a
+rate-limit namespace). Validation ran against the ACTUAL deployment config,
+not a fixture: `npx wrangler deploy --dry-run --outdir dist-verify` exits 0
+and prints the resolved bindings — `env.CATALOG`/`env.METADATA` (D1),
+`env.GUEST_RATE_LIMITER (30 requests/60s)` (Rate Limit),
+`env.ENVIRONMENT ("staging")` + `env.TANKOBAN_GUEST_ENABLED ("true")`. The
+signing secret requirement stands: without `SESSION_SECRET` (≥32 chars) the
+guest lane still fails closed by code. Limiter semantics, corrected: the
+Workers rate-limiting binding is approximate and enforced at individual
+Cloudflare edge locations — it blunts abuse, it is not a strict
+account-wide quota. Staging deployment itself remains blocked on the
+wrangler-auth blocker above; release traffic is not enabled (the candidate
+now compiles no endpoint by default — finding 3).
+
+**Budget accounting, corrected.** 2026-10-14 closes at 58,978 RESERVED
+ESTIMATED writes in the server's `_import_budget` ledger (yesterday
+49,584). The ledger is an estimate trail, not actual D1 `rows_written`;
+actuals need Cloudflare analytics (GraphQL), which the same auth blocker
+prevents, so no free-plan headroom figure is claimed. Remaining volumes:
+3,335 rows ≈ 7,720 estimated writes including chunk overhead — gated until
+the 2026-10-15 UTC budget day; the resumable publisher completes it in one
+run and flips `ready=1` via its row-count-checked `/admin/complete`.

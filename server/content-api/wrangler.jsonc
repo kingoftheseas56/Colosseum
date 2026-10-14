@@ -16,11 +16,15 @@
   },
   // Per-IP guest lease issuance bound (Workers rate limiting binding, free
   // tier). Desktop clients issue one lease per session plus a re-issue on
-  // 401/409 only; 30/min per IP is far above that and blunts abuse.
+  // 401/409 only; 30/min per IP is far above that and blunts abuse. The
+  // limiter is approximate — it applies at individual Cloudflare edge
+  // locations, not as a strict account-wide quota. namespace_id must be an
+  // account-unique positive integer string ("1001"; matches the test
+  // fixture, no other Worker on the account uses a rate-limit namespace).
   "ratelimits": [
     {
       "name": "GUEST_RATE_LIMITER",
-      "namespace_id": "guest-rate-limiter-1",
+      "namespace_id": "1001",
       "simple": { "limit": 30, "period": 60 }
     }
   ],
