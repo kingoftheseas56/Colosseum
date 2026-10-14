@@ -3504,36 +3504,6 @@ Window {
                 }
             }
 
-            Column {
-                width: parent.width
-                spacing: 16
-                Text { text: "Coming Next"; color: theme.ink; font.family: theme.display; font.pixelSize: 28 }
-                Flow {
-                    width: parent.width
-                    spacing: 16
-                    Repeater {
-                        model: ["Feria", "Vinyl"]
-                        delegate: Rectangle {
-                            required property string modelData
-                            width: contentCol.width < 560 ? contentCol.width : (contentCol.width - 16) / 2
-                            height: 88
-                            radius: 12
-                            color: theme.glassTint
-                            border.color: theme.edge
-                            Accessible.role: Accessible.StaticText
-                            Accessible.name: modelData + ", Coming Soon"
-                            Row {
-                                anchors.left: parent.left; anchors.leftMargin: 20
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 16
-                                Text { text: modelData; color: theme.ink; font.family: theme.display; font.pixelSize: 25 }
-                                Text { text: "Coming Soon"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                            }
-                        }
-                    }
-                }
-            }
-
             // ---- 4. MODE-INTRO WIDGETS — the board that introduces each app AND shows what's inside.
             //      First prototype: Tankoban as a BOOKSHELF (manga covers standing on a shelf ledge).
             //      The other modes get their own widget forms next; this is the shape to react to.

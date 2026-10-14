@@ -15,8 +15,10 @@ for (const name of ['Feria', 'Vinyl', 'feria', 'VINYL', ' Feria ', ' vinyl ']) {
     assert.equal(context.currentSurface, 'Home');
 }
 assert.doesNotMatch(main, /ComingNextPreview|ComingNextSection|comingNextLayer|openComingNextPreview/);
-const cards = main.slice(main.indexOf('text: "Coming Next"'), main.indexOf('// ---- 4. MODE-INTRO'));
-assert.match(cards, /model: \["Feria", "Vinyl"\]/);
-assert.match(cards, /text: "Coming Soon"/);
-assert.doesNotMatch(cards, /KeyboardAction|MouseArea|TapHandler|onTriggered|onClicked|Loader/);
-console.log('Coming Soon world guard and non-actionable Home labels PASS');
+assert.doesNotMatch(main, /text: "Coming Next"/);
+const topbar = fs.readFileSync(new URL('../qml/TopBar.qml', import.meta.url), 'utf8');
+assert.match(topbar, /Pill \{ label: "Feria"; comingSoon: true \}/);
+assert.match(topbar, /Pill \{ label: "Vinyl"; comingSoon: true \}/);
+assert.match(topbar, /text: "Coming Soon"/);
+assert.match(topbar, /enabled: !pill.comingSoon/);
+console.log('Coming Soon world guard and disabled top tabs PASS');

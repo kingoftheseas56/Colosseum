@@ -21,7 +21,7 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
-    readonly property bool compactChrome: width < 1000
+    readonly property bool compactChrome: width < 1200
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -166,7 +166,7 @@ Item {
 
     // ---- inline: a library pill (selected when its label == activeMedium).
     //      Clean centered TEXT — icons return later with proper active/inactive tinting.
-    //      comingSoon → a placeholder mode: muted "SOON" tag, not navigable. ----
+    //      comingSoon → a placeholder mode: muted "Coming Soon" tag, not navigable. ----
     component Pill: Item {
         id: pill
         // Automation identity (Lanista): the pills are plain Items made clickable by a child
@@ -176,7 +176,7 @@ Item {
         property string label
         property url icon
         property bool comingSoon: false
-        readonly property bool active: bar.activeMedium === pill.label
+        readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
         implicitWidth: pillContent.implicitWidth + (bar.width < 1000 ? 24 : 34)
         implicitHeight: 34
@@ -187,26 +187,26 @@ Item {
             border.width: 1
             border.color: pill.active ? "transparent" : (pill.hot ? theme.edge : "transparent")
         }
-        Row {
+        Column {
             id: pillContent
             anchors.centerIn: parent
-            spacing: 6
+            spacing: 2
             Text {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
                 font.family: theme.ui; font.pixelSize: 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.horizontalCenter: parent.horizontalCenter
             }
-            Rectangle {   // "SOON" marker — placeholder mode, no world yet
+            Rectangle {   // Coming Soon marker — placeholder mode, no world yet
                 visible: pill.comingSoon
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.horizontalCenter: parent.horizontalCenter
                 radius: 4; height: 15; width: soonText.implicitWidth + 10
                 color: Qt.rgba(1,1,1,0.10)
                 Text {
-                    id: soonText; anchors.centerIn: parent; text: "SOON"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 0.8
+                    id: soonText; anchors.centerIn: parent; text: "Coming Soon"
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
                 }
             }
         }
@@ -215,7 +215,7 @@ Item {
             objectName: "modePillFocus_" + pill.label
             anchors.fill: parent
             enabled: !pill.comingSoon
-            accessibleName: pill.label
+            accessibleName: pill.label + (pill.comingSoon ? ", Coming Soon" : "")
             focusRadius: pill.height / 2
             onTriggered: bar.mediumSelected(pill.label)
         }
@@ -281,6 +281,8 @@ Item {
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
+            Pill { label: "Feria"; comingSoon: true }
+            Pill { label: "Vinyl"; comingSoon: true }
         }
     }
 
