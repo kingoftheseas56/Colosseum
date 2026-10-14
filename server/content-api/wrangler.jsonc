@@ -6,7 +6,24 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": false },
-  "vars": { "ENVIRONMENT": "staging" },
+  "vars": {
+    "ENVIRONMENT": "staging",
+    // Guest Tankoban lane (2026-10-14): the semantic client's lease gate.
+    // Requires SESSION_SECRET (>=32 chars) via `wrangler secret put
+    // SESSION_SECRET`; without it the worker still fails closed (503
+    // GUEST_UNAVAILABLE) by code.
+    "TANKOBAN_GUEST_ENABLED": "true"
+  },
+  // Per-IP guest lease issuance bound (Workers rate limiting binding, free
+  // tier). Desktop clients issue one lease per session plus a re-issue on
+  // 401/409 only; 30/min per IP is far above that and blunts abuse.
+  "ratelimits": [
+    {
+      "name": "GUEST_RATE_LIMITER",
+      "namespace_id": "guest-rate-limiter-1",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
   "d1_databases": [
     { "binding": "CATALOG", "database_name": "colosseum-catalog-staging", "database_id": "05a2f058-5df9-4636-a772-34a2672fb655", "migrations_dir": "migrations/catalog" },
     { "binding": "METADATA", "database_name": "colosseum-metadata-staging", "database_id": "9ea859a1-f800-4c24-b24a-476872eec0e2", "migrations_dir": "migrations/metadata" }
