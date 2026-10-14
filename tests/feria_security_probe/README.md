@@ -31,12 +31,17 @@ current native policy. Run one selected case with `-input tests/feria_security_p
   the test removes that frame, waits for the native frame tree to become empty,
   then answers the old application prompt. The origin must not receive a stored
   grant. Do not skip or invert this assertion to qualify the current runtime.
+- `FeriaFramePermissions::test_replacedFrameCannotReceiveLateGrant` keeps the
+  exact iframe URL while either reloading its document or replacing its element.
+  Fresh child reports establish replacement before answering the old prompt.
+  Both rows currently FAIL on stock (2 passed, 2 failed, native exit 2); this
+  prevents a URL-only guard from being mistaken for document lifetime protection.
 - `FeriaFramePermissions::test_liveFrameGrantAndExplicitReset` is its positive
   control: a live frame receives actual font entries after consent, profile reset
   returns to Ask, and a fresh request can be denied. Only counts are inspected;
   font names and contents are never logged. Chromium may resolve denial with an
   empty list, so the test checks the permission state and absence of returned data.
-  Both frame cases require the Windows platform, foreground opt-in above, and a
+  All frame cases require the Windows platform, foreground opt-in above, and a
   runner rebuilt with the `/services-permission-*` HTTP routes. Profiles are
   disposable and unique per case.
 

@@ -133,5 +133,39 @@ Item {
             verify(requests.answer(requests.current.id, false))
             assertDenied("reset", origin)
         }
+        function test_replacedFrameCannotReceiveLateGrant_data() {
+            return [{tag: "identical-url-reload", replaceElement: false},
+                    {tag: "identical-url-new-frame", replaceElement: true}]
+        }
+        function test_replacedFrameCannotReceiveLateGrant(data) {
+            var origin = String(FixtureUrl).replace("127.0.0.1", "localhost")
+            var requests = browser.browserRequests
+            tryVerify(function() { return !!report("first", "state") }, 5000)
+            compare(report("first", "state").state, "prompt")
+            clickRequest()
+            tryVerify(function() { return requests.current !== null }, 10000)
+            compare(requests.current.kind, "permission")
+            compare(requests.current.request.permissionType, WebEnginePermission.PermissionType.LocalFontsAccess)
+            compare(requests.current.origin, origin)
+            var oldId = requests.current.id
+            var oldUrl = String(browser.mainFrame.children[0].url)
+            // Discard the old document's ready/state reports before navigation.
+            // The fixture emits ready only when a new child document executes.
+            var action = data.replaceElement
+                ? "f.remove();window.makeFrame('first')"
+                : "f.src=f.src"
+            compare(js("window.frameReports=[];var f=document.querySelector('iframe');"
+                + action + ";true"), true)
+            tryVerify(function() { return !!report("first", "ready") && !!report("first", "state") }, 10000)
+            compare(browser.mainFrame.children.length, 1)
+            compare(String(browser.mainFrame.children[0].url), oldUrl,
+                "The replacement must retain the exact URL, so a URL-only fence cannot pass")
+            compare(report("first", "state").state, "prompt")
+            requests.answer(oldId, true)
+            var state = browser.profile.queryPermission(origin, WebEnginePermission.PermissionType.LocalFontsAccess).state
+            console.log("FRAME_PERMISSION_REPLACED " + JSON.stringify({caseName:data.tag,state:state,oldId:oldId}))
+            verify(state !== WebEnginePermission.State.Granted,
+                "A replaced document must not gain a persistent grant from its predecessor's prompt")
+        }
     }
 }
