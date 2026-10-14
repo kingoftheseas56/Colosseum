@@ -132,8 +132,10 @@ network response time nor full-catalogue/Worker/native loading performance.
 
 ## Acceptance boundaries and next gate
 
-Full import remains held for Astra review of the projection, source contracts
-and cost evidence. The new publisher still needs its own immutable manifest
+The user subsequently waived a separate Astra review. Full projection import
+remains separate work requiring publisher/recovery and contract qualification;
+the completed Tankoban staging verification is recorded in
+`2026-10-14-tankoban-upload-complete.md`. The new publisher still needs its own immutable manifest
 and checkpoint namespace, primary-key cursors for `WITHOUT ROWID` tables,
 byte/parameter-aware chunks, atomic data-plus-receipt recovery and actual meters
 for controls, bookkeeping and verification. Preserve the existing Tankoban lane
