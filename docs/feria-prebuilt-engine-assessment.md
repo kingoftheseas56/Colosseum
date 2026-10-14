@@ -1,0 +1,40 @@
+# Windows prebuilt engine assessment
+
+Inspected 2026-10-14. This is a publisher/source and package-metadata search,
+not acceptance of another binary. No new engine archive was installed or run.
+The target remains QtWebEngine with the secure streaming arc's full gates.
+
+| Candidate | Evidence | Decision / missing proof |
+| --- | --- | --- |
+| Existing GoldenDict-ng codec overlay | Local overlay manifest identifies `Goldendict-ng-260529-win64-qt6111.7z`, archive SHA256 `e833a49ccbf66679070932a981f1a6ddd22e4724a554f4290ea67671a0399897`; H.264/AAC decoding was observed, engine API reports 6.11.2 on Qt 6.11.1 | Keep as measured codec baseline. Full feature configuration and exact publisher source provenance remain unresolved; its stale-frame permission regression fails. |
+| [Conda-forge qt6-webengine](https://api.anaconda.org/package/conda-forge/qt6-webengine) | Actual Windows x64 asset `qt6-webengine-6.11.2-pl5321h80dc20f_1.conda`, SHA256 `e047f59a3527359013dd5bd5ccc8ffb75c678ce1167d53a084fd29c628781314`, 189584408 bytes, uploaded 2026-10-03. Requires matching `qt6-main 6.11.2.*` and additional Conda dependencies | A complete package candidate, not a DLL drop-in for the current SDK. Recipe explicitly enables Quick, Widgets and PDF/printing, but does not establish proprietary codec support. No binary inspection or runtime proof yet. |
+| [Doug Massay / Sigil Qt builds](https://github.com/dougmassay/win-qtwebkit-5.212/releases/tag/v5.212-1) | Release metadata includes Qt 6.9.2/6.9.3 VS2022 and 6.10.2 VS2026 archives. `Windows.Qt6.build.info.txt` explicitly configures proprietary codecs in its Qt 6.9.2 example | Credible codec publisher lead, but the build-info example does not establish exact flags/modules of every archive. Older Qt/toolchain combinations are not qualified replacements for Feria's current pairings. |
+| [Calibre / bypy](https://github.com/kovidgoyal/bypy/blob/master/bypy/pkgs/qt_webengine.py) | Recipe explicitly enables proprietary codecs and Widgets, disables WebEngineQuick | Potential Core donor only. Matching Quick would still need compilation and private ABI/source verification; no packaged artifact was accepted. |
+| [qutebrowser Windows releases](https://github.com/qutebrowser/qutebrowser/blob/main/doc/install.asciidoc) | Publisher documents codec-free Windows builds | Does not solve our proprietary-codec requirement. |
+
+Conda recipe pin inspected:
+[`d6573704181dbbe592441715e09bd96cf6b9ae38`](https://github.com/conda-forge/qt-webengine-feedstock/tree/d6573704181dbbe592441715e09bd96cf6b9ae38/recipe).
+Publisher recipe flags are weaker evidence than the exact package's feature
+headers, source manifest and runtime checks; do not promote them to acceptance.
+The current GoldenDict ordinary release workflow uses official Qt packages; its
+vcpkg dependency export is not a Qt SDK. The exact older codec archive's public
+release/recipe was not recovered in this bounded search.
+
+## Security and integration gate
+
+Qt permission-handle source at
+[`v6.11.2`, commit a33fa2a897e5ee58e385b3f88dc247d99fca56db](https://github.com/qt/qtwebengine/blob/a33fa2a897e5ee58e385b3f88dc247d99fca56db/src/core/api/qwebenginepermission.cpp)
+and
+[`dev`, commit a0150f4d48a79483b4ab67f24f63a4f6f9417329](https://github.com/qt/qtwebengine/blob/a0150f4d48a79483b4ab67f24f63a4f6f9417329/src/core/api/qwebenginepermission.cpp)
+still validates profile/type/origin without checking the requesting document's
+lifetime. This source finding is not a runtime test of either newer build, nor
+proof that every third-party patchset lacks a remedy. No searched package has
+evidence closing Feria's reproduced stale-frame consent defect.
+
+Next: inspect exact package/source/feature metadata of any proposed replacement,
+require matching Core/Quick/helper/resources and the required browser features,
+then run the existing positive and stale-frame regressions in a disposable lane.
+Prebuilt codecs alone do not establish sandboxing, DRM/CDM availability, provider
+acceptance, popup independence or document-bound consent. The unbuilt Core patch
+and a full-engine build route remain open alternatives; no release is authorized
+by this assessment.
