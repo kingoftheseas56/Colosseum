@@ -5,9 +5,9 @@
 // harvest). Catalogue-independence Slice 1 (2026-08-20): the offline,
 // provider-free source of per-series volume counts and covers — the data
 // spine every later slice reads. MalCatalog pattern exactly: QML paints, C++
-// decides; db/schema/query shape live here. Missing db => ready()==false and
-// every accessor returns empty — later slices fall through to an honest
-// shelf-less page, never a guess.
+// decides; db/schema/query shape live here. Missing db => ready()==false;
+// accessors can still serve validated per-series remote/cache facts. Without
+// either source, they return empty rather than guessing.
 #include <QObject>
 #include <QSqlDatabase>
 #include <QVariantList>
@@ -19,6 +19,7 @@
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QJsonObject;
 
 class TankobanCatalog final : public QObject {
     Q_OBJECT
@@ -37,20 +38,23 @@ public:
     Q_INVOKABLE void closeForSwap();
 
     // {volumeCount:int, countBasis:string} — countBasis is "mal" or
-    // "bookwalker". Empty map when the db is missing or malId is unknown.
+    // "bookwalker". Empty map when neither local nor remote/cache facts know malId.
     Q_INVOKABLE QVariantMap seriesInfo(int malId) const;
 
     // [{number:string, cover:string, name:string}], numeric-aware ordered
     // (2 before 10). Numbers "1".."N" are synthesized from seriesInfo's
     // volumeCount wherever no baked volume row exists for that number; baked
     // cover_url/name overlay the synthesized rows where present. Empty list
-    // when the db is missing, malId is unknown, or the series has neither a
+    // when both sources lack malId, or the series has neither a
     // known count nor any baked volume rows.
     Q_INVOKABLE QVariantList volumes(int malId) const;
 
-    // Optional semantic enrichment. No configured endpoint means no network.
+    // Optional semantic enrichment. The caller owns the catalogue-vault path;
+    // an empty cachePath keeps enrichment transient. Valid cached facts load
+    // even with a null nam (offline). No endpoint means no network or cache.
     // ready() continues to describe the complete local SQLite catalogue only.
-    void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint);
+    void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint,
+                         const QString& cachePath = QString());
     Q_INVOKABLE void requestSeries(int malId, bool refresh = false);
     Q_INVOKABLE void cancelRequest();
     Q_INVOKABLE bool hasSeries(int malId) const;
@@ -70,7 +74,14 @@ private:
     void readReply(QNetworkReply* reply, int malId, quint64 generation,
                    bool issuingLease, bool renewLease);
     struct RemoteSeries { QVariantMap info; QVariantList volumes; QString sourceHash; QDateTime fetchedAt; };
+    static bool validateRemoteSeries(const QJsonObject& root, RemoteSeries* result,
+                                     QString* reason);
+    bool loadRemoteCache();
+    QByteArray remoteCacheBytes() const;
+    void boundRemoteCache(int protectedMalId = 0);
+    void saveRemoteCache() const;
     QHash<int, RemoteSeries> m_remoteSeries;
+    QString m_cachePath;
     QPointer<QNetworkAccessManager> m_nam;
     QPointer<QNetworkReply> m_reply;
     QUrl m_endpoint;

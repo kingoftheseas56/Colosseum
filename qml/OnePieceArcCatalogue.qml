@@ -14,6 +14,10 @@ Item {
     property var relatedItems: []
     property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
     property int mangaMalId: 13
+    property bool _componentComplete: false
+    property var _volumeRequestCatalog: null
+    property int _volumeRequestMalId: 0
+    property bool _volumeReentry: false
     readonly property string seaLabel: root.arc && root.arc.seaLabel ? String(root.arc.seaLabel) : "East Blue"
     readonly property string sagaLabel: root.arc && root.arc.sagaLabel ? String(root.arc.sagaLabel) : root.seaLabel
 
@@ -55,8 +59,10 @@ Item {
         }
     }
 
-    function refresh() {
+    function refresh(revalidateVolumes) {
+        if (!root._componentComplete) return
         if (!root.arc) {
+            root._volumeReentry = true
             root.animeItems = []
             root.onePaceItems = []
             root.liveItems = []
@@ -83,13 +89,40 @@ Item {
             root.liveItems = rows || []
             root.liveLoading = false
         })
-        root.rebuildVolumes()
+        root.requestVolumes(revalidateVolumes !== false)
         Qt.callLater(root.focusRequestedLane)
     }
 
+    function requestVolumes(revalidate) {
+        if (!root._componentComplete) return
+        root.rebuildVolumes()
+        var catalog = root.tankobanCatalogRef
+        if (!root.arc || root.mangaMalId <= 0 || !catalog
+                || typeof catalog.requestSeries !== "function") return
+        // Ordinary arc/extension changes only reselect this series. Explicit
+        // refresh or re-entry reissues once: another consumer may have silently
+        // superseded our request. The native owner replaces its single request
+        // slot, so this does not create parallel requests or a signal retry loop.
+        var shouldRequest = revalidate === true || root._volumeReentry
+        root._volumeReentry = false
+        if (root._volumeRequestCatalog === catalog
+                && root._volumeRequestMalId === root.mangaMalId
+                && !shouldRequest) return
+        root._volumeRequestCatalog = catalog
+        root._volumeRequestMalId = root.mangaMalId
+        // Record before calling: cached results/failures can arrive inline.
+        catalog.requestSeries(root.mangaMalId)
+    }
+
     function rebuildVolumes() {
+        if (!root.arc) {
+            root.volumeItems = []
+            return
+        }
         var rows = []
-        if (root.tankobanCatalogRef && root.tankobanCatalogRef.ready && root.tankobanCatalogRef.ready())
+        // ready() describes the local database, not remote or cached series.
+        if (root.tankobanCatalogRef && root.mangaMalId > 0
+                && typeof root.tankobanCatalogRef.volumes === "function")
             rows = root.tankobanCatalogRef.volumes(root.mangaMalId) || []
         root.volumeItems = rows.length
                 ? CatalogApi.selectVolumes(rows, root.arc)
@@ -107,15 +140,30 @@ Item {
                                   Math.max(0, catalogue.contentHeight - catalogue.height)))
     }
 
-    onArcChanged: refresh()
-    onInstalledExtensionsChanged: refresh()
+    onArcChanged: refresh(false)
+    onInstalledExtensionsChanged: refresh(false)
+    onTankobanCatalogRefChanged: {
+        root._volumeRequestCatalog = null
+        root.requestVolumes()
+    }
+    onMangaMalIdChanged: requestVolumes(true)
     onFocusLaneChanged: Qt.callLater(focusRequestedLane)
-    Component.onCompleted: refresh()
+    Component.onCompleted: {
+        root._componentComplete = true
+        root.refresh(false)
+    }
 
     Connections {
         target: root.tankobanCatalogRef
         ignoreUnknownSignals: true
         function onReadyChanged() { root.rebuildVolumes() }
+        function onRevisionChanged() { root.rebuildVolumes() }
+        function onSeriesChanged(malId) {
+            if (malId === root.mangaMalId) root.rebuildVolumes()
+        }
+        function onSeriesFailed(malId, reason) {
+            if (malId === root.mangaMalId) root.rebuildVolumes()
+        }
         function onChanged() { root.rebuildVolumes() }
     }
 

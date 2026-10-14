@@ -1451,7 +1451,8 @@ int main(int argc, char *argv[]) {
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
     auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &backendServices);
 #ifdef COLOSSEUM_CONTENT_API_URL
-    tankobanCatalog->configureRemote(updateNam, QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL)));
+    tankobanCatalog->configureRemote(updateNam, QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL)),
+                                    catalogVaultDir + QStringLiteral("/tankoban_remote_v1.json"));
 #endif
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &backendServices);
@@ -1481,6 +1482,9 @@ int main(int argc, char *argv[]) {
     auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir,
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"), &backendServices);
     catalogVaultClient->setManagedNames(catalogManagedNames);
+    // This follows validated configuration, never request health: API outages must
+    // keep using cached/local Tankoban data without reviving the GitHub bulk download.
+    catalogVaultClient->setTankobanApiEnabled(tankobanCatalog->remoteEnabled());
     engine.rootContext()->setContextProperty(QStringLiteral("CatalogVault"), catalogVaultClient);
 
     // aboutToReplace fires synchronously right before a fresh download is renamed over an
