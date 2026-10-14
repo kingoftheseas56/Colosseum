@@ -2,10 +2,16 @@
 #include <QQuickWindow>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QQmlContext>
+#include <QQmlEngine>
 
 class VinylQmlSetup : public QObject {
     Q_OBJECT
 public slots:
+    void qmlEngineAvailable(QQmlEngine *engine) {
+        engine->rootContext()->setContextProperty("VinylCaptureDirectory",
+            qEnvironmentVariable("VINYL_CAPTURE_DIR"));
+    }
     void applicationAvailable() {
         QCoreApplication::setOrganizationName("ColosseumTests");
         QCoreApplication::setApplicationName("VinylRegression");

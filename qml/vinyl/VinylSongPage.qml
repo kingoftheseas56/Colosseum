@@ -6,6 +6,8 @@ Item {
     id: root
     objectName: "vinylSongPage"
     required property var pageData
+    property bool artistNavigationEnabled: false
+    signal artistRequested(string name)
     readonly property string songTitle: pageData.playingTrack.title
     readonly property bool lyricsShown: pageData.lyricsShown
     readonly property bool autoNotes: pageData.autoNotes
@@ -132,6 +134,13 @@ Item {
                     font.family: theme.ui
                     font.pixelSize: 14
                     wrapMode: Text.WordWrap
+                    KeyboardAction {
+                        objectName: "vinylSongArtistLink"
+                        anchors.fill: parent
+                        visible: root.artistNavigationEnabled
+                        accessibleName: parent.text
+                        onTriggered: root.artistRequested(accessibleName)
+                    }
                 }
             }
         }

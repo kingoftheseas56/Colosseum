@@ -16,12 +16,61 @@ Window {
     property alias pageData: pageData
     property alias worldData: worldData
     property alias worldScroll: worldScroll
+    property alias artistData: artistData
+    property alias artistScroll: artistPage
+    property var artistTrail: []
+    property var artistChoices: []
     property string songReturnPage: "album"
     property string albumReturnPage: "world"
     property real worldReturnY: 0
+    function openArtist(name) {
+        if (!name) return;
+        var names = name.split(" · ").map(function(n) { return n.trim(); }).filter(Boolean);
+        if (names.length > 1) {
+            artistChoices = names;
+            artistChooser.open();
+            return;
+        }
+        var trail = artistTrail.slice();
+        trail.push({page: root.page, name: artistData.name, filter: artistData.filter,
+            newestFirst: artistData.newestFirst, allSongs: artistData.allSongs,
+            y: artistPage.contentY, snapshot: pageData.snapshotEdition,
+            edition: pageData.shownEditionId, disc: pageData.shownDisc,
+            albumReturn: albumReturnPage, songReturn: songReturnPage,
+            worldY: worldScroll.contentY, worldReturn: worldReturnY});
+        artistTrail = trail;
+        artistData.open(name);
+        artistPage.contentY = 0;
+        root.page = "artist";
+    }
+    function artistBack() {
+        var trail = artistTrail.slice(), previous = trail.pop();
+        artistTrail = trail;
+        if (!previous) { root.page = "world"; return; }
+        artistData.name = previous.name;
+        artistData.filter = previous.filter;
+        artistData.newestFirst = previous.newestFirst;
+        artistData.allSongs = previous.allSongs;
+        pageData.snapshotEdition = previous.snapshot;
+        pageData.shownEditionId = previous.edition;
+        pageData.shownDisc = previous.disc;
+        albumReturnPage = previous.albumReturn;
+        songReturnPage = previous.songReturn;
+        worldReturnY = previous.worldReturn;
+        root.page = previous.page;
+        Qt.callLater(function() {
+            artistPage.contentY = previous.y;
+            worldScroll.contentY = previous.worldY;
+        });
+    }
+    function openArtistAlbum(record) {
+        if (!pageData.loadAlbum(record, worldData.artwork(record.cover))) return;
+        albumReturnPage = "artist";
+        root.page = "album";
+    }
     function openSong() { if(root.page!=="song") songReturnPage=root.page;root.page="song"; }
     function openWorldItem(item) {
-        if (item.kind==="artists") return;
+        if (item.kind==="artists") { openArtist(item.title); return; }
         var album=worldData.catalogue.albums.find(function(a){return a.id===item.albumId});
         if (!album) return;
         if (item.kind==="mixes" || item.kind==="stations") {
@@ -65,16 +114,21 @@ Window {
     VinylPageData {
         id: pageData
         artworkRoot: Qt.resolvedUrl("../../tests/fixtures/vinyl-pages")
+        onArtistRequested: name => root.openArtist(name)
+    }
+    VinylArtistData {
+        id: artistData
+        catalogue: worldData.catalogue
     }
     VinylBackdrop {
         id: backdrop
         anchors.fill: parent
-        source: root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
+        source: root.page === "artist" ? (artistData.record.releases.length ? worldData.artwork(artistData.record.releases[0].album.cover) : Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")) : root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
         wordsShown: root.page === "song" && pageData.lyricsShown
         tallFixture: root.page === "song" && pageData.playingEdition.id === "mounamela"
         Rectangle {
             anchors.fill: parent
-            visible: root.page === "world"
+            visible: root.page === "world" || root.page === "artist"
             color: theme.biblioWashBottom
             opacity: 0.68
         }
@@ -96,6 +150,7 @@ Window {
             x: 68
             y: 38
             text: Qt.formatDate(new Date(), "dddd, d MMMM")
+            visible: root.width >= 1150
             color: theme.inkDim
             font.family: theme.ui
             font.pixelSize: 12
@@ -103,10 +158,11 @@ Window {
         KeyboardAction {
             width: 55
             height: 45
-            visible: root.page === "album"
+            visible: root.page === "album" || root.page === "artist"
             objectName: "vinylAlbumBack"
-            accessibleName: "Back to Vinyl"
+            accessibleName: "Back"
             onTriggered: {
+                if (root.page === "artist") { root.artistBack(); return; }
                 root.page=root.albumReturnPage;
                 Qt.callLater(function(){worldScroll.contentY=root.worldReturnY});
             }
@@ -172,6 +228,26 @@ Window {
             pageFlick: worldScroll
         }
     }
+    VinylArtistPage {
+        id: artistPage
+        anchors {
+            left: parent.left
+            right: parent.right
+            top: parent.top
+            topMargin: 110
+            bottom: bar.top
+            bottomMargin: 20
+        }
+        artistData: artistData
+        worldData: worldData
+        visible: root.page === "artist"
+        onArtistRequested: name => root.openArtist(name)
+        onAlbumRequested: record => root.openArtistAlbum(record)
+        onSongRequested: song => {
+            if (pageData.loadAlbum(song.album, worldData.artwork(song.album.cover)))
+                pageData.playTrack(song.index);
+        }
+    }
     VinylAlbumPage {
         id: album
         anchors {
@@ -203,6 +279,8 @@ Window {
         }
         visible: root.page === "song"
         pageData: pageData
+        artistNavigationEnabled: true
+        onArtistRequested: name => root.openArtist(name)
         onBackRequested: {
             root.page = root.songReturnPage;
             if(root.page==="album") album.forceActiveFocus();
@@ -211,6 +289,49 @@ Window {
             pageData.showPlayingAlbum();
             if(root.songReturnPage!=="album") root.albumReturnPage=root.songReturnPage;
             root.page = "album";
+        }
+    }
+    Popup {
+        id: artistChooser
+        objectName: "vinylArtistChooser"
+        parent: root.contentItem
+        anchors.centerIn: parent
+        width: Math.min(420, root.width - 80)
+        height: Math.min(360, artistChoicesColumn.implicitHeight + 40)
+        padding: 20
+        modal: true
+        focus: true
+        background: Glass { backdrop: backdrop; radius: 18 }
+        contentItem: Flickable {
+            contentHeight: artistChoicesColumn.implicitHeight
+            clip: true
+            Column {
+                id: artistChoicesColumn
+                width: parent.width
+                spacing: 8
+                Text { text: "Artists"; color: theme.ink; font.family: theme.display; font.pixelSize: 26 }
+                Repeater {
+                    model: root.artistChoices
+                    delegate: KeyboardAction {
+                        required property string modelData
+                        required property int index
+                        objectName: "vinylArtistChoice_" + index
+                        width: parent.width
+                        height: 44
+                        accessibleName: modelData
+                        onTriggered: { artistChooser.close(); root.openArtist(modelData); }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
+                            text: modelData
+                            elide: Text.ElideRight
+                            color: parent.interactionActive ? theme.gold : theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 15
+                        }
+                    }
+                }
+            }
         }
     }
     VinylCreditsPopup {
