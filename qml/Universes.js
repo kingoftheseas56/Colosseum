@@ -1257,13 +1257,24 @@ var FACETS = [
     { key: "series", label: "Series", match: /show|series/i },
     { key: "comics", label: "Comics", match: /comic|graphic/i }
 ];
+// Older cached roster revisions encoded RegExp as {}; retain their matching rules.
+var _facetMatchers = {};
+for (var _facetIndex = 0; _facetIndex < FACETS.length; ++_facetIndex)
+    _facetMatchers[FACETS[_facetIndex].key] = FACETS[_facetIndex].match;
 function holds(entry, key) {
     if (entry && entry.primary) return entry.primary.indexOf(key) >= 0;
     var chips = (entry && entry.chips) || [];
     for (var f = 0; f < FACETS.length; f++) {
         if (FACETS[f].key !== key) continue;
+        var matcher = FACETS[f].match;
+        if (!matcher || typeof matcher.test !== "function") {
+            try {
+                matcher = matcher && typeof matcher.source === "string"
+                        ? new RegExp(matcher.source, matcher.flags || "") : _facetMatchers[key];
+            } catch (_) { matcher = _facetMatchers[key]; }
+        }
         for (var i = 0; i < chips.length; i++)
-            if (FACETS[f].match.test(String(chips[i].t))) return true;
+            if (matcher && matcher.test(String(chips[i].t))) return true;
     }
     return false;
 }

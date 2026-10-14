@@ -166,7 +166,7 @@ Item {
 
     // ---- inline: a library pill (selected when its label == activeMedium).
     //      Clean centered TEXT — icons return later with proper active/inactive tinting.
-    //      comingSoon → a placeholder mode: muted "Coming Soon" tag, not navigable. ----
+    //      comingSoon → a placeholder mode: muted "SOON" tag, not navigable. ----
     component Pill: Item {
         id: pill
         // Automation identity (Lanista): the pills are plain Items made clickable by a child
@@ -178,7 +178,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 1000 ? 24 : 34)
+        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1000 ? 24 : 34))
         implicitHeight: 34
 
         Rectangle {
@@ -187,26 +187,26 @@ Item {
             border.width: 1
             border.color: pill.active ? "transparent" : (pill.hot ? theme.edge : "transparent")
         }
-        Column {
+        Row {
             id: pillContent
             anchors.centerIn: parent
-            spacing: 2
+            spacing: 6
             Text {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
                 font.family: theme.ui; font.pixelSize: 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
             }
-            Rectangle {   // Coming Soon marker — placeholder mode, no world yet
+            Rectangle {   // Original inline "SOON" marker — no world yet
                 visible: pill.comingSoon
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
                 radius: 4; height: 15; width: soonText.implicitWidth + 10
                 color: Qt.rgba(1,1,1,0.10)
                 Text {
-                    id: soonText; anchors.centerIn: parent; text: "Coming Soon"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
+                    id: soonText; anchors.centerIn: parent; text: "SOON"
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 0.8
                 }
             }
         }

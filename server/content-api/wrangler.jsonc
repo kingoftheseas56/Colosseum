@@ -3,7 +3,7 @@
   "name": "colosseum-content-api-staging",
   "main": "src/index.ts",
   "account_id": "69049ce787cd73028c878bf0953946f6",
-  "assets": { "directory": "generated/content-v2", "binding": "ASSETS", "run_worker_first": ["/v1/*", "/admin/*", "/healthz", "/internal/*"] },
+  "assets": { "directory": "generated/content-v3", "binding": "ASSETS", "run_worker_first": ["/v1/*", "/admin/*", "/healthz", "/internal/*"] },
   "compatibility_date": "2026-10-06",
   "workers_dev": true,
   "preview_urls": false,

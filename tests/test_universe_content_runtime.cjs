@@ -15,6 +15,16 @@ let content = documents();
 bridge.setAssetResolver(value => value.replace('../assets/', 'https://content.example/assets/'));
 bridge.setReader(key => content[key] || {});
 const roster = load('Universes.js', { ContentApi: bridge });
+assert.deepEqual(JSON.parse(JSON.stringify(roster.rosterFacets(roster.worldRoster([])))).map(f => f.label), ['Books','Manga','Anime','Films','Series']);
+const canonicalCounts = { books: 7, manga: 5, anime: 5, films: 9, series: 9 };
+for (const [key, count] of Object.entries(canonicalCounts)) assert.equal(roster.filterRoster(roster.worldRoster([]), key).length, count);
+for (const [key, label] of Object.entries({ books: 'Novels', manga: 'Manga', anime: 'Anime', films: 'Movies', series: 'Shows', comics: 'Graphic novels' }))
+  assert.equal(roster.holds({ chips: [{ t: label }] }, key), true, 'serialized RegExp fallback for ' + key);
+for (const facet of content['universes-roster'].FACETS) assert.equal(typeof facet.match.source, 'string', 'RegExp exports as a pattern');
+for (const facet of content['universes-roster'].FACETS) facet.match = {};
+bridge.reload();
+for (const [key, label] of Object.entries({ books: 'Novels', manga: 'Manga', anime: 'Anime', films: 'Movies', series: 'Shows', comics: 'Graphic novels' }))
+  assert.equal(roster.holds({ chips: [{ t: label }] }, key), true, 'legacy cached RegExp fallback for ' + key);
 assert.equal(roster.configFor('One Piece').anime.id, 'tt0388629');
 const east = load('OnePieceEastBlueData.js', { ContentApi: bridge });
 const atlas = load('OnePieceEastBlueAtlasData.js', { ContentApi: bridge });

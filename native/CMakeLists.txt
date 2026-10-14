@@ -2857,6 +2857,16 @@ target_include_directories(source_content_refresh_harness PRIVATE ${CMAKE_CURREN
 target_link_libraries(source_content_refresh_harness PRIVATE Qt6::Core Qt6::Network)
 add_test(NAME colosseum.source_content_refresh_harness COMMAND source_content_refresh_harness)
 
+add_executable(universe_native_delivery_harness
+    ../tests/universe_native_delivery_harness.cpp
+    engine/SourceContentStore.cpp engine/SourceContentStore.h
+    engine/CatalogRemote.cpp engine/CatalogRemote.h)
+target_include_directories(universe_native_delivery_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(universe_native_delivery_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick)
+add_test(NAME colosseum.universe_native_delivery_harness COMMAND universe_native_delivery_harness "${CMAKE_CURRENT_SOURCE_DIR}/..")
+set_tests_properties(colosseum.universe_native_delivery_harness PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic")
+
 add_executable(catalog_remote_harness
     ../tests/catalog_remote_harness.cpp
     engine/CatalogRemote.cpp engine/CatalogRemote.h

@@ -79,7 +79,7 @@ WorldPage {
     }
     Repeater {
         objectName: "universesWarmer"
-        model: universes.warming.length ? Saga.shelfImageUrls(universes.warming, 8) : []
+        model: universes.visible && universes.warming.length ? Saga.shelfImageUrls(universes.warming, 8) : []
         delegate: Image {
             required property string modelData
             source: modelData
@@ -186,6 +186,20 @@ WorldPage {
                 required property var modelData
                 required property int index
                 entry: bar.modelData
+                // Repeater creates the whole ledger; request art only around the page viewport.
+                property bool artLayoutReady: false
+                Component.onCompleted: Qt.callLater(function() {
+                    if (!bar || !pile) return
+                    pile.forceLayout()
+                    bar.artLayoutReady = true
+                })
+                readonly property real artTop: {
+                    const position = pile.y + bar.y
+                    return bar.mapToItem(universes.pageFlickable.contentItem, 0, 0).y
+                }
+                artActive: bar.artLayoutReady && universes.visible && universes.viewportHeight > 0
+                           && bar.artTop + bar.height >= universes.viewportContentY - bar.height - pile.spacing
+                           && bar.artTop <= universes.viewportContentY + universes.viewportHeight + bar.height + pile.spacing
                 hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index
                 onHoverEntered: if (!universes.walking && !ledgerNav.keyboardRecentlyMoved)

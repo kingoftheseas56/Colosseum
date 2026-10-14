@@ -136,6 +136,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
+            sourceSize.width: 1920
             opacity: 0.30
             onStatusChanged: {
                 if (status === Image.Error && !fallbackActive && root.arc && root.arc.heroFallbackSource)

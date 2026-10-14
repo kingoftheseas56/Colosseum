@@ -3432,8 +3432,11 @@ Window {
                                 anchors.fill: parent; radius: hero.radius; clip: true
                                 color: "#1a1410"
                                 Image {
+                                    objectName: "homeUniverseBannerArt"
                                     anchors.fill: parent
-                                    source: slide.modelData.banner
+                                    property string readySource: ""
+                                    onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                                    source: page.visible || readySource === String(slide.modelData.banner || "") ? (slide.modelData.banner || "") : ""
                                     asynchronous: true; cache: true
                                     fillMode: Image.PreserveAspectCrop
                                     opacity: status === Image.Ready ? 1 : 0

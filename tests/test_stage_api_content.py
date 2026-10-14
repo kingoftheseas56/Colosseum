@@ -32,6 +32,17 @@ class ApiStagingTests(unittest.TestCase):
         starter.parent.mkdir(parents=True, exist_ok=True)
         starter.write_text(json.dumps(self.bundle), encoding="utf-8")
 
+    def test_optimized_delivery_verifies_original_bytes_before_removal(self):
+        asset = self.bundle["manifest"]["assets"]["assets/universes/art.png"]
+        asset["sourceSha256"] = asset["sha256"]
+        asset["sha256"] = hashlib.sha256(b"optimized-webp-delivery").hexdigest()
+        self.save()
+        self.assertEqual(staging.stage_api_content(self.stage)["files"], 5)
+        (self.stage / "assets/universes/art.png").write_bytes(b"changed-original")
+        with self.assertRaises(ValueError):
+            staging.stage_api_content(self.stage, apply=True)
+        self.assertTrue((self.stage / "data/mal_catalog.db").exists())
+
     def test_dry_run_preserves_every_file_then_apply_removes_only_declared_delivery(self):
         before = {p.relative_to(self.stage): p.read_bytes() for p in self.stage.rglob("*") if p.is_file()}
         preview = staging.stage_api_content(self.stage)

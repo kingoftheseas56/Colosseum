@@ -13,7 +13,11 @@ function reload(generation) {
     if (generation !== undefined) _generation = generation;
     for (var i = 0; i < _subscribers.length; ++i) _subscribers[i]();
 }
-function document(key) { return _reader ? (_reader(key) || {}) : {}; }
+function document(key) {
+    // Q_INVOKABLE QVariantMaps contain Qt sequences, which are not JavaScript arrays.
+    // Normalize the JSON contract before adapters map/filter or resolve nested assets.
+    return _reader ? JSON.parse(JSON.stringify(_reader(key) || {})) : {};
+}
 function asset(path) { return _assetResolver ? _assetResolver(String(path || "")) : path; }
 function resolveAssets(value) {
     if (typeof value === "string") return value.indexOf("../assets/") === 0 ? asset(value) : value;

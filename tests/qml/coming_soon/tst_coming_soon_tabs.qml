@@ -39,10 +39,11 @@ TestCase {
         compare(selection.signalArguments[0][0], data.label)
     }
     function test_compactLayout_data() {
-        return [{tag: "Home", medium: ""}, {tag: "Theatre", medium: "Theatre"}, {tag: "Universes", medium: "Universes"}]
+        return [{tag: "Home", medium: "", width: 904}, {tag: "Theatre", medium: "Theatre", width: 904}, {tag: "Universes", medium: "Universes", width: 904},
+                {tag: "NarrowHome", medium: "", width: 800}, {tag: "NarrowUniverses", medium: "Universes", width: 800}]
     }
     function test_compactLayout(data) {
-        bar.width = 904; bar.activeMedium = data.medium; bar.trackersEnabled = true
+        bar.width = data.width; bar.activeMedium = data.medium; bar.trackersEnabled = true
         wait(20)
         var picker = findChild(bar, "topBarWorldPicker")
         var systems = findChild(bar, "topBarSystemChrome")

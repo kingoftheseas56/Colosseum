@@ -17,7 +17,9 @@ function readModule(file) {
   for (const key of Object.keys(context)) {
     if (key !== 'ContentApi' && !key.startsWith('_') && typeof context[key] !== 'function') data[key] = context[key];
   }
-  return JSON.parse(JSON.stringify(data));
+  return JSON.parse(JSON.stringify(data, (_key, value) =>
+    Object.prototype.toString.call(value) === '[object RegExp]'
+      ? { source: value.source, flags: value.flags } : value));
 }
 function documents() {
   const roster = readModule('Universes.js');

@@ -27,7 +27,7 @@ def stage_api_content(stage, apply=False):
         if path.is_file():
             with path.open("rb") as stream:
                 actual = hashlib.file_digest(stream, "sha256").hexdigest()
-            if actual != asset["sha256"]:
+            if actual != asset.get("sourceSha256", asset["sha256"]):
                 raise ValueError("Staged artwork differs from served manifest: " + relative)
             targets.append(path)
     for name in ("mal", "imdb", "comics", "tankoban"):

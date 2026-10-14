@@ -4,6 +4,7 @@ import vm from 'node:vm';
 const main = fs.readFileSync(new URL('../qml/Main.qml', import.meta.url), 'utf8');
 const body = main.match(/function openWorld\(medium\) \{([\s\S]*?)\n    \}/)[1];
 const context = { openModes: { count: 0, append() { throw Error('Unexpected loader creation'); } },
+    win: { cancelCatalogueRoute() {} },
     worldStack: { current: '' }, currentSurface: 'Home',
     setGuiStallContext() { throw Error('Unexpected navigation'); },
     refreshWallpaper() { throw Error('Unexpected wallpaper change'); } };
@@ -19,6 +20,6 @@ assert.doesNotMatch(main, /text: "Coming Next"/);
 const topbar = fs.readFileSync(new URL('../qml/TopBar.qml', import.meta.url), 'utf8');
 assert.match(topbar, /Pill \{ label: "Feria"; comingSoon: true \}/);
 assert.match(topbar, /Pill \{ label: "Vinyl"; comingSoon: true \}/);
-assert.match(topbar, /text: "Coming Soon"/);
+assert.match(topbar, /text: "SOON"/);
 assert.match(topbar, /enabled: !pill.comingSoon/);
 console.log('Coming Soon world guard and disabled top tabs PASS');
