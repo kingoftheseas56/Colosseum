@@ -40,8 +40,21 @@ class AccountController final : public QObject {
     Q_PROPERTY(QString lastErrorCode READ lastErrorCode NOTIFY lastErrorChanged)
     Q_PROPERTY(QString lastErrorMessage READ lastErrorMessage NOTIFY lastErrorChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY modeChanged)
+    // Edition gate (1.1.9 no-account edition): false hides every account
+    // entry surface in QML. CONSTANT because it is fixed at compile time.
+    Q_PROPERTY(bool accountFeaturesAvailable
+               READ accountFeaturesAvailable CONSTANT)
 
 public:
+    bool accountFeaturesAvailable() const
+    {
+#ifdef COLOSSEUM_NO_ACCOUNT_EDITION
+        return false;
+#else
+        return true;
+#endif
+    }
+
     enum class Mode {
         LocalOnly,
         SignedOut,

@@ -1790,6 +1790,17 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
 #endif
 
+    // Build edition identity (1.1.9 no-account edition): surfaces the compiled
+    // edition to QML and diagnostics so edition-specific behavior and future
+    // update targeting have one authoritative in-process source.
+#ifdef COLOSSEUM_NO_ACCOUNT_EDITION
+    engine.rootContext()->setContextProperty(QStringLiteral("ColosseumEdition"),
+                                             QStringLiteral("no-account"));
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("ColosseumEdition"),
+                                             QStringLiteral("standard"));
+#endif
+
     // Account + personal-profile runtime (Bundle 8C adoption, 2026-08-16).
     // AccountRuntime owns the personal store runtime, which is now the SOLE
     // owner/binder of the Progress/Collection/SearchHistory/AudioPairing context

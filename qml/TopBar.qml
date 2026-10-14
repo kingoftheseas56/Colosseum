@@ -42,6 +42,12 @@ Item {
             || accountController.mode === "offline")
     readonly property bool localDevice: accountController
         && accountController.mode === "localOnly"
+    // No-account edition gate: the account medallion is the only shell entry
+    // point to the account flyout/center, so hiding it removes sign-in,
+    // registration and account-sync surfaces wholesale. Stub controllers
+    // without the property (harness fakes) keep the button for back-compat.
+    readonly property bool accountEntryAvailable: accountController
+        && accountController.accountFeaturesAvailable !== false
 
     signal mediumSelected(string medium)
     signal homeRequested()
@@ -422,6 +428,7 @@ Item {
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
+            visible: bar.accountEntryAvailable
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
                 anchors.fill: parent

@@ -2424,6 +2424,87 @@ set_tests_properties(colosseum.qttest.account_service_endpoint PROPERTIES
     TIMEOUT 30)
 
 
+# ── No-account edition gate (1.1.9) — exists only in edition builds ────
+# Proves the edition seams against the real classes: endpoint suppression
+# (zero constructible account-service traffic), the accountFeaturesAvailable
+# QML gate, and the prepareForQml local-only settlement with a counting
+# transport. Standard builds never compile this target.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+add_executable(tst_no_account_edition
+    auto/no_account_edition/tst_no_account_edition.cpp
+    support/account/MemoryAccountCredentialStore.h
+    support/account/MemoryAccountOneTimeSecretSink.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountOneTimeSecretSink.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_no_account_edition PRIVATE
+    COLOSSEUM_NO_ACCOUNT_EDITION=1)
+target_include_directories(tst_no_account_edition PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_no_account_edition PRIVATE
+    Qt6::Core
+    Qt6::Sql
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_no_account_edition PRIVATE User32)
+endif()
+set_target_properties(tst_no_account_edition PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
+add_test(NAME colosseum.qttest.no_account_edition
+         COMMAND tst_no_account_edition)
+set_tests_properties(colosseum.qttest.no_account_edition PROPERTIES
+    LABELS "unit;qttest;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+endif()
+
+
 # ── First-account local-state adoption (Bundle 4B, Slice 11A) ─────────
 add_executable(tst_account_adoption
     auto/account_adoption/tst_account_adoption.cpp

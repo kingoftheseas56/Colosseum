@@ -11,6 +11,33 @@ endif()
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
+
+# 1.1.9 no-account edition switch (2026-10-14). ON: account sign-in,
+# registration and account-sync entry points are hidden, no account-service
+# traffic can be constructed (the endpoint resolves to nothing, remembered
+# sessions are never restored), and startup settles straight into the
+# local-only profile. AccountRuntime and every local store it owns stay
+# intact for the later account edition; application identity (name/org/
+# version) is unchanged so existing local profiles carry over untouched.
+option(COLOSSEUM_NO_ACCOUNT_EDITION
+    "Build the no-account edition: account features hidden and inert, local-only profiles only"
+    OFF)
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+    # The edition candidate ships with the semantic Tankoban endpoint compiled
+    # in by default. This must run BEFORE the plain default below so a fresh
+    # edition configure seeds the URL; an explicitly passed (possibly empty)
+    # COLOSSEUM_CONTENT_API_URL always wins, letting a builder keep remote
+    # enrichment disabled in an edition build.
+    if(NOT COLOSSEUM_CONTENT_API_URL)
+        set(COLOSSEUM_CONTENT_API_URL
+            "https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev"
+            CACHE STRING
+            "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")
+        message(STATUS
+            "No-account edition: defaulting the semantic catalogue endpoint to staging")
+    endif()
+endif()
+
 set(COLOSSEUM_CONTENT_API_URL "" CACHE STRING
     "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")
 option(COLOSSEUM_RATINGS_REVIEWS_TESTING
@@ -886,6 +913,9 @@ if(COLOSSEUM_RATINGS_REVIEWS_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_RATINGS_REVIEWS_TESTING=1)
     target_sources(colosseum PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/ratings_reviews/ratings_reviews_test_resources.qrc")
+endif()
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_NO_ACCOUNT_EDITION=1)
 endif()
 if(COLOSSEUM_ACCOUNT_SERVICE_URL)
     # AccountHttpTransport::isAllowedBaseUrl accepts https anywhere but http only
