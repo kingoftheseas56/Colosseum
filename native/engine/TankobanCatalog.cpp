@@ -201,7 +201,7 @@ void TankobanCatalog::configureRemote(QNetworkAccessManager* nam, const QUrl& en
     cancelRequest();
     m_lease.clear();
     m_nam = nam;
-    m_endpoint = {};
+    m_endpoint = QUrl();
     // Production is HTTPS. Loopback HTTP is deliberately limited to test fixtures.
     if (endpoint.isValid() && !endpoint.host().isEmpty() && endpoint.userInfo().isEmpty() && endpoint.query().isEmpty()
         && endpoint.fragment().isEmpty() && endpoint.path().isEmpty()
