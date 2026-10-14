@@ -62,6 +62,13 @@ Item {
         routed.requestedArc = root.arc
         routed.requestedVolumeNumber = String(volumeNumber || "")
         routed.colorEdition = colorEdition === true
+        if (!colorEdition) {
+            // This arc catalogue is explicitly One Piece (MAL 13). Its universe
+            // payload uses AniList 30013, which must never be treated as a MAL ID.
+            routed.provider = "tankoban"
+            routed.malId = "13"
+            routed.seriesId = "mal:13"
+        }
         root.seriesRequested(routed)
     }
 

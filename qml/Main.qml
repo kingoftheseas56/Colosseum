@@ -1168,9 +1168,23 @@ Window {
             seriesLayer.item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
         }
     }
+    // Only canonical MAL series keys may cross into the remote catalogue seam.
+    // Reject suffixes, other namespaces and out-of-range IDs rather than guessing.
+    function canonicalMalId(seriesId) {
+        var sid = String(seriesId || "")
+        var match = /^mal:([1-9][0-9]*)$/.exec(sid)
+        if (!match || match[0] !== sid) return ""
+        var id = Number(match[1])
+        return Number.isInteger(id) && id <= 2147483647 ? match[1] : ""
+    }
     function restoreSeriesEditionProfile(seriesId) {
         var sid = String(seriesId || "")
-        if (sid !== "mal:13:color") { clearSeriesEditionProfile(); return }
+        if (sid !== "mal:13:color") {
+            var malId = canonicalMalId(sid)
+            if (malId.length) applySeriesEditionProfile(null, malId)
+            else clearSeriesEditionProfile()
+            return
+        }
         applySeriesEditionProfile({
             malId: "13", seriesId: sid, sourceSearchTitle: "One Piece Colored",
             sourceSearchAliases: ["One Piece Digital Colored Comics"],
@@ -2586,7 +2600,7 @@ Window {
         } else if (entry.kind === "tankoban") {
             // detail = the manga series page; Tankoban Mode restores itself from the
             // service's per-series flag once the id resolves.
-            win.openSeries(title)
+            win.openSeries(title, canonicalMalId(entry.id))
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
@@ -2597,7 +2611,7 @@ Window {
                 // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12);
                 // comics open only via the gc: lane, so a stale id never opens the manga page
                 console.log("[route] ignoring unknown comic id:", entry.id)
-            else win.openSeries(title)                                   // manga → the chapter-list series page
+            else win.openSeries(title, canonicalMalId(entry.id))                                   // manga → the chapter-list series page
         } else if (entry.kind === "book") {
             win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
         }
