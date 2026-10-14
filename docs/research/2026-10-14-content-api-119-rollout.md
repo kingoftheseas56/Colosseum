@@ -20,6 +20,13 @@ No MusicBrainz/Vinyl product UI and no Feria or Vinyl branch merge belong in thi
 The API's current raw-table pagination is infrastructure evidence, not native feature parity.
 API-only catalogue cutover remains blocked until the explicit gates below pass.
 
+## Two 1.1.9 release stages
+
+1. **No-account edition first:** selected Workers Free + reduced D1 projection; app-scoped guest catalogue access without Colosseum login. Guest issuance must work independently of Neon. Local library, history and progress remain authoritative. Guest abuse controls are not genuine-client proof.
+2. **With-account edition later:** restore optional existing account integrations only after existing Neon access is migrated from the flagged GitHub account to Hemanth's Gmail and verified. Recovery is outstanding; account availability must never gate catalogue or local use.
+
+Both are marketed as 1.1.9, with distinct artifact names, variant metadata and explicit updater channel targeting. The with-account artifact must not silently replace or strand the no-account edition. Verify whether installer/updater build identifiers must be unique and implement the required distinction using the existing convention; no exact identifier convention is assumed here. Each edition requires its own packaging and receiving evidence. Feria and Vinyl remain excluded.
+
 ## Live native seams and required contracts
 
 `native/main.cpp:1406-1506` resolves four DB paths, creates four catalogue owners,
@@ -63,14 +70,14 @@ Verify a clean AppData launch with no reachable `data/` directory; development D
 
 ## Stage 2: establish production auth and versioned semantic reads
 
-Add bounded server endpoints per method family above, using a parity-proved projection on the selected query backend and bound parameters.
+Add bounded server endpoints per method family above, using a parity-proved projection on the selected D1 query backend and bound parameters.
 Expose dataset/source hash, schema/API version, last publication time and logical catalogue readiness.
 Readiness requires every logical dependency for that operation to be complete at a compatible source version, whether represented by source tables, normalized projection relationships or verified object documents.
 Implement server filtering/joins/search and stable pagination; never download all rows and perform joins in the client.
 Use explicit query allowlists, maximum page/batch sizes, deterministic tie-breakers and query-cost bounds.
 Return distinct unavailable/not-ready, empty-success and authentication-expired outcomes.
 Preserve native QVariant/Jikan row shapes through C++ mapping so QML card renderers keep their contracts.
-Implement a production guest/account lease issuer in the existing identity service integration.
+Implement production app-scoped guest leases without a Neon or Colosseum-login dependency. Add optional account exchange through the existing identity service integration for the later with-account edition.
 The staging-only `/admin/session` and embedded `ADMIN_TOKEN`/`SESSION_SECRET` are not client production credentials.
 The installed application receives short-lived read leases; it carries no signing/import/admin secrets.
 Guest access must work without signup; expiry renewal is bounded and unavailable auth does not disable local core use.
@@ -96,7 +103,7 @@ Only small source tables are ready now; full joined native queries cannot be ass
 The four source DBs total approximately 165 MB, rather than the earlier 250 MB estimate.
 Baseline candidate worktree has no `data/*.db` files; size/bootstrap figures come from the publishing inventory, not those missing files.
 The full raw-table D1 baseline estimates about 2.82 million weighted data writes plus control overhead, roughly 53 days at the 60,000 daily safety cap. This is not an accepted release schedule or a requirement to continue that import.
-The portable plan compares smaller projections and alternative free backends; their accounting must be measured separately. Checkpointed publication status and logical dependency completeness determine actual enablement dates.
+The selected reduced D1 projection needs its own measured capacity and publication accounting; historical alternative-backend comparisons do not qualify it. Checkpointed publication status and logical dependency completeness determine actual enablement dates.
 Publish versioned logical catalogue capabilities only after exact source counts and dependent-table checks pass.
 Do not accelerate publication by silently abandoning the free-tier cap or issuing bulk client downloads.
 `scripts/installer/package_release.sh:61-64` currently assumes no catalogue DBs ship and first-launch GitHub delivery.
@@ -107,7 +114,7 @@ Keep unrelated release updater behavior outside this catalogue slice; no catalog
 ## Gates and rollback
 
 Gate A: all required semantic endpoints, joins, filters, shapes and dependency readiness pass native/API parity fixtures.
-Gate B: production guest leases and account integration work without distributing privileged secrets.
+Gate B: production Neon-independent guest leases work without distributing privileged secrets. The later with-account edition additionally requires verified Neon access recovery and optional account integration; that extra gate does not block the no-account edition.
 Gate C: complete source publication and free-tier query/import budget evidence support the selected feature set.
 Gate D: clean packaged launch, upgrade with existing DB caches, offline use, expiry and service failures pass on the scoped candidate.
 Gate E: receiving review confirms the final candidate diff contains the intended non-Feria/non-Vinyl changes only.
