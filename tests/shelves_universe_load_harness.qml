@@ -16,7 +16,7 @@ Window {
     readonly property var expected: ({
         "Dragon Ball": "Manga:8(2+6) | Anime:7(7) | Films:25(4+17+4)",
         "One Piece": "Manga:15(2+13) | Series:5(4+1) | Films:15(15) | Specials:17(17) | Novels:4(4)",
-        "Naruto": "Manga:4(3+1) | Anime:3(3) | Films:11(3+7+1)",
+        "Naruto": "Manga:4(3+1) | Anime:3(3) | Films:11(3+7+1) | Novels:11(11)",
         "Attack on Titan": "Manga:3(1+2) | Anime:1(1) | Films:7(5+2)",
         "James Bond": "Films:25(6+1+7+2+4+5) | Books:14(14)",
         "Marvel Cinematic Universe": "Films:40(6+6+11+7+6+4) | Series:20(9+6+4+1) | Specials:3(3)",

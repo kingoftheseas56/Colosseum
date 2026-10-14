@@ -447,13 +447,18 @@ function shelfSpecsFor(cfg) {
     });
     var series = [], spinoffs = [];
     canon.books.forEach(function(m, i) { (main[i] ? series : spinoffs).push(m); });
-    return [
+    var shelves = [
         { title: "Manga", kind: "manga",
           runs: [ { label: "The series", works: series }, { label: "Spin-offs", works: spinoffs } ] },
         { title: "Anime", kind: "series", runs: [ { label: "", works: canon.shows } ] },
         { title: "Films", kind: "movie",
           runs: (cfg.filmEras || []).map(function(g) { return { label: g.era, works: g.films || [] }; }) }
     ];
+    // A manga-first universe may also have prose. Never merge novels into its manga row:
+    // Biblio needs the pinned Apple Books edition identity, distinct from Tankoban.
+    if (cfg.novels && cfg.novels.length)
+        shelves.push({ title: "Novels", kind: "book", runs: [ { label: "", works: cfg.novels } ] });
+    return shelves;
 }
 
 function shelfKeyOf(title, index) {
