@@ -17,7 +17,7 @@ function context() {
     for (const name of ['clearSeriesEditionProfile', 'applySeriesEditionProfile',
                         'restoreSeriesEditionProfile', 'detailContinue', 'resumeContinue',
                         'openComicSession', 'openSeriesAt', 'routeUniverseSeries',
-                        'openCollectionEntry'])
+                        'openCollectionEntry', 'reopenPinnedUniverseComic'])
         vm.runInContext(extract(main, name), ctx);
     if (main.includes('function canonicalMalId('))
         vm.runInContext(extract(main, 'canonicalMalId'), ctx);

@@ -33,27 +33,17 @@ TestCase {
         page.installedRows = [{id: "starwars", manifest: {}}]
         compare(page.extensionBackground("starwars", "local.jpg"), "local.jpg")
     }
-    function test_house_chain_store_navigation_preserves_escape_and_back() {
+    function test_single_store_world_preserves_escape_and_back() {
         page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
         verify(page !== null)
-        compare(page.section, "house")
-        var house = findChild(page, "extensionsHousePage")
-        verify(house !== null && house.visible)
-        house.sectionRequested("chain")
-        compare(page.section, "chain")
-        var chain = findChild(page, "extensionsChainPage")
-        verify(chain !== null && chain.visible)
-        compare(house.visible, false)
-        chain.sectionRequested("store")
-        compare(page.section, "store")
-        verify(findChild(page, "extensionsStoreWorld").visible)
+        compare(typeof page.section, "undefined")
+        var store = findChild(page, "extensionsStoreWorld")
+        verify(store !== null && store.visible, "Extensions opens into one store world")
+        compare(findChild(page, "extensionsChainPage"), null)
+        compare(findChild(page, "extensionsHousePage"), null)
         page.searching = true
         compare(page.requestEscape(), true)
         compare(page.searching, false)
         compare(page.requestEscape(), false)
-        page.openSection("house")
-        compare(page.section, "house")
-        compare(page.openSection("feria"), false)
-        compare(page.section, "house")
     }
 }

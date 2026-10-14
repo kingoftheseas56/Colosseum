@@ -1022,6 +1022,9 @@ Window {
         return "DemoWorld.qml"
     }
     function openWorld(medium) {
+        // These worlds are not available in this release, including through indirect callers.
+        var requestedWorld = String(medium || "").trim().toLowerCase()
+        if (requestedWorld === "feria" || requestedWorld === "vinyl") return
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -1313,6 +1316,7 @@ Window {
             it.bakedReleases = null
             it.seriesTitle = westernLayer.title
             it.poster = westernLayer.baked.cover || ""
+            it.packSeriesId = ""                 // release a previous post/pack identity
             it.gcdId = gcdId
             it.bakedReleases = rel
             it.tagId = 0; it.tagSlug = ""
@@ -1360,6 +1364,7 @@ Window {
             // and the shell's first presentation writes page 1 over the real record.
             // Confirmed via runtime trace 2026-08-06 (save under gcd:119237, restore under
             // gc:). Set identity first; open the reader last, when seriesId is stable.
+            it.packSeriesId = ""                 // release a previous post/pack identity
             it.gcdId = westernLayer.baked.gcdId
             it.bakedReleases = westernLayer.baked.releases   // seriesId now "gcd:<id>" (non-null baked)
             it.tagId = 0; it.tagSlug = ""                    // resolve() guard true (baked non-null), no stray live lookup
@@ -1414,22 +1419,30 @@ Window {
         } else westernLayer.active = true
     }
 
-    // ---- a universe's comic row: the entry pins VERIFIED GetComics post IDs, so there is
-    //      no tag to resolve and no catalogue series. Mirrors openGcdSeries' baked injection
+    // ---- a universe's comic row: each entry pins explicit GetComics post IDs and,
+    //      when known, an exact GCD series ID. Mirrors openGcdSeries' baked injection
     //      (Main.qml:578) — an explicit release list, tagSlug/tagId deliberately empty.
     //      `?p=<id>` is GetComics' permalink; ComicSeries.qml:531 feeds it to downloadIssue.
-    //      d: { title, posts:[Number], year? } ----
+    //      d: { title, posts:[Number], year?, gcdId? } ----
     function openUniverseComic(d) {
         var posts = (d && d.posts) || []
         if (!posts.length) { console.warn("universes: openUniverseComic — no posts for", (d && d.title) || "(untitled)"); return }
+        var gcdId = Number((d && d.gcdId) || 0)
+        if (!Number.isInteger(gcdId) || gcdId <= 0) gcdId = 0
+        // GCD is authoritative only for an unambiguous series. An era collection may
+        // contain multiple GCD runs, so use its pinned first GetComics post as a stable
+        // independent identity; never let several collections share "gcd:0".
+        var fallbackId = gcdId ? "" : "gc:posts:" + String(posts[0])
+        var year = parseInt(String((d && d.year) || "").slice(0, 4), 10) || 0
         var rel = []
         for (var i = 0; i < posts.length; i++)
             rel.push({ id: String(posts[i]),
                        url: "https://getcomics.org/?p=" + posts[i],
                        name: d.title || "", cover: "",
-                       year: Number(d.year || 0), sizeMB: 0, synopsis: "",
+                       year: year, sizeMB: 0, synopsis: "",
                        date: "", collection: true })
-        westernLayer.baked = { gcdId: 0, releases: rel, cover: "" }
+        westernLayer.baked = { gcdId: gcdId, packSeriesId: fallbackId,
+                               releases: rel, cover: (d && d.cover) || "" }
         westernLayer.title = (d.title || "") + (d.year ? " (" + d.year + ")" : "")
         westernLayer.tagSlug = ""; westernLayer.tagId = 0
         westernLayer.resumeChapterId = ""
@@ -1438,11 +1451,50 @@ Window {
             it.bakedReleases = null                 // reset first so re-injection repaints
             it.openChapterId = ""
             it.seriesTitle = westernLayer.title
-            it.poster = ""
-            it.gcdId = 0
-            it.bakedReleases = westernLayer.baked.releases   // triggers paint (bakedReleases now non-null)
-            it.tagId = 0; it.tagSlug = ""                    // reset LAST — resolve() guard is true, no stray live lookup
+            it.poster = westernLayer.baked.cover
+            it.packSeriesId = fallbackId           // identity FIRST; also clears stale pack IDs
+            it.gcdId = gcdId
+            it.bakedReleases = rel                  // stable gcd:/gc:posts: identity before mount
+            it.tagId = 0; it.tagSlug = ""           // no name/tag lookup
         } else westernLayer.active = true
+    }
+
+    // A pinned cross-run GetComics collection is not a live tag search. Resolve its
+    // durable first-post key back to the bundled Universe's exact curated post list.
+    function reopenPinnedUniverseComic(id, title, cover) {
+        var match = /^gc:posts:([1-9][0-9]*)$/.exec(String(id || ""))
+        if (!match) return false
+        var stems = ["com.colosseum.universe.onepiece",
+                     "com.colosseum.universe.dcau",
+                     "com.colosseum.universe.starwars"]
+        var matched = false
+        var outstanding = stems.length
+        for (var i = 0; i < stems.length; ++i) {
+            UniverseApi.load(stems[i], function(payload) {
+                if (!matched && payload) {
+                    var sections = payload.sections || []
+                    for (var si = 0; si < sections.length && !matched; ++si) {
+                        if (sections[si].kind !== "comic") continue
+                        var entries = sections[si].entries || []
+                        for (var ei = 0; ei < entries.length; ++ei) {
+                            var entry = entries[ei]
+                            if (String((entry.posts || [])[0] || "") !== match[1]) continue
+                            matched = true
+                            win.openUniverseComic({
+                                title: entry.title || title, year: entry.year || "",
+                                cover: entry.cover || cover, posts: entry.posts,
+                                gcdId: entry.gcdId || 0, gcdIds: entry.gcdIds || []
+                            })
+                            break
+                        }
+                    }
+                }
+                outstanding--
+                if (!outstanding && !matched)
+                    console.warn("Saved universe comic is no longer bundled:", id)
+            })
+        }
+        return true
     }
 
     // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
@@ -1948,6 +2000,8 @@ Window {
             sourceSearchAliases: e.sourceSearchAliases || [],
             sourceRequiredMarkers: e.sourceRequiredMarkers || []
         }, requested)
+        else if (e && e.provider === "anilist" && Number(e.malId) > 0)
+            win.openSeries(e.title || "", String(e.malId), null, requested)
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
@@ -2602,6 +2656,7 @@ Window {
             // service's per-series flag once the id resolves.
             win.openSeries(title, canonicalMalId(entry.id))
         } else if (entry.kind === "manga" || entry.kind === "comic") {
+            if (win.reopenPinnedUniverseComic(entry.id, title, entry.cover || "")) return
             if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
             else if (String(entry.id || "").indexOf("gcd:") === 0)
@@ -2629,6 +2684,7 @@ Window {
         } else if (e.world === "biblio") {
             win.openBook((e.payload && e.payload.book) || e)
         } else if (e.world === "tankoban") {
+            if (win.reopenPinnedUniverseComic(id, e.title || "", e.cover || "")) return
             if (e.type === "manga") { win.openSeries(e.title || id, canonicalMalId(id)); return }
             if (id.indexOf("locg:") === 0) {
                 win.openComicSeries({ "id": id, "title": e.title || "", "cover": e.cover || "",
@@ -3445,6 +3501,36 @@ Window {
                 onStatusChanged: if (status === Loader.Error) {
                     homeContinueRailRequested = false
                     homeContinueRailLoaded = true
+                }
+            }
+
+            Column {
+                width: parent.width
+                spacing: 16
+                Text { text: "Coming Next"; color: theme.ink; font.family: theme.display; font.pixelSize: 28 }
+                Flow {
+                    width: parent.width
+                    spacing: 16
+                    Repeater {
+                        model: ["Feria", "Vinyl"]
+                        delegate: Rectangle {
+                            required property string modelData
+                            width: contentCol.width < 560 ? contentCol.width : (contentCol.width - 16) / 2
+                            height: 88
+                            radius: 12
+                            color: theme.glassTint
+                            border.color: theme.edge
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: modelData + ", Coming Soon"
+                            Row {
+                                anchors.left: parent.left; anchors.leftMargin: 20
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 16
+                                Text { text: modelData; color: theme.ink; font.family: theme.display; font.pixelSize: 25 }
+                                Text { text: "Coming Soon"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                        }
+                    }
                 }
             }
 

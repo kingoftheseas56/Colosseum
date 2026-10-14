@@ -14,6 +14,7 @@ Item {
     SignalSpy { id: theatre; target: shelves; signalName: "watchRequested" }
 
     SignalSpy { id: biblio; target: shelves; signalName: "bookRequested" }
+    SignalSpy { id: comics; target: shelves; signalName: "comicsArchiveRequested" }
 
     function works(prefix, medium, n, from) {
         const out = []
@@ -52,7 +53,7 @@ Item {
             findChild(shelves, "shelvesScroll").contentY = 0
             findChild(shelves, "shelvesRow_manga").contentX = 0
             findChild(shelves, "shelvesRow_films").contentX = 0
-            tankoban.clear(); edition.clear(); theatre.clear(); biblio.clear()
+            tankoban.clear(); edition.clear(); theatre.clear(); biblio.clear(); comics.clear()
         }
         function page() { return findChild(shelves, "shelvesScroll") }
 
@@ -115,6 +116,28 @@ Item {
             compare(tabs.x, shelves.gutter + 118)
             flick.contentY = 0
             compare(tabs.x, shelves.gutter)
+        }
+        function test_pinnedComicOpensExistingGetComicsRoute() {
+            const u = animeUni(1, 1, [])
+            u.shelves.push(shelf("Comics", "comic", [ { label: "Age of Rebellion", items: [
+                { title: "Star Wars (2015)", medium: "comic", id: "gcd:85861",
+                  seriesId: "gcd:85861", gcdId: 85861, posts: [26442],
+                  provider: "getcomics", cover: "../assets/universes/marks/star-wars.png",
+                  key: "comics:0", resolved: true }
+            ] } ]))
+            shelves.uni = u
+            const focus = findChild(shelves, "shelvesRowFocus_comics")
+            verify(focus !== null, "Comics must use the existing standard shelf component")
+            focus.forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            compare(comics.count, 1)
+            const entry = comics.signalArguments[0][0]
+            compare(entry.gcdId, 85861)
+            compare(entry.posts[0], 26442)
+            compare(entry.seriesId, "gcd:85861")
+            compare(tankoban.count, 0)
+            compare(theatre.count, 0)
+            compare(biblio.count, 0)
         }
         function test_mangaOpensTankoban() {
             const focus = findChild(shelves, "shelvesRowFocus_manga")
@@ -216,6 +239,16 @@ Item {
                                                 { label: "Three", items: works("U", "series", 1, 2) } ]),
                     shelf("Books", "book", [ { label: "", items: works("Book", "book", 3) } ]) ] }
             tryVerify(function() { const m = findChild(shelves, "shelvesMedium_books"); return m && m.width > 0 })
+        }
+        function test_aDegradedCatalogueMarksItsLimitedCoverage() {
+            const u = animeUni(1, 1, [])
+            u.catalogueNotice = "Partial catalogue — the archive could not be loaded"
+            shelves.uni = u
+            const note = findChild(shelves, "shelvesCatalogueNotice")
+            verify(note.visible)
+            compare(note.text, u.catalogueNotice)
+            shelves.uni = animeUni(1, 1, [])
+            verify(!note.visible, "full catalogue pages must not display a fallback warning")
         }
         function test_shelvesTabsAndKickerComeFromData() {
             generalUniverse()

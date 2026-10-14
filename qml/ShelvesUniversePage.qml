@@ -14,6 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "Universes.js" as UDB
+import "UniverseApi.js" as CoverApi
 
 Item {
     id: root
@@ -31,6 +32,7 @@ Item {
     signal seriesRequested(string title, var malId)   // manga / Read → Tankoban, by its pinned MAL id when curated
     signal seriesEntryRequested(var entry)   // an EDITION manga (provider/seriesId, e.g. the colour edition) → Main's routeUniverseSeries with its whole profile
     signal bookRequested(var book)           // book tile / Read → the Biblio book page
+    signal comicsArchiveRequested(var entry) // curated GetComics posts / GCD run → existing ComicSeries
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
     signal continueDetailRequested(var entry)   // Continue tile → its title page
     signal universeRequested(string name)       // a "More universes" card
@@ -53,7 +55,7 @@ Item {
     property int loadGeneration: 0
 
     property var uni: ({ name: "", category: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
-                         color: "", shelves: [] })
+                         color: "", shelves: [], catalogueNotice: "" })
 
     // ---- the shelves are data: one panel per non-empty shelf, in entry order ----
     function runWorks(run) { return run ? (run.works || run.items || []) : [] }
@@ -90,11 +92,12 @@ Item {
         return out
     }
     function isManga(item) { return !!item && item.medium === "manga" }
+    function isComic(item) { return !!item && item.medium === "comic" }
     function isBook(item) { return !!item && item.medium === "book" }
     function isScreen(item) { return !!item && (item.medium === "movie" || item.medium === "series"
                                                   || item.type === "movie" || item.type === "series") }
-    function isReading(item) { return root.isManga(item) || root.isBook(item) }
-    readonly property bool hasReadShelf: root.activeShelves.some(function(s) { return s.kind === "book" || s.kind === "manga" })
+    function isReading(item) { return root.isManga(item) || root.isBook(item) || root.isComic(item) }
+    readonly property bool hasReadShelf: root.activeShelves.some(function(s) { return s.kind === "book" || s.kind === "manga" || s.kind === "comic" })
     readonly property bool hasScreenShelf: root.activeShelves.some(function(s) { return s.kind === "movie" || s.kind === "series" })
     // every standard page is a Universe, whatever it holds; only the four hand-made art
     // pages are Tributes (Hemanth 2026-10-05)
@@ -112,7 +115,8 @@ Item {
         if (!root.canOpen(item)) return
         // an edition manga carries its own routing identity (provider tankoban / a durable
         // seriesId) — it must not collapse onto the base series' "title + mal" route
-        if (root.isManga(item) && (item.provider === "tankoban"
+        if (root.isComic(item)) root.comicsArchiveRequested(item)
+        else if (root.isManga(item) && (item.provider === "tankoban"
                                    || (item.seriesId !== undefined && String(item.seriesId).length > 0)))
             root.seriesEntryRequested(item)
         else if (root.isManga(item)) root.seriesRequested(item.query || item.title || "", item.mal || 0)
@@ -136,6 +140,7 @@ Item {
         if (!entry || !root.canOpen(item)) return false
         const kind = String(entry.kind || ""), id = String(entry.id || "")
         if (root.isManga(item)) return kind === "manga" && item.mal && id === "mal:" + item.mal
+        if (root.isComic(item)) return kind === "comic" && item.seriesId && id === item.seriesId
         if (root.isBook(item)) return kind === "book" && item.id !== undefined && id === String(item.id)
         return root.isScreen(item) && kind === "video" && item.id !== undefined && id.split(":")[0] === String(item.id)
     }
@@ -393,6 +398,15 @@ Item {
                                        font.pixelSize: 12; font.weight: Font.Medium }
                             }
                         }
+                    }
+                    Text {
+                        objectName: "shelvesCatalogueNotice"
+                        visible: !!root.uni.catalogueNotice
+                        width: parent.width
+                        text: root.uni.catalogueNotice || ""
+                        color: theme.inkDimmer
+                        font.family: root.uiFace; font.pixelSize: 13
+                        wrapMode: Text.WordWrap
                     }
                     Flow {
                         width: parent.width; spacing: 12
@@ -954,6 +968,18 @@ Item {
                                             spacing: 0
                                             ShelfTile {
                                                 item: work.modelData
+                                                // Resolve art only for nearby books/comics, never
+                                                // fan out all 72 books + 53 comic covers at once.
+                                                coverLookupAllowed: {
+                                                    if ((work.modelData.medium !== "book" && work.modelData.medium !== "comic")
+                                                            || work.modelData.cover) return false
+                                                    const top = medium.mapToItem(page.contentItem, 0, 0).y - page.contentY
+                                                    if (top > page.height * 1.5 || top + medium.height < -page.height * 0.5)
+                                                        return false
+                                                    const left = work.mapToItem(runsRow, 0, 0).x
+                                                    return left + work.width > shelfFlick.contentX - work.width
+                                                        && left < shelfFlick.contentX + shelfFlick.width + work.width
+                                                }
                                                 current: root.selectedKey === root.keyOf(work.modelData)
                                                 keyboardSelected: rowFocus.activeFocus
                                                                  && rowFocus.currentIndex === run.runBase + work.index
@@ -1272,6 +1298,25 @@ Item {
     component ShelfTile: Rectangle {
         id: tile
         property var item: null
+        property bool coverLookupAllowed: false
+        property string resolvedCover: ""
+        function refreshMissingCover() {
+            tile.resolvedCover = ""
+            var entry = tile.item
+            if (!tile.coverLookupAllowed || !entry || entry.cover) return
+            var query = null
+            if (entry.medium === "book" && entry.apple > 0)
+                query = { provider: "applebooks", id: entry.apple, title: entry.title }
+            else if (entry.medium === "comic" && entry.posts && entry.posts.length)
+                query = { provider: "getcomics", posts: entry.posts, title: entry.title }
+            if (!query) return
+            // A delayed provider response cannot paint a different tile.
+            CoverApi.coverFor(query, entry.medium, function(url) {
+                if (tile.item === entry && url) tile.resolvedCover = url
+            })
+        }
+        onItemChanged: refreshMissingCover()
+        onCoverLookupAllowedChanged: if (coverLookupAllowed) refreshMissingCover()
         readonly property string rowLabel: item && item.shelfTitle ? String(item.shelfTitle) : ""
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
@@ -1297,7 +1342,7 @@ Item {
             Image {
                 id: art
                 anchors.fill: parent
-                source: tile.item ? (tile.item.cover || "") : ""
+                source: tile.item ? (tile.item.cover || tile.resolvedCover || "") : ""
                 asynchronous: true; cache: true
                 sourceSize.width: 400
                 fillMode: Image.PreserveAspectCrop

@@ -13,7 +13,6 @@ Item {
     property Item backdrop: null
     property bool showExplicit: false
     property string world: "theatre"
-    property string section: "house"
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -68,20 +67,9 @@ Item {
     function openConfiguration(extensionId) { root.configuringExtensionId = extensionId }
     function closeConfiguration() { root.configuringExtensionId = "" }
 
-    function openSection(section) {
-        if (["house", "chain", "store"].indexOf(section) < 0) return false
-        root.section = section
-        root.seeAllRow = null
-        root.searching = false
-        Qt.callLater(root.takeKeyboardFocus)
-        return true
-    }
-
     function takeKeyboardFocus() {
         if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
         else if (seeAll.visible) seeAll.takeKeyboardFocus()
-        else if (root.section === "house") housePage.takeKeyboardFocus()
-        else if (root.section === "chain") chainPage.takeKeyboardFocus()
         else storeWorld.forceActiveFocus()
     }
     // Main asks first: setup closes, then a settings page, then search / See all, then the world.
@@ -145,19 +133,13 @@ Item {
         id: storeWorld
         objectName: "extensionsStoreWorld"
         anchors.fill: parent
-        visible: root.section === "store" && !seeAll.visible && !tankoyomiConfiguration.visible
+        visible: !seeAll.visible && !tankoyomiConfiguration.visible
         medium: "Extensions"
         topBarBackOnly: true
         topBarTitle: "Extensions"
         topBarSubtitle: "Add-ons and sources for every world."
         backdrop: night
         onHomeRequested: root.backRequested()
-
-        Row {
-            spacing: 24
-            BackAction { label: "Chain"; onTriggered: root.openSection("chain") }
-            BackAction { label: "House"; onTriggered: root.openSection("house") }
-        }
 
         ExtensionsHouseHero {
             revision: root.revision
@@ -211,40 +193,6 @@ Item {
             color: Qt.rgba(1, 1, 1, 0.34)
             font.family: theme.ui; font.pixelSize: 12
         }
-    }
-
-    ExtensionsHousePage {
-        id: housePage
-        anchors.fill: parent
-        visible: root.section === "house" && !tankoyomiConfiguration.visible
-        onSectionRequested: (section) => root.openSection(section)
-        onUniversesRequested: root.universeHallRequested()
-        onManageRequested: root.openSection("store")
-    }
-
-    TopBar {
-        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 60; topMargin: 32 }
-        visible: housePage.visible
-        backdrop: root.backdrop
-        activeMedium: "Extensions"
-        backOnly: true
-        pageTitle: "Extensions"
-        onHomeRequested: root.backRequested()
-    }
-
-    ExtensionsChainPage {
-        id: chainPage
-        anchors.fill: parent
-        visible: root.section === "chain" && !tankoyomiConfiguration.visible
-        backdrop: root.backdrop
-        showExplicit: root.showExplicit
-        onSectionRequested: (section) => root.openSection(section)
-        onManageRequested: root.openSection("store")
-        onBackRequested: root.backRequested()
-        onMinimizeRequested: root.minimizeRequested()
-        onFullscreenRequested: root.fullscreenRequested()
-        onCloseRequested: root.closeRequested()
-        onSearchClicked: { root.openSection("store"); root.searching = true }
     }
 
     ExtensionsSeeAllPage {
