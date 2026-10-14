@@ -136,6 +136,80 @@ license acquisition, usable keys, decryption, encrypted playback, the actual CDM
 binary path/hash, installed-package discovery or provider acceptance. Offscreen
 GPU context warnings also prevent inferring hardware-accelerated playback.
 
+### Public encrypted playback checkpoint, 2026-10-14
+
+The earlier opt-in public [Bitmovin DRM demo](https://bitmovin.com/demos/drm)
+probe passed through Feria's real wrapper on the codec QtWebEngine pairing:
+3 passed, 0 failed, 0 skipped, native/driver exit 0. It ties MediaKeys ownership,
+session messages/current usable statuses and encrypted events to a video/keys
+identity local to a document. That video had two encrypted events, one Widevine session/message and
+five usable keys. After seeking to 12 seconds, the same video/MediaKeys identity
+decoded additional frames, then paused at 14.568225 seconds. The final snapshot
+recorded readyState 4, 1920x1080 dimensions, 251 decoded/total frames and 61 dropped
+frames. Dimensions do not establish HD entitlement or playback performance.
+Qt module/helper hashes matched, source stayed stable and no observed children
+remained. No account, copied CDM, security bypass or engine change was used.
+
+The identity-checked descendant observer captured 27 CDM module samples from
+QtWebEngine's Widevine utility process, PID 4156, creation timestamp
+1791939866.31334. Its mapped `widevinecdm.dll` came from the installed Microsoft
+Edge 155.0.4283.45 package: version 4.10.3050.0, 22716072 bytes, SHA256
+`0e28a9203f8ddedcdf04785b52c460f63306c8b8bd57ccd17d73da93b366c28a`.
+The fresh disk receipt reports Valid, SignatureType Catalog, signer Microsoft
+Windows. The earlier receipt for the same hash reports Valid Authenticode, signer
+Google LLC. These are separate Windows signature-selection observations; the
+fresh result is not described as an embedded Google-signature verification.
+This is default CDM discovery by **QtWebEngine**, not WebView2 rendering or an Edge
+engine fallback. A mapped path plus signed disk hash is not an in-memory image
+integrity measurement. Twelve observer errors record vanished-process intervals;
+those remain unknown.
+
+Earlier passing evidence under the local FeriaEngineResearch root:
+`public-drm-codec-20261014-retired-poll/cdm-observation.json`,
+`native/qtest.txt`, `native/result.json`, driver stdout/stderr, the fresh
+`public-drm-codec-20261014-retired-poll/signature-receipt.json`, and
+`cdm-codec-observation-20261014/signature-receipt.json`.
+Native root PID 24104 and owned driver PID 23328 exited 0. The focused driver
+checks source stability, module/helper manifests and observed-child cleanup.
+
+Preserved failure history: `public-drm-codec-20261014` failed QML compilation
+because WebEngineScript is a value type; `public-drm-codec-20261014-script-value`
+passed the earlier startup-playback check using the collection dictionary API.
+The hardened `public-drm-codec-20261014-bound-video` failed its JavaScript callback
+wait before any video/session appeared (native/driver 1, no CDM captured).
+Feria retires callbacks on document replacement. The corrected helper allows
+only read-only polls to retry a retired document; actions remain strict and all
+video/key ownership, seek and decoding assertions remain. One corrected native
+launch produced that passing observation.
+
+Independent receiving review found that video/key counters restart in each
+injected document, so matching those IDs across read-only retry did not prove
+document continuity. The current source fixes a native `javascriptEpoch` before
+baseline capture and binds baseline, seek, every post-seek sample and pause to
+that epoch. Replacement after binding explicitly fails; initial readiness polling
+alone may retry. Post-seek also rechecks Bitmovin origin, Widevine system,
+bound encrypted events, session message/current usable keys and playback readiness.
+
+The single permitted revised run, `public-drm-codec-20261014-document-bound`,
+failed before baseline capture at the initial origin-readiness poll (QTest line
+141): 2 passed, 1 failed, native PID 23476/driver PID 26252 exit 1. Its final
+snapshot was Bitmovin origin, title `Just a moment...`, document epoch 2, zero
+videos/sessions/messages/encrypted events. No CDM was captured; this is unknown,
+not absence. Six observer errors comprise partial-read access failures and
+vanished-process intervals. Source stability, Qt module/helper manifests and
+observed-child cleanup passed. No retry or security bypass followed. Evidence is
+that lane's `native/qtest.txt`, `native/result.json`, `cdm-observation.json` and
+driver stdout/stderr. The page state is consistent with an interstitial; the
+specific service challenge cause and failed origin-poll callback are unproven.
+The revised document-bound DRM/seek assertions were not reached and remain
+runtime-unverified. The prior pass cannot qualify those new assertions.
+
+The prior run is bounded public-demo encrypted playback via its ordinary license route
+on this machine. Subscription providers, hardware acceleration, robustness tier,
+HD entitlement, full sandbox qualification, installed-package acceptance,
+fresh-machine CDM availability and redistribution rights remain unverified.
+Supported CDM discovery/maintenance and packaging remain open.
+
 ### Browser/native boundary checkpoint, 2026-10-14
 
 Windows process-token checkpoint: `observe_windows_tokens.py` sampled actual

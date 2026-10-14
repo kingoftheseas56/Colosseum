@@ -53,6 +53,22 @@ current native policy. Run one selected case with `-input tests/feria_security_p
   `STREAMING_CAPABILITIES` JSON rows separately. No license request, session,
   encrypted playback, robustness tier or CDM binary provenance is established.
   The probe uses default CDM discovery, with no copied CDM or provider login.
+- `FeriaPublicDrm::test_encryptedPlayback` is opt-in with
+  `FERIA_SERVICE_URL=https://bitmovin.com/demos/drm`. It uses the public demo's
+  normal licensing route in a disposable profile. A document-start observer
+  records EME system names, session/message counts and key statuses, never key
+  IDs, license bodies or session IDs. It requires encrypted events and current
+  usable Widevine session keys belonging to the same video/MediaKeys identity,
+  additional decoded frames after seeking to 12 seconds, and pause. A fixed native
+  document epoch binds baseline, seek, post-seek samples and pause; replacement
+  after binding explicitly fails. Only initial read-only readiness polls retry
+  document-retired callbacks; actions remain strict. Post-seek repeats origin,
+  Widevine, encrypted-event/session-message/current-usable-key and readiness checks. Diagnostics enter
+  orderly teardown even if their read fails. The observer
+  wraps native EME methods but preserves their normal results; it is test-only.
+  A pass applies to this public demo and runtime, not subscription providers,
+  installed packages, hardware DRM or CDM redistribution. Record CDM module
+  identity separately from the Qt module/helper manifest.
 - `FeriaObservationOrigin::test_pageCannotAttributePlaybackToAnotherOrigin` uses
   a real page prototype setter to forge the production probe's URL. It requires
   cross-origin rejection, recovery and same-origin canonical-route acceptance.

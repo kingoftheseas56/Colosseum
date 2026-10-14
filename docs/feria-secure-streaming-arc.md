@@ -42,7 +42,9 @@ retained sessions, playback and everyday browser controls. Required Chrome parit
 means those concrete user journeys work; it does not mean cloning every Chrome
 feature or promising that every provider will accept an embedded browser.
 
-QtWebEngine remains the production route. Website notifications stay disabled.
+QtWebEngine remains the production route; WebView2 is not a fallback or migration
+target. Discovery of a Widevine CDM inside an installed Edge package does not
+change the rendering engine to Edge or WebView2. Website notifications stay disabled.
 Chrome sync, a password manager, ad blocking, the Chrome Web Store and extensions
 are outside this arc unless Hemanth changes scope or a required service establishes
 a specific dependency. Experimental CEF remains separate.
@@ -117,6 +119,23 @@ creation on both pinned runtimes; H.264/AAC MP4 is accepted only on the codec
 runtime. Clear Key controls and cleanup pass 3/0/0, native 0 per pairing. This
 advances API feasibility only: CDM identity, encrypted playback/license handling,
 robustness and provider acceptance remain open in the security ledger.
+
+The prior public Bitmovin DRM demo observation on the codec QtWebEngine pairing
+passed 3/0/0, native/driver 0, with usable Widevine keys, encrypted video playback,
+a seek and pause. Its document-local video/key counters did not establish
+document continuity across read-only retry, so independent review required a
+fixed native epoch for baseline/seek/post-seek/pause. That source revision also
+rechecks origin, Widevine system, bound encrypted/message/current usable status
+and playback readiness after seek. Its only revised run failed initial readiness:
+Bitmovin-origin `Just a moment...` page, zero videos/sessions, native/driver 1.
+No retry or bypass followed. The new document-bound assertions were not reached
+and remain runtime-unverified; the earlier pass does not qualify them. See the
+security ledger and `public-drm-codec-20261014-document-bound` failure evidence.
+The prior loaded CDM came from installed Edge; its fresh same-hash disk receipt
+reported valid Microsoft Windows catalog selection versus the earlier Google
+LLC Authenticode result. No engine switch or CDM installation occurred.
+Fresh-machine CDM availability, maintenance/distribution, subscription providers,
+robustness, HD entitlement and installed packaging remain open.
 
 | Phase | Objective | Depends on | Completion gate |
 | --- | --- | --- | --- |
