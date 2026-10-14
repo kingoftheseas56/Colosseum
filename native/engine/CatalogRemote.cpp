@@ -51,20 +51,56 @@ void CatalogRemote::configure(QNetworkAccessManager* nam, const QUrl& endpoint, 
     if (!m_endpoint.isEmpty()) load();
     ++m_revision; emit changed();
 }
+bool CatalogRemote::queue(const QString& id, const QString& method, const QVariantList& args,
+                          const QVariant& empty, bool bypassCooldown) {
+    if (!enabled() || m_pending.contains(id) || m_pending.size() >= 128) return false;
+    const auto failure=m_failures.constFind(id);
+    if (!bypassCooldown && failure!=m_failures.constEnd()
+        && failure->when.secsTo(QDateTime::currentDateTimeUtc()) < 30) return false;
+    m_pending.insert(id,Query{method,args,empty,false,false});
+    const auto generation=m_generation;
+    QTimer::singleShot(0,this,[this,id,generation]{
+        if (generation==m_generation && m_pending.contains(id)) {
+            // Notify after read() has returned: subscribers may re-enter the
+            // cache or replace this source. Recheck ownership before dispatch.
+            emit queryChanged(id);
+            if (generation!=m_generation || !m_pending.contains(id)) return;
+            if (m_token.isEmpty()) lease(); else dispatch(id);
+        }
+    });
+    return true;
+}
 QVariant CatalogRemote::read(const QString& method, const QVariantList& args, const QVariant& empty, bool force) {
     const auto id=key(method,args);
     const auto cached=m_cache.constFind(id);
-    const auto now=QDateTime::currentDateTimeUtc();
     const bool valid=cached!=m_cache.constEnd() && shape(cached->result,empty);
-    const auto age=valid ? cached->fetched.secsTo(now) : -1;
-    const auto failure=m_failures.constFind(id);
-    if (enabled() && (force || !valid || age<0 || age>=86400) && !m_pending.contains(id)
-        && (failure==m_failures.constEnd() || failure->secsTo(now)>=30) && m_pending.size()<128) {
-        m_pending.insert(id,Query{method,args,empty,false,false});
-        const auto generation=m_generation;
-        QTimer::singleShot(0,this,[this,id,generation]{ if(generation==m_generation && m_pending.contains(id)) { if(m_token.isEmpty()) lease(); else dispatch(id); } });
-    }
+    const auto age=valid ? cached->fetched.secsTo(QDateTime::currentDateTimeUtc()) : -1;
+    if (force || !valid || age<0 || age>=86400) queue(id,method,args,empty,false);
     return valid ? cached->result.toVariant() : empty;
+}
+QVariantMap CatalogRemote::queryState(const QString& method, const QVariantList& args, const QVariant& empty) const {
+    const auto id=key(method,args);
+    const auto cached=m_cache.constFind(id);
+    const bool hasCache=cached!=m_cache.constEnd() && shape(cached->result,empty);
+    const bool inFlight=m_pending.contains(id);
+    const auto failure=m_failures.constFind(id);
+    const bool hasFailure=failure!=m_failures.constEnd();
+    const QString status=inFlight ? QStringLiteral("pending")
+        : hasFailure ? QStringLiteral("failure")
+        : hasCache ? QStringLiteral("success") : QStringLiteral("missing");
+    return {{QStringLiteral("key"),id},
+            {QStringLiteral("enabled"),enabled()},
+            {QStringLiteral("status"),status},
+            {QStringLiteral("pending"),inFlight},
+            {QStringLiteral("waiting"),inFlight && !hasCache},
+            {QStringLiteral("cached"),hasCache},
+            {QStringLiteral("error"),hasFailure ? failure->reason : QString()},
+            {QStringLiteral("retryable"),hasFailure && !inFlight && enabled() && m_pending.size()<128}};
+}
+bool CatalogRemote::retry(const QString& method, const QVariantList& args, const QVariant& empty) {
+    const auto id=key(method,args);
+    if (!m_failures.contains(id)) return false;
+    return queue(id,method,args,empty,true);
 }
 bool CatalogRemote::waiting() const {
     for (auto query = m_pending.cbegin(); query != m_pending.cend(); ++query) {
@@ -98,12 +134,16 @@ void CatalogRemote::dispatch(const QString& id) {
     observe(m_nam->post(req,body),id,false);
 }
 void CatalogRemote::finishFailure(const QString& id,const QString& reason) {
-    const auto query=m_pending.take(id); m_failures.insert(id,QDateTime::currentDateTimeUtc());
+    if (!m_pending.contains(id)) return;
+    const auto query=m_pending.take(id);
+    m_failures.insert(id,Failure{QDateTime::currentDateTimeUtc(),reason});
     while (m_failures.size() > 512) {
         auto oldest = m_failures.begin();
-        for (auto it = m_failures.begin(); it != m_failures.end(); ++it) if (it.value() < oldest.value()) oldest = it;
+        for (auto it = m_failures.begin(); it != m_failures.end(); ++it)
+            if (it->when < oldest->when) oldest = it;
         m_failures.erase(oldest);
     }
+    emit queryChanged(id);
     emit failed(query.method,reason);
 }
 void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session) {
@@ -118,6 +158,7 @@ void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session)
         reply->deleteLater();
         if(generation!=m_generation) return;
         m_replies.removeAll(reply);
+        if (!session && !m_pending.contains(id)) return; // Ignore late completed-query replies.
         bytes->append(reply->readAll());
         const int status=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         auto fail=[&](const QString& reason){
@@ -141,7 +182,8 @@ void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session)
                 fail("UNEXPECTED_NOT_MODIFIED"); return;
             }
             cached->fetched = QDateTime::currentDateTimeUtc();
-            m_pending.remove(id); m_failures.remove(id); save(); ++m_revision; emit changed(); return;
+            m_pending.remove(id); m_failures.remove(id); save(); ++m_revision;
+            emit queryChanged(id); emit changed(); return;
         }
         if(reply->error()!=QNetworkReply::NoError || status!=200 || bytes->size()>cap) { fail(bytes->size()>cap ? "RESPONSE_TOO_LARGE" : "HTTP_"+QString::number(status)); return; }
         QJsonParseError error; const auto doc=QJsonDocument::fromJson(*bytes,&error); const auto obj=doc.object();
@@ -159,14 +201,14 @@ void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session)
             || !validRevision(revision) || !shape(obj.value("result"),query.empty)) { fail("INCOMPATIBLE_RESPONSE"); return; }
         if (m_validator && !m_validator(query.method, obj.value("result"))) { fail("INVALID_RESULT"); return; }
         if (!m_sourceRevision.isEmpty() && m_sourceRevision != revision) {
-            m_cache.clear(); ++m_sourceGeneration;
+            m_cache.clear(); m_failures.clear(); ++m_sourceGeneration;
         }
         m_sourceRevision = revision;
         m_pending.remove(id); m_failures.remove(id);
         const auto responseEtag = QString::fromLatin1(reply->rawHeader("ETag"));
         m_cache.insert(id,Entry{query.method,obj.value("result"),QDateTime::currentDateTimeUtc(),revision,
                                 validEtag(responseEtag) ? responseEtag : QString()});
-        bound(); save(); ++m_revision; emit changed();
+        bound(); save(); ++m_revision; emit queryChanged(id); emit changed();
     });
 }
 void CatalogRemote::bound() {

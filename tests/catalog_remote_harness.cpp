@@ -9,9 +9,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QPointer>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QStringList>
 #include <QTimer>
 #include <iostream>
 #include <cstdlib>
@@ -21,6 +23,8 @@ int main(int argc,char** argv) {
  QCoreApplication app(argc,argv); QTemporaryDir temp; QNetworkAccessManager nam;
  QTcpServer server; require(server.listen(QHostAddress::LocalHost),"loopback fixture listens");
  int sessions=0,calls=0; bool rejectOnce=false,invalid=false,delayed=false,invalidResult=false,notModified=false;
+ QString failArg,emptyArg,slowArg,holdArg;
+ QPointer<QTcpSocket> heldSocket; QByteArray heldWire;
  QJsonArray lastArgs; QString lastMethod; QString sourceRevision(64, QLatin1Char('a')); QString fixtureEtag; QByteArray lastHeaders;
  QObject::connect(&server,&QTcpServer::newConnection,&app,[&]{
   while(server.hasPendingConnections()) {
@@ -39,16 +43,24 @@ int main(int argc,char** argv) {
      response={{"token","guest"},{"expiresAt","2099-01-01T00:00:00Z"}};
     } else {
      ++calls; lastHeaders=header; if(notModified) status=304; lastMethod=QString::fromUtf8(path.mid(path.lastIndexOf('/')+1)); lastArgs=request.value("args").toArray();
+     const QString selector=lastArgs.isEmpty() ? QString() : lastArgs.at(0).toString();
+     if (!failArg.isEmpty() && selector==failArg) status=503;
      require(header.contains("Bearer guest"),"guest bearer on semantic request");
      if(rejectOnce) { rejectOnce=false; status=401; }
      QJsonValue result=QJsonArray{QJsonObject{{"tt","tt001"},{"title",invalidResult ? "Invalid" : "Catalogued"},{"year",2020}}};
      if(lastMethod=="search" || lastMethod=="matchByTitle") result=QJsonArray{};
      if(lastMethod=="mangaById" || lastMethod=="series") result=QJsonObject{{"title","Detail"}};
+     if (!emptyArg.isEmpty() && selector==emptyArg) result=QJsonArray{};
      response={{"apiVersion",1},{"revision",sourceRevision},{"method",invalid ? "wrong" : lastMethod},{"result",result}};
     }
     const auto body=status==304 ? QByteArray() : QJsonDocument(response).toJson(QJsonDocument::Compact);
     const auto wire="HTTP/1.1 "+QByteArray::number(status)+" OK\r\n"+(fixtureEtag.isEmpty() ? QByteArray() : QByteArrayLiteral("ETag: ")+fixtureEtag.toLatin1()+"\r\n")+"Content-Type: application/json\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body;
-    if(delayed && path!="/v1/guest/session") QTimer::singleShot(80,socket,[socket,wire]{socket->write(wire);socket->disconnectFromHost();});
+    if(path!="/v1/guest/session" && !holdArg.isEmpty() && !lastArgs.isEmpty()
+       && lastArgs.at(0).toString()==holdArg) {
+     heldSocket=socket; heldWire=wire; // Test releases this response explicitly.
+    } else if(path!="/v1/guest/session"
+       && (delayed || (!slowArg.isEmpty() && !lastArgs.isEmpty() && lastArgs.at(0).toString()==slowArg)))
+     QTimer::singleShot(160,socket,[socket,wire]{socket->write(wire);socket->disconnectFromHost();});
     else {socket->write(wire);socket->disconnectFromHost();}
    });
   }
@@ -123,5 +135,128 @@ int main(int argc,char** argv) {
  require(conditional.read("titleCatalog",{query,600,24},QVariantList{}).toList().size()==1,"200 without ETag remains supported");
  delayed=true; remote.read("titleCatalog",{query,100,24},QVariantList{}); QCoreApplication::processEvents(); remote.configure(nullptr,QUrl(),{});
  require(!remote.pending() && !remote.available(),"reconfigure cancels generation and clears source cache");
- std::cout<<"PASS async semantic RPC: dedupe, guest lease, renewal, shape rejection, offline cache, adapters, refresh, revision invalidation, deep validation, stale delivery, ETag/304, cancellation\n";
+ // F2a: exact-query state; the legacy global pending()/failed(method) stay compatible.
+ delayed=false;
+ CatalogRemote scoped("imdb"); const QString scopedCache=temp.filePath("scoped.json");
+ scoped.configure(&nam,endpoint,scopedCache);
+ auto state=[&](const QString& arg){ return scoped.queryState("titleCatalog",QVariantList{arg},QVariantList{}); };
+ QStringList notified;
+ QObject::connect(&scoped,&CatalogRemote::queryChanged,&app,[&](const QString& id){notified.append(id);});
+ failArg="f2-fail";holdArg="f2-slow";
+ scoped.read("titleCatalog",{"f2-fail"},QVariantList{});
+ scoped.read("titleCatalog",{"f2-slow"},QVariantList{});
+ const QString failedKey=state("f2-fail").value("key").toString();
+ const QString slowKey=state("f2-slow").value("key").toString();
+ require(failedKey!=slowKey && state("f2-fail").value("waiting").toBool()
+         && state("f2-slow").value("pending").toBool(),"same-method query keys and pending are independent");
+ until([&]{return state("f2-fail").value("status").toString()=="failure" && heldSocket;});
+ require(state("f2-fail").value("error").toString()=="HTTP_503"
+         && !state("f2-fail").value("cached").toBool()
+         && state("f2-slow").value("pending").toBool()
+         && state("f2-slow").value("error").toString().isEmpty()
+         && notified.contains(failedKey) && heldSocket && !heldWire.isEmpty(),
+         "one failing query does not complete or relabel held peer");
+ heldSocket->write(heldWire);heldSocket->disconnectFromHost();
+ heldSocket=nullptr;heldWire.clear();holdArg.clear();
+ until([&]{return !scoped.pending();});
+ require(state("f2-slow").value("status").toString()=="success"
+         && state("f2-slow").value("cached").toBool() && notified.contains(slowKey),
+         "same-method peer succeeds independently");
+ slowArg.clear();
+ emptyArg="f2-empty";
+ scoped.read("titleCatalog",{"f2-empty"},QVariantList{});
+ until([&]{return !scoped.pending();});
+ require(state("f2-empty").value("status").toString()=="success"
+         && state("f2-empty").value("cached").toBool()
+         && scoped.read("titleCatalog",{"f2-empty"},QVariantList{}).toList().isEmpty()
+         && state("f2-fail").value("status").toString()=="failure",
+         "validated empty success differs from uncached failed fallback");
+
+ scoped.read("titleCatalog",{"f2-cache"},QVariantList{});
+ until([&]{return !scoped.pending();});
+ QFile healthy(scopedCache);require(healthy.open(QIODevice::ReadOnly),"F2 cache on disk");
+ const QByteArray healthyBytes=healthy.readAll();healthy.close();
+ failArg="f2-cache";const int beforeFailure=calls;
+ scoped.read("titleCatalog",{"f2-cache"},QVariantList{},true);
+ until([&]{return !scoped.pending();});
+ require(calls==beforeFailure+1
+         && state("f2-cache").value("status").toString()=="failure"
+         && state("f2-cache").value("cached").toBool()
+         && state("f2-cache").value("error").toString()=="HTTP_503"
+         && state("f2-cache").value("retryable").toBool()
+         && scoped.read("titleCatalog",{"f2-cache"},QVariantList{}).toList().size()==1,
+         "failed refresh preserves validated cache and records exact-query failure");
+ require(healthy.open(QIODevice::ReadOnly) && healthy.readAll()==healthyBytes,
+         "failed refresh never overwrites durable cache"); healthy.close();
+ const int cooledCalls=calls;
+ scoped.read("titleCatalog",{"f2-cache"},QVariantList{},true);
+ require(calls==cooledCalls && !state("f2-cache").value("pending").toBool(),
+         "force/automatic path still respects 30s failure cooldown");
+ failArg.clear();
+ require(scoped.retry("titleCatalog",{"f2-cache"},QVariantList{})
+         && !scoped.retry("titleCatalog",{"f2-cache"},QVariantList{}),
+         "manual retry bypasses cooldown once and dedupes in flight");
+ scoped.read("titleCatalog",{"f2-cache"},QVariantList{},true);
+ until([&]{return !scoped.pending();});
+ require(calls==cooledCalls+1
+         && state("f2-cache").value("status").toString()=="success"
+         && state("f2-cache").value("error").toString().isEmpty(),
+         "manual retry completes once and clears failure on success");
+ const int uncachedRetryCalls=calls;
+ require(scoped.retry("titleCatalog",{"f2-fail"},QVariantList{}),
+         "uncached failed exact query retryable");
+ until([&]{return !scoped.pending();});
+ require(calls==uncachedRetryCalls+1 && state("f2-fail").value("status").toString()=="success"
+         && state("f2-fail").value("cached").toBool(),"uncached failure recovers inside cooldown");
+
+ failArg="f2-orphan";
+ scoped.read("titleCatalog",{"f2-orphan"},QVariantList{});
+ until([&]{return !scoped.pending();});
+ require(state("f2-orphan").value("status").toString()=="failure","orphan error established");
+ failArg.clear();sourceRevision=QString(64,QLatin1Char('c'));
+ scoped.read("titleCatalog",{"f2-revision"},QVariantList{});
+ until([&]{return !scoped.pending();});
+ require(state("f2-orphan").value("status").toString()=="missing"
+         && state("f2-orphan").value("error").toString().isEmpty(),
+         "source revision invalidation clears stale query errors");
+
+ slowArg="f2-late"; const int beforeLate=calls;
+ scoped.read("titleCatalog",{"f2-late"},QVariantList{});
+ until([&]{return calls>beforeLate;});
+ require(state("f2-late").value("pending").toBool(),"old generation request in flight");
+ scoped.configure(&nam,endpoint,temp.filePath("f2-reset.json"));
+ require(state("f2-late").value("status").toString()=="missing"
+         && state("f2-late").value("error").toString().isEmpty(),"configuration clears query state");
+ QElapsedTimer drain;drain.start();
+ while(drain.elapsed()<260) QCoreApplication::processEvents(QEventLoop::AllEvents,10);
+ require(state("f2-late").value("status").toString()=="missing"
+         && !state("f2-late").value("cached").toBool(),"late old generation cannot restore data/error");
+ slowArg.clear();scoped.read("titleCatalog",{"f2-present"},QVariantList{});
+ until([&]{return !scoped.pending();});
+ require(state("f2-present").value("status").toString()=="success"
+         && state("f2-late").value("status").toString()=="missing",
+         "new configuration response unaffected by old reply");
+ const int offlineCalls=calls;
+ scoped.configure(nullptr,endpoint,temp.filePath("f2-reset.json"));
+ require(!state("f2-present").value("enabled").toBool()
+         && state("f2-present").value("cached").toBool()
+         && state("f2-present").value("status").toString()=="success"
+         && scoped.read("titleCatalog",{"f2-present"},QVariantList{}).toList().size()==1
+         && calls==offlineCalls,"offline query state preserves useful validated cache");
+ // Query subscribers may reconfigure a source. Enqueue notification must not
+ // re-enter read() while it still holds a cache iterator, or dispatch old work
+ // after a notification listener has replaced the configuration.
+ CatalogRemote notificationReset("imdb"); notificationReset.configure(&nam,endpoint,{});
+ int enqueueNotices=0;
+ QObject::connect(&notificationReset,&CatalogRemote::queryChanged,&app,[&](const QString&){
+     ++enqueueNotices; notificationReset.configure(nullptr,QUrl(),{});
+ });
+ const int beforeResetSessions=sessions, beforeResetCalls=calls;
+ notificationReset.read("titleCatalog",{"f2-enqueue-reset"},QVariantList{});
+ require(enqueueNotices==0,"enqueue notification must not reenter synchronous cache read");
+ until([&]{return enqueueNotices==1;});
+ QCoreApplication::processEvents();
+ require(!notificationReset.pending() && sessions==beforeResetSessions && calls==beforeResetCalls,
+         "enqueue subscriber reconfiguration cannot dispatch old-source work");
+ std::cout<<"PASS async semantic RPC: existing fixture plus F2a query scopes, empty/error, cached refresh, retry, revision reset, late response, offline cache, enqueue reentrancy\n";
 }
