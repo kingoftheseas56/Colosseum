@@ -340,6 +340,35 @@ public slots:
                         qInfo().noquote() << "SERVICES_RESOURCE_HIT host=localhost";
                         body = QByteArray::fromBase64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
                         mime = "image/png";
+                    } else if (path == "/services-permission-parent") {
+                        body = R"HTML(<!doctype html><title>Permission parent</title>
+<style>body{margin:0}iframe{position:absolute;left:20px;top:20px;width:400px;height:220px;border:0}</style>
+<script>
+window.frameReports=[];
+window.childOrigin='http://localhost:PORT';
+addEventListener('message',e=>{const f=document.querySelector('iframe');
+ if(f&&e.source===f.contentWindow&&e.origin===childOrigin)frameReports.push(e.data)});
+window.makeFrame=function(nonce){const f=document.createElement('iframe');f.id='requester';
+ f.allow='local-fonts';f.src=childOrigin+'/services-permission-child?nonce='+nonce;
+ document.body.appendChild(f);return true};
+addEventListener('DOMContentLoaded',()=>makeFrame('first'));
+</script><body></body>)HTML";
+                        body.replace("PORT", QByteArray::number(m_server.serverPort()));
+                    } else if (path.split('?').first() == "/services-permission-child") {
+                        body = R"HTML(<!doctype html><title>Permission child</title>
+<style>body{margin:0}button{position:absolute;left:20px;top:20px;width:300px;height:70px}</style>
+<button id='ask'>Request local font permission</button><script>
+const nonce=new URL(location.href).searchParams.get('nonce');
+const report=value=>parent.postMessage(Object.assign({nonce:nonce},value),'*');
+report({kind:'ready',secure:isSecureContext,api:typeof queryLocalFonts==='function',origin:location.origin});
+navigator.permissions.query({name:'local-fonts'}).then(p=>report({kind:'state',state:p.state}))
+ .catch(e=>report({kind:'query-error',name:e.name}));
+document.querySelector('#ask').onclick=()=>{
+ report({kind:'clicked'});
+ queryLocalFonts().then(fonts=>report({kind:'result',result:'resolved',count:fonts.length}))
+ .catch(e=>report({kind:'result',result:'rejected',name:e.name}));
+};
+</script>)HTML";
                     } else if (path == "/services-media") {
                         body = R"HTML(<!doctype html><title>services:media</title>
 <audio id="serviceAudio" loop src="/tone.wav" preload="auto"></audio>

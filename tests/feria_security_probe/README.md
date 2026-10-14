@@ -25,6 +25,20 @@ current native policy. Run one selected case with `-input tests/feria_security_p
 - `FeriaPopupBoundaries::test_clickOpenedPopupHasNoNativeBridge` uses a real click
   and POST popup. Use the Windows platform and `FERIA_FIXTURE_FOREGROUND=1` for the
   existing first-exposure fixture activation; its focus assertion must remain.
+- `FeriaFramePermissions::test_removedFrameCannotReceiveLateGrant` is an open
+  security regression: it currently FAILS on both accepted engine pairings.
+  A real click requests Local Fonts access from a delegated cross-origin iframe;
+  the test removes that frame, waits for the native frame tree to become empty,
+  then answers the old application prompt. The origin must not receive a stored
+  grant. Do not skip or invert this assertion to qualify the current runtime.
+- `FeriaFramePermissions::test_liveFrameGrantAndExplicitReset` is its positive
+  control: a live frame receives actual font entries after consent, profile reset
+  returns to Ask, and a fresh request can be denied. Only counts are inspected;
+  font names and contents are never logged. Chromium may resolve denial with an
+  empty list, so the test checks the permission state and absence of returned data.
+  Both frame cases require the Windows platform, foreground opt-in above, and a
+  runner rebuilt with the `/services-permission-*` HTTP routes. Profiles are
+  disposable and unique per case.
 
 Set `FERIA_FIXTURE_PORT=0`, a disposable `FERIA_FIXTURE_ROOT` and
 `FERIA_SESSION_EVIDENCE_DIR`, and the intended runtime's paths. Record the direct

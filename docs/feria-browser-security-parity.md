@@ -160,15 +160,37 @@ app or renderer-sandbox claim follows.
 Remaining F1 work includes custom-scheme/external-protocol and file-picker paths,
 subframe request invalidation, and full-shell/installed verification. Review found
 that permission objects supply their own origin, but file/capture UI sometimes
-uses the top-level URL. An iframe removal/navigation fixture must establish actual
-request invalidation before deciding any product change. Do not reject legitimate
-iframe requests merely because their origin differs from the top-level site.
-The next candidate is a real `LocalFontsAccess` request from a delegated iframe:
-first prove the API exists in the selected runtime, then remove/navigate the
-requester and answer through the application's existing prompt route. Qt's
-permission object's validity checks profile/origin support, not frame lifetime;
-source inspection alone does not prove the old answer will grant anything.
-Use disposable profiles, an actual click and no font-content/name logging.
+uses the top-level URL. Removal is now reproduced below; navigation and replacement
+still need their own regressions. Legitimate iframe requests must remain supported
+when their origin differs from the top-level site.
+Follow-up, 2026-10-14: the delegated `LocalFontsAccess` fixture reproduced a stale
+grant on BOTH accepted stock and codec pairings. A real click in a localhost
+iframe under a 127.0.0.1 page raises the application's prompt with the correct
+requesting origin. After removal and native `mainFrame.children.length === 0`,
+answering the old prompt stores Granted for the removed frame's origin. Both
+regressions report 2 passed / 1 failed, native exit 1. This violates Feria's
+document-bound consent requirement. Qt documents persistent permissions as
+origin-level state; do not describe this finding as a published Qt CVE.
+
+Evidence: `feria-frame-permission-20261014-stock-02` and
+`feria-frame-permission-20261014-codec-01`, with final-source stock reproduction
+`feria-frame-permission-20261014-stock-final-red` (`qtest.txt`, `result.json`).
+All recorded exact candidate module/helper matches, stable QML source and no
+remaining sampled children. Final-source stock positive control
+`feria-frame-permission-20261014-stock-positive-02` passes 3/0/0, native 0:
+live consent returns font entries, explicit profile reset returns Ask, and a
+new request can be denied with no returned font data. No font names are logged.
+Earlier fixture failures remain preserved. These are browser fixture results,
+not installed-app or live-provider acceptance.
+
+The unbuilt engine candidate binds request handles to a weak document and adds
+callback owner-lifetime guards. It remains outside the production build and is
+not a verified fix. Core and matching consumers require compilation together;
+the accepted Quick-only build over prebuilt Core cannot validate it. Proactive
+prompt cancellation, same-URL replacement/reload, simultaneous requests, BFCache
+and combined capture callback behavior remain qualification gates. Source-only
+inspection of Qt v6.11.2 and current development permission handles found no
+requesting-document validity check; a newer binary alone is not proof of repair.
 
 ## Required capabilities and acceptance work
 
