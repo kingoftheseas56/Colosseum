@@ -14,6 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "Universes.js" as UDB
+import "UniverseApi.js" as CoverApi
 
 Item {
     id: root
@@ -53,7 +54,7 @@ Item {
     property int loadGeneration: 0
 
     property var uni: ({ name: "", category: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
-                         color: "", shelves: [] })
+                         color: "", shelves: [], catalogueNotice: "" })
 
     // ---- the shelves are data: one panel per non-empty shelf, in entry order ----
     function runWorks(run) { return run ? (run.works || run.items || []) : [] }
@@ -393,6 +394,15 @@ Item {
                                        font.pixelSize: 12; font.weight: Font.Medium }
                             }
                         }
+                    }
+                    Text {
+                        objectName: "shelvesCatalogueNotice"
+                        visible: !!root.uni.catalogueNotice
+                        width: parent.width
+                        text: root.uni.catalogueNotice || ""
+                        color: theme.inkDimmer
+                        font.family: root.uiFace; font.pixelSize: 13
+                        wrapMode: Text.WordWrap
                     }
                     Flow {
                         width: parent.width; spacing: 12
@@ -954,6 +964,18 @@ Item {
                                             spacing: 0
                                             ShelfTile {
                                                 item: work.modelData
+                                                // Some legacy catalogue books have an Apple Books pin but
+                                                // no baked artwork. Only request the visible/nearby cards'
+                                                // covers so Star Wars' 72 novels don't fan out at once.
+                                                coverLookupAllowed: {
+                                                    if (work.modelData.medium !== "book" || work.modelData.cover) return false
+                                                    const top = medium.mapToItem(page.contentItem, 0, 0).y - page.contentY
+                                                    if (top > page.height * 1.5 || top + medium.height < -page.height * 0.5)
+                                                        return false
+                                                    const left = work.mapToItem(runsRow, 0, 0).x
+                                                    return left + work.width > shelfFlick.contentX - work.width
+                                                        && left < shelfFlick.contentX + shelfFlick.width + work.width
+                                                }
                                                 current: root.selectedKey === root.keyOf(work.modelData)
                                                 keyboardSelected: rowFocus.activeFocus
                                                                  && rowFocus.currentIndex === run.runBase + work.index
@@ -1272,6 +1294,21 @@ Item {
     component ShelfTile: Rectangle {
         id: tile
         property var item: null
+        property bool coverLookupAllowed: false
+        property string resolvedCover: ""
+        function refreshMissingCover() {
+            tile.resolvedCover = ""
+            var entry = tile.item
+            if (!tile.coverLookupAllowed || !entry || entry.medium !== "book"
+                    || entry.cover || !(entry.apple > 0)) return
+            // Identity guard: a delayed Apple response cannot paint a reused tile.
+            CoverApi.coverFor({ provider: "applebooks", id: entry.apple, title: entry.title },
+                              "book", function(url) {
+                                  if (tile.item === entry && url) tile.resolvedCover = url
+                              })
+        }
+        onItemChanged: refreshMissingCover()
+        onCoverLookupAllowedChanged: if (coverLookupAllowed) refreshMissingCover()
         readonly property string rowLabel: item && item.shelfTitle ? String(item.shelfTitle) : ""
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
@@ -1297,7 +1334,7 @@ Item {
             Image {
                 id: art
                 anchors.fill: parent
-                source: tile.item ? (tile.item.cover || "") : ""
+                source: tile.item ? (tile.item.cover || tile.resolvedCover || "") : ""
                 asynchronous: true; cache: true
                 sourceSize.width: 400
                 fillMode: Image.PreserveAspectCrop
