@@ -6,6 +6,8 @@ Verified HEAD: `d7f86f4411300f5df840377eaca7ff5859ae2879`.
 Scope: the already decided 1.1.9 changes, excluding Feria and Vinyl.
 No candidate application files were changed while preparing this plan.
 
+Storage selection and publication sequencing now follow the [portable service migration plan](2026-10-14-content-service-migration-plan.md). The native contracts and release gates here apply to every qualified backend; existing raw-table D1 staging is a baseline, not a mandatory production schema.
+
 ## Decision and release boundary
 
 Replace catalogue delivery through GitHub REST and automatic release-asset DB downloads.
@@ -34,7 +36,7 @@ Preserve `ready()` as an invokable: the existing headers explain its QML propert
 
 | Existing C++ owner | Semantic API coverage required before its remote cutover |
 | --- | --- |
-| `ImdbCatalog.h/.cpp` | `titleCatalog`, `matchByTitle`, prefix `search`, bounded batch `titleFacts`, `titlePresentation` |
+| `ImdbCatalog.h/.cpp` | `titleCatalog`, `matchByTitle`, substring `LIKE` search, bounded batch `titleFacts`, `titlePresentation` |
 | `MalCatalog.h/.cpp` | `genreEntries`, true `genreCount`/`genreCounts`, `animeCatalog`, title identity/search, `mangaById`, Discover facets and AND-filtered pages |
 | `ComicsCatalog.h/.cpp` | series/detail/search/exact matches, downloads with mirrors, curated rank/detail/coverage/by-normalized-title/genre shelves/downloadability, shelves and AND-filtered Discover pages |
 | `TankobanCatalog.h/.cpp` | `seriesInfo` and complete per-series `volumes` result with numeric-aware order and count-based synthesis |
@@ -61,9 +63,9 @@ Verify a clean AppData launch with no reachable `data/` directory; development D
 
 ## Stage 2: establish production auth and versioned semantic reads
 
-Add bounded server endpoints per method family above, using the imported namespaced tables and bound parameters.
+Add bounded server endpoints per method family above, using a parity-proved projection on the selected query backend and bound parameters.
 Expose dataset/source hash, schema/API version, last publication time and logical catalogue readiness.
-Readiness requires every dependency table for that logical operation to be complete at a compatible source version.
+Readiness requires every logical dependency for that operation to be complete at a compatible source version, whether represented by source tables, normalized projection relationships or verified object documents.
 Implement server filtering/joins/search and stable pagination; never download all rows and perform joins in the client.
 Use explicit query allowlists, maximum page/batch sizes, deterministic tie-breakers and query-cost bounds.
 Return distinct unavailable/not-ready, empty-success and authentication-expired outcomes.
@@ -93,8 +95,8 @@ Offline identity uses only local/cached facts; unknown remains unknown rather th
 Only small source tables are ready now; full joined native queries cannot be assumed available.
 The four source DBs total approximately 165 MB, rather than the earlier 250 MB estimate.
 Baseline candidate worktree has no `data/*.db` files; size/bootstrap figures come from the publishing inventory, not those missing files.
-Free-tier bootstrap estimate is about 2.82 million weighted data writes plus control overhead, roughly 53 days at the 60,000 daily safety cap.
-Treat that as an estimate; checkpointed import status and dependency completeness determine actual enablement dates.
+The full raw-table D1 baseline estimates about 2.82 million weighted data writes plus control overhead, roughly 53 days at the 60,000 daily safety cap. This is not an accepted release schedule or a requirement to continue that import.
+The portable plan compares smaller projections and alternative free backends; their accounting must be measured separately. Checkpointed publication status and logical dependency completeness determine actual enablement dates.
 Publish versioned logical catalogue capabilities only after exact source counts and dependent-table checks pass.
 Do not accelerate publication by silently abandoning the free-tier cap or issuing bulk client downloads.
 `scripts/installer/package_release.sh:61-64` currently assumes no catalogue DBs ship and first-launch GitHub delivery.
