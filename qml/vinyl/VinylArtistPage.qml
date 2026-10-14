@@ -36,7 +36,7 @@ Flickable {
                     required property int index
                     objectName: "vinylArtistNav_" + index
                     width: navLabel.implicitWidth; height: 30
-                    visible: index === 0 || index === 1 && root.artistData.releases.length > 0 || index === 2 && root.artistData.singles.length > 0 || index === 3 && root.artistData.playlists.length > 0 || index === 4 && root.artistData.context.history.length > 0
+                    visible: index === 0 || index === 1 && root.artistData.releases.length > 0 || index === 2 && root.artistData.singles.length > 0 || index === 3 && root.artistData.playlists.length > 0 || index === 4 && about.visible
                     accessibleName: modelData
                     onTriggered: { if (index === 0) root.contentY = 0; else root.jumpTo([body, albumsSection, singlesSection, playlistsSection, about][index]); }
                     Text { id: navLabel; text: modelData; color: parent.interactionActive ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
@@ -293,12 +293,14 @@ Flickable {
             id: about
             objectName: "vinylArtistAbout"
             width: parent.width; spacing: 20
-            visible: root.artistData.context.history.length > 0
-            Text { text: "Behind the music"; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
+            visible: root.artistData.context.history.length > 0 || root.artistData.context.facts.length > 0 || root.artistData.releaseHistory.length > 0
+            Text { text: "About"; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
             Row {
                 width: parent.width; spacing: 44
+                visible: root.artistData.context.history.length > 0 || root.artistData.context.facts.length > 0
                 Column {
                     width: parent.width * 0.6 - 22; spacing: 18
+                    visible: root.artistData.context.history.length > 0
                     Text { width: parent.width; text: root.artistData.context.history; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15; lineHeight: 1.45; wrapMode: Text.WordWrap }
                     Row {
                         spacing: 22
@@ -315,6 +317,7 @@ Flickable {
                 }
                 Column {
                     width: parent.width * 0.4 - 22; spacing: 14
+                    visible: root.artistData.context.facts.length > 0
                     Repeater {
                         model: root.artistData.context.facts
                         delegate: Row {
@@ -326,17 +329,28 @@ Flickable {
                     }
                 }
             }
-            Row {
+            Text {
+                visible: root.artistData.releaseHistory.length > 0
+                text: "From this collection"
+                color: theme.ink; font.family: theme.display; font.pixelSize: 24
+            }
+            Flow {
                 width: parent.width; spacing: 24
+                visible: root.artistData.releaseHistory.length > 0
                 Repeater {
-                    model: root.artistData.context.timeline
-                    delegate: Column {
+                    model: root.artistData.releaseHistory
+                    delegate: KeyboardAction {
                         required property var modelData
-                        width: (parent.width - (root.artistData.context.timeline.length - 1) * 24) / root.artistData.context.timeline.length; spacing: 10
-                        Rectangle { width: parent.width; height: 1; color: theme.edge }
-                        Text { text: modelData.year; color: theme.gold; font.family: theme.display; font.pixelSize: 26 }
-                        Text { width: parent.width; text: modelData.title; wrapMode: Text.WordWrap; color: theme.ink; font.family: theme.ui; font.pixelSize: 14 }
-                        Text { width: parent.width; text: modelData.text; wrapMode: Text.WordWrap; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; lineHeight: 1.3 }
+                        required property int index
+                        objectName: "vinylArtistHistory_" + index
+                        width: (root.bodyWidth - (root.width < 1100 ? 24 : 72)) / (root.width < 1100 ? 2 : 4)
+                        height: 124
+                        accessibleName: "Open " + modelData.album.title
+                        onTriggered: root.albumRequested(modelData.album)
+                        Rectangle { width: parent.width; height: 1; color: parent.interactionActive ? theme.gold : theme.edge }
+                        Text { y: 15; text: modelData.album.year; color: theme.gold; font.family: theme.display; font.pixelSize: 26 }
+                        Text { y: 51; width: parent.width; text: modelData.album.title; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; color: theme.ink; font.family: theme.ui; font.pixelSize: 14 }
+                        Text { y: 102; text: modelData.credit === "album" ? "Album credit ↗" : modelData.credit === "single" ? modelData.album.releaseType + " ↗" : "Appears on ↗"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
                     }
                 }
             }

@@ -25,6 +25,7 @@ QtObject {
     readonly property var context: Context.forArtist(record.name)
     readonly property var singles: name === "Eminem" ? Eminem.data.filter(function(a) { return a.releaseType !== "Album"; }) : context.singlesArtist ? Singles.data : []
     readonly property var releases: Catalogue.releases(record, filter, newestFirst)
+    readonly property var releaseHistory: Catalogue.releaseHistory(record, singles, 4)
     readonly property bool saved: savedNames.indexOf(record.name) >= 0
     readonly property var songOrder: {
         var first = [], rest = [], seen = {};

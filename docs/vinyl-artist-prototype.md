@@ -9,7 +9,7 @@ Artist cards, album credits and the song's artist label open the artist surface.
 
 Eminem is the default artist. The first viewport pairs artist identity and a
 short blurb with five selected songs. Albums, singles/EPs, session playlists,
-biography, facts, career milestones and shared credits fill the scroll surface.
+optional sourced biography, facts, release history and shared credits fill the scroll surface.
 Section links jump to the corresponding content. Album artwork supplies the
 backdrop; there is no separate portrait or invented follower/popularity count.
 
@@ -60,8 +60,14 @@ YouTube Music snapshot from 2026-10-14 (IN, ytmusicapi 1.12.3); each record
 retains a source URL, exact release ID, type and track credits. This is a
 bounded selection, not a complete discography. New thumbnails load directly
 from provider URLs and need network access; existing artwork remains local.
-Short authored biography summaries and milestones link to Wikipedia/Wikidata
-in the page and in `ArtistContext.js`. Genius documentation returned HTTP 403
+Short authored biography summaries link to Wikipedia/Wikidata in the page and
+in `ArtistContext.js`. The release-history cards are generated from the same
+dated catalogue records for every artist: one representative album credit per
+year, then a single/EP or appearance if needed, sampled across the available
+years. They open the corresponding album and are labelled as part of this
+collection, since its snapshot is incomplete. Artists with no dated releases
+have no release-history cards. No per-artist timeline prose is required.
+Genius documentation returned HTTP 403
 during this pass. No Genius metadata or lyrics are presented as retrieved;
 verified song-level enrichment remains an integration gap.
 
@@ -79,7 +85,8 @@ Live enrichment, videos and recommendations require matched, sourced content bef
 routes, nested back navigation, preservation of playing state, song selection,
 keyboard sort/save, appearance filtering, multiple-name selection and thin data.
 It also checks Eminem releases, singles navigation, biography section jumping,
-playlist creation and per-artist playlist isolation.
+generic release-history selection and album routing, playlist creation and
+per-artist playlist isolation.
 The existing Vinyl album, song and page-data suites exercise shared behaviour.
 
 Set `VINYL_CAPTURE_DIR` when running the artist suite through

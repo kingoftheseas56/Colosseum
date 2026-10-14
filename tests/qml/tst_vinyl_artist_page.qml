@@ -31,6 +31,25 @@ TestCase {
         compare(Catalogue.artist(source, "K. V. Mahadevan").releases.length, 0);
         compare(Catalogue.artist(source, "Kavita Subrahmanyam").songs.length, 0);
     }
+    function test_releaseHistoryUsesAvailableCatalogueYears() {
+        var record = {releases: [
+            {album:{title:"Recent",year:2024},credit:"album"},
+            {album:{title:"Early",year:2000},credit:"album"},
+            {album:{title:"Guest",year:2010},credit:"track"},
+            {album:{title:"Own",year:2010},credit:"album"},
+            {album:{title:"Undated"},credit:"album"},
+            {album:{title:"Middle",year:2015},credit:"album"},
+            {album:{title:"Later",year:2020},credit:"album"}
+        ]};
+        var history = Catalogue.releaseHistory(record, [], 4);
+        compare(history.length, 4);
+        compare(history[0].album.title, "Early");
+        compare(history[1].album.title, "Own");
+        compare(history[3].album.title, "Recent");
+        compare(Catalogue.releaseHistory({releases:[record.releases[0]]}, [], 4).length, 1);
+        compare(Catalogue.releaseHistory({releases:[]}, [], 4).length, 0);
+        compare(Catalogue.releaseHistory({releases:[]}, [{title:"Only single",year:2021,releaseType:"Single"}], 4)[0].album.title, "Only single");
+    }
     function test_worldArtistAndCreditRoutesPreservePlayback() {
         var playing = host.pageData.playingEditionId;
         var position = host.pageData.position;
@@ -124,11 +143,23 @@ TestCase {
     function test_thinAndUnknownArtist() {
         host.openArtist("Joni Mitchell");
         compare(host.artistData.releases.length, 1);
+        compare(host.artistData.releaseHistory.length, 1);
         host.openArtist("Uncatalogued artist");
         compare(host.artistData.releases.length, 0);
         compare(host.artistData.songs.length, 0);
+        compare(host.artistData.releaseHistory.length, 0);
         compare(item("vinylArtistName").text, "Uncatalogued artist");
         verify(item("vinylArtistSave").visible);
+    }
+    function test_releaseHistoryWithoutAuthoredBiography() {
+        host.artistData.open("S. P. Balasubrahmanyam");
+        compare(host.artistData.context.history, "");
+        verify(host.artistData.releaseHistory.length > 0);
+        verify(item("vinylArtistNav_4").visible);
+        var release = host.artistData.releaseHistory[0].album;
+        item("vinylArtistHistory_0").activate();
+        compare(host.page, "album");
+        compare(host.pageData.shownEdition.name, release.title);
     }
     function test_eminemSectionsPlaylistAndSingleRoundTrip() {
         host.artistData.open("Eminem");
@@ -136,6 +167,8 @@ TestCase {
         verify(host.artistData.releases.length >= 6);
         compare(host.artistData.singles.length, 3);
         verify(host.artistData.context.history.length > 0);
+        compare(host.artistData.releaseHistory.length, 4);
+        compare(Number(host.artistData.releaseHistory[0].album.year), 2002);
         compare(host.artistData.songs[0].track.title, "Without Me");
         verify(!host.artistData.createPlaylist("   "));
         verify(host.artistData.createPlaylist("My Eminem mix"));
@@ -149,6 +182,12 @@ TestCase {
         item("vinylArtistNav_4").activate();
         verify(host.artistScroll.contentY > 0);
         var oldY = host.artistScroll.contentY;
+        var firstHistory = host.artistData.releaseHistory[0].album;
+        item("vinylArtistHistory_0").activate();
+        compare(host.pageData.shownEdition.name, firstHistory.title);
+        item("vinylAlbumBack").activate();
+        compare(host.page, "artist");
+        compare(host.artistScroll.contentY, oldY);
         item("vinylArtistSingle_0").activate();
         compare(host.page, "album");
         compare(host.pageData.shownEdition.name, "Somebody Save Me");
@@ -157,6 +196,7 @@ TestCase {
         compare(host.artistScroll.contentY, oldY);
         host.artistData.open("Joni Mitchell");
         compare(host.artistData.playlists.length, 1);
+        compare(host.artistData.releaseHistory.length, 1);
         host.artistData.open("Eminem");
         compare(host.artistData.playlists[1].name, "My Eminem mix");
     }
