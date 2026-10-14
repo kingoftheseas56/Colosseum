@@ -66,6 +66,16 @@ colosseum_register_harness(tankoyomi_configuration_store_harness unit;tankoyomi)
 colosseum_register_harness(tankoyomi_service_configuration_harness unit;tankoyomi)
 
 if(WIN32)
+    add_test(NAME colosseum.tankoban_discover_async_preservation
+        COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
+                -platform offscreen
+                "${CMAKE_CURRENT_SOURCE_DIR}/tankoban_discover_async_preservation_harness.qml")
+    set_tests_properties(colosseum.tankoban_discover_async_preservation PROPERTIES
+        LABELS "unit;tankoban;discover;windows"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_BACKEND=software;QSG_RENDER_LOOP=basic;QT_QUICK_CONTROLS_STYLE=Basic"
+        PASS_REGULAR_EXPRESSION "F1_COMPREHENSIVE_OK"
+        TIMEOUT 60)
+
     add_test(NAME colosseum.reader2_logic
         COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
                 -platform offscreen

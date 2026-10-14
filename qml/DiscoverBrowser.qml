@@ -464,7 +464,10 @@ Item {
     function refresh() {
         if (!adapter) return
         adapterRev++                     // force the adapter-derived bindings to re-evaluate
-        if (pinValue) { applyPin(pinValue); return }
+        // A pin is a navigation instruction, not a subscription to catalogue revisions.
+        // applyPin() already runs on entry and on each explicit new shelf shortcut;
+        // replaying it here discards pagination, filters and the user's current source
+        // whenever an asynchronous request publishes a metadata/cache revision.
         var cats = adapter.catalogs(currentType)
         for (var i = 0; i < cats.length; i++)
             if (cats[i].key === currentCatalogKey) return   // still present -> keep the wall as-is
