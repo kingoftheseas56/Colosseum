@@ -45,6 +45,14 @@ their provenance, renderer sandbox, the installed package or the full shell.
 Build `feria_foundation_runtime` from `tests/feria_foundation_build` against the
 current native policy. Run one selected case with `-input tests/feria_security_probe`:
 
+- `FeriaStreamingCapabilities::test_inventory` records `canPlayType`, MSE and
+  temporary-session EME capabilities at the secure loopback fixture origin.
+  Clear Key/WebM access and MediaKeys creation are positive controls. Widevine
+  WebM/MP4 outcomes are observations: PASS means the inventory and controls
+  completed, not that Widevine or proprietary codecs were accepted. Inspect the
+  `STREAMING_CAPABILITIES` JSON rows separately. No license request, session,
+  encrypted playback, robustness tier or CDM binary provenance is established.
+  The probe uses default CDM discovery, with no copied CDM or provider login.
 - `FeriaObservationOrigin::test_pageCannotAttributePlaybackToAnotherOrigin` uses
   a real page prototype setter to forge the production probe's URL. It requires
   cross-origin rejection, recovery and same-origin canonical-route acceptance.

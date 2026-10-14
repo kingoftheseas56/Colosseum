@@ -112,6 +112,12 @@ their default-freeze fixtures passed 3/0/0, native 0 each. The observer and exac
 limitations are recorded in the security ledger. This does not close the full
 sandbox, installed-runtime or provider gates.
 
+Early F2.4 capability inventory now observes Widevine WebM access and MediaKeys
+creation on both pinned runtimes; H.264/AAC MP4 is accepted only on the codec
+runtime. Clear Key controls and cleanup pass 3/0/0, native 0 per pairing. This
+advances API feasibility only: CDM identity, encrypted playback/license handling,
+robustness and provider acceptance remain open in the security ledger.
+
 | Phase | Objective | Depends on | Completion gate |
 | --- | --- | --- | --- |
 | 1 | Secure startup and browser/native boundaries | Current source | Unsafe configurations rejected and hostile-page negative tests pass |

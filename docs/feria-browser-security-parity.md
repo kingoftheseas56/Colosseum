@@ -107,6 +107,35 @@ own actual-host checks, not a retroactive transport qualification claim.
 - `verify_browser_runtime.ps1` checks required files exist and are nonempty.
   That alone does not establish matching hashes, sandbox activity or security fixes.
 
+### Streaming capability checkpoint, 2026-10-14
+
+The real-wrapper `FeriaStreamingCapabilities::test_inventory` records codec/MSE
+declarations and temporary EME access plus MediaKeys construction. Both pinned
+runtime pairings passed the inventory and Clear Key/WebM controls (3/0/0,
+native/driver exit 0), with stable source, matching Qt modules/helpers and no
+remaining observed children. The loopback origin was a secure context; profiles
+were disposable, and no CDM installation, explicit path override or provider
+account was used.
+
+| Observed capability | Stock | Codec |
+| --- | --- | --- |
+| VP8/Vorbis `canPlayType` and MSE | Advertised | Advertised |
+| H.264/AAC `canPlayType` and MSE | Unsupported | Advertised |
+| Clear Key WebM access and MediaKeys creation | Accepted | Accepted |
+| Widevine WebM access and MediaKeys creation | Accepted | Accepted |
+| Widevine H.264/AAC MP4 access and MediaKeys creation | Rejected (`NotSupportedError`) | Accepted |
+
+Evidence: `streaming-capability-stock-20261014` and
+`streaming-capability-codec-20261014`, each with `qtest.txt`, `result.json`, launch
+identity and file-backed logs. PASS denotes a completed inventory and its positive
+controls; Widevine acceptance is recorded separately and is not required for the
+inventory test to pass. Requested sessions were temporary, distinctive identifiers
+and persistent state were disallowed, and returned robustness was unspecified.
+This does not establish a hardware/software robustness tier, session creation,
+license acquisition, usable keys, decryption, encrypted playback, the actual CDM
+binary path/hash, installed-package discovery or provider acceptance. Offscreen
+GPU context warnings also prevent inferring hardware-accelerated playback.
+
 ### Browser/native boundary checkpoint, 2026-10-14
 
 Windows process-token checkpoint: `observe_windows_tokens.py` sampled actual
