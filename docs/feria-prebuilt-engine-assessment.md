@@ -1,8 +1,8 @@
 # Windows prebuilt engine assessment
 
 Inspected 2026-10-14. This is a publisher/source and package-metadata search,
-not acceptance of another binary. The Conda package was downloaded and its exact
-metadata/configuration inspected; no new engine was installed or run.
+not acceptance of another binary. Conda, Sigil and KDE packages were downloaded
+and their exact metadata/configuration inspected; no new engine was installed or run.
 The target remains QtWebEngine with the secure streaming arc's full gates.
 
 | Candidate | Evidence | Decision / missing proof |
@@ -12,6 +12,7 @@ The target remains QtWebEngine with the secure streaming arc's full gates.
 | [Doug Massay / Sigil Qt builds](https://github.com/dougmassay/win-qtwebkit-5.212/releases/tag/v5.212-1) | Downloaded `Qt6.10.2ci_x64_VS2026a.7z`, 139145832 bytes; publisher SHA256 `a25d85fd192711653d20a5665c45cfa4b118261b09e699c6917ce5a99149d154` matches. Packaged headers enable proprietary codecs, WebRTC, PDF/printing and spellcheck; geolocation is disabled | Rejected as a complete replacement: no WebEngineQuick DLL/import library/CMake package/QML plugin. Core/Widgets SDK exists, but no generated Chromium headers/buildflags or exact source pin. Qt 6.10.2/MSVC 19.50.35723 metadata does not establish compatibility with Feria. No binary executed. |
 | [Calibre / bypy](https://github.com/kovidgoyal/bypy/blob/master/bypy/pkgs/qt_webengine.py) | Recipe explicitly enables proprietary codecs and Widgets, disables WebEngineQuick | Potential Core donor only. Matching Quick would still need compilation and private ABI/source verification; no packaged artifact was accepted. |
 | [qutebrowser Windows releases](https://github.com/qutebrowser/qutebrowser/blob/main/doc/install.asciidoc) | Publisher documents codec-free Windows builds | Does not solve our proprietary-codec requirement. |
+| [KDE Craft / Falkon Qt 6.11.1 SDK](https://files.kde.org/craft/Qt6/26.05/windows/cl/msvc2022/x86_64/RelWithDebInfo/libs/qt6/qtwebengine/) | Downloaded MSVC2022 x64 SDK build 92, 91029965 bytes, SHA256 `983e8fc9fe208b6534765ba17dfb4680e76601e118bd5696c2a8d06a68c3410b`. Core/Quick headers, import libraries, CMake packages and QML plugins exist; Core/Quick hashes match Falkon runtime build 2811 | Rejected as a complete streaming replacement: actual packaged headers disable proprietary codecs. Geolocation, WebRTC, PDF/printing and spellcheck are enabled. Matching QtBase/Declarative and external dependencies are separate cache packages; current Feria kit compatibility and exact source commits remain unverified. |
 
 Conda recipe pin inspected:
 [`d6573704181dbbe592441715e09bd96cf6b9ae38`](https://github.com/conda-forge/qt-webengine-feedstock/tree/d6573704181dbbe592441715e09bd96cf6b9ae38/recipe).
@@ -30,9 +31,29 @@ selected metadata/configuration hashes. Its full inventory distinguishes general
 Qt Quick modules (present) from WebEngineQuick (absent). Evidence:
 `sigil-inspection-20261014`, including `archive-inventory.json`,
 `feature-summary.json`, `selected-hashes.json` and publisher asset metadata.
-The current GoldenDict ordinary release workflow uses official Qt packages; its
-vcpkg dependency export is not a Qt SDK. The exact older codec archive's public
-release/recipe was not recovered in this bounded search.
+The GoldenDict ordinary release workflow uses official Qt packages; its vcpkg
+dependency export is not a Qt SDK. Bounded Preflight research traced the older
+codec archive to the community builder atauzki's
+[FreeMdict thread](https://forum.freemdict.com/t/topic/34270/122), rather than the
+ordinary upstream Windows release. Receiving review independently confirmed the
+indexed publisher thread's codec-rebuild claim and the historical upstream
+workflow's Qt 6.8.3/6.10.3 matrix. Direct retrieval of post 122 failed during
+receiving review, so its precise timestamp and claimed source branch remain
+worker-reported. No publisher archive digest, exact Qt/Chromium recipe or matching
+development SDK was recovered. Acceptance of this research does not establish
+remote/local byte equivalence or qualify the runtime's remaining features.
+
+KDE receiving review independently hashed both the SDK and Falkon archive
+(`falkon-master-2811-windows-cl-msvc2022-x86_64.7z`, 149129663 bytes,
+SHA256 `52fc59d74431cb652ed83f9cabeccf03d8e81947c2b51432e4182009db408677`)
+and all 116 extracted metadata/configuration files. Static archive inspection
+reports identical SDK/Falkon Core and Quick bytes. The packaged private Core
+header explicitly sets `QT_FEATURE_webengine_proprietary_codecs` to `-1`;
+other required feature flags above are `1`. No generated Chromium buildflags
+headers were found. Evidence: `kde-prebuilt-inspection-20261014`, including its
+`craft-webengine-sdk` subdirectory and publisher cache manifest. No downloaded
+DLL was executed. This is a credible SDK source, but does not meet the codec
+requirement or prove the permission repair, popup patch or sandbox gates.
 
 ## Security and integration gate
 
