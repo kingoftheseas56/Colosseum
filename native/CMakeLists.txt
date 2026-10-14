@@ -11,6 +11,8 @@ endif()
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
+set(COLOSSEUM_CONTENT_API_URL "" CACHE STRING
+    "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")
 option(COLOSSEUM_RATINGS_REVIEWS_TESTING
     "Enable the isolated Arc 49 Ratings & Reviews joined fixture"
     OFF)
@@ -854,6 +856,12 @@ else()
 endif()
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
+endif()
+if(COLOSSEUM_CONTENT_API_URL)
+    if(NOT COLOSSEUM_CONTENT_API_URL MATCHES "^https://[A-Za-z0-9.-]+(:[0-9]+)?$")
+        message(FATAL_ERROR "COLOSSEUM_CONTENT_API_URL must be an HTTPS origin without credentials or path")
+    endif()
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_CONTENT_API_URL="${COLOSSEUM_CONTENT_API_URL}")
 endif()
 if(COLOSSEUM_RATINGS_REVIEWS_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_RATINGS_REVIEWS_TESTING=1)

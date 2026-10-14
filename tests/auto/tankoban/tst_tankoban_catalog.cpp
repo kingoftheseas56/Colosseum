@@ -13,8 +13,68 @@
 #include <QTemporaryDir>
 #include <QUuid>
 #include <QtTest>
+#include <QNetworkAccessManager>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QTimer>
 
 namespace {
+
+class ContentFixture : public QTcpServer {
+public:
+    int guests = 0;
+    int reads = 0;
+    int status = 200;
+    int delay = 0;
+    bool ready = true;
+    bool unknown = false;
+    bool oversized = false;
+    bool conflictOnce = false;
+    QString sourceHash = QString(64, 'a');
+    QUrl endpoint() const { return QUrl(QStringLiteral("http://127.0.0.1:%1").arg(serverPort())); }
+    ContentFixture() {
+        connect(this, &QTcpServer::newConnection, this, [this] {
+            auto* socket = nextPendingConnection();
+            connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+            connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
+                const auto request = socket->readAll();
+                if (!request.contains("\r\n\r\n")) return;
+                QByteArray body;
+                int responseStatus = 200;
+                const bool guest = request.startsWith("POST /v1/guest/session ");
+                if (guest) {
+                    ++guests;
+                    body = QJsonDocument(QJsonObject{{"token", "fixture-lease"},
+                        {"expiresAt", QDateTime::currentDateTimeUtc().addSecs(300).toString(Qt::ISODate)}}).toJson();
+                } else {
+                    ++reads;
+                    if (!request.contains("Authorization: Bearer fixture-lease")) responseStatus = 401;
+                    else responseStatus = conflictOnce && reads == 1 ? 409 : status;
+                    QJsonObject info;
+                    QJsonArray rows;
+                    if (!unknown) {
+                        info = {{"volumeCount", 2}, {"countBasis", "mal"}};
+                        rows = {QJsonObject{{"number", "1"}, {"cover", "cover1"}, {"name", "One"}},
+                                QJsonObject{{"number", "2"}, {"cover", ""}, {"name", ""}}};
+                    }
+                    body = oversized ? QByteArray(512 * 1024 + 100, 'x') : QJsonDocument(QJsonObject{
+                        {"apiVersion", 1}, {"ready", ready}, {"sourceHash", sourceHash},
+                        {"seriesInfo", info}, {"volumes", rows}}).toJson();
+                }
+                QPointer<QTcpSocket> safe(socket);
+                QTimer::singleShot(guest ? 0 : delay, socket, [safe, body, responseStatus] {
+                    if (!safe) return;
+                    safe->write("HTTP/1.1 " + QByteArray::number(responseStatus) + " Fixture\r\nContent-Type: application/json\r\nContent-Length: "
+                        + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+                    safe->disconnectFromHost();
+                });
+            });
+        });
+    }
+};
 
 // Builds a fresh tankoban_catalog.db-shaped SQLite file at `path` with the
 // production schema (native/engine/TankobanCatalog.h contract / the builder
@@ -107,6 +167,14 @@ class tst_tankoban_catalog : public QObject
     Q_OBJECT
 
 private slots:
+    void remote_is_disabled_by_default();
+    void remote_result_cached_offline_without_global_readiness();
+    void remote_rejects_not_ready_unknown_and_oversize();
+    void remote_cancel_ignores_late_reply();
+    void remote_revision_conflict_renews_once();
+    void remote_preserves_local_authority();
+    void remote_cache_bounded_and_revision_invalidated();
+    void actual_worker_contract();
     void missing_db_is_honest_empty();
     void count_round_trip();
     void volumes_synthesized_from_count();
@@ -115,6 +183,182 @@ private slots:
     void unknown_malid_empty();
     void count_basis_passthrough();
 };
+
+void tst_tankoban_catalog::remote_is_disabled_by_default()
+{
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    QSignalSpy failed(&cat, &TankobanCatalog::seriesFailed);
+    cat.requestSeries(13);
+    QCOMPARE(failed.count(), 1);
+    QVERIFY(!cat.hasSeries(13));
+    QVERIFY(!cat.ready());
+    QCOMPARE(cat.revision(), 0);
+}
+
+void tst_tankoban_catalog::remote_result_cached_offline_without_global_readiness()
+{
+    ContentFixture server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    cat.configureRemote(&nam, server.endpoint());
+    QSignalSpy changed(&cat, &TankobanCatalog::seriesChanged);
+    cat.requestSeries(13);
+    QTRY_COMPARE(changed.count(), 1);
+    QCOMPARE(cat.seriesInfo(13).value("volumeCount").toInt(), 2);
+    QCOMPARE(cat.volumes(13).size(), 2);
+    QCOMPARE(cat.revision(), 1);
+    QVERIFY(cat.hasSeries(13));
+    QVERIFY(!cat.ready());
+    server.close();
+    cat.requestSeries(13);
+    QCOMPARE(changed.count(), 2);
+    QCOMPARE(server.guests, 1);
+    QCOMPARE(server.reads, 1);
+    QSignalSpy failed(&cat, &TankobanCatalog::seriesFailed);
+    cat.requestSeries(13, true);
+    QTRY_COMPARE(failed.count(), 1);
+    QCOMPARE(cat.volumes(13).size(), 2); // last-good facts survive failed revalidation
+}
+
+void tst_tankoban_catalog::actual_worker_contract()
+{
+    const auto endpoint = qEnvironmentVariable("COLOSSEUM_CONTENT_TEST_URL");
+    if (endpoint.isEmpty()) QSKIP("Actual Worker fixture not configured");
+    const int malId = qEnvironmentVariableIntValue("COLOSSEUM_CONTENT_TEST_MAL_ID");
+    QVERIFY(malId > 0);
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    cat.configureRemote(&nam, QUrl(endpoint));
+    QSignalSpy changed(&cat, &TankobanCatalog::seriesChanged);
+    QSignalSpy failed(&cat, &TankobanCatalog::seriesFailed);
+    cat.requestSeries(malId);
+    QTRY_VERIFY_WITH_TIMEOUT(changed.count() || failed.count(), 20000);
+    QVERIFY2(failed.isEmpty(), failed.isEmpty() ? "" : qPrintable(failed.first().at(1).toString()));
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(cat.seriesInfo(malId).value("volumeCount").toInt(),
+             qEnvironmentVariableIntValue("COLOSSEUM_CONTENT_TEST_VOLUME_COUNT"));
+    QVERIFY(!cat.ready());
+    QVERIFY(cat.hasSeries(malId));
+    const auto rows = cat.volumes(malId);
+    QCOMPARE(rows.size(), 4);
+    QCOMPARE(rows.at(0).toMap().value("number").toString(), QStringLiteral("1"));
+    QCOMPARE(rows.at(1).toMap().value("number").toString(), QStringLiteral("2"));
+    QCOMPARE(rows.at(2).toMap().value("number").toString(), QStringLiteral("3"));
+    QCOMPARE(rows.at(3).toMap().value("number").toString(), QStringLiteral("10"));
+    QCOMPARE(rows.at(1).toMap().value("cover").toString(), QStringLiteral("https://fixture.invalid/two"));
+    QCOMPARE(rows.at(1).toMap().value("name").toString(), QStringLiteral("Two"));
+    cat.requestSeries(99);
+    QTRY_COMPARE(changed.count(), 2);
+    QVERIFY(cat.seriesInfo(99).isEmpty());
+    QVERIFY(cat.volumes(99).isEmpty());
+}
+
+void tst_tankoban_catalog::remote_rejects_not_ready_unknown_and_oversize()
+{
+    ContentFixture server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    cat.configureRemote(&nam, server.endpoint());
+    QSignalSpy changed(&cat, &TankobanCatalog::seriesChanged);
+    QSignalSpy failed(&cat, &TankobanCatalog::seriesFailed);
+    server.ready = false;
+    cat.requestSeries(13);
+    QTRY_COMPARE(failed.count(), 1);
+    QVERIFY(!cat.hasSeries(13));
+    QCOMPARE(cat.revision(), 0);
+    server.ready = true;
+    server.unknown = true;
+    cat.requestSeries(99);
+    QTRY_COMPARE(changed.count(), 1);
+    QVERIFY(!cat.hasSeries(99));
+    QVERIFY(cat.seriesInfo(99).isEmpty());
+    QVERIFY(cat.volumes(99).isEmpty());
+    server.unknown = false;
+    server.oversized = true;
+    cat.requestSeries(14);
+    QTRY_COMPARE(failed.count(), 2);
+    QVERIFY(!cat.hasSeries(14));
+    QCOMPARE(cat.revision(), 1);
+}
+
+void tst_tankoban_catalog::remote_cancel_ignores_late_reply()
+{
+    ContentFixture server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    server.delay = 150;
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    cat.configureRemote(&nam, server.endpoint());
+    QSignalSpy changed(&cat, &TankobanCatalog::seriesChanged);
+    cat.requestSeries(13);
+    QTRY_COMPARE(server.reads, 1);
+    cat.cancelRequest();
+    QTest::qWait(250);
+    QCOMPARE(changed.count(), 0);
+    QVERIFY(!cat.hasSeries(13));
+    QCOMPARE(cat.revision(), 0);
+}
+
+void tst_tankoban_catalog::remote_revision_conflict_renews_once()
+{
+    ContentFixture server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    cat.configureRemote(&nam, server.endpoint());
+    QSignalSpy changed(&cat, &TankobanCatalog::seriesChanged);
+    QSignalSpy failed(&cat, &TankobanCatalog::seriesFailed);
+    cat.requestSeries(13);
+    QTRY_COMPARE(changed.count(), 1);
+    server.status = 409;
+    cat.requestSeries(14);
+    QTRY_COMPARE(failed.count(), 1);
+    QCOMPARE(server.guests, 2);
+    QCOMPARE(server.reads, 3);
+    QVERIFY(!cat.hasSeries(14));
+    QVERIFY(cat.hasSeries(13));
+}
+
+void tst_tankoban_catalog::remote_preserves_local_authority()
+{
+    QTemporaryDir tmp;
+    const auto path = tmp.filePath(QStringLiteral("tankoban.db"));
+    QVERIFY(buildFixtureDb(path));
+    QVERIFY(insertSeries(path, 13, 5, QStringLiteral("bookwalker")));
+    ContentFixture server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(path);
+    cat.configureRemote(&nam, server.endpoint());
+    cat.requestSeries(13);
+    QCOMPARE(server.guests, 0);
+    QCOMPARE(cat.volumes(13).size(), 5);
+    QCOMPARE(cat.seriesInfo(13).value("countBasis").toString(), QStringLiteral("bookwalker"));
+}
+
+void tst_tankoban_catalog::remote_cache_bounded_and_revision_invalidated()
+{
+    ContentFixture server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QNetworkAccessManager nam;
+    TankobanCatalog cat(QStringLiteral("missing-catalogue.db"));
+    cat.configureRemote(&nam, server.endpoint());
+    QSignalSpy changed(&cat, &TankobanCatalog::seriesChanged);
+    for (int id = 1; id <= 33; ++id) {
+        cat.requestSeries(id);
+        QTRY_COMPARE(changed.count(), id);
+    }
+    int cached = 0;
+    for (int id = 1; id <= 33; ++id) if (cat.hasSeries(id)) ++cached;
+    QCOMPARE(cached, 32);
+    server.sourceHash = QString(64, 'b');
+    cat.requestSeries(34);
+    QTRY_COMPARE(changed.count(), 34);
+    QVERIFY(cat.hasSeries(34));
+    for (int id = 1; id <= 33; ++id) QVERIFY(!cat.hasSeries(id));
+}
 
 void tst_tankoban_catalog::missing_db_is_honest_empty()
 {

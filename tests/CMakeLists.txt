@@ -760,7 +760,7 @@ add_executable(tst_tankoban_catalog
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.h")
 target_include_directories(tst_tankoban_catalog PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Network Qt6::Test)
 set_target_properties(tst_tankoban_catalog PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_tankoban_catalog POST_BUILD

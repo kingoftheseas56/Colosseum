@@ -1454,6 +1454,9 @@ int main(int argc, char *argv[]) {
     // Baked Tankoban volume catalogue (catalogue-independence Slice 1, 2026-08-20): same
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
     auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &backendServices);
+#ifdef COLOSSEUM_CONTENT_API_URL
+    tankobanCatalog->configureRemote(updateNam, QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL)));
+#endif
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
