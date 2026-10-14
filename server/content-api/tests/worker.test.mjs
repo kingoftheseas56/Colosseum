@@ -165,6 +165,19 @@ test('MusicBrainz enrichments are validated and cached locally', async t => {
 async function readyTankoban(catalog) {
   for (const name of ['tankoban__series','tankoban__volumes']) await catalog.prepare('UPDATE _source_tables SET imported_rows=?,ready=1 WHERE name=?').bind(schema[name].rowCount,name).run();
 }
+test('admin authentication accepts only the raw ADMIN_TOKEN bearer', async t => {
+  const { request } = await fixture(t);
+  // admin() signs the secret with itself and verifies that signature against
+  // the supplied token message, so the ONLY accepted bearer is the raw
+  // ADMIN_TOKEN value. This is the contract tools/rotate-admin-token.py
+  // rotates: a derived HMAC value is NOT a valid publisher credential.
+  assert.equal((await request('/admin/status', admin)).status, 200);
+  const derived = createHmac('sha256', admin).update(admin).digest('base64');
+  assert.equal((await request('/admin/status', derived)).status, 401);
+  assert.equal((await request('/admin/status', `${admin}x`)).status, 401);
+  assert.equal((await request('/admin/status', 'an-older-rotated-secret')).status, 401);
+  assert.equal((await request('/admin/status', null)).status, 401);
+});
 test('guest capability is disabled by default', async t => {
   const {request}=await fixture(t);
   assert.equal((await request('/v1/guest/session',null,{appId:'colosseum',apiVersion:1})).status,503);

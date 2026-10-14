@@ -127,3 +127,54 @@ prevents, so no free-plan headroom figure is claimed. Remaining volumes:
 3,335 rows ≈ 7,720 estimated writes including chunk overhead — gated until
 the 2026-10-15 UTC budget day; the resumable publisher completes it in one
 run and flips `ready=1` via its row-count-checked `/admin/complete`.
+
+## Rotation executed and worker deployed (2026-10-14, third pass)
+
+**ADMIN_TOKEN rotation COMPLETE, verified without secret values.** The
+mistaken HMAC derivation was removed: the Worker's admin() accepts only the
+RAW ADMIN_TOKEN bearer (contract test
+"admin authentication accepts only the raw ADMIN_TOKEN bearer" proves raw
+accepted, HMAC-derived/mutated/old/empty rejected — 12/12 worker tests
+pass). `tools/rotate-admin-token.py` rewritten: preflight validates the
+private config destination and the intended staging resource
+(`wrangler secret list` must show ADMIN_TOKEN), npx resolved explicitly
+(Windows npx.cmd), subprocess output captured and redacted, a
+`.publisher/rotation-pending.json` recovery file precedes any Cloudflare
+mutation with a `--recover` completion mode, and final verification requires
+new-token 200 + old-token 401. Execution: rotation ran; the first
+verification attempt observed 401/401 (Cloudflare secret propagation lag,
+not a logic failure — the tool correctly refused to declare success); after
+propagation: new token -> HTTP 200, the previously exposed token ->
+HTTP 401, pending file removed. The exposure incident is closed.
+SESSION_SECRET untouched.
+
+**Staging Worker deployed and qualified at the configuration level.**
+`npx wrangler deploy` (account-scoped) shipped version
+4a1e7b26-b1f1-4d1f-97a7-2c82255044a8 with the guest routes, vars and the
+1001 rate-limit namespace. Live checks: `GET /healthz` -> 200;
+`POST /v1/guest/session` with the correct body -> `503 CATALOGUE_NOT_READY`
+(gate OPEN, data honestly not-ready until volumes complete);
+`GET /admin/status` with the rotated token -> 200; unauthenticated -> 401.
+Operational note: sending a spoofed `CF-Connecting-IP` header to the live
+edge returns Cloudflare 403 (error 1000) — verification must rely on the
+real connecting IP, as the limiter does.
+
+**Measured actual usage (authorized analytics route).**
+`wrangler d1 insights colosseum-catalog-staging --json --limit 100`
+(OAuth login granted analytics read): trailing-24h rolling window across 50
+query shapes: 58,085 runs, 46,530 rows read, 107,525 rows written. The
+rolling window spans both recent budget days (2026-10-13 ~49.6K and
+2026-10-14 58,978 reserved-estimated); each UTC day stayed within the
+100K/day free allowance, and the publisher's conservative 45-60K/day
+self-cap remains in force. Receipts: `.publisher/insights-2026-10-14.json`
+and `.publisher/insights-2026-10-14-full.json` (gitignored, local).
+
+**Next executable step for Tankoban readiness:** after 2026-10-15T00:00Z,
+`python tools/publish.py publish --source-dir <catalog-vault> --tables tankoban__volumes --max-estimated-writes 45000`
+completes the remaining 3,335 rows (7,720 estimated writes incl. overhead)
+and flips `ready=1` via the row-count-checked `/admin/complete`; then
+`POST /v1/guest/session` -> 200 and the native `actual_worker_contract`
+test against the staging URL is the live qualification gate. IMDb/MAL/Comics
+endpoint implementation, their imports (~2.7M estimated writes), native
+consumer integration, and downloader disablement follow per the consumer
+matrix; nothing is claimed qualified before its data and contracts pass.
