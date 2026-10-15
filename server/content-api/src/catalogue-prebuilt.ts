@@ -1,7 +1,7 @@
 import {clamp,integer,text} from './catalogue-semantic.ts';
 type Ref={path:string;first:string|number;last:string|number};
 type List={parts:string[];length:number;chunkSize:number;shape:'array'|'mal'|'comics';period:string;notBefore?:string};
-type Manifest={version:1;revision:string;lists:Record<string,List>;listBuckets?:Record<string,string>;search:Record<string,{names:Ref[];keys:Ref[]}>;fixed:Record<string,string>;lookups?:Record<string,string>;tankobanSourceHash?:string};
+type Manifest={version:1;revision:string;publicRevision?:string;lists:Record<string,List>;listBuckets?:Record<string,string>;search:Record<string,{names:Ref[];keys:Ref[]}>;fixed:Record<string,string>;lookups?:Record<string,string>;tankobanSourceHash?:string};
 const cachesByAssets=new WeakMap<Fetcher,Map<string,{value:any;bytes:number}>>();
 const MAX_CACHE_BYTES=12*1024*1024;
 const canonical=(v:any):any=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
@@ -10,9 +10,10 @@ const fold=(s:string)=>s.replace(/[A-Z]/g,c=>c.toLowerCase());
 const lexical=(a:string,b:string)=>a<b?-1:a>b?1:0;
 const descending=(a:any,b:any)=>a==null?(b==null?0:1):b==null?-1:Number(b)-Number(a);
 export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:string,method:string,args:any[]):Promise<{result:any}|null>{
- const prefix='/internal/prebuilt/'+revision+'/';let reads=0;
+ const prefix='/internal/prebuilt/'+revision+'/';let reads=0,publicPrefix='';
  async function get(path:string):Promise<any>{
-  if(!path.startsWith(prefix)||path.includes('..'))throw Error('INVALID_PREBUILT_PATH');
+  const publicPath=publicPrefix&&path.startsWith(publicPrefix)&&/^shared\/[a-f0-9]{64}\.json$/.test(path.slice(publicPrefix.length));
+  if((!path.startsWith(prefix)&&!publicPath)||path.includes('..'))throw Error('INVALID_PREBUILT_PATH');
   let cache=cachesByAssets.get(assets);if(!cache){cache=new Map();cachesByAssets.set(assets,cache);}
   const hit=cache.get(path);if(hit){cache.delete(path);cache.set(path,hit);return hit.value;}
   // Keep below the Free invocation subrequest ceiling, including readiness and
@@ -31,6 +32,7 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
  }
  const manifest:Manifest|null=await get(prefix+'manifest.json');if(!manifest)return null;
  if(manifest.version!==1||manifest.revision!==revision)throw Error('PREBUILT_REVISION_MISMATCH');
+ if(manifest.publicRevision){if(!/^[a-f0-9]{64}$/.test(manifest.publicRevision))throw Error('PREBUILT_REVISION_MISMATCH');publicPrefix='/catalogue/'+manifest.publicRevision+'/';}
  async function bucketFor(key:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key));return new Uint8Array(digest)[0].toString(16).padStart(2,'0');}
  const fixedArgs=method==='discoverFilters'||method==='cachedDiscoverFilters'?[text(args[0]),dataset==='comics'?false:!!args[1]]:args;
  const fixed=manifest.fixed[selectionKey(dataset,method,fixedArgs)];if(fixed){const result=await get(fixed);if(result===null)throw Error('PREBUILT_ASSET_MISSING');return{result};}

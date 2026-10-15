@@ -26,6 +26,16 @@ Free limits remain finite: Workers Free 100,000 dynamic requests/day; D1 5,000,0
 
 ## I01: static catalogue candidate (not deployed)
 
+I05 builds on this data publication with **direct public static delivery**. Run
+`node projection/public_static.mjs <qualified-I01-output> <complete-content-output> <fresh-output> <external-report.json>`.
+It reuses I01's prepared results, rehashes references into `/catalogue/<revision>/`,
+creates `/catalogue/current.json`, and preserves authenticated old-client routes
+using one shared public payload tree. No 128 KiB resharding or D1 import is used.
+See [STATIC_CATALOGUE.md](STATIC_CATALOGUE.md) for the complete versioned protocol,
+hash verification, request/selection keys, time policy and native review gates.
+The native direct reader is a separate Phase 2; adding public files alone does
+not migrate installed clients. Do not deploy until that review and app proof.
+
 The indexed D1 replacement/import is dropped. No database schema, index or import change is required. Build a **local-only** SQL oracle from the four frozen, manifest-hashed sources, then prepare shared assets:
 
 ```powershell

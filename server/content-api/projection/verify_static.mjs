@@ -2,7 +2,7 @@
 // exactly20 bounded guest catalogue reads, never an admin/write operation.
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync,writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
@@ -12,7 +12,8 @@ import {prebuiltCatalogue} from '../src/catalogue-prebuilt.ts';
 import schema from '../src/source-schema.json' with {type:'json'};
 const [artifact,publication,evidence,liveFlag]=process.argv.slice(2);
 if(!artifact||!publication||!evidence)throw Error('Usage: node projection/verify_static.mjs static-source.sqlite publication report.json [--live]');
-const report=JSON.parse(readFileSync(join(publication,'static-catalogue-report.json'),'utf8')),revision=report.revision;
+const entry=join(publication,'catalogue/current.json');
+const report=JSON.parse(readFileSync(existsSync(entry)?entry:join(publication,'static-catalogue-report.json'),'utf8')),revision=report.sourceRevision??report.revision;
 const sqlite=new DatabaseSync(artifact,{readOnly:true});
 const adapter={prepare(sql){sql=sql.replace(/FROM lib_mal_tag_count\b/g,'FROM lib_mal_tag_count NOT INDEXED');return{bind(...args){return{async all(){return{success:true,results:sqlite.prepare(sql).all(...args)}}}}}}};
 let assetReads=0,assetBytes=0;
