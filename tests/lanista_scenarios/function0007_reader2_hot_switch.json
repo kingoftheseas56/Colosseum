@@ -1,0 +1,39 @@
+{
+  "name": "function0007-reader2-hot-switch",
+  "comment": "Function 0007's no-sleep Reader 2 A -> B pending-save reproducer. The existing biblio-downloaded-epub-v1 seed supplies the real tiny EPUB; the command copies it to two disposable tagged-session paths, invokes the production root openBookSession() twice at the pending-save ownership transition, waits for B bookReady, and returns the real Progress records. Run only with lanista session run --drive --seed tests/lanista-seeds/biblio-downloaded-epub-v1 --tag <unique> --ready-ms 90000.",
+  "steps": [
+    { "cmd": "ping", "label": "the tagged session answers on its own pipe with Drive enabled",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "the session reports its isolated AppData root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "dismiss account onboarding through the existing named action",
+      "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "account onboarding is gone",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "reader2-hot-switch", "label": "real production A -> B switch preserves A Continue identity and path",
+      "payload": {
+        "sourceRelPath": "books/tiny-book.epub",
+        "a": { "id": "function0007-a", "title": "Function 0007 A", "author": "Arc 28" },
+        "b": { "id": "function0007-b", "title": "Function 0007 B", "author": "Arc 28" },
+        "timeoutMs": 60000,
+        "grab": { "target": "bookReaderShell", "timeoutMs": 4000 }
+      },
+      "expect": [
+        { "path": "bookReaderShell.bookReady", "op": "==", "value": "true" },
+        { "path": "bookReaderShell.bookPath", "op": "matches", "value": "-b\\.epub$" },
+        { "path": "progressA.id", "op": "==", "value": "function0007-a" },
+        { "path": "progressA.title", "op": "==", "value": "Function 0007 A" },
+        { "path": "progressA.resume.book.title", "op": "==", "value": "Function 0007 A" },
+        { "path": "progressA.resume.path", "op": "matches", "value": "-a\\.epub$" },
+        { "path": "progressB.resume.path", "op": "!=", "value": "function0007-a" },
+        { "path": "grabPath", "op": "exists" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "name": "tankoban-discover-depth",
+  "comment": "Catalogue-independence Slice 6, AMENDED 2026-08-20 (Discover IS the browse surface; Option A, dedicated wall page deferred). Verification-first per the amendment: this COMMITTED scenario proves the reliable, script-reproducible half only - the Discover tab (default-active on Tankoban entry) genuinely pages past its first screenful via a two-stage scroll technique. Discovered live this slice: ui-scroll targeting the always-visible tankobanTabBar first (clears a featured-banner dead zone that pushes the whole wall below the 1280x720 fold at rest) then handing off to a currently-MATERIALIZED delegate objectName (mangaDiscoverCard_<malId>) moves real content, monotonic and window-safe - reaches rank 1-18 (3 materialized rows, live 'popular' order = members DESC/score DESC/mal_id ASC over data/mal_catalog.db) reproducibly across 3 scripted runs (sessions 20260820-203921-1bba75ed, 20260820-204140-d87b4944, 20260820-204302-0552eaed) before further identical-technique scrolls stop producing additional movement/requestPage() growth - a genuine, named automation-reach ceiling. ui-keypress (End/PageDown/arrows) and ui-scroll against a delegate BEFORE the page-level scroll clears the banner both produced ZERO measurable content movement in two earlier isolated attempts (sessions 20260820-201428-0bcae05f tag tk6, 20260820-202230-e5ac8b98 tag tk6b) - one of those attempts also left the session window minimized mid-sequence (matching, and now more precisely characterized than, the Slice-2 diagnosis's own 'once left the window itself minimized mid-sequence' note). NOT in this committed scenario: the card-click-to-masthead step. A hand-driven session (20260820-202607-0ade0c74, tag tk6c) proved it end-to-end live - clicking rank-11 (Naruto, malId 11) after reaching it by this exact scroll technique resolved tankobanSeriesMasthead correctly (displayTitle Naruto, resolvedMalId 11, hasShelf true, primaryAction get), whole-window grab saved - but the identical click step, scripted back-to-back with no natural inter-command delay, failed to reproduce 2/2 times even after adding settle reads and a belt-and-braces re-click (both attempts left the app still showing the Discover wall, no navigation). This is honestly recorded as a script-only reach gap distinct from the paging gap above, not silently dropped or forced green; see the ledger for the full writeup and hypothesis (name resolution or animation-settle race, not root-caused this slice). The plan's originally-pinned deep-rank series (Hal, malId 49611, live rank ~3000) was NOT reached through this bridge this slice; left for a future slice once the wall gets a bridge-addressable load-more/index-jump seam, or for Slice 7's eyes-on list. Every scenario value below is ground-truthed live against the shipped data/mal_catalog.db and data/tankoban_catalog.db as of 2026-08-20, not assumed from the plan's own older baseline text.",
+  "steps": [
+    { "cmd": "ping", "label": "the session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-click", "label": "continue without an account (onboarding may already be clear on some tags - see the ledger's per-tag nuance; this step is a no-op if accountHost never appears)",
+      "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-click", "label": "enter Tankoban", "payload": { "target": "modePill_Tankoban" } },
+    { "cmd": "ui-wait-for", "label": "the tab bar is up (Discover is the default-active tab, TankobanWorld.qml activeTab: \"discover\")",
+      "payload": { "object": "tankobanTabBar", "prop": "visible", "value": true, "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "confirm the Discover tab explicitly (already active; proves the pill itself is reachable, per the plan's own step)",
+      "payload": { "target": "tankobanTab_discover" } },
+
+    { "cmd": "ui-wait-for", "label": "rank-1 (Berserk, live popular order, malId 2) materializes",
+      "payload": { "object": "mangaDiscoverCard_2", "prop": "visible", "value": true, "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-scroll", "label": "clear the featured-banner dead zone: page-level scroll #1 (target a stable always-visible item, NOT a delegate card - a card-first scroll produced zero movement in two earlier isolated attempts this slice)",
+      "payload": { "target": "tankobanTabBar", "dy": -500 } },
+    { "cmd": "ui-scroll", "label": "page-level scroll #2", "payload": { "target": "tankobanTabBar", "dy": -800 } },
+    { "cmd": "ui-scroll", "label": "page-level scroll #3", "payload": { "target": "tankobanTabBar", "dy": -800 } },
+    { "cmd": "ui-scroll", "label": "page-level scroll #4", "payload": { "target": "tankobanTabBar", "dy": -800 } },
+
+    { "cmd": "ui-wait-for", "label": "rank-11 (Naruto, malId 11) has materialized now that the wall itself is in view",
+      "payload": { "object": "mangaDiscoverCard_11", "prop": "visible", "value": true, "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-scroll", "label": "hand off to a materialized delegate: wall-internal scroll #1 (many small realistic notches, ledger lesson)",
+      "payload": { "target": "mangaDiscoverCard_13", "dy": -800 } },
+    { "cmd": "ui-scroll", "label": "wall-internal scroll #2", "payload": { "target": "mangaDiscoverCard_13", "dy": -800 } },
+    { "cmd": "ui-scroll", "label": "wall-internal scroll #3", "payload": { "target": "mangaDiscoverCard_13", "dy": -800 } },
+
+    { "cmd": "ui-wait-for", "label": "rank-18 (Spy x Family, malId 119161) has materialized - the deepest rank this slice's bridge technique reached",
+      "payload": { "object": "mangaDiscoverCard_119161", "prop": "visible", "value": true, "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-query", "label": "whole-window exhibit: three materialized rows (ranks 1-18) reached by scroll alone, no click yet",
+      "payload": { "object": "mangaDiscoverCard_119161", "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "grabPath", "op": "exists" } ] }
+  ]
+}
+

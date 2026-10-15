@@ -1,0 +1,53 @@
+{
+  "defaultLanguage": "es",
+  "fallbackPolicy": "same-language-only",
+  "languages": [
+    {
+      "code": "es",
+      "label": "ES",
+      "countryCode": "ES",
+      "providers": [
+        {
+          "id": "first",
+          "name": "first",
+          "entry": "languages/es/first.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "93.184.216.34"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "second",
+          "name": "second",
+          "entry": "languages/es/second.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "93.184.216.34"
+          ],
+          "pageAccessPolicy": "public-https"
+        }
+      ]
+    },
+    {
+      "code": "en",
+      "label": "EN",
+      "countryCode": "GB",
+      "providers": [
+        {
+          "id": "english",
+          "name": "english",
+          "entry": "languages/en/english.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "93.184.216.34"
+          ],
+          "pageAccessPolicy": "public-https"
+        }
+      ]
+    }
+  ]
+}

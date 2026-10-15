@@ -1,0 +1,811 @@
+// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
+
+#include "SyncAdapterRegistry.h"
+
+#include "SyncOwnershipInventory.h"
+#include "SyncPayloadFirewall.h"
+
+#include <QSet>
+
+#include <algorithm>
+
+namespace {
+bool isCompatibilityCode(const QString &code) {
+    return code == QLatin1String("adapter_not_registered")
+        || code == QLatin1String("unsupported_schema_version")
+        || code == QLatin1String("invalid_record_key")
+        || code == QLatin1String("noncanonical_category")
+        || code == QLatin1String("unknown_category")
+        || code == QLatin1String("category_not_exportable_yet")
+        || code == QLatin1String("category_local_only")
+        || code == QLatin1String("secret_requires_protected_channel")
+        || code == QLatin1String("forbidden_field")
+        || code == QLatin1String("filesystem_path_value")
+        || code == QLatin1String("payload_too_deep")
+        || code == QLatin1String("delete_payload_not_empty")
+        || code == QLatin1String("payload_invalid");
+}
+}
+
+SyncAdapterRegistry::SyncAdapterRegistry(
+    QObject *parent)
+    : QObject(parent) {
+    setObjectName(
+        QStringLiteral("syncAdapterRegistry"));
+}
+
+bool SyncAdapterRegistry::registerAdapter(
+    SyncAdapter *adapter,
+    SyncAdapterRegistryError *error) {
+    if (error)
+        *error = {};
+
+    if (!registrationAllowed(
+            adapter,
+            error)) {
+        return false;
+    }
+
+    const QString categoryId =
+        canonicalCategory(
+            adapter->categoryId());
+
+    Entry entry;
+    entry.categoryId = categoryId;
+    entry.schemaVersion =
+        adapter->schemaVersion();
+    entry.identity = adapter;
+    entry.adapter = adapter;
+
+    entry.mutationConnection =
+        connect(
+            adapter,
+            &SyncAdapter::localMutationAvailable,
+            this,
+            [this, categoryId](
+                quint64 revision) {
+                const Entry *current =
+                    entryFor(categoryId);
+                if (!current
+                    || current->adapter.isNull()) {
+                    return;
+                }
+
+                SyncAdapterRegistryError ignored;
+                if (!identityMatches(
+                        *current,
+                        &ignored)) {
+                    return;
+                }
+
+                if (m_remoteApplyDepth
+                        .value(categoryId, 0)
+                    > 0) {
+                    return;
+                }
+
+                emit localMutationAvailable(
+                    categoryId,
+                    revision);
+            });
+
+    entry.destroyedConnection =
+        connect(
+            adapter,
+            &QObject::destroyed,
+            this,
+            [this, categoryId](
+                QObject *object) {
+                handleAdapterDestroyed(
+                    categoryId,
+                    object);
+            });
+
+    m_entries.insert(
+        categoryId,
+        entry);
+
+    emit adapterRegistered(
+        categoryId);
+    return true;
+}
+
+bool SyncAdapterRegistry::unregisterAdapter(
+    const QString &categoryId) {
+    const QString canonical =
+        canonicalCategory(categoryId);
+    auto it = m_entries.find(canonical);
+    if (it == m_entries.end())
+        return false;
+
+    QObject::disconnect(
+        it->mutationConnection);
+    QObject::disconnect(
+        it->destroyedConnection);
+
+    m_entries.erase(it);
+    m_remoteApplyDepth.remove(canonical);
+
+    emit adapterUnregistered(
+        canonical);
+    return true;
+}
+
+bool SyncAdapterRegistry::contains(
+    const QString &categoryId) const {
+    return entryFor(categoryId) != nullptr;
+}
+
+QStringList SyncAdapterRegistry::registeredCategories() const {
+    QStringList categories =
+        m_entries.keys();
+    std::sort(
+        categories.begin(),
+        categories.end());
+    return categories;
+}
+
+bool SyncAdapterRegistry::exportSnapshot(
+    const QString &categoryId,
+    SyncAdapterSnapshot *snapshot,
+    SyncAdapterRegistryError *error) const {
+    if (error)
+        *error = {};
+
+    if (!snapshot) {
+        return fail(
+            error,
+            QStringLiteral("invalid_argument"),
+            QStringLiteral(
+                "A snapshot output object is required."));
+    }
+
+    const Entry *entry =
+        entryFor(categoryId);
+    if (!entry) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_not_registered"),
+            QStringLiteral(
+                "No sync adapter is registered for the requested category."));
+    }
+
+    if (!identityMatches(
+            *entry,
+            error)) {
+        return false;
+    }
+
+    SyncAdapter *adapter =
+        entry->adapter.data();
+    if (!adapter) {
+        return fail(
+            error,
+            QStringLiteral("adapter_destroyed"),
+            QStringLiteral(
+                "The registered sync adapter no longer exists."));
+    }
+
+    SyncAdapterExport exported;
+    QString adapterError;
+    if (!adapter->exportSnapshot(
+            &exported,
+            &adapterError)) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_export_failed"),
+            adapterError.trimmed().isEmpty()
+                ? QStringLiteral(
+                      "The sync adapter could not export its snapshot.")
+                : adapterError);
+    }
+
+    QSet<QString> keys;
+    for (const SyncAdapterRecord &record :
+         exported.records) {
+        if (!isValidSyncWireRecordKey(
+                record.recordKey)) {
+            return fail(
+                error,
+                QStringLiteral(
+                    "invalid_record_key"),
+                QStringLiteral(
+                    "The adapter exported an invalid logical record key."));
+        }
+
+        if (keys.contains(
+                record.recordKey)) {
+            return fail(
+                error,
+                QStringLiteral(
+                    "duplicate_record_key"),
+                QStringLiteral(
+                    "The adapter exported the same logical record key more than once."));
+        }
+        keys.insert(
+            record.recordKey);
+
+        if (!validatePutPayload(
+                entry->categoryId,
+                record.payload,
+                error)) {
+            return false;
+        }
+    }
+
+    QSet<QString> tombstones;
+    for (const QString &recordKey : exported.tombstones) {
+        if (!isValidSyncWireRecordKey(recordKey)) {
+            return fail(
+                error,
+                QStringLiteral("invalid_record_key"),
+                QStringLiteral("The adapter exported an invalid logical tombstone key."));
+        }
+        if (keys.contains(recordKey) || tombstones.contains(recordKey)) {
+            return fail(
+                error,
+                QStringLiteral("duplicate_record_key"),
+                QStringLiteral("The adapter exported a logical record and tombstone for the same key."));
+        }
+        tombstones.insert(recordKey);
+    }
+
+    for (auto it = exported.tombstoneEventMs.constBegin();
+         it != exported.tombstoneEventMs.constEnd(); ++it) {
+        if (!tombstones.contains(it.key()) || it.value() <= 0) {
+            return fail(
+                error,
+                QStringLiteral("invalid_tombstone_event"),
+                QStringLiteral(
+                    "A tombstone event timestamp must be positive and belong to an exported tombstone."));
+        }
+    }
+    if (entry->categoryId == QLatin1String("ratings_reviews")
+        && exported.tombstoneEventMs.size() != tombstones.size()) {
+        return fail(
+            error,
+            QStringLiteral("invalid_tombstone_event"),
+            QStringLiteral(
+                "Ratings/reviews tombstones require exact semantic delete timestamps."));
+    }
+
+    snapshot->categoryId =
+        entry->categoryId;
+    snapshot->schemaVersion =
+        entry->schemaVersion;
+    snapshot->revision =
+        exported.revision;
+    snapshot->missingRecordsAreDeletes =
+        adapter->missingRecordsAreDeletes();
+    snapshot->records =
+        exported.records;
+    snapshot->tombstones =
+        exported.tombstones;
+    snapshot->tombstoneEventMs =
+        exported.tombstoneEventMs;
+    return true;
+}
+
+bool SyncAdapterRegistry::applyRemote(
+    const SyncAdapterMutation &mutation,
+    SyncAdapterRegistryError *error) {
+    if (error)
+        *error = {};
+
+    const QString categoryId =
+        canonicalCategory(
+            mutation.categoryId);
+    if (mutation.categoryId
+            != categoryId
+        || categoryId.isEmpty()) {
+        return fail(
+            error,
+            QStringLiteral(
+                "noncanonical_category"),
+            QStringLiteral(
+                "Incoming category ids must be canonical inventory ids."));
+    }
+
+    if (!isValidSyncWireRecordKey(
+            mutation.recordKey)) {
+        return fail(
+            error,
+            QStringLiteral(
+                "invalid_record_key"),
+            QStringLiteral(
+                "The incoming logical record key is invalid."));
+    }
+
+    const Entry *entry =
+        entryFor(categoryId);
+    if (!entry) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_not_registered"),
+            QStringLiteral(
+                "No sync adapter is registered for the incoming category."));
+    }
+
+    if (!identityMatches(
+            *entry,
+            error)) {
+        return false;
+    }
+
+    SyncAdapter *adapter =
+        entry->adapter.data();
+    if (!adapter) {
+        return fail(
+            error,
+            QStringLiteral("adapter_destroyed"),
+            QStringLiteral(
+                "The registered sync adapter no longer exists."));
+    }
+
+    if (mutation.schemaVersion
+        != entry->schemaVersion) {
+        return fail(
+            error,
+            QStringLiteral(
+                "unsupported_schema_version"),
+            QStringLiteral(
+                "The incoming schema version does not match the registered adapter."));
+    }
+
+    if (mutation.operation
+        == SyncWireOperation::Put) {
+        if (!validatePutPayload(
+                categoryId,
+                mutation.payload,
+                error)) {
+            return false;
+        }
+    } else if (!mutation.payload.isUndefined()
+               && !mutation.payload.isNull()) {
+        return fail(
+            error,
+            QStringLiteral(
+                "delete_payload_not_empty"),
+            QStringLiteral(
+                "A delete mutation cannot carry an ordinary payload."));
+    }
+
+    SyncAdapterValidationError validation;
+    if (!adapter->validateRemoteMutation(
+            mutation,
+            &validation)) {
+        return failCompatibility(
+            error,
+            validation.code.isEmpty()
+                ? QStringLiteral("payload_invalid")
+                : validation.code,
+            validation.detail.isEmpty()
+                ? QStringLiteral(
+                      "The remote record does not match the owner schema.")
+                : validation.detail,
+            validation.fieldPath);
+    }
+
+    const bool suppressLocalMutation =
+        adapter->remoteApplyEmitsLocalMutation();
+    if (suppressLocalMutation) {
+        m_remoteApplyDepth[categoryId] =
+            m_remoteApplyDepth.value(
+                categoryId,
+                0)
+            + 1;
+    }
+
+    QString adapterError;
+    const bool applied =
+        adapter->applyRemoteMutation(
+            mutation,
+            &adapterError);
+
+    if (suppressLocalMutation) {
+        const int depth =
+            m_remoteApplyDepth.value(
+                categoryId,
+                1)
+            - 1;
+        if (depth <= 0)
+            m_remoteApplyDepth.remove(categoryId);
+        else
+            m_remoteApplyDepth[categoryId] = depth;
+    }
+
+    if (!applied) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_apply_failed"),
+            adapterError.trimmed().isEmpty()
+                ? QStringLiteral(
+                      "The sync adapter rejected the remote record.")
+                : adapterError);
+    }
+
+    emit remoteApplied(
+        categoryId,
+        mutation.recordKey,
+        adapter->revision());
+    return true;
+}
+
+bool SyncAdapterRegistry::applyRemoteAsync(
+    const SyncAdapterMutation &mutation,
+    SyncAdapterRegistryCallback callback,
+    SyncAdapterRegistryError *error) {
+    if (error)
+        *error = {};
+
+    const QString categoryId = canonicalCategory(mutation.categoryId);
+    if (mutation.categoryId != categoryId || categoryId.isEmpty())
+        return fail(error, QStringLiteral("noncanonical_category"),
+                    QStringLiteral("Incoming category ids must be canonical inventory ids."));
+    if (!isValidSyncWireRecordKey(mutation.recordKey))
+        return fail(error, QStringLiteral("invalid_record_key"),
+                    QStringLiteral("The incoming logical record key is invalid."));
+
+    Entry *entry = entryFor(categoryId);
+    if (!entry)
+        return fail(error, QStringLiteral("adapter_not_registered"),
+                    QStringLiteral("No sync adapter is registered for the incoming category."));
+    if (!identityMatches(*entry, error))
+        return false;
+
+    SyncAdapter *adapter = entry->adapter.data();
+    if (!adapter)
+        return fail(error, QStringLiteral("adapter_destroyed"),
+                    QStringLiteral("The registered sync adapter no longer exists."));
+    if (mutation.schemaVersion != entry->schemaVersion)
+        return fail(error, QStringLiteral("unsupported_schema_version"),
+                    QStringLiteral("The incoming schema version does not match the registered adapter."));
+
+    if (mutation.operation == SyncWireOperation::Put) {
+        if (!validatePutPayload(categoryId, mutation.payload, error))
+            return false;
+    } else if (!mutation.payload.isUndefined() && !mutation.payload.isNull()) {
+        return fail(error, QStringLiteral("delete_payload_not_empty"),
+                    QStringLiteral("A delete mutation cannot carry an ordinary payload."));
+    }
+
+    SyncAdapterValidationError validation;
+    if (!adapter->validateRemoteMutation(
+            mutation,
+            &validation)) {
+        return failCompatibility(
+            error,
+            validation.code.isEmpty() ? QStringLiteral("payload_invalid") : validation.code,
+            validation.detail.isEmpty()
+                ? QStringLiteral("The remote record does not match the owner schema.")
+                : validation.detail,
+            validation.fieldPath);
+    }
+
+    const bool suppressLocalMutation =
+        adapter->remoteApplyEmitsLocalMutation();
+    if (suppressLocalMutation)
+        m_remoteApplyDepth[categoryId] = m_remoteApplyDepth.value(categoryId, 0) + 1;
+    QPointer<SyncAdapterRegistry> self(this);
+    QPointer<SyncAdapter> adapterGuard(adapter);
+    QString adapterStartError;
+    const bool started = adapter->applyRemoteMutationAsync(
+        mutation,
+        [self, adapterGuard, categoryId, mutation, callback, suppressLocalMutation](
+            bool applied, const QString &adapterError) {
+            if (!self)
+                return;
+
+            if (suppressLocalMutation) {
+                const int depth = self->m_remoteApplyDepth.value(categoryId, 1) - 1;
+                if (depth <= 0)
+                    self->m_remoteApplyDepth.remove(categoryId);
+                else
+                    self->m_remoteApplyDepth[categoryId] = depth;
+            }
+
+            SyncAdapterRegistryError result;
+            if (!applied) {
+                result.code = QStringLiteral("adapter_apply_failed");
+                result.detail = adapterError.trimmed().isEmpty()
+                    ? QStringLiteral("The sync adapter could not durably apply the remote record.")
+                    : adapterError;
+                result.failureClass = SyncAdapterFailureClass::Owner;
+            } else if (adapterGuard) {
+                const Entry *current = self->entryFor(categoryId);
+                if (!current || current->adapter != adapterGuard) {
+                    result.code = QStringLiteral("adapter_unregistered");
+                    result.detail = QStringLiteral(
+                        "The sync adapter was unregistered before owner commit completed.");
+                    result.failureClass = SyncAdapterFailureClass::Owner;
+                } else {
+                    emit self->remoteApplied(categoryId, mutation.recordKey,
+                                             adapterGuard->revision());
+                }
+            } else {
+                result.code = QStringLiteral("adapter_destroyed");
+                result.detail = QStringLiteral(
+                    "The registered sync adapter was destroyed before owner commit completed.");
+                result.failureClass = SyncAdapterFailureClass::Owner;
+            }
+
+            if (callback)
+                callback(result);
+        },
+        &adapterStartError);
+
+    if (started)
+        return true;
+
+    if (suppressLocalMutation) {
+        const int depth = m_remoteApplyDepth.value(categoryId, 1) - 1;
+        if (depth <= 0)
+            m_remoteApplyDepth.remove(categoryId);
+        else
+            m_remoteApplyDepth[categoryId] = depth;
+    }
+    return fail(error, QStringLiteral("adapter_apply_failed"),
+                adapterStartError.trimmed().isEmpty()
+                    ? QStringLiteral("The sync adapter could not start the remote owner operation.")
+                    : adapterStartError);
+}
+
+bool SyncAdapterRegistry::registrationAllowed(
+    SyncAdapter *adapter,
+    SyncAdapterRegistryError *error) const {
+    if (!adapter) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_required"),
+            QStringLiteral(
+                "A sync adapter instance is required."));
+    }
+
+    const QString rawCategory =
+        adapter->categoryId();
+    const QString categoryId =
+        canonicalCategory(rawCategory);
+
+    if (rawCategory != categoryId
+        || categoryId.isEmpty()) {
+        return fail(
+            error,
+            QStringLiteral(
+                "noncanonical_category"),
+            QStringLiteral(
+                "Adapter category ids must already be canonical lowercase inventory ids."));
+    }
+
+    const SyncOwnershipEntry *inventory =
+        SyncOwnershipInventory::find(
+            categoryId);
+    if (!inventory) {
+        return fail(
+            error,
+            QStringLiteral(
+                "unknown_category"),
+            QStringLiteral(
+                "The adapter category is absent from the frozen sync ownership inventory."));
+    }
+
+    if (inventory->disposition
+        == SyncDisposition::Secret) {
+        return fail(
+            error,
+            QStringLiteral(
+                "secret_category"),
+            QStringLiteral(
+                "Secret categories cannot register ordinary sync adapters."));
+    }
+
+    if (inventory->disposition
+        == SyncDisposition::LocalOnly) {
+        return fail(
+            error,
+            QStringLiteral(
+                "local_only_category"),
+            QStringLiteral(
+                "Local-only categories cannot register ordinary sync adapters."));
+    }
+
+    if (inventory->ownerStatus
+        != SyncOwnerStatus::Confirmed) {
+        return fail(
+            error,
+            QStringLiteral(
+                "owner_not_confirmed"),
+            QStringLiteral(
+                "The category does not yet have a confirmed repository owner."));
+    }
+
+    if (!inventory->ordinaryPayloadEligible) {
+        return fail(
+            error,
+            QStringLiteral(
+                "category_not_exportable_yet"),
+            QStringLiteral(
+                "The category is not yet eligible for a portable ordinary-sync payload."));
+    }
+
+    if (adapter->schemaVersion() <= 0) {
+        return fail(
+            error,
+            QStringLiteral(
+                "invalid_schema_version"),
+            QStringLiteral(
+                "Adapter schema versions must be positive integers."));
+    }
+
+    if (m_entries.contains(categoryId)) {
+        return fail(
+            error,
+            QStringLiteral(
+                "duplicate_category"),
+            QStringLiteral(
+                "Exactly one adapter may be registered for a sync category."));
+    }
+
+    for (auto it = m_entries.constBegin();
+         it != m_entries.constEnd();
+         ++it) {
+        if (it->identity == adapter) {
+            return fail(
+                error,
+                QStringLiteral(
+                    "adapter_already_registered"),
+                QStringLiteral(
+                    "One adapter instance may own only one registered sync category."));
+        }
+    }
+
+    return true;
+}
+
+bool SyncAdapterRegistry::identityMatches(
+    const Entry &entry,
+    SyncAdapterRegistryError *error) const {
+    SyncAdapter *adapter =
+        entry.adapter.data();
+    if (!adapter) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_destroyed"),
+            QStringLiteral(
+                "The registered sync adapter no longer exists."));
+    }
+
+    if (adapter->categoryId()
+        != entry.categoryId) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_identity_changed"),
+            QStringLiteral(
+                "A registered adapter changed its category identity after registration."));
+    }
+
+    if (adapter->schemaVersion()
+        != entry.schemaVersion) {
+        return fail(
+            error,
+            QStringLiteral(
+                "adapter_schema_changed"),
+            QStringLiteral(
+                "A registered adapter changed its schema version after registration."));
+    }
+
+    return true;
+}
+
+bool SyncAdapterRegistry::validatePutPayload(
+    const QString &categoryId,
+    const QJsonValue &payload,
+    SyncAdapterRegistryError *error) const {
+    const SyncPayloadValidation validation =
+        SyncPayloadFirewall::validate(
+            categoryId,
+            payload);
+
+    if (validation.allowed)
+        return true;
+
+    return fail(
+        error,
+        validation.code,
+        validation.detail,
+        validation.fieldPath);
+}
+
+SyncAdapterRegistry::Entry *
+SyncAdapterRegistry::entryFor(
+    const QString &categoryId) {
+    const QString canonical =
+        canonicalCategory(categoryId);
+    auto it =
+        m_entries.find(canonical);
+    if (it == m_entries.end())
+        return nullptr;
+    return &it.value();
+}
+
+const SyncAdapterRegistry::Entry *
+SyncAdapterRegistry::entryFor(
+    const QString &categoryId) const {
+    const QString canonical =
+        canonicalCategory(categoryId);
+    auto it =
+        m_entries.constFind(canonical);
+    if (it == m_entries.constEnd())
+        return nullptr;
+    return &it.value();
+}
+
+QString SyncAdapterRegistry::canonicalCategory(
+    const QString &categoryId) {
+    return categoryId
+        .trimmed()
+        .toLower();
+}
+
+bool SyncAdapterRegistry::fail(
+    SyncAdapterRegistryError *error,
+    const QString &code,
+    const QString &detail,
+    const QString &fieldPath) {
+    if (error) {
+        error->code = code;
+        error->detail = detail;
+        error->fieldPath = fieldPath;
+        error->failureClass = isCompatibilityCode(code)
+            ? SyncAdapterFailureClass::Compatibility
+            : SyncAdapterFailureClass::Owner;
+    }
+    return false;
+}
+
+bool SyncAdapterRegistry::failCompatibility(
+    SyncAdapterRegistryError *error,
+    const QString &code,
+    const QString &detail,
+    const QString &fieldPath) {
+    const bool result = fail(
+        error,
+        code,
+        detail,
+        fieldPath);
+    if (error)
+        error->failureClass = SyncAdapterFailureClass::Compatibility;
+    return result;
+}
+
+void SyncAdapterRegistry::handleAdapterDestroyed(
+    const QString &categoryId,
+    QObject *object) {
+    auto it =
+        m_entries.find(categoryId);
+    if (it == m_entries.end())
+        return;
+
+    if (static_cast<QObject *>(
+            it->identity)
+        != object) {
+        return;
+    }
+
+    QObject::disconnect(
+        it->mutationConnection);
+    QObject::disconnect(
+        it->destroyedConnection);
+
+    m_entries.erase(it);
+    m_remoteApplyDepth.remove(categoryId);
+
+    emit adapterUnregistered(
+        categoryId);
+}

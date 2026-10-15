@@ -1,0 +1,95 @@
+﻿{
+    "name":  "biblio_reader",
+    "comment":  "Presentation harness opens the committed real tiny EPUB directly through the production Reader2 shell.",
+    "steps":  [
+                  {
+                      "cmd":  "ping",
+                      "label":  "reader capture session answers",
+                      "expect":  [
+                                     {
+                                         "path":  "gates.drive",
+                                         "op":  "==",
+                                         "value":  "true"
+                                     }
+                                 ]
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "Reader2 capture shell is visible",
+                      "payload":  {
+                                      "object":  "biblioReaderCaptureShell",
+                                      "prop":  "visible",
+                                      "value":  true,
+                                      "timeout_ms":  10000
+                                  }
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "real EPUB is ready",
+                      "payload":  {
+                                      "object":  "biblioReaderCaptureShell",
+                                      "prop":  "bookReady",
+                                      "value":  true,
+                                      "timeout_ms":  30000
+                                  }
+                  },
+                  {
+                      "cmd":  "qml-get",
+                      "label":  "capture is the real EPUB fixture, not a stray local file",
+                      "payload":  {
+                                      "object":  "biblioReaderCaptureShell",
+                                      "props":  [
+                                                    "bookPath"
+                                                ]
+                                  },
+                      "expect":  [
+                                     {
+                                         "path":  "props.bookPath",
+                                         "op":  "contains",
+                                         "value":  "tiny-book.epub"
+                                     }
+                                 ]
+                  },
+                  {
+                      "capture":  {
+                                      "action":  "start",
+                                      "name":  "reddit-biblio-reader"
+                                  },
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "start Biblio reader capture"
+                  },
+                  {
+                      "presentation_hold_ms":  1800,
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "show Reader2"
+                  },
+                  {
+                      "capture":  {
+                                      "action":  "stop"
+                                  },
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "stop Biblio reader capture"
+                  }
+              ]
+}

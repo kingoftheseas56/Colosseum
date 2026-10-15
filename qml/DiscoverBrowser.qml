@@ -1,0 +1,1168 @@
+// DiscoverBrowser — the WORLD-NEUTRAL Discover shell (Task 3, arc 2026-08-01).
+//
+// This is the generic browsing surface carved out of DiscoverPage.qml: the pinned sidebar
+// (catalogues by source, DiscoverSidebar.qml), the masthead (type lens + summary line +
+// byline), the filter picker, the missing/offline notice, and the full-width poster wall with
+// skeletons, hover reveal, keyboard focus ring and skip-paging. It knows NOTHING about Manga/Comics/Movies/Shows,
+// Cinemeta, Extensions or any transport — every derivation and every fetch rides an
+// injected `adapter` that speaks the shared contract:
+//
+//   types()                 -> [{ key, label }]
+//   catalogs(type)          -> [{ key, title, sourceKind, section, attribution }]
+//   filters(type, catalog)  -> [{ group, options: [{ key, label }] }]
+//   defaultCatalog(type)    -> string key
+//   resolvePin(pin)         -> { missing, type, catalogKey, filterGroup, filterKey, missingName }
+//                              (optionally `filters: { group: key }` instead of the single pair)
+//   combinesFilters(type, catalog) -> bool (optional; default false = one filter at a time)
+//   fetchPage(state, cursor, generation, done)   // done(generation, page)
+//     state = { type, catalogKey, filters: { group: key }, filterGroup, filterKey }
+//     (filterGroup/filterKey = the first active pair, for single-filter sources)
+//     page  = { items, nextCursor, exhausted, freshness, warning }
+//
+// Normalized card shape the wall renders:
+//   { id, type, title, cover, year, rating, format, publisher, availability, explicit, raw }
+//
+// The visual tree is copied INTACT from the 2026-07-25 Discover overhaul — same house gold,
+// same monochrome glyphs, same geometry. Only the data plumbing changed: Api.* calls became
+// adapter.* calls, the N filter pickers collapsed to one active selection, and the cards read
+// normalized fields. The Theatre wrapper (DiscoverPage.qml) supplies the adapter and the copy.
+import QtQuick
+import QtQuick.Controls
+import "CatalogueVisualMetrics.js" as Metrics
+
+Item {
+    id: browser
+
+    // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
+    // World-namespaced by the host (theatre/biblio/tankoban): a bare shared stem would resolve
+    // DFS-first into another world's hidden, pre-warmed browser (ledger naming rule).
+    property string automationPrefix: ""
+    objectName: automationPrefix.length ? automationPrefix + "DiscoverBrowser" : ""
+    readonly property string automationCatalogKey: currentCatalogKey
+    readonly property string automationType: currentType
+    // Active filters as one stable string ("Group=key;Group=key", groups sorted, "" when none):
+    // the bridge waits on strict equality only.
+    readonly property string automationFilterSummary: {
+        var ks = Object.keys(filters).sort(), out = [];
+        for (var i = 0; i < ks.length; i++) out.push(ks[i] + "=" + filters[ks[i]]);
+        return out.join(";");
+    }
+    readonly property int automationItemCount: items.length
+    // How many legacy pickers (catalogue popup, filter picker) still exist. The sidebar slices
+    // remove them; counting named items proves it (the bridge has no absence assertion).
+    readonly property int automationLegacyPickerCount: {
+        var _ = adapterRev;
+        var names = ["discoverCatalogMenu", "discoverFilterPicker"];
+        var found = 0;
+        function walk(node) {
+            if (!node) return;
+            if (names.indexOf(node.objectName) >= 0) found++;
+            var kids = node.children || [];
+            for (var i = 0; i < kids.length; i++) walk(kids[i]);
+        }
+        walk(browser);
+        return found;
+    }
+
+    // ── injected world seam ──
+    property var adapter: null
+    // Retained worlds stay instantiated for state preservation. The host drives this seam so a
+    // hidden world does not start paging or keep accepting callbacks while another world is visible.
+    property bool active: true
+    // the type to fall back to when the adapter offers none yet (bare construction / empty registry)
+    property string fallbackType: ""
+    // poster visual profile passed straight through to the shared card. Default classic; a wrapper
+    // opts into "gallery" only after its own eyes-on gate (Discover/Tankoban/Comics via Task 9).
+    property string posterVisualProfile: "classic"
+    readonly property bool _galleryPosters: browser.posterVisualProfile === "gallery"
+    readonly property var _galleryMetrics: Metrics.gallery
+    // The Discover wall's poster token (Hemanth, 2026-09-30: smaller than the shelves' 148):
+    // seven across with the sidebar closed at 1280, six with it open.
+    property int wallPosterWidth: 132
+
+    // ── optional per-world card hooks (Biblio, Task 5, arc 2026-08-01) ──
+    // Every hook defaults OFF so a shared-shell edit never silently restyles a world that
+    // hasn't opted in (Tankoban/Theatre render byte-identical unless they flip these).
+    property bool showAuthorAtRest: false     // render item.author on the card AT REST, not just on reveal
+    property bool showSourceOnReveal: false   // render item.source in the reveal, on hover OR keyboard focus
+    property bool showBackAction: false       // render a back affordance in the masthead
+    signal backRequested()                    // "user wants to go back" — the shell never acts on this itself
+    // Pin the gallery delegate to EXACTLY wallPosterWidth instead of stretching to fill
+    // residual column width (the bug behind Biblio's oversized/blurry cards, 2026-08-06). OFF by
+    // default: Theatre/Tankoban keep today's fill-to-width gallery layout unless they opt in too.
+    // No effect outside the gallery profile (classic is untouched either way).
+    property bool fixedGalleryWidth: false
+    // ── one scroller (world-feel Slice 7) ──
+    // Given the host world's page Flickable, the wall stops scrolling inside its own box: the
+    // browser grows to the wall's full content height (flowHeight) so the world's single scroll
+    // moves through it, and the GridView becomes a window over its content that follows the page
+    // viewport, so only rows near the viewport are built. Harnesses leave it null (self-scrolling).
+    property Flickable pageFlick: null
+    readonly property bool pageFlow: browser.pageFlick !== null
+    // (never shorter than the rail wants, so a short wall does not crop the catalogue list)
+    readonly property real flowHeight: Math.max(wallHost.y + wallHost.flowContentHeight + 24, sidebar.naturalHeight)
+    // Test-only introspection: the actual rendered delegate box, so an offscreen harness can prove
+    // the geometry contract without a screenshot or a live pointer. Production code never reads these.
+    readonly property int _galleryDelegateWidthForTest: wall ? wall.cellWidth - wall.gapX : 0
+    readonly property int _galleryColumnCountForTest: wall ? wall.columnCount : 0
+
+    // ── generic browsing state ──
+    property string currentType: ""
+    property string currentCatalogKey: ""
+    // Active filters, one per group: { group: key }. Whether a second group ADDS or REPLACES is the
+    // adapter's call (combinesFilters; Discover sidebar plan Slice 1). filterGroup/filterKey are the
+    // first active pair, kept for single-selection readers (the legacy picker, pins).
+    property var filters: ({})
+    readonly property string filterGroup: { var ks = Object.keys(filters).sort(); return ks.length ? ks[0] : "" }
+    readonly property string filterKey: filterGroup.length ? String(filters[filterGroup]) : ""
+    readonly property int activeFilterCount: Object.keys(filters).length
+    property var cursor: null
+    property int fetchGen: 0                 // stale-response fence
+    property bool initialized: false
+    property var _pageCancel: null           // current adapter transport, when cancellable
+    property bool _pageResumePending: false  // canceled paging request to retry on reactivation
+    property var typeStates: ({})            // per-type session memory {type: {...}}
+    property int adapterRev: 0               // bump to force adapter-derived bindings to re-evaluate
+
+    property var items: []
+    property bool loading: false
+    property bool exhausted: false
+    property string warning: ""
+    property string freshness: ""
+    property string noticeText: ""           // a missing-catalogue explanation, when any
+    property var pinValue: null
+
+    property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
+    property bool catalogMenuOpen: false     // the Fraunces catalogue name opens the category picker
+    property Item catalogFocusReturn: null   // invoker restored when the picker closes
+
+    // ── the sidebar (Discover sidebar plan Slice 2): catalogues live in a pinned rail ──
+    property Item backdrop: null             // the world's wallpaper, for the rail's glass
+    readonly property real contentLeft: sidebar.visible ? sidebar.width + 28 : 0
+
+    // ── injectable copy (world-neutral defaults; the wrapper sets its world's exact words) ──
+    property string textNoCatalogue: "Nothing to browse here yet."
+    property string textCatalogueEmpty: "This catalogue answered with nothing."
+    property string textFilterEmpty: "Nothing here matches this filter."
+    property string noticeMissingFormat: "%1 is no longer available — showing the built-in catalogue instead."
+    property string offlineWarning: "Showing offline catalogue"
+
+    // Data-vault Slice 3 (2026-08-22): world-neutral seam a wrapper sets true when the wall is
+    // empty ONLY because its backing catalogue db has not landed yet (CatalogVault still
+    // fetching). Default false — a wrapper that never sets it renders byte-identical to before
+    // this slice. When true, the honest empty state below shows this ONE quiet line instead of
+    // the normal empty-catalogue copy; nothing else about the wall changes.
+    property bool catalogueDownloading: false
+    readonly property string _downloadingText: "Catalogue downloading…"
+
+    readonly property string _filterSep: "|"   // encodes group+key in one picker option key
+
+    signal itemOpenRequested(var item)       // a click / Enter on a poster opens the detail page
+
+    Theme { id: theme }
+
+    // ── derived reads (adapterRev is a dependency so a registry change re-derives them) ──
+    readonly property var currentCatalog: {
+        var _ = adapterRev;
+        if (!adapter || !currentType.length) return null;
+        var cats = adapter.catalogs(currentType);
+        for (var i = 0; i < cats.length; i++)
+            if (cats[i].key === currentCatalogKey) return cats[i];
+        return null;
+    }
+
+    // catalog picker rows, sectioned by descriptor `section` (the shell never invents sections)
+    readonly property var catalogMenuModel: {
+        var _ = adapterRev;
+        var out = []; var lastSec = null;
+        var cats = (adapter && currentType.length) ? adapter.catalogs(currentType) : [];
+        for (var i = 0; i < cats.length; i++) {
+            var c = cats[i];
+            var sec = c.section || "";
+            if (sec !== lastSec) { out.push({ header: sec }); lastSec = sec; }
+            out.push({ key: c.key, text: c.title, sub: c.attribution || "" });
+        }
+        return out;
+    }
+    readonly property bool hasCatalogs: catalogMenuModel.length > 0
+
+    // ── sources (Hemanth, 2026-09-30): the sidebar lists the addons (and built-in sections) that
+    // own the current type's catalogues; the category picker (top right) lists only the current
+    // source's catalogues; the filter picker holds that catalogue's genres/years/languages. ──
+    // a descriptor may name its source outright (built-ins: the addon that owns them)
+    function sourceNameOf(c) {
+        return c.sourceName || (c.sourceKind === "extension" ? c.attribution : c.section) || c.attribution || c.section || ""
+    }
+    readonly property var sources: {
+        var _ = adapterRev;
+        var cats = (adapter && currentType.length) ? adapter.catalogs(currentType) : [];
+        var out = [], at = {};
+        for (var i = 0; i < cats.length; i++) {
+            var c = cats[i], name = sourceNameOf(c);
+            if (at[name] === undefined) {
+                at[name] = out.length;
+                out.push({ name: name, addonId: c.addonId || "", logo: c.logo || "", catalogs: [] });
+            }
+            out[at[name]].catalogs.push({ key: c.key, title: c.title });
+        }
+        return out;
+    }
+    readonly property string currentSource: currentCatalog ? sourceNameOf(currentCatalog) : ""
+    // the category picker's rows: the current source's catalogues only
+    readonly property var sourceCatalogs: {
+        var srcs = sources;
+        for (var i = 0; i < srcs.length; i++)
+            if (srcs[i].name === currentSource) {
+                var out = [];
+                for (var k = 0; k < srcs[i].catalogs.length; k++)
+                    out.push({ key: srcs[i].catalogs[k].key, text: srcs[i].catalogs[k].title });
+                return out;
+            }
+        return [];
+    }
+    readonly property bool categoryPickable: sourceCatalogs.length > 1
+    // One click on a source: its first category (the source's own default order).
+    function selectSource(name) {
+        if (name === currentSource) return
+        var srcs = sources
+        for (var i = 0; i < srcs.length; i++)
+            if (srcs[i].name === name && srcs[i].catalogs.length) { selectCatalog(srcs[i].catalogs[0].key); return }
+    }
+
+    // the filter groups for the current catalogue, concatenated into ONE picker menu:
+    // a leading "All" (clears), then each group's options — with a section header only when
+    // more than one group exists (a single group reads exactly like the old genre picker).
+    readonly property var filterGroups: {
+        var _ = adapterRev;
+        return (adapter && currentCatalogKey.length) ? adapter.filters(currentType, currentCatalogKey) : [];
+    }
+    readonly property var filterMenuModel: {
+        var groups = filterGroups;
+        var out = [{ key: "", text: "All", sub: "" }];
+        var multi = groups.length > 1;
+        for (var g = 0; g < groups.length; g++) {
+            if (multi) out.push({ header: groups[g].group });
+            var opts = groups[g].options || [];
+            for (var o = 0; o < opts.length; o++)
+                out.push({ key: groups[g].group + browser._filterSep + opts[o].key, text: opts[o].label, sub: "" });
+        }
+        return out;
+    }
+    readonly property bool filterHasOptions: filterMenuModel.length > 1
+    readonly property string filterPickerLabel: filterGroups.length === 1 ? filterGroups[0].group : "Filter"
+    readonly property var filterSelection: ({ group: filterGroup, key: filterKey })
+
+    // the active filter's human label (for the byline) — key equals label in the flat worlds,
+    // but resolve it honestly through the descriptor so multi-option worlds read right too.
+    readonly property string activeFilterLabel: {
+        var ks = Object.keys(filters).sort();
+        if (!ks.length) return "";
+        var groups = filterGroups, labels = [];
+        for (var i = 0; i < ks.length; i++)
+            labels.push(browser.filterOptionLabel(ks[i], filters[ks[i]]));
+        return labels.join("   ·   ");
+    }
+
+    readonly property string emptyMessage: !currentCatalog ? textNoCatalogue
+        : (activeFilterCount > 0 ? textFilterEmpty : textCatalogueEmpty)
+    readonly property bool showOfflineNotice: offlineWarning.length > 0 && warning === offlineWarning
+    readonly property string bannerText: showOfflineNotice ? warning : noticeText
+    readonly property bool bannerVisible: showOfflineNotice || noticeText.length > 0
+
+    // ─────────────────────────────── behaviour ───────────────────────────────
+
+    function activateIndex(i) {
+        if (i < 0 || i >= items.length) return           // skeletons / out-of-range never activate
+        itemOpenRequested(items[i])
+    }
+
+    function openCatalogMenu(invoker) {
+        if (!categoryPickable) return
+        filterPicker.open = false
+        catalogFocusReturn = invoker || null
+        catalogMenuOpen = true
+        var at = 0
+        for (var i = 0; i < sourceCatalogs.length; i++) if (sourceCatalogs[i].key === currentCatalogKey) at = i
+        menuList.currentIndex = at
+        menuList.positionViewAtIndex(at, ListView.Contain)
+        Qt.callLater(function() { menuList.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeCatalogMenu(restoreFocus) {
+        const target = catalogFocusReturn
+        catalogFocusReturn = null
+        catalogMenuOpen = false
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function chooseCatalog(index) {
+        if (index < 0 || index >= sourceCatalogs.length) return
+        const target = catalogFocusReturn || catalogAction
+        catalogFocusReturn = null
+        selectCatalog(sourceCatalogs[index].key)
+        Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+
+    onVisibleChanged: if (visible && active && wall) wall.forceActiveFocus()
+
+    Component.onCompleted: if (active) init()
+
+    Component.onDestruction: browser.cancelPageRequest()
+
+    onActiveChanged: {
+        if (!active) {
+            // Invalidate the current page request. The adapter may still finish its transport,
+            // but its callback cannot mutate this hidden browser after the generation bump.
+            _pageResumePending = loading && !exhausted
+            browser.cancelPageRequest()
+            fetchGen++
+            loading = false
+            catalogMenuOpen = false
+            return
+        }
+        if (!initialized) {
+            init()
+            return
+        }
+        // A hidden browser can have lost its first page to the generation fence. Re-issue only
+        // that incomplete request; settled retained state is left untouched.
+        if (_pageResumePending || (!items.length && !exhausted)) {
+            _pageResumePending = false
+            requestPage()
+        }
+        if (wall) wall.forceActiveFocus()
+    }
+
+    function init() {
+        if (initialized) return
+        initialized = true
+        if (!adapter) { if (fallbackType.length) currentType = fallbackType; return }
+        if (pinValue) { applyPin(pinValue); return }
+        var ts = adapter.types()
+        var t = ts.length ? ts[0].key : fallbackType
+        currentType = t
+        currentCatalogKey = adapter.defaultCatalog(t)
+        filters = ({}); noticeText = ""
+        reloadForCatalog()
+    }
+
+    function selectType(t) {
+        if (t === currentType) return
+        _pageResumePending = loading && !exhausted
+        cancelPageRequest()
+        fetchGen++                       // fence any in-flight fetch bound to the leaving type
+        saveTypeState()
+        currentType = t
+        catalogMenuOpen = false
+        if (typeStates[t]) {
+            restoreTypeState(typeStates[t])
+        } else {
+            currentCatalogKey = adapter ? adapter.defaultCatalog(t) : ""
+            filters = ({}); noticeText = ""
+            reloadForCatalog()
+        }
+    }
+
+    function selectCatalog(key) {
+        cancelPageRequest()
+        fetchGen++
+        currentCatalogKey = key
+        filters = ({}); noticeText = ""
+        catalogMenuOpen = false
+        reloadForCatalog()
+    }
+
+    function filterOptionLabel(group, key) {
+        var groups = filterGroups;
+        for (var g = 0; g < groups.length; g++)
+            if (groups[g].group === group)
+                for (var o = 0; o < groups[g].options.length; o++)
+                    if (groups[g].options[o].key === key) return groups[g].options[o].label;
+        return String(key);
+    }
+
+    // Can this catalogue take one filter per group at once? (adapter's call; default: one at a time)
+    function combinesFilters() {
+        return !!(adapter && adapter.combinesFilters && currentCatalogKey.length
+                  && adapter.combinesFilters(currentType, currentCatalogKey));
+    }
+
+    // Set one group's filter. A catalogue that combines keeps the other groups; one that does not
+    // replaces them. An empty key clears that group.
+    function setFilter(group, key) {
+        if (!key || !String(key).length) { clearFilter(group); return }
+        cancelPageRequest()
+        fetchGen++
+        var next = {};
+        if (combinesFilters())
+            for (var k in filters) next[k] = filters[k];
+        next[group] = key;
+        filters = next
+        reloadForCatalog()
+    }
+
+    // clearFilter(group) clears one group; clearFilter() with no group clears them all.
+    function clearFilter(group) {
+        cancelPageRequest()
+        fetchGen++
+        if (group === undefined || group === null) {
+            filters = ({})
+        } else {
+            var next = {};
+            for (var k in filters) if (k !== group) next[k] = filters[k];
+            filters = next
+        }
+        reloadForCatalog()
+    }
+    function clearFilters() { clearFilter() }
+
+    // split a picker option key (group + SEP + key) back into a filter selection
+    // The legacy picker chooses ONE filter at a time: it replaces the whole selection.
+    function _applyFilterKey(encoded) {
+        if (!encoded || !encoded.length) { clearFilter(); return }
+        var i = encoded.indexOf(_filterSep)
+        var group = i < 0 ? "" : encoded.substring(0, i)
+        var key = i < 0 ? encoded : encoded.substring(i + _filterSep.length)
+        cancelPageRequest()
+        fetchGen++
+        var next = {}; next[group] = key
+        filters = next
+        reloadForCatalog()
+    }
+
+    function applyPin(pin) {
+        pinValue = pin || null
+        if (!pin || !adapter) return
+        cancelPageRequest()
+        fetchGen++
+        var res = adapter.resolvePin(pin)
+        catalogMenuOpen = false
+        if (res.missing) {
+            // a missing pinned extension/catalogue -> the same type's built-in default,
+            // an invalid filter cleared, and one explanatory notice.
+            currentType = res.type
+            currentCatalogKey = adapter.defaultCatalog(res.type)
+            filters = ({})
+            noticeText = noticeMissingFormat.arg(
+                (res.missingName && res.missingName.length) ? res.missingName : "That source")
+            reloadForCatalog()
+            return
+        }
+        noticeText = ""
+        currentType = res.type
+        currentCatalogKey = res.catalogKey
+        if (res.filters) {
+            filters = res.filters
+        } else {
+            var pinned = {}
+            if (res.filterKey && res.filterKey.length) pinned[res.filterGroup || ""] = res.filterKey
+            filters = pinned
+        }
+        reloadForCatalog()
+    }
+
+    // re-derive after the adapter's data changed (e.g. an extension installed/removed).
+    function refresh() {
+        if (!adapter) return
+        adapterRev++                     // force the adapter-derived bindings to re-evaluate
+        if (pinValue) { applyPin(pinValue); return }
+        var cats = adapter.catalogs(currentType)
+        for (var i = 0; i < cats.length; i++)
+            if (cats[i].key === currentCatalogKey) return   // still present -> keep the wall as-is
+        // the current catalogue is gone -> fall to the default
+        cancelPageRequest()
+        fetchGen++
+        currentCatalogKey = adapter.defaultCatalog(currentType)
+        filters = ({}); noticeText = ""
+        reloadForCatalog()
+    }
+
+    // Force a genuine re-fetch of the CURRENT catalogue/filter selection, unconditionally —
+    // unlike refresh(), which only reloads when the current catalogue disappeared from the
+    // adapter's list. A world calls this when the adapter's ANSWER for an unchanged
+    // catalogue/filter selection has changed shape (e.g. Biblio's global Explicit Content
+    // preference flips, and the same catalogue must be asked again with the new value baked
+    // into fetchPage). Keeps the catalogue/filter selection exactly as-is; reloadForCatalog()
+    // already resets items/cursor/exhausted, so a flip never strands stale paging state
+    // alongside fresh items.
+    function reloadCurrent() {
+        if (!adapter) return
+        cancelPageRequest()
+        fetchGen++
+        reloadForCatalog()
+    }
+
+    function saveTypeState() {
+        if (!currentType.length) return
+        var s = {}
+        for (var k in typeStates) s[k] = typeStates[k]
+        s[currentType] = { catalogKey: currentCatalogKey, filters: filters,
+                           items: items, cursor: cursor, exhausted: exhausted,
+                           warning: warning, freshness: freshness, noticeText: noticeText,
+                           pageResumePending: _pageResumePending,
+                           contentY: (wall ? wall.contentY : 0) }   // remember scroll for restore
+        typeStates = s
+    }
+
+    property real _pendingScrollY: -1        // >= 0 while a restored scroll waits to be reapplied
+    function applyPendingScroll() {
+        if (_pendingScrollY < 0 || !wall) return
+        // clamp so a stale scroll never lands past a now-shorter wall
+        var maxY = Math.max(0, wall.contentHeight - wall.height)
+        wall.contentY = Math.min(_pendingScrollY, maxY)
+        _pendingScrollY = -1
+    }
+
+    function restoreTypeState(st) {
+        currentCatalogKey = st.catalogKey
+        filters = st.filters || ({})
+        items = st.items; cursor = st.cursor; exhausted = st.exhausted
+        warning = st.warning || ""; freshness = st.freshness || ""; noticeText = st.noticeText || ""
+        loading = false
+        _pageResumePending = st.pageResumePending === true
+        // A type LEFT during its first-page fetch saved {items:[], exhausted:false}: the generation
+        // fence dropped that in-flight reply, and onContentYChanged can't re-page an empty wall — so
+        // the type would strand on the empty state. Re-issue a page when the restored wall is empty
+        // and NOT exhausted. A legitimately-empty catalogue saved exhausted:true (and requestPage
+        // guards on exhausted too), so this never double-fetches a settled, empty catalogue.
+        if (_pageResumePending || (!items.length && !exhausted)) {
+            _pageResumePending = false
+            requestPage()
+            return
+        }
+        // restore the wall's scroll best-effort, after the GridView re-lays out the restored model.
+        _pendingScrollY = (st.contentY || 0)
+        Qt.callLater(applyPendingScroll)
+    }
+
+    function reloadForCatalog() {
+        cancelPageRequest()
+        items = []; cursor = null; exhausted = false; loading = false
+        warning = ""; freshness = ""
+        requestPage()
+    }
+
+    function requestPage() {
+        if (!active || !adapter || loading || exhausted || currentCatalogKey.length === 0) return
+        _pageResumePending = false
+        loading = true
+        var gen = ++fetchGen
+        var chosen = {}
+        for (var k in filters) chosen[k] = filters[k]
+        var st = { type: currentType, catalogKey: currentCatalogKey, filters: chosen,
+                   filterGroup: filterGroup, filterKey: filterKey }   // first pair: single-filter adapters
+        var handle = adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
+            if (!browser.active || replyGen !== browser.fetchGen) return
+            browser._pageCancel = null
+            browser.acceptPage(page)
+        })
+        if (browser.loading && browser.active && browser.fetchGen === gen)
+            browser._pageCancel = (typeof handle === "function") ? handle : null
+        else if (typeof handle === "function")
+            handle()
+    }
+
+    function cancelPageRequest() {
+        var handle = browser._pageCancel
+        browser._pageCancel = null
+        if (typeof handle === "function") handle()
+    }
+
+    function acceptPage(page) {
+        loading = false
+        if (!page) { exhausted = true; return }
+        warning = page.warning || ""
+        freshness = page.freshness || ""
+        var incoming = page.items || []
+        if (incoming.length) {
+            var merged = items.slice()
+            for (var i = 0; i < incoming.length; i++) merged.push(incoming[i])
+            items = merged
+        }
+        cursor = (page.nextCursor !== undefined) ? page.nextCursor : null
+        if (page.exhausted) exhausted = true
+    }
+
+
+    // opening the category picker closes the filter picker (one drop-down family)
+    onCatalogMenuOpenChanged: if (catalogMenuOpen) filterPicker.open = false
+
+    // ═══ the rail — the sources (addons), pinned beside the wall ═══
+    DiscoverSidebar {
+        id: sidebar
+        host: browser
+        backdrop: browser.backdrop
+        visible: browser.adapter !== null
+    }
+
+    // ═══ masthead — the type lens (left) + what fills the wall (right) ═══
+    // z above the wall: the category picker drops INTO the wall region and must paint over it.
+    Item {
+        id: masthead
+        z: 100
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.leftMargin: browser.contentLeft
+        anchors.right: parent.right
+        height: 76
+
+        Rectangle {
+            id: mastheadRule
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.09)
+        }
+
+        // ── optional back affordance (Biblio's Explore-return, Task 5) — top-left, above
+        // the type lens; invisible/no-op for every world that leaves showBackAction off. ──
+        Text {
+            id: backAction
+            visible: browser.showBackAction
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.topMargin: 6
+            text: "‹ Back"
+            color: backMa.containsMouse ? theme.gold : theme.inkDim
+            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+            MouseArea {
+                id: backMa
+                anchors.fill: parent
+                anchors.margins: -6
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: browser.backRequested()
+            }
+            KeyboardAction { anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                accessibleName: "Back"; focusRadius: 7; onTriggered: browser.backRequested() }
+        }
+
+        // ── type lens: underlined text tabs (NOT filled pills) ──
+        Row {
+            id: typeSwitch
+            anchors.left: parent.left
+            anchors.bottom: mastheadRule.top
+            anchors.bottomMargin: 12
+            spacing: 28
+            property int currentIndex: 0
+            focusPolicy: typeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
+            function syncCurrent() {
+                var types = browser.adapter ? browser.adapter.types() : []
+                for (var i = 0; i < types.length; ++i)
+                    if (types[i].key === browser.currentType) { currentIndex = i; return }
+                currentIndex = types.length ? 0 : -1
+            }
+            Keys.onPressed: (event) => typeKeys.handle(event)
+            KeyboardCollectionController {
+                id: typeKeys; view: typeSwitch; orientation: "horizontal"; count: typeRepeater.count
+                onActivated: (index) => { const tab = typeRepeater.itemAt(index); if (tab) browser.selectType(tab.modelData.key) }
+            }
+            Component.onCompleted: syncCurrent()
+            Connections { target: browser; function onCurrentTypeChanged() { typeSwitch.syncCurrent() } }
+            Repeater {
+                id: typeRepeater
+                model: (browser.adapterRev, browser.adapter ? browser.adapter.types() : [])
+                delegate: Item {
+                    id: typeTab
+                    required property var modelData
+                    required property int index
+                    readonly property bool active: browser.currentType === typeTab.modelData.key
+                    readonly property bool keyboardSelected: typeSwitch.activeFocus && typeSwitch.currentIndex === typeTab.index
+                    objectName: browser.automationPrefix.length
+                                ? browser.automationPrefix + "DiscoverType_" + typeTab.modelData.key : ""
+                    width: tlabel.implicitWidth
+                    height: tlabel.implicitHeight + 9
+                    Text {
+                        id: tlabel
+                        anchors.top: parent.top
+                        text: typeTab.modelData.label
+                        color: typeTab.active ? theme.ink
+                             : (tHov.hovered ? theme.ink : theme.inkDim)
+                        font.family: theme.ui; font.pixelSize: 17; font.weight: Font.DemiBold
+                        // readable on any wallpaper (2026-09-29): the idle lenses sat at inkDimmer
+                        // and vanished into bright/warm art; a soft drop shadow carries them.
+                        style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    }
+                    Rectangle {                       // gold underline marks the active lens
+                        visible: typeTab.active
+                        anchors.left: tlabel.left; anchors.right: tlabel.right
+                        anchors.bottom: parent.bottom
+                        height: 3; radius: 2; color: theme.gold
+                    }
+                    Rectangle {
+                        visible: typeTab.keyboardSelected
+                        anchors.fill: parent; anchors.margins: -6; radius: 7
+                        color: "transparent"; border.width: 2; border.color: Qt.rgba(240/255,196/255,74/255,0.72)
+                    }
+                    HoverHandler { id: tHov }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: browser.selectType(typeTab.modelData.key)
+                    }
+                }
+            }
+        }
+
+        // ── the shelf (right): kicker + the catalogue name (= the category picker) + byline ──
+        Item {
+            id: shelf
+            anchors.right: parent.right
+            anchors.bottom: mastheadRule.top
+            anchors.bottomMargin: 9
+            width: Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth)
+            height: kicker.implicitHeight + 4 + summary.height + 7 + byline.implicitHeight
+
+            Text {
+                id: kicker
+                anchors.right: parent.right; anchors.top: parent.top
+                text: "NOW BROWSING"
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 10; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                font.letterSpacing: 2.5; font.capitalization: Font.AllUppercase
+            }
+            Row {
+                id: summary
+                objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverSummary" : ""
+                // one stable string for the bridge (it reads properties, not pixels)
+                readonly property string text: {
+                    var t = browser.currentCatalog ? browser.currentCatalog.title : ""
+                    var f = browser.activeFilterLabel
+                    return f.length ? (t + "   ·   " + f) : t
+                }
+                anchors.right: parent.right
+                anchors.top: kicker.bottom; anchors.topMargin: 4
+                spacing: 10
+                Text {
+                    id: catName
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: browser.currentCatalog ? browser.currentCatalog.title : "—"
+                    color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
+                    font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                }
+                Text {
+                    visible: browser.categoryPickable
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "▾"
+                    color: (catMa.containsMouse || browser.catalogMenuOpen) ? theme.gold : theme.inkDimmer
+                    font.pixelSize: 14
+                }
+            }
+            MouseArea {
+                id: catMa
+                objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverCategoryPicker" : ""
+                anchors.fill: summary
+                hoverEnabled: true
+                cursorShape: browser.categoryPickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                enabled: browser.categoryPickable
+                onClicked: browser.catalogMenuOpen ? browser.closeCatalogMenu(false) : browser.openCatalogMenu(catalogAction)
+            }
+            KeyboardAction {
+                id: catalogAction
+                anchors.fill: summary; pointerEnabled: false; focusEnabled: browser.categoryPickable
+                accessibleName: "Choose category"; focusRadius: 8
+                onTriggered: browser.catalogMenuOpen ? browser.closeCatalogMenu(true) : browser.openCatalogMenu(catalogAction)
+            }
+            Text {
+                id: byline
+                anchors.right: parent.right
+                anchors.top: summary.bottom; anchors.topMargin: 7
+                // honest attribution — the owning source (as the sidebar names it). NO invented total.
+                text: browser.currentSource
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 13; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+            }
+        }
+
+        // ── category picker — the current source's catalogues (gold-active) ──
+        Rectangle {
+            id: catalogMenu
+            objectName: "discoverCatalogMenu"
+            visible: browser.catalogMenuOpen
+            anchors.right: parent.right
+            anchors.top: parent.bottom
+            anchors.topMargin: 6
+            width: 260
+            height: Math.min(392, menuList.contentHeight + 12)
+            radius: 13
+            z: 60
+            color: Qt.rgba(0.045, 0.05, 0.075, 0.98)
+            border.width: 1; border.color: theme.edge
+            MouseArea { anchors.fill: parent }   // swallow taps inside the menu
+
+            ListView {
+                id: menuList
+                anchors.fill: parent; anchors.margins: 6
+                clip: true
+                model: browser.sourceCatalogs
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: HouseScrollBar { flick: menuList }
+                Keys.onPressed: (event) => {
+                    var n = browser.sourceCatalogs.length
+                    if (event.key === Qt.Key_Down || (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))) {
+                        menuList.currentIndex = (menuList.currentIndex + 1) % n; event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Up || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+                        menuList.currentIndex = (menuList.currentIndex - 1 + n) % n; event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Home) { menuList.currentIndex = 0; event.accepted = true; return }
+                    if (event.key === Qt.Key_End) { menuList.currentIndex = n - 1; event.accepted = true; return }
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        browser.chooseCatalog(menuList.currentIndex); event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Escape) { browser.closeCatalogMenu(true); event.accepted = true }
+                }
+                delegate: Rectangle {
+                    id: mrow
+                    required property var modelData
+                    required property int index
+                    readonly property bool sel: mrow.modelData.key === browser.currentCatalogKey
+                    readonly property bool keyboardSelected: menuList.activeFocus && menuList.currentIndex === mrow.index
+                    objectName: browser.automationPrefix.length
+                                ? browser.automationPrefix + "DiscoverCategory_" + String(mrow.modelData.key).replace(/[^A-Za-z0-9]/g, "_") : ""
+                    width: menuList.width
+                    height: 38
+                    radius: 9
+                    color: mrow.sel ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
+                         : (mrowMa.containsMouse || mrow.keyboardSelected) ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                    border.width: mrow.keyboardSelected ? 2 : 0
+                    border.color: theme.gold
+                    Text {
+                        text: mrow.modelData.text
+                        color: mrow.sel ? theme.gold : theme.ink
+                        font.family: theme.ui; font.pixelSize: 13
+                        font.weight: mrow.sel ? Font.DemiBold : Font.Normal
+                        anchors.left: parent.left; anchors.leftMargin: 12
+                        anchors.right: parent.right; anchors.rightMargin: 12
+                        elide: Text.ElideRight
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    MouseArea {
+                        id: mrowMa
+                        anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: browser.chooseCatalog(mrow.index)
+                    }
+                }
+            }
+        }
+    }
+
+    // click-off catcher — a tap anywhere outside the open category picker closes it
+    MouseArea {
+        anchors.fill: parent
+        z: 95
+        visible: browser.catalogMenuOpen
+        onClicked: browser.closeCatalogMenu(true)
+    }
+
+    // ═══ filter chips — the genuine filters collapsed to ONE active selection ═══
+    Row {
+        id: filterRow
+        z: 90
+        // Down from the filter row goes straight into the wall below, like the mock. The wall
+        // usually starts off screen, and the spatial navigator only lands on stops already on
+        // screen, so it used to spend presses scrolling while focus stayed on "Genre".
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Down && event.modifiers === Qt.NoModifier && browser.enterWall())
+                event.accepted = true
+        }
+        visible: browser.filterHasOptions
+        anchors.top: masthead.bottom
+        anchors.topMargin: 16
+        anchors.left: parent.left
+        anchors.leftMargin: browser.contentLeft
+        spacing: 10
+        Text {
+            objectName: "discoverFilterLabel"
+            text: "FILTER"
+            height: 40; verticalAlignment: Text.AlignVCenter
+            // full ink + DemiBold: at 11px regular inkDim it still sank into warm wallpapers
+            color: theme.ink
+            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 1.5
+            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.85)
+            font.capitalization: Font.AllUppercase
+        }
+        DiscoverPicker {
+            id: filterPicker
+            objectName: "discoverFilterPicker"
+            automationName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverFilterPicker" : ""
+            label: browser.filterPickerLabel
+            clearable: true
+            options: browser.filterMenuModel
+            currentKey: browser.filterKey.length ? (browser.filterGroup + browser._filterSep + browser.filterKey) : ""
+            onPicked: (key) => browser._applyFilterKey(key)
+            onCleared: browser.clearFilter()
+            onOpenChanged: if (open && browser.catalogMenuOpen) browser.closeCatalogMenu(true)
+        }
+    }
+
+    // ─── notice bar — a missing-catalogue explanation or the offline-catalogue notice ───
+    Rectangle {
+        id: noticeBar
+        visible: browser.bannerVisible
+        anchors.top: filterRow.visible ? filterRow.bottom : masthead.bottom
+        anchors.topMargin: 14
+        x: browser.contentLeft
+        width: parent.width - browser.contentLeft; height: visible ? 52 : 0
+        radius: 12
+        color: Qt.rgba(240/255, 196/255, 74/255, 0.08)
+        border.width: 1; border.color: Qt.rgba(240/255, 196/255, 74/255, 0.4)
+        Text {
+            anchors.left: parent.left; anchors.leftMargin: 16
+            anchors.right: parent.right; anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            text: browser.bannerText
+            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+            elide: Text.ElideRight
+        }
+    }
+
+    // ─── the wall — full-width Stremio grid (no side pane; a click opens the title) ───
+    Item {
+        id: wallHost
+        anchors.top: noticeBar.visible ? noticeBar.bottom
+                   : filterRow.visible ? filterRow.bottom
+                   : masthead.bottom
+        anchors.topMargin: 18
+        anchors.left: parent.left; anchors.leftMargin: browser.contentLeft
+        anchors.right: parent.right
+        anchors.bottom: browser.pageFlow ? undefined : parent.bottom
+        height: browser.pageFlow ? flowContentHeight : implicitHeight
+
+        // Page flow: every row's height, and the window of it the page viewport currently shows.
+        readonly property real flowContentHeight:
+            Math.max(1, Math.ceil(wall.cellTarget / Math.max(1, wall.columnCount))) * wall.cellHeight
+        readonly property real _visibleTop: {
+            if (!browser.pageFlow)
+                return 0
+            browser.pageFlick.contentY; browser.pageFlick.contentHeight; wallHost.y   // dependencies
+            return browser.pageFlick.contentY
+                   - wallHost.mapToItem(browser.pageFlick.contentItem, 0, 0).y
+        }
+        readonly property real windowHeight: browser.pageFlow
+            ? Math.max(wall.cellHeight, Math.min(flowContentHeight, browser.pageFlick.height)) : height
+        readonly property real windowTop: browser.pageFlow
+            ? Math.max(0, Math.min(_visibleTop, flowContentHeight - windowHeight)) : 0
+
+        GridView {
+            id: wall
+            objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverWall" : ""
+            anchors.top: browser.pageFlow ? undefined : parent.top
+            anchors.bottom: browser.pageFlow ? undefined : parent.bottom
+            y: browser.pageFlow ? wallHost.windowTop : 0
+            height: browser.pageFlow ? wallHost.windowHeight : parent.height
+            // Always left+right anchored (never swapped for horizontalCenter — mixing anchor
+            // TYPES on a toggle is a real Qt anchor conflict, confirmed at runtime, not just a
+            // style choice). Default: zero margins, fills the host's full width exactly as
+            // before (cellWidth stretches to consume any residual — the source of Biblio's
+            // oversized/blurry cards). fixedGalleryWidth (gallery profile only): symmetric
+            // margins eat the residual instead, so cellWidth can land on the exact token and
+            // the grid is centered rather than left-packed.
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
+                ? Math.max(0, Math.floor((parent.width - columnCount * cellWidth) / 2)) : 0
+            anchors.rightMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
+                ? Math.max(0, Math.ceil((parent.width - columnCount * cellWidth) / 2))
+                : (mockGrid ? -gapX : 0)   // the last column's trailing gap falls past the edge
+            clip: true
+            // In page flow the world's page owns the wheel and the scroll; the wall only follows.
+            interactive: !browser.pageFlow
+            highlightFollowsCurrentItem: !browser.pageFlow
+            pixelAligned: false
+            boundsBehavior: Flickable.StopAtBounds
+            focus: true
+            keyNavigationEnabled: true
+            // The wall is ONE D-pad stop (its cards are not focusable; the GridView moves its own
+            // currentIndex), like the Library walls, so Tab and the spatial navigator can land on it.
+            focusPolicy: browser.items.length > 0 ? Qt.TabFocus : Qt.NoFocus
+            // Classic keeps its exact prior tuning (~132px tiles, matching the Top-list rails);
+            // gallery derives its stride/height from the gallery tokens (wider tiles + two-line title).
+            // columnCount/cellWidth read the HOST's width (parent, not wall's own width) so they
+            // stay well-defined when wall.width above is itself derived from columnCount*cellWidth.
+            // The gallery wall is the concept's grid (Hemanth, 2026-09-29: "reduce the thumbnails
+            // to how it's here"): repeat(auto-fill, minmax(148px, 1fr)) with 20 px between cards and
+            // 26 px between rows. Each cell carries its card plus one gap; the wall runs one gap past
+            // its host so the last card ends on the edge.
+            readonly property bool mockGrid: browser._galleryPosters && !browser.fixedGalleryWidth
+            readonly property int gapX: mockGrid ? browser._galleryMetrics.cardGap : 14
+            readonly property int gapY: mockGrid ? 26 : 14
+            // Every gallery wall counts columns the concept's way (fixedGalleryWidth then centres
+            // exact-token cards in them); classic keeps its ~146 px stride.
+            readonly property int columnCount: browser._galleryPosters
+                ? Math.max(3, Math.floor((parent.width + browser._galleryMetrics.cardGap)
+                                         / (browser.wallPosterWidth + browser._galleryMetrics.cardGap)))
+                : Math.max(3, Math.floor(parent.width / 146))
+            cellWidth: mockGrid ? Math.floor((parent.width + gapX) / columnCount)
+                : (browser.fixedGalleryWidth && browser._galleryPosters)
+                // "-14" below is the existing, unchanged delegate-inset convention (see the
+                // delegate's width binding) — adding it back here is what makes the delegate land
+                // on EXACTLY wallPosterWidth, not floor(width/columnCount)'s residual-inflated value.
+                ? (browser.wallPosterWidth + 14)
+                : Math.floor(parent.width / columnCount)
+            cellHeight: browser._galleryPosters
+                ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
+                   + 10 + browser._galleryMetrics.titleMinHeight + gapY + 6)
+                : (Math.floor(cellWidth * 1.62) + 34)
+            cacheBuffer: browser.pageFlow ? 0 : cellHeight * 2
+            // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
+            // fill the viewport on the first page, one trailing row while paging.
+            readonly property int skelCount: !browser.loading ? 0
+                : (browser.items.length === 0
+                   ? columnCount * Math.max(2, Math.ceil((browser.pageFlow
+                       ? browser.pageFlick.height : height) / cellHeight))
+                   : columnCount)
+            // One row per cell (card or skeleton). A plain count here was a new model on every
+            // page and every loading flip, so the GridView rebuilt ALL its cards each time
+            // (profiled 2026-09-29: 228 card creations, ~2 s). Rows are only appended/removed at
+            // the end, so existing cards stay put; each card reads browser.items[index].
+            readonly property int cellTarget: browser.items.length + skelCount
+            onCellTargetChanged: wall.syncCells()
+            Component.onCompleted: wall.syncCells()
+            function syncCells() {
+                var n = wall.cellTarget
+                if (n < wallCells.count)
+                    wallCells.remove(n, wallCells.count - n)
+                if (wallCells.count < n) {
+                    var rows = []                      // one insert, not one per row
+                    for (var i = wallCells.count; i < n; i++)
+                        rows.push({ cell: i })
+                    wallCells.append(rows)
+                }
+            }
+            ListModel { id: wallCells }
+            model: wallCells
+            ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !browser.pageFlow }
+            Binding {
+                target: wall
+                property: "contentY"
+                value: wall.originY + wallHost.windowTop
+                when: browser.pageFlow
+                restoreMode: Binding.RestoreNone
+            }
+            // Arrow keys park the focused row under the docked tab bar, like the mock.
+            onCurrentIndexChanged: if (browser.pageFlow && browser.keyboardMode) browser.revealCell(wall.currentIndex)
+            onContentYChanged: {
+                // Deferred: in page flow contentY is pushed from windowTop, and a synchronous
+                // request adds skeleton rows that change windowTop's own inputs (binding loop).
+                if (contentHeight > height
+                    && contentY + height >= contentHeight - 2 * cellHeight)
+                    Qt.callLater(browser.requestPage)
+            }
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
+                    || event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                    browser.keyboardMode = true
+                    event.accepted = false            // let GridView move currentIndex
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    browser.keyboardMode = true
+                    browser.activateIndex(wall.currentIndex)
+                    event.accepted = true
+                } else if (browser.pageFlow && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
+                           || event.key === Qt.Key_Home || event.key === Qt.Key_End)) {
+                    event.accepted = false                // the world page scrolls
+                } else if (event.key === Qt.Key_PageUp) {
+                    wallGlide.pageUp(); event.accepted = true
+                } else if (event.key === Qt.Key_PageDown) {
+                    wallGlide.pageDown(); event.accepted = true
+                } else if (event.key === Qt.Key_Home) {
+                    wallGlide.toTop(); event.accepted = true
+                } else if (event.key === Qt.Key_End) {
+                    wallGlide.toBottom(); event.accepted = true
+                }
+            }
+
+            // The poster tile is now the shared CataloguePosterCard (identical rendering);
+            // the wall keeps ownership of skeleton math, keyboard focus, and activation.
+            delegate: CataloguePosterCard {
+                id: card
+                required property int index
+                readonly property bool isSkel: card.index >= browser.items.length
+                // Automation identity (Lanista): a stable per-item name so the bridge can address
+                // a specific card across delegate recycling. Derived from the item's own id (or
+                // title as fallback), NEVER the row index — recycling reuses indices. Skeletons
+                // stay unnamed. World-neutral by construction: whatever items the adapter serves.
+                //
+                // Manga cards (item.type === "manga", TankobanDiscoverApi.js normalizeManga) get
+                // a WORLD-NAMESPACED "mangaDiscoverCard_"+malId name additionally (2026-08-14,
+                // manga series bookshelf rebuild): this shell is instantiated separately by
+                // Tankoban/Theatre/Biblio, so a bare "discoverCard_<id>" stem can resolve
+                // DFS-first into an occluded card in another world's tree — the same trap
+                // documented in MangaTankobanSourcesPage.qml's naming convention note. item.id
+                // IS the MAL id for a manga card (normalizeManga: id = String(mal_id)), which is
+                // exactly what MangaSeries.malId / TankobanWorld.mangaOpenById expect. Every
+                // other card kind keeps its existing "discoverCard_" name unchanged.
+                objectName: (!card.isSkel && card.item && (card.item.id || card.item.title))
+                            ? ((card.item.type === "manga" ? "mangaDiscoverCard_" : "discoverCard_")
+                               + String(card.item.id !== undefined && String(card.item.id).length > 0
+                                        ? card.item.id : card.item.title))
+                            : ""
+                width: wall.cellWidth - wall.gapX
+                height: wall.cellHeight - wall.gapY
+                visualProfile: browser.posterVisualProfile
+                showAuthorAtRest: browser.showAuthorAtRest
+                hoverSourceText: (browser.showSourceOnReveal && card.item && card.item.source) ? card.item.source : ""
+                revealOnFocus: browser.showSourceOnReveal
+                skeleton: card.isSkel
+                item: card.isSkel ? null : browser.items[card.index]
+                keyboardFocused: !card.isSkel && browser.keyboardMode && card.index === wall.currentIndex
+                onActivated: (it) => {
+                    wall.forceActiveFocus()
+                    browser.keyboardMode = false
+                    wall.currentIndex = card.index
+                    browser.itemOpenRequested(it)               // a click opens the title (Stremio)
+                }
+            }
+
+            // honest empty state (skeletons now live in-grid, reserving exact cells). Data-vault
+            // Slice 3: when the wall is empty because its catalogue db is still downloading, the
+            // one quiet downloading line replaces the normal empty copy — same font/color, no
+            // other visual change.
+            Text {
+                visible: !browser.loading && browser.items.length === 0
+                anchors.centerIn: parent
+                text: browser.catalogueDownloading ? browser._downloadingText : browser.emptyMessage
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+            }
+        }
+
+        // Shared wheel controller — unifies the wall's scroll feel with every landing page and
+        // the See-all grids (fast accumulator drain, no double-scroll with GridView's wheel).
+        ScrollGlide { id: wallGlide; flick: browser.pageFlow ? null : wall }
+    }
+
+    NumberAnimation {
+        id: pageParkAnim
+        target: browser.pageFlick
+        property: "contentY"
+        duration: 220
+        easing.type: Easing.OutCubic
+    }
+    // Keyboard entry into the wall: focus it (the ring shows on the current card) and park that
+    // row under the docked tab bar.
+    function enterWall() {
+        if (browser.items.length === 0 || !wall.visible)
+            return false
+        wall.forceActiveFocus(Qt.TabFocusReason)
+        browser.keyboardMode = true
+        browser.revealCell(Math.max(0, wall.currentIndex))
+        return wall.activeFocus
+    }
+
+    // Scroll the world page so cell i's row sits just under the docked tab bar (the mock's
+    // "rows park"): the TopBar region is the page's top edge, the dock takes ~64 px of it.
+    function revealCell(i) {
+        if (!browser.pageFlow || i < 0)
+            return
+        var row = Math.floor(i / Math.max(1, wall.columnCount))
+        var rowTop = wallHost.mapToItem(browser.pageFlick.contentItem, 0, 0).y + row * wall.cellHeight
+        var maxY = Math.max(0, browser.pageFlick.contentHeight - browser.pageFlick.height)
+        var target = Math.max(0, Math.min(maxY, rowTop - 64 - 14))
+        if (Math.abs(target - browser.pageFlick.contentY) < 1)
+            return
+        pageParkAnim.stop()
+        pageParkAnim.from = browser.pageFlick.contentY
+        pageParkAnim.to = target
+        pageParkAnim.start()
+    }
+}

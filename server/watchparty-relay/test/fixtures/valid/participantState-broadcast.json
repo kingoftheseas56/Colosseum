@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "type": "participantState",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 12,
+  "payload": {
+    "participantId": "participant-2",
+    "displayName": "Guest Name",
+    "identityKind": "guest",
+    "joinOrder": 1,
+    "host": false,
+    "connected": true,
+    "ready": true,
+    "syncStatus": "inSync"
+  }
+}

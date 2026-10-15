@@ -1,0 +1,26 @@
+{
+    "name": "vault-browse-five-shapes-v1",
+    "version": 1,
+    "purpose": "Visibility Phase 2, Slice J1-Vault. Five synthetic physical shapes exercising the rebuilt Vault Browse face's classification and card contract in one self-contained journey fixture: two films (poster cards, carousel-eligible arrivals), one show assembled from two sibling season folders (collapses to one poster show card at root, the Loki shape), and one plain folder of loose, non-episode-shaped clips (a Folder node at root; drilling in renders its two loose files as Clip nodes -> 16:9 wide cards, the Cricket shape). Distinct from tests/fixtures/vault/browse-face-smoke (Slice 5-10's own battle-tested fixture) so this journey stays inside its own fence and never resurrects or duplicates that fixture's ownership.",
+    "seedZooAdmitted": false,
+    "provenance": "Authored fresh for J1-Vault (2026-08-14), naming conventions mirrored from the proven tests/fixtures/vault/browse-face-smoke shapes (Loki sibling-season show, Spider-Man lone film, Cricket plain folder) per VaultKit.cpp's real classifyChildDirectory()/planBrowseLevel() rules (read, not modified). Not lifted from a real-bug dossier; not promoted into tests/lanista-seeds/ in this slice.",
+    "placement": [
+        { "path": "vault", "root": "roaming" }
+    ],
+    "confirmedRoot": "media/ (this fixture directory) — vault/config.json points a confirmed root directly at the absolute path of this fixture's own media/ subtree, exactly as tests/fixtures/vault/browse-face-smoke-seed does for its sibling fixture. VaultLibrary::republishAtBoot() scans+publishes this root automatically at boot; no pre-built index is seeded.",
+    "shapes": [
+        { "path": "media/Journey Film One (2024) [1080p] [WEBRip]", "expectedNodeType": "film", "expectedDisplayTitle": "Journey Film One" },
+        { "path": "media/Journey Show (2024) Season 1 S01 [1080p] [WEBRip]", "expectedNodeType": "season (folds into the merged show)", "note": "sibling-candidate; merges with Season 2 into one 'Journey Show' show card at root (the Loki shape)" },
+        { "path": "media/Journey Show (2024) Season 2 S02 [1080p] [WEBRip]", "expectedNodeType": "season (folds into the merged show)", "note": "sibling of Season 1; the pair's merged key is '<mediaRoot>::show::journey show'" },
+        { "path": "media/Journey Clips", "expectedNodeType": "folder", "expectedDisplayTitle": "Journey Clips", "note": "two loose, non-episode-shaped files (no SxxExx, no absolute '- NNN' token) -> a plain Folder at root; drilling in renders both as Clip nodes (16:9 wide cards)" },
+        { "path": "media/Journey Film Two (2024) [1080p] [WEBRip]", "expectedNodeType": "film", "expectedDisplayTitle": "Journey Film Two" }
+    ],
+    "expectedRootGridOrder": [
+        "Journey Clips (folder)",
+        "Journey Show (show, merged from its two season siblings)",
+        "Journey Film One (film)",
+        "Journey Film Two (film)"
+    ],
+    "expectedRootGridCount": 4,
+    "note": "Locked design §4.2 root ordering is folders, then shows, then films, each group sorted by title — confirmed live via dump-ui/qml-get before this fixture's scenario asserted on it, per the plan's own instruction not to assert blind."
+}

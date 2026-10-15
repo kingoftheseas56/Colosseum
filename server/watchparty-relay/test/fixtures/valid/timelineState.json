@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "type": "timelineState",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 11,
+  "payload": {
+    "playing": true,
+    "positionMs": 300000,
+    "revision": 2
+  }
+}

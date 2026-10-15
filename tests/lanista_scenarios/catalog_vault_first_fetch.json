@@ -1,0 +1,59 @@
+{
+  "name": "catalog-vault-first-fetch",
+  "comment": "Data-vault adoption Slice 4 (2026-08-22), Session 2. Proves the runtime-validation claim this slice exists for: a machine with an empty tagged AppData root AND no reachable local data/*.db (both dev-relative-path rungs of resolveCatalogPath's ladder defeated by running a scratch copy of the runtime tree two directory levels deep from any data/ sibling) fetches the four catalogue dbs from the real public GitHub release (kingoftheseas56/Colosseum-Data) and wakes the Tankoban surfaces once they land. Live network, not a deterministic gate -- run with a long ui-wait-for budget. The onboarding step order is copied from the Slice 3 ledger entry; the downloading-line/masthead assertions are new to this slice.",
+  "steps": [
+    { "cmd": "ping", "label": "the session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "a fresh tag gates world content behind account onboarding",
+      "payload": { "object": "accountHost", "props": ["visible"] },
+      "expect": [ { "path": "props.visible", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "continue without an account",
+      "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "onboarding dismisses (mode leaves signedOut)",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-wait-for", "label": "first-launch fetch: the vault client starts pulling the real release (no data/ sibling reachable from this scratch runtime tree)",
+      "payload": { "object": "catalogVaultState", "prop": "fetching", "value": true, "timeout_ms": 30000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-click", "label": "enter Tankoban while the fetch is still in flight", "payload": { "target": "modePill_Tankoban" } },
+    { "cmd": "ui-query", "label": "Hemanth's ratification exhibit: the empty Tankoban wall shows the honest downloading line",
+      "payload": { "object": "modePill_Tankoban", "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "grabPath", "op": "exists" } ] },
+
+    { "cmd": "ui-wait-for", "label": "all four catalogue dbs have landed (long budget: ~150MB over real network, measured ~700KB/s on this machine)",
+      "payload": { "object": "catalogVaultState", "prop": "readyCount", "value": 4, "timeout_ms": 420000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "fetching has settled false now that every catalog is ready",
+      "payload": { "object": "catalogVaultState", "props": ["fetching", "readyCount", "tag"] },
+      "expect": [ { "path": "props.readyCount", "op": "==", "value": "4" } ] },
+
+    { "cmd": "ui-query", "label": "the same surface, now populated (wake-on-ready proof)",
+      "payload": { "object": "modePill_Tankoban", "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "grabPath", "op": "exists" } ] },
+
+    { "cmd": "ui-click", "label": "the Manga tab", "payload": { "target": "tankobanTab_manga" } },
+    { "cmd": "qml-get", "label": "a real MAL-backed discover card exists post-fetch (One Piece, malId 13)",
+      "payload": { "object": "mangaDiscoverCard_13", "props": ["visible"] },
+      "expect": [ { "path": "props.visible", "op": "exists" } ] },
+
+    { "cmd": "ui-click", "label": "open One Piece via the top-manga rail",
+      "payload": { "target": "tankobanTopMangaTile_0" } },
+    { "cmd": "ui-wait-for", "label": "the freshly-fetched masthead resolves",
+      "payload": { "object": "tankobanSeriesMasthead", "prop": "ready", "value": true, "timeout_ms": 20000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "masthead identity confirms the fetched db is genuine (One Piece, malId 13)",
+      "payload": { "object": "tankobanSeriesMasthead", "props": ["ready", "displayTitle", "resolvedMalId"] },
+      "expect": [ { "path": "props.ready", "op": "==", "value": "true" },
+                  { "path": "props.displayTitle", "op": "==", "value": "One Piece" },
+                  { "path": "props.resolvedMalId", "op": "==", "value": "13" } ] }
+  ]
+}

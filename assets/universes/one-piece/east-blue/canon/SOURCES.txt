@@ -1,0 +1,35 @@
+East Blue canon arc artwork
+
+These local files are the One Piece Wiki page infobox images served from the
+stable static.wikia CDN. They are bundled locally so production never hotlinks
+the CDN. Retrieved 2026-09-07 from the page/API image URLs below.
+
+romance-dawn.png
+  Page: https://onepiece.fandom.com/wiki/Romance_Dawn_Arc
+  Image: https://static.wikia.nocookie.net/onepiece/images/9/90/Romance_Dawn_Arc.png/revision/latest?cb=20230527232506&format=png
+  Source dimensions: 1154x880
+
+orange-town.png
+  Page: https://onepiece.fandom.com/wiki/Orange_Town_Arc
+  Image: https://static.wikia.nocookie.net/onepiece/images/5/5a/Orange_Town_Arc.png/revision/latest?cb=20130206004236&format=png
+  Source dimensions: 957x1000
+
+syrup-village.png
+  Page: https://onepiece.fandom.com/wiki/Syrup_Village_Arc
+  Image: https://static.wikia.nocookie.net/onepiece/images/b/bc/Syrup_Village_Arc.png/revision/latest?cb=20250716000213&format=png
+  Source dimensions: 1353x1500
+
+baratie.png
+  Page: https://onepiece.fandom.com/wiki/Baratie_Arc
+  Image: https://static.wikia.nocookie.net/onepiece/images/b/b0/Baratie_Arc.png/revision/latest?cb=20240615143422&format=png
+  Source dimensions: 1172x1300
+
+arlong-park.png
+  Page: https://onepiece.fandom.com/wiki/Arlong_Park_Arc
+  Image: https://static.wikia.nocookie.net/onepiece/images/1/19/Arlong_Park_Arc.png/revision/latest?cb=20240418031111&format=png
+  Source dimensions: 1166x1300
+
+loguetown.png
+  Page: https://onepiece.fandom.com/wiki/Loguetown_Arc
+  Image: https://static.wikia.nocookie.net/onepiece/images/3/3f/Loguetown_Arc.png/revision/latest?cb=20240720203743&format=png
+  Source dimensions: 1750x912

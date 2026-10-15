@@ -1,0 +1,308 @@
+// ComicReaderInput — the reader's semantic input map (Task 11). It fills the reading area BELOW the
+// HUD and turns raw pointer/keyboard events into SEMANTIC actions only (never raw scroll deltas or
+// page indices leaking out). The shell wires these actions to its navigation + the surfaces; the
+// HUD sits above and consumes pill clicks before they reach here.
+//
+// The decision logic is pure functions (keyAction / zoneForX / navByZone / releaseAt / wheelAction)
+// that BOTH the live handlers AND the offscreen harness call — so the tested logic IS the shipped
+// logic. Ground-truthed against the lineage TankobanQTGroundWork comic_reader.py keyPressEvent +
+// eventFilter (~2377-2600): click zones turn pages BY DIRECTION, center toggles chrome / (double
+// click) fullscreen with the 220ms single-vs-double disambiguation, and a >4px press-drag while
+// magnified pans and cancels the click so panning never turns a page.
+
+import QtQuick
+
+Item {
+    id: input
+
+    // ---- reading-state mirrors (bound from the shell) ----
+    property string mode: "long_strip"      // "long_strip" | "double_page"
+    property bool   rtl: false
+    property int    zoomPercent: 100
+    property bool   modalOpen: false         // an overlay is up (Task 12)
+    // ...and WHICH overlay, for the one surface that keeps keys of its own (Task 9). The Loupe joins
+    // `modalOpen` like every other temporary surface, so without this the two keys the approved
+    // design names — L to close it, +/- to magnify — would both be swallowed by the modal gate in
+    // keyAction. It is deliberately not a general "which overlay" string: this is the only surface
+    // that owns keys, and a string would invite a second one.
+    property bool   loupeOpen: false
+    property bool   chromeVisible: true
+    // double-page vertical pan headroom, mirrored from the double surface (panYMax). >0 means the
+    // fill-width spread is taller than the viewport, so Up/Down pan it (never flip); ==0 means it
+    // fits, so Up/Down are swallowed. The wheel always pans (the surface clamps), never flips.
+    property real   vScrollMax: 0            // max panY (contentHeight - viewportHeight); 0 = no overflow
+
+    // ---- tunables (lineage house numbers) ----
+    property int  singleClickMs: 220         // SINGLE_CLICK_DELAY_MS
+    property real panKeyStep: 128            // arrow pan step (double, zoomed)
+    property real dragCancelPx: 4            // drift beyond this cancels a click
+    property int  topRevealPx: 48            // top reveal zone (back pill)
+    property int  bottomRevealPx: 72         // BOTTOM_HUD_HEIGHT reveal zone
+
+    // ================= semantic actions (the shell / Task 12 wire these) =================
+    signal next()
+    signal previous()
+    signal scrollBy(real screens)            // strip page-scroll, in viewport-heights (+ forward)
+    signal zoomBy(int delta)                 // double-page zoom, +/- percent
+    signal panBy(real dx, real dy)           // double-page pan (magnified)
+    signal toggleChrome()
+    signal toggleFullscreen()
+    signal openSettings()
+    signal openNavigator()
+    signal openThumbnails()
+    signal toggleBookmark()
+    signal goToPage()
+    signal closeTop()                        // close the top overlay (Task 12)
+    signal cycleMode()                       // M — cycle the three modes (Manga/Comic/Strip)
+    signal nudgeCoupling()                   // P — core.nudgeCoupling (via shell)
+    signal openShortcuts()                   // K
+    signal toggleLoupe()                     // L
+    // +/- while the Loupe is up: the LENS, in whole steps. The step SIZE belongs to the lens (it is
+    // the same nudge its wheel makes), so this carries a count and never a magnification.
+    signal magnifyLoupe(int steps)
+    signal moveLoupe(int dx, int dy)
+    signal firstPage()                       // Home
+    signal lastPage()                        // End
+    signal prevEntry()                       // Alt+Left (crossing)
+    signal nextEntry()                       // Alt+Right (crossing)
+    signal back()                            // Esc fallback -> backRequested
+    signal openContextMenu(real x, real y)   // right-click -> settings + spread override (Task 12)
+    signal revealRequested()                 // pointer entered a top/bottom reveal zone
+    signal activity()                        // any pointer move (keeps chrome alive)
+
+    // ================= keyboard map (pure) =================
+    // returns the semantic token it fired for `key`+`mods` (or "" if unhandled), and emits it.
+    function keyAction(key, mods) {
+        var ctrl = (mods & Qt.ControlModifier) !== 0
+        var alt  = (mods & Qt.AltModifier) !== 0
+        var shift = (mods & Qt.ShiftModifier) !== 0
+        var dbl  = (mode === "double_page")
+        var zoomed = dbl && zoomPercent > 100
+
+        // Escape is ONE door: closeTop. The LAYERING lives in the shell's overlay coordinator,
+        // which is the only thing that knows what is actually open — the input can only guess from
+        // `modalOpen`, and its guess used to fall through to `back` once the chrome was already
+        // hidden, so pressing Escape twice threw you out of the volume. The approved contract is
+        // explicit: "close active popover, filmstrip, or Loupe; otherwise toggle the HUD; never
+        // unexpectedly leave the book." Back is the ONLY reader-to-library action.
+        if (key === Qt.Key_Escape) { closeTop(); return "closeTop" }
+
+        // THE LOUPE'S OWN TWO KEYS, and they sit HERE — above the modal gate, because the Loupe is
+        // itself a modal surface, and above the Ctrl+zoom branch, because of what the approved rule
+        // says: the Loupe "never changes page zoom, pan, layout, or reading position". Ctrl+/- is
+        // the page-zoom binding everywhere else in the reader; with the lens up it reaches the LENS
+        // instead, so there is no keyboard path from an open Loupe to a page zoom at all. That is a
+        // structural absence rather than a guard.
+        //
+        // Opened by `loupeOpen` and nothing else, so no OTHER modal's keyboard changes: under the
+        // filmstrip or either popover, L and +/- stay swallowed exactly as they were.
+        if (loupeOpen) {
+            if (key === Qt.Key_L) { toggleLoupe(); return "toggleLoupe" }
+            if (key === Qt.Key_Plus || key === Qt.Key_Equal)      { magnifyLoupe(1);  return "magnifyLoupe" }
+            if (key === Qt.Key_Minus || key === Qt.Key_Underscore) { magnifyLoupe(-1); return "magnifyLoupe" }
+            // Plain arrows stay gated by the established reader contract. Shift+Arrow moves
+            // the lens itself, giving keyboard parity to pointer lens dragging without stealing nav.
+            var lensStep = 48
+            if (shift && key === Qt.Key_Left)  { moveLoupe(-lensStep, 0); return "moveLoupe" }
+            if (shift && key === Qt.Key_Right) { moveLoupe(lensStep, 0); return "moveLoupe" }
+            if (shift && key === Qt.Key_Up)    { moveLoupe(0, -lensStep); return "moveLoupe" }
+            if (shift && key === Qt.Key_Down)  { moveLoupe(0, lensStep); return "moveLoupe" }
+        }
+
+        // an open overlay owns the keyboard — everything except Escape is gated (Reader 1 :875)
+        if (modalOpen) return ""
+        if (key === Qt.Key_Menu || (key === Qt.Key_F10 && shift)) {
+            // Keyboard sentinel. The shell routes this through the SAME context semantic as
+            // right-click, but exposes both independently targetable halves of a paired spread.
+            openContextMenu(-1, -1)
+            return "openContextMenu"
+        }
+        if (ctrl && key === Qt.Key_G) { goToPage(); return "goToPage" }
+        if (ctrl && (key === Qt.Key_Plus || key === Qt.Key_Equal)) { zoomBy(20); return "zoomBy" }
+        if (ctrl && (key === Qt.Key_Minus || key === Qt.Key_Underscore)) { zoomBy(-20); return "zoomBy" }
+        if (alt && key === Qt.Key_Left)  { prevEntry(); return "prevEntry" }
+        if (alt && key === Qt.Key_Right) { nextEntry(); return "nextEntry" }
+
+        switch (key) {
+        case Qt.Key_O: openNavigator();    return "openNavigator"
+        case Qt.Key_T: openThumbnails();   return "openThumbnails"
+        case Qt.Key_F: toggleFullscreen(); return "toggleFullscreen"
+        case Qt.Key_M: cycleMode();        return "cycleMode"
+        case Qt.Key_P: nudgeCoupling();    return "nudgeCoupling"
+        case Qt.Key_K: openShortcuts();    return "openShortcuts"
+        case Qt.Key_B: toggleBookmark();   return "toggleBookmark"
+        case Qt.Key_L: toggleLoupe();      return "toggleLoupe"
+        case Qt.Key_H: toggleChrome();     return "toggleChrome"
+        case Qt.Key_Home: firstPage();     return "firstPage"
+        case Qt.Key_End:  lastPage();      return "lastPage"
+        }
+
+        // Space / PageDown / PageUp — double navigates a unit, strip scrolls a screen
+        if (key === Qt.Key_Space || key === Qt.Key_PageDown) {
+            if (dbl) { next(); return "next" }
+            scrollBy(0.8); return "scrollBy"
+        }
+        if (key === Qt.Key_PageUp) {
+            if (dbl) { previous(); return "previous" }
+            scrollBy(-0.8); return "scrollBy"
+        }
+
+        // Left/Right — pan horizontally when magnified, else page-nav BY DIRECTION.
+        if (key === Qt.Key_Left || key === Qt.Key_Right) {
+            if (zoomed) { panBy(key === Qt.Key_Left ? -panKeyStep : panKeyStep, 0); return "panBy" }
+            if (key === Qt.Key_Left)  { if (rtl) { next(); return "next" } else { previous(); return "previous" } }
+            if (rtl) { previous(); return "previous" } else { next(); return "next" }
+        }
+        // Up/Down — vertical intent = PAN, NEVER a page flip (Tankoban Max strict model, Hemanth's
+        // 2026-07-17 ruling; mirrored from MangaReader.qml). A spread taller than the screen pans
+        // within itself (clamped by the surface, stops at the edge); a spread that fits swallows the
+        // key. Page turns are Left/Right, Space, and click zones only.
+        if (key === Qt.Key_Up || key === Qt.Key_Down) {
+            if (dbl) {
+                // double-page: vertical is PAN, never a page flip (the strict Tankoban-Max model)
+                if (zoomed || vScrollMax > 0) { panBy(0, key === Qt.Key_Up ? -panKeyStep : panKeyStep); return "panBy" }
+                return ""   // nothing to scroll -> swallow (never flips)
+            }
+            // strip: the most instinctive fine-scroll key in a vertical reader (Reader 1: 12%, Shift 25%)
+            var shiftHeld = (mods & Qt.ShiftModifier) !== 0
+            scrollBy((key === Qt.Key_Down ? 1 : -1) * (shiftHeld ? 0.25 : 0.12))
+            return "scrollBy"
+        }
+        return ""
+    }
+
+    // ================= click zones (pure) =================
+    function zoneForX(x, w) {
+        if (w <= 0) return "mid"
+        var third = w / 3.0
+        if (x < third) return "left"
+        if (x >= w - third) return "right"
+        return "mid"
+    }
+    // RTL: left third = NEXT; LTR: left third = PREVIOUS (lineage double_page_next_on_left).
+    function navByZone(zone) {
+        if (zone === "left")  { if (rtl) { next(); return "next" } else { previous(); return "previous" } }
+        if (zone === "right") { if (rtl) { previous(); return "previous" } else { next(); return "next" } }
+        return ""
+    }
+
+    // ================= press / drag / release lifecycle =================
+    property real _pressX: 0
+    property real _pressY: 0
+    property real _lastX: 0
+    property real _lastY: 0
+    property bool _pressed: false
+    property bool _clickCancelled: false
+
+    function pressAt(x, y) {
+        _pressed = true
+        _pressX = x; _pressY = y
+        _lastX = x; _lastY = y
+        _clickCancelled = false
+    }
+    // returns true if it panned (magnified drag)
+    function moveTo(x, y) {
+        if (!_pressed) return false
+        var drift = Math.abs(x - _pressX) + Math.abs(y - _pressY)
+        if (drift > dragCancelPx) _clickCancelled = true
+        if (mode === "double_page" && zoomPercent > 100) {
+            panBy(_lastX - x, _lastY - y)   // drag content with the pointer
+            _lastX = x; _lastY = y
+            return true
+        }
+        return false
+    }
+    function releaseAt(x, w) {
+        // A double-click's TRAILING release arrives with NO matching press: Qt delivers a double
+        // click as Press, Release, DblClick, Release — the 2nd press is a DblClick, so pressAt never
+        // ran for it and `_pressed` is already false here. Discard that stray release. Without this
+        // gate it would re-arm the single-click timer AFTER doubleClick() stopped it (chrome toggles
+        // ~220ms after every fullscreen double-click), and would run navByZone on BOTH releases of a
+        // side-zone double-click (two page turns). (moveTo is likewise gated on _pressed.)
+        if (!_pressed) return ""
+        var cancelled = _clickCancelled
+        _pressed = false
+        _clickCancelled = false
+        if (cancelled) return ""            // a drag never turns a page / toggles
+        if (mode === "double_page") {
+            var zone = zoneForX(x, w)
+            if (zone === "left" || zone === "right") return navByZone(zone)
+        } else {
+            // strip: a side-zone click fine-scrolls (Reader 1's third-click step, ~line 1268-1270)
+            // instead of falling through to the chrome toggle.
+            var zStrip = zoneForX(x, w)
+            if (zStrip === "left")  { scrollBy(-0.82); return "scrollBy" }
+            if (zStrip === "right") { scrollBy(0.82);  return "scrollBy" }
+        }
+        singleClickTimer.restart()          // center (double) or any click (strip): chrome toggle after 220ms
+        return "pendingSingle"
+    }
+    // A double click toggles fullscreen ONLY in the center third — the side thirds are page
+    // navigation, so a side double-click must navigate (single turn) and NEVER fullscreen. The
+    // single-click timer is always stopped so a pending center single-click can't fire alongside it.
+    function doubleClick(x, w) {
+        singleClickTimer.stop()
+        if (zoneForX(x, w) === "mid") toggleFullscreen()
+    }
+    function _commitSingleClick() { toggleChrome() }
+
+    readonly property alias singleClickRunning: singleClickTimer.running
+    Timer { id: singleClickTimer; interval: input.singleClickMs; repeat: false; onTriggered: input._commitSingleClick() }
+
+    // ================= wheel (pure) =================
+    // Ctrl+wheel zooms. In DOUBLE PAGE the wheel NEVER turns the page (Tankoban Max strict model,
+    // Hemanth's 2026-07-17 ruling; mirrored from MangaReader.qml): a magnified page, or a fit-width
+    // spread taller than the screen, PANS within itself (clamped by the surface — stops at the edge);
+    // a spread that fits SWALLOWS the wheel. Flips are keys / click zones only. Strip wheels are NOT
+    // consumed here (they fall through to the strip surface's smooth accumulator).
+    function wheelAction(angleY, angleX, ctrl) {
+        if (mode !== "double_page") return ""
+        if (ctrl) { zoomBy(angleY >= 0 ? 20 : -20); return "zoomBy" }
+        var zdyPx = angleY * (100.0 / 120.0)
+        var zdxPx = angleX * (100.0 / 120.0)
+        // magnified: horizontal intent pans sideways; otherwise (and at base zoom) pan vertically.
+        // panBy CLAMPS to [0,panXMax]/[0,panYMax], so at the edge — or when the spread fits — it is a
+        // no-op: the wheel is swallowed, never a page turn.
+        if (zoomPercent > 100 && Math.abs(zdxPx) > Math.abs(zdyPx)) { panBy(-zdxPx, 0); return "panBy" }
+        panBy(0, -zdyPx)
+        return "panBy"
+    }
+
+    // ================= live handlers (delegate to the pure functions) =================
+    function _checkRevealZone(y) {
+        if (y <= topRevealPx || y >= height - bottomRevealPx) revealRequested()
+        else activity()
+    }
+
+    ComicReaderKeyboardArea {
+        anchors.fill: parent
+        keyboardTabStop: false
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        hoverEnabled: true
+        onPressed: function (m) {
+            if (m.button === Qt.RightButton) { input.openContextMenu(m.x, m.y); return }
+            input.pressAt(m.x, m.y)
+        }
+        onPositionChanged: function (m) {
+            if (input._pressed) input.moveTo(m.x, m.y)
+            else input._checkRevealZone(m.y)
+        }
+        onReleased: function (m) {
+            if (m.button === Qt.RightButton) return
+            input.releaseAt(m.x, input.width)
+        }
+        onDoubleClicked: function (m) {
+            if (m.button === Qt.LeftButton) input.doubleClick(m.x, input.width)
+        }
+    }
+
+    // Ctrl+wheel zoom / magnified pan — double mode only; strip wheels fall through to the surface.
+    WheelHandler {
+        enabled: input.mode === "double_page"
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: function (event) {
+            var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+            input.wheelAction(event.angleDelta.y, event.angleDelta.x, ctrl)
+        }
+    }
+}

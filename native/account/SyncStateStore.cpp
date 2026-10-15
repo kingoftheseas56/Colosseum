@@ -1,0 +1,1155 @@
+// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
+
+#include "SyncStateStore.h"
+
+#include "SyncProtocol.h"
+
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonParseError>
+#include <QMetaObject>
+#include <QMutexLocker>
+#include <QPointer>
+#include <QSaveFile>
+#include <QSet>
+#include <QUuid>
+
+#include <algorithm>
+
+namespace {
+constexpr int kStateSchemaVersion = 5;
+
+bool parseUnsigned(
+    const QJsonValue &value,
+    quint64 *result) {
+    if (!result)
+        return false;
+
+    bool ok = false;
+    const quint64 parsed =
+        value.toString().toULongLong(
+            &ok);
+    if (!ok)
+        return false;
+
+    *result = parsed;
+    return true;
+}
+
+bool parseSigned(
+    const QJsonValue &value,
+    qint64 *result) {
+    if (!result)
+        return false;
+
+    bool ok = false;
+    const qint64 parsed =
+        value.toString().toLongLong(
+            &ok);
+    if (!ok)
+        return false;
+
+    *result = parsed;
+    return true;
+}
+
+bool validCategory(
+    const QString &category) {
+    return !category.isEmpty()
+        && category
+            == category.trimmed().toLower();
+}
+
+QString normalizedUuid(
+    const QString &value) {
+    const QUuid parsed(value);
+    if (parsed.isNull())
+        return QString();
+
+    return parsed.toString(
+        QUuid::WithoutBraces)
+        .toLower();
+}
+
+bool writeStateFile(
+    const QString &path,
+    const QJsonObject &object,
+    QString *error) {
+    const QFileInfo info(path);
+    if (!QDir().mkpath(
+            info.absolutePath())) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state directory could not be created.");
+        }
+        return false;
+    }
+
+    QSaveFile file(path);
+    if (!file.open(
+            QIODevice::WriteOnly)) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state file could not be opened.");
+        }
+        return false;
+    }
+
+    const QByteArray bytes =
+        QJsonDocument(object)
+            .toJson(
+                QJsonDocument::Compact);
+
+    if (file.write(bytes)
+            != bytes.size()
+        || !file.commit()) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state file could not be committed.");
+        }
+        return false;
+    }
+
+    return true;
+}
+}
+
+SyncStateStore::SyncStateStore(
+    QObject *parent)
+    : QObject(parent) {
+    setObjectName(
+        QStringLiteral("syncStateStore"));
+
+    m_writerObject =
+        new QObject();
+    m_writerObject->moveToThread(
+        &m_writerThread);
+
+    m_writerThread.setObjectName(
+        QStringLiteral(
+            "syncStateWriter"));
+    m_writerThread.start();
+}
+
+SyncStateStore::~SyncStateStore() {
+    QString ignored;
+    flush(&ignored);
+
+    if (m_writerObject) {
+        QObject *worker =
+            m_writerObject;
+
+        if (m_writerThread.isRunning()) {
+            QMetaObject::invokeMethod(
+                worker,
+                [worker]() {
+                    delete worker;
+                },
+                Qt::BlockingQueuedConnection);
+        } else {
+            delete worker;
+        }
+
+        m_writerObject = nullptr;
+    }
+
+    m_writerThread.quit();
+    m_writerThread.wait();
+}
+
+std::optional<SyncPersistentState>
+SyncStateStore::load(
+    const QString &path,
+    QString *error) const {
+    if (path.trimmed().isEmpty()) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state path is empty.");
+        }
+        return std::nullopt;
+    }
+
+    QFile file(path);
+    if (!file.exists())
+        return SyncPersistentState{};
+
+    if (!file.open(
+            QIODevice::ReadOnly)) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state file could not be opened.");
+        }
+        return std::nullopt;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document =
+        QJsonDocument::fromJson(
+            file.readAll(),
+            &parseError);
+
+    if (parseError.error
+            != QJsonParseError::NoError
+        || !document.isObject()) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state file is malformed.");
+        }
+        return std::nullopt;
+    }
+
+    return decode(
+        document.object(),
+        error);
+}
+
+quint64 SyncStateStore::saveAsync(
+    const QString &path,
+    const SyncPersistentState &state) {
+    const quint64 generation =
+        m_nextGeneration++;
+
+    if (path.trimmed().isEmpty()
+        || !m_writerObject
+        || !m_writerThread.isRunning()) {
+        const QString message =
+            path.trimmed().isEmpty()
+            ? QStringLiteral(
+                  "The sync state path is empty.")
+            : QStringLiteral(
+                  "The sync state writer is unavailable.");
+
+        {
+            QMutexLocker locker(
+                &m_writerErrorMutex);
+            m_lastWriterError =
+                message;
+        }
+
+        QMetaObject::invokeMethod(
+            this,
+            [this, generation, message]() {
+                emit persistenceFailed(
+                    generation,
+                    message);
+            },
+            Qt::QueuedConnection);
+        return generation;
+    }
+
+    const SyncPersistentState stateCopy =
+        state;
+    QPointer<SyncStateStore> self(this);
+
+    QMetaObject::invokeMethod(
+        m_writerObject,
+        [self,
+         path,
+         stateCopy,
+         generation]() {
+            const QJsonObject encoded =
+                SyncStateStore::encode(
+                    stateCopy);
+
+            QString message;
+            const bool committed =
+                writeStateFile(
+                    path,
+                    encoded,
+                    &message);
+
+            if (!self)
+                return;
+
+            {
+                QMutexLocker locker(
+                    &self->m_writerErrorMutex);
+                if (committed)
+                    self->m_lastWriterError.clear();
+                else
+                    self->m_lastWriterError =
+                        message;
+            }
+
+            QMetaObject::invokeMethod(
+                self,
+                [self,
+                 generation,
+                 committed,
+                 message]() {
+                    if (!self)
+                        return;
+
+                    if (committed) {
+                        emit self->persistenceCommitted(
+                            generation);
+                    } else {
+                        emit self->persistenceFailed(
+                            generation,
+                            message);
+                    }
+                },
+                Qt::QueuedConnection);
+        },
+        Qt::QueuedConnection);
+
+    return generation;
+}
+
+bool SyncStateStore::flush(
+    QString *error) {
+    if (m_writerThread.isRunning()
+        && m_writerObject
+        && QThread::currentThread()
+            != &m_writerThread) {
+        QMetaObject::invokeMethod(
+            m_writerObject,
+            []() {},
+            Qt::BlockingQueuedConnection);
+    }
+
+    QMutexLocker locker(
+        &m_writerErrorMutex);
+    if (error)
+        *error = m_lastWriterError;
+
+    return m_lastWriterError.isEmpty();
+}
+
+QJsonObject SyncStateStore::encode(
+    const SyncPersistentState &state) {
+    QJsonObject root;
+    root.insert(
+        QStringLiteral("schema_version"),
+        kStateSchemaVersion);
+    root.insert(
+        QStringLiteral("cursor"),
+        QString::number(state.cursor));
+    root.insert(
+        QStringLiteral(
+            "hlc_physical_ms"),
+        QString::number(
+            state.hlcPhysicalMs));
+    root.insert(
+        QStringLiteral("hlc_counter"),
+        QString::number(
+            state.hlcCounter));
+    root.insert(
+        QStringLiteral(
+            "server_offset_ms"),
+        QString::number(
+            state.serverOffsetMs));
+    root.insert(
+        QStringLiteral("historical_replay_cursor"),
+        QString::number(state.historicalReplayCursor));
+    root.insert(
+        QStringLiteral("historical_replay_limit"),
+        QString::number(state.historicalReplayLimit));
+    root.insert(
+        QStringLiteral("historical_replay_pending"),
+        state.historicalReplayPending);
+
+    QJsonArray outbox;
+    for (const SyncWireMutation &mutation :
+         state.outbox) {
+        outbox.append(
+            syncWireMutationToJson(
+                mutation));
+    }
+    root.insert(
+        QStringLiteral("outbox"),
+        outbox);
+
+    QJsonArray mirrors;
+    QStringList mirrorCategories =
+        state.mirrors.keys();
+    mirrorCategories.sort();
+
+    for (const QString &category :
+         mirrorCategories) {
+        const auto &records =
+            state.mirrors.value(category);
+        QStringList recordKeys =
+            records.keys();
+        recordKeys.sort();
+
+        for (const QString &recordKey :
+             recordKeys) {
+            const SyncMirrorRecord &record =
+                records.value(recordKey);
+
+            QJsonObject object;
+            object.insert(
+                QStringLiteral("category"),
+                category);
+            object.insert(
+                QStringLiteral("record_key"),
+                recordKey);
+            object.insert(
+                QStringLiteral(
+                    "schema_version"),
+                record.schemaVersion);
+            object.insert(
+                QStringLiteral("payload"),
+                record.payload);
+            mirrors.append(object);
+        }
+    }
+    root.insert(
+        QStringLiteral("mirrors"),
+        mirrors);
+
+    QJsonArray winners;
+    QStringList winnerCategories =
+        state.winners.keys();
+    winnerCategories.sort();
+
+    for (const QString &category :
+         winnerCategories) {
+        const auto &records =
+            state.winners.value(category);
+        QStringList recordKeys =
+            records.keys();
+        recordKeys.sort();
+
+        for (const QString &recordKey :
+             recordKeys) {
+            const SyncWinner &winner =
+                records.value(recordKey);
+
+            QJsonObject object;
+            object.insert(
+                QStringLiteral("category"),
+                category);
+            object.insert(
+                QStringLiteral("record_key"),
+                recordKey);
+            object.insert(
+                QStringLiteral(
+                    "schema_version"),
+                winner.schemaVersion);
+            object.insert(
+                QStringLiteral(
+                    "hlc_physical_ms"),
+                QString::number(
+                    winner.hlc.physicalMs));
+            object.insert(
+                QStringLiteral(
+                    "hlc_counter"),
+                QString::number(
+                    winner.hlc.counter));
+            object.insert(
+                QStringLiteral("device_id"),
+                winner.hlc.deviceId);
+            object.insert(
+                QStringLiteral("operation"),
+                syncWireOperationName(
+                    winner.operation));
+            object.insert(
+                QStringLiteral("server_seq"),
+                QString::number(
+                    winner.serverSeq));
+            winners.append(object);
+        }
+    }
+    root.insert(
+        QStringLiteral("winners"),
+        winners);
+
+    QJsonArray pausedCategories;
+    QStringList pausedNames = state.pausedCategories.keys();
+    pausedNames.sort();
+    for (const QString &category : pausedNames) {
+        const SyncPausedCategoryState &paused =
+            state.pausedCategories.value(category);
+        QJsonObject object;
+        object.insert(QStringLiteral("category"), category);
+        object.insert(QStringLiteral("replaying"), paused.replaying);
+
+        QJsonArray baseline;
+        QStringList baselineKeys = paused.localBaseline.keys();
+        baselineKeys.sort();
+        for (const QString &recordKey : baselineKeys) {
+            const SyncMirrorRecord &record = paused.localBaseline.value(recordKey);
+            baseline.append(QJsonObject{
+                {QStringLiteral("record_key"), recordKey},
+                {QStringLiteral("schema_version"), record.schemaVersion},
+                {QStringLiteral("payload"), record.payload}});
+        }
+        object.insert(QStringLiteral("local_baseline"), baseline);
+
+        QJsonArray overlay;
+        QStringList overlayKeys = paused.localOverlay.keys();
+        overlayKeys.sort();
+        for (const QString &recordKey : overlayKeys) {
+            const SyncPausedOverlayRecord &record = paused.localOverlay.value(recordKey);
+            QJsonObject entry{
+                {QStringLiteral("record_key"), recordKey},
+                {QStringLiteral("schema_version"), record.schemaVersion},
+                {QStringLiteral("operation"), syncWireOperationName(record.operation)},
+                {QStringLiteral("payload"), record.payload},
+                {QStringLiteral("local_order_ms"), QString::number(record.localOrderMs)}};
+            overlay.append(entry);
+        }
+        object.insert(QStringLiteral("local_overlay"), overlay);
+
+        QJsonArray pending;
+        for (const SyncWireMutation &mutation : paused.pendingMutations)
+            pending.append(syncWireMutationToJson(mutation));
+        object.insert(QStringLiteral("pending_mutations"), pending);
+        pausedCategories.append(object);
+    }
+    root.insert(QStringLiteral("paused_categories"), pausedCategories);
+
+    QJsonArray quarantined;
+    QList<SyncQuarantineEntry> orderedQuarantine = state.quarantinedEntries;
+    std::sort(orderedQuarantine.begin(), orderedQuarantine.end(),
+              [](const SyncQuarantineEntry &left, const SyncQuarantineEntry &right) {
+                  if (left.serverSeq != right.serverSeq)
+                      return left.serverSeq < right.serverSeq;
+                  return left.mutation.mutationId < right.mutation.mutationId;
+              });
+    for (const SyncQuarantineEntry &entry : orderedQuarantine) {
+        QJsonObject object{
+            {QStringLiteral("server_seq"), QString::number(entry.serverSeq)},
+            {QStringLiteral("won"), entry.won},
+            {QStringLiteral("mutation"), syncWireMutationToJson(entry.mutation)},
+            {QStringLiteral("code"), entry.code},
+            {QStringLiteral("message"), entry.message}};
+        quarantined.append(object);
+    }
+    root.insert(QStringLiteral("quarantined_entries"), quarantined);
+
+    QJsonArray rejected;
+    QStringList rejectedIds = state.rejectedMutations.keys();
+    rejectedIds.sort();
+    for (const QString &mutationId : rejectedIds) {
+        const SyncRejectedMutation &entry = state.rejectedMutations.value(mutationId);
+        rejected.append(QJsonObject{
+            {QStringLiteral("mutation_id"), entry.mutationId},
+            {QStringLiteral("category"), entry.category},
+            {QStringLiteral("record_key"), entry.recordKey},
+            {QStringLiteral("code"), entry.code},
+            {QStringLiteral("message"), entry.message},
+            {QStringLiteral("fingerprint"), entry.fingerprint}});
+    }
+    root.insert(QStringLiteral("rejected_mutations"), rejected);
+
+    QJsonArray ownerRedos;
+    QList<SyncOwnerRedo> orderedOwnerRedos = state.ownerRedos;
+    std::sort(orderedOwnerRedos.begin(), orderedOwnerRedos.end(),
+              [](const SyncOwnerRedo &left, const SyncOwnerRedo &right) {
+                  if (left.serverSeq != right.serverSeq)
+                      return left.serverSeq < right.serverSeq;
+                  return left.mutation.mutationId < right.mutation.mutationId;
+              });
+    for (const SyncOwnerRedo &redo : orderedOwnerRedos) {
+        ownerRedos.append(QJsonObject{
+            {QStringLiteral("server_seq"), QString::number(redo.serverSeq)},
+            {QStringLiteral("won"), redo.won},
+            {QStringLiteral("mutation"), syncWireMutationToJson(redo.mutation)},
+            {QStringLiteral("historical_replay"), redo.replayingHistorical},
+            {QStringLiteral("from_quarantine"), redo.fromQuarantine}});
+    }
+    root.insert(QStringLiteral("owner_redos"), ownerRedos);
+
+    // Attachment mode state rides along only while a mode is active, so
+    // inactive state files stay byte-identical to the engine output
+    // that predates attachment support.
+    if (state.attachmentModeActive) {
+        QJsonObject attachment;
+        attachment.insert(
+            QStringLiteral("attachment_id"),
+            state.attachmentId);
+        attachment.insert(
+            QStringLiteral("snapshot_done"),
+            state.attachmentSnapshotDone);
+        if (!state.attachmentMutationIds.isEmpty()) {
+            QJsonArray mutationIds;
+            QStringList ordered = state.attachmentMutationIds;
+            ordered.sort();
+            for (const QString &mutationId : std::as_const(ordered))
+                mutationIds.append(mutationId);
+            attachment.insert(QStringLiteral("mutation_ids"), mutationIds);
+        }
+        if (!state.attachmentSnapshotNextPageToken.isEmpty()) {
+            attachment.insert(
+                QStringLiteral("next_page_token"),
+                state.attachmentSnapshotNextPageToken);
+        }
+        root.insert(
+        QStringLiteral("attachment"),
+        attachment);
+    }
+
+    return root;
+}
+
+std::optional<SyncPersistentState>
+SyncStateStore::decode(
+    const QJsonObject &object,
+    QString *error) {
+    const int schemaVersion = object.value(QStringLiteral("schema_version")).toInt();
+    if (schemaVersion < 1 || schemaVersion > kStateSchemaVersion) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state schema is unsupported.");
+        }
+        return std::nullopt;
+    }
+
+    SyncPersistentState state;
+    if (!parseUnsigned(
+            object.value(
+                QStringLiteral("cursor")),
+            &state.cursor)
+        || !parseSigned(
+            object.value(
+                QStringLiteral(
+                    "hlc_physical_ms")),
+            &state.hlcPhysicalMs)
+        || !parseUnsigned(
+            object.value(
+                QStringLiteral(
+                    "hlc_counter")),
+            &state.hlcCounter)
+        || !parseSigned(
+            object.value(
+                QStringLiteral(
+                    "server_offset_ms")),
+            &state.serverOffsetMs)) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync state numeric metadata is invalid.");
+        }
+        return std::nullopt;
+    }
+
+    if (schemaVersion >= 3) {
+        if (object.contains(QStringLiteral("historical_replay_cursor"))
+            && !parseUnsigned(object.value(QStringLiteral("historical_replay_cursor")),
+                              &state.historicalReplayCursor)) {
+            if (error)
+                *error = QStringLiteral("The historical replay cursor is invalid.");
+                return std::nullopt;
+        }
+        if (object.contains(QStringLiteral("historical_replay_limit"))
+            && !parseUnsigned(object.value(QStringLiteral("historical_replay_limit")),
+                              &state.historicalReplayLimit)) {
+            if (error)
+                *error = QStringLiteral("The historical replay limit is invalid.");
+            return std::nullopt;
+        }
+        if (object.contains(QStringLiteral("historical_replay_pending"))) {
+            const QJsonValue pending = object.value(QStringLiteral("historical_replay_pending"));
+            if (!pending.isBool()) {
+                if (error)
+                    *error = QStringLiteral("The historical replay marker is invalid.");
+                return std::nullopt;
+            }
+            state.historicalReplayPending = pending.toBool();
+        }
+        if (state.historicalReplayPending
+            && !object.contains(QStringLiteral("historical_replay_limit"))) {
+            // Accept an in-flight schema-v3 checkpoint written before the
+            // replay boundary field existed. Its normal cursor is the only
+            // durable boundary available, so recover it before resuming.
+            state.historicalReplayLimit = state.cursor;
+        }
+    } else {
+        // State written before the protocol-generation marker had already
+        // advanced its normal cursor. Replay from zero once to recover rows
+        // skipped by the old cursor transaction, without rewinding that
+        // normal cursor or discarding local HLC winners/outbox entries.
+        state.historicalReplayPending = state.cursor > 0;
+        state.historicalReplayCursor = 0;
+        state.historicalReplayLimit = state.cursor;
+    }
+
+    const QJsonValue outboxValue =
+        object.value(
+            QStringLiteral("outbox"));
+    if (!outboxValue.isArray()) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync outbox is malformed.");
+        }
+        return std::nullopt;
+    }
+
+    QSet<QString> mutationIds;
+    for (const QJsonValue &value :
+         outboxValue.toArray()) {
+        if (!value.isObject()) {
+            if (error) {
+                *error = QStringLiteral(
+                    "A sync outbox mutation is malformed.");
+            }
+            return std::nullopt;
+        }
+
+        const auto mutation =
+            syncWireMutationFromJson(
+                value.toObject());
+        if (!mutation.has_value()
+            || mutationIds.contains(
+                mutation->mutationId)) {
+            if (error) {
+                *error = QStringLiteral(
+                    "A sync outbox mutation is invalid or duplicated.");
+            }
+            return std::nullopt;
+        }
+
+        mutationIds.insert(
+            mutation->mutationId);
+        state.outbox.append(
+            *mutation);
+    }
+
+    const QJsonValue mirrorsValue =
+        object.value(
+            QStringLiteral("mirrors"));
+    if (!mirrorsValue.isArray()) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync mirror state is malformed.");
+        }
+        return std::nullopt;
+    }
+
+    for (const QJsonValue &value :
+         mirrorsValue.toArray()) {
+        if (!value.isObject()) {
+            if (error) {
+                *error = QStringLiteral(
+                    "A sync mirror record is malformed.");
+            }
+            return std::nullopt;
+        }
+
+        const QJsonObject record =
+            value.toObject();
+        const QString category =
+            record.value(
+                QStringLiteral("category"))
+                .toString();
+        const QString recordKey =
+            record.value(
+                QStringLiteral("record_key"))
+                .toString();
+        const int schemaVersion =
+            record.value(
+                QStringLiteral(
+                    "schema_version"))
+                .toInt();
+
+        if (!validCategory(category)
+            || !isValidSyncWireRecordKey(
+                recordKey)
+            || schemaVersion <= 0
+            || !record.contains(
+                QStringLiteral("payload"))
+            || state.mirrors
+                   .value(category)
+                   .contains(recordKey)) {
+            if (error) {
+                *error = QStringLiteral(
+                    "A sync mirror record is invalid or duplicated.");
+            }
+            return std::nullopt;
+        }
+
+        state.mirrors[category].insert(
+            recordKey,
+            SyncMirrorRecord{
+                schemaVersion,
+                record.value(
+                    QStringLiteral(
+                        "payload"))});
+    }
+
+    const QJsonValue winnersValue =
+        object.value(
+            QStringLiteral("winners"));
+    if (!winnersValue.isArray()) {
+        if (error) {
+            *error = QStringLiteral(
+                "The sync winner state is malformed.");
+        }
+        return std::nullopt;
+    }
+
+    for (const QJsonValue &value :
+         winnersValue.toArray()) {
+        if (!value.isObject()) {
+            if (error) {
+                *error = QStringLiteral(
+                    "A sync winner record is malformed.");
+            }
+            return std::nullopt;
+        }
+
+        const QJsonObject record =
+            value.toObject();
+        const QString category =
+            record.value(
+                QStringLiteral("category"))
+                .toString();
+        const QString recordKey =
+            record.value(
+                QStringLiteral("record_key"))
+                .toString();
+        const int schemaVersion =
+            record.value(
+                QStringLiteral(
+                    "schema_version"))
+                .toInt();
+
+        qint64 physicalMs = 0;
+        quint64 counter = 0;
+        const QString deviceId =
+            normalizedUuid(
+                record.value(
+                    QStringLiteral(
+                        "device_id"))
+                    .toString());
+        const auto operation =
+            syncWireOperationFromName(
+                record.value(
+                    QStringLiteral(
+                        "operation"))
+                    .toString());
+        quint64 serverSeq = 0;
+        const bool hasServerSeq =
+            record.contains(
+                QStringLiteral("server_seq"));
+
+        if (!validCategory(category)
+            || !isValidSyncWireRecordKey(
+                recordKey)
+            || schemaVersion <= 0
+            || !parseSigned(
+                record.value(
+                    QStringLiteral(
+                        "hlc_physical_ms")),
+                &physicalMs)
+            || physicalMs < 0
+            || !parseUnsigned(
+                record.value(
+                    QStringLiteral(
+                        "hlc_counter")),
+                &counter)
+            || deviceId.isEmpty()
+            || !operation.has_value()
+            || (hasServerSeq
+                && !parseUnsigned(
+                    record.value(
+                        QStringLiteral("server_seq")),
+                    &serverSeq))
+            || state.winners
+                   .value(category)
+                   .contains(recordKey)) {
+            if (error) {
+                *error = QStringLiteral(
+                    "A sync winner record is invalid or duplicated.");
+            }
+            return std::nullopt;
+        }
+
+        SyncWinner winner;
+        winner.hlc = SyncWireHlc{
+            physicalMs,
+            counter,
+            deviceId};
+        winner.schemaVersion =
+            schemaVersion;
+        winner.operation =
+            *operation;
+        winner.serverSeq =
+            serverSeq;
+
+        state.winners[category].insert(
+            recordKey,
+            winner);
+    }
+
+    if (schemaVersion == 1)
+        return state;
+
+    const QJsonValue pausedValue = object.value(QStringLiteral("paused_categories"));
+    if (!pausedValue.isArray()) {
+        if (error)
+            *error = QStringLiteral("The paused sync category state is malformed.");
+        return std::nullopt;
+    }
+
+    for (const QJsonValue &value : pausedValue.toArray()) {
+        if (!value.isObject()) {
+            if (error)
+                *error = QStringLiteral("A paused sync category is malformed.");
+            return std::nullopt;
+        }
+        const QJsonObject objectValue = value.toObject();
+        const QString category = objectValue.value(QStringLiteral("category")).toString();
+        const QJsonValue baselineValue = objectValue.value(QStringLiteral("local_baseline"));
+        const QJsonValue overlayValue = objectValue.value(QStringLiteral("local_overlay"));
+        const QJsonValue pendingValue = objectValue.value(QStringLiteral("pending_mutations"));
+        if (!validCategory(category) || !baselineValue.isArray() || !overlayValue.isArray()
+            || (schemaVersion >= 5 && !pendingValue.isArray())
+            || state.pausedCategories.contains(category)) {
+            if (error)
+                *error = QStringLiteral("A paused sync category is invalid or duplicated.");
+            return std::nullopt;
+        }
+        SyncPausedCategoryState paused;
+        paused.replaying = objectValue.value(QStringLiteral("replaying")).toBool();
+        for (const QJsonValue &recordValue : baselineValue.toArray()) {
+            if (!recordValue.isObject()) {
+                if (error) *error = QStringLiteral("A paused baseline record is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = recordValue.toObject();
+            const QString key = record.value(QStringLiteral("record_key")).toString();
+            const int version = record.value(QStringLiteral("schema_version")).toInt();
+            if (!isValidSyncWireRecordKey(key) || version <= 0
+                || !record.contains(QStringLiteral("payload"))
+                || paused.localBaseline.contains(key)) {
+                if (error) *error = QStringLiteral("A paused baseline record is invalid or duplicated.");
+                return std::nullopt;
+            }
+            paused.localBaseline.insert(key, SyncMirrorRecord{version, record.value(QStringLiteral("payload"))});
+        }
+        for (const QJsonValue &recordValue : overlayValue.toArray()) {
+            if (!recordValue.isObject()) {
+                if (error) *error = QStringLiteral("A paused overlay record is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = recordValue.toObject();
+            const QString key = record.value(QStringLiteral("record_key")).toString();
+            const int version = record.value(QStringLiteral("schema_version")).toInt();
+            const auto operation = syncWireOperationFromName(record.value(QStringLiteral("operation")).toString());
+            qint64 localOrderMs = -1;
+            if (record.contains(QStringLiteral("local_order_ms"))
+                && !parseSigned(record.value(QStringLiteral("local_order_ms")), &localOrderMs)) {
+                if (error) *error = QStringLiteral("A paused overlay timestamp is invalid.");
+                return std::nullopt;
+            }
+            if (!isValidSyncWireRecordKey(key) || version <= 0 || !operation.has_value()
+                || paused.localOverlay.contains(key)
+                || (*operation == SyncWireOperation::Put && !record.contains(QStringLiteral("payload")))) {
+                if (error) *error = QStringLiteral("A paused overlay record is invalid or duplicated.");
+                return std::nullopt;
+            }
+            paused.localOverlay.insert(key, SyncPausedOverlayRecord{*operation, version,
+                record.value(QStringLiteral("payload")), localOrderMs});
+        }
+        if (schemaVersion >= 5) {
+            QSet<QString> pendingIds;
+            for (const QJsonValue &mutationValue : pendingValue.toArray()) {
+                const auto mutation = mutationValue.isObject()
+                    ? syncWireMutationFromJson(mutationValue.toObject())
+                    : std::nullopt;
+                if (!mutation.has_value()
+                    || mutation->category != category
+                    || pendingIds.contains(mutation->mutationId)) {
+                    if (error)
+                        *error = QStringLiteral("A paused pending mutation is invalid or duplicated.");
+                    return std::nullopt;
+                }
+                pendingIds.insert(mutation->mutationId);
+                paused.pendingMutations.append(*mutation);
+            }
+        }
+        state.pausedCategories.insert(category, paused);
+    }
+
+    if (schemaVersion >= 3) {
+        const QJsonValue quarantineValue = object.value(QStringLiteral("quarantined_entries"));
+        if (!quarantineValue.isArray()) {
+            if (error)
+                *error = QStringLiteral("The sync quarantine state is malformed.");
+            return std::nullopt;
+        }
+        QSet<quint64> quarantineSequences;
+        for (const QJsonValue &value : quarantineValue.toArray()) {
+            if (!value.isObject()) {
+                if (error)
+                    *error = QStringLiteral("A sync quarantine entry is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = value.toObject();
+            quint64 serverSeq = 0;
+            const auto mutation = record.value(QStringLiteral("mutation"));
+            const auto parsedMutation = mutation.isObject()
+                ? syncWireMutationFromJson(mutation.toObject())
+                : std::nullopt;
+            if (!parseUnsigned(record.value(QStringLiteral("server_seq")), &serverSeq)
+                || serverSeq == 0 || !parsedMutation.has_value()
+                || quarantineSequences.contains(serverSeq)
+                || !record.value(QStringLiteral("code")).isString()
+                || !record.value(QStringLiteral("message")).isString()) {
+                if (error)
+                    *error = QStringLiteral("A sync quarantine entry is invalid or duplicated.");
+                return std::nullopt;
+            }
+            quarantineSequences.insert(serverSeq);
+            state.quarantinedEntries.append(SyncQuarantineEntry{
+                serverSeq,
+                record.value(QStringLiteral("won")).toBool(false),
+                *parsedMutation,
+                record.value(QStringLiteral("code")).toString(),
+                record.value(QStringLiteral("message")).toString()});
+        }
+
+        const QJsonValue rejectedValue = object.value(QStringLiteral("rejected_mutations"));
+        if (!rejectedValue.isArray()) {
+            if (error)
+                *error = QStringLiteral("The sync rejected-mutation state is malformed.");
+            return std::nullopt;
+        }
+        for (const QJsonValue &value : rejectedValue.toArray()) {
+            if (!value.isObject()) {
+                if (error)
+                    *error = QStringLiteral("A rejected sync mutation is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = value.toObject();
+            const QString mutationId = normalizedUuid(record.value(QStringLiteral("mutation_id")).toString());
+            const QString category = record.value(QStringLiteral("category")).toString();
+            const QString recordKey = record.value(QStringLiteral("record_key")).toString();
+            if (mutationId.isEmpty() || !validCategory(category)
+                || !isValidSyncWireRecordKey(recordKey)
+                || !record.value(QStringLiteral("code")).isString()
+                || !record.value(QStringLiteral("message")).isString()
+                || !record.value(QStringLiteral("fingerprint")).isString()
+                || state.rejectedMutations.contains(mutationId)) {
+                if (error)
+                    *error = QStringLiteral("A rejected sync mutation is invalid or duplicated.");
+                return std::nullopt;
+            }
+            state.rejectedMutations.insert(mutationId, SyncRejectedMutation{
+                mutationId,
+                category,
+                recordKey,
+                record.value(QStringLiteral("code")).toString(),
+                record.value(QStringLiteral("message")).toString(),
+                record.value(QStringLiteral("fingerprint")).toString()});
+        }
+    }
+
+    if (schemaVersion >= 4) {
+        const QJsonValue ownerRedoValue =
+            object.value(QStringLiteral("owner_redos"));
+        if (!ownerRedoValue.isArray()) {
+            if (error)
+                *error = QStringLiteral("The durable owner redo state is malformed.");
+            return std::nullopt;
+        }
+
+        QSet<quint64> ownerRedoSequences;
+        for (const QJsonValue &value : ownerRedoValue.toArray()) {
+            if (!value.isObject()) {
+                if (error)
+                    *error = QStringLiteral("A durable owner redo entry is malformed.");
+                return std::nullopt;
+            }
+
+            const QJsonObject record = value.toObject();
+            quint64 serverSeq = 0;
+            const auto mutationValue = record.value(QStringLiteral("mutation"));
+            const auto mutation = mutationValue.isObject()
+                ? syncWireMutationFromJson(mutationValue.toObject())
+                : std::nullopt;
+            if (!parseUnsigned(record.value(QStringLiteral("server_seq")), &serverSeq)
+                || serverSeq == 0
+                || ownerRedoSequences.contains(serverSeq)
+                || !record.value(QStringLiteral("won")).isBool()
+                || !record.value(QStringLiteral("won")).toBool()
+                || !mutation.has_value()
+                || (record.contains(QStringLiteral("historical_replay"))
+                    && !record.value(QStringLiteral("historical_replay")).isBool())
+                || (record.contains(QStringLiteral("from_quarantine"))
+                    && !record.value(QStringLiteral("from_quarantine")).isBool())) {
+                if (error)
+                    *error = QStringLiteral("A durable owner redo entry is invalid or duplicated.");
+                return std::nullopt;
+            }
+
+            ownerRedoSequences.insert(serverSeq);
+            state.ownerRedos.append(SyncOwnerRedo{
+                serverSeq,
+                true,
+                *mutation,
+                record.value(QStringLiteral("historical_replay")).toBool(),
+                record.value(QStringLiteral("from_quarantine")).toBool()});
+        }
+
+    }
+
+    const QJsonValue attachmentValue =
+        object.value(QStringLiteral("attachment"));
+    if (!attachmentValue.isUndefined()) {
+        if (!attachmentValue.isObject()) {
+            if (error)
+                *error = QStringLiteral("The attachment sync mode state is malformed.");
+            return std::nullopt;
+        }
+
+        const QJsonObject attachment = attachmentValue.toObject();
+        const QString attachmentId =
+            attachment.value(QStringLiteral("attachment_id")).toString();
+        const QString nextPageToken =
+            attachment.value(QStringLiteral("next_page_token")).toString();
+        const QJsonValue mutationIdsValue =
+            attachment.value(QStringLiteral("mutation_ids"));
+        const bool snapshotDone =
+            attachment.value(QStringLiteral("snapshot_done")).toBool(false);
+
+        // Fail closed: the mode is bound to exactly one canonical
+        // lowercase attachment id, and a completed bootstrap must not
+        // carry a continuation token.
+        if (attachmentId.isEmpty()
+            || normalizedUuid(attachmentId) != attachmentId
+            || (snapshotDone && !nextPageToken.isEmpty())) {
+            if (error)
+                *error = QStringLiteral("The attachment sync mode state is invalid.");
+            return std::nullopt;
+        }
+
+        QStringList mutationIds;
+        QSet<QString> uniqueMutationIds;
+        if (!mutationIdsValue.isUndefined()) {
+            if (!mutationIdsValue.isArray()
+                || mutationIdsValue.toArray().size() > 100) {
+                if (error)
+                    *error = QStringLiteral("The attachment mutation identity set is invalid.");
+                return std::nullopt;
+            }
+            for (const QJsonValue &value : mutationIdsValue.toArray()) {
+                const QString mutationId = value.toString();
+                if (!value.isString()
+                    || normalizedUuid(mutationId) != mutationId
+                    || uniqueMutationIds.contains(mutationId)) {
+                    if (error)
+                        *error = QStringLiteral("The attachment mutation identity set is invalid.");
+                    return std::nullopt;
+                }
+                uniqueMutationIds.insert(mutationId);
+                mutationIds.append(mutationId);
+            }
+            mutationIds.sort();
+        }
+
+        state.attachmentModeActive = true;
+        state.attachmentId = attachmentId;
+        state.attachmentMutationIds = mutationIds;
+        state.attachmentSnapshotDone = snapshotDone;
+        state.attachmentSnapshotNextPageToken = nextPageToken;
+    }
+
+    return state;
+}

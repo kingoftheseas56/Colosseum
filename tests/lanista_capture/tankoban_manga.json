@@ -1,0 +1,69 @@
+{
+  "name": "tankoban_manga",
+  "comment": "Presentation-only harness around production Tankoban manga catalogue components with local deterministic covers.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Manga capture session answers",
+      "expect": [ { "path": "gates.drive", "op": "==", "value": "true" } ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Manga presentation surface is visible",
+      "payload": {
+        "object": "mangaCaptureFlick",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Manga poster assets are decoded",
+      "payload": {
+        "object": "mangaPosterGate",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "presentation_wait_ms": 250,
+      "label": "let cached Manga posters paint",
+      "expect": [ { "path": "type", "op": "==", "value": "reply" } ]
+    },
+    {
+      "capture": { "action": "start", "name": "reddit-tankoban-manga" },
+      "cmd": "__runner_local_presentation__",
+      "label": "start Tankoban manga capture",
+      "expect": [ { "path": "type", "op": "==", "value": "reply" } ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "presentation_hold_ms": 900,
+      "label": "show top Manga shelf",
+      "expect": [ { "path": "type", "op": "==", "value": "reply" } ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "move into Manga genres",
+      "payload": { "target": "mangaCaptureFlick", "dy": -850 },
+      "expect": [ { "path": "scrolled", "op": "==", "value": "mangaCaptureFlick" } ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "presentation_hold_ms": 1000,
+      "label": "show Manga genres",
+      "expect": [ { "path": "type", "op": "==", "value": "reply" } ]
+    },
+    {
+      "capture": { "action": "stop" },
+      "cmd": "__runner_local_presentation__",
+      "label": "stop Tankoban manga capture",
+      "expect": [ { "path": "type", "op": "==", "value": "reply" } ]
+    }
+  ]
+}

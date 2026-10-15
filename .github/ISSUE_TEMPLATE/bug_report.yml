@@ -1,0 +1,57 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Colosseum.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please remove personal media names, tokens, credentials, and private file paths from logs before posting them.
+  - type: input
+    id: version
+    attributes:
+      label: Colosseum version
+      description: Release version or commit SHA.
+      placeholder: "1.1.4"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Tell us exactly what you clicked or opened, in order.
+      placeholder: "1. Open …\n2. Select …\n3. Observe …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or captures
+      description: Optional. The rolling log is at `%APPDATA%/Brotherhood/Colosseum/logs/colosseum.log`. Redact private paths, media names, and secrets first.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the README's Known boundaries and existing issues.
+          required: true
+        - label: I removed credentials, tokens, and unnecessary personal data from anything attached.
+          required: true

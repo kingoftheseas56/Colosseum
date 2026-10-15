@@ -1,0 +1,175 @@
+{
+  "id": "colosseum.well.tankoyomi",
+  "version": "0.1.0",
+  "name": "Tankoyomi",
+  "description": "Language-aware manga chapter source router for Tankoban Chapter Mode.",
+  "type": "tankoyomi",
+  "types": [
+    "manga"
+  ],
+  "resources": [
+    "stream",
+    "manga.search",
+    "manga.chapters",
+    "manga.pages"
+  ],
+  "defaultLanguage": "en",
+  "fallbackPolicy": "same-language-only",
+  "behaviorHints": {
+    "configurable": true
+  },
+  "providerContract": {
+    "version": 1,
+    "required": [
+      "searchSeries",
+      "getChapters",
+      "getPages"
+    ]
+  },
+  "languages": [
+    {
+      "code": "en",
+      "label": "English",
+      "countryCode": "GB",
+      "providers": [
+        {
+          "id": "weebcentral",
+          "name": "WeebCentral",
+          "entry": "languages/en/weebcentral.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "weebcentral.com"
+          ],
+          "pageAccessPolicy": "public-https",
+          "titleDecorators": [
+            "official"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "es",
+      "label": "Español",
+      "countryCode": "ES",
+      "providers": [
+        {
+          "id": "zonatmo",
+          "name": "ZonaTMO",
+          "entry": "languages/es/zonatmo.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "zonatmo.org"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "niadd",
+          "name": "NiAdd",
+          "entry": "languages/es/niadd.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "es.niadd.com"
+          ],
+          "pageAccessPolicy": "public-https"
+        }
+      ]
+    },
+    {
+      "code": "pt",
+      "label": "Português (Brasil)",
+      "countryCode": "BR",
+      "aliases": ["pt-BR"],
+      "providers": [
+        {
+          "id": "taiyo",
+          "name": "Taiyō",
+          "entry": "languages/pt/taiyo.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "taiyo.moe",
+            "meilisearch.taiyo.moe"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "manga-online",
+          "name": "Manga Online",
+          "entry": "languages/pt/manga-online.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "mangaonline.green"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "manga-night",
+          "name": "Manga Night",
+          "entry": "languages/pt/manga-night.js",
+          "priority": 3,
+          "enabled": true,
+          "allowedHosts": [
+            "www.manganight.com.br",
+            "api.mangadex.org"
+          ],
+          "pageAccessPolicy": "public-https"
+        }
+      ]
+    },
+    {
+      "code": "fr",
+      "label": "Français",
+      "countryCode": "FR",
+      "providers": [
+        {
+          "id": "sushiscan-fr",
+          "name": "Sushiscan.fr",
+          "entry": "languages/fr/sushiscan-fr.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "sushiscan.fr"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "lelscan-vf",
+          "name": "Lelscan-VF",
+          "entry": "languages/fr/lelscan-vf.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "lelscanfr.com"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "lelmanga",
+          "name": "Lelmanga",
+          "entry": "languages/fr/lelmanga.js",
+          "priority": 3,
+          "enabled": true,
+          "allowedHosts": [
+            "lelmanga.com"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "mangamoins",
+          "name": "MangaMoins",
+          "entry": "languages/fr/mangamoins.js",
+          "priority": 4,
+          "enabled": true,
+          "allowedHosts": [
+            "mangamoins.com"
+          ],
+          "pageAccessPolicy": "public-https"
+        }
+      ]
+    }
+  ]
+}

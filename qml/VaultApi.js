@@ -1,0 +1,200 @@
+.pragma library
+
+// VaultApi — the pure derivation the Vault surfaces share (Slice 14): join the rebuildable index
+// rows against the live Progress store, and (VaultApi.continueRail, added with the rail) derive the
+// Vault Continue list. It owns no backend; Progress is passed in as an argument so this stays a
+// .pragma library with no context capture.
+//
+// THERE IS NO KIND TRANSLATION HERE, DELIBERATELY. The Vault files each item under its canonical
+// kind (comic | book | video), and — after the Slice 14 source-label fix in VaultComicReader — every
+// reader/player persists Progress under that SAME kind (comics "comic" not "manga"; books "book";
+// video "video"). So the join is a straight Progress.get(row.kind, row.id). If a future reader
+// regresses to a non-canonical kind, fix the WRITER, not this file: a translation map here would
+// silently leak local items into a catalogue namespace (the hazard Preflight flagged for the
+// translate-at-the-boundary approach this fix supersedes).
+
+function _frac(v) { var n = Number(v); return (n > 0) ? (n < 1 ? n : 1) : 0 }
+
+// Decorate ONE index row with live Progress facts. Returns a NEW object (never mutates the index
+// snapshot): progressFraction 0..1, lastReadMs (Progress.updatedAt, else 0), hasProgress, and
+// `progressed` overridden to the live truth so the row's read tick reflects real reads, not the
+// coarse static index column.
+function joinRow(progress, row) {
+    if (!row) return row
+    var out = {}
+    for (var k in row) out[k] = row[k]
+    var pg = (progress && row.id) ? progress.get(row.kind, row.id) : null
+    var has = !!(pg && pg.id !== undefined)
+    out.progressFraction = has ? _frac(pg.progress) : 0
+    out.lastReadMs = has ? (Number(pg.updatedAt) || 0) : 0
+    out.hasProgress = has
+    out.progressFinished = has && !!(pg.finished || pg.watched
+                                      || (pg.resume && pg.resume.finished))
+    out.progressed = has
+    return out
+}
+
+function joinRows(progress, rows) {
+    var src = rows || [], out = []
+    for (var i = 0; i < src.length; i++) out.push(joinRow(progress, src[i]))
+    return out
+}
+
+// The most-recently-read row that still carries progress — the preview "Continue" target. Ordered
+// by lastReadMs (not array position), so Continue resumes the file you were actually mid-read on,
+// not the top of the folder. Returns the row, or null when nothing carries progress.
+function resumeTarget(rows) {
+    var src = rows || [], best = null
+    for (var i = 0; i < src.length; i++) {
+        var r = src[i]
+        if (r && r.hasProgress && (!best || r.lastReadMs > best.lastReadMs)) best = r
+    }
+    return best
+}
+
+// --- Vault ux uplift S13 — the watched-state filter (the one predicate whose fact is NOT in the
+// index): video rows only — "unwatched" keeps unmarked video rows, "watched" keeps the durably
+// marked ones (the S3/S7 mark), and non-video rows drop in BOTH modes ("watched?" is a video
+// question; the plan scopes this predicate to video). Applied over the JOINED rows (joinRow's
+// watched decoration + VaultPage's durable-mark flag), never recomputes the mark, and "" is a
+// no-op. Returns a NEW array in every mode.
+function filterRowsByWatched(rows, mode) {
+    var src = rows || [], out = []
+    if (mode !== "watched" && mode !== "unwatched") return src.slice()
+    for (var i = 0; i < src.length; i++) {
+        var r = src[i]
+        if (!r) continue
+        if (String(r.kind || "") !== "video") continue
+        if ((mode === "watched") === !!r.watched) out.push(r)
+    }
+    return out
+}
+
+// --- Vault ux uplift S17 — the show-page math (pure; watchedFn is the caller's mark probe) ---
+// Takes seasonFactsForShow's derived structure and joins the durable watched mark per episode
+// id (watchedFn(id) -> the ProgressStore.watchedMark state; -1/0/1 tri-state, 1 = watched).
+// Returns {seasons: [{season,key,label,supplemental,total,watched,unwatched,nextUp}], nextUp} —
+// tile identity rides through untouched so the page joins counts by real browse key, never by
+// parsing display text. nextUp is the FIRST unwatched episode in the derived natural order or null
+// when the show is finished. Ties to neither a season's own file order nor SxxExx parse: the
+// derivation the C++ side handed over IS the order the page paints.
+function deriveSeasonState(structure, watchedFn) {
+    if (!structure || !structure.seasons) return { seasons: [], nextUp: null }
+    var out = [], showNextUp = null
+    for (var i = 0; i < structure.seasons.length; i++) {
+        var s = structure.seasons[i]
+        var watched = 0, nextUp = null
+        var eps = s.episodes || []
+        for (var e = 0; e < eps.length; e++) {
+            var ep = eps[e]
+            var isWatched = watchedFn ? (watchedFn(ep.id) === 1) : false
+            if (isWatched) watched++
+            else if (!nextUp) nextUp = ep
+        }
+        var row = {
+            season: s.season, key: s.key || "", label: s.label || "",
+            supplemental: !!s.supplemental, total: s.total,
+            watched: watched, unwatched: (s.total || 0) - watched,
+            nextUp: nextUp
+        }
+        out.push(row)
+        if (!showNextUp && nextUp) showNextUp = nextUp
+    }
+    return { seasons: out, nextUp: showNextUp }
+}
+
+// --- Vault ux uplift S12 — the one browse ordering whose key is NOT in the index ----------------
+// "Recently played" orders by lastReadMs, which joinRow surfaces from the live Progress store —
+// so this is a pure array re-order of the JOINED rows VaultPage already holds (the VaultFolderView
+// lastread precedent). Descending; never-read rows (lastReadMs 0) sink to the bottom. The
+// decorate-sort-undecorate keeps ties in the incoming order EXPLICITLY (index tiebreak): the QML
+// engine's Array.sort is not guaranteed stable, and "equal last-read keeps the projection's
+// order" is part of this ordering's contract. Returns a NEW array; the input is never mutated.
+function sortRowsRecentlyPlayed(rows) {
+    var src = rows || []
+    var decorated = []
+    for (var i = 0; i < src.length; i++)
+        decorated.push({ row: src[i], idx: i, key: Number(src[i] && src[i].lastReadMs) || 0 })
+    decorated.sort(function (a, b) {
+        if (a.key !== b.key) return b.key - a.key
+        return a.idx - b.idx
+    })
+    var out = []
+    for (var j = 0; j < decorated.length; j++) out.push(decorated[j].row)
+    return out
+}
+
+// --- Vault Continue rail (Slice 14) -----------------------------------------------------------
+function isVault(id) { return String(id || "").indexOf("vault:") === 0 }
+
+// Coerce a caller limit to a positive whole number; 0 means "no cap". Guards NaN/negative/Infinity.
+function _positiveLimit(limit) {
+    var n = Number(limit || 0)
+    if (!isFinite(n) || n <= 0) return 0
+    return Math.floor(n)
+}
+
+// A Vault video is admissible to Continue ONLY when its durable verdict is EXACTLY "Admitted".
+// Unprobed (absent from the map), rejected, or non-vault ids never qualify.
+function isAdmittedVault(admissionById, id) {
+    if (!isVault(id) || !admissionById) return false
+    var verdict = admissionById[id]
+    return verdict !== undefined && verdict !== null && String(verdict) === "Admitted"
+}
+
+// The file path to reopen, pulled from the resume payload each reader/player already writes: books
+// carry resume.path, video resume.localPath, and a Vault comic resume.chapterId (== the archive
+// path, because VaultComicReader feeds the shell chapterId = archivePath). LocalLaunch re-derives
+// family/id/title from the path, so the rail reopens exactly like the picker / Open Recent.
+function vaultPathOf(rec) {
+    var r = (rec && rec.resume) ? rec.resume : {}
+    return r.path || r.localPath || r.chapterId || ""
+}
+
+// The Vault Continue list: the live Progress recents that belong to the Vault (vault: ids), mapped
+// to the tiles the rail renders and routes. Catalogue recents are excluded — they own their own
+// rails, and §9 keeps the two from double-showing. A row with no resolvable path is dropped
+// (nothing to reopen). Title/cover/fraction come straight off the Progress entry (no index lookup).
+function continueRail(progress, limit, admissionById) {
+    if (!progress) return []
+
+    // Unbounded read FIRST, then cap after filtering. Rejected, unprobed, catalogue, or pathless
+    // rows must not consume the requested output cap (the old filter-after-limit trap).
+    var all = progress.recent("", 0)
+    var cap = _positiveLimit(limit)
+    var out = []
+
+    for (var i = 0; i < all.length; i++) {
+        var e = all[i]
+        if (!isAdmittedVault(admissionById, e.id)) continue
+
+        var path = vaultPathOf(e)
+        if (!path) continue
+
+        out.push({ id: e.id, kind: e.kind, path: path,
+                   title: e.title || e.caption || "",
+                   cover: e.cover || "",
+                   progressFraction: _frac(e.progress) })
+
+        if (cap > 0 && out.length >= cap) break
+    }
+    return out
+}
+
+// §9 catalogue isolation: strip vault: rows from a catalogue recents read BEFORE the hard cap, so a
+// run of local items can never shrink a catalogue rail below its intended length.
+function recentWithoutVault(progress, kind, limit) {
+    if (!progress) return []
+
+    var all = progress.recent(kind || "", 0)
+    var cap = _positiveLimit(limit)
+    var out = []
+
+    for (var i = 0; i < all.length; i++) {
+        var e = all[i]
+        if (isVault(e && e.id)) continue
+        out.push(e)
+        if (cap > 0 && out.length >= cap) break
+    }
+    return out
+}
