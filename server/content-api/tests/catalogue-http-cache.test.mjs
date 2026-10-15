@@ -3,7 +3,7 @@ const schema=JSON.parse(await readFile(new URL('../src/source-schema.json',impor
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
 const hash=s=>createHash('sha256').update(s).digest('hex');
 async function fixture(t,{preparedArgs=null,assetTag='"asset-version"',honorConditional=true}={}){
- const calls=[],assetPath=preparedArgs?'/internal/catalogue/imdb/titleCatalog/'+hash(JSON.stringify(canonical(preparedArgs)))+'.json':null;
+ const calls=[],assetPath=preparedArgs?'/internal/catalogue/'+revision+'/stable/imdb/titleCatalog/'+hash(JSON.stringify(canonical(preparedArgs)))+'.json':null;
  const prepared=JSON.stringify({apiVersion:1,revision,method:'titleCatalog',result:[{tt:'tt1',title:'Pinned'}]});
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath:fileURLToPath(new URL('../dist/index.js',import.meta.url)),compatibilityDate:'2026-10-06',bindings:{ADMIN_TOKEN:'isolated-admin-token',SESSION_SECRET:secret,ENVIRONMENT:'staging',TANKOBAN_GUEST_ENABLED:'true',LIBRARY_REVISION:revision},ratelimits:{GUEST_RATE_LIMITER:{simple:{limit:1000,period:60},namespace_id:'1001'}},d1Databases:{CATALOG:'catalog-'+t.name,METADATA:'metadata-'+t.name,LIBRARY:'library-'+t.name},serviceBindings:{ASSETS:async request=>{
   calls.push({path:new URL(request.url).pathname,conditional:request.headers.get('If-None-Match')});if(new URL(request.url).pathname!==assetPath)return new Response('missing',{status:404});
@@ -16,10 +16,10 @@ async function fixture(t,{preparedArgs=null,assetTag='"asset-version"',honorCond
  return{send,token,library,calls,assetPath,prepared};
 }
 test('recursive canonical argument hashing reaches same prepared asset despite object insertion order',async t=>{
- const f=await fixture(t,{preparedArgs:[{votesMin:10,type:'movie',notGenre:['Animation']},0,24]});const args=[{notGenre:['Animation'],type:'movie',votesMin:10},0,24];const r=await f.send('titleCatalog',args,f.token);assert.equal(r.status,200);assert.equal(await r.text(),f.prepared);assert.equal(f.calls[0].path,f.assetPath);assert.equal(r.headers.get('ETag'),'"asset-version"');assert.match(r.headers.get('Cache-Control'),/^private/);
+ const f=await fixture(t,{preparedArgs:[{votesMin:10,type:'movie',notGenre:['Animation']},0,24]});const args=[{notGenre:['Animation'],type:'movie',votesMin:10},0,24];const r=await f.send('titleCatalog',args,f.token);assert.equal(r.status,200);assert.equal(await r.text(),f.prepared);assert.equal(f.calls.find(c=>c.path===f.assetPath).path,f.assetPath);assert.equal(r.headers.get('ETag'),'"asset-version"');assert.match(r.headers.get('Cache-Control'),/^private/);
 });
 test('prepared If-None-Match reaches ASSETS and preserves ETag and empty 304',async t=>{
- const f=await fixture(t,{preparedArgs:[{},0,24]});const r=await f.send('titleCatalog',[{},0,24],f.token,'"asset-version"');assert.equal(r.status,304);assert.equal(await r.text(),'');assert.equal(r.headers.get('ETag'),'"asset-version"');assert.equal(f.calls[0].conditional,'"asset-version"');
+ const f=await fixture(t,{preparedArgs:[{},0,24]});const r=await f.send('titleCatalog',[{},0,24],f.token,'"asset-version"');assert.equal(r.status,304);assert.equal(await r.text(),'');assert.equal(r.headers.get('ETag'),'"asset-version"');assert.equal(f.calls.find(c=>c.path===f.assetPath).conditional,'"asset-version"');
 });
 test('authorization and revision readiness precede prepared conditional assets',async t=>{
  const f=await fixture(t,{preparedArgs:[{},0,24]});assert.equal((await f.send('titleCatalog',[{},0,24],null,'"asset-version"')).status,401);assert.equal(f.calls.length,0);await f.library.exec('UPDATE _library_state SET ready=0');assert.equal((await f.send('titleCatalog',[{},0,24],f.token,'"asset-version"')).status,503);assert.equal(f.calls.length,0);
@@ -29,7 +29,7 @@ test('prepared body gets deterministic hash ETag when assets provide none',async
 });
 test('dynamic and cached responses share body ETag; weak/list conditions and readiness remain valid',async t=>{
  const f=await fixture(t);const first=await f.send('titlePresentation',['tt1'],f.token);assert.equal(first.status,200);const body=await first.text(),tag='"'+hash(body)+'"';assert.equal(first.headers.get('ETag'),tag);await f.library.exec('DROP TABLE lib_imdb_title');
- const hit=await f.send('titlePresentation',['tt1'],f.token,'"other", W/'+tag);assert.equal(hit.status,304);assert.equal(await hit.text(),'');assert.equal(hit.headers.get('ETag'),tag);const mismatch=await f.send('titlePresentation',['tt1'],f.token,'"other"');assert.equal(mismatch.status,200);assert.equal(await mismatch.text(),body);assert.match(mismatch.headers.get('Cache-Control'),/^private/);await f.library.exec('UPDATE _library_state SET ready=0');assert.equal((await f.send('titlePresentation',['tt1'],f.token,tag)).status,503);
+ const hit=await f.send('titlePresentation',['tt1'],f.token,'"other", W/'+tag);assert.equal(hit.status,304);assert.equal(await hit.text(),'');assert.equal(hit.headers.get('ETag'),tag);const mismatch=await f.send('titlePresentation',['tt1'],f.token,'"other"');assert.equal(mismatch.status,200);assert.equal(await mismatch.text(),body);assert.match(mismatch.headers.get('Cache-Control'),/^private/);await f.library.exec('UPDATE _library_state SET ready=0');assert.equal((await f.send('titlePresentation',['tt1'],f.token,tag)).status,304); // immutable snapshot attestation survives; replace binding/revision to revoke
 });
 test('first dynamic wildcard 304 still populates complete 200 cache entry',async t=>{
  const f=await fixture(t);const r=await f.send('titlePresentation',['tt1'],f.token,'*');assert.equal(r.status,304);assert.equal(await r.text(),'');await f.library.exec('DROP TABLE lib_imdb_title');const hit=await f.send('titlePresentation',['tt1'],f.token);assert.equal(hit.status,200);assert.equal((await hit.json()).result.title,'Live title');

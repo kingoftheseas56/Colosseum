@@ -7,7 +7,9 @@
   "compatibility_date": "2026-10-06",
   "workers_dev": true,
   "preview_urls": false,
-  "observability": { "enabled": false },
+  // Proposed with this candidate; no remote setting is changed until deployment.
+  // Catalogue logs omit args/tokens and distinguish prebuilt/edge/D1 row costs.
+  "observability": { "enabled": true, "head_sampling_rate": 0.1, "redact_query_string": true, "logs": { "invocation_logs": false } },
   "vars": {
     "ENVIRONMENT": "staging",
     "LIBRARY_REVISION": "acef5f264d4e8ed13584d54fdcb1bd188e9bad99a27af315da679ce2b11a686a",

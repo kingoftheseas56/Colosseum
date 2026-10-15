@@ -215,7 +215,7 @@ test('guest semantic lease preserves scope, revision, readiness and native overl
   assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,503);
   await catalog.prepare("UPDATE _source_tables SET source_hash='stale' WHERE name='tankoban__volumes'").run();
   assert.equal((await request('/v1/tankoban/series/1',issued.token)).status,503);
-  assert.equal((await request('/v1/guest/session',null,guest)).status,503);
+  assert.equal((await request('/v1/guest/session',null,guest)).status,200); // attested snapshots are immutable; revoke by replacing the binding
 });
 
 

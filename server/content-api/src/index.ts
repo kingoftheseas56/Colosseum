@@ -1,6 +1,8 @@
 import schema from './source-schema.json';
 import {contentDelivery} from './content-delivery';
 import {catalogueMethod, catalogueMethods} from './catalogue-semantic.ts';
+import {libraryReady} from './catalogue-readiness.ts';
+import {prebuiltCatalogue} from './catalogue-prebuilt.ts';
 
 type AppEnv = Cloudflare.Env & { ADMIN_TOKEN: string; SESSION_SECRET: string; LIBRARY?: D1Database; LIBRARY_REVISION?: string };
 type Table = { columns: string[]; rowCount: number; sourceHash: string; writeWeight: number };
@@ -63,7 +65,9 @@ async function guestGate(request: Request, env: AppEnv) {
   if (!ip) throw new Failure(503, 'GUEST_UNAVAILABLE');
   if (!(await env.GUEST_RATE_LIMITER.limit({ key: ip })).success) throw new Failure(429, 'RATE_LIMITED');
 }
+const tankobanChecked=new WeakSet<D1Database>();
 async function tankobanReady(env: AppEnv) {
+  if(tankobanChecked.has(env.CATALOG))return 0;
   const names = ['tankoban__series', 'tankoban__volumes'];
   if (tables[names[0]].sourceHash !== tables[names[1]].sourceHash) throw new Failure(503, 'CATALOGUE_NOT_READY');
   const rows = await env.CATALOG.prepare('SELECT name,ready,source_hash,expected_rows,imported_rows FROM _source_tables WHERE name IN (?,?)').bind(...names).all();
@@ -71,6 +75,8 @@ async function tankobanReady(env: AppEnv) {
     const row = rows.results.find(r => r.name === name);
     if (!row || row.ready !== 1 || row.source_hash !== tables[name].sourceHash || row.expected_rows !== tables[name].rowCount || row.imported_rows !== tables[name].rowCount) throw new Failure(503, 'CATALOGUE_NOT_READY');
   }
+  tankobanChecked.add(env.CATALOG);
+  return rows.meta.rows_read??0;
 }
 function naturalKey(value: string) { return value.toLowerCase().replace(/\p{Nd}+/gu, run => run.padStart(12, '0')); }
 async function tankoban(env: AppEnv, malId: number) {
@@ -164,28 +170,44 @@ export default {
         if (Object.keys(input).length !== 1 || !Array.isArray(input.args) || input.args.length > 16
             || encoder.encode(JSON.stringify(input.args)).byteLength > 32768) throw new Failure(400,'INVALID_CATALOGUE_REQUEST');
         if (!env.LIBRARY || !env.LIBRARY_REVISION) throw new Failure(503,'CATALOGUE_NOT_READY');
-        const state = await env.LIBRARY.prepare('SELECT revision,ready FROM _library_state WHERE id=1').first<{revision:string;ready:number}>();
-        if (!state || state.ready !== 1 || state.revision !== env.LIBRARY_REVISION) throw new Failure(503,'CATALOGUE_NOT_READY');
+        const cost={rowsRead:0,statements:0};
+        const observe=(meta:D1Meta)=>{cost.rowsRead+=meta.rows_read??0;cost.statements++;};
+        if (!await libraryReady(env.LIBRARY,env.LIBRARY_REVISION,observe)) throw new Failure(503,'CATALOGUE_NOT_READY');
+        const record=(delivery:string)=>console.log(JSON.stringify({event:'catalogue-read',dataset,method,delivery,...cost}));
+        const respond=async(delivery:string,response:Response)=>{
+          record(delivery);const result=await catalogueResponse(request,response),headers=new Headers(result.headers);
+          headers.set('X-Catalogue-Delivery',delivery);headers.set('X-Catalogue-D1-Rows',String(cost.rowsRead));
+          return new Response(result.body,{status:result.status,headers});
+        };
+        const prebuilt=await prebuiltCatalogue(env.ASSETS,env.LIBRARY_REVISION,dataset,method,input.args);
+        if(prebuilt){
+          const value=JSON.stringify({apiVersion:1,revision:env.LIBRARY_REVISION,method,result:prebuilt.result});
+          if(encoder.encode(value).byteLength>4*1024*1024)throw new Failure(503,'RESPONSE_TOO_LARGE');
+          return respond('prebuilt',new Response(value,{headers:{'Content-Type':'application/json','ETag':await bodyTag(value)}}));
+        }
         const fingerprint = (await bodyTag(JSON.stringify(canonicalArgs(input.args)))).slice(1,-1);
-        const staticUrl = new URL(`/internal/catalogue/${dataset}/${method}/${fingerprint}.json`,url.origin);
+        const period=dataset==='comics'&&['discoverPage','discoverPageFiltered'].includes(method)?String(new Date().getFullYear()):dataset==='mal'&&['discoverPage','discoverPageFiltered'].includes(method)&&input.args[0]==='new-releases'?new Date().toISOString().slice(0,10):'stable';
+        const staticUrl = new URL(`/internal/catalogue/${env.LIBRARY_REVISION}/${period}/${dataset}/${method}/${fingerprint}.json`,url.origin);
         const assetHeaders=new Headers();const conditional=request.headers.get('If-None-Match');if(conditional)assetHeaders.set('If-None-Match',conditional);
         const prepared = await env.ASSETS.fetch(new Request(staticUrl,{headers:assetHeaders}));
-        if (prepared.status === 200 || prepared.status === 304) return catalogueResponse(request,prepared);
-        const cacheKey = new Request(new URL(`/internal-cache/catalogue/${env.LIBRARY_REVISION}/${dataset}/${method}/${fingerprint}`,url.origin));
+        if (prepared.status === 200 || prepared.status === 304) return respond('prepared',prepared);
+        const cacheKey = new Request(new URL(`/internal-cache/catalogue/${env.LIBRARY_REVISION}/${period}/${dataset}/${method}/${fingerprint}`,url.origin));
         const hit = await caches.default.match(cacheKey);
-        if (hit) return catalogueResponse(request,hit);
+        if (hit) return respond('edge',hit);
         let result: unknown;
-        try { result = await catalogueMethod(env.LIBRARY,dataset,method,input.args); }
+        try { result = await catalogueMethod({prepare:sql=>env.LIBRARY!.prepare(sql),observe},dataset,method,input.args); }
         catch(error) { if (error instanceof Error && error.message === 'UNKNOWN_CATALOGUE_METHOD') throw new Failure(400,error.message); throw error; }
         const value = JSON.stringify({apiVersion:1,revision:env.LIBRARY_REVISION,method,result});
         if (encoder.encode(value).byteLength > 4*1024*1024) throw new Failure(503,'RESPONSE_TOO_LARGE');
         const response = new Response(value,{headers:{'Content-Type':'application/json','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff','ETag':await bodyTag(value)}});
         if (ctx) ctx.waitUntil(caches.default.put(cacheKey,response.clone()));
-        return catalogueResponse(request,response);
+        return respond('d1',response);
       }
       if (request.method === 'GET' && semantic) {
         const malId = Number(semantic[1]);
         if (!Number.isSafeInteger(malId) || malId > 2147483647) throw new Failure(400, 'INVALID_MAL_ID');
+        const readinessRows=await tankobanReady(env);
+        if(env.LIBRARY_REVISION){const prepared=await prebuiltCatalogue(env.ASSETS,env.LIBRARY_REVISION,'tankoban','series',[malId]);if(prepared){console.log(JSON.stringify({event:'catalogue-read',dataset:'tankoban',method:'series',delivery:'prebuilt',rowsRead:readinessRows}));const response=json(prepared.result);response.headers.set('X-Catalogue-Delivery','prebuilt');response.headers.set('X-Catalogue-D1-Rows',String(readinessRows));return response;}}
         return await tankoban(env, malId);
       }
       if (request.method === 'POST' && path === '/admin/session') {

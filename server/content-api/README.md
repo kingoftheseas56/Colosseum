@@ -4,11 +4,11 @@ The 1.1.9 no-account candidate uses semantic catalogue APIs for IMDb, MAL, Comic
 
 ## 1.1.9 delivery and updates
 
-`LIBRARY` is `colosseum-library-staging` (`235b323c-b88f-4891-8226-7e1f396e7c61`). Its packed JSON1 representation preserves the source SQLite values and ordering while reducing import writes. The qualified import contains 42 physical tables, occupies 278,306,816 bytes before the readiness record, and used 13,504 writes. `_library_state` must match `LIBRARY_REVISION` and be ready before any prepared or dynamic catalogue response is served. Do not replace a live snapshot in place: build and verify a separate version, then switch the binding, revision and prepared responses together.
+`LIBRARY` is `colosseum-library-staging` (`235b323c-b88f-4891-8226-7e1f396e7c61`). Its packed JSON1 representation preserves the source SQLite values and ordering while reducing import writes. The qualified import contains 42 physical tables, occupies 278,306,816 bytes before the readiness record, and used 13,504 writes. `_library_state` must match `LIBRARY_REVISION` and be ready before any prepared or dynamic catalogue response is served. A successful attestation is now cached per isolate/binding/revision: the first semantic request reads one readiness row; warmed static/cache requests read zero D1 rows. Tankoban readiness is likewise cached after a successful source check. Readiness failures are never cached. **Snapshots are immutable**: do not use an in-place readiness-bit change as an immediate revocation mechanism. Replace the Worker binding/revision or disable the route. Do not replace a live snapshot in place: build and verify a separate version, then switch the binding, revision and prepared responses together.
 
 Clients obtain a five-minute `content:read` lease from `POST /v1/guest/session` with `{appId:"colosseum",apiVersion:1}`. This is account-free application access, not proof of an exclusive installed client: another client can imitate that request. Admin publication credentials never ship in the application.
 
-- `POST /v1/catalogue/{imdb|mal|comics}/{method}` accepts `{args:[...]}` for an allowlisted native catalogue operation, never client SQL. Arguments have canonical cache keys. Common recipes have 88 prepared responses; other responses use the edge cache. ETags support conditional refresh.
+- `POST /v1/catalogue/{imdb|mal|comics}/{method}` accepts `{args:[...]}` for an allowlisted native catalogue operation, never client SQL. Arguments have canonical cache keys. The I01 candidate replaces the earlier 88 prepared envelopes with shared full ranked lists, title-search indexes, record blocks and lookup buckets; all deep offsets/page sizes reuse those files. Unprepared combinations retain today's packed D1 queries and edge cache. ETags support conditional refresh.
 - `POST /v1/catalogue/content/bundle` with `{args:[]}` returns one atomic manifest/document generation. Authenticated manifest and document GET routes are under `/v1/content/`.
 - `/assets/content/{sha256}.{extension}` delivers artwork directly through Cloudflare Static Assets. Artwork is public, immutable, and fetched on demand. `/internal/*` is never publicly readable. No R2 registration, Imgur, GitHub REST API or whole-database client download is required.
 
@@ -23,6 +23,49 @@ To publish content without an application release:
 5. Running apps check content on startup and every 15 minutes while active. Validated content swaps atomically and open pages refresh through `Content.generation`. New layouts or native behavior still require an application release.
 
 Free limits remain finite: Workers Free 100,000 dynamic requests/day; D1 5,000,000 rows read/day and 100,000 rows written/day, 500 MB/database. JSON-expanded rows count as reads. Cache misses and source updates need measured budgets; a free plan is not a guarantee of unlimited users. Static asset requests that bypass the Worker and asset storage are free; retain the asset-first routing configuration. [Cloudflare limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
+
+## I01: static catalogue candidate (not deployed)
+
+The indexed D1 replacement/import is dropped. No database schema, index or import change is required. Build a **local-only** SQL oracle from the four frozen, manifest-hashed sources, then prepare shared assets:
+
+```powershell
+python projection/static_source.py --source-dir <frozen-source-directory> --output <fresh-local-oracle-directory>
+node projection/static_catalogue.mjs <local-oracle-directory>/static-source.sqlite <fresh-static-publication> <native-checkout>/qml
+```
+
+The first command uses the existing pack builder for lossless denormalization, then materializes a local publisher helper. It is not a D1 snapshot/import. Keep these large local files and generated assets out of Git. The second command reads the actual Theatre recipe constructors, prepares every MAL/Comics no-filter/single-filter ranking in both explicit modes, IMDb genres/orders/types and Theatre recipes, genre shelves, complete title indexes, facts/detail lookups and Tankoban series. Lists use shared 256-item blocks; search records use 128-item blocks. Lookup/selection directories are sharded, so an ordinary request does not parse the entire index or all ranked lists. The generator preserves packed-view genre-count tie order rather than allowing local indexes to change it.
+
+`/internal/prebuilt/{LIBRARY_REVISION}/manifest.json` is private to the Worker, and every shared file is content-addressed. The worker authenticates and attests readiness first, then slices/join-resolves prepared data without catalogue SQL. Unknown/rare multi-filter or unprepared recipe selections retain the current D1 fallback; unsupported methods are still rejected before assets. A missing/corrupt referenced file fails closed. No remote QML or client contract change is introduced. Prefix search preserves the deployed packed directory's **literal normalized-prefix** contract, including `%`/`_`; Comics keeps its existing word/substring rules.
+
+Comics score payloads are year-scoped and need a new service publication at the year boundary. The current frozen MAL source has no future-dated valid start dates: its new-release lists remain valid on/after publication day without daily D1 fallback. The publisher rejects future-dated source snapshots until an admission-aware publisher is supplied, rather than silently letting daily fallback consume quota. Data changes still require a service publication, not an app release.
+
+The qualified local I01 packet contains 2,562 list selections and 10,957 private asset files, 870,984,318 bytes total; largest file 1,221,067 bytes. It leaves room under Free's 20,000 files/Worker and 25 MiB/file limits for the 135 artwork files plus content documents. These are publication-storage bytes, not a bulk client download: installed clients request only their selected chunks. The generator enforces a conservative 18,000-file ceiling with additional reserved headroom and a 4 MiB internal-file bound. **Count the complete combined publication, including retained artwork and any reports/legacy prepared assets, before deployment.** [Static Assets limits](https://developers.cloudflare.com/workers/platform/limits/#static-assets).
+
+Qualification (no deployment):
+
+```powershell
+npm run types
+npm run check
+$env:CATALOGUE_SOURCE_DIR='<frozen-source-directory>'
+$env:CATALOGUE_PACKED_DB='<local-oracle-directory>/static-source.sqlite'
+npm test
+python -m unittest discover -s projection -p test_static_source.py -v
+python -m unittest discover -s tests -p 'test_*publisher.py' -v
+node projection/verify_static.mjs <local-oracle-directory>/static-source.sqlite <static-publication> <evidence.json>
+# Optional: exactly20 read-only guest requests against existing staging (no admin/D1 writes):
+node projection/verify_static.mjs <local-oracle-directory>/static-source.sqlite <static-publication> <evidence.json> --live
+```
+
+Cost proof uses a local actual Worker/D1 with only readiness tables and **no catalogue tables**. Prepared cases must succeed, report `X-Catalogue-Delivery: prebuilt` and `X-Catalogue-D1-Rows: 0` after the first one-row readiness check. ETag/304 and guest authorization remain covered by HTTP tests. Live comparisons qualify the old service's results; they do not show the candidate deployed or real-user performance.
+
+Deployment proposal — **review/approval required; do not run as part of I01**:
+
+1. Copy the qualified private prebuilt tree into a fresh complete content/artwork publication, retaining existing immutable artwork URLs/documents and required legacy assets. Verify all referenced content hashes, total file count and file sizes. Point a reviewed copy of `wrangler.jsonc` at that complete directory. Keep the existing LIBRARY binding/revision and original D1 data; import commands: **none**.
+2. Run `npm run types`, `npm run check`, `npm test`, then `npx wrangler deploy --dry-run --config <reviewed-config> --outdir <fresh-dry-run-output>` against the actual complete publication.
+3. Only after Claude review and Hemanth approval: `npx wrangler deploy --config <reviewed-config>`. Preserve the preceding Worker/assets version for rollback; do not edit the existing LIBRARY in place.
+4. Run bounded authenticated first/deep-page/search/lookup checks and compare response headers/ETags. Proposed config enables 10% sampled Workers Logs with invocation logs off; no remote logging setting has been changed by authoring this candidate. Structured `catalogue-read` events include dataset/method, delivery path, measured D1 row reads and statement counts, **not** query arguments, IDs, tokens or IPs. Record prebuilt/edge/D1 shares, read totals, CPU/wall time, failures and cold/warm asset bytes for actual users before considering further infrastructure.
+
+The logs' sampled totals are estimates (scale/uncertainty must be stated); D1 dashboard daily usage remains authoritative. Illustrative capacity only: 70 Worker requests/session gives an approximately 1,400-session/day request ceiling before other traffic, irrespective of the near-zero prepared D1 read cost. A rare 50,000-row combined-filter miss would consume 1% of the daily D1 read allowance by itself. Measure the real request/fallback mix rather than promising capacity from the prepared benchmark.
 
 ## Original staging foundation record
 

@@ -46,13 +46,22 @@ int main(int argc,char** argv) {
      response={{"token","guest"},{"expiresAt","2099-01-01T00:00:00Z"}};
     } else {
      ++calls; lastHeaders=header; if(notModified) status=304; lastMethod=QString::fromUtf8(path.mid(path.lastIndexOf('/')+1)); lastArgs=request.value("args").toArray();
-     const QString selector=lastArgs.isEmpty() ? QString() : lastArgs.at(0).toString();
+     QString selector=lastArgs.isEmpty() ? QString() : lastArgs.at(0).toString();
+     if(selector.isEmpty() && !lastArgs.isEmpty() && lastArgs.at(0).isObject()) {
+      const auto qObj=lastArgs.at(0).toObject();
+      selector=qObj.value("genre").toString();
+      if(selector.isEmpty()) selector=qObj.value("tag").toString();
+      if(selector.isEmpty()) selector=qObj.value("type").toString();
+     }
+     if(lastMethod=="genreEntries" && lastArgs.size()>1) selector=lastArgs.at(1).toString();
      if (!failArg.isEmpty() && selector==failArg) status=503;
      require(header.contains("Bearer guest"),"guest bearer on semantic request");
      if(rejectOnce) { rejectOnce=false; status=401; }
      QJsonValue result=QJsonArray{QJsonObject{{"tt","tt001"},{"title",invalidResult ? "Invalid" : "Catalogued"},{"year",2020}}};
      if(lastMethod=="search" || lastMethod=="matchByTitle") result=QJsonArray{};
      if(lastMethod=="mangaById" || lastMethod=="series") result=QJsonObject{{"title","Detail"}};
+     if(lastMethod=="animeCatalog" || lastMethod=="genreEntries")
+      result=QJsonArray{QJsonObject{{"mal_id",44},{"title","Remote Anime"},{"type","TV"},{"year",2021},{"score",8.4},{"members",50000}}};
      if (!emptyArg.isEmpty() && selector==emptyArg) result=QJsonArray{};
      if(lastMethod=="discoverPageFiltered") {
       const bool comicsPage=path.startsWith("/v1/catalogue/comics/");
@@ -635,8 +644,14 @@ int main(int argc,char** argv) {
           && localPage.value("items").toList().size()==1
           && localPage.value("items").toList().at(0).toMap().value("title").toString()=="Local Manga"
           && !localMal.retryDiscoverPageFiltered("popular",{},false,0,24)
+          && localMal.animeCatalogState(QVariantMap{{"order","members"}},0,24).value("source").toString()=="local"
+          && localMal.animeCatalogState(QVariantMap{{"order","members"}},0,24).value("status").toString()=="success"
+          && !localMal.retryAnimeCatalog(QVariantMap{{"order","members"}},0,24)
+          && localMal.genreEntriesState("anime","Action","members",13).value("source").toString()=="local"
+          && localMal.genreEntriesState("anime","Action","members",13).value("status").toString()=="success"
+          && !localMal.retryGenreEntries("anime","Action","members",13)
           && !localMal.remotePending() && calls==beforeLocal,
-          "ready SQLite MAL answers real page without remote wait or retry");
+          "ready SQLite MAL answers real page and Theatre anime queries without remote wait or retry");
   until([&]{return !localMal.cachedDiscoverFilters("genre",false).isEmpty();});
  }
  // SQLite is authoritative for Comics too, independent of configured remote.
@@ -685,5 +700,115 @@ int main(int argc,char** argv) {
           && !localComics.remotePending() && calls==beforeLocalComics,
           "ready curated Comics SQLite takes precedence over configured remote");
  }
- std::cout<<"PASS async semantic RPC: existing fixture plus F2a, MAL and Comics page projection, notifications, failure, retry, offline and SQLite paths\n";
+ // A01 Theatre: ImdbCatalog titleCatalogState/retryTitleCatalog/remoteQueryChanged and MalCatalog animeCatalogState/retryAnimeCatalog/genreEntriesState/retryGenreEntries.
+ {
+  ImdbCatalog theatreImdb(""); const QString theatreImdbCache=temp.filePath("theatre-imdb.json");
+  theatreImdb.configureRemote(&nam,endpoint,theatreImdbCache);
+  const QMetaObject* imdbMeta=theatreImdb.metaObject();
+  const int imdbStateIdx=imdbMeta->indexOfMethod("titleCatalogState(QVariantMap,int,int)");
+  const int imdbRetryIdx=imdbMeta->indexOfMethod("retryTitleCatalog(QVariantMap,int,int)");
+  const int imdbNoticeIdx=imdbMeta->indexOfSignal("remoteQueryChanged(QString)");
+  require(imdbStateIdx>=0 && imdbRetryIdx>=0 && imdbNoticeIdx>=0
+          && QByteArray(imdbMeta->method(imdbStateIdx).typeName())=="QVariantMap"
+          && QByteArray(imdbMeta->method(imdbRetryIdx).typeName())=="bool"
+          && imdbMeta->method(imdbNoticeIdx).methodType()==QMetaMethod::Signal,
+          "IMDb titleCatalog state/retry/signal visible to QML metaobject");
+  const int malAnimeStateIdx=malMeta->indexOfMethod("animeCatalogState(QVariantMap,int,int)");
+  const int malAnimeRetryIdx=malMeta->indexOfMethod("retryAnimeCatalog(QVariantMap,int,int)");
+  const int malGenreStateIdx=malMeta->indexOfMethod("genreEntriesState(QString,QString,QString,int)");
+  const int malGenreRetryIdx=malMeta->indexOfMethod("retryGenreEntries(QString,QString,QString,int)");
+  require(malAnimeStateIdx>=0 && malAnimeRetryIdx>=0 && malGenreStateIdx>=0 && malGenreRetryIdx>=0,
+          "MAL animeCatalog and genreEntries state/retry visible to QML metaobject");
+  QStringList imdbNotices;
+  QObject::connect(&theatreImdb,&ImdbCatalog::remoteQueryChanged,&app,[&](const QString& k){imdbNotices.append(k);});
+  const QVariantMap qDrama{{"type","series"},{"genre","Drama"}};
+  const QVariantMap qFail{{"type","series"},{"genre","a01-imdb-fail"}};
+  const QVariantMap qEmpty{{"type","series"},{"genre","a01-imdb-empty"}};
+  const int beforeImdbInspect=calls;
+  const auto s0=theatreImdb.titleCatalogState(qDrama,0,24);
+  const auto s24=theatreImdb.titleCatalogState(qDrama,24,24);
+  require(s0.value("source").toString()=="remote" && s0.value("status").toString()=="missing"
+          && s0.value("key")!=s24.value("key") && calls==beforeImdbInspect && imdbNotices.isEmpty(),
+          "IMDb titleCatalogState is nonfetching and isolates offset keys");
+  emptyArg="a01-imdb-empty"; failArg="a01-imdb-fail";
+  theatreImdb.titleCatalog(qDrama,0,24);
+  theatreImdb.titleCatalog(qEmpty,0,24);
+  theatreImdb.titleCatalog(qFail,24,24);
+  until([&]{return !theatreImdb.remotePending();});
+  require(theatreImdb.titleCatalog(qDrama,0,24).size()==1
+          && theatreImdb.titleCatalogState(qDrama,0,24).value("status").toString()=="success"
+          && theatreImdb.titleCatalog(qEmpty,0,24).isEmpty()
+          && theatreImdb.titleCatalogState(qEmpty,0,24).value("status").toString()=="success"
+          && theatreImdb.titleCatalogState(qEmpty,0,24).value("cached").toBool()
+          && theatreImdb.titleCatalog(qFail,24,24).isEmpty()
+          && theatreImdb.titleCatalogState(qFail,24,24).value("status").toString()=="failure"
+          && !theatreImdb.titleCatalogState(qFail,24,24).value("cached").toBool()
+          && theatreImdb.titleCatalogState(qFail,24,24).value("retryable").toBool()
+          && imdbNotices.contains(s0.value("key").toString()),
+          "IMDb titleCatalog distinguishes remote success, valid empty, and uncached failure");
+  emptyArg.clear(); failArg.clear();
+  require(theatreImdb.retryTitleCatalog(qFail,24,24) && !theatreImdb.retryTitleCatalog(qFail,24,24),
+          "IMDb retryTitleCatalog bypasses failure cooldown once and dedupes in flight");
+  until([&]{return !theatreImdb.remotePending();});
+  require(theatreImdb.titleCatalogState(qFail,24,24).value("status").toString()=="success"
+          && theatreImdb.titleCatalog(qFail,24,24).size()==1,
+          "IMDb retryTitleCatalog recovers exact failed query");
+  MalCatalog theatreMal(""); theatreMal.configureRemote(&nam,endpoint,temp.filePath("theatre-mal.json"));
+  const QVariantMap qAnimeFail{{"order","members"},{"tag","a01-anime-fail"}};
+  failArg="a01-anime-fail";
+  theatreMal.animeCatalog(qAnimeFail,0,40);
+  theatreMal.genreEntries("anime","a01-anime-fail","members",13);
+  until([&]{return !theatreMal.remotePending();});
+  require(theatreMal.animeCatalogState(qAnimeFail,0,40).value("status").toString()=="failure"
+          && theatreMal.animeCatalogState(qAnimeFail,0,40).value("retryable").toBool()
+          && theatreMal.genreEntriesState("anime","a01-anime-fail","members",13).value("status").toString()=="failure"
+          && theatreMal.genreEntriesState("anime","a01-anime-fail","members",13).value("retryable").toBool(),
+          "MAL animeCatalogState and genreEntriesState surface uncached remote failures");
+  failArg.clear();
+  require(theatreMal.retryAnimeCatalog(qAnimeFail,0,40)
+          && theatreMal.retryGenreEntries("anime","a01-anime-fail","members",13),
+          "MAL retryAnimeCatalog and retryGenreEntries re-queue failed remote queries");
+  until([&]{return !theatreMal.remotePending();});
+  require(theatreMal.animeCatalogState(qAnimeFail,0,40).value("status").toString()=="success"
+          && theatreMal.animeCatalog(qAnimeFail,0,40).size()==1
+          && theatreMal.genreEntriesState("anime","a01-anime-fail","members",13).value("status").toString()=="success"
+          && theatreMal.genreEntries("anime","a01-anime-fail","members",13).size()==1,
+          "MAL retryAnimeCatalog and retryGenreEntries recover exact failed queries");
+ }
+ const QString localImdbDb=temp.filePath("imdb-local-fixture.sqlite");
+ {
+  QSqlDatabase db=QSqlDatabase::addDatabase("QSQLITE","imdb-page-test-seed");
+  db.setDatabaseName(localImdbDb);
+  require(db.open(),"local IMDb SQLite fixture opened");
+  QSqlQuery sql(db);
+  require(sql.exec("CREATE TABLE title(tt TEXT PRIMARY KEY,type TEXT,title TEXT,norm_title TEXT,"
+                   "year INTEGER,endYear INTEGER,runtimeMin INTEGER,genres TEXT,rating REAL,"
+                   "votes INTEGER,episodes INTEGER,origLang TEXT,isAnime INTEGER)")
+          && sql.exec("CREATE TABLE genre(tt TEXT,genre TEXT)")
+          && sql.exec("INSERT INTO title VALUES ('tt0133093','movie','The Matrix','matrix',"
+                      "1999,0,136,'[\"Action\",\"Sci-Fi\"]',8.7,2000000,0,'en',0)"),
+          "local IMDb SQLite fixture seeded");
+  db.close();
+ }
+ QSqlDatabase::removeDatabase("imdb-page-test-seed");
+ {
+  ImdbCatalog localImdb(localImdbDb);
+  localImdb.configureRemote(&nam,endpoint,temp.filePath("imdb-local-unused.json"));
+  const int beforeLocalImdb=calls;
+  const QVariantMap qMovie{{"type","movie"}};
+  const auto localImdbState=localImdb.titleCatalogState(qMovie,0,24);
+  const auto localImdbRows=localImdb.titleCatalog(qMovie,0,24);
+  require(localImdb.ready() && localImdb.remoteEnabled()
+          && localImdbState.value("source").toString()=="local"
+          && localImdbState.value("status").toString()=="success"
+          && localImdbState.value("key").toString().isEmpty()
+          && !localImdbState.value("enabled").toBool()
+          && !localImdbState.value("retryable").toBool()
+          && localImdbRows.size()==1
+          && localImdbRows.first().toMap().value("tt").toString()=="tt0133093"
+          && !localImdb.retryTitleCatalog(qMovie,0,24)
+          && !localImdb.remotePending() && calls==beforeLocalImdb,
+          "ready SQLite IMDb answers titleCatalog synchronously with local state");
+ }
+ std::cout<<"PASS async semantic RPC: existing fixture plus F2a, MAL, Comics, and Theatre page projection, notifications, failure, retry, offline and SQLite paths\n";
 }

@@ -9,7 +9,7 @@ const schema=JSON.parse(await readFile(new URL('../src/source-schema.json',impor
 const revision='a'.repeat(64),secret='isolated-content-test-signing-secret-32-characters';
 const args=['Batman',30];
 const fingerprint=createHash('sha256').update(JSON.stringify(args)).digest('hex');
-const preparedPath=`/internal/catalogue/comics/search/${fingerprint}.json`;
+const preparedPath=`/internal/catalogue/${revision}/stable/comics/search/${fingerprint}.json`;
 const prepared={apiVersion:1,revision,method:'search',result:[{gcdId:123,title:'Pinned Batman',year:1940,yearEnded:0,publisher:'DC',cover:'https://assets.example/a.png',downloads:4}]};
 const document={schemaVersion:1,revision,data:{title:'Curated content'}};
 const manifest={schemaVersion:1,revision,documents:{'universe-dcau':{revision,sha256:'b'.repeat(64)}},assets:{}};
@@ -52,16 +52,16 @@ test('Unauthenticated prepared catalogue, content RPC and content GET never reac
 test('Issued guest scope authorizes semantic prepared response only, hides internal paths and rejects forged leases',async t=>{
  const f=await fixture(t),token=await f.issue();
  const response=await f.request('/v1/catalogue/comics/search',token,{args});assert.equal(response.status,200);assert.deepEqual(await response.json(),prepared);assert.match(response.headers.get('Cache-Control'),/^private/);
- assert.deepEqual(f.assetCalls,[preparedPath]);
+ assert.deepEqual(f.assetCalls,['/internal/prebuilt/'+revision+'/manifest.json',preparedPath]);
  for(const path of ['/v1/catalogues','/v1/catalogues/comics__series','/admin/status'])assert.equal((await f.request(path,token)).status,401,path);
  for(const path of [preparedPath,'/internal/content/manifest.json','/internal/content/rpc-bundle.json'])assert.equal((await f.request(path,token)).status,404,path);
- assert.deepEqual(f.assetCalls,[preparedPath]);
+ assert.deepEqual(f.assetCalls,['/internal/prebuilt/'+revision+'/manifest.json',preparedPath]);
  const claims=JSON.parse(Buffer.from(token.split('.')[0],'base64url'));
  for(const override of [{scope:'admin'},{exp:claims.iat-1},{sourceHash:'stale'},{aud:'other'}]){
   const body=Buffer.from(JSON.stringify({...claims,...override})).toString('base64url');const invalid=body+'.'+createHmac('sha256',secret).update(body).digest('base64url');
   assert.equal((await f.request('/v1/catalogue/comics/search',invalid,{args})).status,401);
  }
- assert.deepEqual(f.assetCalls,[preparedPath]);
+ assert.deepEqual(f.assetCalls,['/internal/prebuilt/'+revision+'/manifest.json',preparedPath]);
 });
 
 test('Prepared responses remain behind library presence, readiness and exact revision gates',async t=>{

@@ -4,7 +4,7 @@ import {indexedRows} from './catalogue-lookup.ts';
 const seriesKeys: Row = {gcdId:'gcd_id',title:'title',year:'year',yearEnded:'year_ended',publisher:'publisher',cover:'cover',downloads:'__downloads'};
 const numeric = new Set(['gcdId','year','yearEnded','downloads','rank','issueCount','postId','yearStart','pages','parserVersion','canonicalIssueCount','coveredIssueCount','sourceCount','officialSourceCount','communitySourceCount']);
 function mapped(r: Row, keys: Row): Row { const out:Row={}; for(const [key,column] of Object.entries(keys)) out[key]=numeric.has(key)?integer(r[column as string]):text(r[column as string]); return out; }
-function legacyRow(r:Row) { return mapped(r,seriesKeys); }
+export function legacyRow(r:Row) { return mapped(r,seriesKeys); }
 function curatedRow(r:Row, synopsis=false):Row {
  const out=mapped(r,{locgId:'locg_id',rank:'rank',title:'title',year:'year',slug:'slug',publisher:'publisher',cover:'cover'});
  out.genres=array(r.__genres).map(text).join(','); if(synopsis)out.synopsis=text(r.synopsis); return out;
@@ -56,7 +56,7 @@ async function filters(db:CatalogueDb,axis:string):Promise<Row[]> {
  return rows.map(r=>({key:text(r.value),label:text(r.value),count:integer(r.total)}));
 }
 
-async function discover(db:CatalogueDb,args:any[],single:boolean):Promise<Row> {
+async function discover(db:CatalogueDb,args:any[],single:boolean,publication=false):Promise<Row> {
  let[catalog,active,_explicit,offset,limit]=args;
  if(single){catalog=args[0];active=args[1]||args[2]?[{axis:args[1],key:args[2]}]:[];offset=args[4];limit=args[5];}
  catalog=text(catalog);const off=Math.max(0,integer(offset)),lim=clamp(limit,24);
@@ -98,8 +98,11 @@ async function discover(db:CatalogueDb,args:any[],single:boolean):Promise<Row> {
   if(catalog==='community-collections')return integer(b.c.community_source_count)-integer(a.c.community_source_count)||lexical(b.c.latest_source_date,a.c.latest_source_date)||canon(a,b);
   return canon(a,b);
  });
- return pack(rows.slice(off,off+lim).map(r=>({locgId:text(r.locg_id),title:text(r.title),year:integer(r.year),publisher:text(r.publisher),cover:text(r.cover),genres:array(r.__genres).map(text).join(','),format:formatKey,availability:hasCoverage?integer(r.c.official_source_count)>0:r.availCount>0,availabilityState:text(r.c.availability_state),coverageRatio:number(r.c.coverage_ratio),latestSourceDate:text(r.c.latest_source_date),sourceDepth:integer(r.c.source_count),officialSourceCount:integer(r.c.official_source_count),communitySourceCount:integer(r.c.community_source_count),houseScore:r.score,houseComponents:r.components,explicit:false})),rows.length);
+ return pack((publication?rows:rows.slice(off,off+lim)).map(r=>({locgId:text(r.locg_id),title:text(r.title),year:integer(r.year),publisher:text(r.publisher),cover:text(r.cover),genres:array(r.__genres).map(text).join(','),format:formatKey,availability:hasCoverage?integer(r.c.official_source_count)>0:r.availCount>0,availabilityState:text(r.c.availability_state),coverageRatio:number(r.c.coverage_ratio),latestSourceDate:text(r.c.latest_source_date),sourceDepth:integer(r.c.source_count),officialSourceCount:integer(r.c.official_source_count),communitySourceCount:integer(r.c.community_source_count),houseScore:r.score,houseComponents:r.components,explicit:false})),rows.length);
 }
+
+// Publish-time only; no RPC allowlist entry. Share the exact scoring/tie owner.
+export async function comicsPreparedList(db:CatalogueDb,args:any[]):Promise<Row[]>{return (await discover(db,args,false,true)).items;}
 
 export async function comicsMethod(db:CatalogueDb,method:string,args:any[]):Promise<any>{
  if(method==='curatedReady')return ready(db);

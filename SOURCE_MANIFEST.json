@@ -2,12 +2,12 @@
   "schema": 1,
   "source_repository": "kingoftheseas56/Colosseum",
   "source_branch": "codex/119-current-non-feria-d1",
-  "source_commit": "afbcadf6664d2ef1f0abaf557a175c8e56902378",
+  "source_commit": "5588fb54378eb9205df30332df25d0de41742da0",
   "policy_sha256": "8516cedff2101c0f0ed9e99cedc500cc2a9761e4934787ef0ed25dd428f8ea13",
-  "original_files": 3954,
-  "original_bytes": 244846691,
-  "retained_files": 3822,
-  "retained_bytes": 62366273,
+  "original_files": 3963,
+  "original_bytes": 244948259,
+  "retained_files": 3831,
+  "retained_bytes": 62467841,
   "original_top_level": {
     ".clang-tidy": {
       "bytes": 557,
@@ -90,7 +90,7 @@
       "files": 1
     },
     "native": {
-      "bytes": 7932819,
+      "bytes": 7939379,
       "files": 665
     },
     "packaging": {
@@ -102,7 +102,7 @@
       "files": 1
     },
     "qml": {
-      "bytes": 7035205,
+      "bytes": 7048940,
       "files": 422
     },
     "release": {
@@ -118,12 +118,12 @@
       "files": 53
     },
     "server": {
-      "bytes": 1820815,
-      "files": 230
+      "bytes": 1877537,
+      "files": 238
     },
     "tests": {
-      "bytes": 24851201,
-      "files": 1879
+      "bytes": 24875752,
+      "files": 1880
     },
     "tools": {
       "bytes": 947334,
@@ -4068,17 +4068,17 @@
     },
     {
       "path": "native/engine/ImdbCatalog.cpp",
-      "bytes": 14175,
-      "git_blob": "52f93112684b6763ff5991bfdafc1100504d6e2e",
+      "bytes": 16091,
+      "git_blob": "59e7482b6cbe530fad147bc9c0777a9da05441c4",
       "mode": "100644",
-      "sha256": "d441169798285b3e1f70b81eb5aa5f6081c67022445a575b798daebd2d9e4710"
+      "sha256": "bbf655a6c48d250398bb96a3c588b99540866bd62e5f999bdd3a16d38d7a1bf5"
     },
     {
       "path": "native/engine/ImdbCatalog.h",
-      "bytes": 3480,
-      "git_blob": "4bb14a4d7ae95ae88025928ea33ed83572180a42",
+      "bytes": 4153,
+      "git_blob": "f0868d1b8083ac1e9b7d757748a85181b2dc368d",
       "mode": "100644",
-      "sha256": "6c5d3d2ba7a8a6fb0bf127c77e3dd7a741e88a536a31fd51e9f898e74f7dc583"
+      "sha256": "b5bcb4143389c3cd929237a7caaaf866b9d7b0fef278d22c6897ed0e1f31659f"
     },
     {
       "path": "native/engine/LocalDownloads.cpp",
@@ -4124,17 +4124,17 @@
     },
     {
       "path": "native/engine/MalCatalog.cpp",
-      "bytes": 36182,
-      "git_blob": "bc9c4a0edfe6ff73a6ccc607180f3d28745aa4f6",
+      "bytes": 39268,
+      "git_blob": "cbbbec845930bbe065cdfb3bf9737da9e6acd4b0",
       "mode": "100644",
-      "sha256": "b285a17973a77a4161106360d6d2e55d645620e40026b3d65f50ab3fac2d3961"
+      "sha256": "3eb332481dbb4546f9c0111a55f9605fd3b3e8be11805c572c9f0cc57f6b9709"
     },
     {
       "path": "native/engine/MalCatalog.h",
-      "bytes": 8925,
-      "git_blob": "3a22fa526e60f9a1ec9a0140b9b239cb7dd00046",
+      "bytes": 9810,
+      "git_blob": "c524a5f20291d6992c480e029c995e23ee17b5c9",
       "mode": "100644",
-      "sha256": "dc0ad943e913507b31384c4ae8a0080f70f99bc3802163bf12d3cb055e99a6ba"
+      "sha256": "44093ef9c170e5008c37e8c7611633c05c8131a862d3549ca020195cad617f10"
     },
     {
       "path": "native/engine/MangaDownloader.cpp",
@@ -8849,10 +8849,10 @@
     },
     {
       "path": "qml/TheatreApi.js",
-      "bytes": 55848,
-      "git_blob": "0f356d73b160ea5338f365b4d46251a4bdf77c62",
+      "bytes": 69072,
+      "git_blob": "62141f3ed10a8a42a73594ef6a3d921a2f048761",
       "mode": "100644",
-      "sha256": "d1bc752cb8925f076488a6ff0c52fee86e9f25f614eeeca0f0703bb4ea1005b4"
+      "sha256": "bb5e00f550c4b6df1f502ba8ea51dedf83cb9c248a36f8335865c626a71427d1"
     },
     {
       "path": "qml/TheatreCatalogPage.qml",
@@ -8954,10 +8954,10 @@
     },
     {
       "path": "qml/TheatreSeeAllPage.qml",
-      "bytes": 8704,
-      "git_blob": "8a57a7d75c58b3b536e7f7856982624b8b049405",
+      "bytes": 9215,
+      "git_blob": "882561c530a8760e6655d430a98551503f26565e",
       "mode": "100644",
-      "sha256": "b8177f0ec9aea4287708d0c558076d88b2ad3cc9ffb1b14eb9ecd4d400357089"
+      "sha256": "81f5bfc70159c0f3645d7b64dd1e1f793b80baa3f3f40657f30c5668fa314230"
     },
     {
       "path": "qml/TheatreSeries.qml",
@@ -12286,10 +12286,10 @@
     },
     {
       "path": "server/content-api/README.md",
-      "bytes": 15289,
-      "git_blob": "b5e16ff975b4884bf9934c43c1809d3636a9e8cc",
+      "bytes": 22175,
+      "git_blob": "cd3168ec2e72c6be6e0e6dde6b417547190d8f1f",
       "mode": "100644",
-      "sha256": "3f94d242add261d7aa98f23fdd3bf98aacbb2aabdc6ad6646d1c0bda54e6c6fa"
+      "sha256": "9a2b9ae3f7f5585422a88ece682211ae0a1dd41830c7782a8107365955219460"
     },
     {
       "path": "server/content-api/benchmark/README.md",
@@ -12474,6 +12474,20 @@
       "sha256": "357f110ca9bff06d8323d5eb1d0e60d9f53cb707b36efb605beaa45a7e732a59"
     },
     {
+      "path": "server/content-api/projection/static_catalogue.mjs",
+      "bytes": 12913,
+      "git_blob": "b6416f5af60b0b17ab7adf8370d12b224a9c0c56",
+      "mode": "100644",
+      "sha256": "e018c53752b6fa6dacf76d7823af77e6edd7d1b34d32c43553f788a1bd524b99"
+    },
+    {
+      "path": "server/content-api/projection/static_source.py",
+      "bytes": 2312,
+      "git_blob": "d2eb20d3488b37856ab7df33ad7938b81111b19c",
+      "mode": "100644",
+      "sha256": "061495fba6342bfbf09af16d0924c1caeaeb4f3c954d6f3bd575f61d88e96e02"
+    },
+    {
       "path": "server/content-api/projection/test_contracts.py",
       "bytes": 10376,
       "git_blob": "d399469802a992d84b32498614aa942c8eaa0c3d",
@@ -12495,11 +12509,25 @@
       "sha256": "e35fb438449d7b032a35f3d7e1d6322692d8a52e4da32269e20bb888b14838ea"
     },
     {
+      "path": "server/content-api/projection/test_static_source.py",
+      "bytes": 2810,
+      "git_blob": "a342379b4ab387286166d9cad836f00de23f96b1",
+      "mode": "100644",
+      "sha256": "ea667d7813a76bb787b835e60dac8e7caf1e9fe4a02bc93387d27392ce279192"
+    },
+    {
       "path": "server/content-api/projection/verify.py",
       "bytes": 10045,
       "git_blob": "cce2f1997e7dac78cda361b7d292de4b577262c8",
       "mode": "100644",
       "sha256": "a0050d03fd43c8328407ce784a87b5101cf98279a787e6ac8bff4cd572c9db26"
+    },
+    {
+      "path": "server/content-api/projection/verify_static.mjs",
+      "bytes": 9630,
+      "git_blob": "ed96b9b7d21d80c5df710c5dac4c7fe66218675b",
+      "mode": "100644",
+      "sha256": "ea666a462a4c3bee0f9406cb52c7dce6c207a59174fceef2c98ab092278a49a9"
     },
     {
       "path": "server/content-api/source-manifest.json",
@@ -12510,10 +12538,10 @@
     },
     {
       "path": "server/content-api/src/catalogue-comics.ts",
-      "bytes": 15363,
-      "git_blob": "030fb4b5f6201c7bc64579d7cd5da42047b825c6",
+      "bytes": 15624,
+      "git_blob": "6ce24212f3c3cbc1a3f0b009e27bb9d717eb16ca",
       "mode": "100644",
-      "sha256": "36cb5d3210af93fdf82074b1da49c415cea69b7f23e527456952b109c0fae872"
+      "sha256": "ce65fbfbabb49db39f8e1b343e5ff36b2858eaeaad4f8e14fd163caf85187f5e"
     },
     {
       "path": "server/content-api/src/catalogue-lookup.ts",
@@ -12523,11 +12551,25 @@
       "sha256": "c47632e497f4bf3932b7de5d35f3d97908a0a6ea27412e75c0dc301519631beb"
     },
     {
-      "path": "server/content-api/src/catalogue-semantic.ts",
-      "bytes": 13802,
-      "git_blob": "414946e6c89b9da57d1fe4e6015757189a043120",
+      "path": "server/content-api/src/catalogue-prebuilt.ts",
+      "bytes": 12751,
+      "git_blob": "25a40f9739b04c21ccee99048c23a2eea16a2288",
       "mode": "100644",
-      "sha256": "c901019a0372675b2a79fba61acf741133e679b15ec77505d004c3959218e89c"
+      "sha256": "01d965021f82e9d773a0abb36ae6ee5a2973fed7a1a575544ef041bcdb2d55ef"
+    },
+    {
+      "path": "server/content-api/src/catalogue-readiness.ts",
+      "bytes": 830,
+      "git_blob": "35ae4ba65537a5f8f051c4043f0698d18b2b7886",
+      "mode": "100644",
+      "sha256": "6a9d56fd9dad9a489b3146ccb91e832fcecf6f14f4248382d2d90fd68dc0bee2"
+    },
+    {
+      "path": "server/content-api/src/catalogue-semantic.ts",
+      "bytes": 13880,
+      "git_blob": "5277e92bfa0f6708c580de3883b06817d1c2d8ae",
+      "mode": "100644",
+      "sha256": "37fabde414e8d38358a513d476c0349ce660fba8d32411f71f677a485df4dccb"
     },
     {
       "path": "server/content-api/src/content-delivery.ts",
@@ -12538,10 +12580,10 @@
     },
     {
       "path": "server/content-api/src/index.ts",
-      "bytes": 22739,
-      "git_blob": "e9a4bf16939f987aa558727925a9476dd15606b3",
+      "bytes": 24846,
+      "git_blob": "7046ab6ee2755cd8f1dee3c83ac6b16250f99c22",
       "mode": "100644",
-      "sha256": "7f5b442320994d977332783c6c13718debe2a69569468ffb81ded51f5789eb79"
+      "sha256": "358f3879f97a02f771a36f1b1a81c56842765efaddff06c7eb8dd4755016979e"
     },
     {
       "path": "server/content-api/src/source-schema.json",
@@ -12559,10 +12601,10 @@
     },
     {
       "path": "server/content-api/tests/catalogue-http-cache.test.mjs",
-      "bytes": 6537,
-      "git_blob": "ae761f1d6e22d20282a1ed178b5809672a6ca37b",
+      "bytes": 6690,
+      "git_blob": "baf846ea42390749e864b9ad129b7c55a4cbef6e",
       "mode": "100644",
-      "sha256": "d0d524f8e72bfc2b1d2cc50a6281d002a498d641c68604fab071abe426455759"
+      "sha256": "3a182eb8dba279454e37271e48dce13583908bd258f63bdb126d847397c40b97"
     },
     {
       "path": "server/content-api/tests/catalogue-lookup.test.mjs",
@@ -12572,11 +12614,25 @@
       "sha256": "be69dd2542f785fcf1f9dbf099626aea6220de7282f5e3f576ce8290f86ca6a2"
     },
     {
+      "path": "server/content-api/tests/catalogue-prebuilt.test.mjs",
+      "bytes": 4516,
+      "git_blob": "1fca36646583071e1d690473acc0e445f23aecf1",
+      "mode": "100644",
+      "sha256": "4aee6b5fb7399a5cdfa8f0b18d3f0971c65447a6e6ad9331ae28a2dc6594bff2"
+    },
+    {
       "path": "server/content-api/tests/catalogue-precompute.test.mjs",
       "bytes": 1296,
       "git_blob": "b80997f4dca804685e8c2539ff311798c1440711",
       "mode": "100644",
       "sha256": "a538575f615cd87fe8709a73c6f23986b6818add914a197c0f23a8e97bcce895"
+    },
+    {
+      "path": "server/content-api/tests/catalogue-readiness.test.mjs",
+      "bytes": 987,
+      "git_blob": "3f7c46f78e6c5f0b47db01550ec46a366a081839",
+      "mode": "100644",
+      "sha256": "e92b32272d9e47767e1740c3d585a625bda550d7967a95bdf067b9be196be6c7"
     },
     {
       "path": "server/content-api/tests/catalogue-semantic.test.mjs",
@@ -12594,10 +12650,10 @@
     },
     {
       "path": "server/content-api/tests/full-content-delivery.test.mjs",
-      "bytes": 8137,
-      "git_blob": "d5de2963b787272362e7866072796fdf2ead2c51",
+      "bytes": 8300,
+      "git_blob": "77cf81b4a065b3409de8a102ffbbcbf5981e48e0",
       "mode": "100644",
-      "sha256": "e5d862011d28028cdb2d6c9c2436d996ed46d93c7fbfd3a8d0c9641ca9bcd5f1"
+      "sha256": "560f0315eea4a0db05f81653fd71d5599564f751527b818c7477c3e833401a91"
     },
     {
       "path": "server/content-api/tests/test_content_publisher.py",
@@ -12615,10 +12671,10 @@
     },
     {
       "path": "server/content-api/tests/worker.test.mjs",
-      "bytes": 16425,
-      "git_blob": "5b77c5179b84b095d0817b8d0efbbcadc733889d",
+      "bytes": 16494,
+      "git_blob": "eb21ed744ee5a5fd0c923a5f098ed975455baeb1",
       "mode": "100644",
-      "sha256": "02692f7f206fc83181f623f19b3bc4bee1124c1be43b948ff9c707829d87319a"
+      "sha256": "bf19c642856bf3c7094c0492f50e5ea3ad53030b5d07b172ee74601fe1ef24e3"
     },
     {
       "path": "server/content-api/tsconfig.json",
@@ -12629,10 +12685,10 @@
     },
     {
       "path": "server/content-api/wrangler.jsonc",
-      "bytes": 2042,
-      "git_blob": "c52c1625b2061b21140f44243b0ba367dfd70467",
+      "bytes": 2298,
+      "git_blob": "37e23c2e258052950c50a8fec513f89981a67541",
       "mode": "100644",
-      "sha256": "e0ae6ddfb138147aaf79d54167eff6ab61435b65cd4b2f988ca81cba78039cb8"
+      "sha256": "69c90f04b3c65c72df118bb4fb93dd2b2931719544b5abdbb0dae5278013ec57"
     },
     {
       "path": "server/trakt-token-broker/.env.example",
@@ -14148,10 +14204,10 @@
     },
     {
       "path": "tests/catalog_remote_harness.cpp",
-      "bytes": 49465,
-      "git_blob": "18824ad4890ffe24ab017660cba6160e468da8a2",
+      "bytes": 58267,
+      "git_blob": "3f9ce368f8557ef4e76cccaed876670c980f1c33",
       "mode": "100644",
-      "sha256": "27afbc7a68c3cc41ba1b207f47db6a82281df00578745283f8ae30dd3e23be01"
+      "sha256": "a2395d18f99fa30a9bb272d9a9bf611dcbf53b7c4df1b2b9ad31d7ab943cf9b7"
     },
     {
       "path": "tests/catalog_semantic_async_harness.qml",
@@ -25982,6 +26038,13 @@
       "git_blob": "e6ae6ff87f1f973e72e51f859d11ca635a16917c",
       "mode": "100644",
       "sha256": "1adea99d85047de5661c01bfae62942af48a601edf06e9bfcf64f87a9f666cd7"
+    },
+    {
+      "path": "tests/theatre_remote_delivery_test.mjs",
+      "bytes": 15749,
+      "git_blob": "9b9712dfda1594baec812250419ff58fae23f0a1",
+      "mode": "100644",
+      "sha256": "4f30adc72200b7f7f2e32fbdfc6de5949f38a2eadaf5e842b4cf1d879f881895"
     },
     {
       "path": "tests/theatre_row_preferences_harness.qml",
