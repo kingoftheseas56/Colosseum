@@ -43,6 +43,13 @@ public:
     // endYear,runtimeMin,rating,votes,episodes,origLang,isAnime,genres[]}.
     Q_INVOKABLE QVariantList titleCatalog(const QVariantMap& query,
                                           int offset = 0, int limit = 24) const;
+    // Exact-query state for titleCatalog. SQLite readiness is reported as
+    // source=local,status=success; no remote request is required in that mode.
+    Q_INVOKABLE QVariantMap titleCatalogState(const QVariantMap& query,
+                                              int offset = 0, int limit = 24) const;
+    // Explicit retry only for the same failed remote query key. Never fetch in local mode.
+    Q_INVOKABLE bool retryTitleCatalog(const QVariantMap& query,
+                                       int offset = 0, int limit = 24);
     // Offline normalized-title identity lookup. The baked IMDb schema has no
     // plot corpus, so returned synopsis is intentionally empty.
     Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0) const;
@@ -58,6 +65,8 @@ signals:
     void readyChanged();
     void revisionChanged();
     void requestFailed(QString method, QString reason);
+    // All native IMDb query keys; subscribers compare against the exact query state key.
+    void remoteQueryChanged(QString key);
 
 private:
     bool openAt(const QString& dbPath);

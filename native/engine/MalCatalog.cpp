@@ -46,6 +46,25 @@ bool validMedium(const QString& m) {
 
 // Single canonical description for remote read, state inspection, and retry.
 // No normalization: the accepted owner hashes exactly these five arguments.
+struct RemoteListQuery {
+    QString method;
+    QVariantList args;
+    QVariantList empty;
+};
+RemoteListQuery remoteGenreEntries(const QString& medium, const QString& genre,
+                                   const QString& order, int limit)
+{
+    return {QStringLiteral("genreEntries"),
+            QVariantList{medium, genre, order, limit},
+            QVariantList{}};
+}
+RemoteListQuery remoteAnimeCatalog(const QVariantMap& query, int offset, int limit)
+{
+    return {QStringLiteral("animeCatalog"),
+            QVariantList{query, offset, limit},
+            QVariantList{}};
+}
+
 struct RemoteDiscoverPage {
     QString method;
     QVariantList args;
@@ -160,10 +179,41 @@ void MalCatalog::closeForSwap()
         emit readyChanged();
 }
 
+QVariantMap MalCatalog::genreEntriesState(const QString& medium, const QString& genre,
+                                          const QString& order, int limit) const
+{
+    if (m_ok) {
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("error"), QString()},
+                {QStringLiteral("retryable"), false}};
+    }
+    const auto request = remoteGenreEntries(medium, genre, order, limit);
+    auto state = m_remote->queryState(request.method, request.args, request.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool MalCatalog::retryGenreEntries(const QString& medium, const QString& genre,
+                                   const QString& order, int limit)
+{
+    if (m_ok) return false;
+    const auto request = remoteGenreEntries(medium, genre, order, limit);
+    return m_remote->retry(request.method, request.args, request.empty);
+}
+
 QVariantList MalCatalog::genreEntries(const QString& medium, const QString& genre,
                                       const QString& order, int limit) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("genreEntries"), QVariantList{medium, genre, order, limit}, QVariantList{}).toList();
+    if (!m_ok) {
+        const auto request = remoteGenreEntries(medium, genre, order, limit);
+        return m_remote->read(request.method, request.args, request.empty).toList();
+    }
     QVariantList out;
     if (!m_ok || !validMedium(medium) || genre.isEmpty())
         return out;
@@ -222,9 +272,38 @@ QVariantList MalCatalog::genreEntries(const QString& medium, const QString& genr
     return out;
 }
 
+QVariantMap MalCatalog::animeCatalogState(const QVariantMap& query, int offset, int limit) const
+{
+    if (m_ok) {
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("error"), QString()},
+                {QStringLiteral("retryable"), false}};
+    }
+    const auto request = remoteAnimeCatalog(query, offset, limit);
+    auto state = m_remote->queryState(request.method, request.args, request.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool MalCatalog::retryAnimeCatalog(const QVariantMap& query, int offset, int limit)
+{
+    if (m_ok) return false;
+    const auto request = remoteAnimeCatalog(query, offset, limit);
+    return m_remote->retry(request.method, request.args, request.empty);
+}
+
 QVariantList MalCatalog::animeCatalog(const QVariantMap& query, int offset, int limit) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("animeCatalog"), QVariantList{query, offset, limit}, QVariantList{}).toList();
+    if (!m_ok) {
+        const auto request = remoteAnimeCatalog(query, offset, limit);
+        return m_remote->read(request.method, request.args, request.empty).toList();
+    }
     QVariantList out;
     if (!m_ok)
         return out;

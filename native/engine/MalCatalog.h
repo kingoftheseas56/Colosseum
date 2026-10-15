@@ -52,6 +52,10 @@ public:
     // medium: "anime" | "manga"; order: "members" | "score". Jikan-shaped maps.
     Q_INVOKABLE QVariantList genreEntries(const QString& medium, const QString& genre,
                                           const QString& order, int limit = 24) const;
+    Q_INVOKABLE QVariantMap genreEntriesState(const QString& medium, const QString& genre,
+                                              const QString& order, int limit = 24) const;
+    Q_INVOKABLE bool retryGenreEntries(const QString& medium, const QString& genre,
+                                       const QString& order, int limit = 24);
     // the TRUE catalog total for a genre (baked before the browsable slice)
     Q_INVOKABLE int genreCount(const QString& medium, const QString& genre) const;
     // [{name, count}] for index tiles, count DESC
@@ -65,6 +69,13 @@ public:
     // them unchanged.
     Q_INVOKABLE QVariantList animeCatalog(const QVariantMap& query,
                                           int offset = 0, int limit = 24) const;
+    // Exact-query state for animeCatalog. SQLite readiness is reported as
+    // source=local,status=success; no remote request is required in that mode.
+    Q_INVOKABLE QVariantMap animeCatalogState(const QVariantMap& query,
+                                              int offset = 0, int limit = 24) const;
+    // Explicit retry only for the same failed remote query key. Never fetch in local mode.
+    Q_INVOKABLE bool retryAnimeCatalog(const QVariantMap& query,
+                                       int offset = 0, int limit = 24);
 
     // Offline exact-title identity lookup. Returns every normalized-exact
     // candidate so the caller can reject ambiguous matches conservatively.

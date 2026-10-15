@@ -23,6 +23,7 @@ Item {
     property bool loadingMore: false
     property bool hasMore: true
     property string errorText: ""
+    property string warning: ""
     property bool missing: false
     property string providerName: ""
     property int generation: 0
@@ -46,7 +47,7 @@ Item {
 
     function reset() {
         seeAll.cancelPage();
-        seeAll.items = []; seeAll.hasMore = true; seeAll.errorText = "";
+        seeAll.items = []; seeAll.hasMore = true; seeAll.errorText = ""; seeAll.warning = "";
         seeAll.missing = false; seeAll.providerName = "";
         seeAll.loading = false; seeAll.loadingMore = false; seeAll.pendingOffset = -1;
         seeAll.generation += 1;
@@ -72,6 +73,7 @@ Item {
                 seeAll.hasMore = false; return;
             }
             if (res.error) { seeAll.errorText = res.error; return; }   // items kept -> retry repeats this offset
+            seeAll.warning = res.warning || "";
             seeAll.items = (offset === 0) ? (res.items || []) : seeAll.items.concat(res.items || []);
             seeAll.hasMore = res.hasMore === true;
         });
@@ -79,7 +81,15 @@ Item {
     function requestMore() {
         if (seeAll.hasMore && !seeAll.loadingMore && !seeAll.loading) seeAll.loadPage(seeAll.items.length);
     }
-    function retry() { seeAll.errorText = ""; seeAll.loadPage(seeAll.items.length); }
+    function retry() {
+        var offset = seeAll.items.length;
+        var opts = { generation: seeAll.generation, malCatalog: seeAll.malCatalog, imdbCatalog: seeAll.imdbCatalog,
+                     showExplicit: seeAll.showExplicit, explicitFilter: seeAll.explicitFilter };
+        if (!seeAll.pageLoader && typeof TheatreApi.retryRowPage === "function")
+            TheatreApi.retryRowPage(seeAll.pin, offset, 40, opts);
+        seeAll.errorText = "";
+        seeAll.loadPage(offset);
+    }
 
     // ── header: back · title · factual source attribution ──
     Item {
