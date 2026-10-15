@@ -1015,10 +1015,12 @@ add_executable(tst_vault_imdb_match
     auto/vault/tst_vault_imdb_match.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
 target_include_directories(tst_vault_imdb_match PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_imdb_match PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_imdb_match PRIVATE Qt6::Core Qt6::Sql Qt6::Network Qt6::Test)
 set_target_properties(tst_vault_imdb_match PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_imdb_match POST_BUILD
@@ -1047,10 +1049,12 @@ add_executable(tst_vault_identifier
     "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h")
 target_include_directories(tst_vault_identifier PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
 set_target_properties(tst_vault_identifier PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_identifier POST_BUILD
@@ -1241,6 +1245,8 @@ add_executable(tst_vault_forensics
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
 target_include_directories(tst_vault_forensics PRIVATE
@@ -1398,6 +1404,8 @@ add_executable(tst_window_set_state
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
 target_include_directories(tst_window_set_state PRIVATE
@@ -1486,6 +1494,8 @@ add_executable(tst_player1_selftest_bridge
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
 target_include_directories(tst_player1_selftest_bridge PRIVATE
