@@ -537,6 +537,7 @@ struct StaticCatalogueResolver::Impl {
         QElapsedTimer clock;
         qint64 bytes = 0;
         int restarts = 0;
+        bool refreshedMissing = false;
         QPointer<QTimer> deadline;
         QMetaObject::Connection destroyed;
     };
@@ -961,6 +962,17 @@ struct StaticCatalogueResolver::Impl {
                         return;
                     record(job, loaded);
                     if (!error.isEmpty()) {
+                        // A deployment may retire the last publication's paths
+                        // while this client still has its short-lived entry.
+                        // Revalidate once; an unchanged/malformed publication
+                        // still fails, never becomes empty or SQL fallback.
+                        if (!job->refreshedMissing &&
+                            (error == "STATIC_HTTP_404" || error == "STATIC_HTTP_410")) {
+                            job->refreshedMissing = true;
+                            checked = {};
+                            ensure(id);
+                            return;
+                        }
                         finish(id, Status::Failure, {}, error);
                         return;
                     }
@@ -995,6 +1007,15 @@ struct StaticCatalogueResolver::Impl {
                 record(j, e);
             }
             first = false;
+            if (!j->index.isEmpty() && j->index.value("revision") != index.value("revision")) {
+                if (++j->restarts > 2) {
+                    finish(id, Status::Failure, {}, "STATIC_REVISION_CHANGED");
+                    continue;
+                }
+                workingBytes -= j->bytes;
+                j->bytes = 0;
+                j->files.clear();
+            }
             j->index = index;
             if (unavailable) {
                 // An authoritative optional-entry absence announces a legacy-only

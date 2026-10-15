@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     QHash<QString, QByteArray> files;
     QString pub = hash("publication-one"), source(64, 'a'), leaf;
     int gets = 0, posts = 0;
-    bool offline = false, holdLeaf = false;
+    bool offline = false, holdLeaf = false, rotateMissing = false;
     QList<QPointer<QTcpSocket>> held;
     QVariantList measured;
     auto publish = [&](const QString &label) {
@@ -156,6 +156,12 @@ int main(int argc, char **argv) {
                         body = files[path];
                     else
                         status = 404;
+                }
+                if (rotateMissing && path == leaf) {
+                    rotateMissing = false;
+                    publish("publication-hot-update");
+                    status = 404;
+                    body.clear();
                 }
                 if (holdLeaf && path == leaf) {
                     held.append(s);
@@ -401,6 +407,13 @@ int main(int argc, char **argv) {
                 remote.read("titleCatalog", preparedArgs, QVariantList()).toList().at(0)
                     .toMap().value("title") == "worker",
             "warm client falls back to legacy Worker when rollback removes public entry");
+    publish("publication-before-hot-update");
+    rotateMissing = true;
+    auto *hot = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("hot-update"), &app);
+    const auto switched = resolve(hot);
+    require(switched.status == StaticCatalogueResolver::Status::Prepared &&
+                switched.result.toArray().at(0).toObject().value("title") == "publication-hot-update",
+            "retired shard triggers one entry refresh and completes from the new publication");
     require(QJsonDocument::fromVariant(measured).isArray(), "measurement rows available");
     if (argc > 1) {
         QFile report(QString::fromLocal8Bit(argv[1]));
