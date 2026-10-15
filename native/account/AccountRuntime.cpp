@@ -629,7 +629,8 @@ AccountRuntime::AccountRuntime(
       m_credentialStore(credentialStore
           ? std::move(credentialStore)
           : createAccountCredentialStore(Colosseum::Platform::Kind::Other)),
-      m_recoveryKeyPresenter(&m_sensitiveClipboard),
+      m_sensitiveClipboard(createAccountSensitiveClipboard()),
+      m_recoveryKeyPresenter(m_sensitiveClipboard.get()),
       m_profileCoordinator(
           &m_profileStores,
           QString(),

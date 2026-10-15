@@ -6,7 +6,6 @@
 // Emits intent signals; the host (home / world) decides what navigation happens.
 
 import QtQuick
-import QtQuick.Window
 
 Item {
     id: bar
@@ -28,13 +27,9 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
-    // Android keeps the shared shell, but desktop window chrome has no meaning there.
-    // This is writable so the viewport harness can exercise Android geometry on desktop CI.
-    property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: adaptive; viewportWidth: bar.width }
-    readonly property bool compactLayout: adaptive.compactChrome
-    readonly property string layoutClass: adaptive.layoutClass
-    readonly property bool desktopWindowControlsVisible: !bar.androidHost
+    // Retained as a no-op hook for shared callers (WorldPage, ExtensionsStorePage);
+    // QQmlFileSelector selects qml/+android/TopBar.qml on Android.
+    property bool androidHost: false
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
@@ -45,61 +40,7 @@ Item {
             || accountController.mode === "offline")
     readonly property bool localDevice: accountController
         && accountController.mode === "localOnly"
-    readonly property bool televisionMode: {
-        const w = bar.Window.window
-        return !!(w && w["televisionMode"] === true)
-    }
-
-    function isInside(item) {
-        var p = item
-        while (p) {
-            if (p === bar) return true
-            p = p.parent
-        }
-        return false
-    }
-    function focusFromActive(forward, stayInside) {
-        const w = bar.Window.window
-        const from = w ? w.activeFocusItem : null
-        if (!from || !bar.isInside(from)) return false
-        var target = from.nextItemInFocusChain(forward)
-        var guard = 0
-        while (target && target !== from && guard++ < 48) {
-            if (target.visible && target.enabled && target.activeFocusOnTab) {
-                if (stayInside && !bar.isInside(target)) return false
-                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
-                return true
-            }
-            target = target.nextItemInFocusChain(forward)
-        }
-        return false
-    }
-    function moveHorizontalFocus(forward) { return bar.focusFromActive(forward, true) }
-    function moveVerticalFocus(forward) { return bar.focusFromActive(forward, false) }
-    function focusFirst() {
-        var target = bar.nextItemInFocusChain(true)
-        var guard = 0
-        while (target && target !== bar && guard++ < 32) {
-            if (bar.isInside(target) && target.visible && target.enabled && target.activeFocusOnTab) {
-                target.forceActiveFocus(Qt.TabFocusReason)
-                return true
-            }
-            target = target.nextItemInFocusChain(true)
-        }
-        return false
-    }
-
-    Keys.priority: Keys.AfterItem
-    Keys.onPressed: (event) => {
-        if (!bar.televisionMode) {
-            spatialNav.handle(event)
-            return
-        }
-        if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
-        else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
-        else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)
-        else if (event.key === Qt.Key_Down) event.accepted = bar.moveVerticalFocus(true)
-    }
+    Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal mediumSelected(string medium)
     signal homeRequested()
@@ -154,9 +95,7 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    // Narrow Android no longer needs the compact layout's second row once S1 replaces world pills.
-    implicitHeight: bar.televisionMode ? 68
-                    : (bar.androidHost && bar.width < 840 ? 56 : adaptive.topBarHeight)
+    implicitHeight: 56
 
     Theme { id: theme }
 
@@ -195,7 +134,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 22; height: 22
             source: sysRoot.source
-            sourceSize.width: bar.televisionMode ? 30 : 22; sourceSize.height: sourceSize.width
+            sourceSize.width: 22; sourceSize.height: 22
             fillMode: Image.PreserveAspectFit
             opacity: input.interactionActive ? 1.0 : 0.72
         }
@@ -213,7 +152,7 @@ Item {
             id: input
             anchors.fill: parent
             accessibleName: sysRoot.accessibleName
-            focusRadius: bar.televisionMode ? 9 : 6
+            focusRadius: 6
             onTriggered: sysRoot.clicked()
         }
     }
@@ -232,8 +171,8 @@ Item {
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.televisionMode ? 44 : (bar.compactLayout ? 18 : 34))
-        implicitHeight: bar.televisionMode ? 42 : (bar.compactLayout ? 32 : 34)
+        implicitWidth: pillContent.implicitWidth + 34
+        implicitHeight: 34
 
         Rectangle {
             anchors.fill: parent; radius: 999
@@ -249,12 +188,12 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: bar.televisionMode ? 16 : (bar.compactLayout ? 12 : 14)
+                font.family: theme.ui; font.pixelSize: 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
             Rectangle {   // "SOON" marker — placeholder mode, no world yet
-                visible: pill.comingSoon && !bar.compactLayout
+                visible: pill.comingSoon
                 anchors.verticalCenter: parent.verticalCenter
                 radius: 4; height: 15; width: soonText.implicitWidth + 10
                 color: Qt.rgba(1,1,1,0.10)
@@ -279,12 +218,11 @@ Item {
     Row {
         id: leftCluster
         x: 0
-        y: bar.compactLayout ? 7 : Math.round((bar.height - height) / 2)
-        spacing: bar.compactLayout ? 10 : 18
+        y: Math.round((bar.height - height) / 2)
+        spacing: 18
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
-            // Android has no Home to go back to; a back-only title page keeps its arrow.
-            visible: bar.activeMedium !== "" && !(bar.androidHost && !bar.backOnly)
+            visible: bar.activeMedium !== ""
             label: bar.backOnly && bar.pageTitle.length ? "" : "Home"
             labelSize: 14
             idleColor: theme.inkDim
@@ -308,24 +246,23 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.televisionMode ? 36 : (bar.compactLayout ? 19 : 32) }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 18 : (bar.compactLayout ? 10 : 16)
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: bar.televisionMode ? 4 : (bar.compactLayout ? 2 : 4) }
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
             }
-            Text { visible: bar.televisionMode || !bar.compactLayout; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 15 : 13 }
+            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
         }
     }
 
     // ---- center: library pills in a glass capsule ----
     Glass {
-        // Android's phone/tablet shell owns world switching; desktop keeps the existing capsule.
-        visible: !bar.backOnly && !bar.androidHost
+        visible: !bar.backOnly
         backdrop: bar.backdrop
         x: Math.round((bar.width - width) / 2)
-        y: bar.compactLayout ? bar.height - height : Math.round((bar.height - height) / 2)
+        y: Math.round((bar.height - height) / 2)
         radius: 999
-        width: Math.min(bar.width, pillsRow.implicitWidth + (bar.televisionMode ? 18 : (bar.compactLayout ? 8 : 14)))
-        height: bar.televisionMode ? 56 : (bar.compactLayout ? 42 : 46)
+        width: Math.min(bar.width, pillsRow.implicitWidth + 14)
+        height: 46
         Row {
             id: pillsRow
             anchors.centerIn: parent
@@ -557,17 +494,16 @@ Item {
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()
         }
-        SysIcon { visible: bar.desktopWindowControlsVisible; source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
+        SysIcon { source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while
         // fullscreen. Drives the same shell flip as the F11 developer door.
         SysIcon {
-            visible: bar.desktopWindowControlsVisible
             source: bar.shellWindowed ? "../assets/icons/fullscreen.svg"
                                       : "../assets/icons/fullscreen-exit.svg"
             accessibleName: bar.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             onClicked: bar.fullscreenClicked()
         }
-        SysIcon { visible: bar.desktopWindowControlsVisible; source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
+        SysIcon { source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
     }
 }

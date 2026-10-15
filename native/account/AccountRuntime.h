@@ -25,11 +25,7 @@
 #include "SyncAdapterRegistry.h"
 #include "ProfileStoreRuntime.h"
 #include "AccountCredentialStore.h"
-#if defined(Q_OS_ANDROID)
-#include "AndroidAccountSensitiveClipboard.h"
-#else
-#include "WindowsAccountSensitiveClipboard.h"
-#endif
+#include "AccountSensitiveClipboard.h"
 #include "stremio/StremioSync.h"
 #include "stremio/StremioTheatreImporter.h"
 
@@ -143,11 +139,7 @@ private:
     std::unique_ptr<AccountCredentialStore> m_credentialStore;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;
-#if defined(Q_OS_ANDROID)
-    AndroidAccountSensitiveClipboard m_sensitiveClipboard;
-#else
-    WindowsAccountSensitiveClipboard m_sensitiveClipboard;
-#endif
+    std::unique_ptr<AccountSensitiveClipboard> m_sensitiveClipboard;
     AccountRecoveryKeyPresenter m_recoveryKeyPresenter;
     ProfileStoreRuntime m_profileStores;
     RatingsReviewsDelivery m_ratingsReviewsDelivery;

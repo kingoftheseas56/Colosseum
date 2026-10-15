@@ -1,10 +1,14 @@
 #include "AccountCredentialStoreFactory.h"
 
+#include "AndroidSecureStorageBackend.h"
+#include "AndroidAccountSensitiveClipboard.h"
+
 #if defined(Q_OS_ANDROID)
 #include "AndroidAccountCredentialStore.h"
 #include "AndroidJniSecureStorageBackend.h"
 #elif defined(Q_OS_WIN)
 #include "WindowsAccountCredentialStore.h"
+#include "WindowsAccountSensitiveClipboard.h"
 #endif
 
 namespace {
@@ -55,4 +59,21 @@ std::unique_ptr<AccountCredentialStore> createAccountCredentialStore(
         return std::make_unique<UnavailableAccountCredentialStore>();
     }
     return std::make_unique<UnavailableAccountCredentialStore>();
+}
+
+std::unique_ptr<AccountSensitiveClipboard> createAccountSensitiveClipboard(
+    Colosseum::Platform::Kind kind) {
+    switch (kind) {
+    case Colosseum::Platform::Kind::WindowsDesktop:
+#if defined(Q_OS_WIN)
+        return std::make_unique<WindowsAccountSensitiveClipboard>();
+#else
+        return std::make_unique<AndroidAccountSensitiveClipboard>();
+#endif
+    case Colosseum::Platform::Kind::Android:
+    case Colosseum::Platform::Kind::LinuxDesktop:
+    case Colosseum::Platform::Kind::Other:
+        return std::make_unique<AndroidAccountSensitiveClipboard>();
+    }
+    return std::make_unique<AndroidAccountSensitiveClipboard>();
 }

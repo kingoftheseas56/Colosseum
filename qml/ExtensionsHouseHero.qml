@@ -7,7 +7,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Effects
-import QtQuick.Window
 
 Item {
     id: hero
@@ -18,10 +17,6 @@ Item {
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
-    readonly property bool phoneLayout: {
-        const w = hero.Window.window
-        return !!(w && w.androidHost && w.width < 840)
-    }
     readonly property var houseApps: [
         { name: "Universes", id: "", icon: "../assets/icons/universes-atom.svg", kind: "universes" },
         { name: "Grand Database", id: "", icon: "../assets/addon-logos/colosseum-grand-database.png", kind: "builtin" },
@@ -32,11 +27,10 @@ Item {
         { name: "LibGen", id: "colosseum.well.libgen", icon: "../assets/addon-logos/libgen.ico", kind: "source" },
         { name: "AudioBookBay", id: "colosseum.well.audiobookbay", icon: "../assets/addon-logos/audiobookbay.png", kind: "source" }
     ]
-    readonly property real sourceToggleMinimumTouchTarget: 44
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
-    height: phoneLayout ? mobileHouseList.y + mobileHouseList.implicitHeight + 8 : 330
+    height: 330
 
     Theme { id: theme }
 
@@ -55,13 +49,12 @@ Item {
 
     Timer {
         interval: 7500; repeat: true
-        running: hero.visible && !hero.phoneLayout
+        running: hero.visible
         onTriggered: hero.universeIndex = (hero.universeIndex + 1) % banners.count
     }
 
     Rectangle {
         id: frame
-        visible: !hero.phoneLayout
         anchors.fill: parent
         radius: 28
         color: "#0b0d12"
@@ -148,102 +141,9 @@ Item {
         }
     }
 
-    // Narrow host: readable rows, with the switch isolated from the row action.
-    Column {
-        id: mobileHouseList
-        visible: hero.phoneLayout
-        y: 58
-        width: parent.width
-        spacing: 0
-
-        Repeater {
-            model: hero.houseApps
-            delegate: Item {
-                id: mobileRow
-                required property var modelData
-                readonly property bool hasToggle: modelData.kind === "source"
-                readonly property bool installed: hasToggle && hero.isInstalled(modelData.id)
-                width: mobileHouseList.width
-                height: 60
-
-                Rectangle {
-                    anchors.bottom: parent.bottom
-                    width: parent.width
-                    height: 1
-                    color: Qt.rgba(1, 1, 1, 0.12)
-                }
-                KeyboardAction {
-                    objectName: "houseRow_" + (mobileRow.modelData.id || mobileRow.modelData.kind)
-                    anchors.fill: parent
-                    enabled: mobileRow.modelData.kind === "universes"
-                             || mobileRow.modelData.id === "colosseum.well.tankoyomi"
-                    accessibleName: mobileRow.modelData.kind === "universes"
-                                    ? "Open Universes" : mobileRow.modelData.name + " settings"
-                    focusRadius: 8
-                    onTriggered: mobileRow.modelData.kind === "universes"
-                                 ? hero.universesRequested()
-                                 : hero.configureRequested(mobileRow.modelData.id)
-                }
-                Row {
-                    anchors.fill: parent
-                    anchors.leftMargin: 2
-                    spacing: 12
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 44; height: 44; radius: 10
-                        color: "#f0efeb"
-                        Image {
-                            anchors.centerIn: parent
-                            width: 32; height: 32
-                            source: mobileRow.modelData.icon
-                            fillMode: Image.PreserveAspectFit
-                        }
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Math.max(0, mobileRow.width - 44 - 24 - (mobileRow.hasToggle ? 54 : 0))
-                        text: mobileRow.modelData.name
-                        color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 16; font.weight: Font.Medium
-                        wrapMode: Text.WordWrap
-                    }
-                    Item {
-                        visible: mobileRow.hasToggle
-                        width: visible ? 42 : 0
-                        height: parent.height
-                        Rectangle {
-                            id: mobileToggle
-                            objectName: "houseToggle_" + mobileRow.modelData.id
-                            readonly property bool checked: mobileRow.installed
-                            anchors.centerIn: parent
-                            width: 42; height: 28; radius: 14
-                            color: mobileRow.installed ? "#328d67" : "#454953"
-                            opacity: hero.isPresent(mobileRow.modelData.id) ? 1 : 0.5
-                            Rectangle {
-                                x: mobileRow.installed ? parent.width - width - 4 : 4
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 20; height: 20; radius: 10
-                                color: "white"
-                            }
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            accessibleName: (mobileRow.installed ? "Turn off " : "Turn on ")
-                                            + mobileRow.modelData.name
-                            enabled: hero.isPresent(mobileRow.modelData.id)
-                            focusRadius: 14
-                            onTriggered: hero.toggle(mobileRow.modelData.id)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // ---- the glass tray of House apps ----
     Item {
         id: tray
-        visible: !hero.phoneLayout
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 22
         width: parent.width * 0.94
@@ -360,14 +260,8 @@ Item {
                             }
                             KeyboardAction {
                                 id: toggleAction
-                                anchors.centerIn: parent
-                                width: Qt.platform.os === "android"
-                                       ? Math.max(parent.width, hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale))
-                                       : parent.width
-                                height: Qt.platform.os === "android"
-                                        ? Math.max(parent.height, hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale))
-                                        : parent.height
-                                focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
+                                anchors.fill: parent
+                                focusInset: -2
                                 enabled: hero.isPresent(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
                                 focusRadius: 14

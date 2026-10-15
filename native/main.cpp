@@ -2,11 +2,6 @@
 // fingerprint emitted by the native build; explicit dev QML overrides remain opt-in.
 
 #include <QDir>
-#if defined(Q_OS_ANDROID)
-#include <QFont>
-#include <QFontDatabase>
-#include <QFontInfo>
-#endif
 #include <QGuiApplication>
 #include <QHash>
 #include <QHostAddress>
@@ -131,11 +126,11 @@
 #include "player/downloadstore.h"
 #include "player/livestore.h"
 #if defined(Q_OS_ANDROID)
-#include "player/androidmedia3item.h"
-#include "player/androidseekthumbnailer.h"
+#include "platform/android/AndroidBootstrap.h"
 #else
 #include "player/mpvitem.h"
 #include "player/seekthumbnailer.h"
+#include "player/windowmodestore.h"
 #endif
 #include "player/powerstore.h"
 #include "player/roomstore.h"
@@ -144,13 +139,6 @@
 #include "watchparty/WatchPartyServiceEndpoint.h"
 #include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
-#if defined(Q_OS_ANDROID)
-#include "platform/AndroidWindowModeAdapter.h"
-#include "platform/AndroidGraphicsWorkarounds.h"
-#include "reader2/AndroidEbookRenderer.h"
-#else
-#include "player/windowmodestore.h"
-#endif
 #include "torrent/TankorentSearchService.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
@@ -671,65 +659,10 @@ int main(int argc, char *argv[]) {
 
     QString startupManifestPathOverride;
 #if defined(Q_OS_ANDROID)
-    // Android packages the filtered source-shaped runtime under assets:/. Materialize
-    // it once per content hash into app-private storage before any owner resolves
-    // checkout-relative qml/assets/resources paths.
-    QString runtimeBundleError;
-    const QString runtimeCacheRoot = QDir(instanceAppData).filePath(QStringLiteral("runtime"));
-    const auto runtimeRoot = materializeRuntimeBundle(
-        QStringLiteral("assets:/colosseum-runtime"), runtimeCacheRoot, &runtimeBundleError);
-    if (!runtimeRoot) {
-        qCritical("[boot] Android runtime bundle rejected: %s",
-                  qUtf8Printable(runtimeBundleError));
+    if (!Colosseum::Platform::bootstrapAndroidStartup(instanceAppData, &startupManifestPathOverride))
         return -1;
-    }
-    if (!QDir::setCurrent(*runtimeRoot)) {
-        qCritical("[boot] Android runtime root unavailable: %s", qUtf8Printable(*runtimeRoot));
-        return -1;
-    }
-
-    // QML asks for "Segoe UI" in Theme.ui and several direct use sites. Android does not ship
-    // that family, so bind the requested UI family to Android's real sans-serif family before
-    // installing the symbol fallback. Otherwise the Script_Common fallback wins for ordinary
-    // body text as well as missing symbols.
-    QFont::insertSubstitution(QStringLiteral("Segoe UI"), QStringLiteral("Roboto"));
-    const QFont requestedUiFont(QStringLiteral("Segoe UI"));
-    const QFontInfo resolvedUiFontInfo(requestedUiFont);
-    qInfo("[boot] Android UI font substitution: requested=Segoe UI substitute=Roboto resolved=%s",
-          qUtf8Printable(resolvedUiFontInfo.family()));
-
-    // Android's system fonts miss several symbols used by existing QML controls. Keep every
-    // use site platform-neutral and register one broad symbol fallback after the packaged
-    // runtime has been materialized, but before any QML text is created.
-    const QString symbolFontPath =
-        QDir(*runtimeRoot).filePath(QStringLiteral("assets/fonts/Unifont-17.0.05.otf"));
-    const int symbolFontId = QFontDatabase::addApplicationFont(symbolFontPath);
-    if (symbolFontId < 0) {
-        qWarning("[boot] Android symbol fallback font failed to load: source=%s",
-                 qUtf8Printable(symbolFontPath));
-    } else {
-        const QStringList symbolFontFamilies =
-            QFontDatabase::applicationFontFamilies(symbolFontId);
-        if (symbolFontFamilies.isEmpty()) {
-            qWarning("[boot] Android symbol fallback font loaded without a reported family: source=%s",
-                     qUtf8Printable(symbolFontPath));
-        } else {
-            const QString symbolFontFamily = symbolFontFamilies.constFirst();
-            QFontDatabase::addApplicationFallbackFontFamily(QChar::Script_Common,
-                                                             symbolFontFamily);
-            qInfo("[boot] Android symbol fallback font registered: family=%s source=%s",
-                  qUtf8Printable(symbolFontFamily), qUtf8Printable(symbolFontPath));
-        }
-    }
-    startupManifestPathOverride =
-        QDir(*runtimeRoot).filePath(QStringLiteral("qml-build.manifest"));
-#endif
-
-    // Shared QML binds to PlayerItem; each host supplies its native playback engine.
-#if defined(Q_OS_ANDROID)
-    qmlRegisterType<AndroidMedia3Item>("Colosseum.Player", 1, 0, "PlayerItem");
-    qmlRegisterType<AndroidSeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
 #else
+    // Shared QML binds to PlayerItem; each host supplies its native playback engine.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "PlayerItem");
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
@@ -1191,8 +1124,7 @@ int main(int argc, char *argv[]) {
     auto *reader2Bridge = new Reader2Bridge(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
 #ifdef Q_OS_ANDROID
-    engine.rootContext()->setContextProperty(QStringLiteral("AndroidEbookRenderer"),
-                                             new AndroidEbookRenderer(reader2Bridge, &app));
+    Colosseum::Platform::installAndroidEngineBindings(&engine, reader2Bridge, &app);
 #endif
 
     // From-scratch native Comic Reader backend (Agent 1, plan 2026-07-23, Task 7)
@@ -1894,14 +1826,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartyUi"),
                                              watchPartyUi);
 
-    // Keep the QML WindowMode contract stable while preventing desktop window/PiP
-    // implementation from entering the Android runtime path.
-#if defined(Q_OS_ANDROID)
-    auto *windowMode = new Colosseum::Platform::AndroidWindowModeAdapter(&app);
-#else
+#if !defined(Q_OS_ANDROID)
     auto *windowMode = new WindowModeStore(&app);
-#endif
     engine.rootContext()->setContextProperty(QStringLiteral("WindowMode"), windowMode);
+#endif
 
     // Playback power-inhibit exposed to QML as `Power`, matching Harbor's play-only
     // OS/display sleep prevention.
@@ -2165,7 +2093,7 @@ int main(int argc, char *argv[]) {
 
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
 #ifdef Q_OS_ANDROID
-        Colosseum::Platform::installAndroidGraphicsWorkarounds(rootWindow);
+        Colosseum::Platform::attachAndroidRootWindow(rootWindow);
 #endif
         platformRuntime->attachWindow(rootWindow);
         if (posterTimingEnabled) posterTiming->attach(rootWindow);

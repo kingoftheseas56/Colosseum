@@ -3,7 +3,6 @@
 // grows out of the button instead of swapping between two separate pieces.
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Window
 
 Item {
     id: bar
@@ -25,49 +24,7 @@ Item {
     // Permanent buttons: Colosseum, Vault.
     // 8 left + 48 home + 14 + 46 Vault + 14 right = 130.
     readonly property int closedWidth: 130
-    readonly property bool televisionMode: {
-        const w = bar.Window.window
-        return !!(w && w["televisionMode"] === true)
-    }
-
-    function isInside(item) {
-        var p = item
-        while (p) {
-            if (p === bar) return true
-            p = p.parent
-        }
-        return false
-    }
-    function focusFromActive(forward, stayInside) {
-        const w = bar.Window.window
-        const from = w ? w.activeFocusItem : null
-        if (!from || !bar.isInside(from)) return false
-        var target = from.nextItemInFocusChain(forward)
-        var guard = 0
-        while (target && target !== from && guard++ < 96) {
-            if (target.visible && target.enabled && target.activeFocusOnTab) {
-                if (stayInside && !bar.isInside(target)) return false
-                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
-                return true
-            }
-            target = target.nextItemInFocusChain(forward)
-        }
-        return false
-    }
-    function moveHorizontalFocus(forward) { return bar.focusFromActive(forward, true) }
-    function moveVerticalFocus(forward) { return bar.focusFromActive(forward, false) }
-
-    Keys.priority: Keys.AfterItem
-    Keys.onPressed: (event) => {
-        if (!bar.televisionMode) {
-            spatialNav.handle(event)
-            return
-        }
-        if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
-        else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
-        else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)
-        else if (event.key === Qt.Key_Down) event.accepted = bar.moveVerticalFocus(true)
-    }
+    Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
     signal closeRequested(string id)
@@ -219,7 +176,6 @@ Item {
                 Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
                 Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
                 Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.open = !bar.open; bar.autoRevealed = false; event.accepted = true } }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
@@ -401,7 +357,6 @@ Item {
                 Keys.onReturnPressed: bar.downloadsClicked()
                 Keys.onEnterPressed: bar.downloadsClicked()
                 Keys.onSpacePressed: bar.downloadsClicked()
-                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.downloadsClicked(); event.accepted = true } }
             }
 
             // ---- Extensions: the store, beside Downloads (ratified 2026-07-05) ----
@@ -446,7 +401,6 @@ Item {
                 Keys.onReturnPressed: bar.extensionsClicked()
                 Keys.onEnterPressed: bar.extensionsClicked()
                 Keys.onSpacePressed: bar.extensionsClicked()
-                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.extensionsClicked(); event.accepted = true } }
             }
 
             // ---- Your Colosseum: activity timeline, monthly highlights, and lifetime stats.
@@ -693,7 +647,6 @@ Item {
                     Keys.onReturnPressed: fanRow.activateSession()
                     Keys.onEnterPressed: fanRow.activateSession()
                     Keys.onSpacePressed: fanRow.activateSession()
-                    Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { fanRow.activateSession(); event.accepted = true } }
                     Keys.onDeletePressed: {
                         bar.closeRequested(fanRow.modelData.id)
                         fan.closeAndRestore()

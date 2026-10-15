@@ -39,11 +39,7 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
-    // W07 presentation seam. W02 may expose native UiMode/LEANBACK detection as
-    // PlatformRuntime.androidTelevision; until then every existing desktop/phone/tablet path stays false.
-    readonly property bool televisionMode: (typeof PlatformRuntime !== "undefined")
-                                           && PlatformRuntime
-                                           && PlatformRuntime["androidTelevision"] === true
+    readonly property alias televisionMode: phoneShell.televisionMode
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -63,19 +59,7 @@ Window {
     readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
-    // Shared Android presentation seam. Writable so desktop viewport harnesses can force the
-    // phone/tablet geometry without pretending the whole desktop canvas was scaled down.
-    // Developer switch: `colosseum.exe qml/Main.qml --phone-shell` (or `--phone-shell=360x700`)
-    // draws the Android phone shell in a plain desktop window, so phone layout can be judged
-    // without an APK. Layout only: readers, the player and fonts still need a real device.
-    readonly property string phoneShellArg: {
-        var args = Qt.application.arguments
-        for (var i = 2; i < args.length; ++i)
-            if (String(args[i]).indexOf("--phone-shell") === 0) return String(args[i])
-        return ""
-    }
-    property bool androidHost: Qt.platform.os === "android" || phoneShellArg.length > 0
-    AdaptiveLayout { id: adaptive; viewportWidth: Math.max(0, win.width - win.wideWorldNavigationLeftInset) }
+    property alias androidHost: phoneShell.androidHost
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -389,56 +373,6 @@ Window {
     // TankobanSeriesView.qml are built to replace TheatreSeries.qml and MangaSeries.qml.
     // Until Hemanth signs them off, a local views.ini (git-ignored, beside wallpapers.ini)
     // selects them: [views] rebuiltTitlePages=true.
-    // Android shell (decision 19 / Slice S2): there is no Home on Android. The app opens in the
-    // world it was last in, Theatre the first time.
-    Settings {
-        id: androidShellSettings
-        category: "androidShell"
-        property string lastWorld: ""
-    }
-    // Slice S3: the Profile tab is a plain list of doors to pages the app already has.
-    readonly property var profileRows: [
-        // The same doors the desktop has, under the names the app already uses for them
-        // (Hemanth, 2026-10-10): the account page, Your Colosseum, trackers, and Stremio.
-        { key: "downloads",  label: "Downloads",      note: "Everything saved on this device" },
-        { key: "extensions", label: "Extensions",     note: "Add-ons and sources for every world" },
-        { key: "colosseum",  label: "Your Colosseum", note: "History, highlights and stats" },
-        { key: "trackers",   label: "Trackers",       note: "Connections to other libraries" },
-        { key: "stremio",    label: "Stremio",        note: "Bring your Stremio library across" },
-        { key: "account",    label: "Account",        note: "Sign in, devices and security" }
-    ]
-    function openProfilePage() { profileLayer.active = true }
-    function closeProfilePage() { profileLayer.active = false }
-    // leaving the Profile tab for a world closes the list and whichever of its pages is open
-    function closeProfileStack() {
-        profileLayer.active = false
-        if (downloadsLayer.active) win.closeDownloadsPage()
-        if (extensionsLayer.active) win.closeExtensionsPage()
-        if (historyStatsLayer.active) win.closeHistoryStatsPage()
-        if (syncCenterLayer.active) win.closeSyncCenterPage()
-        stremioPanel.shown = false
-        if (accountFlyout.visible) accountFlyout.close()
-    }
-    function openProfileRow(key) {
-        switch (key) {
-        case "downloads":  win.openDownloadsPage(); return
-        case "extensions": win.openExtensionsPage(); return
-        case "colosseum":  win.openHistoryStatsPage(); return
-        case "trackers":   win.openSyncCenterPage(); return
-        case "stremio":    win.openStremioSyncPanel(); return
-        // the account door the top bar's pill opens: signed out it offers Sign in
-        case "account":    accountFlyout.toggleAt(win.width - 16, 76); return
-        }
-    }
-    function enterAndroidStartWorld() {
-        if (!win.androidHost || worldStack.current !== "") return
-        var want = androidShellSettings.lastWorld
-        var known = false
-        for (var i = 0; i < win.worldDefinitions.length; ++i)
-            if (win.worldDefinitions[i].name === want) { known = true; break }
-        win.openWorld(known ? want : "Theatre")
-    }
-
     Settings {
         id: viewSettings
         location: Qt.resolvedUrl("../views.ini")
@@ -632,13 +566,9 @@ Window {
                     + "  (booted=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
-        if (win.phoneShellArg.length > 0) {
-            var phoneSize = win.phoneShellArg.split("=")[1] || "412x700"
-            win.flags = Qt.Window
-            win.width = parseInt(phoneSize.split("x")[0]) || 412
-            win.height = parseInt(phoneSize.split("x")[1]) || 700
-            win.show()
-        } else if (typeof WindowMode !== "undefined")
+        if (phoneShell.initializeWindow(typeof WindowMode !== "undefined" ? WindowMode : null))
+            ;
+        else if (typeof WindowMode !== "undefined")
             WindowMode.initializeShell(win)
         else
             win.showFullScreen()
@@ -800,7 +730,7 @@ Window {
             extensionsActive: extensionsLayer.active,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
-            profileActive: profileLayer.active,
+            profileActive: phoneShell.profileActive,
             bookActive: bookLayer.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
@@ -920,7 +850,7 @@ Window {
             win.closeExtensionsPage(); return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
-        case "profile": win.closeProfilePage(); return
+        case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
@@ -947,16 +877,6 @@ Window {
         }
     }
     Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
-    // Android's Back key and gesture arrive as Qt.Key_Back. They are Back here too.
-    Shortcut { sequence: "Back"; enabled: win.androidHost; onActivated: escapeCommand.invoke("androidBack") }
-    // A Back press nothing claimed reaches Qt as a request to close this window, and the app
-    // exits (seen on the Nokia, 2026-10-10: Back while a book was still loading, Android's exit
-    // record EXIT_SELF). On Android that request is treated as Back; the app never quits on it.
-    onClosing: (close) => {
-        if (Qt.platform.os !== "android") return
-        close.accepted = false
-        escapeCommand.invoke("androidClose")
-    }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
     // shortcut), and the Vault keeps its own Backspace (folder up), so it is off while Vault is open.
     Shortcut {
@@ -1126,7 +1046,7 @@ Window {
         if (!found) openModes.append({ mode: medium })   // first visit → create its keep-alive Loader
         worldStack.current = medium
         currentSurface = medium
-        if (win.androidHost) androidShellSettings.lastWorld = medium
+        phoneShell.recordWorldOpened(medium)
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
         topbar.visible = false
@@ -1155,9 +1075,6 @@ Window {
         }
     }
     function closeWorld() {
-        // Android has no Home: a world is always open. Back at the top of a world does nothing
-        // here; sending the app to the background needs a native call (moveTaskToBack) and waits
-        // for the next APK.
         if (win.androidHost) return
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
@@ -1720,17 +1637,7 @@ Window {
         || vaultLayer.active
         || continueSeeAllLayer.active
 
-    // Phone navigation belongs to browsing, never to full-canvas consumption or IME entry.
-    // Android's activity uses adjustResize, so the app viewport shrinks above the software keyboard;
-    // hiding the tab bar while the IME is visible prevents a second fixed bar from stealing that
-    // reduced viewport. Desktop stays outside this rule through androidHost.
-    readonly property bool phoneImeVisible: win.androidHost && Qt.inputMethod.visible
-    readonly property bool phoneWorldNavigationVisible:
-        win.androidHost && win.width < 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible && !win.fullWindowPageOpen
-    readonly property bool wideWorldNavigationVisible:
-        win.androidHost && win.width >= 840 && !win.immersiveSurfaceOpen && !win.phoneImeVisible && !win.fullWindowPageOpen
-    readonly property real wideWorldNavigationLeftInset:
-        win.wideWorldNavigationVisible ? wideWorldRail.width : 0
+    readonly property alias wideWorldNavigationLeftInset: phoneShell.wideWorldNavigationLeftInset
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
@@ -3243,8 +3150,8 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: win.wideWorldNavigationLeftInset + adaptive.pageMargin; y: adaptive.topInset
-        width: win.width - win.wideWorldNavigationLeftInset - adaptive.pageMargin * 2
+        x: theme.margin; y: 18
+        width: win.width - theme.margin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onFullscreenClicked: win.toggleFullscreenShell()
@@ -3379,7 +3286,7 @@ Window {
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
-        y: topbar.y + topbar.height + (win.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+        y: topbar.y + topbar.height + 10
         height: win.height - y
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
@@ -3444,10 +3351,10 @@ Window {
 
         Column {
             id: contentCol
-            x: adaptive.pageMargin
-            width: page.width - adaptive.pageMargin * 2
+            x: theme.margin
+            width: page.width - theme.margin * 2
             topPadding: 10
-            spacing: adaptive.homeSectionSpacing
+            spacing: 32
 
             // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
             //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
@@ -3459,7 +3366,7 @@ Window {
                 id: hero
                 backdrop: wall
                 track: page.contentY
-                width: parent.width; height: adaptive.heroHeight; radius: adaptive.phone ? 16 : 20
+                width: parent.width; height: 360; radius: 20
                 tint: 0.06
 
                 SwipeView {
@@ -3501,14 +3408,14 @@ Window {
                             // content over the scrim (chips row retired — ratified 2026-07-12)
                             Column {
                                 anchors.left: parent.left; anchors.bottom: parent.bottom
-                                anchors.margins: adaptive.phone ? 20 : 44
-                                width: Math.min(adaptive.phone ? parent.width - 40 : 620, parent.width - anchors.leftMargin * 2)
-                                spacing: adaptive.phone ? 8 : 12
+                                anchors.margins: 44
+                                width: Math.min(620, parent.width - anchors.leftMargin * 2)
+                                spacing: 12
                                 Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
                                 Text {
                                     width: parent.width
                                     text: slide.modelData.name; color: theme.ink; font.family: theme.display
-                                    font.pixelSize: adaptive.phone ? 34 : 48
+                                    font.pixelSize: 48
                                     maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.WordWrap
                                 }
                                 // (the blurb line went with the baked list — the roster carries
@@ -3581,8 +3488,8 @@ Window {
 
                 // the door to the Hall of Worlds — quiet, top-right, gold on hover
                 Item {
+                    id: hallDoor
                     z: 5
-                    visible: !adaptive.phone
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
                     width: hallRow.implicitWidth + 8; height: 28
                     Row {
@@ -3650,7 +3557,7 @@ Window {
             Loader {
                 id: homeBookshelfLoader
                 width: parent.width
-                height: adaptive.phone ? 690 : 400
+                height: 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -3669,7 +3576,7 @@ Window {
             Loader {
                 id: homeTheatreStripLoader
                 width: parent.width
-                height: adaptive.phone ? 340 : 400
+                height: 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -3683,7 +3590,7 @@ Window {
             Loader {
                 id: homeReadingDeskLoader
                 width: parent.width
-                height: adaptive.phone ? 560 : 400
+                height: 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -3700,7 +3607,7 @@ Window {
             Loader {
                 id: homeVaultWidgetLoader
                 width: parent.width
-                height: adaptive.phone ? 440 : 520
+                height: 520
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -3793,10 +3700,7 @@ Window {
                         item.lifecycleActive = Qt.binding(function() {
                             return worldStack.current === mode && !win.immersiveSurfaceOpen
                         })
-                    if (item.contentBottomInset !== undefined)
-                        item.contentBottomInset = Qt.binding(function() {
-                            return phoneWorldTabs.visible ? phoneWorldTabs.height : 0
-                        })
+                    phoneShell.attachHostedItem(item)
                     item.medium = mode
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
@@ -3879,42 +3783,28 @@ Window {
         }
     }
 
-    // Android phone shell. S1-B owns the opaque bar/inset; S1-C suppresses that browsing
-    // chrome whenever the existing immersive-surface authority owns the whole canvas.
-    PhoneWorldTabBar {
-        id: phoneWorldTabs
-        objectName: "phoneWorldTabBar"
-        z: 57
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        worlds: win.worldDefinitions
-        activeTab: profileLayer.active ? "Profile" : worldStack.current
-        visible: win.phoneWorldNavigationVisible
-        onWorldRequested: (world) => {
-            win.closeProfileStack()
-            win.openWorld(world)
-        }
-        onProfileRequested: win.openProfilePage()
-    }
-
-    // Wide Android shell (landscape tablets / open foldables). It uses the exact same
-    // registry and route handlers as the narrow bar; rotation merely changes which shell
-    // presentation is visible at the 840 dp breakpoint.
-    WideWorldRail {
-        id: wideWorldRail
-        z: 57
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        worlds: win.worldDefinitions
-        activeTab: profileLayer.active ? "Profile" : worldStack.current
-        visible: win.wideWorldNavigationVisible
-        onWorldRequested: (world) => {
-            win.closeProfileStack()
-            win.openWorld(world)
-        }
-        onProfileRequested: win.openProfilePage()
+    PhoneShellHost {
+        id: phoneShell
+        window: win
+        worldStack: worldStack
+        topbar: topbar
+        page: page
+        contentCol: contentCol
+        hero: hero
+        hallDoor: hallDoor
+        homeBookshelfLoader: homeBookshelfLoader
+        homeTheatreStripLoader: homeTheatreStripLoader
+        homeReadingDeskLoader: homeReadingDeskLoader
+        homeVaultWidgetLoader: homeVaultWidgetLoader
+        downloadsLayer: downloadsLayer
+        extensionsLayer: extensionsLayer
+        historyStatsLayer: historyStatsLayer
+        syncCenterLayer: syncCenterLayer
+        stremioPanel: stremioPanel
+        accountFlyout: accountFlyout
+        wall: wall
+        escapeCommand: escapeCommand
+        fullWindowPageOpen: win.fullWindowPageOpen
     }
 
     Loader {
@@ -4546,26 +4436,6 @@ Window {
         }
     }
 
-    // ---- Profile tab (Android shell, Slice S3): the list of doors. Its pages (z 56) open over it,
-    // so closing one returns to the list. Above every browse/detail page, below the taskbar pages.
-    Loader {
-        id: profileLayer
-        objectName: "profileLayer"
-        anchors.fill: parent
-        anchors.leftMargin: win.wideWorldNavigationLeftInset
-        z: 55
-        active: false
-        visible: active
-        source: "PhoneProfilePage.qml"
-        onLoaded: {
-            item.rows = Qt.binding(function() { return win.profileRows })
-            item.contentBottomInset = Qt.binding(function() {
-                return phoneWorldTabs.visible ? phoneWorldTabs.height : 0
-            })
-            item.rowRequested.connect(win.openProfileRow)
-        }
-    }
-
     // ---- Downloads page: unified local-media vault, entered from the taskbar ----
     Loader {
         id: downloadsLayer
@@ -4583,10 +4453,7 @@ Window {
         asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
-            if (item.contentBottomInset !== undefined)
-                item.contentBottomInset = Qt.binding(function() {
-                    return phoneWorldTabs.visible ? phoneWorldTabs.height : 0
-                })
+            phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4968,16 +4835,7 @@ Window {
         id: openMediaDialog
         title: "Open Media"
         fileMode: FileDialog.OpenFiles
-        // Android providers may label CBZ/EPUB as application/octet-stream. Qt's
-        // extension-to-MIME filter disables those documents before LocalLaunch can
-        // inspect them. Let the user select a document and keep admission in C++.
-        nameFilters: Qt.platform.os === "android" ? ["All files (*)"] : [
-            "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
-            "Comics (*.cbz *.cbr)",
-            "Books (*.epub)",
-            "Video (*.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
-            "All files (*)"
-        ]
+        nameFilters: phoneShell.openMediaNameFilters
         onAccepted: {
             var arr = []
             for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
@@ -5274,7 +5132,7 @@ Window {
         objectName: "bootSplash"
         anchors.fill: parent
         z: 1000
-        onFinished: { win.enterAndroidStartWorld(); bootFade.start() }
+        onFinished: { phoneShell.enterAndroidStartWorld(); bootFade.start() }
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }
