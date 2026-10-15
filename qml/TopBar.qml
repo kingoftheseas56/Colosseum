@@ -271,8 +271,7 @@ Item {
            ? leftChrome.width + 12 + Math.max(0, (systemChrome.x - leftChrome.width - 24 - width) / 2)
            : (bar.width - width) / 2
         radius: 999
-        width: Math.min(bar.width, pillsRow.implicitWidth + 14)
-        height: 46
+        width: pillsRow.implicitWidth + 14; height: 46
         Row {
             id: pillsRow
             anchors.centerIn: parent
