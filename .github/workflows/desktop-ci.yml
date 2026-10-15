@@ -58,6 +58,11 @@ jobs:
       actions: read
       security-events: write
     env:
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_VERSION: "windows-desktop-v1"
+      # This caps local disk only; GHA storage uses GitHub's repository quota
+      # and eviction policy, not SCCACHE_CACHE_SIZE.
+      SCCACHE_CACHE_SIZE: "1G"
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20260814"
       MPV_VERSION: "20260814-git-7b8915bc1d"
@@ -72,6 +77,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Set up Windows compiler cache
+        id: sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:
@@ -93,6 +103,9 @@ jobs:
           cmake --version
           ninja --version
           cl 2>&1 | Select-Object -First 5
+          sccache --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sccache --zero-stats
 
       - name: Install pinned LLVM clang-tidy
         shell: pwsh
@@ -156,6 +169,7 @@ jobs:
           $root | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build MpvQt
+        id: build-mpvqt
         shell: pwsh
         run: |
           $archive = Join-Path $env:RUNNER_TEMP "mpvqt.tar.xz"
@@ -173,6 +187,8 @@ jobs:
           $prefix = "$env:QT_ROOT_DIR;$env:VCPKG_ROOT/installed/x64-windows"
           cmake -S $source.FullName -B $build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
             "-DCMAKE_INSTALL_PREFIX=$install" `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             "-DCMAKE_PREFIX_PATH=$prefix" `
@@ -184,6 +200,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "MPVQT_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Show compiler-cache statistics after MpvQt
+        if: always() && steps.sccache.outcome == 'success' && steps.build-mpvqt.outcome != 'skipped'
+        shell: pwsh
+        run: sccache --show-stats
 
       - name: Initialize CodeQL C++
         uses: github/codeql-action/init@v4
@@ -198,7 +219,12 @@ jobs:
         run: |
           $build = Join-Path $env:RUNNER_TEMP "colosseum-build"
           $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
+          # CodeQL manual tracing must observe every compilation. Cache hits
+          # here would silently reduce C++ analysis coverage on warm runs.
           cmake -S native -B $build -G Ninja `
+            -DCOLOSSEUM_NO_COMPILER_CACHE=ON `
+            -DCMAKE_C_COMPILER_LAUNCHER= `
+            -DCMAKE_CXX_COMPILER_LAUNCHER= `
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_TESTING=ON `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
@@ -210,6 +236,7 @@ jobs:
           "COLOSSEUM_CI_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build desktop and release smoke targets
+        id: build-desktop
         shell: pwsh
         run: |
           $log = Join-Path $env:RUNNER_TEMP "colosseum-build.log"
@@ -226,6 +253,13 @@ jobs:
             }
             exit $buildExit
           }
+
+      - name: Show compiler-cache statistics after CodeQL build
+        if: always() && steps.sccache.outcome == 'success' && steps.build-desktop.outcome != 'skipped'
+        shell: pwsh
+        run: |
+          Write-Output "The CodeQL-traced desktop build intentionally bypasses the compiler cache."
+          sccache --show-stats
 
       - name: Release-critical smoke
         shell: pwsh
@@ -257,19 +291,23 @@ jobs:
         run: |
           $build = Join-Path $env:RUNNER_TEMP "colosseum-asan"
           $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
+          # native/CMakeLists.txt discovers sccache and replaces configuration
+          # /Zi flags with /Z7; the global ASan flags must also embed debug info.
           cmake -S native -B $build -G Ninja `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DCOLOSSEUM_NO_COMPILER_CACHE=OFF `
             -DBUILD_TESTING=ON `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             "-DCMAKE_PREFIX_PATH=$prefix" `
             "-DMPVQT_PREFIX=$env:MPVQT_ROOT" `
             "-DLIBMPV_PREFIX=$env:LIBMPV_ROOT" `
-            "-DCMAKE_C_FLAGS=/fsanitize=address /Zi" `
-            "-DCMAKE_CXX_FLAGS=/fsanitize=address /Zi /EHsc /D_DISABLE_VECTOR_ANNOTATION /D_DISABLE_STRING_ANNOTATION"
+            "-DCMAKE_C_FLAGS=/fsanitize=address /Z7" `
+            "-DCMAKE_CXX_FLAGS=/fsanitize=address /Z7 /EHsc /D_DISABLE_VECTOR_ANNOTATION /D_DISABLE_STRING_ANNOTATION"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "COLOSSEUM_ASAN_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Run AddressSanitizer probes
+        id: build-asan
         shell: pwsh
         run: |
           cmake --build $env:COLOSSEUM_ASAN_BUILD --target `
@@ -299,6 +337,16 @@ jobs:
             & (Join-Path $env:COLOSSEUM_ASAN_BUILD "$target.exe")
             if ($LASTEXITCODE -ne 0) { throw "$target failed under AddressSanitizer" }
           }
+
+      - name: Show compiler-cache statistics after AddressSanitizer probes
+        if: always() && steps.sccache.outcome == 'success' && steps.build-asan.outcome != 'skipped'
+        shell: pwsh
+        run: sccache --show-stats
+
+      - name: Show final Windows compiler-cache statistics
+        if: always() && steps.sccache.outcome == 'success'
+        shell: pwsh
+        run: sccache --show-stats
 
   linux-desktop:
     needs: public-trust
