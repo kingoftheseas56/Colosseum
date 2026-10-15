@@ -38,7 +38,7 @@ Flickable {
     boundsBehavior: Flickable.StopAtBounds
     Theme { id: theme }
     ScrollGlide { flick: root }
-    ScrollBar.vertical: HouseScrollBar { flick: root }
+    // Preserve wheel/key scrolling without a visible artist-page scrollbar.
 
     Column {
         id: body

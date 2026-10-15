@@ -212,11 +212,13 @@ Item {
 
             Repeater {
                 id: rowRepeater
-                model: rail.visibleRows
+                // Descriptors contain live QQuickItem targets. Keep their QML references;
+                // QVariant model copies can outlive a target during delegate incubation.
+                model: rail.visibleRows.length
 
                 delegate: Item {
                     id: rowItem
-                    required property var modelData
+                    readonly property var modelData: rail.visibleRows[index]
                     required property int index
                     readonly property bool current: rowItem.index === rail.currentIndex
                     readonly property alias action: rowAction
