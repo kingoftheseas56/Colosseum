@@ -197,19 +197,19 @@ FocusScope {
                 width: gate.r*2; height: width
                 Rectangle {
                     anchors.fill: parent; radius: width/2
-                    color: gate.modelData.dark
+                    color: gate.modelData.dark || "transparent"
                     border.width: gate.hot ? 1.5 : 1
                     border.color: gate.hot ? theme.gold : Qt.rgba(247/255,247/255,245/255,.16)
                 }
                 Rectangle {
                     width: parent.width*.88; height: width; radius: width/2
                     x: parent.width*.035; y: parent.height*.035
-                    color: gate.modelData.mid; opacity: .92
+                    color: gate.modelData.mid || "transparent"; opacity: .92
                 }
                 Rectangle {
                     width: parent.width*.46; height: width; radius: width/2
                     x: parent.width*.10; y: parent.height*.08
-                    color: gate.modelData.light; opacity: .38
+                    color: gate.modelData.light || "transparent"; opacity: .38
                 }
                 Image {
                     anchors.centerIn: parent
