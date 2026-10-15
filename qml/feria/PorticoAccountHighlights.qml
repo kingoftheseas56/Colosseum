@@ -32,3 +32,8 @@ Item {
                     Rectangle{width:5.8*u;height:2.5*u;radius:0.8*u;color:Qt.rgba(1,1,1,0.06);border.width:1;border.color:Qt.rgba(1,1,1,0.14);Text{anchors.centerIn:parent;text:"‹  Earlier";color:controller.mist;font.family:"Segoe UI";font.pixelSize:0.88*u}}
                     Rectangle{width:5.2*u;height:2.5*u;radius:0.8*u;color:Qt.rgba(1,1,1,0.06);border.width:1;border.color:Qt.rgba(1,1,1,0.14);opacity:0.4;Text{anchors.centerIn:parent;text:"Later  ›";color:controller.mist;font.family:"Segoe UI";font.pixelSize:0.88*u}}
                 }
+
+            }
+        }
+    }
+}
