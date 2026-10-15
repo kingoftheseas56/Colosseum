@@ -21,6 +21,27 @@ def save(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def activate_universe_portal(collect, click, scroll, sleep=time.sleep, attempts=18):
+    # A sampled delegate can retire before the next IPC click. Recollect a
+    # fresh generation; never reuse a detached item's handle.
+    for _ in range(attempts):
+        try:
+            candidates = [item for item in collect()
+                          if "UniverseBanner" in item["class"] and item["visible"]
+                          and 160 < item["sceneRect"]["y"] < 780]
+            if candidates:
+                click(candidates[0]["handle"])
+                return
+            scroll()
+        except RuntimeError as error:
+            details = error.args[0] if error.args else None
+            if not isinstance(details, dict) or details.get("code") not in (
+                    "NO_WINDOW", "NO_SUCH_ITEM"):
+                raise
+        sleep(.25)
+    raise AssertionError("No real universe portal reached")
+
+
 class Pipe:
     def __init__(self, name):
         assert name.startswith("i05-static-")
@@ -238,17 +259,12 @@ def main():
                         data=until(lambda:(lambda p:p if p.get("universeContentGeneration",0)>0 else None)(props("universesWorld",["universeContentGeneration","facet"])))
                         count=props("universesCount",["text"]);assert "20" in count["text"]
                         record("universes",{**data,**count})
-                        # The actual ledger's first portal is reached with its keyboard
-                        # controller, exercising the structured universe route.
-                        opened=False
-                        for _ in range(18):
-                            candidates=[item for item in tree("universesLedger")
-                                if "UniverseBanner" in item["class"] and item["visible"]
-                                and 160<item["sceneRect"]["y"]<780]
-                            if candidates:
-                                pipe.call("ui-click",{"target":candidates[0]["handle"]});opened=True;break
-                            pipe.call("ui-scroll",{"target":"universesWorldScroll","dy":-500});time.sleep(.25)
-                        assert opened,"No real universe portal reached"
+                        # Click a real ledger portal. The page must reach Ready below;
+                        # recovering a transient handle is not itself a successful journey.
+                        activate_universe_portal(
+                            lambda: tree("universesLedger"),
+                            lambda handle: pipe.call("ui-click", {"target":handle}),
+                            lambda: pipe.call("ui-scroll", {"target":"universesWorldScroll","dy":-500}))
                         page=until(lambda:(lambda p:p if p.get("active") and p.get("status") in (1,"Ready") else None)(props("universeLayer",["active","status","universeName","templatePage","plain"])))
                         assert page["universeName"]
                         save(folder/"universe-page-tree.json",pipe.call("dump-ui",{"maxDepth":35,"maxItems":3000}))
