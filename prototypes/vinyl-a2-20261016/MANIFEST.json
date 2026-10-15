@@ -1,0 +1,336 @@
+{
+  "identity": "dots-vinyl-a2-integration-2026-10-16",
+  "files": [
+    {
+      "path": "baseline/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp",
+      "bytes": 21866,
+      "sha256": "664c3f80ed8b9011b0502c5c485d1509904e214b00107a8382da6bd990ade71d"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.h",
+      "bytes": 3812,
+      "sha256": "380b269ef39c447cb19efc0d1f046073fd866c43bbeaebb4f9aea47074682d85"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/artwork/CMakeLists.txt",
+      "bytes": 579,
+      "sha256": "4e62bed63de8c8a18d0495cbae2c1458dfcf15c3136e240260741a443ef47c9f"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/artwork/test_artist_artwork.cpp",
+      "bytes": 14063,
+      "sha256": "464a639bf8ac2bb7f8df47e34c71450d357fa60d257f45037ee0c39263ba5c20"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.cpp",
+      "bytes": 18664,
+      "sha256": "b4502b8cfb2f9373fa96e00a85bd5359d5bf67df301b1139323e2d4dc8fe210f"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.h",
+      "bytes": 8635,
+      "sha256": "4589a11f6382dfb0dcde1ec25839c24cdeab729b5905689d0564c36f76e79727"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/bridge/CMakeLists.txt",
+      "bytes": 743,
+      "sha256": "3379f7d3cf6eda7b05600ac754ce53a907b7d3fe52c04f7eb177e0ea9c6ec047"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/bridge/test_artist_service_bridge.cpp",
+      "bytes": 19911,
+      "sha256": "354ddcf242a25ddcd7a7e22e89f5a2d40fbf8dfe46577302450304458c7313eb"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.cpp",
+      "bytes": 26562,
+      "sha256": "63b22d58cfdba5ec839f5fe6c36fa298a48c7ba63b12c52a2fe3f65039829eea"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.h",
+      "bytes": 4140,
+      "sha256": "66ebfd131b62612f2b8b9f4a6c41a0a05ee64f39a2b162a3ff7dffe215824cef"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/catalogue/CMakeLists.txt",
+      "bytes": 1007,
+      "sha256": "44563ce317d6d71e888e7f9d944a15e00fe012ca42796c29d804560a12dca8a8"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/catalogue/test_artist_catalogue.cpp",
+      "bytes": 19283,
+      "sha256": "66e0c848da590509495ee4e0221ac8cd075b14214ba92a9055c6164edf51df51"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/media/ArtistMediaQuery.cpp",
+      "bytes": 14660,
+      "sha256": "9516aa8bda8d4ce00e245c0ec064a2ed8d44eb92e50cab1fa50ea4515599f5c4"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/media/ArtistMediaQuery.h",
+      "bytes": 4667,
+      "sha256": "76331dd0df8b5ff983e13df8c4fc8f455a3f09c100d6ffd0d70c92ca93c6e58b"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/media/CMakeLists.txt",
+      "bytes": 843,
+      "sha256": "88f0583707813a22ae6a23562d01f07a877200bee0c35e41e287ee50e58f9a72"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/media/test_artist_media_query.cpp",
+      "bytes": 20824,
+      "sha256": "c67d19e2a44fb523cbc2256d5c8968d37d33a624ad4bde3e7882297f2f006aa0"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/personal/ArtistPersonalState.cpp",
+      "bytes": 15720,
+      "sha256": "e37c1e612ac180a749b1661cad4c818a88c41b53bacd9275641eb11a0868ae48"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/personal/ArtistPersonalState.h",
+      "bytes": 4367,
+      "sha256": "07907084ddcdc84899809f5b2e64e0d13a4360d9e2ea14b4fd6356ce60beb1d2"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/personal/CMakeLists.txt",
+      "bytes": 1135,
+      "sha256": "a3e6c51bfa0812be5baadce74ad2e80fc0556d7bd56f8586126d88407a7146a5"
+    },
+    {
+      "path": "baseline/artist-live-prototypes-20261015/personal/test_artist_personal.cpp",
+      "bytes": 15390,
+      "sha256": "397e40fd81d6ff9f8646cb3ff912db7e278952d31a058851315204999e6c4934"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp",
+      "bytes": 34626,
+      "sha256": "86d3053c31372ccb5f5416364e1e482c465997931045c988a4773de86d629e12"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/ArtistReadAdapter.h",
+      "bytes": 3129,
+      "sha256": "8229585655ebf310c1283716716c3fe3fafdf42fe777df245d1f6fc2eeb7f049"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/ArtistServiceFactory.cpp",
+      "bytes": 1911,
+      "sha256": "88dbf4768771429e0493f2e72efd2b5d7be3a440ba2342958ed9b0ad97be1df6"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/ArtistServiceFactory.h",
+      "bytes": 2978,
+      "sha256": "ef2c6bae21934d8900931b96b05cb65fa5893eb04ae640e9b0bc31f409224096"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/CMakeLists.txt",
+      "bytes": 4808,
+      "sha256": "1c2b620b6495cff8d292978dff2ba30fba2ff556f19775322184fc27d42fab70"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/FakeArtistSource.cpp",
+      "bytes": 9579,
+      "sha256": "b24dc0a07527ab204825a0cb230dae7b07b4c4e3e7011013186fdf55c03280d6"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/FakeArtistSource.h",
+      "bytes": 4814,
+      "sha256": "cc19fa2ecf3b6471ec67daa6285b25e727cbcffa6a2d961602012d0e87a729a6"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/IArtistSource.h",
+      "bytes": 3282,
+      "sha256": "7eaeaed4aaef6e6132ff591aa3b84159b9bdaaf475421700eabe84738ef1b899"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/RecordingPlaybackPort.cpp",
+      "bytes": 4047,
+      "sha256": "dafaf90ce235d0af3f95cb13ba89d7b7052a1c41a9bbfa3e65b92e2f486a7274"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/RecordingPlaybackPort.h",
+      "bytes": 2433,
+      "sha256": "743a347658cca69ac6b159a8788f83b7a11f8ac25be2294538c28a7789f5a02c"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/SavedArtistAdapter.cpp",
+      "bytes": 5005,
+      "sha256": "10ac60552f9d8b5673bdb1cf91665e97f715b5c58afaf26d8611fa0404ae402c"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/SavedArtistAdapter.h",
+      "bytes": 2372,
+      "sha256": "bcf1ca7339bb785c0d919a5453e67b64d6ac734871464c4fd458b0d3ca854ed1"
+    },
+    {
+      "path": "baseline/artist-service-composed-20261015/test_artist_service_composed.cpp",
+      "bytes": 26483,
+      "sha256": "c7ffdf58095c3c9f5894124772739b74a366f8def28d71ba8f325ca0e3a99902"
+    },
+    {
+      "path": "baseline/ba0-domain-prototype/CMakeLists.txt",
+      "bytes": 684,
+      "sha256": "1b7559a4047e2c15d7fec8503f1f51a032c947465b1f465dd365d4e9855c10e6"
+    },
+    {
+      "path": "baseline/ba0-domain-prototype/test_vinyl_domain.cpp",
+      "bytes": 9360,
+      "sha256": "70e0b9cc8bb0d477e2b32195a65d1ca870b2a8610a460d75475c0537b3fb975c"
+    },
+    {
+      "path": "baseline/ba0-domain-prototype/VinylDomainTypes.cpp",
+      "bytes": 8075,
+      "sha256": "d91e8fa50d42dfe9f425d0dddd9e69784e167dc341b73324ef1173fbeaf510ab"
+    },
+    {
+      "path": "baseline/ba0-domain-prototype/VinylDomainTypes.h",
+      "bytes": 9498,
+      "sha256": "a39e0339ae154e0cf6c0de5b8c3c2611ac5350e93c530242751fd3476d8e7491"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/CMakeLists.txt",
+      "bytes": 2354,
+      "sha256": "52b1cdcee8409af893016ca2637d28a52f62104e518429f47280e9ec42a8f0f3"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/test_vinyl_library.cpp",
+      "bytes": 8181,
+      "sha256": "e28c9f07fd35a9877049a47c3423656b5dc32949be432c08877d845749f456dd"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/test_vinyl_personal_state_persistence.cpp",
+      "bytes": 11845,
+      "sha256": "bd42d939c973cb77da4c05a285c3fbc5c490495f0eb3edb26459cba48aeff5a7"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/test_vinyl_playlist.cpp",
+      "bytes": 13013,
+      "sha256": "4bba323edad9ed6bb048badcd8aeb2a6cfe7b7f4c4c7319f01cc24ae1a8491bd"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/VinylLibrary.cpp",
+      "bytes": 2947,
+      "sha256": "e1b49fdcf43cd87ca1614b00166b8865d6fbe41f882d3e5c4699c71303568fb6"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/VinylLibrary.h",
+      "bytes": 3736,
+      "sha256": "d17f4f749f12089f8e7b1fbe58f9ed86a204bb2357b76ba044b9a79d83bc39e4"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/VinylPersonalStatePersistence.cpp",
+      "bytes": 27529,
+      "sha256": "036769e99bdc06952bb9f995311ceabe794cc1e9c28d0d22cfc6809073f39ad6"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/VinylPersonalStatePersistence.h",
+      "bytes": 2228,
+      "sha256": "3c715f308802ac8c5aa7472dba0df745b423184ebfc19c0ac2e9f621ea247de8"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/VinylPlaylist.cpp",
+      "bytes": 9011,
+      "sha256": "f17e57e3b8418004562bda77ae93fd60ea836e80240a718305306356664fe5ab"
+    },
+    {
+      "path": "baseline/ba5-library-playlists-prototype/VinylPlaylist.h",
+      "bytes": 6545,
+      "sha256": "b3e745d32a896d7433458c81e35560c380919cab21cc844bdc4eaab77a42fbd8"
+    },
+    {
+      "path": "baseline/bf2-related-video-prototype/CMakeLists.txt",
+      "bytes": 1109,
+      "sha256": "1bc82a697c695a53c410224969e1731e5bfdda341349be1c6616be6ed1dc4a1a"
+    },
+    {
+      "path": "baseline/bf2-related-video-prototype/RelatedVideoContract.cpp",
+      "bytes": 13576,
+      "sha256": "eaaf7a4d596a7ae346c671d4a970ace6ab79b1b4adb367313953e037c5a81198"
+    },
+    {
+      "path": "baseline/bf2-related-video-prototype/RelatedVideoContract.h",
+      "bytes": 7640,
+      "sha256": "a8e64e0c94ecbc3edadcb3da10d696e4426f0b1a9dc33c0b7be8333d65f07490"
+    },
+    {
+      "path": "baseline/bf2-related-video-prototype/test_related_video_contract.cpp",
+      "bytes": 17104,
+      "sha256": "5721d73d66de27cf062534284dfbeed58b8c0eb0ad7fc0a4a1dbf15b5f7ca079"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/CMakeLists.txt",
+      "bytes": 1170,
+      "sha256": "b4b1b00423538816ac9e0070898475d22cfd59241c6b528ea98a77b3d45d7cb1"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/FakeVinylCatalogueClient.cpp",
+      "bytes": 31417,
+      "sha256": "7fc37a690c06045e674835a7235f02266489af89123b92fbe95ec2bb08867997"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/FakeVinylCatalogueClient.h",
+      "bytes": 2635,
+      "sha256": "9cf96534fa9099d98e4a1c0bb48c36979db354fd55ec6897dd3f1089b87550d2"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/test_catalogue_client.cpp",
+      "bytes": 19373,
+      "sha256": "aca3579ed060441a52fccc8e54a7e2169e85da0156861d79e35921b1d8082ced"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/VinylCatalogueClient.h",
+      "bytes": 1838,
+      "sha256": "e9647eb56bbc37982c456fda9d8715714476d607dfb865b9f9780e554c0f2d96"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/VinylCatalogueTypes.cpp",
+      "bytes": 1963,
+      "sha256": "6a80f7b74b85822959068a668f36d6c2a5f5faf69a733d13bb357b263a18c280"
+    },
+    {
+      "path": "baseline/bg1-catalogue-client-prototype/VinylCatalogueTypes.h",
+      "bytes": 6049,
+      "sha256": "9ea9668d2177f71d4c2e2f1925d41a7989bcd0a06b04f58b61d4f4ffa3822874"
+    },
+    {
+      "path": "BASELINE-MANIFEST.json",
+      "bytes": 11764,
+      "sha256": "45cdc9aa07825b5f142523be950ac5fe2a07da677747c141fb4722ce63badfe4"
+    },
+    {
+      "path": "evidence/CODEX-REVIEW.md",
+      "bytes": 1598,
+      "sha256": "f38bc7a7200be0792e2d05f90f1618cb982322859529f93bfb422f487b27b835"
+    },
+    {
+      "path": "evidence/GLM-HANDOFF.md",
+      "bytes": 5789,
+      "sha256": "4ecb69e1b132781176d8300eb1a00cb52ba63755ca394ba2359de2e554fbc6d9"
+    },
+    {
+      "path": "evidence/vinyl-a2-compile-fixes.patch",
+      "bytes": 1564,
+      "sha256": "67e467cc89616994e05cbb08126bb9e9f175429580bae4f41b243b02b0bd2de3"
+    },
+    {
+      "path": "evidence/windows-build-log.txt",
+      "bytes": 7052,
+      "sha256": "af26f552cf521fc26b99ce67cdb018e6130a5d1c7504b6281cdd96f57025c483"
+    },
+    {
+      "path": "evidence/windows-composed-test.txt",
+      "bytes": 1100,
+      "sha256": "dfbb61385eaeebfe2aeeb938ab86f1fddafb1082eb74c57b8a2436f65e266301"
+    },
+    {
+      "path": "PACKET-RECEIPT.md",
+      "bytes": 610,
+      "sha256": "7edeccd352bfbd76cfd8b98ce1f7148b0a07958f6666d08b97aa4f9b0b82d78f"
+    },
+    {
+      "path": "PROMPT-DOTS.md",
+      "bytes": 5225,
+      "sha256": "5db412eeadc8b239338127603793202e77e68692925c98fd4e63b5c5cb262901"
+    }
+  ],
+  "note": "MANIFEST.json excludes itself"
+}
