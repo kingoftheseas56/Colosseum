@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "master"
+      - "^codex/.*$"
+      - "^android/.*$"
+      - "^feria/.*$"
+      - "^dots/.*$"
+
+  path_filters:
+    # Bulk / generated / binary, not code. Exclusions only, so all other
+    # source (QML, C++, Go, TS/JS, Python, CMake, workflows) stays reviewed.
+    - "!assets/universes/**/*.png"
+    - "!assets/universes/**/*.jpg"
+    - "!assets/universes/**/*.jpeg"
+    - "!assets/universes/**/*.webp"
+    - "!docs/media/**"
+    - "!release/presentation/artwork/**"
+    - "!data/*.db"
+    - "!**/*.sqlite"
+    - "!server/content-api/generated/**"
+    - "!server/content-api/static-release*/**"
+    - "!scripts/comics_brain/*.json"
+    - "!**/package-lock.json"
+    - "!**/*.min.js"
+    - "!resources/reader2/vendor/**"
+    - "!tests/**/fixtures/**/*.json"
+
+  path_instructions:
+    - path: "qml/**"
+      instructions: |
+        Qt Quick/QML is the application UI.
+        - Never load remote or executable QML from data; state comes from validated data, not code.
+        - Feria and Vinyl worlds must stay behind the single "Soon" gate (TopBar comingSoon pills, the Main.qml openWorld guard, lazy Feria runtime).
+        - Android-only UI belongs in qml/+android/* (same file names as desktop), never inlined in shared QML files.
+        - Keyboard/controller navigation must keep working; flag changes that regress focus or navigation.
+
+    - path: "native/engine/CatalogRemote*"
+      instructions: |
+        - Preserve catalogue request keys and queryState fields.
+        - Preserve deferred queryChanged ordering.
+        - Preserve failure/retry/cooldown behaviour and the rule that a failed page is never an empty exhausted page.
+
+    - path: "native/engine/Catalog.*"
+      instructions: |
+        - Preserve catalogue request keys and queryState fields.
+        - Preserve deferred queryChanged ordering.
+        - Preserve failure/retry/cooldown behaviour and the rule that a failed page is never an empty exhausted page.
+        - Content/catalogue data is validated data, never code.
+
+    - path: "native/engine/StaticCatalogue*"
+      instructions: |
+        - Preserve catalogue request keys and queryState fields.
+        - Preserve deferred queryChanged ordering.
+        - Preserve failure/retry/cooldown behaviour and the rule that a failed page is never an empty exhausted page.
+        - Content/catalogue data is validated data, never code.
+
+    - path: "server/account-service/**"
+      instructions: |
+        Go service.
+        - Production never self-migrates; migrations are forward-only and checksum-pinned.
+        - The legacy bridge is operator-only.
+        - No secrets or DSNs in files.
+        - Tests must not depend on database collation.
+
+    - path: "server/content-api/**"
+      instructions: |
+        Cloudflare Worker + static catalogue.
+        - Respect Workers Free limits (10 ms CPU, 100k requests/day, 20,000 assets/version, 25 MiB/asset).
+        - Public catalogue files are hash-addressed and immutable.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Actions are manual-only (workflow_dispatch) by owner policy.
+        - Flag any push/pull_request/schedule trigger added without justification.
+        - Flag any heavy compile (Chromium/QtWebEngine) on automatic triggers.
+
+    - path: "native/platform/android/**"
+      instructions: |
+        Android-only code; shared files should only call seams.
+
+    - path: "native/cmake/android.cmake"
+      instructions: |
+        Android-only build config; shared CMake should not depend on Android specifics.
+
+  tools:
+    shellcheck:
+      enabled: true
+    actionlint:
+      enabled: true
+    golangci-lint:
+      enabled: true
+    eslint:
+      enabled: true
+    biome:
+      enabled: true
+    ruff:
+      enabled: true
+    gitleaks:
+      enabled: true
+
+chat:
+  auto_reply: true
