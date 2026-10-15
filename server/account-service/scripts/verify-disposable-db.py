@@ -47,7 +47,8 @@ def main():
 
     def run(args, log):
         with (root / log).open("a") as out:
-            subprocess.run(args, env=env, stdout=out, stderr=subprocess.STDOUT, check=True)
+            subprocess.run(args, cwd=Path(__file__).resolve().parents[1], env=env,
+                           stdout=out, stderr=subprocess.STDOUT, check=True)
 
     try:
         run(["initdb", "-D", str(data), "-U", "fixture", "--auth-local=reject", "--auth-host=scram-sha-256", "--pwfile", str(password_file), "--no-locale", "--encoding=UTF8"], "provision.log")
