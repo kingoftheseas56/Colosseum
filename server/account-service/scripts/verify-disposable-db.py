@@ -4,7 +4,7 @@
 Requires Python 3, Go (module toolchain), PostgreSQL server/client binaries on
 PATH, and an unprivileged Unix user. Run from any directory. No Docker required.
 Logs survive cleanup in the printed evidence directory. Exit nonzero on skips,
-no tests, provisioning failures, or test failures. No arguments are accepted.
+no tests, provisioning failures, or test failures. Optional: --run TEST_REGEX.
 """
 import json
 import os
@@ -20,7 +20,8 @@ import tempfile
 def main():
     # Reject before even allocating a directory or invoking PostgreSQL. Never
     # reinterpret a supplied URL, including a misleading production _test alias.
-    if len(sys.argv) != 1 or any(k in os.environ for k in (
+    valid_args = len(sys.argv) == 1 or (len(sys.argv) == 3 and sys.argv[1] == "--run" and bool(sys.argv[2]))
+    if not valid_args or any(k in os.environ for k in (
         "TEST_DATABASE_URL", "DATABASE_URL", "MIGRATION_DATABASE_URL", "PGSERVICE",
         "PGSERVICEFILE", "PGHOST", "PGDATABASE", "PGPORT", "PGUSER", "PGPASSWORD",
     )):
@@ -70,6 +71,7 @@ def main():
         # explicitly exclude it rather than accepting a skipped test as green.
         # -json includes -v events and the exact selector is retained.
         command = ["go", "test", "-json", "-v", "-count=1", "-p", "1", "-race",
+                   "-run", sys.argv[2] if len(sys.argv) == 3 else ".",
                    "-skip", "^TestDesktopRefreshResponseLoss$",
                    "./internal/testsupport/testdb", "./internal/account", "./internal/httpserver"]
         (root / "command.json").write_text(json.dumps(command) + "\n")
