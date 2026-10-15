@@ -229,7 +229,9 @@ Item {
         // Soft top edge (2026-09-29): content leaving under the top bar fades out over 28px
         // instead of being sliced by the clip line mid-glyph (the catalogue name, "Popular").
         // Only layered once the page has scrolled, so the resting page renders as before.
-        layer.enabled: page.contentY > 0
+        // MultiEffect needs the shader renderer. Its software-backend fallback
+        // must keep the board visible rather than replacing it with a blank layer.
+        layer.enabled: page.contentY > 0 && page.GraphicsInfo.api !== GraphicsInfo.Software
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: pageTopFade
