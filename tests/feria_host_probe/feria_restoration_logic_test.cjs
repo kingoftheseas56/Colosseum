@@ -1,10 +1,11 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
 const root=process.argv[2],read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const Recovery={};vm.createContext(Recovery);vm.runInContext(read('qml/feria/FeriaRecoveryState.js').replace('.pragma library',''),Recovery);
 const H=read('qml/feria/PorticoDiscoveryHome.qml'),S=read('qml/feria/FeriaSeeAllView.qml'),W=read('qml/feria/FeriaWorld.qml');
 function fn(s,n){let a=s.indexOf('function '+n+'(');assert(a>=0,'missing '+n);let b=s.indexOf('{',a),d=0;for(let i=b;i<s.length;i++){if(s[i]==='{')d++;if(s[i]==='}'&&!--d)return s.slice(a,i+1)}throw Error('unclosed '+n)}
 function bind(c,s,names){vm.createContext(c);for(const n of names)vm.runInContext(fn(s,n),c);return c}
 const timer=()=>({running:false,stop(){this.running=false},restart(){this.running=true}});
-function see(){let c={Math,Number,Qt:{OtherFocusReason:1},controller:{viewState:'seeAll'},visible:true,entries:[1,2,3,4,5,6],
+function see(){let c={Math,Number,Recovery,Qt:{OtherFocusReason:1},controller:{viewState:'seeAll'},visible:true,entries:[1,2,3,4,5,6],
  pendingReturnSnapshot:null,returnRestoreAttempts:0,returnRestoreStablePasses:0,hoverSelectionEnabled:true,
  restoreReturnPosition:timer(),armHoverSelection:timer(),
  grid:{count:6,currentIndex:0,contentY:0,originY:0,topMargin:0,bottomMargin:0,contentHeight:1200,height:500,forceLayout(){},forceActiveFocus(){c.focuses++}},focuses:0};

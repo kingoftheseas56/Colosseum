@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtCore
 import "PorticoData.js" as Data
+import "FeriaRecoveryState.js" as Recovery
 import ".." as Colosseum
 import "../CatalogueVisualMetrics.js" as Metrics
 
@@ -18,7 +19,7 @@ Item {
         var route = viewState
         var tab = lens
         Qt.callLater(function() {
-            if (shell.navigationEpoch === epoch && shell.viewState === route
+            if (shell && shell.navigationEpoch === epoch && shell.viewState === route
                     && shell.lens === tab && shell.visible && !shell.navigationSuspended)
                 action()
         })
@@ -268,6 +269,77 @@ Item {
     }
     function setToast(s) { toast = s; toastTimer.restart() }
 
+    property string navigationError: ""
+    property var feedRetryPending: ({})
+    property bool aggregateRetryPending: false
+    property var trackedShelves: []
+    readonly property var catalogueFeeds: liveDiscovery ? (discovery.revision, discovery.shelves()) : []
+    readonly property var catalogueStatus: liveDiscovery
+        ? (aggregateRetryPending && !catalogueFeeds.length
+            ? ({kind:"loading",message:"Requesting catalogue refresh…",retry:false})
+            : Recovery.aggregate(catalogueFeeds, discoveryStarted)) : ({kind:"ready",message:"",retry:false})
+    readonly property real recoveryBottomInset: navigationError.length && viewState !== "host"
+        ? recoveryNotice.implicitHeight + 32 : 0
+    function showNavigationError(message) {
+        navigationError = message
+        deferNavigation(function() { recoveryNotice.focusAction() })
+    }
+    function clearNavigationError() {
+        navigationError = ""
+        content.forceActiveFocus()
+    }
+    function retryFeed(feedId) {
+        if (!liveDiscovery || !feedId || feedRetryPending[feedId]) return false
+        var feed = catalogueFeeds.find(function(row) { return (row.shelfId || row.id) === feedId })
+        if (!feed || feed.loading || typeof discovery.refreshFeed !== "function") return false
+        noteNavigationInput()
+        var pending = Object.assign({}, feedRetryPending); pending[feedId] = true; feedRetryPending = pending
+        feedRetryDeadline.restart()
+        discovery.refreshFeed(feedId)
+        return true
+    }
+    function retryCatalogue() {
+        if (!liveDiscovery || aggregateRetryPending || catalogueFeeds.some(function(row) { return row.loading })) return false
+        noteNavigationInput()
+        aggregateRetryPending = true
+        discoveryStarted = true
+        feedRetryDeadline.restart()
+        discovery.refresh()
+        return true
+    }
+    Timer {
+        id: feedRetryDeadline
+        interval: 30000
+        onTriggered: {
+            // Release only UI latches. Native loading/error/cache policy is unchanged.
+            shell.feedRetryPending = ({})
+            shell.aggregateRetryPending = false
+        }
+    }
+    function settleFeedRetry(feedId) {
+        var pending = Object.assign({}, feedRetryPending); delete pending[feedId]; feedRetryPending = pending
+        aggregateRetryPending = false
+    }
+    function reconcileShelfSelection() {
+        var next = shownShelves()
+        if (viewState === "home" && focusArea === "shelf" && trackedShelves.length
+                && !homeView.pendingNavigationPosition && !homeView.pendingLensPosition) {
+            var old = trackedShelves[shelfIndex]
+            if (old) {
+                var row = next.findIndex(function(item) { return item.id === old.id })
+                var card = row >= 0 ? Recovery.remapIndex(shelfItems(old), shelfItems(next[row]), shelfCardIndex) : -1
+                if (row < 0 || card < 0) { focusArea = "lens"; shelfIndex = 0; shelfCardIndex = 0 }
+                else { shelfIndex = row; shelfCardIndex = card }
+            }
+        }
+        trackedShelves = next
+    }
+    Connections {
+        target: shell.discovery
+        function onRevisionChanged() { shell.reconcileShelfSelection() }
+        function onSourceReady(feedId, shelf) { shell.settleFeedRetry(feedId) }
+        function onSourceFailed(feedId, message) { shell.settleFeedRetry(feedId) }
+    }
     function shownShelves() {
         var rows = []
         if (liveDiscovery) {
@@ -284,7 +356,9 @@ Item {
                     if (key && contentStore.contains(key)) ids.push(key)
                 }
                 if (ids.length) rows.push({ id:s.shelfId, title:s.title, src:s.sourceLabel,
-                    items:ids, rank:s.ranked, stale:s.stale, providerId:s.providerId })
+                    items:ids, rank:s.ranked, stale:s.stale, providerId:s.providerId,
+                    loading:s.loading, error:s.error, fetchedAt:s.fetchedAt, fallbackReason:s.fallbackReason,
+                    sourceId:s.sourceId, sourceLabel:s.sourceLabel })
             }
             return rows
         }
@@ -570,7 +644,10 @@ Item {
         onTriggered: if (shell.viewState === "seeAll") seeAllView.resetSelection()
     }
     function openTitle(id) {
-        if (!titleObj(id)) return
+        if (!titleObj(id)) {
+            showNavigationError("This catalogue title is no longer loaded. Return to the row or refresh its source.")
+            return
+        }
         if (viewState === "seeAll") seeAllReturnSnapshot = seeAllView.returnSnapshot()
         if (sharedAccountActive) accountDestinationRequested()
         if (titleObj(id).resume) { resumeSession(titleObj(id).resume); return }
@@ -587,6 +664,10 @@ Item {
         })
     }
     function openHost(pk,id,mode,url,position,locator) {
+        if (!pk || (!Data.P[pk] && !url)) {
+            showNavigationError("This provider has no usable destination in Feria. Your saved entry has not been changed.")
+            return
+        }
         if (signingOutProvider) { setToast("Wait for sign-out to finish."); return }
         hostResumeLocator = locator || null
         hostResumePosition = position || 0
@@ -595,7 +676,7 @@ Item {
         if (!url && mode === "search" && provider && provider.sp && query.trim().length)
             destination = "https://" + provider.sp + encodeURIComponent(query.trim())
         if (!destination.length || !FeriaBrowserPolicy.allowsNavigation(destination)) {
-            setToast("This service has no web destination.")
+            showNavigationError("This service has no usable web destination. Your saved entry has not been changed.")
             return
         }
         if (sharedAccountActive) accountDestinationRequested()
@@ -603,6 +684,7 @@ Item {
             var title = titleObj(id)
             accountStore.beginVisit({pk:pk,title:title ? title.t : "",cover:title ? artUrl(title,false) : ""})
         }
+        navigationError = ""
         hostReturnState = viewState; hostApp = pk; hostTitle = id || ""; hostMode = mode || "home"; hostUrl = destination; providerWebViewReady = false; viewState = "host"; content.forceActiveFocus()
     }
     function beginHostVisit() {
@@ -644,13 +726,14 @@ Item {
         else content.forceActiveFocus()
     }
     function activateTitleAction() {
-        var it = titleObj(selectedTitle), doors = offers(it), related = relatedTitles(it)
+        var it = titleObj(selectedTitle), doors = titleView.doors, related = relatedTitles(it)
+        if (titleActionIndex < 0 || titleActionIndex >= doors.length + 1 + related.length) return
         if (titleActionIndex < doors.length) {
             var d = doors[titleActionIndex]; if (!d.appOnly && d.actionable !== false) openHost(d.pk, selectedTitle, d.level === "t" ? "title" : "search", d.url)
         } else if (titleActionIndex === doors.length) toggleSaved(selectedTitle)
         else if (related[titleActionIndex - doors.length - 1]) openTitle(related[titleActionIndex - doors.length - 1])
     }
-    function titleActionCount() { return offers(titleObj(selectedTitle)).length + 1 + relatedTitles(titleObj(selectedTitle)).length }
+    function titleActionCount() { return titleView.doors.length + 1 + relatedTitles(titleObj(selectedTitle)).length }
     function activateSearchChoice() {
         var ids = visibleResults(), apps = searchableApps()
         if (searchResultIndex < ids.length && ids[searchResultIndex]) openTitle(ids[searchResultIndex])
@@ -728,6 +811,7 @@ Item {
         if (tab) accountTab = tab
     }
     onViewStateChanged: {
+        navigationError = ""
         navigationEpoch++
         if (!applyingNavigationSnapshot) {
             if (homeView) {
@@ -758,6 +842,11 @@ Item {
         openAccount()
     }
     function resumeSession(session) {
+        if (!session || typeof session.pk !== "string" || !session.pk.trim().length || !session.url
+                || !FeriaBrowserPolicy.allowsNavigation(session.url)) {
+            showNavigationError("This saved entry has no usable provider page. It remains in Continue; you can dismiss this notice or remove the entry using Continue’s existing menu.")
+            return
+        }
         openHost(session.pk, "", "resume", session.url, session.completed || session.kind === "book" ? 0 : session.position, session.completed ? null : session.locator)
     }
     function allSessions() { return recordedSessions }
@@ -765,6 +854,9 @@ Item {
         target: shell.accountStore
         function onProfileChanged() {
             shell.navigationEpoch++
+            shell.navigationError = ""
+            shell.feedRetryPending = ({})
+            shell.aggregateRetryPending = false
             homeView.cancelRestoration()
             seeAllView.cancelRestoration()
             shell.viewState = "home"
@@ -982,24 +1074,28 @@ Item {
             PorticoDiscoveryHome {
                 id: homeView
                 anchors.fill: parent
+                anchors.bottomMargin: shell.recoveryBottomInset
                 controller: shell
                 visible: shell.viewState === "home" || shell.viewState === "apps"
             }
             PorticoDiscoveryTitleView {
                 id: titleView
                 anchors.fill: parent
+                anchors.bottomMargin: shell.recoveryBottomInset
                 controller: shell
                 visible: shell.viewState === "title"
             }
             FeriaSeeAllView {
                 id: seeAllView
                 anchors.fill: parent
+                anchors.bottomMargin: shell.recoveryBottomInset
                 controller: shell
                 visible: shell.viewState === "seeAll"
             }
             PorticoDiscoverySearchRedesign {
                 id: searchView
                 anchors.fill: parent
+                anchors.bottomMargin: shell.recoveryBottomInset
                 controller: shell
                 visible: shell.viewState === "search"
             }
@@ -1015,6 +1111,18 @@ Item {
                 controller: shell
                 visible: shell.viewState === "account"
                 enabled: visible
+            }
+            FeriaRecoveryNotice {
+                id: recoveryNotice
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 16 }
+                z: 90
+                visible: shell.navigationError.length > 0 && shell.viewState !== "host"
+                automationId: "feriaNavigationRecovery"
+                message: shell.navigationError
+                actionText: "Dismiss"
+                secondaryText: "Back"
+                onActionRequested: shell.clearNavigationError()
+                onSecondaryRequested: { shell.navigationError = ""; shell.back() }
             }
             PorticoDiscoveryHostView {
                 id: hostView

@@ -1,5 +1,6 @@
 import QtQuick
 import ".." as Colosseum
+import "FeriaRecoveryState.js" as Recovery
 
 Item {
     id: root
@@ -13,6 +14,20 @@ Item {
     readonly property string sourceLabel: continuing ? ""
         : controller.seeAllShelf.chips ? controller.providerName(controller.chipSelection[controller.seeAllShelfId]) + " chart"
         : controller.seeAllShelf.src || ""
+    readonly property var recoveryFeed: controller.liveDiscovery
+        ? controller.catalogueFeeds.find(function(row) { return (row.shelfId || row.id) === controller.seeAllShelfId })
+          || (controller.seeAllShelf.id ? controller.seeAllShelf : null)
+        : (controller.seeAllShelf.id ? controller.seeAllShelf : null)
+    readonly property var recoveryStatus: continuing
+        ? ({kind:entries.length ? "ready" : "empty", message:entries.length ? "" : "Nothing to continue in this tab.", retry:false})
+        : Recovery.feedStatus(recoveryFeed)
+    property var previousEntries: []
+    function retainEntrySelection() {
+        if (previousEntries.length && !pendingReturnSnapshot)
+            grid.currentIndex = Recovery.remapIndex(previousEntries, entries, grid.currentIndex)
+        previousEntries = entries.slice()
+    }
+    onEntriesChanged: retainEntrySelection()
     property var pendingReturnSnapshot: null
     property int returnRestoreAttempts: 0
     property int returnRestoreStablePasses: 0
@@ -54,14 +69,17 @@ Item {
     }
     function returnSnapshot() {
         if (pendingReturnSnapshot)
-            return { index:Number(pendingReturnSnapshot.index), y:Number(pendingReturnSnapshot.y || 0) }
-        return { index:grid.currentIndex, y:grid.contentY }
+            return { index:Number(pendingReturnSnapshot.index), y:Number(pendingReturnSnapshot.y || 0),
+                     identity:pendingReturnSnapshot.identity || "" }
+        return { index:grid.currentIndex, y:grid.contentY,
+                 identity:Recovery.entryKey(entries[grid.currentIndex]) }
     }
     function applyReturn(snapshot) {
         if (!snapshot) return true
         if (!visible || controller.viewState !== "seeAll" || controller.navigationSuspended) return false
-        var requestedIndex = grid.count > 0
-                ? Math.max(0, Math.min(grid.count - 1, Number(snapshot.index))) : -1
+        var requestedIndex = snapshot.identity
+                ? Recovery.identityIndex(entries, snapshot.identity)
+                : grid.count > 0 ? Math.max(0, Math.min(grid.count - 1, Number(snapshot.index))) : -1
         focusGrid()
         grid.currentIndex = Math.max(-1, Math.min(grid.count - 1, requestedIndex))
         grid.forceLayout()
@@ -80,7 +98,7 @@ Item {
             focusGrid()
             return
         }
-        pendingReturnSnapshot = { index:Number(snapshot.index), y:Number(snapshot.y || 0) }
+        pendingReturnSnapshot = { index:Number(snapshot.index), y:Number(snapshot.y || 0), identity:snapshot.identity || "" }
         returnRestoreAttempts = 0
         returnRestoreStablePasses = 0
         hoverSelectionEnabled = false
@@ -115,6 +133,7 @@ Item {
 
     Rectangle { anchors.fill: parent; color: controller.night }
     Column {
+        id: header
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: controller.marginX; topMargin: 112 }
         spacing: 8
         Text {
@@ -133,17 +152,30 @@ Item {
             Accessible.role: Accessible.StatusBar
         }
     }
+    FeriaRecoveryNotice {
+        id: statusNotice
+        x: controller.marginX
+        y: header.y + header.implicitHeight + 12
+        width: parent.width - 2*controller.marginX
+        automationId: "feriaSeeAllRecovery"
+        message: root.recoveryStatus.message
+        actionText: root.recoveryStatus.retry ? "Retry this source" : ""
+        secondaryText: root.recoveryStatus.kind === "removed" ? "Back to Feria" : ""
+        actionEnabled: !controller.feedRetryPending[controller.seeAllShelfId]
+        onActionRequested: controller.retryFeed(controller.seeAllShelfId)
+        onSecondaryRequested: controller.back()
+    }
     Colosseum.CataloguePosterGrid {
         id: grid
         objectName: "feriaSeeAllGrid"
         anchors { left: parent.left; right: parent.right; top: parent.top; bottom: parent.bottom;
-            leftMargin: controller.marginX; rightMargin: controller.marginX; topMargin: 200; bottomMargin: 24 }
+            leftMargin: controller.marginX; rightMargin: controller.marginX; topMargin: Math.max(200, statusNotice.y + statusNotice.implicitHeight + 16); bottomMargin: 24 }
         visualProfile: "gallery"
         focus: false
         Keys.forwardTo: [restorationInput]
         onDraggingChanged: if (dragging) controller.noteNavigationInput()
         items: root.entries
-        emptyMessage: root.continuing ? "Nothing to continue in this tab." : "No titles in this row."
+        emptyMessage: "" // The status owner above distinguishes loading/error/removal/empty.
         cellHeight: controller.galleryMetrics.posterWidth * (root.continuing || root.posterCards ? controller.galleryMetrics.posterRatio : 1)
             + controller.galleryMetrics.hoverLift + controller.galleryMetrics.cardGap + (root.continuing ? 0
                 : controller.galleryMetrics.hoverLift + 10 + controller.galleryMetrics.titleMinHeight + 24)
@@ -151,6 +183,7 @@ Item {
         onCountChanged: if (currentIndex >= count) currentIndex = count - 1
         onCurrentIndexChanged: if (currentIndex >= 0) positionViewAtIndex(currentIndex, GridView.Contain)
         onItemRequested: function(entry) {
+            if (Recovery.identityIndex(root.entries, Recovery.entryKey(entry)) < 0) return
             if (root.continuing) controller.resumeSession(entry)
             else controller.openTitle(entry)
         }

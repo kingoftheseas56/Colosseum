@@ -15,6 +15,78 @@ Item {
     property var enginePreferences: ({})
     property var appPreferences: ({})
     property bool optionsOpen: false
+    property var qtBrowserComponent: null
+    readonly property bool qtAvailable: qtBrowserComponent && qtBrowserComponent.status === Component.Ready
+    readonly property string startupBlockedMessage: visible && controller.lifecycleActive
+        && !FeriaBrowserPolicy.storageRoot.length
+        ? "The browser profile is not available yet. Return to Feria and try again." : ""
+    readonly property bool recoveryVisible: !fullScreenActive
+        && (startupBlockedMessage.length > 0 || recovery.error.length > 0 || recovery.slow || recovery.resumeMessage.length > 0 || recovery.stopped)
+    function deferHost(action, protectNavigation) {
+        var generation = recovery.epoch
+        var visit = recovery.visitKey
+        var selectedEngine = engine
+        var item = browserLoader.item
+        Qt.callLater(function() {
+            if (root && root.visible && browserLoader.active && recovery.visitKey === visit
+                    && root.engine === selectedEngine && browserLoader.item === item
+                    && (protectNavigation === false || recovery.epoch === generation)) action()
+        })
+    }
+    FeriaRecoveryHostState {
+        id: recovery
+        browser: browserLoader.item
+        active: browserLoader.active
+        engine: root.engine
+        qtAvailable: root.qtAvailable
+        webAvailable: FeriaBrowserPolicy.webView2Available
+        visitKey: controller.hostApp + "|" + controller.hostUrl + "|" + FeriaBrowserPolicy.storageRoot
+        onPlaybackSample: function(sample) { root.receivePlayback(sample) }
+        onBrowserExitRequested: root.deferHost(function() { controller.back() })
+        onBrowserOptionsRequested: root.deferHost(function() { root.showOptions() })
+        onRestartRequested: browserLoader.loadBrowser()
+        onSwitchRequested: function(next, remember) { root.switchBrowser(next, remember) }
+        onLocationStarted: function(location) {
+            FeriaBrowserPolicy.rememberOrigin(controller.hostApp, location)
+            root.pageTitle = ""
+            root.currentUrl = location
+            controller.providerWebViewReady = false
+        }
+        onLocationCompleted: function(location, success) {
+            root.currentUrl = location
+            controller.providerWebViewReady = success
+        }
+    }
+    onFullScreenActiveChanged: if (fullScreenActive) optionsOpen = false
+    Connections {
+        target: controller
+        function onHostUrlChanged() { if (root.visible && browserLoader.active) restartVisit.restart() }
+        function onHostAppChanged() { if (root.visible && browserLoader.active) restartVisit.restart() }
+    }
+    Connections {
+        target: root.qtBrowserComponent
+        function onStatusChanged() {
+            if (browserLoader.active && root.engine === "qtwebengine" && !browserLoader.item
+                    && root.qtBrowserComponent.status !== Component.Loading)
+                browserLoader.loadBrowser()
+        }
+    }
+    Connections {
+        target: FeriaBrowserPolicy
+        function onStorageRootChanged() {
+            recovery.resetVisit()
+            if (root.visible && browserLoader.active) restartVisit.restart()
+        }
+    }
+    Timer {
+        id: restartVisit
+        interval: 0
+        onTriggered: if (root.visible && browserLoader.active) {
+            recovery.resetVisit()
+            root.currentUrl = controller.hostUrl
+            browserLoader.loadBrowser()
+        }
+    }
     readonly property var appOptions: appPreferences[controller.hostApp] || ({layout:true,keyboard:true})
     function setAppOption(name,value) {
         var all = JSON.parse(JSON.stringify(appPreferences))
@@ -27,14 +99,17 @@ Item {
     function focusApp() {
         optionsOpen = false
         if (!browserLoader.item) return
-        if (root.engine === "webview2") browserLoader.item.focusWebView()
-        else browserLoader.item.forceActiveFocus()
+        deferHost(function() {
+            if (!browserLoader.item || root.optionsOpen) return
+            if (root.engine === "webview2") browserLoader.item.focusWebView()
+            else browserLoader.item.forceActiveFocus()
+        }, false)
     }
     function showOptions() {
         if (fullScreenActive) return
         optionsOpen = true
         if (browserLoader.item && engine === "webview2") browserLoader.item.focusAppControls()
-        Qt.callLater(function() { appOptionsButton.forceActiveFocus() })
+        deferHost(function() { if (root.optionsOpen) appOptionsButton.forceActiveFocus() }, false)
     }
     function exitFullScreen() {
         if (!browserLoader.item) return
@@ -45,6 +120,7 @@ Item {
     function appHome() {
         var provider = Data.P[controller.hostApp]
         if (browserLoader.item && provider && provider.d) {
+            recovery.resumeMessage = ""
             browserLoader.item.resumePosition = 0
             browserLoader.item.resumeLocator = null
             browserLoader.item.url = "https://" + provider.d
@@ -54,9 +130,9 @@ Item {
     readonly property string engine: engineOverride || enginePreferences[controller.hostApp]
         || (FeriaBrowserPolicy.webView2Available ? "webview2" : "qtwebengine")
     property string currentUrl: controller.hostUrl
-    property bool loading: false
-    property bool loadSucceeded: false
-    property string errorText: ""
+    readonly property bool loading: recovery.starting
+    readonly property bool loadSucceeded: recovery.succeeded
+    readonly property string errorText: recovery.error
     property string pageTitle: ""
     function receivePlayback(sample) {
         if (!sample || !controller.accountStore || !controller.recording) return
@@ -74,8 +150,7 @@ Item {
     // when the engine exposes one and -1 when it does not (indeterminate).
     readonly property bool engineCanGoBack: browserLoader.item ? browserLoader.item.navCanGoBack === true : false
     readonly property bool engineCanGoForward: browserLoader.item ? browserLoader.item.navCanGoForward === true : false
-    readonly property bool pageLoading: browserLoader.item
-        ? (browserLoader.item.loadActive === true) : root.loading
+    readonly property bool pageLoading: recovery.busy
     readonly property real pageProgress: browserLoader.item
         && typeof browserLoader.item.loadProgress === "number"
         ? browserLoader.item.loadProgress : -1
@@ -89,31 +164,45 @@ Item {
         try { enginePreferences = JSON.parse(preferences.enginesJson) } catch (e) { enginePreferences = ({}) }
         try { appPreferences = JSON.parse(preferences.appsJson) } catch (e) { appPreferences = ({}) }
     }
-    onVisibleChanged: if (visible) {
-        engineOverride = ""
-        currentUrl = controller.hostUrl
-        errorText = ""
-        loadSucceeded = false
-        optionsOpen = false
+    onVisibleChanged: {
+        if (visible) {
+            recovery.resetVisit()
+            engineOverride = ""
+            currentUrl = controller.hostUrl
+            optionsOpen = false
+        } else {
+            recovery.cancel()
+            restartVisit.stop()
+            optionsOpen = false
+        }
     }
-    function tryOtherBrowser() {
-        if (!FeriaBrowserPolicy.webView2Available) return
-        var resume = controller.continueItems.find(function(item) { return item.url === root.currentUrl })
-        controller.hostResumePosition = resume && resume.kind !== "book" ? resume.position : 0
-        controller.hostResumeLocator = resume ? resume.locator || null : null
-        var next = engine === "webview2" ? "qtwebengine" : "webview2"
-        var values = JSON.parse(JSON.stringify(enginePreferences))
-        values[controller.hostApp] = next
-        enginePreferences = values
-        preferences.enginesJson = JSON.stringify(values)
-        engineOverride = next
-        errorText = ""
-        loadSucceeded = false
+    function switchBrowser(next, remember) {
+        if (!visible || !browserLoader.active) return
+        if ((next === "webview2" && !FeriaBrowserPolicy.webView2Available)
+                || (next === "qtwebengine" && !qtAvailable)) return
+        // Keep destination; wrapper-owned engine history is not synthesized or copied.
+        if (remember) {
+            var resume = controller.continueItems.find(function(item) { return item.url === root.currentUrl })
+            controller.hostResumePosition = resume && resume.kind !== "book" ? resume.position : 0
+            controller.hostResumeLocator = resume ? resume.locator || null : null
+            var values = JSON.parse(JSON.stringify(enginePreferences))
+            values[controller.hostApp] = next
+            preferences.enginesJson = JSON.stringify(values)
+            engineOverride = next
+            enginePreferences = values
+        } else engineOverride = next
     }
+    function tryOtherBrowser() { recovery.switchEngine() }
     component BrowserAction: AccountUi.AccountButton {
         implicitWidth: Math.max(42, contentItem.implicitWidth + 28)
         implicitHeight: 36
         Layout.minimumWidth: implicitWidth
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (enabled) clicked()
+                event.accepted = true
+            } else event.accepted = false
+        }
     }
     Rectangle { anchors.fill: parent; color: "#08090d" }
     Rectangle {
@@ -121,25 +210,36 @@ Item {
         objectName: "feriaAppBar"
         anchors { left: parent.left; right: parent.right; top: parent.top }
         visible: !root.fullScreenActive
-        height: root.fullScreenActive ? 0 : root.optionsOpen ? 70 + optionsFlow.implicitHeight : 52
+        height: root.fullScreenActive ? 0 : controlsColumn.implicitHeight + 8
         color: "#08090d"
         Colosseum.KeyboardSpatialNavigator { id: appNav; root:strip }
         Keys.onPressed: function(event) { appNav.handle(event) }
+        Column {
+            id: controlsColumn
+            anchors { left:parent.left; right:parent.right; top:parent.top; leftMargin:controller.marginX; rightMargin:controller.marginX }
+            spacing: 8
         RowLayout {
-            anchors { left:parent.left; right:parent.right; top:parent.top }
+            width: parent.width
             height:52
-            anchors.leftMargin: controller.marginX
-            anchors.rightMargin: controller.marginX
-            spacing: root.u
+            spacing: 8
             Colosseum.BackAction {
                 objectName: "feriaBrowserReturn"
-                label: "Feria"
+                label: "Back to Feria"
                 idleColor: controller.mist
                 hoverColor: controller.ink
                 labelSize: 14
                 onTriggered: controller.back()
             }
+            BrowserAction {
+                id: previousPage
+                objectName: "feriaBrowserBack"
+                text: "Previous page"
+                Accessible.name: "Previous page in provider history"
+                enabled: root.engineCanGoBack
+                onClicked: if (recovery.navigate(true)) root.focusApp()
+            }
             PorticoCombinedGlyph {
+                visible: root.width >= 1150
                 Layout.preferredWidth: 1.3 * root.u
                 Layout.preferredHeight: 1.3 * root.u
                 glyphKey: Data.P[controller.hostApp] ? controller.hostApp : "portico"
@@ -147,6 +247,7 @@ Item {
             }
             Text {
                 text: controller.providerName(controller.hostApp)
+                visible: root.width >= 1150
                 color: controller.ink
                 font.family: controller.uiFont
                 font.pixelSize: 14
@@ -173,6 +274,16 @@ Item {
                 }
             }
             BrowserAction {
+                objectName: "feriaBrowserReload"
+                text: root.pageLoading ? "Stop" : "Reload"
+                enabled: root.pageLoading ? recovery.canStop : recovery.canRetry
+                onClicked: {
+                    if (root.pageLoading) recovery.stop()
+                    else recovery.retry()
+                    root.focusApp()
+                }
+            }
+            BrowserAction {
                 objectName: "feriaAppOptions"
                 text: root.optionsOpen ? "Done" : "Options"
                 Accessible.name: root.optionsOpen ? "Close app options" : "App options"
@@ -191,40 +302,23 @@ Item {
         }
         Flow {
             id:optionsFlow
-            anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:58; leftMargin:controller.marginX; rightMargin:controller.marginX }
+            width: parent.width
             spacing:10
             visible:root.optionsOpen
-            BrowserAction {
-                id:appOptionsButton
-                objectName:"feriaBrowserBack"
-                text:"Previous page"
-                enabled:root.engineCanGoBack
-                onClicked: { if (browserLoader.item) browserLoader.item.pageBack(); root.focusApp() }
-            }
             BrowserAction {
                 objectName:"feriaBrowserForward"
                 text:"Next page"
                 enabled:root.engineCanGoForward
-                onClicked: { if (browserLoader.item) browserLoader.item.pageForward(); root.focusApp() }
+                onClicked: if (recovery.navigate(false)) root.focusApp()
             }
             BrowserAction {
                 objectName:"feriaAppHome"
                 text:"App home"
-                enabled:!!Data.P[controller.hostApp]
+                enabled:root.browserReady && !!Data.P[controller.hostApp]
                 onClicked:root.appHome()
             }
             BrowserAction {
-                objectName:"feriaBrowserReload"
-                text:root.pageLoading ? "Stop" : "Reload"
-                enabled:browserLoader.item !== null && root.browserReady
-                onClicked: {
-                    if (!browserLoader.item) return
-                    if (root.pageLoading) browserLoader.item.stopLoad()
-                    else browserLoader.item.reload()
-                    root.focusApp()
-                }
-            }
-            BrowserAction {
+                id: appOptionsButton
                 objectName:"feriaAppLayout"
                 text:"App layout: " + (root.appOptions.layout !== false ? "On" : "Off")
                 onClicked:root.setAppOption("layout",root.appOptions.layout === false)
@@ -236,11 +330,57 @@ Item {
             }
             BrowserAction {
                 objectName:"feriaBrowserSwitch"
-                visible:FeriaBrowserPolicy.webView2Available
+                visible: recovery.alternativeAvailable
+                enabled: recovery.alternativeAvailable && !recovery.actionPending
                 text:"Compatibility mode"
                 onClicked: { root.tryOtherBrowser(); root.optionsOpen = false }
             }
         }
+        Column {
+            width: parent.width
+            visible: root.recoveryVisible
+            spacing: 8
+            Text {
+                width: parent.width
+                text: recovery.error || root.startupBlockedMessage || (recovery.slow
+                    ? "This page is taking longer than usual. You can stop loading or return to Feria."
+                    : recovery.stopped ? "Loading stopped. The page may be incomplete." : "")
+                visible: text.length > 0
+                color: controller.ink; font.family: controller.uiFont; font.pixelSize: 14
+                wrapMode: Text.WordWrap
+                Accessible.role: Accessible.StatusBar
+            }
+            FeriaRecoveryNotice {
+                width: parent.width
+                automationId: "feriaResumeUnavailable"
+                message: recovery.resumeMessage
+                actionText: "Dismiss position notice"
+                onActionRequested: { recovery.resumeMessage = ""; root.focusApp() }
+            }
+            Flow {
+                width: parent.width; spacing: 10
+                BrowserAction {
+                    objectName: "feriaRecoveryRetry"
+                    text: browserLoader.item && root.browserReady ? "Retry page" : "Retry browser startup"
+                    visible: recovery.error.length > 0 || recovery.stopped
+                    enabled: recovery.canRetry
+                    onClicked: recovery.retry()
+                }
+                BrowserAction {
+                    objectName: "feriaRecoveryCompatibility"
+                    text: "Compatibility mode"
+                    visible: recovery.alternativeAvailable
+                    enabled: recovery.alternativeAvailable && !recovery.actionPending
+                    onClicked: recovery.switchEngine()
+                }
+                BrowserAction {
+                    objectName: "feriaRecoveryReturn"
+                    text: "Return to Feria"
+                    onClicked: controller.back()
+                }
+            }
+        }
+        } // controlsColumn
         // Engine load feedback: a real percentage where the engine reports one,
         // an honest indeterminate sweep where it does not.
         Rectangle {
@@ -272,17 +412,38 @@ Item {
     Loader {
         id: browserLoader
         objectName: "feriaBrowserLoader"
+        // Native bounds signals can precede a change to the parent's position.
+        // Restore visibility after the complete layout has settled.
+        property bool layoutPending: false
+        function settleNativeLayout() { layoutPending = false }
+        function nativeLayoutChanged() {
+            if (root.engine !== "webview2" || !item) return
+            layoutPending = true
+            Qt.callLater(settleNativeLayout)
+        }
+        onYChanged: nativeLayoutChanged()
+        onHeightChanged: nativeLayoutChanged()
         anchors { left: parent.left; right: parent.right; top: strip.bottom; bottom: parent.bottom }
         active: root.visible && controller.lifecycleActive && controller.hostUrl.length > 0 && FeriaBrowserPolicy.storageRoot.length > 0
-        onActiveChanged: if (active) loadBrowser()
+        onActiveChanged: {
+            if (active) loadBrowser()
+            else recovery.cancel()
+        }
         Connections {
             target: root
             function onEngineChanged() { if (browserLoader.active) browserLoader.loadBrowser() }
         }
         function loadBrowser() {
+            if (!active || !root.visible) return
+            if (!root.qtBrowserComponent) root.qtBrowserComponent = Qt.createComponent("FeriaQtWebEngine.qml")
+            source = "" // Dispose the old engine even if its replacement is unavailable.
             controller.beginHostVisit()
-            root.loading = true
-            root.errorText = ""
+            recovery.beginStartup()
+            if (root.engine === "qtwebengine" && root.qtBrowserComponent.status === Component.Loading) return
+            if (!recovery.engineAvailable) {
+                recovery.failed()
+                return
+            }
             setSource(root.engine === "webview2" ? "FeriaWebView2.qml" : "FeriaQtWebEngine.qml", {
                 sourceUrl: root.currentUrl || controller.hostUrl,
                 profilePath: FeriaBrowserPolicy.storageRoot,
@@ -294,43 +455,9 @@ Item {
                 resumeLocator: controller.hostResumeLocator,
                 observationMode: controller.providerMode(controller.hostApp),
                 observationEnabled: Qt.binding(function() { return controller.recording }),
-                suppressed: Qt.binding(function() { return controller.browserSuppressed })
+                suppressed: Qt.binding(function() { return controller.browserSuppressed || root.optionsOpen || browserLoader.layoutPending })
             })
         }
-        onStatusChanged: if (status === Loader.Error) {
-            root.loading = false
-            root.errorText = "The browser could not start."
-            if (root.engine === "webview2") Qt.callLater(function() { root.engineOverride = "qtwebengine" })
-        }
-    }
-    Connections {
-        target: browserLoader.item
-        function onPlaybackObserved(sample) { root.receivePlayback(sample) }
-        function onResumeUnavailable() { controller.setToast("The saved page is open. Use the provider's controls to restore your position.") }
-        function onStarted(location) {
-            FeriaBrowserPolicy.rememberOrigin(controller.hostApp, location)
-            root.pageTitle = ""
-            root.currentUrl = location
-            root.loading = true
-            root.loadSucceeded = false
-            root.errorText = ""
-            controller.providerWebViewReady = false
-        }
-        function onCompleted(location, success) {
-            root.currentUrl = location
-            root.loading = false
-            root.loadSucceeded = success
-            root.errorText = success ? "" : (FeriaBrowserPolicy.webView2Available
-                ? "Could not open the app. Use Options to reload or try compatibility mode."
-                : "Could not open the app. Use Options to reload.")
-            controller.providerWebViewReady = success
-        }
-        function onFailed(reason) {
-            root.loading = false
-            root.errorText = "The browser could not start."
-            if (root.engine === "webview2") Qt.callLater(function() { root.engineOverride = "qtwebengine" })
-        }
-        function onExitRequested() { Qt.callLater(function() { controller.back() }) }
-        function onOptionsRequested() { Qt.callLater(function() { root.showOptions() }) }
+        onStatusChanged: if (status === Loader.Error) recovery.failed()
     }
 }

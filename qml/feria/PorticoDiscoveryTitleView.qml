@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "PorticoData.js" as Data
+import "FeriaRecoveryState.js" as Recovery
 import ".." as Colosseum
 
 Item {
@@ -10,7 +11,80 @@ Item {
     readonly property real u: controller.unit
     readonly property real m: controller.marginX
     property var it: controller.titleObj(controller.selectedTitle)
-    property var doors: controller.offers(it)
+    readonly property string offerContext: controller.selectedTitle + "|" + controller.region
+    property var currentDoors: controller.offers(it)
+    property var cachedDoors: []
+    property string cachedContext: ""
+    property var previousDoors: []
+    property string selectionContext: ""
+    property bool retryPending: false
+    property bool availabilityDelayed: false
+    readonly property bool availabilityQueryable: !!it && !!it._trend
+        && String(it._trend.title || "").trim().length > 0 && !!availability && availability.status !== "unsupported"
+    property var doors: cachedContext === offerContext && cachedDoors.length
+        && (availability.status === "loading" || availability.status === "error") ? cachedDoors : currentDoors
+    function retainOffers() {
+        if (!availability || !currentDoors) return
+        if (availability.status === "ready" || availability.status === "unsupported") {
+            cachedContext = offerContext
+            cachedDoors = currentDoors.slice()
+        }
+    }
+    function retryAvailability() {
+        if (!visible || !availabilityQueryable || retryPending || availability.status === "loading") return false
+        retryPending = true
+        controller.titleActionIndex = -1
+        controller.requestAvailability(root.it, true)
+        retryLatch.restart()
+        return true
+    }
+    function reconcileActions() {
+        if (!doors) return
+        var relatedCount = related ? related.length : 0
+        var index = controller.titleActionIndex
+        if (selectionContext === offerContext && previousDoors.length && index >= 0) {
+            if (index < previousDoors.length) {
+                var key = Recovery.doorKey(previousDoors[index])
+                index = doors.findIndex(function(door) { return Recovery.doorKey(door) === key })
+            } else index = doors.length + index - previousDoors.length
+            controller.titleActionIndex = Math.min(doors.length + relatedCount, index)
+        } else if (index >= doors.length + 1 + relatedCount)
+            controller.titleActionIndex = -1
+        previousDoors = doors.slice()
+        selectionContext = offerContext
+        if (visible) Qt.callLater(revealCurrentAction)
+    }
+    onCurrentDoorsChanged: Qt.callLater(retainOffers)
+    onAvailabilityChanged: {
+        Qt.callLater(retainOffers)
+        availabilityDelayed = false
+        if (visible && availabilityQueryable && availability.status === "loading") availabilityDeadline.restart()
+        else availabilityDeadline.stop()
+    }
+    Connections {
+        target: controller
+        function onRegionChanged() {
+            root.cachedDoors = []
+            root.cachedContext = ""
+            controller.titleActionIndex = -1
+            availabilityDeadline.stop()
+            root.availabilityDelayed = false
+        }
+        function onSelectedTitleChanged() {
+            root.cachedDoors = []
+            root.cachedContext = ""
+            root.previousDoors = []
+            root.retryPending = false
+            availabilityDeadline.stop()
+            root.availabilityDelayed = false
+        }
+    }
+    Timer { id: retryLatch; interval: 0; onTriggered: root.retryPending = false }
+    Timer {
+        id: availabilityDeadline
+        interval: 30000
+        onTriggered: if (root.visible && root.availability.status === "loading") root.availabilityDelayed = true
+    }
     property var related: controller.relatedTitles(it)
     readonly property var availability: typeof controller.availabilityFor === "function"
         ? controller.availabilityFor(it) : ({status:"unsupported"})
@@ -77,8 +151,11 @@ Item {
     }
     onWidthChanged: Qt.callLater(revealCurrentAction)
     onHeightChanged: Qt.callLater(revealCurrentAction)
-    onVisibleChanged: if (visible) Qt.callLater(revealCurrentAction)
-    onDoorsChanged: if (visible) Qt.callLater(revealCurrentAction)
+    onVisibleChanged: {
+        if (visible) Qt.callLater(revealCurrentAction)
+        else { availabilityDeadline.stop(); availabilityDelayed = false; retryPending = false }
+    }
+    onDoorsChanged: Qt.callLater(reconcileActions)
 
     function providerKey(door) { return door.pk || door.providerId || "" }
     function providerLabel(door) { return door.label || controller.providerName(providerKey(door)) }
@@ -103,14 +180,7 @@ Item {
         return "Title page link"
     }
     function availabilityNote() {
-        var country = controller.region || availability.region || "your country"
-        if (availability.status === "loading" || availability.status === "idle") return "Checking availability in " + country + "…"
-        if (availability.status === "error") return "Availability could not be checked. Retry below."
-        if (availability.status === "unmatched") return "No matching title was found on JustWatch."
-        if (availability.status === "ready") return availability.offers.length
-            ? "Availability for " + country
-            : "No streaming offers are listed for this title in " + country + "."
-        return ""
+        return Recovery.availabilityMessage(availability, controller.region, availabilityQueryable, availabilityDelayed)
     }
 
     Rectangle {
@@ -234,23 +304,25 @@ Item {
                 Text { topPadding:1.2*u; text:"Where to " + (root.it?Data.VERB[root.it.k]:"watch"); color:controller.ink; font.family:controller.displayFont; font.pixelSize:22; font.weight:Font.Medium }
                 Text {
                     objectName:"feriaAvailabilityStatus"
-                    visible:root.availability.status !== "unsupported"
+                    visible:true
                     width:parent.width; text:root.availabilityNote(); wrapMode:Text.WordWrap
                     color:controller.mist; font.family:controller.uiFont; font.pixelSize:14
                 }
                 Row {
-                    visible:root.availability.status === "error" || root.availability.status === "unmatched"
+                    visible:root.availabilityQueryable
                     spacing:controller.unit
                     Text {
-                        visible:root.availability.status === "error" || root.availability.status === "unmatched"
+                        visible:root.availabilityQueryable
                         text:"Retry"; color:controller.gold; font.family:controller.uiFont; font.pixelSize:13; font.underline:true
                         Colosseum.KeyboardAction {
                             objectName: "feriaAvailabilityRetry"
                             anchors.fill: parent
                             accessibleName: "Retry availability"
                             focusRadius: 2
+                            spaceActivates: true
+                            enabled: root.availabilityQueryable && root.availability.status !== "loading" && !root.retryPending
                             onActiveFocusChanged: if (activeFocus) root.revealItem(parent)
-                            onTriggered: controller.requestAvailability(root.it, true)
+                            onTriggered: root.retryAvailability()
                         }
                     }
                 }
@@ -361,13 +433,16 @@ Item {
                 }
                 Text {
                     objectName:"feriaAvailabilityAttribution"
-                    visible:root.availability.status === "ready"
-                    text:"Availability data from JustWatch"
+                    visible:!!root.availability.source
+                    text:"Availability source: " + (root.availability.source || "")
+                         + (root.availability.region ? " · " + root.availability.region : "")
                     color:controller.slate; font.family:controller.uiFont; font.pixelSize:12
                     topPadding:0.4*u
                     Colosseum.KeyboardAction {
                         anchors.fill:parent
                         accessibleName:"View the availability source on JustWatch"
+                        enabled: !!root.availability.attributionUrl
+                        spaceActivates: true
                         onTriggered:controller.openHost("justwatch",controller.selectedTitle,"title",root.availability.attributionUrl)
                     }
                 }

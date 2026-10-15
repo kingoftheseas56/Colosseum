@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "PorticoData.js" as Data
+import "FeriaRecoveryState.js" as Recovery
 import ".." as Colosseum
 
 Item {
@@ -22,6 +23,26 @@ Item {
     readonly property real resultCardWidth: (scroll.width - (resultColumns - 1) * resultGap) / resultColumns
 
     property alias searchField: input
+    property var previousHits: []
+    property var previousApps: []
+    property string previousQuery: ""
+    function retainSelection() {
+        var index = controller.searchResultIndex
+        if (previousQuery === controller.query && index >= 0) {
+            if (index < previousHits.length)
+                controller.searchResultIndex = Recovery.remapIndex(previousHits, hits, index)
+            else {
+                var app = previousApps[index - previousHits.length]
+                var next = apps.indexOf(app)
+                controller.searchResultIndex = next < 0 ? -1 : hits.length + next
+            }
+        }
+        previousHits = hits.slice()
+        previousApps = apps.slice()
+        previousQuery = controller.query
+    }
+    onHitsChanged: retainSelection()
+    onAppsChanged: retainSelection()
 
     function suggestionId(label) {
         var q = String(label).trim().toLowerCase()
@@ -227,6 +248,17 @@ Item {
             id: body
             width: scroll.width
             spacing: 1.35 * u
+            FeriaRecoveryNotice {
+                id: searchStatus
+                width: parent.width
+                onFocusEntered: scroll.contentY = Math.max(0, searchStatus.mapToItem(scroll.contentItem, 0, 0).y)
+                automationId: "feriaSearchRecovery"
+                message: controller.liveDiscovery ? (controller.catalogueStatus.message
+                    || "Search covers titles already loaded into Feria. Provider searches are separate links below.") : ""
+                actionText: controller.catalogueStatus.retry ? "Refresh catalogue" : ""
+                actionEnabled: !controller.aggregateRetryPending
+                onActionRequested: controller.retryCatalogue()
+            }
 
             Column {
                 id: emptyState
@@ -519,7 +551,7 @@ Item {
                             spacing: 0.45 * u
 
                             Text {
-                                text: "No catalogue matches"
+                                text: controller.catalogueStatus.kind === "loading" ? "No matching titles loaded yet" : "No matching loaded titles"
                                 color: controller.ink
                                 font.family: controller.displayFont
                                 font.pixelSize: 2.0 * u
@@ -528,8 +560,8 @@ Item {
 
                             Text {
                                 width: parent.width
-                                text: "Nothing in Feria’s current catalogues matches “" + controller.query.trim()
-                                      + "”. Try another title or creator, pick a shortcut below, or hand the search to one of your apps."
+                                text: "No currently loaded title matches “" + controller.query.trim()
+                                      + "”. Catalogue loading or a failed refresh can limit results. Provider search links below search that service separately."
                                 color: controller.mist
                                 font.family: controller.uiFont
                                 font.pixelSize: 0.96 * u
@@ -834,10 +866,12 @@ Item {
     }
 
     Component.onCompleted: if (visible) Qt.callLater(function() {
+        if (!root || !root.visible || !root.controller || root.controller.viewState !== "search") return
         input.forceActiveFocus()
     })
 
     onVisibleChanged: if (visible) Qt.callLater(function() {
+        if (!root || !root.visible || !root.controller || root.controller.viewState !== "search") return
         scroll.contentY = 0
         input.forceActiveFocus()
     })

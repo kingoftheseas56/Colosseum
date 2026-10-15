@@ -66,7 +66,8 @@ test('title action lookup preserves provider/Save/related ordering',()=>{
 test('Retry uses shared keyboard action and exact forced request',()=>{
  const at=T.indexOf('objectName: "feriaAvailabilityRetry"');assert(at>0);
  const b=T.slice(at,T.indexOf('\n                        }',at));
- assert(b.includes('onTriggered: controller.requestAvailability(root.it, true)'));
+ assert(b.includes('onTriggered: root.retryAvailability()'));
+ assert(fn(T,'retryAvailability').includes('controller.requestAvailability(root.it, true)'));
  assert.equal(T.slice(0,at).trim().split('\n').at(-1).trim(),'Colosseum.KeyboardAction {');
  const K=source('qml/KeyboardAction.qml');assert(K.includes('focusPolicy: Qt.TabFocus'));assert(K.includes('Accessible.onPressAction: action.activate'));assert(K.includes('event.key === Qt.Key_Return || event.key === Qt.Key_Enter'));
 });
@@ -105,9 +106,9 @@ test('Retry Enter traverses actual shared activation function and requests once'
  const triggered=T.slice(at).match(/onTriggered: (.+)/)[1];
  let calls=0,title={id:'fixture'};
  const c={Qt,controller:{requestAvailability:(it,forced)=>{assert.strictEqual(it,title);assert.strictEqual(forced,true);calls++}},
- root:{it:title},action:{enabled:true,visible:true,focusEnabled:true,focusOnPointer:true,
+ root:{it:title},visible:true,availabilityQueryable:true,retryPending:false,availability:{status:'error'},retryLatch:{restart(){}},action:{enabled:true,visible:true,focusEnabled:true,focusOnPointer:true,
  forceActiveFocus:()=>{},command:null,spaceActivates:false,contextEnabled:false}};
- vm.createContext(c);c.action.triggered=()=>vm.runInContext(triggered,c);
+ vm.createContext(c);vm.runInContext(fn(T,'retryAvailability'),c);c.root.retryAvailability=c.retryAvailability;c.action.triggered=()=>vm.runInContext(triggered,c);
  vm.runInContext(fn(K,'activate'),c);c.action.activate=c.activate;
  const atKey=K.indexOf('Keys.onPressed:');vm.runInContext('function press(event) '+block(K,atKey),c);
  const event={key:Qt.Key_Return,accepted:false,modifiers:0};c.press(event);assert.equal(calls,1);assert(event.accepted);

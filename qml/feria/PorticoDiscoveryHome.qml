@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "PorticoData.js" as Data
+import "FeriaRecoveryState.js" as Recovery
 import ".." as Colosseum
 
 Item {
@@ -694,6 +695,32 @@ Item {
                 }
             }
 
+            FeriaRecoveryNotice {
+                id: aggregateNotice
+                x: m; width: parent.width - 2*m
+                onFocusEntered: home.ensureVisible(aggregateNotice)
+                automationId: "feriaCatalogueRecovery"
+                message: controller.catalogueStatus.message
+                actionText: controller.catalogueStatus.retry ? "Refresh catalogue" : ""
+                actionEnabled: !controller.aggregateRetryPending
+                onActionRequested: controller.retryCatalogue()
+            }
+            Repeater {
+                // Empty native rows have status, but are not new keyboard shelf indices.
+                model: controller.liveDiscovery ? controller.catalogueFeeds.filter(function(row) { return !(row.items || []).length }) : []
+                delegate: FeriaRecoveryNotice {
+                    id: emptyFeedNotice
+                    required property var modelData
+                    onFocusEntered: home.ensureVisible(emptyFeedNotice)
+                    x: m; width: homeColumn.width - 2*m
+                    property var status: Recovery.feedStatus(modelData)
+                    automationId: "feriaEmptyFeed_" + (modelData.shelfId || modelData.id)
+                    message: modelData.title + ": " + status.message
+                    actionText: status.retry ? "Retry " + (modelData.sourceLabel || modelData.title) : ""
+                    actionEnabled: !controller.feedRetryPending[modelData.shelfId || modelData.id]
+                    onActionRequested: controller.retryFeed(modelData.shelfId || modelData.id)
+                }
+            }
             Repeater {
                 id: shelfRepeater
                 model: controller.shownShelves()
@@ -712,7 +739,7 @@ Item {
                         rail.contentX = boundedRailX(value)
                     }
                     width: homeColumn.width
-                    height: 50 + rail.height + controller.galleryMetrics.shelfGap
+                    height: 50 + shelfStatus.implicitHeight + rail.height + controller.galleryMetrics.shelfGap
 
                     Colosseum.WidgetHeader {
                         x: m
@@ -746,9 +773,20 @@ Item {
                         }
                     }
 
+                    FeriaRecoveryNotice {
+                        id: shelfStatus
+                        onFocusEntered: home.ensureVisible(shelfStatus)
+                        x: m; y: 50; width: parent.width - 2*m
+                        property var status: Recovery.feedStatus(shelf.modelData)
+                        automationId: "feriaFeed_" + shelf.modelData.id
+                        message: status.message
+                        actionText: status.retry ? "Retry this source" : ""
+                        actionEnabled: !controller.feedRetryPending[shelf.modelData.id]
+                        onActionRequested: controller.retryFeed(shelf.modelData.id)
+                    }
                     ListView {
                         id: rail
-                        anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:50 }
+                        anchors { left:parent.left; right:parent.right; top:parent.top; topMargin:50 + shelfStatus.implicitHeight }
                         height: controller.galleryMetrics.posterWidth * controller.galleryMetrics.posterRatio + 10 + controller.galleryMetrics.titleMinHeight + 24 + controller.galleryMetrics.hoverLift
                         orientation: ListView.Horizontal
                         spacing: controller.galleryMetrics.cardGap

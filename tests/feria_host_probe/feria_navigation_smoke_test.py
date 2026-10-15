@@ -13,6 +13,8 @@ import uuid
 
 
 SMOKES = {
+    'FeriaRecoverySmoke': 40,
+    'FeriaRecoveryCatalogueSmoke': 20,
     'FeriaNavigationSmoke': 16,
     'FeriaContextualBackSmoke': 12,
     'FeriaSessionRetentionSmoke': 10,
@@ -24,13 +26,36 @@ SMOKES = {
 }
 
 
+def run_process(command, environment, timeout):
+    # A child engine can inherit a pipe and hold communicate() open after its
+    # parent dies. A regular file keeps both successful exits and timeouts bounded.
+    with tempfile.TemporaryFile() as output:
+        process = subprocess.Popen(command, env=environment, stdout=output,
+                                   stderr=subprocess.STDOUT)
+        try:
+            code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            code = 'timeout'
+            if os.name == 'nt':
+                try:
+                    subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   timeout=10, check=False)
+                except subprocess.TimeoutExpired:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+        output.seek(0)
+        return subprocess.CompletedProcess(command, code, output.read())
+
+
 def run_check(command, environment, minimum, timeout, label, output_dir):
-    try:
-        result = subprocess.run(command, env=environment, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, timeout=timeout)
-        code, raw = result.returncode, result.stdout
-    except subprocess.TimeoutExpired as error:
-        code, raw = 'timeout', error.stdout or b''
+    result = run_process(command, environment, timeout)
+    code, raw = result.returncode, result.stdout
     checks = []
     for line in raw.decode('utf-8', errors='replace').splitlines():
         if 'FERIA_MAIN_SMOKE ' in line:
@@ -77,7 +102,7 @@ def main():
         for name in args.smoke or SMOKES:
             command = [str(args.harness.resolve()), str(source / (name + '.qml')),
                        'navigation', str(urls), str(root / name)]
-            failures += not run_check(command, environment, SMOKES[name], 55, name, args.output)
+            failures += not run_check(command, environment, SMOKES[name], 70 if name == 'FeriaRecoverySmoke' else 55, name, args.output)
         if args.app:
             # Main refuses to execute its assertions unless the isolated tag is set.
             environment['COLOSSEUM_APPDATA_TAG'] = 'feria-abc-' + uuid.uuid4().hex

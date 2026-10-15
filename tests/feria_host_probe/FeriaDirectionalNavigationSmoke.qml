@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Window
 import QtTest
 import "../../qml/feria"
+import "../../qml/feria/PorticoData.js" as FixtureData
 
 Window {
     id: window
@@ -23,6 +24,15 @@ Window {
         id: loader
         anchors.fill: parent
         sourceComponent: FeriaWorld {
+            // Queryable native-like title metadata for the forced availability-error fixture.
+            function titleObj(id) {
+                var item = FixtureData.T[id]
+                if (item) return Object.assign({}, item, {_trend:{title:item.t,kind:"movie"}})
+                // Preserve the existing recorded Continue title/resume projection.
+                var recorded = recordedSessions.find(function(entry) { return entry.id === id })
+                return recorded ? {t:recorded.title,k:recorded.kind,imageUrl:recorded.cover,
+                                   _trend:true,resume:recorded} : null
+            }
             function offers(it) { return window.fixtureDoors }
             function relatedTitles(it) {
                 return ["dune2", "dunebook", "phm", "stranger", "dune2", "phm"]
