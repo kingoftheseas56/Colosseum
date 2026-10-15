@@ -389,6 +389,18 @@ int main(int argc, char **argv) {
                 "missing",
         "reconfiguration cancels old-source work without result leakage");
     holdLeaf = false;
+    // Rollback to a pre-static server must also work for a client that already
+    // cached a publication. Only the optional entry may announce this absence;
+    // a missing referenced shard remains the hard failure tested above.
+    files.remove("/catalogue/current.json");
+    const int beforeRollback = posts;
+    remote.read("titleCatalog", preparedArgs, QVariantList(), true);
+    until([&] { return !remote.pending(); });
+    require(remote.queryState("titleCatalog", preparedArgs, QVariantList()).value("status") ==
+                "success" && posts == beforeRollback + 1 &&
+                remote.read("titleCatalog", preparedArgs, QVariantList()).toList().at(0)
+                    .toMap().value("title") == "worker",
+            "warm client falls back to legacy Worker when rollback removes public entry");
     require(QJsonDocument::fromVariant(measured).isArray(), "measurement rows available");
     if (argc > 1) {
         QFile report(QString::fromLocal8Bit(argv[1]));

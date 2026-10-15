@@ -996,6 +996,14 @@ struct StaticCatalogueResolver::Impl {
             }
             first = false;
             j->index = index;
+            if (unavailable) {
+                // An authoritative optional-entry absence announces a legacy-only
+                // server (including rollback). Retain last-good disk data for
+                // outages, but do not pin this online request to its old source.
+                j->index = {};
+                finish(id, Status::NotPrepared);
+                continue;
+            }
             if (index.isEmpty() || hardFailure)
                 finish(id, unavailable ? Status::NotPrepared : Status::Failure, {}, entryError);
             else
@@ -1035,8 +1043,7 @@ struct StaticCatalogueResolver::Impl {
                              error.isEmpty() ? "STATIC_HTTP_" + QString::number(status) : error;
                          hardFailure =
                              error == "STATIC_FILE_TOO_LARGE" || (status >= 300 && status < 400);
-                         unavailable = index.isEmpty() && (status == 401 || status == 404 ||
-                                                           status == 410 || status == 501);
+                         unavailable = status == 401 || status == 404 || status == 410 || status == 501;
                          releaseWaiters({current});
                          return;
                      }

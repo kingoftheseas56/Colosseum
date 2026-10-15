@@ -310,6 +310,11 @@ is unchanged. Corrupt entry/index/shard data fails explicitly; a network outage
 may use the validated last-good publication. Failed prepared calls do not
 silently become empty results or SQL fallback. Explicit retry revalidates the
 entry and preserves the existing exact-query notification contract.
+An authoritative entry HTTP 401/404/410/501 instead announces a legacy-only
+service, including a server rollback, even for an already-warm client. Those
+requests use the old Worker without pinning its revision to the retired public
+index. Last-good files remain available for a later offline restart; absent
+referenced shards on a valid publication still fail rather than falling back.
 
 Hash verification precedes parsing and immutable disk persistence. Disk writes
 use `QSaveFile` with direct-write fallback disabled. Each origin's cache lives
