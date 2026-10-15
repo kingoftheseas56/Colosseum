@@ -147,7 +147,7 @@ WorldPage {
                                  cover: r.cover || "", gcdId: r.gcdId, title: r.title }
                     })
                 }
-            }).filter(function(s) { return s.rows.length > 0 })
+            })
             var arc21 = [
                 {label:"Recently Available", catalogId:"recently-available", group:"", key:""},
                 {label:"Complete Runs", catalogId:"complete-runs", group:"", key:""},
@@ -160,7 +160,7 @@ WorldPage {
                 var page=ComicsCatalog.discoverPage(spec.catalogId,spec.group,spec.key,false,0,24)||({})
                 return {label:spec.label,catalogId:spec.catalogId,filterGroup:spec.group,filterKey:spec.key,
                     rows:(page.items||[]).map(function(r){return {caption:r.title+(r.year?" ("+r.year+")":""),cover:r.cover||"",locgId:"locg:"+r.locgId,title:r.title}})}
-            }).filter(function(s){return s.rows.length>0})
+            })
             tanko.comicShelves = arc21.concat(tanko.comicShelves)
         } else {
             tanko.comicShelves = []

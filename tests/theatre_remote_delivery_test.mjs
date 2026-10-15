@@ -40,6 +40,40 @@ function signal() {
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
+for (const pageKey of ['movies', 'shows']) {
+    test(`${pageKey}: a first remote index shelf paints without waiting for peer queries or live rows`, async () => {
+        const mod = adapterModule(), cat = fakeImdbCatalog(), pushes = [];
+        mod.setRequestAdapter(() => () => {}); // live provider deliberately never answers
+        cat.pending.add('unrelated-title-facts');
+        const def = mod.Rules.defaultRows(pageKey).find(row => row.key === 'top-rated');
+        const query = mod.Rules.indexQueriesFor(def.recipe)[0];
+        const cancel = mod.loadCatalogPage(pageKey, {imdbCatalog: cat, generation: 41}, p => pushes.push(p));
+        await tick();
+        assert.equal(pushes.some(p => p.rows.some(row => row.key === 'top-rated')), false);
+        cat.succeed([query, 0, 20], imdbRows(pageKey, 3));
+        await new Promise(resolve => setTimeout(resolve, 10));
+        const shelf = pushes.at(-1).rows.find(row => row.key === 'top-rated');
+        assert.equal(shelf?.items.length, 3, 'completed shelf paints while unrelated native and live work is still pending');
+        assert.equal(cat.remotePending(), true);
+        cancel();
+        assert.equal(cat.remoteQueryChanged.count, 0, 'tab cancellation disconnects every owned query');
+    });
+}
+
+test('main shelves: leaving the page cancels late index publication', async () => {
+    const mod = adapterModule(), cat = fakeImdbCatalog(), pushes = [];
+    mod.setRequestAdapter(() => () => {});
+    const def = mod.Rules.defaultRows('movies').find(row => row.key === 'top-rated');
+    const query = mod.Rules.indexQueriesFor(def.recipe)[0];
+    const cancel = mod.loadCatalogPage('movies', {imdbCatalog: cat, generation: 42}, p => pushes.push(p));
+    cancel();
+    const before = pushes.length;
+    cat.succeed([query, 0, 20], imdbRows('movies', 2));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(pushes.length, before);
+    assert.equal(cat.remoteQueryChanged.count, 0);
+});
+
 function fakeImdbCatalog() {
     const cache = new Map(), pending = new Set(), failures = new Map(), retries = [];
     const key = (...args) => JSON.stringify(['titleCatalog', ...args]);

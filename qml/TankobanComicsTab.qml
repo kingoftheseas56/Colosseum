@@ -13,7 +13,6 @@ Column {
     readonly property real contentLeft: rowIndex.contentLeft
     readonly property real _availableWidth: parent ? parent.width : 0
     readonly property var rowIndexRows: {
-        comicsTab.comicShelves
         shelfRepeater.count
         var out = [
             { key: "collection", title: "Your Collection", target: collectionRow },
@@ -21,9 +20,8 @@ Column {
         ]
         for (var i = 0; i < shelfRepeater.count; i++) {
             var shelf = shelfRepeater.itemAt(i)
-            var shelfRow = comicsTab.comicShelves[i]
-            if (shelf && shelf.visible && shelfRow)
-                out.push({ key: "shelf-" + i, title: shelfRow.label, target: shelf })
+            if (shelf && shelf.visible)
+                out.push({ key: "shelf-" + i, title: shelf.label, target: shelf })
         }
         out.push({ key: "explore", title: "Explore Comics", target: genreRow })
         return out
@@ -104,10 +102,14 @@ Column {
     // builds its shelf once it comes within a screen of view, then keeps it.
     Repeater {
         id: shelfRepeater
-        model: comicsTab.comicShelves
+        // Fixed recipe slots survive asynchronous responses. Replacing an array
+        // model destroyed every existing shelf (and its image work) on each reply.
+        model: comicsTab.comicShelves.length
         delegate: Item {
             id: shelfSlot
-            required property var modelData
+            required property int index
+            readonly property var modelData: comicsTab.comicShelves[index]
+            readonly property string label: modelData ? modelData.label : ""
             width: comicsTab.width
             visible: shelfSlot.modelData.rows.length > 0
             height: 30 + 14 + 212        // WidgetHeader + TrendingTop10 spacing + strip
@@ -115,12 +117,13 @@ Column {
             readonly property bool near: comicsTab.viewportHeight <= 0
                 || (shelfSlot.y < comicsTab.viewportTop + 2 * comicsTab.viewportHeight
                     && shelfSlot.y + shelfSlot.height > comicsTab.viewportTop - comicsTab.viewportHeight)
-            onNearChanged: if (shelfSlot.near) shelfSlot.built = true
-            Component.onCompleted: if (shelfSlot.near) shelfSlot.built = true
+            onNearChanged: if (shelfSlot.visible && shelfSlot.near) shelfSlot.built = true
+            onVisibleChanged: if (shelfSlot.visible && shelfSlot.near) shelfSlot.built = true
+            Component.onCompleted: if (shelfSlot.visible && shelfSlot.near) shelfSlot.built = true
 
             Loader {
                 width: parent.width
-                active: shelfSlot.built
+                active: shelfSlot.built && shelfSlot.visible
                 asynchronous: true
                 sourceComponent: TrendingTop10 {
                     readonly property var modelData: shelfSlot.modelData

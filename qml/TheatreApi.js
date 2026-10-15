@@ -773,6 +773,12 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     var liveDone = false, extDone = false;
     var cancelled = false;
     var cancels = [];
+    var remoteIndex = imdb && imdb.remoteEnabled && typeof imdb.titleCatalogState === "function";
+    var indexDefs = remoteIndex ? defs.filter(function(def) {
+        return Rules.indexQueriesFor(def.recipe).length > 0;
+    }) : [];
+    var indexRemaining = indexDefs.length;
+    var publishQueued = false;
     function keep(items) {
         return explicitFilter
             ? items.filter(function(it) { return explicitFilter(it, showExplicit); }) : items;
@@ -790,7 +796,15 @@ function loadMoviesShowsDeep(pageKey, options, push) {
         merged.sort(function(a, b) { return (a.placement || 0) - (b.placement || 0); });
         push({ pageKey: pageKey, generation: generation,
                rows: merged.concat(extExtensionRows),
-               loading: !(liveDone && extDone), error: "" });
+               loading: !(liveDone && extDone && indexRemaining === 0), error: "" });
+    }
+    function publishSoon() {
+        if (cancelled || publishQueued) return;
+        publishQueued = true;
+        function flush() { publishQueued = false; publish(); }
+        if (typeof Qt !== "undefined" && Qt.callLater) Qt.callLater(flush);
+        else if (typeof setTimeout === "function") setTimeout(flush, 0);
+        else flush();
     }
 
     // phase 1 — the index paints every offline shelf synchronously
@@ -803,6 +817,23 @@ function loadMoviesShowsDeep(pageKey, options, push) {
         }
     }
     publish();
+
+    // The remote accessors above enqueue work and initially return cache misses.
+    // Publish each exact shelf as it settles; unrelated metadata requests must
+    // not hold the whole page behind a catalogue-wide remotePending() barrier.
+    for (var si = 0; si < indexDefs.length; si++) {
+        (function(def) {
+            var cancel = fetchImdbCatalogPage(options,
+                {pageKey: pageKey, rowKey: def.key}, 0, PREVIEW_ROW_CAP, generation,
+                function(gen, page) {
+                    if (cancelled || gen !== generation) return;
+                    indexRemaining -= 1;
+                    if (!page.failed) rowData[def.key] = page.items || [];
+                    publishSoon();
+                });
+            if (typeof cancel === "function") cancels.push(cancel);
+        })(indexDefs[si]);
+    }
 
     // phase 2 — extensions load in parallel (unchanged contract)
     var extensionCancel = loadExtensionRows(pageKey, type, defs,
