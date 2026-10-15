@@ -1,9 +1,9 @@
 name: android
 
-# First installable Android lane. Deliberately limited to the android/installable branch.
+# First installable Android lane. Manual-only: master moved all workflows to workflow_dispatch
+# (commit 6e4a426e) and this lane follows, so a branch push never starts CI.
 on:
-  push:
-    branches: [android/installable]
+  workflow_dispatch:
 
 permissions:
   contents: read
