@@ -146,8 +146,17 @@ func TestSyncSnapshotFirstPageFreezesCursorAcrossPages(t *testing.T) {
 		if index > 0 {
 			previous := first.Entries[index-1].Mutation
 			current := entry.Mutation
-			if previous.Category > current.Category ||
-				(previous.Category == current.Category && previous.RecordKey >= current.RecordKey) {
+			// Key order is PostgreSQL's (the database collation), the same order the
+			// snapshot query and its cursor predicate use; Go byte order matches it
+			// only under C collation.
+			var ascending bool
+			if err := fixture.pool.QueryRow(context.Background(),
+				`SELECT ($1::text, $2::text) < ($3::text, $4::text)`,
+				previous.Category, previous.RecordKey, current.Category, current.RecordKey,
+			).Scan(&ascending); err != nil {
+				t.Fatalf("compare snapshot key order: %v", err)
+			}
+			if !ascending {
 				t.Fatalf("first page not sorted by (category, record_key) at %d: %s/%s then %s/%s",
 					index, previous.Category, previous.RecordKey, current.Category, current.RecordKey)
 			}
