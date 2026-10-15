@@ -1,15 +1,19 @@
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 
 // Progress is the resume authority; this only supplies missing card presentation.
 var known = {}
+var knownRevision = -1
 
 function forEntry(entry, catalog) {
     if (!entry || entry.kind !== "video") return ({})
     var match = /^tt[0-9]+(?::|$)/.exec(String(entry.id || ""))
     if (!match) return ({})
     var id = match[0].replace(/:$/, "")
+    var revision = catalog && catalog.revision !== undefined ? catalog.revision : -1
+    if (revision !== knownRevision) { known = {}; knownRevision = revision }
     var info = known[id]
-    if (!info && catalog && catalog.ready()) {
+    if (!info && CatalogDelivery.available(catalog)) {
         info = catalog.titlePresentation(id)
         if (info && info.title) known[id] = info
     }

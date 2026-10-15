@@ -159,8 +159,12 @@ if (fs.existsSync(atlasPath)) {
        'atlas uses the headless-safe raster plate');
     eq(source.includes('width: root.badgeDiameter'), true, 'badge art uses the scaled visible diameter');
     eq(source.includes('width: root.badgeHitDiameter'), true, 'badge hit target stays independently accessible');
-    eq(/fitScale[\s\S]*?Math\.min\(mapViewport\.width\s*\/\s*1680/.test(source), false,
-       'atlas fit scale does not shrink to the shortest constrained dimension');
+    eq(/fitScale[\s\S]*?Math\.min\(mapViewport\.width\s*\/\s*1680/.test(source), true,
+       'atlas fit scale contains the whole chart at base zoom (1.1.9: cover cropped Arlong and the gate at 1364x1024)');
+    eq(/anchors\.leftMargin:\s*218/.test(source), true,
+       'zoom tools clear the shell taskbar dock footprint');
+    eq(source.includes('root.suppressFocusPreview = true'), true,
+       'OPEN ARC parks scope focus on the visible selected marker');
     eq(/y:\s*Math\.min\(0\.8938\s*\*\s*mapStage\.height[\s\S]*?mapViewport\.height\s*-\s*mapStage\.y\s*-\s*height/.test(source), true,
        'TO PARADISE clamps to the visible viewport at short heights');
     eq(source.includes('captureReady'), true, 'capture waits for bundled fonts and plate readiness');

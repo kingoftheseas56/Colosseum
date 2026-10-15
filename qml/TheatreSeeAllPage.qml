@@ -27,6 +27,9 @@ Item {
     property string providerName: ""
     property int generation: 0
     property int pendingOffset: -1
+    property var _semanticCancel: null
+    function cancelPage() { if (typeof _semanticCancel === "function") _semanticCancel(); _semanticCancel = null; }
+    Component.onDestruction: cancelPage()
 
     readonly property string titleText: seeAll.pin ? (seeAll.pin.title || "") : ""
     readonly property string sourceLabel: seeAll.pin ? (seeAll.pin.extName || seeAll.pin.sourceLabel || "") : ""
@@ -42,6 +45,7 @@ Item {
     onPinChanged: seeAll.reset()
 
     function reset() {
+        seeAll.cancelPage();
         seeAll.items = []; seeAll.hasMore = true; seeAll.errorText = "";
         seeAll.missing = false; seeAll.providerName = "";
         seeAll.loading = false; seeAll.loadingMore = false; seeAll.pendingOffset = -1;
@@ -58,7 +62,8 @@ Item {
         var gen = seeAll.generation;
         var opts = { generation: gen, malCatalog: seeAll.malCatalog, imdbCatalog: seeAll.imdbCatalog,
                      showExplicit: seeAll.showExplicit, explicitFilter: seeAll.explicitFilter };
-        seeAll._loader()(seeAll.pin, offset, 40, opts, function(res) {
+        seeAll.cancelPage();
+        seeAll._semanticCancel = seeAll._loader()(seeAll.pin, offset, 40, opts, function(res) {
             if (gen !== seeAll.generation) return;         // stale: the pin changed under us
             seeAll.pendingOffset = -1;
             seeAll.loading = false; seeAll.loadingMore = false;

@@ -1,0 +1,75 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { serveStableFeed, stableUpdateOrigin, stableUpdatePath } from "./cloudflare_update_route.mjs";
+
+const feed = JSON.stringify({
+  tag_name: "v1.1.9",
+  draft: false,
+  prerelease: false,
+  assets: [
+    { name: "colosseum-update-v1.json" },
+    { name: "colosseum-update-v1.json.sig" },
+    { name: "Colosseum-1.1.9-setup.exe" },
+  ],
+}) + "\n";
+
+function fetcher(body = feed, status = 200) {
+  return async (url, options) => {
+    assert.equal(url, stableUpdateOrigin);
+    assert.equal(options.method, "GET");
+    assert.equal(options.redirect, "manual");
+    return new Response(body, { status, headers: { ETag: '"release-1.1.9"' } });
+  };
+}
+
+const request = (method = "GET", path = stableUpdatePath, headers = {}) =>
+  new Request("https://getcolosseum.world" + path, { method, headers });
+
+test("unrelated site routes are untouched", async () => {
+  assert.equal(await serveStableFeed(request("GET", "/")), null);
+  assert.equal(await serveStableFeed(request("GET", "/demos/theatre.html")), null);
+});
+
+test("stable JSON is forwarded without modifying its bytes or making it executable", async () => {
+  const result = await serveStableFeed(request(), fetcher());
+  assert.equal(result.status, 200);
+  assert.equal(await result.text(), feed);
+  assert.match(result.headers.get("Content-Type"), /application\/json/);
+  assert.equal(result.headers.get("ETag"), '"release-1.1.9"');
+  assert.equal(result.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.equal(result.headers.get("Cache-Control"), "public, max-age=300, must-revalidate");
+});
+
+test("HEAD has headers but no payload; non-read methods fail", async () => {
+  const head = await serveStableFeed(request("HEAD"), fetcher());
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  const post = await serveStableFeed(request("POST"), fetcher());
+  assert.equal(post.status, 405);
+});
+
+test("ETag validators pass through and 304 is preserved", async () => {
+  const conditional = request("GET", stableUpdatePath, { "If-None-Match": '"release-1.1.9"' });
+  const response = await serveStableFeed(conditional, async (url, options) => {
+    assert.equal(options.headers.get("If-None-Match"), '"release-1.1.9"');
+    return new Response(null, { status: 304, headers: { ETag: '"release-1.1.9"' } });
+  });
+  assert.equal(response.status, 304);
+  assert.equal(await response.text(), "");
+});
+
+test("broken, redirect, missing or invalid GitLab data fails closed", async () => {
+  const cases = [
+    async () => new Response("missing", { status: 404 }),
+    async () => new Response(null, { status: 302, headers: { Location: "https://evil.example" } }),
+    async () => new Response("<html>not json</html>", { status: 200 }),
+    async () => new Response(JSON.stringify({ tag_name:"v1.1.9", draft:true, prerelease:false, assets:[1,2,3] }), {status:200}),
+    async () => new Response(feed, { status:200, headers: { "Content-Length":String(2 * 1024 * 1024 + 1) } }),
+    async () => { throw Error("network down"); },
+  ];
+  for (const attempt of cases) {
+    const r = await serveStableFeed(request(), attempt);
+    assert.equal(r.status, 503);
+    assert.equal(r.headers.get("Cache-Control"), "no-store");
+  }
+});

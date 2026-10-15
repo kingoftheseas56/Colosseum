@@ -1,0 +1,391 @@
+{
+  "imdb__genre": {
+    "dataset": "imdb",
+    "sourceTable": "genre",
+    "columns": [
+      "tt",
+      "genre"
+    ],
+    "rowCount": 143615,
+    "sourceHash": "5f11ab2a794519c76a742e03775c1eba1108b94711d61f7f97dd6ddb50c5d0f8",
+    "writeWeight": 2
+  },
+  "imdb__meta": {
+    "dataset": "imdb",
+    "sourceTable": "meta",
+    "columns": [
+      "key",
+      "value"
+    ],
+    "rowCount": 2,
+    "sourceHash": "5f11ab2a794519c76a742e03775c1eba1108b94711d61f7f97dd6ddb50c5d0f8",
+    "writeWeight": 2
+  },
+  "imdb__title": {
+    "dataset": "imdb",
+    "sourceTable": "title",
+    "columns": [
+      "tt",
+      "type",
+      "title",
+      "year",
+      "endYear",
+      "runtimeMin",
+      "genres",
+      "rating",
+      "votes",
+      "episodes",
+      "origLang",
+      "isAnime",
+      "norm_title"
+    ],
+    "rowCount": 61585,
+    "sourceHash": "5f11ab2a794519c76a742e03775c1eba1108b94711d61f7f97dd6ddb50c5d0f8",
+    "writeWeight": 7
+  },
+  "mal__anime": {
+    "dataset": "mal",
+    "sourceTable": "anime",
+    "columns": [
+      "mal_id",
+      "title",
+      "title_english",
+      "type",
+      "score",
+      "scored_by",
+      "members",
+      "status",
+      "episodes",
+      "year",
+      "cover",
+      "synopsis",
+      "credits",
+      "tags",
+      "norm_title",
+      "norm_title_english"
+    ],
+    "rowCount": 20000,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 6
+  },
+  "mal__classification": {
+    "dataset": "mal",
+    "sourceTable": "classification",
+    "columns": [
+      "medium",
+      "axis",
+      "value",
+      "mal_id"
+    ],
+    "rowCount": 127417,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 2
+  },
+  "mal__classification_count": {
+    "dataset": "mal",
+    "sourceTable": "classification_count",
+    "columns": [
+      "medium",
+      "axis",
+      "value",
+      "total"
+    ],
+    "rowCount": 152,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 2
+  },
+  "mal__manga": {
+    "dataset": "mal",
+    "sourceTable": "manga",
+    "columns": [
+      "mal_id",
+      "title",
+      "title_english",
+      "type",
+      "score",
+      "scored_by",
+      "members",
+      "status",
+      "volumes",
+      "chapters",
+      "year",
+      "cover",
+      "synopsis",
+      "credits",
+      "tags",
+      "explicit",
+      "start_date",
+      "favorites",
+      "norm_title",
+      "norm_title_english"
+    ],
+    "rowCount": 20000,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 6
+  },
+  "mal__meta": {
+    "dataset": "mal",
+    "sourceTable": "meta",
+    "columns": [
+      "key",
+      "value"
+    ],
+    "rowCount": 2,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 2
+  },
+  "mal__tag": {
+    "dataset": "mal",
+    "sourceTable": "tag",
+    "columns": [
+      "medium",
+      "tag",
+      "mal_id"
+    ],
+    "rowCount": 127417,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 2
+  },
+  "mal__tag_count": {
+    "dataset": "mal",
+    "sourceTable": "tag_count",
+    "columns": [
+      "medium",
+      "tag",
+      "total"
+    ],
+    "rowCount": 152,
+    "sourceHash": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
+    "writeWeight": 2
+  },
+  "comics__canonical_issue": {
+    "dataset": "comics",
+    "sourceTable": "canonical_issue",
+    "columns": [
+      "gcd_issue_id",
+      "gcd_series_id",
+      "number",
+      "publication_date"
+    ],
+    "rowCount": 55598,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 3
+  },
+  "comics__curated_edition": {
+    "dataset": "comics",
+    "sourceTable": "curated_edition",
+    "columns": [
+      "id",
+      "locg_id",
+      "title",
+      "display_title",
+      "format",
+      "collects",
+      "isbn",
+      "pages",
+      "published",
+      "chid",
+      "cover",
+      "available",
+      "getcomics_post",
+      "creators",
+      "description"
+    ],
+    "rowCount": 9655,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 2
+  },
+  "comics__curated_genre": {
+    "dataset": "comics",
+    "sourceTable": "curated_genre",
+    "columns": [
+      "locg_id",
+      "genre"
+    ],
+    "rowCount": 1821,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 2
+  },
+  "comics__curated_series": {
+    "dataset": "comics",
+    "sourceTable": "curated_series",
+    "columns": [
+      "locg_id",
+      "rank",
+      "title",
+      "norm_title",
+      "year",
+      "slug",
+      "publisher",
+      "cover",
+      "synopsis"
+    ],
+    "rowCount": 1134,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 3
+  },
+  "comics__curated_series_coverage": {
+    "dataset": "comics",
+    "sourceTable": "curated_series_coverage",
+    "columns": [
+      "locg_id",
+      "gcd_series_id",
+      "canonical_issue_count",
+      "covered_issue_count",
+      "coverage_ratio",
+      "availability_state",
+      "source_count",
+      "official_source_count",
+      "community_source_count",
+      "latest_source_date",
+      "computed_at",
+      "parser_version"
+    ],
+    "rowCount": 1134,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 4
+  },
+  "comics__curated_source": {
+    "dataset": "comics",
+    "sourceTable": "curated_source",
+    "columns": [
+      "id",
+      "curated_edition_id",
+      "post_id",
+      "post_url",
+      "source_title",
+      "source_date",
+      "source_cover",
+      "source_kind",
+      "source_format",
+      "attachment_method",
+      "confidence_class",
+      "fan_made",
+      "available",
+      "parsed_series_text",
+      "formats_json",
+      "qualifiers_json",
+      "parser_version"
+    ],
+    "rowCount": 12895,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 6
+  },
+  "comics__curated_source_claim": {
+    "dataset": "comics",
+    "sourceTable": "curated_source_claim",
+    "columns": [
+      "source_id",
+      "claim_index",
+      "unit",
+      "start_value",
+      "end_value",
+      "value_list",
+      "claim_kind",
+      "raw_fragment"
+    ],
+    "rowCount": 10484,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 3
+  },
+  "comics__curated_source_issue": {
+    "dataset": "comics",
+    "sourceTable": "curated_source_issue",
+    "columns": [
+      "source_id",
+      "canonical_issue_id",
+      "mapping_evidence",
+      "verified_at",
+      "parser_version"
+    ],
+    "rowCount": 156,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 3
+  },
+  "comics__download": {
+    "dataset": "comics",
+    "sourceTable": "download",
+    "columns": [
+      "post_id",
+      "series_id",
+      "title",
+      "link",
+      "date",
+      "kind",
+      "method",
+      "fan_made",
+      "year_start"
+    ],
+    "rowCount": 57432,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 2
+  },
+  "comics__download_mirror": {
+    "dataset": "comics",
+    "sourceTable": "download_mirror",
+    "columns": [
+      "post_id",
+      "url",
+      "host",
+      "label"
+    ],
+    "rowCount": 398427,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 2
+  },
+  "comics__series": {
+    "dataset": "comics",
+    "sourceTable": "series",
+    "columns": [
+      "gcd_id",
+      "title",
+      "year",
+      "year_ended",
+      "issue_count",
+      "publisher",
+      "cover",
+      "synopsis"
+    ],
+    "rowCount": 22710,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 2
+  },
+  "comics__series_stats": {
+    "dataset": "comics",
+    "sourceTable": "series_stats",
+    "columns": [
+      "series_id",
+      "downloads",
+      "kinds",
+      "latest_post"
+    ],
+    "rowCount": 22710,
+    "sourceHash": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
+    "writeWeight": 1
+  },
+  "tankoban__series": {
+    "dataset": "tankoban",
+    "sourceTable": "series",
+    "columns": [
+      "mal_id",
+      "volume_count",
+      "count_basis"
+    ],
+    "rowCount": 10000,
+    "sourceHash": "04d485c6a559fdc7b6d1d651a622befd77af8bf93b2c7bdbcf7ebbd7bdd7e5a1",
+    "writeWeight": 1
+  },
+  "tankoban__volumes": {
+    "dataset": "tankoban",
+    "sourceTable": "volumes",
+    "columns": [
+      "mal_id",
+      "number",
+      "cover_url",
+      "name"
+    ],
+    "rowCount": 28839,
+    "sourceHash": "04d485c6a559fdc7b6d1d651a622befd77af8bf93b2c7bdbcf7ebbd7bdd7e5a1",
+    "writeWeight": 2
+  }
+}

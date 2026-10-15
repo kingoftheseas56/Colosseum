@@ -77,6 +77,8 @@ private slots:
     void absolute_episode_grammar_data();
     void absolute_episode_grammar();
     void episode_number_prefers_sxxexx_over_absolute();
+    void browse_leaf_episode_grammar_boundaries_data();
+    void browse_leaf_episode_grammar_boundaries();
     // ── Browse-collapse planner: the five real library shapes ──
     void browse_collapse_one_film_folder_folds_companions_and_extras();
     void browse_collapse_sibling_season_folders_fold_to_one_show();
@@ -387,6 +389,42 @@ void tst_vault_kit::episode_number_prefers_sxxexx_over_absolute()
     // Neither grammar fires: honest no-match, not a wrong guess.
     const SeasonEpisode none = parseEpisodeNumber(QStringLiteral("random-movie.mkv"));
     QVERIFY(!none.matched);
+}
+
+// Characterize the existing filename grammar at the browse boundary. A bare hyphen
+// fixture is a clip; it must not be used as evidence that anime episodes are unreachable.
+void tst_vault_kit::browse_leaf_episode_grammar_boundaries_data()
+{
+    QTest::addColumn<QString>("fileName");
+    QTest::addColumn<QString>("nodeType");
+    QTest::addColumn<int>("episodeNumber");
+    QTest::newRow("spaced-anime-episode") << QStringLiteral("anime - 001.mkv")
+        << QStringLiteral("episode") << 1;
+    QTest::newRow("bare-hyphen-clip") << QStringLiteral("anime-001.mkv")
+        << QStringLiteral("clip") << 0;
+    QTest::newRow("year-is-not-episode") << QStringLiteral("anime - 2021.mkv")
+        << QStringLiteral("clip") << 0;
+    QTest::newRow("normal-season-episode") << QStringLiteral("Show.S01E01.mkv")
+        << QStringLiteral("episode") << 1;
+}
+
+void tst_vault_kit::browse_leaf_episode_grammar_boundaries()
+{
+    QFETCH(QString, fileName);
+    QFETCH(QString, nodeType);
+    QFETCH(int, episodeNumber);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(fileName);
+    { QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); }
+
+    const QList<BrowseNode> nodes = planBrowseLevel(dir.path());
+    QCOMPARE(nodes.size(), 1);
+    const BrowseNode& node = nodes.first();
+    QCOMPARE(browseNodeTypeName(node.nodeType), nodeType);
+    QCOMPARE(node.path, path);
+    QCOMPARE(node.key, path);
+    QCOMPARE(node.episodeNumber, episodeNumber);
 }
 
 void tst_vault_kit::browse_collapse_one_film_folder_folds_companions_and_extras()

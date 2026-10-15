@@ -847,10 +847,28 @@ ProfileStoreRuntime::createProfileStores(
     stores->trackerConnectionRouter = std::make_unique<TrackerConnectionRouter>(
         stores->simklConnection.get(), stores->malConnection.get(),
         stores->traktConnection.get(), nullptr);
-    stores->trackerSyncCenter->setConnectAvailable(
-        stores->simklConnection->available()
-        || stores->malConnection->available()
-        || stores->traktConnection->available());
+    // Connection readiness belongs to the concrete native provider action,
+    // not the compile-time provider catalogue or a cross-provider OR gate.
+    stores->trackerSyncCenter->setConnectionAvailabilitySource(
+        [simkl = stores->simklConnection.get(),
+         mal = stores->malConnection.get(),
+         trakt = stores->traktConnection.get()](TrackerProviderId providerId) {
+            using Availability = TrackerSyncCenterModel::ConnectAvailability;
+            WindowsTrackerCredentialVault vault;
+            if (!vault.isAvailable())
+                return Availability::CredentialStorageUnavailable;
+            bool ready = false;
+            switch (providerId) {
+            case TrackerProviderId::Simkl: ready = simkl && simkl->available(); break;
+            case TrackerProviderId::Mal: ready = mal && mal->available(); break;
+            case TrackerProviderId::Trakt: ready = trakt && trakt->available(); break;
+            case TrackerProviderId::AniList: break;
+            }
+            return ready ? Availability::Ready : Availability::ProviderServiceUnavailable;
+        });
+    QObject::connect(stores->trackerConnectionRouter.get(),
+                     &TrackerConnectionRouter::stateChanged,
+                     stores->trackerSyncCenter.get(), &TrackerSyncCenterModel::refresh);
     if (stores->simklSync) {
         QObject::connect(stores->trackerConnectionRouter.get(),
                          &TrackerConnectionRouter::connectionEstablished,

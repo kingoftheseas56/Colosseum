@@ -69,7 +69,8 @@ TestCase {
         center = centerComponent.createObject(testWindow.contentItem, {
             "width": 1280,
             "height": 900,
-            "recoveryPresenter": presenter
+            "recoveryPresenter": presenter,
+            "yourColosseumMonthName": "ComposedMonthMarker"
         })
         verify(center !== null)
         wait(0)
@@ -84,11 +85,11 @@ TestCase {
         presenter = null
     }
 
-    function test_legacy_activity_route_maps_to_profile() {
+    function test_legacy_library_route_maps_to_your_colosseum() {
         center.open("library")
         wait(0)
-        compare(center.activeSection, "profile")
-        verify(byName(center, "accountProfileUsername") !== null)
+        compare(center.activeSection, "colosseum")
+        verify(findText(center, "ComposedMonthMarker") !== null)
     }
 
     function test_all_six_locked_routes_instantiate_in_one_host() {
@@ -99,8 +100,8 @@ TestCase {
 
         center.open("colosseum")
         wait(0)
-        compare(center.activeSection, "profile")
-        verify(byName(center, "accountProfileUsername") !== null)
+        compare(center.activeSection, "colosseum")
+        verify(findText(center, "ComposedMonthMarker") !== null)
 
         center.open("security")
         wait(0)
@@ -127,24 +128,6 @@ TestCase {
         compare(center.activeSection, "privacy")
         verify(byName(center, "accountDataPrivacyPage") !== null)
         verify(byName(center, "accountDataPrivacyPage").visible)
-    }
-
-    function test_feria_context_limits_settings_and_resets_on_reopen() {
-        center.open("feria", null, "feria")
-        compare(center.feriaOnly, true)
-        compare(center.activeSection, "feria")
-        compare(center.railSections.length, 1)
-        compare(center.railSections[0].id, "feria")
-        verify(byName(center, "accountCenterRail_profile") === null)
-        verify(byName(center, "accountActivityScopes") === null)
-        verify(findText(center, "Feria settings") !== null)
-        center.close()
-        center.open("profile")
-        compare(center.feriaOnly, false)
-        compare(center.activeSection, "profile")
-        verify(byName(center, "accountCenterRail_feria") !== null)
-        verify(byName(center, "accountCenterRail_profile") !== null)
-        verify(byName(center, "accountCenterRail_colosseum") === null)
     }
 
     function test_switching_sections_clears_recovery_transient_secret_input() {

@@ -14,15 +14,23 @@ Item {
     property real topInset: 74
     property Item focusReturnItem: null
 
+    // No-account edition gate: accountFeaturesAvailable === false hides the
+    // welcome/sign-in/registration cover — the native side settles local-only
+    // at startup — EXCEPT mode "error", which stays visible so a local
+    // profile/storage failure can never be concealed by the hidden flow (the
+    // welcome page renders the error and a retryable Continue action).
+    // Stub controllers without the property keep legacy behavior.
     readonly property bool accountFlowVisible:
-        controller.signOutSyncWarningPending
-        || recoveryPresenter.active
-        || controller.mode === "signedOut"
-        || controller.mode === "authenticating"
-        || controller.mode === "awaitingDeviceApproval"
-        || controller.mode === "awaitingRecoveryApproval"
-        || controller.mode === "locked"
-        || controller.mode === "error"
+        (controller.accountFeaturesAvailable === false)
+        ? controller.mode === "error"
+        : (controller.signOutSyncWarningPending
+           || recoveryPresenter.active
+           || controller.mode === "signedOut"
+           || controller.mode === "authenticating"
+           || controller.mode === "awaitingDeviceApproval"
+           || controller.mode === "awaitingRecoveryApproval"
+           || controller.mode === "locked"
+           || controller.mode === "error")
 
     visible: accountFlowVisible
 

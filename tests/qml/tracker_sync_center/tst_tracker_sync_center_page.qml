@@ -524,10 +524,11 @@ TestCase {
         function beginConnection(providerKey) {
             beginCalls++
             lastProviderKey = providerKey
-            if (providerKey !== "simkl" && providerKey !== "trakt")
+            if (providerKey !== "simkl" && providerKey !== "trakt" && providerKey !== "mal")
                 return false
             phase = "connected"
-            statusMessage = (providerKey === "trakt" ? "Trakt" : "SIMKL")
+            statusMessage = (providerKey === "trakt" ? "Trakt"
+                             : (providerKey === "mal" ? "MyAnimeList" : "SIMKL"))
                             + " is connected to this Colosseum profile."
             connectionEstablished(providerKey)
             return true
@@ -969,6 +970,58 @@ TestCase {
         compare(page.selectedProviderKey, "simkl")
     }
 
+    function test_unavailable_credential_storage_is_not_advertised_as_connectable() {
+        modelUnderTest = fixtureModel
+        page.trackerConnector = fixtureConnector
+        for (var key of ["simkl", "mal", "trakt"]) {
+            var row = {
+                found: true, providerKey: key, providerName: key.toUpperCase(),
+                available: true, connected: false, status: "Not connected",
+                connectEnabled: false, connectUnavailableReason: "credential_storage_unavailable",
+                pendingWork: false
+            }
+            fixtureModel.catalogue = [row]
+            var dossiers = {}
+            dossiers[key] = row
+            fixtureModel.dossiers = dossiers
+            fixtureModel.revision++
+            fixtureModel.modelChanged()
+            wait(0)
+            var linuxUnavailable = Qt.platform.os === "linux"
+            compare(findChild(page, "trackerCatalogueStatus_" + key).text,
+                    linuxUnavailable ? "Unavailable on Linux" : "Credential storage unavailable")
+            verify(page.openDossier(key))
+            wait(0)
+            compare(findChild(page, "trackerDossierStatus").text,
+                    linuxUnavailable ? "Unavailable on Linux" : "Credential storage unavailable")
+            var connect = findChild(page, "trackerConnectButton")
+            compare(connect.enabled, false)
+            compare(connect.text, linuxUnavailable ? "Unavailable on Linux" : "Secure storage unavailable")
+            mouseClick(connect)
+            compare(fixtureConnector.beginCalls, 0)
+            verify(findChild(page, "trackerConnectExplanation").text
+                   .indexOf(linuxUnavailable ? "Windows-only" : "credential storage") >= 0)
+            page.closeDossier()
+
+            row.connectUnavailableReason = "connection_service_unavailable"
+            fixtureModel.catalogue = [row]
+            fixtureModel.dossiers = dossiers
+            fixtureModel.revision++
+            fixtureModel.modelChanged()
+            wait(0)
+            compare(findChild(page, "trackerCatalogueStatus_" + key).text,
+                    "Connection unavailable")
+            verify(page.openDossier(key))
+            wait(0)
+            compare(findChild(page, "trackerDossierStatus").text, "Connection unavailable")
+            compare(findChild(page, "trackerConnectButton").enabled, false)
+            compare(findChild(page, "trackerConnectButton").text, "Connection unavailable")
+            mouseClick(findChild(page, "trackerConnectButton"))
+            compare(fixtureConnector.beginCalls, 0)
+            page.closeDossier()
+        }
+    }
+
     function test_simkl_connect_button_invokes_native_connector_and_exposes_success() {
         page.selectedProviderKey = ""
         page.selectedDossier = ({})
@@ -1031,6 +1084,32 @@ TestCase {
         compare(page.connectionPanelOpen, true)
         compare(findChild(page, "trackerConnectionApprovalLayer").visible, true)
         compare(findChild(page, "trackerSimklDismiss").text, "Done")
+    }
+
+    function test_configured_mal_connects_through_native_connector() {
+        modelUnderTest = fixtureModel
+        page.trackerConnector = fixtureConnector
+        var mal = {
+            found: true, providerKey: "mal", providerName: "MyAnimeList",
+            available: true, connected: false, status: "Not connected",
+            connectEnabled: true, connectUnavailableReason: "", pendingWork: false
+        }
+        fixtureModel.catalogue = [mal]
+        fixtureModel.dossiers = ({ mal: mal })
+        fixtureModel.revision++
+        fixtureModel.modelChanged()
+        wait(0)
+        compare(findChild(page, "trackerCatalogueStatus_mal").text, "Connect")
+        verify(page.openDossier("mal"))
+        wait(0)
+        compare(findChild(page, "trackerDossierStatus").text, "Not connected")
+        var connect = findChild(page, "trackerConnectButton")
+        compare(connect.enabled, true)
+        compare(connect.text, "Connect")
+        mouseClick(connect)
+        compare(fixtureConnector.beginCalls, 1)
+        compare(fixtureConnector.lastProviderKey, "mal")
+        compare(page.connectionPanelOpen, true)
     }
 
     function test_configured_trakt_connects_directly_and_keeps_stremio_link_separate() {

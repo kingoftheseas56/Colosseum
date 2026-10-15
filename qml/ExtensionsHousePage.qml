@@ -23,6 +23,19 @@ Item {
     property bool prototypeMode: (typeof Extensions === "undefined")
     property var installedRows: []
 
+    function takeKeyboardFocus() { houseTab.forceActiveFocus(Qt.TabFocusReason) }
+
+    function extensionBackground(extensionId, fallback) {
+        for (var i = 0; i < root.installedRows.length; ++i) {
+            var row = root.installedRows[i]
+            if (row && String(row.id || "") === extensionId) {
+                var manifest = row.manifest || ({})
+                return String(manifest.background || fallback)
+            }
+        }
+        return fallback
+    }
+
     function refreshInstalled() {
         if (root.prototypeMode || typeof Extensions === "undefined") {
             root.installedRows = []
@@ -109,7 +122,7 @@ Item {
 
             Image {
                 anchors.fill: parent
-                source: "../assets/extensions/house/starwars-banner.jpg"
+                source: root.extensionBackground("com.colosseum.universe.starwars", "../assets/extensions/house/starwars-banner.jpg")
                 fillMode: Image.PreserveAspectCrop
                 horizontalAlignment: Image.AlignHCenter
                 verticalAlignment: Image.AlignVCenter

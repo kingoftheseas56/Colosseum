@@ -20,10 +20,16 @@ class VaultIndex;
 
 namespace VaultBrowseDetail {
 
-// `key` is a Film browse-row's own key (== its containing folder path == VaultIndex groupKey,
-// the "one video file, one group" convention VaultScanner already keeps). Returns an empty map
-// with `found: false` when the key resolves to no rows (a stale click after a rescan). Honors
-// the same user `scanIgnore` needle layer every other Vault walk does.
+// `key` is a Film browse-row's group key, or an Episode/Clip browse-row's exact file path.
+// File details select only that indexed row, never a sibling or every episode sharing a show
+// identity. Returns `found: false` when neither lookup resolves (a stale click after a rescan).
+// Honors the same user `scanIgnore` needle layer every other Vault walk does.
+//
+// Exact-file details additionally carry `isFileDetail`, `groupKey` (provenance, not an action
+// target), `path`, `available`, and `playable`. Play requires a readable present file, no away
+// or error state, and a durable Admitted video verdict; unavailable/unprobed/rejected files
+// retain their physical path and copy facts but have an empty `playPath`. Copy entries also
+// carry available/playable. Group-wide companions/extras are not attributed to a file detail.
 //
 // Vault ux uplift S8 additions (EXTENSIONS of the shape, never a reshape): `runtimeText`
 // ("1h 47m" / "48m", the AccountActivityFormat.durationText grammar's C++ twin) — key present

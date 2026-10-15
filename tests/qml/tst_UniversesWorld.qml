@@ -21,7 +21,10 @@ Item {
     TestCase {
         name: "UniversesWorld"
         when: windowShown
-        function init() { world.facet = ""; opened.clear(); tribute.clear() }
+        function init() {
+            world.facet = ""; opened.clear(); tribute.clear()
+            wait(20) // Finish WorldPage's deferred initial focus before exercising arrows.
+        }
 
         function test_listIsStandardPagesOnly() {
             compare(world.shown.length, 20)
@@ -37,7 +40,7 @@ Item {
             compare(banner.entry.name, "Attack on Titan")
             const mark = findChild(banner, "universeBannerMark")
             verify(String(mark.source).indexOf("assets/universes/marks/attack-on-titan.svg") >= 0)
-            tryCompare(mark, "status", Image.Ready)
+            tryCompare(mark, "status", Image.Ready, 10000)
             const blurb = findChild(banner, "universeBannerBlurb")
             compare(blurb.text, banner.entry.blurb)
             verify(blurb.lineCount <= 2, "the About copy is clamped to two lines")

@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 // Summaries are concise paraphrases of One Piece Wiki arc overviews, verified 2026-09-01.
 var arcs = [
@@ -65,3 +66,12 @@ function arc(id) {
     }
     return arcs[0];
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    var data = ContentApi.document("tribute-one-piece-east-blue").story;
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.arcs !== undefined && (Array.isArray(arcs) ? Array.isArray(data.arcs) : typeof data.arcs === typeof arcs)) arcs = data.arcs;
+}
+ContentApi.register(syncContent);

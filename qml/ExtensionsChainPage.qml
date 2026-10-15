@@ -1078,7 +1078,7 @@ Item {
                 ListElement {
                     key: "tv"
                     modelLabel: "TV"
-                    modelIcon: "../assets/icons/feria-tv.svg"
+                    modelIcon: "../assets/icons/projector-theatre.svg"
                     xPct: 0.70
                 }
                 ListElement {

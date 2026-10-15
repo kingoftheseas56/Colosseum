@@ -123,6 +123,9 @@ Item {
     // handing it nothing is what sent a film to the comic catalogues. Both openers (a grid Film
     // tile and a carousel slide's Details) carry kind now.
     property string detailSheetRowKind: ""
+    // Exact-file details must never send their key to a folder/group mutation, even if
+    // a rescan has removed the row and browseDetail now returns only { found: false }.
+    property bool detailSheetRowIsFile: false
     // Vault ux uplift S7 — the opened row's vault id + its live watched mark, the sheet's two
     // watched-verb inputs. The id is the S6 join key browseAt() carries on Film/Episode/Clip
     // rows ("vault:"-prefixed; anything else resolves to "" and both verbs hide — the same
@@ -139,10 +142,14 @@ Item {
     readonly property var detailSheetDetail: (root.detailSheetVisible && root.detailSheetKey
             && typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.browseDetail(root.detailSheetKey)) : ({})
+    function rowSupportsDetails(row) {
+        return !!row && (row.nodeType === "film" || row.nodeType === "episode" || row.nodeType === "clip")
+    }
     function openDetailSheet(row) {
         root.detailSheetKey = row.key || ""
         root.detailSheetRowState = row.state || ""
         root.detailSheetRowKind = row.kind || ""
+        root.detailSheetRowIsFile = row.nodeType === "episode" || row.nodeType === "clip"
         const rowId = row.id ? String(row.id) : ""
         root.detailSheetRowVaultId = rowId.indexOf("vault:") === 0 ? rowId : ""
         root.detailSheetVisible = true
@@ -789,14 +796,16 @@ Item {
         if (!roots.length) return
         let restored = []
         try { restored = JSON.parse(browseSettings.lastCrumbJson || "[]") } catch (e) { restored = [] }
-        let rootAvailable = false
+        let rootRegistered = false
         if (restored && restored.length) {
             const savedRootPath = restored[0].key
             for (let i = 0; i < roots.length; ++i) {
-                if (roots[i].path === savedRootPath && roots[i].available) { rootAvailable = true; break }
+                if (roots[i].path === savedRootPath) { rootRegistered = true; break }
             }
         }
-        if (restored && restored.length && rootAvailable) {
+        // A disconnected registered root still owns its indexed hierarchy. Keep
+        // the saved season/folder so the offline projection can display it.
+        if (restored && restored.length && rootRegistered) {
             root.crumbStack = restored
             root.currentBrowsePath = restored[restored.length - 1].key
             return
@@ -1345,7 +1354,7 @@ Item {
                                         Row {
                                             spacing: 8
                                             VaultAction { text: "▶  Play"; primary: true; enabled: !modelData.__row.away; onTriggered: root.handleCarouselPrimary(modelData.__row) }
-                                            VaultAction { text: "Details"; visible: modelData.__row.nodeType === "film"; onTriggered: root.openDetailSheet(modelData.__row) }
+                                            VaultAction { objectName: "vaultBrowseCarouselDetails_" + modelData.__row.key; text: "Details"; visible: root.rowSupportsDetails(modelData.__row); onTriggered: root.openDetailSheet(modelData.__row) }
                                         }
                                     }
                                 }
@@ -1569,8 +1578,16 @@ Item {
         id: cardContextMenu
         objectName: "vaultBrowseContextMenu"
         onClosed: {
-            if (root.contextMenuKeyboardOpened) Qt.callLater(function() { grid.forceActiveFocus(Qt.TabFocusReason) })
+            if (root.contextMenuKeyboardOpened) Qt.callLater(function() {
+                if (!root.detailSheetVisible) grid.forceActiveFocus(Qt.TabFocusReason)
+            })
             root.contextMenuKeyboardOpened = false
+        }
+        MenuItem {
+            objectName: "vaultBrowseContextDetails"
+            text: "Details"
+            visible: !root.hiddenViewActive && root.rowSupportsDetails(root.contextRow)
+            onTriggered: if (root.rowSupportsDetails(root.contextRow)) root.openDetailSheet(root.contextRow)
         }
         MenuItem {
             objectName: "vaultBrowseContextReveal"
@@ -2045,6 +2062,7 @@ Item {
     //    bridge cannot see a secondary window). z above the browse face, below the window chrome
     //    so minimize/fullscreen/close stay reachable while the sheet is up. ──
     VaultDetailSheet {
+        id: detailSheet
         backdrop: root.backdrop
         anchors.fill: parent
         z: 45
@@ -2053,6 +2071,7 @@ Item {
         detail: root.detailSheetDetail
         identityStateOfRow: root.detailSheetRowState
         mediaKind: root.detailSheetRowKind
+        rowIsFileDetail: root.detailSheetRowIsFile
         onBackRequested: root.closeDetailSheet()
         onPlayRequested: (path) => {
             root.closeDetailSheet()
@@ -2062,6 +2081,7 @@ Item {
             if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.revealInExplorer(path)
         }
         onIdentifyRequested: (key) => {
+            if (detailSheet.isFileDetail) return
             root.identifyBrowseRow({
                 key: key,
                 displayTitle: root.detailSheetDetail.displayTitle || "",
@@ -2069,6 +2089,7 @@ Item {
             })
         }
         onUnidentifyRequested: (key) => {
+            if (detailSheet.isFileDetail) return
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.unidentifyGroup(key)
         }
         // Vault ux uplift S8's one deferred wire (landed with S6, which owned this file): the
@@ -2076,9 +2097,11 @@ Item {
         // group. VaultLibrary::identifyGroup adopts on a single catalogue match and durably
         // records the ambiguity when several remain, so the verb is one honest call.
         onIdentifyAgainRequested: (key) => {
+            if (detailSheet.isFileDetail) return
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.identifyGroup(key)
         }
         onHideRequested: (key) => {
+            if (detailSheet.isFileDetail) return
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.hideGroup(key)
             root.closeDetailSheet()
         }

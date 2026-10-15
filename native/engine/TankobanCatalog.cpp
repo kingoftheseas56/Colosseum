@@ -8,10 +8,33 @@
 #include <QSet>
 #include <QSqlQuery>
 #include <QVector>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QRegularExpression>
+#include <QDateTime>
+#include <QSharedPointer>
+#include <QDir>
+#include <QFile>
+#include <QSaveFile>
+
+#include <limits>
 
 #include <algorithm>
 
 namespace {
+
+constexpr int kRemoteApiVersion = 1;
+constexpr int kRemoteCacheSchema = 1;
+constexpr int kRemoteCacheEntries = 32;
+constexpr int kRemoteCacheBytes = 4 * 1024 * 1024;
+constexpr int kRemoteResponseBytes = 512 * 1024;
+// A persisted entry adds identity/timestamp bookkeeping to the response facts.
+constexpr int kRemoteCacheEntryBytes = kRemoteResponseBytes + 1024;
+constexpr int kRemoteFreshSeconds = 300;
 
 // Zero-pad each run of digits so a plain lexicographic compare orders
 // numerically ("2" before "10"); lowercases everything else for a stable,
@@ -69,6 +92,7 @@ TankobanCatalog::TankobanCatalog(const QString& dbPath, QObject* parent)
 
 TankobanCatalog::~TankobanCatalog()
 {
+    cancelRequest();
     if (m_db.isOpen()) m_db.close();
     m_db = QSqlDatabase();
     if (QSqlDatabase::contains(m_conn))
@@ -105,12 +129,12 @@ void TankobanCatalog::closeForSwap()
 QVariantMap TankobanCatalog::seriesInfo(int malId) const
 {
     if (!m_ok)
-        return {};
+        return m_remoteSeries.value(malId).info;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("SELECT volume_count, count_basis FROM series WHERE mal_id = ?"));
     q.addBindValue(malId);
     if (!q.exec() || !q.next())
-        return {};
+        return m_remoteSeries.value(malId).info;
     QVariantMap m;
     m.insert(QStringLiteral("volumeCount"), q.value(0).toInt());
     m.insert(QStringLiteral("countBasis"), q.value(1).toString());
@@ -121,7 +145,13 @@ QVariantList TankobanCatalog::volumes(int malId) const
 {
     QVariantList out;
     if (!m_ok)
-        return out;
+        return m_remoteSeries.value(malId).volumes;
+    // A valid local series remains authoritative; remote facts fill only misses.
+    QSqlQuery local(m_db);
+    local.prepare(QStringLiteral("SELECT 1 FROM series WHERE mal_id = ?"));
+    local.addBindValue(malId);
+    if (local.exec() && !local.next() && m_remoteSeries.contains(malId))
+        return m_remoteSeries.value(malId).volumes;
 
     const QVariantMap info = seriesInfo(malId);
     if (info.isEmpty())
@@ -178,4 +208,320 @@ QVariantList TankobanCatalog::volumes(int malId) const
     for (const auto& m : rows)
         out.append(m);
     return out;
+}
+
+void TankobanCatalog::configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint,
+                                     const QString& cachePath)
+{
+    cancelRequest();
+    m_lease.clear();
+    m_nam = nam;
+    const auto previousEndpoint = m_endpoint;
+    const auto previousCachePath = m_cachePath;
+    m_endpoint = QUrl();
+    // Production is HTTPS. Loopback HTTP is deliberately limited to test fixtures.
+    if (endpoint.isValid() && !endpoint.host().isEmpty() && endpoint.userInfo().isEmpty() && endpoint.query().isEmpty()
+        && endpoint.fragment().isEmpty() && endpoint.path().isEmpty()
+        && (endpoint.scheme() == QStringLiteral("https")
+            || (endpoint.scheme() == QStringLiteral("http")
+                && (endpoint.host() == QStringLiteral("127.0.0.1")
+                    || endpoint.host() == QStringLiteral("localhost")))))
+        m_endpoint = endpoint;
+    m_cachePath = m_endpoint.isEmpty() ? QString() : cachePath;
+    bool changed = false;
+    if ((previousEndpoint != m_endpoint || previousCachePath != m_cachePath)
+        && !m_remoteSeries.isEmpty()) {
+        m_remoteSeries.clear();
+        changed = true;
+    }
+    // Load into a temporary map first. Reconfiguring an unchanged source with
+    // a corrupt/partial file must not destroy already validated memory facts.
+    changed = loadRemoteCache() || changed;
+    if (changed) ++m_revision;
+    emit revisionChanged();
+}
+
+void TankobanCatalog::cancelRequest()
+{
+    ++m_generation;
+    if (m_reply) {
+        m_reply->disconnect(this);
+        m_reply->abort();
+        m_reply->deleteLater();
+        m_reply = nullptr;
+    }
+}
+
+bool TankobanCatalog::hasSeries(int malId) const
+{
+    return !seriesInfo(malId).isEmpty() || !volumes(malId).isEmpty();
+}
+
+void TankobanCatalog::requestSeries(int malId, bool refresh)
+{
+    cancelRequest();
+    if (malId <= 0) { emit seriesFailed(malId, QStringLiteral("INVALID_ID")); return; }
+    bool local = false;
+    if (m_ok) {
+        QSqlQuery query(m_db);
+        query.prepare(QStringLiteral("SELECT 1 FROM series WHERE mal_id = ? UNION SELECT 1 FROM volumes WHERE mal_id = ? LIMIT 1"));
+        query.addBindValue(malId);
+        query.addBindValue(malId);
+        local = query.exec() && query.next();
+    }
+    const auto cached = m_remoteSeries.constFind(malId);
+    const auto age = cached == m_remoteSeries.constEnd() ? -1
+        : cached->fetchedAt.secsTo(QDateTime::currentDateTimeUtc());
+    if (local || (!refresh && cached != m_remoteSeries.constEnd()
+        && age >= 0 && age < kRemoteFreshSeconds)) {
+        emit seriesChanged(malId);
+        return;
+    }
+    if (!m_nam || m_endpoint.isEmpty()) {
+        if (cached != m_remoteSeries.constEnd()) emit seriesChanged(malId);
+        else emit seriesFailed(malId, QStringLiteral("REMOTE_DISABLED"));
+        return;
+    }
+    if (m_lease.isEmpty()) issueLease(malId, m_generation);
+    else fetchRemoteSeries(malId, m_generation, true);
+}
+
+void TankobanCatalog::issueLease(int malId, quint64 generation)
+{
+    QNetworkRequest request(m_endpoint.resolved(QUrl(QStringLiteral("/v1/guest/session"))));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(15000);
+    auto* reply = m_nam->post(request, QByteArrayLiteral("{\"appId\":\"colosseum\",\"apiVersion\":1}"));
+    readReply(reply, malId, generation, true, false);
+}
+
+void TankobanCatalog::fetchRemoteSeries(int malId, quint64 generation, bool renewLease)
+{
+    QNetworkRequest request(m_endpoint.resolved(QUrl(QStringLiteral("/v1/tankoban/series/%1").arg(malId))));
+    request.setRawHeader("Authorization", QByteArrayLiteral("Bearer ") + m_lease);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(15000);
+    readReply(m_nam->get(request), malId, generation, false, renewLease);
+}
+
+void TankobanCatalog::readReply(QNetworkReply* reply, int malId, quint64 generation,
+                               bool issuingLease, bool renewLease)
+{
+    m_reply = reply;
+    const int cap = issuingLease ? 8192 : kRemoteResponseBytes;
+    reply->setReadBufferSize(cap + 1);
+    auto bytes = QSharedPointer<QByteArray>::create();
+    connect(reply, &QNetworkReply::readyRead, this, [reply, bytes, cap] {
+        if (reply->isOpen()) bytes->append(reply->readAll());
+        if (bytes->size() > cap) reply->abort();
+    });
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply, bytes, cap, malId, generation, issuingLease, renewLease] {
+        reply->deleteLater();
+        if (generation != m_generation) return;
+        m_reply = nullptr;
+        if (reply->isOpen()) bytes->append(reply->readAll());
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (!issuingLease && (status == 401 || status == 409) && renewLease) {
+            m_lease.clear();
+            issueLease(malId, generation);
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError || status != 200 || bytes->size() > cap) {
+            emit seriesFailed(malId, bytes->size() > cap ? QStringLiteral("RESPONSE_TOO_LARGE")
+                : QStringLiteral("HTTP_%1").arg(status));
+            return;
+        }
+        QJsonParseError error;
+        const auto doc = QJsonDocument::fromJson(*bytes, &error);
+        const auto root = doc.object();
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            emit seriesFailed(malId, QStringLiteral("INVALID_RESPONSE")); return;
+        }
+        if (issuingLease) {
+            const auto token = root.value(QStringLiteral("token")).toString().toLatin1();
+            const auto expiry = QDateTime::fromString(root.value(QStringLiteral("expiresAt")).toString(), Qt::ISODate);
+            if (token.isEmpty() || token.size() > 2048 || !expiry.isValid()
+                || expiry <= QDateTime::currentDateTimeUtc()) {
+                emit seriesFailed(malId, QStringLiteral("INVALID_LEASE")); return;
+            }
+            m_lease = token;
+            fetchRemoteSeries(malId, generation, false);
+            return;
+        }
+        if (root.value(QStringLiteral("apiVersion")) != QJsonValue(kRemoteApiVersion)
+            || root.value(QStringLiteral("ready")) != QJsonValue(true)
+            || (root.contains(QStringLiteral("malId"))
+                && root.value(QStringLiteral("malId")) != QJsonValue(malId))) {
+            emit seriesFailed(malId, QStringLiteral("INCOMPATIBLE_RESPONSE")); return;
+        }
+        RemoteSeries series;
+        QString reason;
+        if (!validateRemoteSeries(root, &series, &reason)) {
+            emit seriesFailed(malId, reason); return;
+        }
+        // A revision is per fetched series. Keep usable neighbors from older
+        // revisions until their own revalidation (or bounded oldest eviction).
+        series.fetchedAt = QDateTime::currentDateTimeUtc();
+        m_remoteSeries.insert(malId, series);
+        boundRemoteCache(malId);
+        saveRemoteCache();
+        ++m_revision;
+        emit revisionChanged();
+        emit seriesChanged(malId);
+    });
+}
+
+bool TankobanCatalog::validateRemoteSeries(const QJsonObject& root, RemoteSeries* result,
+                                           QString* reason)
+{
+    const auto info = root.value(QStringLiteral("seriesInfo"));
+    const auto rows = root.value(QStringLiteral("volumes"));
+    const auto hash = root.value(QStringLiteral("sourceHash")).toString();
+    static const QRegularExpression hashPattern(QStringLiteral("^[a-f0-9]{64}$"));
+    if (!hashPattern.match(hash).hasMatch() || !info.isObject() || !rows.isArray()
+        || rows.toArray().size() > 2000) {
+        *reason = QStringLiteral("INCOMPATIBLE_RESPONSE");
+        return false;
+    }
+    const auto object = info.toObject();
+    const double count = object.value(QStringLiteral("volumeCount")).toDouble(-1);
+    const auto basis = object.value(QStringLiteral("countBasis"));
+    if (!object.isEmpty() && (count < 0 || count > 2000 || count != int(count)
+        || !basis.isString() || basis.toString().size() > 128)) {
+        *reason = QStringLiteral("INVALID_SERIES");
+        return false;
+    }
+    QSet<QString> numbers;
+    QVariantList volumes;
+    for (const auto row : rows.toArray()) {
+        const auto volume = row.toObject();
+        const auto number = volume.value(QStringLiteral("number")).toString();
+        const auto cover = volume.value(QStringLiteral("cover"));
+        const auto name = volume.value(QStringLiteral("name"));
+        if (!row.isObject() || number.isEmpty() || number.size() > 64 || numbers.contains(number)
+            || !cover.isString() || cover.toString().size() > 8192
+            || !name.isString() || name.toString().size() > 4096) {
+            *reason = QStringLiteral("INVALID_VOLUMES");
+            return false;
+        }
+        numbers.insert(number);
+        // Only catalogue facts cross the durable boundary. Unknown response
+        // fields (including accidental credentials) never enter this owner.
+        volumes.append(QVariantMap{{QStringLiteral("number"), number},
+            {QStringLiteral("cover"), cover.toString()}, {QStringLiteral("name"), name.toString()}});
+    }
+    if (object.isEmpty() && !volumes.isEmpty()) {
+        *reason = QStringLiteral("INVALID_SERIES");
+        return false;
+    }
+    result->info = object.isEmpty() ? QVariantMap()
+        : QVariantMap{{QStringLiteral("volumeCount"), int(count)},
+                      {QStringLiteral("countBasis"), basis.toString()}};
+    result->volumes = volumes;
+    result->sourceHash = hash;
+    return true;
+}
+
+bool TankobanCatalog::loadRemoteCache()
+{
+    if (m_cachePath.isEmpty() || m_endpoint.isEmpty()) return false;
+    QFile file(m_cachePath);
+    if (!file.open(QIODevice::ReadOnly) || file.size() <= 0 || file.size() > kRemoteCacheBytes)
+        return false;
+    const auto bytes = file.read(kRemoteCacheBytes + 1);
+    if (bytes.size() > kRemoteCacheBytes || !file.atEnd()) return false;
+    QJsonParseError error;
+    const auto document = QJsonDocument::fromJson(bytes, &error);
+    if (error.error != QJsonParseError::NoError || !document.isObject()) return false;
+    const auto root = document.object();
+    if (root.value(QStringLiteral("schemaVersion")) != QJsonValue(kRemoteCacheSchema)
+        || root.value(QStringLiteral("apiVersion")) != QJsonValue(kRemoteApiVersion)
+        || root.value(QStringLiteral("endpoint")).toString() != m_endpoint.toString(QUrl::FullyEncoded)
+        || !root.value(QStringLiteral("entries")).isArray()) return false;
+    const auto entries = root.value(QStringLiteral("entries")).toArray();
+    if (entries.size() > kRemoteCacheEntries) return false;
+    QHash<int, RemoteSeries> restored;
+    const auto now = QDateTime::currentDateTimeUtc();
+    for (const auto item : entries) {
+        if (!item.isObject()) return false;
+        const auto entry = item.toObject();
+        const double id = entry.value(QStringLiteral("malId")).toDouble(-1);
+        if (id <= 0 || id > std::numeric_limits<int>::max() || id != int(id)
+            || restored.contains(int(id))
+            || QJsonDocument(entry).toJson(QJsonDocument::Compact).size() > kRemoteCacheEntryBytes)
+            return false;
+        RemoteSeries series;
+        QString reason;
+        if (!validateRemoteSeries(entry, &series, &reason)) return false;
+        series.fetchedAt = QDateTime::fromString(entry.value(QStringLiteral("fetchedAt")).toString(), Qt::ISODateWithMs).toUTC();
+        if (!series.fetchedAt.isValid() || series.fetchedAt > now.addSecs(kRemoteFreshSeconds))
+            return false;
+        restored.insert(int(id), series);
+    }
+    // A previous failed write may leave newer valid facts only in memory.
+    // Reconfiguring the same source must not roll them back to an older file.
+    for (auto it = m_remoteSeries.constBegin(); it != m_remoteSeries.constEnd(); ++it) {
+        const auto saved = restored.constFind(it.key());
+        if (saved == restored.constEnd() || it->fetchedAt >= saved->fetchedAt)
+            restored.insert(it.key(), it.value());
+    }
+    // Publish only after the whole document validates; no partial startup state.
+    m_remoteSeries = restored;
+    boundRemoteCache();
+    return !restored.isEmpty();
+}
+
+QByteArray TankobanCatalog::remoteCacheBytes() const
+{
+    auto ids = m_remoteSeries.keys();
+    std::sort(ids.begin(), ids.end());
+    QJsonArray entries;
+    for (int id : ids) {
+        const auto& series = m_remoteSeries[id];
+        entries.append(QJsonObject{{QStringLiteral("malId"), id},
+            {QStringLiteral("sourceHash"), series.sourceHash},
+            {QStringLiteral("fetchedAt"), series.fetchedAt.toString(Qt::ISODateWithMs)},
+            {QStringLiteral("seriesInfo"), QJsonObject::fromVariantMap(series.info)},
+            {QStringLiteral("volumes"), QJsonArray::fromVariantList(series.volumes)}});
+    }
+    return QJsonDocument(QJsonObject{{QStringLiteral("schemaVersion"), kRemoteCacheSchema},
+        {QStringLiteral("apiVersion"), kRemoteApiVersion},
+        {QStringLiteral("endpoint"), m_endpoint.toString(QUrl::FullyEncoded)},
+        {QStringLiteral("entries"), entries}}).toJson(QJsonDocument::Compact);
+}
+
+void TankobanCatalog::boundRemoteCache(int protectedMalId)
+{
+    // At most 32 series and 4 MiB on disk or in the serializable memory cache.
+    // Deterministic oldest-success eviction never discards the refreshed entry
+    // just because QHash happened to place it first.
+    while (m_remoteSeries.size() > kRemoteCacheEntries || remoteCacheBytes().size() > kRemoteCacheBytes) {
+        auto oldest = m_remoteSeries.end();
+        for (auto it = m_remoteSeries.begin(); it != m_remoteSeries.end(); ++it) {
+            if (it.key() == protectedMalId) continue;
+            if (oldest == m_remoteSeries.end() || it->fetchedAt < oldest->fetchedAt
+                || (it->fetchedAt == oldest->fetchedAt && it.key() < oldest.key()))
+                oldest = it;
+        }
+        if (oldest == m_remoteSeries.end()) break;
+        m_remoteSeries.erase(oldest);
+    }
+}
+
+void TankobanCatalog::saveRemoteCache() const
+{
+    if (m_cachePath.isEmpty() || m_endpoint.isEmpty()) return;
+    if (!QDir().mkpath(QFileInfo(m_cachePath).absolutePath())) {
+        qWarning("Tankoban catalogue cache directory is unavailable");
+        return;
+    }
+    const auto bytes = remoteCacheBytes();
+    QSaveFile file(m_cachePath);
+    // Never use direct-write fallback: failed/partial writes leave the previous
+    // complete file intact. A later successful fetch retries persistence.
+    file.setDirectWriteFallback(false);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+        qWarning("Tankoban catalogue cache could not be saved atomically");
 }

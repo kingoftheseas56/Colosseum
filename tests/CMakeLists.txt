@@ -14,52 +14,6 @@
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
 
-if(WIN32)
-    add_subdirectory(feria_host_probe)
-endif()
-
-add_executable(feria_account_store_test feria_account_store_test.cpp)
-target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
-add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)
-add_executable(feria_media_contract_test feria_media_contract_test.cpp)
-target_link_libraries(feria_media_contract_test PRIVATE feria_discovery Qt6::Core)
-add_test(NAME colosseum.feria_media_contract_test COMMAND feria_media_contract_test)
-find_package(Qt6 QUIET COMPONENTS QuickTest)
-if(TARGET Qt6::QuickTest)
-    add_executable(feria_resume_qml_test feria_resume_qml_test.cpp)
-    set_target_properties(feria_resume_qml_test PROPERTIES AUTOMOC ON)
-    target_link_libraries(feria_resume_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml)
-    add_test(NAME colosseum.feria_resume_qml_test COMMAND feria_resume_qml_test
-        -input "${CMAKE_CURRENT_SOURCE_DIR}/feria_resume_probe")
-    # Explicit reviewer target: real engines, not an ordinary headless unit gate.
-    add_executable(feria_wrapper_qml_test feria_resume_qml_test.cpp)
-    set_target_properties(feria_wrapper_qml_test PROPERTIES AUTOMOC ON)
-    target_compile_definitions(feria_wrapper_qml_test PRIVATE FERIA_WRAPPER_RUNTIME)
-    target_link_libraries(feria_wrapper_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml Qt6::WebEngineQuick)
-    # Real retained WebEngine pages: run explicitly in a graphical desktop.
-    # This is not a mocked/headless CTest pass or an additional X11 CI gate.
-    add_executable(feria_session_runtime_test feria_session_runtime_test.cpp
-        "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
-    set_target_properties(feria_session_runtime_test PROPERTIES AUTOMOC ON)
-    target_include_directories(feria_session_runtime_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
-    target_link_libraries(feria_session_runtime_test PRIVATE feria_discovery
-        Qt6::QuickTest Qt6::WebEngineQuick Qt6::Network)
-endif()
-
-add_executable(feria_availability_test feria_availability_test.cpp)
-target_link_libraries(feria_availability_test PRIVATE feria_discovery Qt6::Core)
-add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
-
-find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
-if(COLOSSEUM_FERIA_TEST_NODE)
-    foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
-        add_test(NAME colosseum.${test_name}_test
-            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
-    endforeach()
-    add_test(NAME colosseum.feria_app_mode_test
-        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
-endif()
-
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})
@@ -112,6 +66,16 @@ colosseum_register_harness(tankoyomi_configuration_store_harness unit;tankoyomi)
 colosseum_register_harness(tankoyomi_service_configuration_harness unit;tankoyomi)
 
 if(WIN32)
+    add_test(NAME colosseum.tankoban_discover_async_preservation
+        COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
+                -platform offscreen
+                "${CMAKE_CURRENT_SOURCE_DIR}/tankoban_discover_async_preservation_harness.qml")
+    set_tests_properties(colosseum.tankoban_discover_async_preservation PROPERTIES
+        LABELS "unit;tankoban;discover;windows"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_BACKEND=software;QSG_RENDER_LOOP=basic;QT_QUICK_CONTROLS_STYLE=Basic"
+        PASS_REGULAR_EXPRESSION "F1_COMPREHENSIVE_OK"
+        TIMEOUT 60)
+
     add_test(NAME colosseum.reader2_logic
         COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
                 -platform offscreen
@@ -167,14 +131,6 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 # per-case reporting, data rows, selectable by function/tag.
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
-
-add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
-    "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
-target_include_directories(feria_session_ownership_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
-target_link_libraries(feria_session_ownership_test PRIVATE feria_discovery Qt6::Test)
-add_test(NAME colosseum.feria_session_ownership_test COMMAND feria_session_ownership_test)
-set_tests_properties(colosseum.feria_session_ownership_test PROPERTIES
-    LABELS "unit;feria;session;profile" TIMEOUT 60)
 
 # Slice-3 pilot: windowstatepolicy/windowmodestore contracts. Same production
 # units and link set as the legacy window_state_policy_harness, which stays
@@ -760,7 +716,7 @@ add_executable(tst_tankoban_catalog
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.h")
 target_include_directories(tst_tankoban_catalog PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Network Qt6::Test)
 set_target_properties(tst_tankoban_catalog PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_tankoban_catalog POST_BUILD
@@ -856,6 +812,8 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
 # QTemporaryDir index + real small fixture trees per run.
 add_executable(tst_vault_browse_away
     auto/vault/tst_vault_browse_away.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
@@ -1566,6 +1524,29 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 # offscreen gate.
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
+add_executable(vault_browse_restore_qml_tests qml/vault_browse_restore_main.cpp)
+target_compile_definitions(vault_browse_restore_qml_tests PRIVATE
+    COLOSSEUM_VAULT_BROWSE_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/qml/fixtures/VaultBrowseRestoreFixture.qml")
+target_link_libraries(vault_browse_restore_qml_tests PRIVATE
+    Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+set_target_properties(vault_browse_restore_qml_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET vault_browse_restore_qml_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:vault_browse_restore_qml_tests>
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>" "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+        COMMAND_EXPAND_LISTS)
+endif()
+add_test(NAME colosseum.qml.vault_offline_restore
+    COMMAND vault_browse_restore_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vault_offline_restore.qml")
+set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
+    LABELS "qml"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
@@ -2451,6 +2432,266 @@ set_tests_properties(colosseum.qttest.account_service_endpoint PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+
+
+# ── No-account edition gate (1.1.9) — exists only in edition builds ────
+# Proves the edition seams against the real classes: endpoint suppression
+# (zero constructible account-service traffic), the accountFeaturesAvailable
+# QML gate, and the prepareForQml local-only settlement with a counting
+# transport. Standard builds never compile this target.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+add_executable(tst_no_account_edition
+    auto/no_account_edition/tst_no_account_edition.cpp
+    support/account/MemoryAccountCredentialStore.h
+    support/account/MemoryAccountOneTimeSecretSink.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountOneTimeSecretSink.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_no_account_edition PRIVATE
+    COLOSSEUM_NO_ACCOUNT_EDITION=1)
+target_include_directories(tst_no_account_edition PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_no_account_edition PRIVATE
+    Qt6::Core
+    Qt6::Sql
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_no_account_edition PRIVATE User32)
+endif()
+set_target_properties(tst_no_account_edition PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
+add_test(NAME colosseum.qttest.no_account_edition
+         COMMAND tst_no_account_edition)
+set_tests_properties(colosseum.qttest.no_account_edition PROPERTIES
+    LABELS "unit;qttest;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+endif()
+
+
+# Real-runtime startup proof for the no-account edition (1.1.9 review
+# finding 4): the REAL AccountRuntime/ProfileStoreRuntime/coordinator chain
+# through prepareForQml() across fresh, populated, remembered-credential,
+# pending-deletion and storage-failure startups, with a loopback listener
+# proving zero account-service requests. Same source closure as the
+# attachment runtime test; edition builds only.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+add_executable(tst_no_account_runtime
+    auto/no_account_edition/tst_no_account_runtime.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(tst_no_account_runtime PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_no_account_runtime PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Network
+    Qt6::Qml
+    Qt6::Sql
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_no_account_runtime PRIVATE
+        Advapi32
+        User32)
+endif()
+set_target_properties(tst_no_account_runtime PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+
+target_compile_definitions(tst_no_account_runtime PRIVATE
+    COLOSSEUM_NO_ACCOUNT_EDITION=1)
+add_test(NAME colosseum.qttest.no_account_runtime
+         COMMAND tst_no_account_runtime)
+set_tests_properties(colosseum.qttest.no_account_runtime PROPERTIES
+    LABELS "unit;qttest;windows;edition"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 240)
+endif()
 
 
 # ── First-account local-state adoption (Bundle 4B, Slice 11A) ─────────
@@ -4416,6 +4657,7 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
 
 foreach(_tracker_profile_target IN ITEMS
         account_first_light
+        reader2_profile_runtime_harness
         tst_privacy_policy
         tst_account_attachment_runtime
         tst_account_adoption
@@ -4424,3 +4666,8 @@ foreach(_tracker_profile_target IN ITEMS
         tst_ratings_reviews_journey)
     colosseum_add_tracker_delivery_runtime_sources(${_tracker_profile_target})
 endforeach()
+# Edition-only target (does not exist in standard builds): same tracker
+# delivery closure so the real ProfileStoreRuntime link-completes.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+    colosseum_add_tracker_delivery_runtime_sources(tst_no_account_runtime)
+endif()

@@ -14,6 +14,7 @@
 // registry, the global showExplicit flag, and (optionally) an XMLHttpRequest factory
 // (the page injects the real one; the harness injects a fake).
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 .import "ExplicitContentPolicy.js" as Policy
 
 // Exposed for a static-contract grep (the harness asserts no Comic Vine / Metron
@@ -393,7 +394,58 @@ function comicsAxis(filterGroup) {
     return "";
 }
 
+// The shell's default offlineWarning (DiscoverBrowser.qml), matched EXACTLY so validated
+// stale rows from a failed refresh paint under the existing offline notice.
+var REMOTE_STALE_WARNING = "Showing offline catalogue";
+
+// Remote-only route: wait for THIS exact native page query to settle, then paint through
+// the synchronous path below. Native owns keys/cache/outcome; nothing is cached here.
+// A failure with no validated page is a failed page (the shell keeps its rows and cursor),
+// never the method's empty fallback mistaken for an exhausted catalogue.
+function remotePage(deps, catalog, state, cursor, generation, done, axisFor, paint) {
+    var filters = nativeFilters(state, axisFor);
+    var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
+    var explicit = deps.showExplicit;
+    function delivered(stale) {
+        var copy = {};
+        for (var key in deps) copy[key] = deps[key];
+        copy._semanticDelivered = true;
+        paint(copy, state, cursor, generation, function(gen, page) {
+            if (stale && page) page.warning = REMOTE_STALE_WARNING;
+            done(gen, page);
+        });
+    }
+    if (typeof catalog.discoverPageFilteredState !== "function") {
+        return CatalogDelivery.wait(catalog, function() {
+            return catalog.discoverPageFiltered(state.catalogKey, filters, explicit, offset, 24);
+        }, function() { delivered(false); });
+    }
+    return CatalogDelivery.waitQuery(catalog, function() {
+        return catalog.discoverPageFiltered(state.catalogKey, filters, explicit, offset, 24);
+    }, function() {
+        return catalog.discoverPageFilteredState(state.catalogKey, filters, explicit, offset, 24);
+    }, function(outcome) {
+        if (outcome.hasData) { delivered(!outcome.ok); return; }
+        done(generation, { items: [], nextCursor: cursor, exhausted: false, freshness: "", warning: "",
+                           failed: true, retryable: !!(outcome.state && outcome.state.retryable),
+                           error: outcome.error || outcome.reason });
+    });
+}
+// Explicit retry of the exact failed page key (bypasses the native failure cooldown).
+function retryRemotePage(deps, state, cursor) {
+    var comics = state.type === "comics";
+    var catalog = comics ? deps.comicsCatalog : deps.malCatalog;
+    if (!catalog || typeof catalog.retryDiscoverPageFiltered !== "function") return false;
+    var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
+    return catalog.retryDiscoverPageFiltered(state.catalogKey,
+        nativeFilters(state, comics ? comicsAxis : mangaAxis), deps.showExplicit, offset, 24);
+}
+
 function fetchMangaPage(deps, state, cursor, generation, done) {
+    var remoteCatalog = deps.malCatalog;
+    if (!deps._semanticDelivered && remoteCatalog && remoteCatalog.remoteEnabled)
+        return remotePage(deps, remoteCatalog, state, cursor, generation, done, mangaAxis, fetchMangaPage);
+
     var mal = deps.malCatalog;
     var facets = nativeFilters(state, mangaAxis);
     var axis = facets.length ? facets[0].axis : "";
@@ -482,6 +534,10 @@ function parseJikanResponse(text) {
 }
 
 function fetchComicsPage(deps, state, cursor, generation, done) {
+    var remoteCatalog = deps.comicsCatalog;
+    if (!deps._semanticDelivered && remoteCatalog && remoteCatalog.remoteEnabled)
+        return remotePage(deps, remoteCatalog, state, cursor, generation, done, comicsAxis, fetchComicsPage);
+
     var comics = deps.comicsCatalog;
     var facets = nativeFilters(state, comicsAxis);
     var axis = facets.length ? facets[0].axis : "";
@@ -547,6 +603,10 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
             var keepFilter = canonical.length > 0
                              && validateFilterKey(base.type, canonical, base.filterKey,
                                                   deps.malCatalog, deps.comicsCatalog, deps.showExplicit);
+            var facetCatalog = base.type === "comics" ? deps.comicsCatalog : deps.malCatalog;
+            if (!keepFilter && canonical.length && base.filterKey && facetCatalog
+                    && facetCatalog.remoteEnabled && facetCatalog.remotePending && facetCatalog.remotePending())
+                keepFilter = true;
             return {
                 missing: false,
                 type: base.type,
@@ -557,8 +617,9 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
             };
         },
         fetchPage: function(state, cursor, generation, done) {
-            if (state.type === "comics") fetchComicsPage(deps, state, cursor, generation, done);
-            else fetchMangaPage(deps, state, cursor, generation, done);
-        }
+            if (state.type === "comics") return fetchComicsPage(deps, state, cursor, generation, done);
+            return fetchMangaPage(deps, state, cursor, generation, done);
+        },
+        retryPage: function(state, cursor) { return retryRemotePage(deps, state, cursor); }
     };
 }

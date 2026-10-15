@@ -58,10 +58,8 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
-# Data-vault adoption (2026-08-22): the app now fetches all four catalogue dbs
-# (mal, tankoban, comics, imdb) from the public kingoftheseas56/Colosseum-Data GitHub
-# release into AppData on first launch (CatalogVaultClient). The installer no longer
-# carries any catalogue db — nothing to guard or overlay here.
+# API builds use semantic queries and never download whole catalogues. The
+# checksummed staging step below also removes the delivered tribute artwork.
 
 echo "[1/6] clean stage -> $STAGE"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -82,6 +80,12 @@ for sentinel in \
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
 
+# API builds ship a small offline metadata starter and fetch content-addressed
+# artwork on demand. Whole catalogue databases never enter this package.
+if grep -Eq '^COLOSSEUM_CONTENT_API_URL:STRING=https://' "$BUILD_DIR/CMakeCache.txt"; then
+  python "$REPO/scripts/stage_api_content.py" --stage "$STAGE" --apply
+fi
+
 # Function 0001 bootstrap integrity: the executable's build manifest must describe
 # the exact qml/ tree staged from the release tag. This catches a clean native build
 # accidentally packaged with QML from a different commit before NSIS can ship it.
@@ -98,7 +102,9 @@ rm -f "$STAGE_QML_MANIFEST"
 
 echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
 ( cd "$STAGE/native/build-msvc"
-  rm -rf CMakeFiles Testing artifacts
+  # CTest targets place their intermediates in build/tests as well as the root.
+  # A combined qualification build must not ship those object files and fixtures.
+  rm -rf CMakeFiles Testing artifacts tests
   rm -rf ./*_autogen
   rm -f ./*_harness.exe ./*harness*.exe tst_*.exe ./*_test*.exe colosseum-capture.exe colosseum-prev-live.exe
   rm -f ./_a0_* ./_slice* ./_engine_harness* ./*.log
@@ -151,6 +157,11 @@ INSTALLER_BYTES="$(wc -c < "$OUT" | tr -d '[:space:]')"
 # Size gate (1.1.2 lesson): that release shipped 647MB of build garbage vs 1.1.1's 211MB.
 # Refuse loudly rather than publish a bloated installer nobody eyeballed.
 MAX_INSTALLER_BYTES=$((300 * 1024 * 1024))
+# 1.1.9 bundles the four-sea atlas artwork. Its clean, complete runtime
+# needs a 350 MiB budget; retain the historical limit for other versions.
+if [ "$VERSION" = "1.1.9" ]; then
+  MAX_INSTALLER_BYTES=$((350 * 1024 * 1024))
+fi
 if [ "$INSTALLER_BYTES" -gt "$MAX_INSTALLER_BYTES" ]; then
   echo "refusing oversized installer: $INSTALLER_BYTES bytes (limit $MAX_INSTALLER_BYTES)"
   exit 1

@@ -7,6 +7,15 @@ import vm from 'node:vm';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = name => fs.readFileSync(path.join(repo, 'qml', name), 'utf8');
+
+test('a crowded island keeps its badge in nearby clear water', () => {
+    const layout = qmlJs('OnePieceAtlasBadgeLayout.js');
+    const island = { x: 720, y: 360, width: 240, height: 240 };
+    const result = layout.placeBadges([{id: 'crowded', x: 840 / 1680, y: 480 / 960}], 84, [island], 9).crowded;
+    assert.equal(result.visible, true);
+    assert.equal(layout.circleOverlapsRect(result.x * 1680, result.y * 960, 48, island), false);
+    assert.ok(Math.hypot(result.x * 1680 - 840, result.y * 960 - 480) <= 192);
+});
 function qmlJs(name) {
     const context = vm.createContext({});
     vm.runInContext(source(name).replace(/^\s*\.pragma library\s*$/m, ''), context);

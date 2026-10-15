@@ -5,6 +5,7 @@
 // TheatreApi, filter through ExplicitContentPolicy before rendering, and honour per-tab
 // customization (move / hide / rename / reset). Stale-generation callbacks are ignored.
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import "TheatreApi.js" as TheatreApi
 import "TheatreGenreApi.js" as TheatreGenreApi
 import "TheatreCatalogRules.js" as Rules
@@ -178,6 +179,33 @@ Column {
         function onChanged() { if (page.active) page.load(); }
     }
 
+    property bool _remoteReloadPending: false
+    function remoteCatalogChanged() {
+        page._remoteReloadPending = true;
+        if (page.active) remoteCatalogueTimer.restart();
+    }
+    Timer {
+        id: remoteCatalogueTimer
+        interval: 75
+        onTriggered: {
+            var catalog = page.pageKey === "anime" ? page.malCatalog : page.imdbCatalog;
+            if (catalog && catalog.remotePending && catalog.remotePending()) return;
+            page._remoteReloadPending = false;
+            page.load();
+        }
+    }
+    Connections {
+        target: page.imdbCatalog
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (page.pageKey !== "anime") page.remoteCatalogChanged(); }
+        function onRequestFailed() { if (page.pageKey !== "anime") page.remoteCatalogChanged(); }
+    }
+    Connections {
+        target: page.malCatalog
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (page.pageKey === "anime") page.remoteCatalogChanged(); }
+        function onRequestFailed() { if (page.pageKey === "anime") page.remoteCatalogChanged(); }
+    }
     onPageKeyChanged: if (page.active) load()
     Component.onCompleted: {
         page._ready = true
@@ -191,7 +219,7 @@ Column {
             page.loading = false
             return
         }
-        if (page._ready && !page._hasSettled) page.load()
+        if (page._ready && (!page._hasSettled || page._remoteReloadPending)) { page._remoteReloadPending = false; page.load(); }
     }
 
     function _push(payload) {

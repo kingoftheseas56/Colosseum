@@ -27,7 +27,7 @@ UNIFORM = [
     "TheatreGenrePage", "TheatreGenreIndex", "MangaSeries", "ComicSeries",
     "ComicSeriesPage", "LocgPublisherPage", "ComicArchiveBoard", "ComicArchiveIndex",
     "TheatreSeries", "DownloadsPage", "GalaxyUniversePage",
-    "SagaUniversePage", 
+    "SagaUniversePage",
 ]
 GAP = {"ContinueSeeAllPage": "root", "SearchSurface": "surf", "BiblioSearch": "search"}
 

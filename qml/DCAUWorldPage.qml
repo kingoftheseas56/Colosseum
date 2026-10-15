@@ -1,16 +1,20 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "DCAUUniverseData.js" as DCAU
 
 Item {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     objectName: "dcauWorldPage"
     property var hub: ({})
     property var payload: null
     property bool reducedMotion: false
-    readonly property var comicItems: DCAU.comicsForHub(root.payload, String(root.hub.id || "gotham"))
-    readonly property var theatreItems: DCAU.videosForHub(root.payload, String(root.hub.id || "gotham"))
+    property var comicCatalogue: typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
+    readonly property int comicCatalogueRevision: comicCatalogue ? Number(comicCatalogue.revision || 0) : 0
+    readonly property var comicItems: (root.universeContentGeneration, DCAU.comicsForHub)(root.payload, String(root.hub.id || "gotham"))
+    readonly property var theatreItems: (root.universeContentGeneration, DCAU.videosForHub)(root.payload, String(root.hub.id || "gotham"))
 
     signal watchRequested(var entry)
     signal comicRequested(var entry)
@@ -21,9 +25,11 @@ Item {
         return entry && entry.id ? "https://live.metahub.space/poster/small/" + entry.id + "/img" : ""
     }
     function comicCover(entry) {
+        root.comicCatalogueRevision
         if (!entry) return ""
-        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
-            var row = ComicsCatalog.series(Number(entry.gcdId || 0))
+        var catalogue = root.comicCatalogue
+        if (catalogue && (typeof catalogue.available === "function" ? catalogue.available() : catalogue.ready())) {
+            var row = catalogue.series(Number(entry.gcdId || 0))
             if (row && row.cover) return row.cover
         }
         return entry.cover || ""

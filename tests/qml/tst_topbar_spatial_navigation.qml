@@ -33,7 +33,7 @@ TestCase {
         return [{tag: "Tankoban", medium: "Tankoban"},
                 {tag: "Biblio", medium: "Biblio"},
                 {tag: "Theatre", medium: "Theatre"},
-                {tag: "Feria", medium: "Feria"}]
+                {tag: "Universes", medium: "Universes"}]
     }
     function test_compact_world_picker_does_not_overlap_search(data) {
         bar.width = 904 // 1024px window minus the production side margins
@@ -44,11 +44,11 @@ TestCase {
         var systems = findChild(bar, "topBarSystemChrome")
         verify(picker.x + picker.width + 8 <= systems.x,
                "World picker must leave space before system controls")
-        var feria = findChild(bar, "modePillFocus_Feria")
+        var universes = findChild(bar, "modePillFocus_Universes")
         mediumSpy.clear(); searchSpy.clear()
-        mouseClick(feria)
+        mouseClick(universes)
         compare(mediumSpy.count, 1)
-        compare(mediumSpy.signalArguments[0][0], "Feria")
+        compare(mediumSpy.signalArguments[0][0], "Universes")
         compare(searchSpy.count, 0)
         bar.width = 1040
         bar.trackersEnabled = false
@@ -137,19 +137,20 @@ TestCase {
         compare(boundarySpy.signalArguments[0][0], Qt.Key_Down)
     }
 
-    function test_feria_is_the_fifth_world_and_keyboard_reachable() {
-        var universes = focusableFace(findChild(bar, "modePill_Universes"))
-        var feriaPill = findChild(bar, "modePill_Feria")
-        var feria = focusableFace(feriaPill)
-        verify(universes !== null && feria !== null)
-        universes.forceActiveFocus(Qt.OtherFocusReason)
+    function test_universes_is_the_fourth_world_and_keyboard_reachable() {
+        var theatre = focusableFace(findChild(bar, "modePill_Theatre"))
+        var universesPill = findChild(bar, "modePill_Universes")
+        var universes = focusableFace(universesPill)
+        verify(theatre !== null && universes !== null)
+        verify(!findChild(bar, "modePillFocus_Feria").enabled)
+        verify(!findChild(bar, "modePillFocus_Vinyl").enabled)
+        theatre.forceActiveFocus(Qt.OtherFocusReason)
         keyClick(Qt.Key_Right)
-        verify(feria.activeFocus)
+        verify(universes.activeFocus)
         keyClick(Qt.Key_Return)
         compare(mediumSpy.count, 1)
-        compare(mediumSpy.signalArguments[0][0], "Feria")
-        bar.activeMedium = "Feria"
-        compare(feriaPill.active, true)
-        compare(findChild(bar, "modePill_Universes").active, false)
+        compare(mediumSpy.signalArguments[0][0], "Universes")
+        bar.activeMedium = "Universes"
+        compare(universesPill.active, true)
     }
 }

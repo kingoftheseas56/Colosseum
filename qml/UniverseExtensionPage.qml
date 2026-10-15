@@ -16,6 +16,7 @@ import "UniverseExtApi.js" as UniverseApi
 
 Item {
     id: root
+    Connections { target: typeof Content !== "undefined" ? Content : null; function onGenerationChanged() { root.reload() } }
     anchors.fill: parent
 
     // NOTE for the routing task: this page has NO `backdrop` property, unlike the seven

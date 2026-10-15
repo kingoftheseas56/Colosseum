@@ -69,6 +69,7 @@
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/CatalogVaultClient.h"
+#include "engine/SourceContentStore.h"
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
@@ -135,9 +136,6 @@
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
 // compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
 #include "ScrollProbe.h"     // diagnostic wheel-input probe (env-gated; see header)
-#include "feria/PorticoComposition.h"
-#include "feria/FeriaBrowserPolicy.h"
-#include "feria/FeriaAccountStore.h"
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -680,8 +678,7 @@ int main(int argc, char *argv[]) {
         updateNam, std::move(updateCacheOwner), &backendServices);
     Colosseum::Update::ReleaseClientConfig updateConfig;
     updateConfig.latestReleaseUrl = QUrl(
-        QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest"));
-    updateConfig.repository = QStringLiteral("kingoftheseas56/Colosseum");
+        QStringLiteral("https://getcolosseum.world/updates/stable.json"));
     updateConfig.publicKey = QByteArray(Colosseum::Update::embeddedUpdatePublicKey().data(),
                                         Colosseum::Update::embeddedUpdatePublicKey().size());
     Colosseum::Update::UpdateReleaseClient updateClientStorage(updateNam, updateConfig, &app);
@@ -1441,22 +1438,57 @@ int main(int argc, char *argv[]) {
     const CatalogPathResolution imdbRes =
         resolveCatalogPath(QStringLiteral("data/imdb_catalog.db"), QStringLiteral("imdb_catalog.db"));
 
+    QUrl contentEndpoint;
+#ifdef COLOSSEUM_CONTENT_API_URL
+    contentEndpoint = QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL));
+#endif
+    const bool contentApiConfigured = contentEndpoint.isValid() && !contentEndpoint.isEmpty()
+        && contentEndpoint.userInfo().isEmpty() && contentEndpoint.query().isEmpty()
+        && contentEndpoint.fragment().isEmpty() && (contentEndpoint.scheme() == QLatin1String("https")
+            || (contentEndpoint.scheme() == QLatin1String("http")
+                && (contentEndpoint.host() == QLatin1String("127.0.0.1") || contentEndpoint.host() == QLatin1String("localhost"))));
+    // A configured API owns catalogue delivery, including upgrades retaining old DBs.
+    // Existing local files are preserved but cannot shadow server revisions.
+
     // Availability-first SQLite catalogue (spec 2026-07-17): read-only seam; the db
     // is pipeline-deployed to data/ (cwd = repo root) on dev machines, vault-fed elsewhere.
-    auto *comicsCatalog = new ComicsCatalog(comicsRes.path, &backendServices);
+    auto *comicsCatalog = new ComicsCatalog(contentApiConfigured ? QString() : comicsRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicsCatalog"), comicsCatalog);
 
     // Baked MyAnimeList catalog (genre-page revival 2026-07-18): same doctrine —
     // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
-    auto *malCatalog = new MalCatalog(malRes.path, &backendServices);
+    auto *malCatalog = new MalCatalog(contentApiConfigured ? QString() : malRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
 
     // Baked Tankoban volume catalogue (catalogue-independence Slice 1, 2026-08-20): same
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
     auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &backendServices);
+#ifdef COLOSSEUM_CONTENT_API_URL
+    tankobanCatalog->configureRemote(updateNam, QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL)),
+                                    catalogVaultDir + QStringLiteral("/tankoban_remote_v1.json"));
+#endif
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
-    auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &backendServices);
+    auto* imdbCatalog = new ImdbCatalog(contentApiConfigured ? QString() : imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+
+    if (contentApiConfigured) {
+        comicsCatalog->configureRemote(updateNam, contentEndpoint, catalogVaultDir + QStringLiteral("/comics_api_v1.json"));
+        malCatalog->configureRemote(updateNam, contentEndpoint, catalogVaultDir + QStringLiteral("/mal_api_v1.json"));
+        imdbCatalog->configureRemote(updateNam, contentEndpoint, catalogVaultDir + QStringLiteral("/imdb_api_v1.json"));
+    }
+    auto* sourceContent = new SourceContentStore(&backendServices);
+    sourceContent->configure(updateNam, contentEndpoint, catalogVaultDir + QStringLiteral("/content_api_v1.json"),
+                             QDir::current().filePath(QStringLiteral("assets/content-starter/bundle.json")));
+    engine.rootContext()->setContextProperty(QStringLiteral("Content"), sourceContent);
+    QTimer::singleShot(0, sourceContent, [sourceContent] { sourceContent->refresh(); });
+    auto* contentRefreshTimer = new QTimer(sourceContent);
+    contentRefreshTimer->setInterval(15 * 60 * 1000);
+    QObject::connect(contentRefreshTimer, &QTimer::timeout, sourceContent, [&app, sourceContent] {
+        if (app.applicationState() == Qt::ApplicationActive) sourceContent->refresh();
+    });
+    contentRefreshTimer->start();
+
+
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
                                                  imdbCatalog, &backendServices);
     vaultLibrary->setIdentifier(vaultIdentifier);
@@ -1481,7 +1513,15 @@ int main(int argc, char *argv[]) {
     // data/ never fetched at all — WAIT_TIMEOUT on catalogVaultState.fetching==true).
     auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir,
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"), &backendServices);
+    // API builds never recover from outages by downloading a whole catalogue
+    // through GitHub REST. Empty is an explicitly managed empty set.
+#ifdef COLOSSEUM_CONTENT_API_URL
+    catalogManagedNames.clear();
+#endif
     catalogVaultClient->setManagedNames(catalogManagedNames);
+    // This follows validated configuration, never request health: API outages must
+    // keep using cached/local Tankoban data without reviving the GitHub bulk download.
+    catalogVaultClient->setTankobanApiEnabled(tankobanCatalog->remoteEnabled());
     engine.rootContext()->setContextProperty(QStringLiteral("CatalogVault"), catalogVaultClient);
 
     // aboutToReplace fires synchronously right before a fresh download is renamed over an
@@ -1791,6 +1831,17 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
 #endif
 
+    // Build edition identity (1.1.9 no-account edition): surfaces the compiled
+    // edition to QML and diagnostics so edition-specific behavior and future
+    // update targeting have one authoritative in-process source.
+#ifdef COLOSSEUM_NO_ACCOUNT_EDITION
+    engine.rootContext()->setContextProperty(QStringLiteral("ColosseumEdition"),
+                                             QStringLiteral("no-account"));
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("ColosseumEdition"),
+                                             QStringLiteral("standard"));
+#endif
+
     // Account + personal-profile runtime (Bundle 8C adoption, 2026-08-16).
     // AccountRuntime owns the personal store runtime, which is now the SOLE
     // owner/binder of the Progress/Collection/SearchHistory/AudioPairing context
@@ -1975,31 +2026,6 @@ int main(int argc, char *argv[]) {
     // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback
     // stalls without adding work to every event delivery.
     app.setStallContext(QStringLiteral("startup"), QStringLiteral("qml-load"));
-    PorticoComposition feriaDiscovery;
-    feriaDiscovery.exposeTo(engine.rootContext());
-    auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
-    engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
-    auto *feriaAccount = new FeriaAccountStore(&engine);
-    auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
-        const auto &profile = accountRuntime->profileStores()->activeProfile();
-        QString root = profile.profileRoot();
-        if (profile.kind() == ProfilePaths::Kind::LegacyLocal)
-            root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-        sessions->setBrowserProfile(root);
-        feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
-        feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
-    };
-    bindFeriaProfile();
-    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
-                     feriaAccount, [feriaAccount, feriaBrowserPolicy, sessions] {
-                         sessions->setBrowserProfile({});
-                         feriaAccount->setStoragePath({});
-                         feriaBrowserPolicy->setStorageRoot({});
-                     });
-    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
-                     feriaAccount, bindFeriaProfile);
-    engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
-    FeriaBrowserPolicy::registerTypes();
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;

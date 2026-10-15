@@ -100,8 +100,15 @@ void UpdateReleaseClient::fetch(const QUrl& url, qint64 cap, const QByteArray& p
     }
 
     QNetworkRequest request(url);
-    request.setRawHeader("Accept", "application/vnd.github+json");
-    request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+    // The 1.1.9 stable feed uses a JSON release envelope on our domain.
+    // Keep the old GitHub headers for legacy URLs and local loopback tests.
+    const bool githubApi = url.host() == QLatin1String("api.github.com")
+        || (m_config.allowHttpForTests
+            && url.path().startsWith(QLatin1String("/repos/")));
+    request.setRawHeader("Accept", githubApi ? "application/vnd.github+json"
+                                              : "application/json");
+    if (githubApi)
+        request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
     request.setRawHeader("User-Agent", updateUserAgent());
     if (!priorEtag.isEmpty())
         request.setRawHeader("If-None-Match", priorEtag);

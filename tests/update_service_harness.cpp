@@ -30,7 +30,8 @@ Version version(const char* text)
     return *parsed;
 }
 
-Manifest manifestFor(const char* versionText, const char* minimumText = "1.1.0")
+Manifest manifestFor(const char* versionText, const char* minimumText = "1.1.0",
+                     int sequence = 0)
 {
     const Version target = version(versionText);
     Manifest manifest;
@@ -44,6 +45,7 @@ Manifest manifestFor(const char* versionText, const char* minimumText = "1.1.0")
     manifest.installerSize = 17;
     manifest.installerSha256 = QByteArray(32, '\x11');
     manifest.minimumUpdaterVersion = version(minimumText);
+    manifest.sequence = sequence;
     manifest.notesUrl = QStringLiteral("https://github.com/kingoftheseas56/Colosseum/releases/tag/")
         + manifest.tag;
     return manifest;
@@ -694,6 +696,154 @@ int main()
         unsetSvc->restartAndUpdate();
         require(unsetSvc->state() == UpdateService::Installing,
                 "unset requestShutdown hook does not crash the success path");
+    }
+
+    // ── Signed edition ordering (no-account 1.1.9 -> account 1.1.9) ──
+    // A manifest carrying a sequence orders strictly by it even at an equal
+    // displayed version, equal/older sequences stay UpToDate (no repeat
+    // offers), and legacy unsequenced manifests keep version-only order.
+    // The installed sequence stands in for the signed chronicle seed via the
+    // testing setter; the failure latch keys by sequence so a corrected
+    // re-publication of the same version is offered again.
+    {
+        QTemporaryDir editionRoot;
+        require(editionRoot.isValid(), "edition-ordering temp root");
+        ReleaseCheckResult offer = validResult(manifestFor("1.1.9", "1.1.0", 2));
+        UpdateServiceHooks editionHooks;
+        editionHooks.nowMs = [&clock] { return clock; };
+        editionHooks.checkLatest = [&offer](const QString&, UpdateReleaseClient::Callback done) {
+            done(offer);
+        };
+        UpdateServiceHooks::DownloadProgress seqProgress;
+        UpdateServiceHooks::DownloadCompleted seqCompleted;
+        UpdateServiceHooks::DownloadFailed seqFailed;
+        editionHooks.startDownload =
+            [&seqProgress, &seqCompleted, &seqFailed](const DownloadRequest&,
+                                                     UpdateServiceHooks::DownloadProgress progress,
+                                                     UpdateServiceHooks::DownloadCompleted completed,
+                                                     UpdateServiceHooks::DownloadFailed failed) {
+                seqProgress = std::move(progress);
+                seqCompleted = std::move(completed);
+                seqFailed = std::move(failed);
+            };
+        UpdateService edition(version("1.1.9"), editionRoot.path(), editionHooks);
+        edition.setTestingInstalledSequence(1);
+
+        edition.checkNow();
+        require(edition.state() == UpdateService::Available && edition.updateAvailable()
+                    && edition.latestVersion() == QStringLiteral("1.1.9"),
+                "later sequence at equal displayed version is offered");
+        edition.markSeen();
+        offer = validResult(manifestFor("1.1.9", "1.1.0", 2));
+        edition.checkNow();
+        require(edition.state() == UpdateService::Available && !edition.unseenUpdate(),
+                "equal sequence re-check stays Available without a new unseen badge");
+
+        offer = validResult(manifestFor("1.1.9", "1.1.0", 1));
+        edition.checkNow();
+        require(edition.state() == UpdateService::UpToDate && !edition.updateAvailable(),
+                "equal-or-older sequence at equal version is not re-offered");
+
+        offer = validResult(manifestFor("1.1.9", "1.1.0", 0));
+        edition.checkNow();
+        require(edition.state() == UpdateService::UpToDate,
+                "legacy manifest at equal version stays UpToDate");
+        offer = validResult(manifestFor("1.2.0", "1.1.0", 0));
+        edition.checkNow();
+        require(edition.state() == UpdateService::Available,
+                "legacy manifest still orders by version alone");
+
+        // Downgrade protection: a strictly older displayed version is never
+        // offered, whatever sequence it carries.
+        offer = validResult(manifestFor("1.1.8", "1.1.0", 9));
+        edition.checkNow();
+        require(edition.state() == UpdateService::UpToDate && !edition.updateAvailable(),
+                "older displayed version with a higher sequence is never offered");
+
+        // A sequenced offer against a missing/corrupt installed identity
+        // (sequence 0 — no verified seed) must not treat sequence as proof:
+        // equal displayed version -> UpToDate; genuinely newer version ->
+        // still offered by version alone.
+        {
+            QTemporaryDir unknownRoot;
+            require(unknownRoot.isValid(), "unknown-identity temp root");
+            ReleaseCheckResult unknownOffer = validResult(manifestFor("1.1.9", "1.1.0", 5));
+            UpdateServiceHooks unknownHooks;
+            unknownHooks.nowMs = [&clock] { return clock; };
+            unknownHooks.checkLatest = [&unknownOffer](const QString&,
+                                                        UpdateReleaseClient::Callback done) {
+                done(unknownOffer);
+            };
+            UpdateService unknown(version("1.1.9"), unknownRoot.path(), unknownHooks);
+            unknown.checkNow();
+            require(unknown.state() == UpdateService::UpToDate,
+                    "sequenced equal-version offer against a missing installed identity "
+                    "is not treated as newer");
+            unknownOffer = validResult(manifestFor("1.2.0", "1.1.0", 5));
+            unknown.checkNow();
+            require(unknown.state() == UpdateService::Available,
+                    "genuinely newer displayed version is offered without installed identity");
+        }
+
+        // Restart persistence through the durable signed-fixture path: a
+        // seen release restores from the same cache root on a fresh service
+        // without a new unseen badge. The seen/failed latches ride the same
+        // release-key identity the sequenced flow uses ("seq:N" keys for
+        // sequenced manifests, canonical version for legacy ones); a signed
+        // SEQUENCED fixture would need the test signing key, which is not
+        // present on this machine, so the durable restore is proven on the
+        // legacy form and the sequenced keying is asserted in-process above.
+        {
+            QTemporaryDir persistRoot;
+            require(persistRoot.isValid(), "edition-persistence temp root");
+            UpdateServiceHooks persistHooks;
+            persistHooks.nowMs = [&clock] { return clock; };
+            persistHooks.checkLatest = [](const QString&,
+                                           UpdateReleaseClient::Callback done) {
+                done(signedLanistaResult());
+            };
+            persistHooks.startDownload =
+                [](const DownloadRequest&, UpdateServiceHooks::DownloadProgress,
+                   UpdateServiceHooks::DownloadCompleted, UpdateServiceHooks::DownloadFailed) {};
+            UpdateService first(version("1.1.0"), persistRoot.path(), persistHooks);
+            first.checkNow();
+            require(first.state() == UpdateService::Available && first.unseenUpdate(),
+                    "signed offer is unseen on first check");
+            first.markSeen();
+
+            QFile stateFile(QDir(persistRoot.path())
+                                .filePath(QStringLiteral("service-state.json")));
+            require(stateFile.open(QIODevice::ReadOnly), "persisted service state exists");
+            const QByteArray persisted = stateFile.readAll();
+            stateFile.close();
+            require(persisted.contains("\"seen\""),
+                    "persisted state records the seen latch flag");
+
+            UpdateService restarted(version("1.1.0"), persistRoot.path(), persistHooks);
+            require(restarted.state() == UpdateService::Available
+                        && !restarted.unseenUpdate(),
+                    "seen release persists across restart without a new badge");
+            restarted.checkNow();
+            require(restarted.state() == UpdateService::Available
+                        && !restarted.unseenUpdate(),
+                    "re-check after restart keeps the seen latch (release key, not "
+                    "displayed version)");
+        }
+
+        // Failure latch is sequence-keyed: a broken seq-2 publication latches,
+        // and a corrected seq-3 republication of the SAME displayed version
+        // is offered again instead of staying suppressed forever.
+        offer = validResult(manifestFor("1.1.9", "1.1.0", 2));
+        edition.checkNow();
+        require(edition.state() == UpdateService::Available, "seq-2 re-offered before failure");
+        edition.download();
+        seqFailed(QStringLiteral("sha256_mismatch"), false);
+        require(edition.state() == UpdateService::VerificationFailure,
+                "seq-2 verification failure latches");
+        offer = validResult(manifestFor("1.1.9", "1.1.0", 3));
+        edition.checkNow();
+        require(edition.state() == UpdateService::Available && edition.updateAvailable(),
+                "corrected seq-3 republication of the same version is offered again");
     }
 
     std::cout << "UPDATE_SERVICE_OK\n";

@@ -11,6 +11,7 @@
 .pragma library
 .import "Universes.js" as UDB
 .import "BiblioApi.js" as Biblio
+.import "UniverseExtApi.js" as UniverseExt
 
 var CINEMETA = "https://v3-cinemeta.strem.io";
 
@@ -447,13 +448,18 @@ function shelfSpecsFor(cfg) {
     });
     var series = [], spinoffs = [];
     canon.books.forEach(function(m, i) { (main[i] ? series : spinoffs).push(m); });
-    return [
+    var shelves = [
         { title: "Manga", kind: "manga",
           runs: [ { label: "The series", works: series }, { label: "Spin-offs", works: spinoffs } ] },
         { title: "Anime", kind: "series", runs: [ { label: "", works: canon.shows } ] },
         { title: "Films", kind: "movie",
           runs: (cfg.filmEras || []).map(function(g) { return { label: g.era, works: g.films || [] }; }) }
     ];
+    // A manga-first universe may also have prose. Never merge novels into its manga row:
+    // Biblio needs the pinned Apple Books edition identity, distinct from Tankoban.
+    if (cfg.novels && cfg.novels.length)
+        shelves.push({ title: "Novels", kind: "book", runs: [ { label: "", works: cfg.novels } ] });
+    return shelves;
 }
 
 function shelfKeyOf(title, index) {
@@ -475,6 +481,16 @@ function shelfItem(work, kind, key, index) {
         if (!work.id) item.resolved = false;
         if (work.upcoming === true) item.upcoming = true;
         if (work.live === true) item.live = true;
+    } else if (kind === "comic") {
+        var posts = work.posts || [];
+        var gcdId = Number(work.gcdId || 0);
+        var identity = gcdId > 0 ? "gcd:" + gcdId
+                                 : "gc:posts:" + String(posts[0] || "");
+        item = { id: identity, seriesId: identity, title: work.t || "",
+                 cover: work.cover || "", year: String(work.year || ""),
+                 provider: "getcomics", posts: posts.slice(),
+                 gcdId: gcdId, gcdIds: (work.gcdIds || []).slice(),
+                 resolved: posts.length > 0 };
     } else if (kind === "manga") {
         item = { title: work.t || "", cover: work.cover || "", query: work.q || work.t || "",
                  al: work.al || 0, mal: work.mal || 0, by: work.by || "",
@@ -508,29 +524,104 @@ function shelfItem(work, kind, key, index) {
     return item;
 }
 
+// The Star Wars Tribute owns ONE bundled cross-medium archive. Its standard Universe
+// consumes that exact validated payload, not a second hand-maintained list of titles.
+// Nine films are cross-listed in the Tribute's Skywalker synopsis; the plain archive
+// displays each IMDb identity once, in its dedicated chronological era.
+function starWarsSpecsFromPayload(payload) {
+    var sections = (payload && payload.sections) || [];
+    var shelves = [
+        { title: "Films", kind: "movie", runs: [] },
+        { title: "Series", kind: "series", runs: [] },
+        { title: "Books", kind: "book", runs: [] },
+        { title: "Comics", kind: "comic", runs: [] },
+        { title: "Manga", kind: "manga", runs: [] }
+    ];
+    var seen = { movie: {}, series: {}, book: {}, comic: {}, manga: {} };
+    for (var i = 0; i < sections.length; ++i) {
+        var section = sections[i];
+        // The Skywalker films are also listed in their chronological eras.
+        if (section.id === "skywalker-saga-screen") continue;
+        if (["video", "book", "comic", "manga"].indexOf(section.kind) < 0) continue;
+        var label = String(section.title || "").replace(/\s*·\s*Screen$/i, "");
+        var runs = shelves.map(function() { return { label: label, works: [] }; });
+        var entries = section.entries || [];
+        for (var j = 0; j < entries.length; ++j) {
+            var e = entries[j];
+            if (!e || !e.title) continue;
+            var kind = section.kind === "video" ? e.type : section.kind;
+            var at = kind === "movie" ? 0 : kind === "series" ? 1 : kind === "book" ? 2
+                   : kind === "comic" ? 3 : kind === "manga" ? 4 : -1;
+            if (at < 0) continue;
+            var key = kind === "comic" ? (e.posts || []).join(",") : String(e.id || "");
+            if (!key || seen[kind][key]) continue;
+            if (kind === "book" && (e.provider !== "applebooks" || !/^\d+$/.test(key))) continue;
+            if (kind === "comic" && (e.provider !== "getcomics"
+                    || !(e.posts || []).length || e.posts.some(function(p) { return !(Number(p) > 0); }))) continue;
+            if (kind === "manga" && (e.provider !== "anilist"
+                    || !/^\d+$/.test(key) || !/^\d+$/.test(String(e.malId || "")))) continue;
+            seen[kind][key] = true;
+            if (kind === "book")
+                runs[at].works.push({ t: e.title, apple: Number(e.id), author: e.author || "",
+                                      year: e.year || "", cover: e.cover || "" });
+            else if (kind === "comic")
+                runs[at].works.push({ t: e.title, year: e.year || "", posts: e.posts.slice(),
+                                      gcdId: e.gcdId || 0, gcdIds: (e.gcdIds || []).slice() });
+            else if (kind === "manga")
+                runs[at].works.push({ t: e.title, al: Number(e.id), mal: Number(e.malId),
+                                      year: e.year || "", cover: e.cover || "", q: e.title });
+            else
+                runs[at].works.push({ t: e.title, id: e.id, year: e.year || "", poster: e.poster || "" });
+        }
+        for (var k = 0; k < shelves.length; ++k)
+            if (runs[k].works.length) shelves[k].runs.push(runs[k]);
+    }
+    return shelves.filter(function(s) { return s.runs.length > 0 });
+}
+
 // loadShelves(name, push) -> push({ name, category, blurb, blurbSource, banner, wallpaper,
 // color, shelves: [{ title, tab, pill, key, kind, form, order, asOf, runs: [{ label, items }] }] })
 // exactly ONCE: curation is complete, so the page never rebuilds under the reader.
 function loadShelves(name, push) {
     var cfg = UDB.configFor(name);
-    var shelves = shelfSpecsFor(cfg).map(function(spec, si) {
-        var key = shelfKeyOf(spec.title, si), index = 0;
-        return { title: spec.title || "", tab: spec.tab || "", pill: spec.pill || "", key: key,
-                 kind: spec.kind || "movie", form: spec.form || "", order: spec.order || "",
-                 asOf: spec.asOf || "",
-                 runs: (spec.runs || []).map(function(run) {
-                     return { label: run.label || "",
-                              items: (run.works || []).map(function(w) {
-                                  var item = shelfItem(w, spec.kind || "movie", key, index++);
-                                  item.shelfTitle = spec.title || "";
-                                  return item;
-                              }) };
-                 }) };
-    });
-    push({ name: name, category: cfg.shelves ? (cfg.category || "") : "anime",
-           blurb: cfg.blurb || "", blurbSource: cfg.blurbSource || "",
-           banner: cfg.banner || "", wallpaper: cfg.wallpaper || "", color: cfg.c1 || "#221c30",
-           shelves: shelves, detailRevision: ++_detailRevision });
+    function emit(specs, catalogueNotice) {
+        var shelves = specs.map(function(spec, si) {
+            var key = shelfKeyOf(spec.title, si), index = 0;
+            return { title: spec.title || "", tab: spec.tab || "", pill: spec.pill || "", key: key,
+                     kind: spec.kind || "movie", form: spec.form || "", order: spec.order || "",
+                     asOf: spec.asOf || "",
+                     runs: (spec.runs || []).map(function(run) {
+                         return { label: run.label || "",
+                                  items: (run.works || []).map(function(w) {
+                                      var item = shelfItem(w, spec.kind || "movie", key, index++);
+                                      item.shelfTitle = spec.title || "";
+                                      return item;
+                                  }) };
+                     }) };
+        });
+        push({ name: name, category: cfg.shelves ? (cfg.category || "") : "anime",
+               blurb: cfg.blurb || "", blurbSource: cfg.blurbSource || "",
+               banner: cfg.banner || "", wallpaper: cfg.wallpaper || "", color: cfg.c1 || "#221c30",
+               shelves: shelves, catalogueNotice: catalogueNotice || "",
+               detailRevision: ++_detailRevision });
+    }
+    if (name === "Star Wars") {
+        UniverseExt.load("com.colosseum.universe.starwars", function(payload) {
+            var specs = starWarsSpecsFromPayload(payload);
+            if (specs.length === 5) {
+                // Every medium comes from the same pinned Tribute payload, with
+                // cross-listed Skywalker films shown once in the standard Universe.
+                emit(specs, "");
+            } else {
+                // The C++ reader is absent in standalone QML tests; do not misrepresent
+                // the old 28-work static subset as the comprehensive Star Wars archive.
+                console.warn("Star Wars: full bundled archive unavailable; using limited static shelves");
+                emit(shelfSpecsFor(cfg), "Partial catalogue — the Star Wars archive could not be loaded");
+            }
+        });
+        return null;
+    }
+    emit(shelfSpecsFor(cfg), "");
     return null;
 }
 

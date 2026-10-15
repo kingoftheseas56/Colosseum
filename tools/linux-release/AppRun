@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# Use only packaged Qt; inherited development-kit paths must not select other plugins.
+unset QT_QPA_PLATFORM_PLUGIN_PATH QT_QPA_FONTDIR QTDIR QT_HOME LD_PRELOAD
+export LD_LIBRARY_PATH="$HERE/usr/lib"
+export QT_PLUGIN_PATH="$HERE/usr/plugins"
+export QML_IMPORT_PATH="$HERE/usr/qml"
+export QML2_IMPORT_PATH="$HERE/usr/qml"
+export QTWEBENGINEPROCESS_PATH="$HERE/usr/libexec/QtWebEngineProcess"
+export QTWEBENGINE_RESOURCES_PATH="$HERE/usr/resources"
+export QTWEBENGINE_LOCALES_PATH="$HERE/usr/translations/qtwebengine_locales"
+export PATH="$HERE/usr/bin:$PATH"
+cd "$HERE"
+exec "$HERE/usr/bin/colosseum" "$@"

@@ -3,7 +3,6 @@
 // grows out of the button instead of swapping between two separate pieces.
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 
 Item {
     id: bar
@@ -23,7 +22,7 @@ Item {
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
-    // Permanent buttons: Colosseum and Vault.
+    // Permanent buttons: Colosseum, Vault.
     // 8 left + 48 home + 14 + 46 Vault + 14 right = 130.
     readonly property int closedWidth: 130
 
@@ -47,8 +46,6 @@ Item {
     property bool extensionsActive: false // the Extensions page is the front surface
     signal historyStatsClicked()
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
-    property bool feriaContext: false
-    readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
     // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
     onOpenChanged: if (!open) fan.visible = false
@@ -115,7 +112,7 @@ Item {
         height: bar.closedSize
         radius: bar.open ? 18 : bar.closedSize / 2
         clip: true
-        color: startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
+        color: startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.78)
                                                  : Qt.rgba(0.02, 0.02, 0.03, 0.72)
         border.width: 1
         border.color: startInput.interactionActive ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
@@ -449,15 +446,11 @@ Item {
                     id: historyStatsInput
                     objectName: "taskbarHistoryStatsInput"
                     anchors.fill: parent
-                    accessibleName: bar.activityLabel
+                    accessibleName: "History, highlights, and stats"
                     spaceActivates: true
                     focusRadius: 13
                     onTriggered: bar.historyStatsClicked()
                 }
-                HoverHandler { id: activityHover }
-                ToolTip.visible: activityHover.hovered
-                ToolTip.delay: 600
-                ToolTip.text: bar.activityLabel
             }
 
             // Session tiles — the dock's fill-width content.

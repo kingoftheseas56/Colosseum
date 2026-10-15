@@ -105,6 +105,10 @@ public:
 
 #ifdef COLOSSEUM_UPDATE_TESTING
     void setTestingPresentationState(State state, qint64 received, qint64 total);
+    // Test-only installed-side ordering identity for edition-comparator
+    // coverage; production builds derive it from the bundled signed
+    // chronicle seed (loadInstalledChronicle).
+    void setTestingInstalledSequence(int sequence);
 #endif
 
 signals:
@@ -145,6 +149,9 @@ private:
     void loadInstalledChronicle();
 
     Version m_installedVersion;
+    // Signed release ordering (see UpdateManifest.h): the installed side
+    // comes from the bundled signed chronicle seed; 0 = legacy/unsequenced.
+    int m_installedSequence = 0;
     QString m_cacheRoot;
     UpdateCache m_cache;
     UpdateServiceHooks m_hooks;
@@ -156,6 +163,7 @@ private:
     bool m_unseenUpdate = false;
     bool m_offeredIsNewer = false;  // tracks the last-emitted offeredReleaseChanged state
     QString m_latestVersion;
+    QString m_latestReleaseKey;
     QString m_seenVersion;
     QString m_failedVersion;
     QString m_etag;

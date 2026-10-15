@@ -10,6 +10,16 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Discover asynchronous state preservation (2026-10-15)
+
+`colosseum.tankoban_discover_async_preservation` runs the real Tankoban Discover
+QML owners with delayed fake catalogue responses, offscreen with software rendering.
+It covers manga/comics pagination, catalogue/filter/scroll retention across metadata
+revisions and reactivation, explicit new pins, superseded replies and removed-extension
+fallback. It makes no network requests and does not prove physical input or installer
+behaviour. The unmodified refresh owner fails this regression; removing pin replay
+from metadata refresh passes it.
+
 ## Arc 35 Tracker Connections — Slice 5 (2026-09-23)
 
 `colosseum.qttest.tracker_delivery` is the deterministic native delivery-journal
@@ -3060,46 +3070,3 @@ agent's long-lived running instance (pid 28384, up since 09:55) — the QML
 fixes are live through the refreshed `qml-build.manifest` and are
 runtime-proven, but the exe must be relinked when the instance exits before
 any delivery claim that includes the native union code.
-
-## Feria retained-session ownership (source-preparation checkpoint)
-
-- `colosseum.feria_session_ownership_test`: native QtTest, isolated temporary
-  account files; activity IDs/MRU/explicit New, per-visit observation fences,
-  recording/capture gates and browser-profile cleanup ownership. No live network.
-- `feria_session_runtime_test` is an explicit reviewer target, intentionally not
-  registered as a headless CTest or a second `requires-x11` inventory entry.
-  Run on a supported graphical desktop, without disabling the Chromium sandbox:
-  `./feria_session_runtime_test -input /absolute/repo/tests/feria_session_probe`.
-  It owns an ephemeral loopback HTTP fixture and temporary profiles. It checks
-  actual retained QtWebEngine views, history, default resume/explicit New,
-  hidden fixture-audio clock advancement, close/callback drainage and profile
-  quiescence. `FERIA_SESSION_EVIDENCE_DIR` optionally saves a rendered PNG.
-  Clock advancement does not prove audible output or live-provider playback.
-- `tests/feria_host_probe/FeriaMainShellSmoke.qml` exercises the actual Main
-  dispatcher with the assembled application. It now requires browser parking
-  and identity-preserving taskbar resume, while keeping the existing A/B/C
-  route/origin/profile assertions. This whole-application check remains separate
-  from the component fixture and requires a feature-built application.
-
-## Feria compact browser and page tools (2026-10-06 integration)
-
-- Integrated the owner-approved Dots v2 QML with the retained-session foundation:
-  SVG browser controls below the world header, retractable address, anchored glass
-  Options/Find, per-page zoom and provider-logo taskbar activities.
-- Receiving verification on Windows with Qt 6.11.1: the production `colosseum`
-  target compiled and linked; four focused native CTest targets passed.
-- The real QtWebEngine page-tools suite passed 12/12 and the native-store resume
-  QML suite passed 10/10. Four selected retained-page checks passed (6/6 including
-  setup/cleanup): history, default resume/explicit New, close drainage and profile
-  quiescence. These component runs used offscreen Qt with software rendering and
-  temporary profiles; the fixture-audio test was not run during integration.
-- The assembled application ran `FeriaMainShellSmoke.qml` in a disposable profile:
-  46 assertions passed and the process exited successfully. This covered actual
-  Main routing, retained-browser parking, taskbar resume and profile invalidation.
-- Seven Feria JavaScript suites passed, plus the restoration (18 checks) and
-  directional-navigation (20 checks) source probes.
-- Live Manga Plus/YouTube Music login, playback, DRM, audible background music,
-  WebView2 compatibility and packaged Linux delivery remain unverified by this
-  receiving run. Dots' Linux visual evidence and the owner's v2 design approval
-  are separate from these Windows integration checks. The previously documented
-  intermittent title-action failure is not claimed fixed by this slice.

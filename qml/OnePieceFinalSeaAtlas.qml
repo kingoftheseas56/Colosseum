@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls.Basic
 import "OnePieceFinalSeaData.js" as Story
 import "OnePieceFinalSeaAdapter.js" as Adapter
@@ -8,13 +9,15 @@ import "FinalSeaGeometry.js" as Geometry
 
 FocusScope {
     id: root
+    function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     focus: true
     clip: true
 
     property bool reducedMotion: false
     property string displayFamily: "Georgia"
     property string bodyFamily: "Georgia"
-    property url mapSource: Qt.resolvedUrl("../assets/universes/one-piece/final-sea/final-sea-map.png")
+    property url mapSource: root.resolveContentAsset("../assets/universes/one-piece/final-sea/final-sea-map.png")
     property real shellChromeInset: 172
     property real zoom: 1
     property bool indexVisible: false
@@ -27,13 +30,14 @@ FocusScope {
     property real previewY: 88
     property int viewGeneration: 0
 
-    readonly property var arcEntries: Story.arcs
-    readonly property var markerEntries: Atlas.canonMarkers
-    readonly property var selectedArc: Story.arc(selectedArcId)
-    readonly property var selectedLocation: selectedArc ? Atlas.location(selectedArc.locationId) : null
+    readonly property var arcEntries: (root.universeContentGeneration, Story.arcs)
+    readonly property var markerEntries: (root.universeContentGeneration, Atlas.canonMarkers)
+    readonly property var selectedArc: (root.universeContentGeneration, Story.arc)(selectedArcId)
+    readonly property var selectedLocation: selectedArc ? (root.universeContentGeneration, Atlas.location)(selectedArc.locationId) : null
     readonly property bool transientOpen: previewVisible || indexVisible
     readonly property bool captureReady: mapImage.status === Image.Ready
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
+    readonly property var controlGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, 1)
     readonly property real sealDiameter: 84 * root.stageGeometry.scale
     // These seals cover marker artwork baked into the map; never relocate them.
     readonly property var badgePlacements: {
@@ -47,7 +51,7 @@ FocusScope {
     signal newWorldRequested()
 
     function markerItem(id) {
-        var known = Atlas.marker(id)
+        var known = (root.universeContentGeneration, Atlas.marker)(id)
         if (!known) return null
         for (var i = 0; i < markerRepeater.count; ++i) {
             var item = markerRepeater.itemAt(i)
@@ -57,10 +61,10 @@ FocusScope {
     }
 
     function openPreview(id, arcId) {
-        var marker = Atlas.marker(id)
+        var marker = (root.universeContentGeneration, Atlas.marker)(id)
         if (!marker || !root.visible) return false
         var selected = arcId || marker.arcIds[0]
-        var entry = Story.arc(selected)
+        var entry = (root.universeContentGeneration, Story.arc)(selected)
         if (!entry || marker.arcIds.indexOf(selected) < 0) return false
         closeGrace.stop()
         root.indexVisible = false
@@ -123,7 +127,7 @@ FocusScope {
 
     function openSelectedArc() {
         var entry = root.selectedArc
-        var payload = Adapter.cataloguePayload(entry)
+        var payload = (root.universeContentGeneration, Adapter.cataloguePayload)(entry)
         if (!payload) return
         root.closePreview(true)
         root.arcRequested(payload)
@@ -177,8 +181,8 @@ FocusScope {
     }
 
     function focusArc(arcId) {
-        var entry = Story.arc(arcId)
-        var marker = Atlas.markerForArc(arcId)
+        var entry = (root.universeContentGeneration, Story.arc)(arcId)
+        var marker = (root.universeContentGeneration, Atlas.markerForArc)(arcId)
         if (!entry || !marker || !root.visible) return false
         root.closeIndex(false)
         root.revealMarker(marker)
@@ -193,13 +197,13 @@ FocusScope {
     }
 
     function focusLocation(locationId) {
-        var marker = Atlas.markerForLocation(locationId)
+        var marker = (root.universeContentGeneration, Atlas.markerForLocation)(locationId)
         return marker ? root.focusArc(marker.arcIds[0]) : false
     }
 
     function moveMarker(id, direction) {
         var next = Geometry.nextMarker(root.markerEntries, id, direction)
-        var marker = next ? Atlas.marker(next) : null
+        var marker = next ? (root.universeContentGeneration, Atlas.marker)(next) : null
         if (marker) root.focusArc(marker.arcIds[0])
     }
 
@@ -319,6 +323,15 @@ FocusScope {
             }
 
             Rectangle {
+                objectName: "finalSeaPaintedZoomCover"
+                x: 0.0299 * parent.width - 3
+                y: 0.8831 * parent.height - 3
+                width: 0.1316 * parent.width + 6
+                height: 0.0584 * parent.height + 6
+                color: "#e2cc9b"
+            }
+
+            Rectangle {
                 anchors.fill: parent
                 visible: mapImage.status !== Image.Ready
                 color: "#ddc69a"
@@ -348,12 +361,12 @@ FocusScope {
                 model: root.markerEntries
                 delegate: FinalSeaMarker {
                     required property var modelData
-                    property var firstArc: Story.arc(modelData.arcIds[0])
+                    property var firstArc: (root.universeContentGeneration, Story.arc)(modelData.arcIds[0])
 
                     markerId: modelData.id
                     title: firstArc ? firstArc.title : modelData.id
                     sealText: firstArc ? String(firstArc.order).padStart(2, "0") : ""
-                    markerSource: firstArc ? Qt.resolvedUrl(Adapter.markerSourceForArc(firstArc)) : ""
+                    markerSource: firstArc ? Qt.resolvedUrl((root.universeContentGeneration, Adapter.markerSourceForArc)(firstArc)) : ""
                     diameter: root.sealDiameter
                     fontFamily: root.bodyFamily
                     reducedMotion: root.reducedMotion
@@ -367,7 +380,7 @@ FocusScope {
 
                     onFocusEntered: function(id) {
                         if (!root.suppressFocusPreview && !root.indexVisible && root.visible) {
-                            root.revealMarker(Atlas.marker(id))
+                            root.revealMarker((root.universeContentGeneration, Atlas.marker)(id))
                             root.openPreview(id)
                         }
                     }
@@ -391,20 +404,36 @@ FocusScope {
         }
     }
 
+    // Visible controls stay in the viewport while the chart zooms and pans.
+    Rectangle {
+        objectName: "finalSeaZoomStationBacking"
+        x: zoomTools.x - 3
+        y: zoomTools.y - 3
+        width: zoomTools.width + 6
+        height: zoomTools.height + 6
+        color: "#e2cc9b"
+        border.color: "#927345"
+        radius: 2
+        z: 19
+    }
+
     Row {
         id: zoomTools
         objectName: "finalSeaZoomTools"
-        x: root.mapPoint(0.0299, 0.8831).x
-        y: root.mapPoint(0.0299, 0.8831).y
+        // The visible lower-left station slides right of the shell taskbar dock's
+        // closed footprint (leftEdge<=80 + 130 wide + gap); at short viewports the
+        // dock otherwise covers the zoom controls.
+        x: Math.max(mapViewport.x + root.controlGeometry.x + 0.0299 * root.controlGeometry.width, 218)
+        y: mapViewport.y + root.controlGeometry.y + 0.8831 * root.controlGeometry.height
         spacing: 0
         z: 20
 
         FinalSeaInkButton {
             objectName: "finalSeaZoomOut"
             text: "−"
-            width: 0.0353 * root.stageGeometry.width
-            height: 0.0584 * root.stageGeometry.height
-            mapArtwork: true
+            width: Math.max(44, 0.0353 * root.controlGeometry.width)
+            height: Math.max(44, 0.0584 * root.controlGeometry.height)
+            mapArtwork: false
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom out"
@@ -413,9 +442,9 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomReset"
             text: Math.round(root.zoom * 100) + "%"
-            width: 0.0604 * root.stageGeometry.width
-            height: 0.0584 * root.stageGeometry.height
-            mapArtwork: true
+            width: Math.max(44, 0.0604 * root.controlGeometry.width)
+            height: Math.max(44, 0.0584 * root.controlGeometry.height)
+            mapArtwork: false
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Reset zoom to show the whole chart"
@@ -424,9 +453,9 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomIn"
             text: "+"
-            width: 0.0359 * root.stageGeometry.width
-            height: 0.0584 * root.stageGeometry.height
-            mapArtwork: true
+            width: Math.max(44, 0.0359 * root.controlGeometry.width)
+            height: Math.max(44, 0.0584 * root.controlGeometry.height)
+            mapArtwork: false
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom in"
@@ -439,8 +468,10 @@ FocusScope {
         objectName: "finalSeaToNewWorld"
         x: root.mapPoint(0.0299, 0.8055).x
         y: root.mapPoint(0.0299, 0.8055).y
-        width: 0.1441 * root.stageGeometry.width
-        height: 0.0616 * root.stageGeometry.height
+        // The painted plate scales with the chart, but the interactive target keeps
+        // the 44 px minimum the FinalSeaInkButton implicit size already promises.
+        width: Math.max(44, 0.1441 * root.stageGeometry.width)
+        height: Math.max(44, 0.0616 * root.stageGeometry.height)
         mapArtwork: true
         z: 20
         text: "TO NEW WORLD"
@@ -459,8 +490,8 @@ FocusScope {
         objectName: "finalSeaIndexButton"
         x: root.mapPoint(0.8439, 0.0372).x
         y: root.mapPoint(0.8439, 0.0372).y
-        width: 0.1340 * root.stageGeometry.width
-        height: 0.0574 * root.stageGeometry.height
+        width: Math.max(44, 0.1340 * root.stageGeometry.width)
+        height: Math.max(44, 0.0574 * root.stageGeometry.height)
         mapArtwork: true
         z: 30
         text: "INDEX"
@@ -631,7 +662,7 @@ FocusScope {
                         objectName: "finalSeaPreviewHero"
                         anchors.fill: parent
                         anchors.margins: 4
-                        source: root.selectedArc ? Qt.resolvedUrl(Adapter.heroSourceForArc(root.selectedArc)) : ""
+                        source: root.selectedArc ? Qt.resolvedUrl((root.universeContentGeneration, Adapter.heroSourceForArc)(root.selectedArc)) : ""
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
                         mipmap: true
@@ -725,9 +756,9 @@ FocusScope {
                     visible: root.selectedArcId === "elbaf"
                     width: parent.width
                     text: "ONGOING · snapshot observed through manga chapter "
-                          + Story.snapshot.latestObservedMangaChapter
+                          + (root.universeContentGeneration, Story.snapshot).latestObservedMangaChapter
                           + " and official anime listing "
-                          + Story.snapshot.latestObservedAnimeEpisode
+                          + (root.universeContentGeneration, Story.snapshot).latestObservedAnimeEpisode
                           + ". The arc has no endpoint here."
                     color: "#846c4b"
                     font.family: root.bodyFamily

@@ -5,6 +5,7 @@
 // limit clamped; missing db => ready()==false and every accessor returns empty so
 // the Theatre pages honestly omit index shelves.
 #include <QObject>
+#include "CatalogRemote.h"
 #include <QSqlDatabase>
 #include <QStringList>
 #include <QVariantList>
@@ -12,6 +13,8 @@
 
 class ImdbCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int revision READ revision NOTIFY revisionChanged)
+    Q_PROPERTY(bool remoteEnabled READ remoteEnabled NOTIFY revisionChanged)
     // No Q_PROPERTY(ready) here on purpose — see MalCatalog.h for the full note
     // (data-vault Slice 4, 2026-08-22 fix): it collided with the Q_INVOKABLE of the
     // same name and broke every `.ready()` call site in QML.
@@ -20,6 +23,16 @@ public:
     ~ImdbCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Service availability is distinct from complete local SQLite readiness.
+    Q_INVOKABLE bool available() const { return m_ok || m_remote->available(); }
+    bool remoteEnabled() const { return m_remote->enabled(); }
+    int revision() const { return m_remote->revision(); }
+    Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
+    Q_INVOKABLE bool remoteWaiting() const { return m_remote->waiting(); }
+    void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& cachePath = {}) {
+        m_remote->configure(nam, endpoint, cachePath);
+    }
+
     // Data-vault Slice 2 (2026-08-22): reopen at a fresh path — see MalCatalog.
     Q_INVOKABLE bool reopen(const QString& dbPath);
     Q_INVOKABLE void closeForSwap();
@@ -43,10 +56,13 @@ public:
 
 signals:
     void readyChanged();
+    void revisionChanged();
+    void requestFailed(QString method, QString reason);
 
 private:
     bool openAt(const QString& dbPath);
 
+    CatalogRemote* m_remote;
     QSqlDatabase m_db;
     bool m_ok = false;
     QString m_conn;

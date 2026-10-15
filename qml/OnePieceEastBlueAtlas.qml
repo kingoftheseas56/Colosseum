@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import QtQuick.Controls.Basic
 import "OnePieceEastBlueAtlasData.js" as AtlasData
@@ -7,6 +8,8 @@ import "OnePieceEastBlueData.js" as EastBlue
 
 FocusScope {
     id: root
+    function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
 
     property bool reducedMotion: false
     property real zoom: 1.0
@@ -21,7 +24,10 @@ FocusScope {
     readonly property real shellChromeReservedLeft: root.width - 54 - (22 * 3 + 20 * 2)
     readonly property real shellChromeReservedRight: root.width - 54
     readonly property bool transientOpen: root.previewVisible || root.indexVisible
-    readonly property real fitScale: Math.max(0.01, Math.max(mapViewport.width / 1680, mapViewport.height / 960))
+    // Contain (min), not cover: at tall or narrow windows a cover fit overflows the
+    // viewport at base zoom while the Flickable is not interactive, cropping Arlong
+    // and the next-sea gate beyond the window edge with no panning recovery.
+    readonly property real fitScale: Math.max(0.01, Math.min(mapViewport.width / 1680, mapViewport.height / 960))
     readonly property real badgeDiameter: 84 * root.fitScale * root.zoom
     readonly property real badgeHitDiameter: Math.max(44, root.badgeDiameter)
     readonly property bool fontsReady: atlasDisplayFont.status === FontLoader.Ready
@@ -44,7 +50,7 @@ FocusScope {
     }
 
     function arcFor(id) {
-        var result = EastBlue.arc(id)
+        var result = (root.universeContentGeneration, EastBlue.arc)(id)
         return result && result.id === id ? result : null
     }
 
@@ -98,7 +104,21 @@ FocusScope {
 
     function openSelectedArc() {
         var arc = root.selectedArc
-        if (arc) root.arcRequested(arc)
+        var restoreId = root.selectedMarkerId
+        if (!arc) return
+        // Close the preview and park scope focus on the visible selected marker, the
+        // same contract as the procedural seas. Otherwise the clicked Open Arc button
+        // keeps the scope's focus flag while hidden behind the arc page, and the
+        // arc-return forceActiveFocus lands on no visible item and escapes to the shell.
+        root.closePreview()
+        var restoreMarker = root.markerForId(restoreId)
+        // The marker's activeFocusChanged handler runs synchronously inside
+        // forceActiveFocus, so the suppression only spans this call.
+        root.suppressFocusPreview = true
+        if (restoreMarker) restoreMarker.forceActiveFocus()
+        else root.forceActiveFocus()
+        root.suppressFocusPreview = false
+        root.arcRequested(arc)
     }
 
     function focusMarker(id) {
@@ -259,6 +279,7 @@ FocusScope {
     property bool previewMarkerHovered: false
     property bool previewMarkerFocused: false
     property bool previewPointerInside: false
+    property bool suppressFocusPreview: false
 
     onWidthChanged: root.schedulePreviewGeometry()
     onHeightChanged: root.schedulePreviewGeometry()
@@ -274,8 +295,8 @@ FocusScope {
 
     Rectangle { anchors.fill: parent; color: "#101816" }
 
-    // A single logical 1680×960 stage keeps artwork and controls aligned while
-    // the Flickable provides constrained-height panning at higher zoom levels.
+    // A single logical 1680×960 stage keeps artwork and controls aligned. The stage
+    // always contains at base zoom; the Flickable provides panning at higher zoom.
     Flickable {
         id: mapViewport
         anchors.fill: parent
@@ -299,7 +320,7 @@ FocusScope {
                 id: mapPlate
                 objectName: "eastBlueAtlasPlate"
                 anchors.fill: parent
-                source: "../assets/universes/one-piece/east-blue/east-blue-atlas.png"
+                source: root.resolveContentAsset("../assets/universes/one-piece/east-blue/east-blue-atlas.png")
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 smooth: true
@@ -316,7 +337,7 @@ FocusScope {
 
             Repeater {
                 id: markerRepeater
-                model: AtlasData.canonMarkers
+                model: (root.universeContentGeneration, AtlasData.canonMarkers)
 
                 delegate: FocusScope {
                     id: marker
@@ -336,7 +357,8 @@ FocusScope {
                         if (marker.markerId === root.selectedMarkerId)
                             root.previewMarkerFocused = activeFocus
                         if (activeFocus) {
-                            root.openPreview(marker.markerId)
+                            if (!root.suppressFocusPreview)
+                                root.openPreview(marker.markerId)
                             root.previewMarkerFocused = true
                         } else {
                             root.closePreviewSoon()
@@ -382,7 +404,7 @@ FocusScope {
                         background: null
                         contentItem: Image {
                             id: badgeImage
-                            source: AtlasData.badgeSource(marker.markerId)
+                            source: (root.universeContentGeneration, AtlasData.badgeSource)(marker.markerId)
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                             mipmap: true
@@ -453,7 +475,10 @@ FocusScope {
         objectName: "eastBlueZoomTools"
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 34
+        // Clear of the shell taskbar dock's closed footprint: the dock spans
+        // leftEdge..leftEdge+130 with leftEdge clamped to 80, plus a gap. Under it
+        // the zoom clicks hit the dock instead of the chart controls.
+        anchors.leftMargin: 218
         anchors.bottomMargin: 30
         spacing: 4
         z: 20
@@ -587,14 +612,14 @@ FocusScope {
                     spacing: 6
 
                     Repeater {
-                        model: root.nonCanonMode ? 0 : AtlasData.canonMarkers.length
+                        model: root.nonCanonMode ? 0 : (root.universeContentGeneration, AtlasData.canonMarkers).length
                         delegate: Button {
                             id: canonRowButton
                             required property int index
-                            objectName: "eastBlueCanonRow-" + AtlasData.canonMarkers[index].id
+                            objectName: "eastBlueCanonRow-" + (root.universeContentGeneration, AtlasData.canonMarkers)[index].id
                             width: indexContent.width
                             height: 46
-                            text: String(index + 1).padStart(2, "0") + "   " + EastBlue.arc(AtlasData.canonMarkers[index].id).title
+                            text: String(index + 1).padStart(2, "0") + "   " + (root.universeContentGeneration, EastBlue.arc)((root.universeContentGeneration, AtlasData.canonMarkers)[index].id).title
                             font.family: atlasBodyFont.name
                             font.pixelSize: 14
                             palette.buttonText: "#523a25"
@@ -602,7 +627,7 @@ FocusScope {
                             focusPolicy: Qt.StrongFocus
                             hoverEnabled: true
                             background: Rectangle {
-                                objectName: "eastBlueCanonRowBackground-" + AtlasData.canonMarkers[canonRowButton.index].id
+                                objectName: "eastBlueCanonRowBackground-" + (root.universeContentGeneration, AtlasData.canonMarkers)[canonRowButton.index].id
                                 radius: 2
                                 color: canonRowButton.pressed ? "#d8ba7c"
                                        : canonRowButton.activeFocus ? "#f6e5bb"
@@ -621,7 +646,7 @@ FocusScope {
                             }
                             onClicked: {
                                 root.indexVisible = false
-                                root.focusMarker(AtlasData.canonMarkers[index].id)
+                                root.focusMarker((root.universeContentGeneration, AtlasData.canonMarkers)[index].id)
                             }
                         }
                     }
@@ -651,7 +676,7 @@ FocusScope {
 
                     Repeater {
                         id: nonCanonRepeater
-                        model: root.nonCanonMode ? AtlasData.nonCanonEntries : []
+                        model: root.nonCanonMode ? (root.universeContentGeneration, AtlasData.nonCanonEntries) : []
                         delegate: Row {
                             id: nonCanonRow
                             required property var modelData
@@ -793,10 +818,10 @@ FocusScope {
                     property bool canonPosterFallback: false
                     property bool posterFallback: false
                     source: {
-                        var marker = root.selectedArc ? AtlasData.canonMarker(root.selectedArc.id) : null
+                        var marker = root.selectedArc ? (root.universeContentGeneration, AtlasData.canonMarker)(root.selectedArc.id) : null
                         return marker ? (posterFallback ? marker.badge
                                        : canonPosterFallback ? marker.poster
-                                       : AtlasData.bannerSource(marker.id)) : ""
+                                       : (root.universeContentGeneration, AtlasData.bannerSource)(marker.id)) : ""
                     }
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
@@ -833,6 +858,9 @@ FocusScope {
                         text: "OPEN ARC"
                         width: 104
                         height: 44
+                        // Clicking must not park the scope's focus flag on a control
+                        // that hides with the preview; keyboard users still reach it by Tab.
+                        focusPolicy: Qt.TabFocus
                     contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: root.openSelectedArc()
                     }
@@ -842,6 +870,7 @@ FocusScope {
                         text: "CLOSE"
                         width: 80
                         height: 44
+                        focusPolicy: Qt.TabFocus
                     contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: root.closePreview()
                     }

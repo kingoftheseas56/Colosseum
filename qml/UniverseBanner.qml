@@ -17,6 +17,10 @@ Item {
     property var entry: ({})               // { name, banner, logo, logoShape, blurb, chips: [{ t }], … }
     property bool keyboardSelected: false
     property bool hot: false               // pointer is here (the owning pile decides)
+    property bool artActive: true          // owner prioritizes visible/nearby banners
+    property bool artRequested: false
+    onArtActiveChanged: if (artActive) artRequested = true
+    Component.onCompleted: if (artActive) artRequested = true
     signal hoverEntered()
     signal hoverExited()
     signal activated()
@@ -40,8 +44,11 @@ Item {
     // (CarouselSlide's pattern: a clipped Rectangle would leave the image's corners square)
     Image {
         id: artRaw
+        objectName: "universeBannerArt"
         anchors.fill: parent
-        source: banner.entry.banner || ""
+        property string readySource: ""
+        onStatusChanged: if (status === Image.Ready) readySource = String(source)
+        source: banner.artRequested && (banner.visible || readySource === String(banner.entry.banner || "")) ? (banner.entry.banner || "") : ""
         asynchronous: true; cache: true
         sourceSize.width: 1600
         fillMode: Image.PreserveAspectCrop
@@ -92,7 +99,9 @@ Item {
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: -9          // centred in the 80px slot left of the hairline
             width: banner.markW; height: banner.markH
-            source: banner.entry.logo || ""
+            property string readySource: ""
+            onStatusChanged: if (status === Image.Ready) readySource = String(source)
+            source: banner.artRequested && (banner.visible || readySource === String(banner.entry.logo || "")) ? (banner.entry.logo || "") : ""
             asynchronous: true; cache: true
             sourceSize.width: 164; sourceSize.height: 148
             fillMode: Image.PreserveAspectFit
