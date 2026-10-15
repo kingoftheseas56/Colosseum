@@ -44,26 +44,26 @@ TestCase {
         compare(hud.visible, false);
     }
     function test_releaseMenuEndpointsBackAndFocusEscape() {
-        var trigger = item("vinylArtistReleaseMenuButton");
-        var focus = item("vinylArtistReleaseMenuFocus");
+        var trigger = item("vinylArtistReleasePickerAction");
+        var focus = item("vinylArtistReleasePickerList");
         trigger.forceActiveFocus();
         keyClick(Qt.Key_Space);
         tryCompare(focus, "activeFocus", true);
         var last = host.artistData.releaseCategories.length - 1;
         keyClick(Qt.Key_End);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, last);
+        compare(item("vinylArtistReleasePickerList").currentIndex, last);
         keyClick(Qt.Key_Down);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, 0);
+        compare(item("vinylArtistReleasePickerList").currentIndex, 0);
         keyClick(Qt.Key_Up);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, last);
+        compare(item("vinylArtistReleasePickerList").currentIndex, last);
         keyClick(Qt.Key_Home);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, 0);
+        compare(item("vinylArtistReleasePickerList").currentIndex, 0);
         keyClick(Qt.Key_Tab);
         verify(focus.activeFocus);
         keyClick(Qt.Key_Backtab);
         verify(focus.activeFocus);
         keyClick(Qt.Key_Back);
-        compare(host.artistScroll.releaseMenuOpen, false);
+        compare(item("vinylArtistReleasePicker").open, false);
         compare(host.artistData.categoryFilter, "All");
         tryCompare(trigger, "activeFocus", true);
         keyClick(Qt.Key_Down);
@@ -82,17 +82,17 @@ TestCase {
     }
     function test_dropdownPointerHitsOptionAboveGrid() {
         host.artistScroll.contentY = host.artistScroll.heroItem.height - 110;
-        var trigger = item("vinylArtistReleaseMenuButton");
+        var trigger = item("vinylArtistReleasePickerAction");
         waitForRendering(host.contentItem);
         mouseClick(trigger, trigger.width / 2, trigger.height / 2);
-        tryCompare(host.artistScroll, "releaseMenuOpen", true);
-        var option = item("vinylArtistReleaseOption_Studio");
+        tryCompare(item("vinylArtistReleasePicker"), "open", true);
+        var option = item("vinylArtistReleasePickerOption_1");
         verify(option !== null);
         waitForRendering(host.contentItem);
         mouseClick(option, option.width / 2, option.height / 2);
         compare(host.artistData.categoryFilter, "Studio");
         compare(host.artistData.discographyCards.length, 12);
-        compare(host.artistScroll.releaseMenuOpen, false);
+        compare(item("vinylArtistReleasePicker").open, false);
         compare(host.page, "artist");
         tryCompare(trigger, "activeFocus", true);
     }
@@ -217,10 +217,10 @@ TestCase {
             compare(tabs.height, 58);
             compare(header.mapToItem(host.contentItem, 0, 0).y, 0);
             compare(tabs.mapToItem(host.contentItem, 0, 0).y, 76);
-            var trigger = item("vinylArtistReleaseMenuButton");
+            var trigger = item("vinylArtistReleasePickerAction");
             trigger.forceActiveFocus();
             keyClick(Qt.Key_Return);
-            tryCompare(item("vinylArtistReleaseMenuFocus"), "activeFocus", true);
+            tryCompare(item("vinylArtistReleasePickerList"), "activeFocus", true);
             keyClick(Qt.Key_Escape);
             tryCompare(trigger, "activeFocus", true);
         }

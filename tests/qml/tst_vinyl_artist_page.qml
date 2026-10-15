@@ -455,11 +455,11 @@ TestCase {
         host.artistScroll.contentY = 0;
     }
 
-    function test_theatreAdaptedReleaseDropdownKeyboardAndFocusRestoration() {
+    function test_sharedReleasePickerKeyboardAndFocusRestoration() {
         host.artistData.open("Eminem");
-        var trigger = item("vinylArtistReleaseMenuButton");
-        var menu = item("vinylArtistReleaseMenu");
-        var menuFocus = item("vinylArtistReleaseMenuFocus");
+        var trigger = item("vinylArtistReleasePickerAction");
+        var menu = item("vinylArtistReleasePickerPopup");
+        var menuFocus = item("vinylArtistReleasePickerList");
         verify(trigger !== null);
         verify(menu !== null);
         compare(menu.visible, false);
@@ -468,16 +468,16 @@ TestCase {
 
         // Open dropdown via Return key
         keyClick(Qt.Key_Return);
-        compare(host.artistScroll.releaseMenuOpen, true);
+        compare(item("vinylArtistReleasePicker").open, true);
         compare(menu.visible, true);
         tryCompare(menuFocus, "activeFocus", true);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, 0);
+        compare(item("vinylArtistReleasePickerList").currentIndex, 0);
 
         // Down arrow moves to Studio albums (index 1), Return activates and restores focus to trigger
         keyClick(Qt.Key_Down);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, 1);
+        compare(item("vinylArtistReleasePickerList").currentIndex, 1);
         keyClick(Qt.Key_Return);
-        compare(host.artistScroll.releaseMenuOpen, false);
+        compare(item("vinylArtistReleasePicker").open, false);
         compare(menu.visible, false);
         compare(host.artistData.categoryFilter, "Studio");
         compare(host.artistData.discographyCards.length, 12);
@@ -485,20 +485,20 @@ TestCase {
 
         // Re-open, test Home/End/Up/Tab-trap and Escape dismissal restoring focus without altering selection
         keyClick(Qt.Key_Down);
-        compare(host.artistScroll.releaseMenuOpen, true);
+        compare(item("vinylArtistReleasePicker").open, true);
         tryCompare(menuFocus, "activeFocus", true);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, 1);
+        compare(item("vinylArtistReleasePickerList").currentIndex, 1);
         keyClick(Qt.Key_End);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, host.artistData.releaseCategories.length - 1);
+        compare(item("vinylArtistReleasePickerList").currentIndex, host.artistData.releaseCategories.length - 1);
         keyClick(Qt.Key_Home);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, 0);
+        compare(item("vinylArtistReleasePickerList").currentIndex, 0);
         keyClick(Qt.Key_Up);
-        compare(host.artistScroll.releaseMenuKeyboardIndex, host.artistData.releaseCategories.length - 1);
+        compare(item("vinylArtistReleasePickerList").currentIndex, host.artistData.releaseCategories.length - 1);
         keyClick(Qt.Key_Tab);
-        compare(host.artistScroll.releaseMenuOpen, true);
+        compare(item("vinylArtistReleasePicker").open, true);
         compare(menuFocus.activeFocus, true);
         keyClick(Qt.Key_Escape);
-        compare(host.artistScroll.releaseMenuOpen, false);
+        compare(item("vinylArtistReleasePicker").open, false);
         compare(host.artistData.categoryFilter, "Studio");
         tryCompare(trigger, "activeFocus", true);
 
@@ -640,10 +640,10 @@ TestCase {
             tryCompare(host.artistScroll.heroItem, "portraitReady", true);
             for (var state = 0; state < scenes.length; ++state) {
                 var scene = scenes[state];
-                host.artistScroll.closeReleaseMenu(false);
+                findChild(host, "vinylArtistReleasePicker").closePopup(false);
                 host.artistData.activeTab = ["singles", "videos", "live"].indexOf(scene) >= 0 ? scene : "albums";
                 host.artistScroll.contentY = scene === "hero" ? 0 : host.artistScroll.heroItem.height - 110;
-                if (scene === "dropdown") item("vinylArtistReleaseMenuButton").activate();
+                if (scene === "dropdown") item("vinylArtistReleasePickerAction").activate();
                 if (scene === "singles") item("vinylArtistSinglesRow_0").activate();
                 else host.artistData.queuedSongIndex = -1;
                 host.requestUpdate();

@@ -53,11 +53,11 @@ TestCase {
             assertNoVisibleScrollbars(host.contentItem);
         }
         findChild(host.contentItem, "vinylArtistTab_albums").activate();
-        findChild(host.contentItem, "vinylArtistReleaseMenuButton").activate();
+        findChild(host.contentItem, "vinylArtistReleasePickerAction").activate();
         wait(0);
-        var menu = findChild(host, "vinylArtistReleaseMenu");
+        var menu = findChild(host, "vinylArtistReleasePickerPopup");
         verify(menu.visible);
         assertNoVisibleScrollbars(menu.contentItem);
-        host.artistScroll.closeReleaseMenu(false);
+        findChild(host, "vinylArtistReleasePicker").closePopup(false);
     }
 }

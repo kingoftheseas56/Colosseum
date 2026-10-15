@@ -19,10 +19,6 @@ Flickable {
     property string selectedCategory: ""
     property real sectionReturnY: 0
 
-    // TheatreSeriesView-derived dropdown state for the "All releases" category filter
-    property bool releaseMenuOpen: false
-    property int releaseMenuKeyboardIndex: 0
-    property Item releaseMenuReturnItem: null
     property Item dialogReturnItem: null
     property bool systemMenuOpen: false
 
@@ -41,60 +37,11 @@ Flickable {
     ScrollGlide { flick: root }
     // Scrolling is keyboard/wheel driven; the artist destination has no visible bars.
 
-    function currentReleaseCategoryIndex() {
-        var cats = artistData ? artistData.releaseCategories : [];
-        var current = artistData ? artistData.categoryFilter : "All";
-        for (var i = 0; i < cats.length; ++i) {
-            if (cats[i].id === current || cats[i].key === artistData.filter)
-                return i;
-        }
-        return 0;
-    }
-
-    function openReleaseMenu(originItem) {
-        if (!artistData || !artistData.releaseCategories || !artistData.releaseCategories.length)
-            return;
-        releaseMenuReturnItem = originItem || releaseTriggerAction;
-        releaseMenuKeyboardIndex = currentReleaseCategoryIndex();
-        var position = releaseMenuWrap.mapToItem(root.contentItem, 0, releaseMenuWrap.height + 8);
-        releaseMenuPopup.x = Math.min(position.x, root.width - releaseMenuPopup.width - root.gutter);
-        releaseMenuPopup.y = position.y;
-        releaseMenuOpen = true;
-        Qt.callLater(function() {
-            if (releaseMenuList)
-                releaseMenuList.positionViewAtIndex(releaseMenuKeyboardIndex, ListView.Contain);
-            if (releaseMenuFocus)
-                releaseMenuFocus.forceActiveFocus(Qt.PopupFocusReason);
-        });
-    }
-
-    function closeReleaseMenu(restoreFocus) {
-        if (!releaseMenuOpen)
-            return;
-        releaseMenuOpen = false;
-        if (restoreFocus !== false && releaseMenuReturnItem) {
-            var target = releaseMenuReturnItem;
-            Qt.callLater(function() {
-                if (target)
-                    target.forceActiveFocus(Qt.PopupFocusReason);
-            });
-        }
-    }
-
-    function activateReleaseMenu(index) {
-        var cats = artistData ? artistData.releaseCategories : [];
-        if (index < 0 || index >= cats.length)
-            return;
-        releaseMenuKeyboardIndex = index;
-        artistData.selectReleaseCategory(cats[index].id);
-        closeReleaseMenu(true);
-    }
-
     function switchTab(tabKey, focusTabButton) {
         var valid = ["albums", "singles", "videos", "live"];
         if (valid.indexOf(tabKey) < 0)
             return;
-        closeReleaseMenu(false);
+        releasePicker.closePopup(false);
         artistData.activeTab = tabKey;
         Qt.callLater(function() {
             root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, hero.height - artistTitleBar.height));
@@ -132,14 +79,14 @@ Flickable {
     }
 
     function openSearchDialog(originItem) {
-        closeReleaseMenu(false);
+        releasePicker.closePopup(false);
         dialogReturnItem = originItem || searchButton;
         searchInput.text = "";
         searchDialog.open();
     }
 
     function openBackdropsDialog(originItem) {
-        closeReleaseMenu(false);
+        releasePicker.closePopup(false);
         dialogReturnItem = originItem || backdropsButton;
         backdropDialog.open();
     }
@@ -168,7 +115,7 @@ Flickable {
 
     function openCategory(category) {
         if (!categoryAvailable(category)) return;
-        closeReleaseMenu(false);
+        releasePicker.closePopup(false);
         sectionReturnY = contentY;
         selectedCategory = category;
         contentY = 0;
@@ -215,8 +162,8 @@ Flickable {
     Keys.onUpPressed: contentY = Math.max(0, contentY - 72)
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back) {
-            if (root.releaseMenuOpen) {
-                root.closeReleaseMenu(true);
+            if (releasePicker.open) {
+                releasePicker.closePopup(true);
                 event.accepted = true;
                 return;
             }
@@ -257,7 +204,7 @@ Flickable {
             root.selectedCategory = "";
             root.sectionReturnY = 0;
             root.contentY = 0;
-            root.releaseMenuOpen = false;
+            releasePicker.closePopup(false);
             root.systemMenuOpen = false;
             mediaDialog.close();
             playlistDialog.close();
@@ -290,14 +237,12 @@ Flickable {
         reducedMotion: root.artistData.reducedMotion
     }
 
-    // Outside click catcher when the Theatre-adapted release dropdown or system menu is open
+    // Outside click catcher for the page-specific system menu
     MouseArea {
         anchors.fill: parent
         z: 28
-        visible: root.releaseMenuOpen || root.systemMenuOpen
+        visible: root.systemMenuOpen
         onClicked: {
-            if (root.releaseMenuOpen)
-                root.closeReleaseMenu(true);
             if (root.systemMenuOpen)
                 root.systemMenuOpen = false;
         }
@@ -342,7 +287,7 @@ Flickable {
             bottomPadding: 44
             spacing: 32
 
-            // TAB 1: ALBUMS (27-release discography grid + Theatre-adapted All releases dropdown + Sort toggle)
+            // TAB 1: ALBUMS (27-release discography grid + shared All releases picker + Sort toggle)
             Column {
                 id: albumsPanel
                 objectName: "vinylArtistPanel_albums"
@@ -396,7 +341,7 @@ Flickable {
                         color: theme.edge
                     }
 
-                    // Controls: ONE All releases dropdown (Theatre parity) + ONE Sort toggle
+                    // Controls: shared All releases picker + ONE Sort toggle
                     Row {
                         id: discographyControls
                         anchors.left: parent.left
@@ -404,198 +349,28 @@ Flickable {
                         spacing: 10
                         z: 40
 
-                        // Trigger for TheatreSeriesView-derived All releases dropdown
-                        Item {
-                            id: releaseMenuWrap
-                            width: Math.max(178, releaseButtonRow.implicitWidth + 32)
+                        DiscoverPicker {
+                            id: releasePicker
+                            objectName: "vinylArtistReleasePicker"
+                            automationName: "vinylArtistReleasePicker"
+                            width: implicitWidth
                             height: 39
-
-                            Rectangle {
-                                id: releaseMenuButtonBg
-                                anchors.fill: parent
-                                radius: 9
-                                color: root.releaseMenuOpen
-                                    ? Qt.rgba(0.94, 0.77, 0.29, 0.14)
-                                    : (releaseTriggerAction.interactionActive
-                                        ? Qt.rgba(0.11, 0.12, 0.16, 0.88)
-                                        : Qt.rgba(0.063, 0.067, 0.09, 0.78))
-                                border.width: 1
-                                border.color: root.releaseMenuOpen ? theme.gold : theme.edge
+                            label: "All releases"
+                            clearable: false
+                            wrapNavigation: true
+                            openOnDown: true
+                            options: {
+                                var categories = root.artistData.releaseCategories;
+                                var rows = [];
+                                for (var i = 0; i < categories.length; ++i) {
+                                    var category = categories[i];
+                                    rows.push({key: category.id, text: category.label,
+                                        sub: category.count !== undefined ? String(category.count) : ""});
+                                }
+                                return rows;
                             }
-
-                            Row {
-                                id: releaseButtonRow
-                                anchors.centerIn: parent
-                                spacing: 10
-                                Text {
-                                    id: releaseMenuButtonLabel
-                                    objectName: "vinylArtistReleaseMenuLabel"
-                                    text: root.artistData.currentCategoryLabel
-                                    color: theme.ink
-                                    font.family: theme.ui
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Text {
-                                    text: "▾"
-                                    color: root.releaseMenuOpen ? theme.gold : theme.inkDim
-                                    font.family: theme.ui
-                                    font.pixelSize: 12
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-
-                            KeyboardAction {
-                                id: releaseTriggerAction
-                                objectName: "vinylArtistReleaseMenuButton"
-                                anchors.fill: parent
-                                focusRadius: 9
-                                spaceActivates: true
-                                accessibleName: "Release category: " + root.artistData.currentCategoryLabel
-                                onTriggered: {
-                                    if (root.releaseMenuOpen)
-                                        root.closeReleaseMenu(true);
-                                    else
-                                        root.openReleaseMenu(releaseTriggerAction);
-                                }
-                                Keys.onDownPressed: event => {
-                                    root.openReleaseMenu(releaseTriggerAction);
-                                    event.accepted = true;
-                                }
-                            }
-
-                            // TheatreSeriesView-adapted popup menu
-                            Rectangle {
-                                id: releaseMenuPopup
-                                objectName: "vinylArtistReleaseMenu"
-                                visible: root.releaseMenuOpen && root.artistData.releaseCategories.length > 0
-                                parent: root.contentItem
-                                x: 0
-                                y: 0
-                                width: 244
-                                height: Math.min(320, releaseMenuList.contentHeight + 12)
-                                radius: 13
-                                color: Qt.rgba(0.039, 0.047, 0.071, 0.98)
-                                border.width: 1
-                                border.color: theme.edge
-                                z: 80
-
-                                FocusScope {
-                                    id: releaseMenuFocus
-                                    objectName: "vinylArtistReleaseMenuFocus"
-                                    anchors.fill: parent
-                                    focus: root.releaseMenuOpen
-
-                                    Keys.onPressed: event => {
-                                        var count = root.artistData.releaseCategories.length;
-                                        if (count <= 0)
-                                            return;
-                                        if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back) {
-                                            root.closeReleaseMenu(true);
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_Up) {
-                                            root.releaseMenuKeyboardIndex = (root.releaseMenuKeyboardIndex + count - 1) % count;
-                                            releaseMenuList.positionViewAtIndex(root.releaseMenuKeyboardIndex, ListView.Contain);
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_Down) {
-                                            root.releaseMenuKeyboardIndex = (root.releaseMenuKeyboardIndex + 1) % count;
-                                            releaseMenuList.positionViewAtIndex(root.releaseMenuKeyboardIndex, ListView.Contain);
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_Home) {
-                                            root.releaseMenuKeyboardIndex = 0;
-                                            releaseMenuList.positionViewAtIndex(0, ListView.Contain);
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_End) {
-                                            root.releaseMenuKeyboardIndex = count - 1;
-                                            releaseMenuList.positionViewAtIndex(root.releaseMenuKeyboardIndex, ListView.Contain);
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                                            root.activateReleaseMenu(root.releaseMenuKeyboardIndex);
-                                            event.accepted = true;
-                                        }
-                                    }
-
-                                    ListView {
-                                        id: releaseMenuList
-                                        objectName: "vinylArtistReleaseMenuList"
-                                        anchors.fill: parent
-                                        anchors.margins: 6
-                                        clip: true
-                                        spacing: 2
-                                        boundsBehavior: Flickable.StopAtBounds
-                                        model: root.artistData.releaseCategories.length
-
-                                        delegate: Rectangle {
-                                            id: optionRow
-                                            readonly property var modelData: root.artistData.releaseCategories[index]
-                                            required property int index
-
-                                            readonly property bool isCurrentFilter: root.artistData.categoryFilter === modelData.id
-                                                || (modelData.id === "All" && root.artistData.filter === "all")
-                                            readonly property bool isKeyboardTarget: releaseMenuFocus.activeFocus
-                                                && root.releaseMenuKeyboardIndex === index
-
-                                            objectName: "vinylArtistReleaseOption_" + modelData.id
-                                            width: releaseMenuList.width
-                                            height: 36
-                                            radius: 9
-                                            color: isKeyboardTarget
-                                                ? Qt.rgba(0.94, 0.77, 0.29, 0.14)
-                                                : (optionMouse.containsMouse
-                                                    ? Qt.rgba(1, 1, 1, 0.08)
-                                                    : (isCurrentFilter ? Qt.rgba(0.94, 0.77, 0.29, 0.08) : "transparent"))
-                                            border.width: isKeyboardTarget ? 2 : 0
-                                            border.color: theme.gold
-
-                                            Text {
-                                                anchors.left: parent.left
-                                                anchors.leftMargin: 12
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                text: optionRow.modelData.label
-                                                color: optionRow.isCurrentFilter ? theme.gold : theme.ink
-                                                font.family: theme.ui
-                                                font.pixelSize: 13
-                                                font.weight: optionRow.isCurrentFilter ? Font.DemiBold : Font.Normal
-                                            }
-
-                                            Row {
-                                                anchors.right: parent.right
-                                                anchors.rightMargin: 12
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                spacing: 8
-                                                Text {
-                                                    text: String(optionRow.modelData.count !== undefined ? optionRow.modelData.count : "")
-                                                    color: optionRow.isCurrentFilter ? theme.gold : theme.inkDimmer
-                                                    font.family: theme.ui
-                                                    font.pixelSize: 11
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                }
-                                                Text {
-                                                    visible: optionRow.isCurrentFilter
-                                                    text: "✓"
-                                                    color: theme.gold
-                                                    font.family: theme.ui
-                                                    font.pixelSize: 13
-                                                    font.weight: Font.Bold
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                id: optionMouse
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onEntered: root.releaseMenuKeyboardIndex = optionRow.index
-                                                onClicked: root.activateReleaseMenu(optionRow.index)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            currentKey: root.artistData.categoryFilter
+                            onPicked: key => root.artistData.selectReleaseCategory(key)
                         }
 
                         // ONE Sort button (.control-btn parity)
