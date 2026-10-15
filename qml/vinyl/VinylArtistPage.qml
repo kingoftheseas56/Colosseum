@@ -954,7 +954,7 @@ Flickable {
 
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(0.031, 0.035, 0.055, 0.94)
+            color: Qt.rgba(0.024, 0.027, 0.043, 0.985)
             opacity: artistTitleBar.solid ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
             Rectangle {
@@ -968,64 +968,33 @@ Flickable {
             anchors.fill: parent
             opacity: artistTitleBar.solid ? 0.0 : 1.0
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0.024, 0.027, 0.043, 0.78) }
-                GradientStop { position: 0.72; color: Qt.rgba(0.024, 0.027, 0.043, 0.28) }
+                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.55) }
                 GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
             }
         }
 
-        // Left: Back to Vinyl pill + / ARTIST crumb
+        // Match TitlePageBar's destination chrome and protect covered page controls.
+        MouseArea { anchors.fill: parent }
+
         Row {
             x: root.gutter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
 
-            KeyboardAction {
+            BackAction {
                 id: headerBackButton
                 objectName: "vinylArtistHeaderBack"
-                width: backRow.implicitWidth + 28
-                height: 42
-                focusRadius: 21
-                spaceActivates: true
-                accessibleName: "Back to Vinyl"
+                label: "Vinyl"
+                labelSize: 15
+                tip: "Back to Vinyl"
+                idleColor: theme.ink
+                hoverColor: theme.gold
                 onTriggered: {
                     if (root.selectedCategory.length > 0) {
                         root.closeCategory();
                         return;
                     }
                     root.backRequested();
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 21
-                    color: headerBackButton.interactionActive
-                        ? Qt.rgba(1, 1, 1, 0.12)
-                        : Qt.rgba(0.063, 0.067, 0.09, 0.56)
-                    border.width: 1
-                    border.color: headerBackButton.interactionActive ? theme.gold : theme.edge
-                }
-
-                Row {
-                    id: backRow
-                    anchors.centerIn: parent
-                    spacing: 8
-                    Text {
-                        text: "‹"
-                        color: headerBackButton.interactionActive ? theme.gold : theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 16
-                        font.weight: Font.Bold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        text: "Vinyl"
-                        color: headerBackButton.interactionActive ? theme.gold : theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
                 }
             }
 

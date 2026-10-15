@@ -408,7 +408,8 @@ TestCase {
         host.openArtist(next);
         compare(host.artistData.record.name, next);
         compare(host.artistData.activeTab, "albums");
-        item("vinylArtistHeaderBack").activate();
+        var back = item("vinylArtistHeaderBack");
+        mouseClick(back, back.width / 2, back.height / 2);
         compare(host.artistData.record.name, original);
         compare(host.artistData.activeTab, "videos");
     }
@@ -427,7 +428,8 @@ TestCase {
         host.page = "world";
         host.openArtist("Eminem");
         item("vinylArtistTab_videos").activate();
-        item("vinylArtistHeaderBack").activate();
+        var back = item("vinylArtistHeaderBack");
+        mouseClick(back, back.width / 2, back.height / 2);
         compare(host.page, "world");
     }
     // ---- NEW TESTS: Approved Eminem HTML Parity & Theatre Dropdown Parity ----

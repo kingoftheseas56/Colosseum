@@ -163,7 +163,14 @@ TestCase {
         item("vinylArtistTab_videos").activate();
         host.artistScroll.contentY = 120;
         host.openArtist("Ilaiyaraaja");
-        item("vinylArtistHeaderBack").forceActiveFocus();
+        var back = item("vinylArtistHeaderBack");
+        // Focus the shared component's actual keyboard input, then exercise Return.
+        var input = null;
+        for (var child of back.children) {
+            if (child.accessibleName === "Back to Vinyl") { input = child; break; }
+        }
+        verify(input !== null);
+        input.forceActiveFocus();
         keyClick(Qt.Key_Return);
         compare(host.page, "artist");
         compare(host.artistData.name, "Eminem");
