@@ -297,6 +297,10 @@ void populateStandardSource(FakeArtistSource &source) {
 class ArtistServiceComposedTests : public QObject {
     Q_OBJECT
 private slots:
+    void repairedDurationSerialization_data();
+    void repairedDurationSerialization();
+    void repairedMediaBatchDefaults_data();
+    void repairedMediaBatchDefaults();
     void enterArtistAndLoadAllLanesToReady();
     void redirectedMbidReturnsTypedRedirectedError();
     void invalidCursorIsRejected();
@@ -607,6 +611,78 @@ void ArtistServiceComposedTests::artistWithNoArtworkReturnsDeterministicFallback
     const QVariantMap fallback2 = bridge.artwork().value(QStringLiteral("fallback")).toMap();
     QCOMPARE(fallback2.value(QStringLiteral("monogram")).toString(), QStringLiteral("EW"));
     QCOMPARE(fallback2.value(QStringLiteral("layoutSeed")).toULongLong(), seed1);
+}
+
+
+void ArtistServiceComposedTests::repairedDurationSerialization_data() {
+    QTest::addColumn<int>("duration");
+    QTest::newRow("positive") << 215000;
+    QTest::newRow("zero") << 0;
+    QTest::newRow("negative") << -1;
+}
+
+void ArtistServiceComposedTests::repairedDurationSerialization() {
+    QFETCH(int, duration);
+    FakeArtistSource source;
+    populateStandardSource(source);
+    const auto artist = mustParse<::vinyl::ArtistMbid>(ARTIST_A_TEXT);
+    auto row = buildGroupRow(
+        artist, QStringLiteral("Lifafa"),
+        mustParse<::vinyl::ReleaseGroupMbid>(GROUP_1_TEXT),
+        mustParse<::vinyl::ReleaseMbid>(RELEASE_1_TEXT),
+        QStringLiteral("Duration fixture"), 2021,
+        ::vinyl::catalogue::ReleaseGroupPrimaryType::Album, "MPREb_g1",
+        mustParse<::vinyl::RecordingMbid>(RECORDING_1_TEXT),
+        QStringLiteral("Duration recording"));
+    row.recordings[0].canonical.lengthMs = duration;
+    source.setReleaseGroups(artist, {row});
+    auto service = createComposedArtistService(source);
+    auto &bridge = service->bridge();
+    QVERIFY(bridge.enterArtist(PROFILE_1, ARTIST_A_TEXT));
+    QVERIFY(bridge.requestDiscography({}, QStringLiteral("all")));
+    QCOMPARE(bridge.discographyState(), State::Ready);
+    QCOMPARE(bridge.discography().size(), 1);
+    const auto recordings = bridge.discography().at(0).toMap()
+        .value(QStringLiteral("recordings")).toList();
+    QCOMPARE(recordings.size(), 1);
+    const auto recording = recordings.at(0).toMap();
+    QVERIFY(recording.contains(QStringLiteral("lengthMs")));
+    const QVariant value = recording.value(QStringLiteral("lengthMs"));
+    if (duration > 0) {
+        QVERIFY(value.isValid());
+        QCOMPARE(value.metaType().id(), QMetaType::LongLong);
+        QCOMPARE(value.value<qlonglong>(), static_cast<qlonglong>(duration));
+    } else {
+        QVERIFY(!value.isValid());
+    }
+}
+
+void ArtistServiceComposedTests::repairedMediaBatchDefaults_data() {
+    QTest::addColumn<bool>("online");
+    QTest::newRow("unavailable") << false;
+    QTest::newRow("missing-batch") << true;
+}
+
+void ArtistServiceComposedTests::repairedMediaBatchDefaults() {
+    QFETCH(bool, online);
+    FakeArtistSource source;
+    source.setOnline(online);
+    source.setCorpusVersion(QStringLiteral("regression-corpus-42"));
+    const auto artist = mustParse<::vinyl::ArtistMbid>(ARTIST_NO_ART_TEXT);
+    std::optional<::vinyl::artist_media::SourceBatch> result;
+    int callbacks = 0;
+    source.fetchMedia(artist, 42, [&](auto batch) {
+        ++callbacks;
+        result = std::move(batch);
+    });
+    QCOMPARE(callbacks, 1);
+    QVERIFY(result.has_value());
+    QCOMPARE(result->artist.toString(), artist.toString());
+    QCOMPARE(result->status, online ? ::vinyl::artist_media::QueryStatus::Empty
+                                   : ::vinyl::artist_media::QueryStatus::Unavailable);
+    QCOMPARE(result->sourceLabel, online ? QStringLiteral("FakeArtistSource") : QString());
+    QCOMPARE(result->snapshotId, online ? source.corpusVersion() : QString());
+    QVERIFY(result->rows.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(ArtistServiceComposedTests)
