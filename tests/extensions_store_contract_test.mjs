@@ -68,7 +68,7 @@ check(!/openUrlExternally/.test(sheet + store), 'nothing in the Store opens the 
 // Android has no QtWebEngine: the Store must not name the WebEngine sheet statically (the whole
 // page fails to load), and its own sheet hands setup to the phone's browser.
 const phoneSheet = readFileSync('qml/ExtensionsSetupSheetAndroid.qml', 'utf8');
-const houseHero = readFileSync('qml/ExtensionsHouseHero.qml', 'utf8');
+const houseHero = readFileSync('qml/+android/ExtensionsHouseHero.qml', 'utf8');
 check(!/^\s*ExtensionsSetupSheet\s*\{/m.test(store) && /Qt\.platform\.os === "android" \? "ExtensionsSetupSheetAndroid\.qml" : "ExtensionsSetupSheet\.qml"/.test(store),
   'the Store loads the setup sheet per platform, never as a static child');
 check(!/QtWebEngine/.test(phoneSheet.replace(/^\s*\/\/.*$/gm, '')) && /openUrlExternally/.test(phoneSheet),
