@@ -1,11 +1,12 @@
 import {indexedRows} from './catalogue-lookup.ts';
 import {comicsMethod} from './catalogue-comics.ts';
 // Semantic RPC queries run in D1; callers cannot supply SQL or table names.
-export type CatalogueDb = D1Database;
+export type CatalogueDb = Pick<D1Database,'prepare'> & {observe?:(meta:D1Meta)=>void};
 export type Row = Record<string, any>;
 export async function query(db: CatalogueDb, sql: string, args: any[] = []): Promise<Row[]> {
   const result = await db.prepare(sql).bind(...args).all<Row>();
   if (!result.success) throw new Error('CATALOGUE_QUERY_FAILED');
+  db.observe?.(result.meta);
   return result.results;
 }
 export const text = (v: any) => v == null ? '' : String(v);
