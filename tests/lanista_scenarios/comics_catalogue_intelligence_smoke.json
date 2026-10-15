@@ -1,0 +1,53 @@
+{
+  "name": "comics-catalogue-intelligence-smoke",
+  "comment": "arc-21 Slice 4 (2026-08-23) runtime proof for the comics-catalogue-intelligence adoption (Slice 3, commit 9040b2b). Today's live Colosseum/data/comics_catalog.db carries the five new arc-21 tables schema-live but data-thin: curated_source/curated_source_claim/curated_source_issue/canonical_issue are 0 rows; curated_series_coverage has 1134 rows, ALL state 'bibliography_only' (the GetComics-provenance enrichment stage and the raw GCD mirror dump have not been run against the live data yet - Slice 2's own documented, accepted finding). This scenario proves GRACEFUL EMPTINESS and NON-REGRESSION on today's real, thin data - the app boots, reaches Tankoban, and both the Discover wall and the Comics tab render without error, surviving a world round-trip - NOT populated coverage shelves; that proof is deferred to a future enrichment task. Ground-truthed from source before driving (no invented behavior, NOT asserted live - see the bridge gaps below): ComicsCatalog::discoverFilters('availability') (native/engine/ComicsCatalog.cpp:596-618) degrades gracefully on this data - it never crashes or throws, it omits the 'available' facet entry (official_source_count is 0 everywhere) and returns exactly one entry, 'Bibliography only' (count 1134), because that value legitimately exists in curated_series_coverage; the 'format' facet is UNAFFECTED (it reads the pre-existing curated_edition table, 9655 rows, populated long before arc-21). ComicDbLedger.qml's coverageLabel() (qml/ComicDbLedger.qml:57-66) renders 'Bibliography only' inline in the series hero's meta line for any curated series whose coverage.availabilityState is 'bibliography_only'. THREE bridge gaps found and disclosed this slice (none introduced by arc-21, none fixed by this proof-only slice): (1) TankobanComicsTab.qml, ComicDbLedger.qml, ComicSeriesPage.qml, and TankobanDiscoverPage.qml carry ZERO objectNames (grep-confirmed empty on all four files) - shelf/ledger content can only be read off a grab, never asserted by property; (2) ComicsCatalog's own Q_INVOKABLEs (discoverFilters/curatedCoverage/curatedSeries) are NOT in the Lanista invoke-read allowlist (the ledger's 8-method list is TankobanVolumes + BiblioImageDiag only) - facet/coverage values cannot be read live through the bridge at all; (3) NEWLY FOUND this slice: DiscoverBrowser.qml's 'type lens' Manga/Comics toggle (the Row at DiscoverBrowser.qml:401-437, delegate id typeTab) carries NO objectName on any of its Tankoban/Theatre/Biblio call sites - the Discover tab boots defaulted to the Manga lens with no named way to switch to Comics, so a comics card (discoverCard_<locgId>) and the per-series ledger it opens are UNREACHABLE by name this slice; live-diagnosed via an interactive session (tag arc21s4diag, 2026-08-23) before this scenario's steps were finalized, confirmed by grab (the Comics lens is visibly present, just unnamed). This third gap means the bibliography_only ledger render was NOT runtime-witnessed this slice, by bridge or by human eyes - it is source-ground-truthed only (above); closing it needs either a future objectName addition to DiscoverBrowser.qml's typeTab delegate (out of this proof-only slice's fence) or a human-witnessed manual pass (boot -> Tankoban -> Discover tab -> click 'Comics' next to 'Manga' at the bottom-left type lens -> click any comics card -> confirm the hero meta line reads '... - Bibliography only' for a coverage-only series). What IS named and driven live, every run: modePill_Tankoban entry, a settle wait on tankobanTab_comics.enabled (fixes a real NO_SUCH_ITEM race a first live attempt hit - WorldTabBar's Repeater materializes its 4 delegates asynchronously right after world entry), tankobanWorld.activeTab tab-switch state (discover<->comics), the Comics tab surviving a modePill_Biblio/modePill_Tankoban world round-trip, and a trailing 'ping' proving the process is still alive after the whole flow.",
+  "steps": [
+    { "cmd": "ping", "label": "the smoke session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "read account onboarding state (informational, no hard expect: account local-only choice was found LIVE this slice to persist via a registry-backed QSettings, NOT the tag-isolated AppData root - session run's own isolation proof only checks appDataRoot/cacheRoot markers, so a fresh --tag still inherits a PRIOR session's 'continue without an account' choice on the same machine; a real, previously-undocumented isolation gap, disclosed in the Slice 4 ledger entry rather than worked around silently)",
+      "payload": { "object": "accountHost", "props": ["visible"] } },
+    { "cmd": "ui-click", "label": "continue without an account (harmless no-op if a prior session on this machine already dismissed onboarding via the registry-backed choice above)",
+      "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "onboarding dismisses (mode leaves signedOut)",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-click", "label": "enter Tankoban (first world click of this fresh boot)",
+      "payload": { "target": "modePill_Tankoban" } },
+    { "cmd": "ui-wait-for", "label": "settle: the tab bar's Comics pill has materialized (WorldTabBar's Repeater builds its 4 delegates asynchronously right after world entry - a bare click immediately after modePill_Tankoban raced NO_SUCH_ITEM on a live run of this exact scenario, 2026-08-23; this wait is the fix, not a sleep)",
+      "payload": { "object": "tankobanTab_comics", "prop": "enabled", "value": true, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "lands on the Discover tab by default",
+      "payload": { "object": "tankobanWorld", "props": ["activeTab"] },
+      "expect": [ { "path": "props.activeTab", "op": "==", "value": "discover" } ] },
+    { "cmd": "ui-query", "label": "grab 1: the Discover wall as it renders today (default Manga lens; Comics lens is reachable only via DiscoverBrowser.qml's unnamed type-lens toggle - see scenario comment's disclosed gap) on today's thin coverage data",
+      "payload": { "object": "tankobanWorld", "grab": { "target": "window", "timeoutMs": 6000 } },
+      "expect": [ { "path": "grabPath", "op": "exists" } ] },
+
+    { "cmd": "ui-click", "label": "the Comics tab", "payload": { "target": "tankobanTab_comics" } },
+    { "cmd": "ui-wait-for", "label": "activeTab switches to comics",
+      "payload": { "object": "tankobanWorld", "prop": "activeTab", "value": "comics", "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-query", "label": "grab 2 (REGRESSION): the existing comics shelves (Your Collection / Top in Tankoban - Comics / catalogue shelves / Explore Comics mosaic) still render on the Comics tab - qml/TankobanComicsTab.qml carries no objectNames, so this is a visual regression exhibit, not a named-property assertion (disclosed gap, see scenario comment)",
+      "payload": { "object": "tankobanWorld", "grab": { "target": "window", "timeoutMs": 6000 } },
+      "expect": [ { "path": "grabPath", "op": "exists" } ] },
+
+    { "cmd": "ui-click", "label": "world-tab away: Biblio (regression - proves the Comics tab survives a world round-trip)",
+      "payload": { "target": "modePill_Biblio" } },
+    { "cmd": "ui-click", "label": "world-tab back: Tankoban",
+      "payload": { "target": "modePill_Tankoban" } },
+    { "cmd": "qml-get", "label": "regression is real: activeTab is still comics after the round-trip (TankobanWorld/its Loader are retained, not recreated)",
+      "payload": { "object": "tankobanWorld", "props": ["activeTab"] },
+      "expect": [ { "path": "props.activeTab", "op": "==", "value": "comics" } ] },
+
+    { "cmd": "ping", "label": "no-crash/no-hang check: the app is still alive and answering after the whole flow",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" } ] }
+  ]
+}

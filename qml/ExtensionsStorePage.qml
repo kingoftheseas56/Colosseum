@@ -1,0 +1,279 @@
+// ExtensionsStorePage — Extensions as a world (agents/colosseum-extensions-world-mock.html):
+// a top bar with only Back and the page name (as Your Colosseum), the House hero, the Essentials row, then the Store rows filled
+// live from stremio-addons.net (ExtensionsStoreApi.js). Search lives in the House corner. An
+// add-on that needs setup is set up inside the app (ExtensionsSetupSheet), never in the outside
+// browser — except on Android, which has no QtWebEngine and hands setup to the phone's browser
+// (ExtensionsSetupSheetAndroid). Tankoyomi's own settings open from its House tile
+// (TankoyomiConfigurationPage).
+import QtQuick
+import QtQuick.Window
+import "ExtensionsStoreApi.js" as StoreApi
+
+Item {
+    id: root
+    objectName: "extensionsStorePage"
+
+    property Item backdrop: null
+    property bool showExplicit: false
+    property string world: "theatre"
+    signal backRequested()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal closeRequested()
+    signal searchClicked()
+    signal universeHallRequested()
+
+    property var catalogue: []               // every cleaned add-on, most starred first
+    property string loadError: ""
+    property bool loading: true
+    property int revision: 0                 // bumps on every Extensions change
+    readonly property bool phoneLayout: {
+        const w = root.Window.window
+        return !!(w && w.androidHost && w.width < 840)
+    }
+    property var busy: ({})                  // slug -> true while an install is in flight
+    property string configuringExtensionId: ""   // a House source whose settings page is open
+    property var seeAllRow: null             // a row whose "See all ›" is open
+    property bool searching: false           // the Store's own search is open
+    readonly property var searchPool: root.catalogue.filter(function(a) { return StoreApi.visible(a, root.showExplicit) })
+
+    readonly property var essentials: StoreApi.essentials(root.catalogue)
+    readonly property var rows: StoreApi.rows(root.catalogue, root.showExplicit)
+    readonly property Item setup: setupLoader.item
+
+    Theme { id: theme }
+
+    function isInstalled(a) {
+        if (!a || typeof Extensions === "undefined") return false
+        return Extensions.isInstalled(a.id) || Extensions.isInstalled(a.manifestUrl)
+    }
+    function setBusy(slug, on) {
+        var next = {}
+        for (var k in root.busy) if (k !== slug) next[k] = root.busy[k]
+        if (on) next[slug] = true
+        root.busy = next
+    }
+    function activate(a) {
+        if (!a || root.busy[a.slug]) return
+        // An add-on with a setup page opens it in-app, installed or not: a bare install of
+        // Comet/MediaFusion finds nothing, and an installed one is set up again from its card.
+        if (a.configurable) { setup.addon = a; return }
+        if (root.isInstalled(a)) return
+        root.setBusy(a.slug, true)
+        Extensions.install(a.manifestUrl)
+    }
+    function load() {
+        root.loading = true
+        root.loadError = ""
+        StoreApi.fetchAll(function(all, error) {
+            root.catalogue = all
+            root.loadError = error
+            root.loading = false
+        })
+    }
+
+    function openConfiguration(extensionId) { root.configuringExtensionId = extensionId }
+    function closeConfiguration() { root.configuringExtensionId = "" }
+
+    function takeKeyboardFocus() {
+        if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
+        else if (seeAll.visible) seeAll.takeKeyboardFocus()
+        else storeWorld.forceActiveFocus()
+    }
+    // Main asks first: setup closes, then a settings page, then search / See all, then the world.
+    function requestEscape() {
+        if (setup && setup.open) { setup.addon = null; return true }
+        if (root.configuringExtensionId.length) { root.closeConfiguration(); return true }
+        if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
+        return false
+    }
+
+    Component.onCompleted: root.load()
+    onConfiguringExtensionIdChanged: Qt.callLater(root.takeKeyboardFocus)
+
+    Connections {
+        target: (typeof Extensions !== "undefined") ? Extensions : null
+        function onChanged() { root.revision++ }
+        function onInstallFinished(id, name) {
+            root.busy = ({})
+            // Installing means switching on. A built-in Theatre add-on that ships switched off
+            // (Torrentio, NoTorrent) is "updated in place" by an install at its own address and
+            // kept its off switch: the Store went on saying Set up and no stream ever appeared
+            // (seen on the Nokia, 2026-10-10). Core rows refuse this call, which is right.
+            Extensions.setEnabled(id, true)
+            if (setup.open) {
+                // A set-up link is a new row beside the old bare one; the bare row only
+                // errors (Comet answers 403), so it goes once the configured one is in.
+                var bare = Extensions.normalizeUrl(setup.addon.manifestUrl)
+                if (setup.pendingUrl.length && setup.pendingUrl !== bare && Extensions.isInstalled(bare))
+                    Extensions.removeInstance(bare)
+                setup.addon = null
+            }
+        }
+        function onInstallFailed(url, reason) {
+            root.busy = ({})
+            if (setup.open) setup.status = "Couldn't add it: " + reason
+            else { root.installError = "Couldn't add it: " + reason; installErrorTimer.restart() }
+        }
+    }
+    // A direct install that fails says so (it used to clear the busy badge and nothing else).
+    property string installError: ""
+    Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
+
+    // The Store's own wallpaper (Hemanth's pick, 2026-09-28): the Jolly Roger, under a dark veil
+    // so the cards read over it. It stays put while the board scrolls, like a world wallpaper.
+    Item {
+        id: night
+        anchors.fill: parent
+        Rectangle { anchors.fill: parent; color: "#06070a" }
+        Image {
+            anchors.fill: parent
+            source: "../assets/extensions/store-jolly-roger.jpg"
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.55) }
+                GradientStop { position: 0.5; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.66) }
+                GradientStop { position: 1.0; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.80) }
+            }
+        }
+    }
+
+    WorldPage {
+        id: storeWorld
+        objectName: "extensionsStoreWorld"
+        androidHost: root.phoneLayout
+        anchors.fill: parent
+        visible: !seeAll.visible && !tankoyomiConfiguration.visible
+        medium: "Extensions"
+        topBarBackOnly: true
+        topBarTitle: "Extensions"
+        topBarSubtitle: "Add-ons and sources for every world."
+        backdrop: night
+        onHomeRequested: root.backRequested()
+
+        ExtensionsHouseHero {
+            revision: root.revision
+            onUniversesRequested: root.universeHallRequested()
+            onSearchRequested: root.searching = true
+            onConfigureRequested: (id) => root.openConfiguration(id)
+        }
+
+        Text {
+            visible: root.loading || (root.loadError.length > 0 && root.catalogue.length === 0)
+            width: parent.width
+            text: root.loading ? "Opening the Store…"
+                               : "The Store couldn't reach stremio-addons.net (" + root.loadError + "). Try again in a moment."
+            color: theme.inkDim
+            font.family: theme.ui; font.pixelSize: 14
+        }
+
+        ExtensionsStoreRail {
+            title: "Essentials"
+            sub: "The five a fresh Colosseum needs."
+            automationId: "extensionsEssentialsRail"
+            canSeeAll: false                 // all five are already on screen
+            phoneLayout: root.phoneLayout
+            items: root.essentials
+            installedFn: root.isInstalled
+            busy: root.busy
+            revision: root.revision
+            onAddonActivated: (a) => root.activate(a)
+        }
+
+        Repeater {
+            model: root.rows
+            delegate: ExtensionsStoreRail {
+                required property var modelData
+                required property int index
+                title: modelData.title
+                sub: modelData.sub
+                automationId: "extensionsStoreRail_" + index
+                phoneLayout: root.phoneLayout
+                items: modelData.items
+                installedFn: root.isInstalled
+                busy: root.busy
+                revision: root.revision
+                onAddonActivated: (a) => root.activate(a)
+                onSeeAllRequested: root.seeAllRow = modelData
+            }
+        }
+
+        Text {
+            visible: root.catalogue.length > 0
+            width: parent.width
+            text: "Community add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum."
+            color: Qt.rgba(1, 1, 1, 0.34)
+            font.family: theme.ui; font.pixelSize: 12
+        }
+    }
+
+    ExtensionsSeeAllPage {
+        id: seeAll
+        anchors.fill: parent
+        z: 10
+        row: root.seeAllRow
+        searching: root.searching
+        pool: root.searchPool
+        installedFn: root.isInstalled
+        busy: root.busy
+        revision: root.revision
+        onAddonActivated: (a) => root.activate(a)
+        onBackRequested: { root.seeAllRow = null; root.searching = false }
+        onVisibleChanged: if (visible) Qt.callLater(seeAll.takeKeyboardFocus)
+                          else Qt.callLater(root.takeKeyboardFocus)
+    }
+
+    Rectangle {
+        visible: root.installError.length > 0
+        z: 15
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 40
+        width: Math.min(errorText.implicitWidth + 44, parent.width - 120); height: 44; radius: 22
+        color: Qt.rgba(0.045, 0.05, 0.075, 0.96)
+        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
+        Text {
+            id: errorText
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width - 44)
+            elide: Text.ElideRight
+            text: root.installError
+            color: theme.ink
+            font.family: theme.ui; font.pixelSize: 13
+        }
+    }
+
+    // A Loader, not a static child: naming ExtensionsSetupSheet here would pull QtWebEngine into
+    // the Android build, where it does not exist, and the whole Store would fail to load.
+    Loader {
+        id: setupLoader
+        anchors.fill: parent
+        z: 20
+        source: Qt.platform.os === "android" ? "ExtensionsSetupSheetAndroid.qml" : "ExtensionsSetupSheet.qml"
+    }
+    Connections {
+        target: setupLoader.item
+        function onCloseRequested() { setup.addon = null }
+        function onInstallRequested(url) {
+            setup.pendingUrl = Extensions.normalizeUrl(url)
+            Extensions.install(url)
+        }
+    }
+
+    // Tankoyomi's own settings (source languages and providers), from its House tile.
+    TankoyomiConfigurationPage {
+        id: tankoyomiConfiguration
+        anchors.fill: parent
+        z: 30
+        visible: root.configuringExtensionId === "colosseum.well.tankoyomi"
+        backdrop: night
+        onBackRequested: root.closeConfiguration()
+        onSearchClicked: root.searchClicked()
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onCloseRequested: root.closeRequested()
+    }
+}

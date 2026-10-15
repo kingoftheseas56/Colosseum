@@ -1,0 +1,231 @@
+// TrendingTop10 — a ranked "Top 10" widget. A non-row shape that VARIES the board (big ghost
+// rank numerals behind solid covers) instead of stacking another plain row. This counts as the
+// second and last content row a world page is allowed.
+//
+// All 10 ranks live in the strip, but only ~6 fit on screen; a ‹ / › chevron pair pans to reveal
+// 7–10 — the bare Flickable gave a desktop user no affordance to reach the off-screen ranks.
+// Shared by the Tankoban, Theatre and Demo (Biblio) world pages, so this one fix covers them all.
+
+import QtQuick
+
+Column {
+    id: top10
+
+    property string title: "Top 10 This Week"
+    property var items: []            // [{ caption, cover, c1, c2 }]
+    property bool navigable: true     // false → hide the Explore affordance (rows with no explore target)
+    // World-namespaced automation name prefix (naming law: never a bare shared stem — this
+    // component is reused verbatim by Tankoban/Theatre/Biblio). Empty by default (no name);
+    // a caller that wants Lanista reach opts in with its own world-prefixed stem, e.g.
+    // "tankobanTopMangaTile_" (catalogue-independence Slice 3, 2026-08-20).
+    property string namePrefix: ""
+    signal itemClicked(int index)
+    signal exploreClicked()
+
+    width: parent ? parent.width : 800
+    spacing: 14
+
+    Theme { id: theme }
+
+    // A flat edge chevron, used at both ends of the strip: serif glyph (ink → gold on hover) over a
+    // soft inward scrim so it stays legible on top of a cover. Inline so the widget stays one file.
+    component Chevron: Item {
+        id: chev
+        property string glyph: "›"
+        property bool atRight: false
+        property bool shown: false
+        signal tapped()
+
+        width: 46
+        height: parent ? parent.height : 212
+        opacity: shown ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: Qt.rgba(0, 0, 0, chev.atRight ? 0 : 0.42) }
+                GradientStop { position: 1; color: Qt.rgba(0, 0, 0, chev.atRight ? 0.42 : 0) }
+            }
+        }
+        Text {
+            anchors.centerIn: parent
+            text: chev.glyph
+            color: chevMa.containsMouse ? theme.gold : theme.ink
+            font.family: theme.display; font.pixelSize: 42
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+        MouseArea {
+            id: chevMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: chev.tapped()
+        }
+        KeyboardAction {
+            id: chevronKeyboard
+            anchors.fill: parent
+            pointerEnabled: false
+            // Not a keyboard stop (world-feel, like the mock's rail edges): Left/Right move through
+            // the rail's cards, and as a stop the chevron sat between rows and caught Up/Down.
+            enabled: false
+            focusEnabled: false
+            accessibleName: chev.atRight ? qsTr("Show later items") : qsTr("Show earlier items")
+            onTriggered: chev.tapped()
+        }
+    }
+
+    WidgetHeader {
+        width: parent.width
+        title: top10.title
+        moreLabel: "Explore"
+        navigable: top10.navigable
+        onMoreClicked: top10.exploreClicked()
+    }
+
+    Item {
+        id: strip
+        width: parent.width
+        height: 212
+        property int currentIndex: 0
+        activeFocusOnTab: top10.items.length > 0
+
+        Keys.onPressed: (event) => top10Keys.handle(event)
+
+        // Entered by the spatial navigator (it lands on a card's face): the first visit selects the
+        // item nearest that landing, like the mock; later visits keep the rail's own place.
+        property bool keyboardVisited: false
+        onActiveFocusChanged: if (strip.activeFocus) strip.keyboardVisited = true
+        function keyboardEnterAt(sceneX) {
+            if (strip.keyboardVisited)
+                return
+            var best = -1
+            var bestDistance = 0
+            for (var i = 0; i < rankRepeater.count; ++i) {
+                var item = rankRepeater.itemAt(i)
+                if (!item)
+                    continue
+                var left = item.mapToItem(flick, 0, 0).x
+                if (left + item.width < 0 || left > flick.width)
+                    continue                                   // off the rail's visible strip
+                var distance = Math.abs(item.mapToItem(null, item.width / 2, 0).x - sceneX)
+                if (best < 0 || distance < bestDistance) {
+                    best = i
+                    bestDistance = distance
+                }
+            }
+            if (best >= 0)
+                strip.currentIndex = best
+        }
+
+        KeyboardCollectionController {
+            id: top10Keys
+            view: strip
+            orientation: "horizontal"
+            count: top10.items.length
+            positionIndexFn: function(index) {
+                var item = rankRepeater.itemAt(index)
+                if (!item)
+                    return
+                var left = item.x
+                var right = item.x + item.width
+                if (left < flick.contentX)
+                    flick.contentX = left
+                else if (right > flick.contentX + flick.width)
+                    flick.contentX = right - flick.width
+                strip.refreshArrows()
+            }
+            onActivated: top10.itemClicked(index)
+        }
+
+        // scroll-affordance state. Set IMPERATIVELY from the Flickable's signal handlers (below),
+        // NOT as a declarative binding — binding a visibility to Flickable position trips QML's
+        // binding-loop detector even when there's no real cycle. Plain bools sidestep it cleanly.
+        property bool moreLeft: false
+        property bool moreRight: false
+        function refreshArrows() {
+            var can = flick.contentWidth > flick.width + 1
+            moreLeft = can && flick.contentX > 1
+            moreRight = can && flick.contentX < flick.contentWidth - flick.width - 1
+        }
+
+        // page the strip by ~80% of a screenful, clamped to the ends.
+        function pageBy(dir) {
+            var step = flick.width * 0.8
+            slide.to = Math.max(0, Math.min(flick.contentWidth - flick.width, flick.contentX + dir * step))
+            slide.restart()
+        }
+
+        Flickable {
+            id: flick
+            anchors.fill: parent
+            contentWidth: row.width; contentHeight: height
+            clip: true
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            onContentXChanged: strip.refreshArrows()
+            onContentWidthChanged: strip.refreshArrows()
+            onWidthChanged: strip.refreshArrows()
+            Component.onCompleted: strip.refreshArrows()
+
+            Row {
+                id: row
+                spacing: 30; leftPadding: 6
+                Repeater {
+                    id: rankRepeater
+                    model: top10.items
+                    delegate: Item {
+                        id: rank
+                        objectName: top10.namePrefix.length ? (top10.namePrefix + rank.index) : ""
+                        required property var modelData
+                        required property int index
+                        width: num.width + cov.width - 32
+                        height: 212
+
+                        Text {
+                            id: num
+                            text: (rank.index + 1)
+                            color: Qt.rgba(1, 1, 1, 0.16)
+                            font.family: theme.display; font.bold: true; font.pixelSize: 132
+                            anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.bottomMargin: -8
+                        }
+                        PortraitTile {
+                            id: cov
+                            width: 132; height: 196
+                            anchors.left: num.right; anchors.leftMargin: -32; anchors.bottom: parent.bottom
+                            caption: rank.modelData.caption
+                            cover: rank.modelData.cover !== undefined ? rank.modelData.cover : ""
+                            c1: rank.modelData.c1 !== undefined ? rank.modelData.c1 : "#444"
+                            c2: rank.modelData.c2 !== undefined ? rank.modelData.c2 : "#111"
+                            keyboardEnabled: false
+                            keyboardFocused: strip.activeFocus && strip.currentIndex === rank.index
+                            onClicked: {
+                                strip.currentIndex = rank.index
+                                strip.forceActiveFocus(Qt.MouseFocusReason)
+                                top10.itemClicked(rank.index)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // one animation reused by both chevrons — kept OFF a contentX Behavior so it never fights a manual flick.
+        NumberAnimation { id: slide; target: flick; property: "contentX"; duration: 300; easing.type: Easing.OutCubic }
+
+        Chevron {
+            glyph: "‹"; atRight: false
+            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+            shown: strip.moreLeft
+            onTapped: strip.pageBy(-1)
+        }
+        Chevron {
+            glyph: "›"; atRight: true
+            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            shown: strip.moreRight
+            onTapped: strip.pageBy(1)
+        }
+    }
+}

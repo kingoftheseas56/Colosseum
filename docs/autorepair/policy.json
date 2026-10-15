@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "autonomyLevel": "document-only",
+  "maxRepairAttempts": 3,
+  "maxPatchLines": 400,
+  "triage": {
+    "runs": 3,
+    "confirmThreshold": 2
+  },
+  "minConfidenceToRepair": "medium",
+  "nightWatchAutoRepair": true,
+  "modelRouting": {
+    "diagnosis": "glm",
+    "repair": "glm",
+    "verify": "glm"
+  },
+  "verifierRefutation": {
+    "provider": "glm",
+    "thinking": "high",
+    "advisory": true
+  },
+  "perStageTimeoutSec": {
+    "build": 2700,
+    "triage": 7200,
+    "diagnosis": 1800,
+    "repair": 5400,
+    "verify": 5400,
+    "promotion": 600
+  },
+  "perIncidentTotalSec": 28800
+}

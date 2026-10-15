@@ -1,0 +1,100 @@
+{
+  "schema": "colosseum.ratings-reviews.provider-read-fixture.v1",
+  "title": {
+    "world": "theatre",
+    "kind": "series",
+    "mediaId": "fixture-provider-read-series"
+  },
+  "savedOrder": [
+    "mal", "anilist", "trakt", "simkl",
+    "imdb", "tmdb", "rotten_tomatoes", "metacritic"
+  ],
+  "variants": {
+    "all_ready_visual": {
+      "aggregates": [
+        {"providerId":"mal","providerName":"MyAnimeList","state":"ready","scoreDisplay":"8.4 / 10","nativeScaleId":"fixture-mal-10","voteCount":840,"sourceLabel":"Fixture MAL","sourceUrl":"https://mal.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"anilist","providerName":"AniList","state":"ready","scoreDisplay":"84 / 100","nativeScaleId":"fixture-anilist-100","voteCount":841,"sourceLabel":"Fixture AniList","sourceUrl":"https://anilist.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"trakt","providerName":"Trakt","state":"ready","scoreDisplay":"84%","nativeScaleId":"fixture-trakt-percent","voteCount":842,"sourceLabel":"Fixture Trakt","sourceUrl":"https://trakt.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"simkl","providerName":"SIMKL","state":"ready","scoreDisplay":"8.4 / 10","nativeScaleId":"fixture-simkl-10","voteCount":843,"sourceLabel":"Fixture SIMKL","sourceUrl":"https://simkl.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"imdb","providerName":"IMDb","state":"ready","scoreDisplay":"8.4 / 10","nativeScaleId":"fixture-imdb-10","voteCount":844,"sourceLabel":"Fixture IMDb","sourceUrl":"https://imdb.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"tmdb","providerName":"TMDb","state":"ready","scoreDisplay":"84%","nativeScaleId":"fixture-tmdb-percent","voteCount":845,"sourceLabel":"Fixture TMDb","sourceUrl":"https://tmdb.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"rotten_tomatoes","providerName":"Rotten Tomatoes","state":"ready","scoreDisplay":"84%","nativeScaleId":"fixture-rotten-tomatoes-percent","voteCount":846,"sourceLabel":"Fixture Rotten Tomatoes","sourceUrl":"https://rotten-tomatoes.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"metacritic","providerName":"Metacritic","state":"ready","scoreDisplay":"84 / 100","nativeScaleId":"fixture-metacritic-100","voteCount":847,"sourceLabel":"Fixture Metacritic","sourceUrl":"https://metacritic.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""}
+      ],
+      "reviews": [
+        {"providerId":"anilist","providerName":"AniList","state":"ready","headline":"Synthetic AniList review","excerpt":"Synthetic fixture review: quiet pacing, clear payoff.","reviewer":"Fixture Reviewer A","sourceLabel":"Fixture AniList","scoreDisplay":"92 / 100","sourceUrl":"https://anilist.fixtures.invalid/review/1","spoiler":false},
+        {"providerId":"trakt","providerName":"Trakt","state":"ready","headline":"Synthetic Trakt comment","excerpt":"Synthetic fixture comment: measured, specific, and test-only.","reviewer":"Fixture Reviewer B","sourceLabel":"Fixture Trakt","scoreDisplay":"9 / 10","sourceUrl":"https://trakt.fixtures.invalid/comment/1","spoiler":false},
+        {"providerId":"tmdb","providerName":"TMDb","state":"ready","headline":"Synthetic TMDb review","excerpt":"Synthetic fixture review: source-link behavior only.","reviewer":"Fixture Reviewer C","sourceLabel":"Fixture TMDb","scoreDisplay":"9 / 10","sourceUrl":"https://tmdb.fixtures.invalid/review/1","spoiler":false},
+        {"providerId":"rotten_tomatoes","providerName":"Rotten Tomatoes","state":"ready","headline":"Synthetic Rotten Tomatoes review","excerpt":"Synthetic fixture excerpt for layout verification.","reviewer":"Fixture Reviewer D","sourceLabel":"Fixture Rotten Tomatoes","scoreDisplay":"Fresh","sourceUrl":"https://rotten-tomatoes.fixtures.invalid/review/1","spoiler":false},
+        {"providerId":"metacritic","providerName":"Metacritic","state":"ready","headline":"Synthetic Metacritic review","excerpt":"Synthetic fixture excerpt for provider-wall verification.","reviewer":"Fixture Reviewer E","sourceLabel":"Fixture Metacritic","scoreDisplay":"90 / 100","sourceUrl":"https://metacritic.fixtures.invalid/review/1","spoiler":false}
+      ]
+    },
+    "partial_failure": {
+      "aggregates": [
+        {"providerId":"mal","providerName":"MyAnimeList","state":"ready","scoreDisplay":"8.4 / 10","nativeScaleId":"fixture-mal-10","voteCount":840,"sourceLabel":"Fixture MAL","sourceUrl":"https://mal.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"anilist","providerName":"AniList","state":"error","scoreDisplay":"","nativeScaleId":"","voteCount":null,"sourceLabel":"Fixture AniList","sourceUrl":"","sourceUpdatedAt":null,"errorCode":"fixture_timeout"},
+        {"providerId":"trakt","providerName":"Trakt","state":"empty","scoreDisplay":"","nativeScaleId":"","voteCount":null,"sourceLabel":"Fixture Trakt","sourceUrl":"","sourceUpdatedAt":null,"errorCode":""},
+        {"providerId":"simkl","providerName":"SIMKL","state":"unavailable","scoreDisplay":"","nativeScaleId":"","voteCount":null,"sourceLabel":"Fixture SIMKL","sourceUrl":"","sourceUpdatedAt":null,"errorCode":""}
+      ],
+      "reviews": []
+    },
+    "all_empty": {
+      "aggregates": [
+        {"providerId":"mal","providerName":"MyAnimeList","state":"empty"},
+        {"providerId":"anilist","providerName":"AniList","state":"empty"},
+        {"providerId":"trakt","providerName":"Trakt","state":"empty"},
+        {"providerId":"simkl","providerName":"SIMKL","state":"empty"},
+        {"providerId":"imdb","providerName":"IMDb","state":"empty"},
+        {"providerId":"tmdb","providerName":"TMDb","state":"empty"},
+        {"providerId":"rotten_tomatoes","providerName":"Rotten Tomatoes","state":"empty"},
+        {"providerId":"metacritic","providerName":"Metacritic","state":"empty"}
+      ],
+      "reviews": []
+    },
+    "spoiler_review": {
+      "aggregates": [
+        {"providerId":"trakt","providerName":"Trakt","state":"ready","scoreDisplay":"84%","nativeScaleId":"fixture-trakt-percent","voteCount":842,"sourceLabel":"Fixture Trakt","sourceUrl":"https://trakt.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""}
+      ],
+      "reviews": [
+        {"providerId":"trakt","providerName":"Trakt","state":"ready","headline":"Synthetic spoiler review","excerpt":"Synthetic spoiler fixture text.","reviewer":"Fixture Reviewer Spoiler","sourceLabel":"Fixture Trakt","scoreDisplay":"9 / 10","sourceUrl":"https://trakt.fixtures.invalid/review/spoiler","spoiler":true}
+      ]
+    },
+    "unsafe_link": {
+      "aggregates": [
+        {"providerId":"tmdb","providerName":"TMDb","state":"ready","scoreDisplay":"84%","nativeScaleId":"fixture-tmdb-percent","voteCount":845,"sourceLabel":"Fixture TMDb","sourceUrl":"https://tmdb.fixtures.invalid/title/1","sourceUpdatedAt":null,"errorCode":""}
+      ],
+      "reviews": [
+        {"providerId":"tmdb","providerName":"TMDb","state":"ready","headline":"Synthetic TMDb review","excerpt":"Synthetic unsafe source-link fixture.","reviewer":"Fixture Reviewer C","sourceLabel":"Fixture TMDb","scoreDisplay":"9 / 10","sourceUrl":"http://tmdb.fixtures.invalid/unsafe","spoiler":false}
+      ]
+    },
+    "missing_provider_order": {
+      "savedOrder": [
+        "mal", "anilist", "mal", "unknown-fixture",
+        "trakt", "simkl", "imdb", "tmdb", "metacritic"
+      ],
+      "aggregates": [
+        {"providerId":"mal","providerName":"MyAnimeList","state":"ready","scoreDisplay":"8.4 / 10"},
+        {"providerId":"anilist","providerName":"AniList","state":"ready","scoreDisplay":"84 / 100"},
+        {"providerId":"trakt","providerName":"Trakt","state":"ready","scoreDisplay":"84%"},
+        {"providerId":"simkl","providerName":"SIMKL","state":"ready","scoreDisplay":"8.4 / 10"},
+        {"providerId":"imdb","providerName":"IMDb","state":"ready","scoreDisplay":"8.4 / 10"},
+        {"providerId":"tmdb","providerName":"TMDb","state":"ready","scoreDisplay":"84%"},
+        {"providerId":"rotten_tomatoes","providerName":"Rotten Tomatoes","state":"ready","scoreDisplay":"84%"},
+        {"providerId":"metacritic","providerName":"Metacritic","state":"ready","scoreDisplay":"84 / 100"}
+      ],
+      "reviews": []
+    },
+    "stale_title_generation": {
+      "profileGeneration": 12,
+      "routeGeneration": 42,
+      "aggregates": [],
+      "reviews": [],
+      "delayed": {
+        "profileGeneration": 11,
+        "routeGeneration": 41,
+        "providerId": "mal",
+        "state": "ready"
+      }
+    }
+  }
+}

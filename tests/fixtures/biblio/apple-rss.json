@@ -1,0 +1,26 @@
+{
+  "feed": {
+    "title": {"label": "Top Books"},
+    "entry": [
+      {
+        "im:name": {"label": "Shared ISBN Trio"},
+        "im:artist": {"label": "Nora Vance"},
+        "im:image": [
+          {"label": "https://is1-ssl.mzstatic.com/image/thumb/aaa/55x83bb.png", "attributes": {"height": "55"}},
+          {"label": "https://is1-ssl.mzstatic.com/image/thumb/aaa/113x170bb.png", "attributes": {"height": "113"}},
+          {"label": "https://is1-ssl.mzstatic.com/image/thumb/aaa/170x256bb.png", "attributes": {"height": "170"}}
+        ],
+        "im:releaseDate": {"label": "2019-05-01T07:00:00-07:00", "attributes": {"label": "May 1, 2019"}},
+        "category": {"attributes": {"im:id": "9031", "term": "Fiction", "label": "Fiction & Literature"}},
+        "id": {"label": "https://books.apple.com/us/book/shared-isbn-trio/id5551001", "attributes": {"im:id": "5551001"}}
+      },
+      {
+        "im:name": {"label": "Echoes of the Deep"},
+        "im:artist": {"label": "Marina Holt"},
+        "im:releaseDate": {"label": "2021-03-15T07:00:00-07:00", "attributes": {"label": "March 15, 2021"}},
+        "category": {"attributes": {"im:id": "9032", "term": "Mysteries", "label": "Mysteries & Thrillers"}},
+        "id": {"label": "https://books.apple.com/us/book/echoes-of-the-deep/id5553003", "attributes": {"im:id": "5553003"}}
+      }
+    ]
+  }
+}

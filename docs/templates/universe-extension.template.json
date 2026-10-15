@@ -1,0 +1,82 @@
+{
+  "universe": {
+    "id": "replace-with-universe-slug",
+    "title": "Replace With Universe Name",
+    "logo": "https://replace-with-verified-logo-url",
+    "background": "https://replace-with-verified-background-url",
+    "sections": [
+      {
+        "id": "tv",
+        "title": "TV Shows",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0000000",
+            "type": "series",
+            "title": "Replace With Exact Cinemeta Title",
+            "year": "YYYY"
+          }
+        ]
+      },
+      {
+        "id": "movies",
+        "title": "Movies",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0000000",
+            "type": "movie",
+            "title": "Replace With Exact Cinemeta Title",
+            "year": "YYYY"
+          }
+        ]
+      },
+      {
+        "id": "manga",
+        "title": "Manga",
+        "kind": "manga",
+        "entries": [
+          {
+            "id": "00000",
+            "provider": "anilist",
+            "title": "Replace With Exact AniList Manga Title",
+            "year": "YYYY",
+            "weebcentralAvailable": true,
+            "weebcentralSeriesId": "replace-with-verified-weebcentral-series-id"
+          },
+          {
+            "id": "replace-with-direct-weebcentral-series-id",
+            "provider": "weebcentral",
+            "title": "Optional Distinct WeebCentral Edition"
+          }
+        ]
+      },
+      {
+        "id": "novels",
+        "title": "Novels",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "0000000000",
+            "provider": "applebooks",
+            "title": "Replace With Exact Apple Books Title",
+            "edition": "novel"
+          }
+        ]
+      },
+      {
+        "id": "comics",
+        "title": "Comics",
+        "kind": "comic",
+        "entries": [
+          {
+            "provider": "getcomics",
+            "title": "Replace With Exact GetComics Work Title",
+            "year": "YYYY",
+            "posts": [12345]
+          }
+        ]
+      }
+    ]
+  }
+}

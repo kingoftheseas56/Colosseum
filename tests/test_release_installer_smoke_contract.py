@@ -1,0 +1,63 @@
+from pathlib import Path
+import unittest
+
+from scripts.update.generate_update_manifest import load_presentation
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class ReleaseInstallerSmokeContract(unittest.TestCase):
+    def test_release_metadata_targets_1_1_7(self):
+        cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
+        workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
+        self.assertIn('project(colosseum VERSION 1.1.7 ', cmake)
+        self.assertIn("default: \"1.1.7\"", workflow)
+        for relative in ('native/update/UpdateReleaseClient.cpp', 'native/update/UpdateDownload.cpp', 'native/main.cpp'):
+            source = (ROOT / relative).read_text(encoding='utf-8')
+            self.assertNotIn('Colosseum/1.1.4', source, relative)
+        self.assertTrue((ROOT / 'docs/release-notes/v1.1.7.md').is_file())
+        self.assertTrue((ROOT / 'release/presentation/1.1.7.json').is_file())
+        presentation = load_presentation(ROOT / 'release/presentation/1.1.7.json', '1.1.7')
+        self.assertEqual(presentation['title'], 'Colosseum 1.1.7')
+        self.assertEqual(len(presentation['highlights']), 6)
+        notes = (ROOT / 'docs/release-notes/v1.1.7.md').read_text(encoding='utf-8').lower()
+        # 1.1.7 keeps the 1.1.6 trust root: users on 1.1.5 or earlier are still pointed at the manual step.
+        self.assertIn('1.1.5', notes)
+        self.assertIn('manual', notes)
+
+    def test_installer_branding_is_product_named_and_iconed(self):
+        installer = (ROOT / 'scripts/installer/colosseum.nsi').read_text(encoding='utf-8')
+        self.assertIn('Name "Colosseum"', installer)
+        self.assertIn('Caption "Colosseum"', installer)
+        self.assertIn('UninstallCaption "Colosseum"', installer)
+        self.assertIn('!define MUI_ICON "${STAGE}\\assets\\icons\\colosseum.ico"', installer)
+        self.assertIn('!define MUI_UNICON "${STAGE}\\assets\\icons\\colosseum.ico"', installer)
+        self.assertTrue((ROOT / 'assets/icons/colosseum.ico').is_file())
+
+    def test_github_workflow_runs_exact_installer_smoke_on_windows(self):
+        workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
+        script = (ROOT / 'tests/installer/release_installer_smoke.ps1').read_text(encoding='utf-8')
+        self.assertIn('workflow_dispatch:', workflow)
+        self.assertIn('runs-on: windows-latest', workflow)
+        self.assertIn('source_sha', workflow)
+        self.assertIn('persist-credentials: false', workflow)
+        self.assertIn('git fetch origin master', workflow)
+        self.assertIn('git merge-base --is-ancestor', workflow)
+        self.assertNotIn("ref: ${{ inputs.source_sha", workflow)
+        self.assertIn('qtimageformats', workflow)
+        self.assertIn('curl.exe --fail --location --retry 5 --retry-all-errors --retry-delay 2', workflow)
+        self.assertIn('actions/upload-artifact', workflow)
+        self.assertIn('actions/download-artifact', workflow)
+        self.assertIn('release_installer_smoke.ps1', workflow)
+        self.assertIn('--version', script)
+        self.assertIn('binary version', script)
+        main = (ROOT / 'native/main.cpp').read_text(encoding='utf-8')
+        self.assertIn('--version', main)
+        for token in ('DisplayVersion', 'Qt6Core.dll', 'qwindows.dll', 'qwebp.dll',
+                      'QtWebEngineProcess.exe', 'stremio-runtime.exe', 'COLOSSEUM_APPDATA_TAG',
+                      'uninstall.exe', 'SHA256'):
+            self.assertIn(token, script)
+
+
+if __name__ == '__main__':
+    unittest.main()

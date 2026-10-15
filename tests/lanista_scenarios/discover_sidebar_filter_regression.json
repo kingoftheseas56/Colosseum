@@ -1,0 +1,583 @@
+{
+ "name": "discover-sidebar-filter-regression",
+ "comment": "Discover sidebar plan Slice 1 regression: after the one-filter-per-group state change, the legacy picker still filters (one at a time) and clears in Theatre, Biblio and Tankoban.",
+ "steps": [
+  {
+   "cmd": "ping",
+   "label": "session answers, drive on",
+   "expect": [
+    {
+     "path": "gates.drive",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "isolated data root",
+   "expect": [
+    {
+     "path": "appDataRoot",
+     "op": "contains",
+     "value": "Colosseum-dltest"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "boot splash gone",
+   "payload": {
+    "object": "bootSplash",
+    "prop": "visible",
+    "value": false,
+    "timeout_ms": 60000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "continue without an account (no-op when onboarding is clear)",
+   "payload": {
+    "target": "accountWelcomeContinueLocal"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter theatre",
+   "payload": {
+    "target": "modePill_Theatre"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre tab bar up",
+   "payload": {
+    "object": "theatreTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre Discover tab",
+   "payload": {
+    "target": "theatreTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre Discover initialised",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "automationType",
+    "value": "movie",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre first page settled",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "theatre bring the filter row up so its popup opens on screen (dy -360 = 504 px)",
+   "payload": {
+    "target": "theatreWorldScroll",
+    "dy": -360
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre scroll settled",
+   "payload": {
+    "object": "theatreWorldScroll",
+    "prop": "contentY",
+    "value": 504,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre open the filter picker",
+   "payload": {
+    "target": "theatreDiscoverFilterPickerPill"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre choose the first real option (0 = All, 1 = a group header in multi-group worlds)",
+   "payload": {
+    "target": "theatreDiscoverFilterPickerOption_2"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre exactly one filter active",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "activeFilterCount",
+    "value": 1,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "theatre summary names it",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "props": [
+     "automationFilterSummary",
+     "activeFilterCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationFilterSummary",
+     "op": "!=",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre reopen the picker",
+   "payload": {
+    "target": "theatreDiscoverFilterPickerPill"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "theatre choose All",
+   "payload": {
+    "target": "theatreDiscoverFilterPickerOption_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "theatre filters cleared",
+   "payload": {
+    "object": "theatreDiscoverBrowser",
+    "prop": "activeFilterCount",
+    "value": 0,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "back to Home",
+   "payload": {
+    "key": "Escape"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter biblio",
+   "payload": {
+    "target": "modePill_Biblio"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio tab bar up",
+   "payload": {
+    "object": "biblioTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "biblio Discover tab",
+   "payload": {
+    "target": "biblioTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio Discover initialised",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "prop": "automationType",
+    "value": "book",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio first page settled",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "biblio bring the filter row up so its popup opens on screen (dy -360 = 504 px)",
+   "payload": {
+    "target": "biblioWorldScroll",
+    "dy": -360
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio scroll settled",
+   "payload": {
+    "object": "biblioWorldScroll",
+    "prop": "contentY",
+    "value": 504,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "biblio open the filter picker",
+   "payload": {
+    "target": "biblioDiscoverFilterPickerPill"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "biblio choose the first real option (0 = All, 1 = a group header in multi-group worlds)",
+   "payload": {
+    "target": "biblioDiscoverFilterPickerOption_2"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio exactly one filter active",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "prop": "activeFilterCount",
+    "value": 1,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "biblio summary names it",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "props": [
+     "automationFilterSummary",
+     "activeFilterCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationFilterSummary",
+     "op": "!=",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "biblio reopen the picker",
+   "payload": {
+    "target": "biblioDiscoverFilterPickerPill"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "biblio choose All",
+   "payload": {
+    "target": "biblioDiscoverFilterPickerOption_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "biblio filters cleared",
+   "payload": {
+    "object": "biblioDiscoverBrowser",
+    "prop": "activeFilterCount",
+    "value": 0,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "back to Home",
+   "payload": {
+    "key": "Escape"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "enter tankoban",
+   "payload": {
+    "target": "modePill_Tankoban"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban tab bar up",
+   "payload": {
+    "object": "tankobanTabBar",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "tankoban Discover tab",
+   "payload": {
+    "target": "tankobanTab_discover"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban Discover initialised",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "prop": "automationType",
+    "value": "manga",
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban first page settled",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "prop": "loading",
+    "value": false,
+    "timeout_ms": 30000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "tankoban bring the filter row up so its popup opens on screen (dy -360 = 504 px)",
+   "payload": {
+    "target": "tankobanWorldScroll",
+    "dy": -360
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban scroll settled",
+   "payload": {
+    "object": "tankobanWorldScroll",
+    "prop": "contentY",
+    "value": 504,
+    "timeout_ms": 5000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "tankoban open the filter picker",
+   "payload": {
+    "target": "tankobanDiscoverFilterPickerPill"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "tankoban choose the first real option (0 = All, 1 = a group header in multi-group worlds)",
+   "payload": {
+    "target": "tankobanDiscoverFilterPickerOption_2"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban exactly one filter active",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "prop": "activeFilterCount",
+    "value": 1,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "tankoban summary names it",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "props": [
+     "automationFilterSummary",
+     "activeFilterCount"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.automationFilterSummary",
+     "op": "!=",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "tankoban reopen the picker",
+   "payload": {
+    "target": "tankobanDiscoverFilterPickerPill"
+   }
+  },
+  {
+   "cmd": "ui-click",
+   "label": "tankoban choose All",
+   "payload": {
+    "target": "tankobanDiscoverFilterPickerOption_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "tankoban filters cleared",
+   "payload": {
+    "object": "tankobanDiscoverBrowser",
+    "prop": "activeFilterCount",
+    "value": 0,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-keypress",
+   "label": "back to Home",
+   "payload": {
+    "key": "Escape"
+   }
+  }
+ ]
+}

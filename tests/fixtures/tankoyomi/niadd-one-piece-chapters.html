@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- Scrubbed minimal fixture derived on 2026-09-10 from the real 2026-09-07
+     capture of the es.niadd.com canonical One Piece series page (untracked
+     diagnostic capture). Structural shape is preserved; ads, tracking scripts,
+     and unrelated sections are removed. Rows 3531344/3526257/3523721 are real
+     observed rows; the 1189/1188 rows are synthetic variants of the same shape
+     covering relative/protocol-relative hrefs, and the duplicated 1190 anchor
+     covers deduplication. -->
+<html lang="es">
+<head><meta charset="utf-8"><title>One Piece</title></head>
+<body>
+<!--章节列表-->
+<div class="bookinfo-cate-section">
+  <div class="bookinfo-cate-title">Capítulos</div>
+  <ul class="chapter-list " toggle_name="unhealthy_box">
+    <a class="hover-underline" href="https://es.niadd.com/chapter/One_Piece_Capitulo_1192/3531344/"  target="_blank"  title="One Piece Capitulo 1192">
+      <li class="chp-item">
+        <div class="chp-left">
+          <span class="chp-title">One Piece Capitulo 1192</span><span class="chp-new">Nuevo</span>
+        </div>
+      </li>
+    </a>
+    <a class="hover-underline" href="https://es.niadd.com/chapter/One_Piece_Capitulo_1191/3526257/"  target="_blank"  title="One Piece Capitulo 1191">
+      <li class="chp-item"><div class="chp-left"><span class="chp-title">One Piece Capitulo 1191</span></div></li>
+    </a>
+    <a class="hover-underline" href="https://es.niadd.com/chapter/One_Piece_Capitulo_1190/3523721/"  target="_blank"  title="One Piece Capitulo 1190">
+      <li class="chp-item"><div class="chp-left"><span class="chp-title">One Piece Capitulo 1190</span></div></li>
+    </a>
+    <!-- duplicate href of the 1190 row: deduplication must collapse it -->
+    <a class="hover-underline" href="https://es.niadd.com/chapter/One_Piece_Capitulo_1190/3523721/"  target="_blank"  title="One Piece Capitulo 1190">
+      <li class="chp-item"><div class="chp-left"><span class="chp-title">One Piece Capitulo 1190</span></div></li>
+    </a>
+    <!-- relative chapter href: must normalize to the absolute es.niadd.com URL -->
+    <a class="hover-underline" href="/chapter/One_Piece_Capitulo_1189/3511189/"  target="_blank"  title="One Piece Capitulo 1189">
+      <li class="chp-item"><div class="chp-left"><span class="chp-title">One Piece Capitulo 1189</span></div></li>
+    </a>
+    <!-- protocol-relative chapter href: must normalize to the absolute https URL -->
+    <a class="hover-underline" href="//es.niadd.com/chapter/One_Piece_Capitulo_1188/3511188/"  target="_blank"  title="One Piece Capitulo 1188">
+      <li class="chp-item"><div class="chp-left"><span class="chp-title">One Piece Capitulo 1188</span></div></li>
+    </a>
+    <!-- chapter-shaped anchor without any title text: filtered out -->
+    <a class="hover-underline" href="https://es.niadd.com/chapter/Broken_Row/1/"  target="_blank">
+      <li class="chp-item"></li>
+    </a>
+    <!-- non-chapter navigation noise that shares the page -->
+    <a href="https://es.niadd.com/manga/One_Piece/chapters.html">Ver todos los capítulos</a>
+    <a href="https://es.niadd.com/manga/One_Piece.html">One Piece</a>
+  </ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "type": "sessionEstablished",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 0,
+  "payload": {
+    "participantId": "participant-1",
+    "reconnectToken": "opaque-reconnect-token-xyz"
+  }
+}

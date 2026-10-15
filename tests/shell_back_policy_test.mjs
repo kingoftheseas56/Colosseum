@@ -1,0 +1,75 @@
+import fs from 'fs';
+
+const root = process.argv[2] || '.';
+const policyPath = root + '/qml/ShellBackPolicy.js';
+let src = fs.readFileSync(policyPath, 'utf8').replace(/^\.pragma library\s*$/m, '');
+const mod = {};
+new Function('module', src + '\nmodule.actionFor=actionFor;')(mod);
+
+function fail(message) {
+    console.error('FAIL ' + message);
+    process.exit(1);
+}
+function eq(actual, expected, message) {
+    if (actual !== expected)
+        fail(message + ' (got ' + JSON.stringify(actual) + ', want ' + JSON.stringify(expected) + ')');
+}
+function action(state) { return mod.actionFor(state || {}); }
+
+// Highest shell shields consume Escape without mutating the surface underneath.
+eq(action({ transitioning: true, playerOpen: true }), 'consume', 'fullscreen transition owns Escape');
+eq(action({ bootVisible: true, worldOpen: true }), 'consume', 'boot splash owns Escape');
+eq(action({ accountHostVisible: true, worldOpen: true }), 'consume', 'mandatory account flow owns Escape');
+eq(action({ stremioSyncOpen: true }), 'stremioSync', 'Stremio Main Sync overlay owns Escape');
+eq(action({ stremioSyncOpen: true, syncCenterActive: true }), 'stremioSync', 'Main Sync closes before its underlying Sync Center page');
+// Modal/transient shell surfaces beat sessions and ordinary pages.
+eq(action({ identityCeremonyOpen: true, playerOpen: true }), 'cancelIdentityCeremony', 'identity ceremony beats player');
+eq(action({ identityCeremonyOpen: true, stremioSyncOpen: true }), 'cancelIdentityCeremony', 'front identity ceremony closes before background Main Sync');
+eq(action({ watchPartyJoinOpen: true, playerOpen: true }), 'watchPartyJoin', 'watch-party sheet beats player');
+eq(action({ wallpaperActive: true, accountCenterVisible: true }), 'wallpaper', 'wallpaper picker beats account centre');
+eq(action({ accountFlyoutVisible: true, taskbarOpen: true }), 'accountFlyout', 'account flyout beats taskbar');
+eq(action({ accountCenterVisible: true, taskbarOpen: true }), 'accountCenter', 'account centre beats taskbar');
+eq(action({ openRecentOpen: true, taskbarOpen: true }), 'openRecent', 'Open Recent beats taskbar');
+eq(action({ taskbarOpen: true, worldOpen: true }), 'taskbar', 'expanded taskbar beats page navigation');
+
+// Session-owned immersive surfaces beat full-page and browsing layers.
+eq(action({ activeSessionKind: 'movie', playerOpen: false }), 'player', 'hidden active movie session is healed through player authority');
+eq(action({ bookReaderActive: true, vaultActive: true }), 'bookReader', 'book reader owns Escape above Vault');
+eq(action({ activeSessionKind: 'book', bookReaderActive: false }), 'bookReader', 'hidden active book session is healed through reader authority');
+eq(action({ vaultComicActive: true, vaultActive: true }), 'comicReader', 'standalone Vault comic owns Escape');
+eq(action({ comicReaderActive: true, seriesActive: true }), 'comicReader', 'embedded comic reader owns Escape above its host page');
+eq(action({ activeSessionKind: 'comic', comicReaderActive: false }), 'comicReader', 'hidden active comic session is healed through comic authority');
+// Full-page peers are ordered by actual same-z document order, then browsing z-order.
+eq(action({ updateActive: true, keyboardGuideActive: true }), 'update', 'later update page wins a broken same-z overlap');
+eq(action({ syncCenterActive: true }), 'syncCenter', 'Sync Center closes before returning to its underlying world');
+eq(action({ historyStatsActive: true }), 'historyStats', 'History, highlights, and stats closes before returning to its underlying world');
+eq(action({ syncCenterActive: true, historyStatsActive: true }), 'historyStats', 'later History page wins above retained Sync Center');
+eq(action({ syncCenterActive: true, keyboardGuideActive: true }), 'syncCenter', 'later Sync Center page wins above Keyboard Guide');
+eq(action({ updateActive: true, syncCenterActive: true }), 'update', 'later Update page wins above Sync Center');
+eq(action({ extensionsActive: true, vaultActive: true }), 'extensions', 'extensions wins a broken same-z overlap');
+// Ratings & Reviews was retired in 1.1.7 (3928d0d2); its Escape rows went with it.
+eq(action({ vaultActive: true }), 'vault', 'Vault owns Escape when open');
+eq(action({ vaultActive: true, downloadsActive: true }), 'vault', 'Vault wins a broken same-z overlap');
+eq(action({ downloadsActive: true, bookActive: true }), 'downloads', 'taskbar full-page beats detail page');
+eq(action({ bookActive: true, theatreSeriesActive: true }), 'book', 'book detail is highest z53 sibling');
+eq(action({ theatreSeriesActive: true, westernActive: true }), 'theatreSeries', 'Theatre detail beats earlier z53 western page');
+eq(action({ westernActive: true, seriesActive: true }), 'western', 'western page beats earlier z53 manga page');
+eq(action({ theatreSeriesActive: true, onePieceArcActive: true, universeActive: true }), 'theatreSeries', 'media detail beats One Piece arc page');
+eq(action({ onePieceArcActive: true, universeActive: true }), 'onePieceArc', 'One Piece arc page closes before its globe');
+eq(action({ theatreSeriesActive: true, onePieceAtlasTransientOpen: true, universeActive: true }), 'theatreSeries', 'Theatre detail beats atlas transient');
+eq(action({ onePieceArcActive: true, onePieceAtlasTransientOpen: true, universeActive: true }), 'onePieceArc', 'One Piece arc page beats atlas transient');
+eq(action({ onePieceAtlasTransientOpen: true, universeActive: true }), 'onePieceAtlasTransient', 'atlas transient closes before its globe');
+eq(action({ universeActive: true, searchActive: true }), 'universe', 'universe z52 beats search z51');
+eq(action({ comicIndexActive: true, continueSeeAllActive: true }), 'comicIndex', 'later z49 comic index wins');
+eq(action({ theatreGenreActive: true, theatreGenreIndexActive: true }), 'theatreGenre', 'Theatre genre page beats its index');
+eq(action({ biblioGenreActive: true, biblioGenreIndexActive: true }), 'biblioGenre', 'Biblio genre page beats its index');
+eq(action({ genreActive: true, genreIndexActive: true }), 'genre', 'manga genre page beats its index');
+
+// Bottom of the stack is world -> Home -> Home top. Back never quits (world-feel Slice 6).
+eq(action({ worldOpen: true }), 'world', 'world exits to Home');
+eq(action({}), 'homeTop', 'empty Home stack returns to the top of Home, never quits');
+
+console.log('PASS shell back policy matrix');
+process.exit(0);
+
+

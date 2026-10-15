@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "type": "roomSnapshot",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 0,
+  "payload": {}
+}

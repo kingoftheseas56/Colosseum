@@ -1,0 +1,22 @@
+{
+  "name": "colosseum-watchparty-relay",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Cloudflare Worker + Durable Object relay for Colosseum Watch Party (protocol v3). Slice 1 scaffold: transport spike only, no room logic.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:https": "wrangler dev --local-protocol https",
+    "probe": "node test/probe-handshake.mjs",
+    "probe:live": "node test/probe-live.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20260815.1",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.124.0",
+    "ws": "^8.18.0"
+  }
+}

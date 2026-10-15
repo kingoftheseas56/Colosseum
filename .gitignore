@@ -1,0 +1,105 @@
+# Colosseum — source-only backup. Build output, scratch, and downloadable art stay out.
+
+# CMake / compiler output (recompiles from native/main.cpp + CMakeLists.txt)
+# build*/ covers both the MinGW build/ and the MSVC build-msvc/ trees.
+native/build*/
+
+# Dev scratch: smoke screenshots, diagnostic logs, click scripts
+tools/
+# Keep root-level scratch ignored, but track the Colosseum Harness source.
+!/tools/
+/tools/*
+!/tools/colosseum-harness/
+!/tools/colosseum-harness/**
+# ...but native/tools/ is lanista's CLI SOURCE (lanista.cpp, LanistaHash.*), not scratch.
+# The unanchored tools/ rule above also matches native/tools/ — carve it back in so
+# the CLI source can be tracked normally.
+!native/tools/
+*-proto.png
+.codex-history/
+.worktrees/
+
+# Cover art — fetched from remote URLs (Catalog.js) + cached to disk; not source
+assets/covers/
+
+# Per-machine settings (QtCore Settings ini) — local picks, not source.
+player.ini
+wallpapers.ini
+views.ini
+
+# OS / editor cruft
+*.log
+Thumbs.db
+.DS_Store
+tests/xoxo_fixtures.gen.js
+
+# --- Local maintainer/process material (not public source) ---
+# Local handoffs, dataset probes, dev-tool mock HTML, and verification output.
+agents/
+# Verification run logs and dev-tool session output (lanista writes here at runtime).
+artifacts/
+# Dev-only UI mock HTML pages and their generators.
+mocks/
+# Retired bespoke universe pages (One Piece, Dragon Ball, Cosmere, etc.) —
+# half-built feature clutter, not 1.0-relevant. No runtime references.
+archive/
+# Local planning/specification scratch and generated mock material.
+docs/superpowers/
+
+# --- Generated catalogue bulk (runtime uses resources/comics_db.json, not this) ---
+qml/comics_db.gen.js
+
+# Comics catalogue SQLite db — pipeline-deployed by scripts/comics_brain/catalogue_build.py,
+# not shipped through git; app degrades gracefully when absent.
+data/
+!/data/
+/data/*
+!/data/title-identities-v1.json
+data/vault_token.txt
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# Local account-service infrastructure (live DB cluster + binaries; never commit)
+tools/pgdata/
+tools/pgsql/
+tools/pg-binaries.zip
+tools/_b8c*
+tools/_svc.log
+tools/_app_*.log
+tools/_v1.png
+tools/_run_*.png
+tools/_flyout*.png
+tools/_medallion*.png
+tools/_corner*.png
+tools/_c1.png
+tools/_moment.png
+tools/_zoom_*.png
+tools/_fields.png
+tools/_lower.png
+tools/_flow_*.png
+tools/_s0.png
+
+# Local generated code encyclopedia; keep local only.
+docs/encyclopedia/
+
+# Atlas Scout local data
+.atlas/
+
+# Generated release/package output lives outside the checkout (Colosseum-Local\dist); net for accidents.
+dist/
+
+# Release-prep scratch kept locally, never in public source archives.
+.tmp_mcu_wpapi.out
+docs/colosseum-trailer-capture-handoff.md
+native/_*.bat
+native/app-scrollcheck.log.out
+tests/_reality_shelves.txt
+
+# Legacy maintainer-local context. Public terminology lives in docs/terminology.md.
+/CONTEXT.md
+
+# Brotherhood process evidence stays local to each checkout.
+.superpowers/
+worlds/node_modules/

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "type": "error",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 17,
+  "payload": {
+    "code": "not_authorized",
+    "message": "only the host may change control mode"
+  }
+}

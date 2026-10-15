@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "type": "chat",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 14,
+  "payload": {
+    "sequence": 1,
+    "participantId": "participant-2",
+    "displayName": "Guest Name",
+    "message": "hey, ready when you are"
+  }
+}

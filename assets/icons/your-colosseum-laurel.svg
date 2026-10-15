@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Your Colosseum: the victor's laurel. History, highlights and stats as your record in the arena. -->
+  <path d="M11 21C6.4 19.6 3.6 15.2 4.8 7.8"/>
+  <path d="M13 21c4.6-1.4 7.4-5.8 6.2-13.2"/>
+  <g fill="#ffffff" stroke="none">
+    <ellipse cx="6.52" cy="19.37" rx="1.9" ry=".85" transform="rotate(-180.8 6.52 19.37)"/>
+    <ellipse cx="17.48" cy="19.37" rx="1.9" ry=".85" transform="rotate(360.8 17.48 19.37)"/>
+    <ellipse cx="7.66" cy="18.02" rx="1.9" ry=".85" transform="rotate(-100.8 7.66 18.02)"/>
+    <ellipse cx="16.34" cy="18.02" rx="1.9" ry=".85" transform="rotate(280.8 16.34 18.02)"/>
+    <ellipse cx="4.44" cy="16.10" rx="1.9" ry=".85" transform="rotate(-157.0 4.44 16.10)"/>
+    <ellipse cx="19.56" cy="16.10" rx="1.9" ry=".85" transform="rotate(337.0 19.56 16.10)"/>
+    <ellipse cx="6.04" cy="15.29" rx="1.9" ry=".85" transform="rotate(-77.0 6.04 15.29)"/>
+    <ellipse cx="17.96" cy="15.29" rx="1.9" ry=".85" transform="rotate(257.0 17.96 15.29)"/>
+    <ellipse cx="3.60" cy="11.82" rx="1.9" ry=".85" transform="rotate(-136.4 3.60 11.82)"/>
+    <ellipse cx="20.40" cy="11.82" rx="1.9" ry=".85" transform="rotate(316.4 20.40 11.82)"/>
+    <ellipse cx="5.39" cy="11.62" rx="1.9" ry=".85" transform="rotate(-56.4 5.39 11.62)"/>
+    <ellipse cx="18.61" cy="11.62" rx="1.9" ry=".85" transform="rotate(236.4 18.61 11.62)"/>
+    <ellipse cx="5.02" cy="6.42" rx="1.9" ry=".85" transform="rotate(-80.8 5.02 6.42)"/>
+    <ellipse cx="18.98" cy="6.42" rx="1.9" ry=".85" transform="rotate(260.8 18.98 6.42)"/>
+  </g>
+</svg>

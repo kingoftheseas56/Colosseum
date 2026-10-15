@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "type": "createRoom",
+  "roomId": "",
+  "senderId": "",
+  "sequence": 1,
+  "payload": {
+    "source": {
+      "kind": "torrent",
+      "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "fileIdx": 0
+    }
+  }
+}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Colosseum MCU Phase-by-Phase Mock</title>
+  <link rel="stylesheet" href="mcu-phase-by-phase.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="chrome-scrim"></div>
+    <button class="back" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+    </button>
+    <div class="chrome" aria-hidden="true">
+      <span class="minimize"></span>
+      <span class="maximize"></span>
+      <span class="close">×</span>
+    </div>
+    <div class="hero-art"></div>
+    <div class="hero-wash"></div>
+    <div class="hero-copy">
+      <div class="kicker">UNIVERSE</div>
+      <h1>Marvel Cinematic Universe</h1>
+      <div class="meta">108 works · screen, comics · Phase I to Phase VI</div>
+    </div>
+  </header>
+
+  <main id="universe-sections"></main>
+
+  <script src="mcu-phase-data-init.js"></script>
+  <script src="mcu-phase-1.js"></script>
+  <script src="mcu-phase-2.js"></script>
+  <script src="mcu-phase-3.js"></script>
+  <script src="mcu-phase-4.js"></script>
+  <script src="mcu-phase-5.js"></script>
+  <script src="mcu-phase-6.js"></script>
+  <script src="mcu-phase-renderer.js"></script>
+</body>
+</html>
