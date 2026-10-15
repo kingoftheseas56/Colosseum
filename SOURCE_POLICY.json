@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "purpose": "Source reading snapshot, not a buildable distribution",
+  "source_repository": "kingoftheseas56/Colosseum",
+  "source_branch": "master",
+  "max_export_bytes": 80000000,
+  "max_export_files": 4500,
+  "exclude": [
+    "assets/universes/**/*.png",
+    "assets/universes/**/*.jpg",
+    "assets/universes/**/*.jpeg",
+    "assets/universes/**/*.webp",
+    "docs/media/**",
+    "release/presentation/artwork/**",
+    ".github/workflows/**",
+    ".mcp.json",
+    "MEMORY.md"
+  ],
+  "always_omit_basenames": ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "MEMORY.md", "CAPABILITIES.md", "CODEX_MODE.md"],
+  "always_omit_prefixes": ["governance/", ".codex/", ".claude/", ".agents/"],
+  "retain": "All other tracked regular blobs, including all native/QML/JavaScript/backend/build/test source, all fixtures, fonts, icons, SVGs, reader resources and release presentation JSON. Existing Actions workflows remain in canonical master, not the generated branch.",
+  "sensitive_fixture_allowlist": ["server/watchparty-relay/test/dev-ca.pem"],
+  "generated_branch": "argon-source"
+}

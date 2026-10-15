@@ -1,0 +1,201 @@
+﻿{
+    "name":  "vault",
+    "comment":  "Vault local catalogue using the five-shape deterministic fixture. Run with vault-browse-five-shapes-v1 seed.",
+    "steps":  [
+                  {
+                      "cmd":  "ping",
+                      "label":  "isolated capture session answers",
+                      "expect":  [
+                                     {
+                                         "path":  "gates.drive",
+                                         "op":  "==",
+                                         "value":  "true"
+                                     }
+                                 ]
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "boot splash has left",
+                      "payload":  {
+                                      "object":  "bootSplash",
+                                      "prop":  "visible",
+                                      "value":  false,
+                                      "timeout_ms":  60000
+                                  },
+                      "expect":  [
+                                     {
+                                         "path":  "matched",
+                                         "op":  "==",
+                                         "value":  "true"
+                                     }
+                                 ]
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "fresh capture profile shows local-mode choice",
+                      "payload":  {
+                                      "object":  "accountWelcomeContinueLocal",
+                                      "prop":  "visible",
+                                      "value":  true,
+                                      "timeout_ms":  10000
+                                  },
+                      "expect":  [
+                                     {
+                                         "path":  "matched",
+                                         "op":  "==",
+                                         "value":  "true"
+                                     }
+                                 ]
+                  },
+                  {
+                      "cmd":  "ui-click",
+                      "label":  "continue without account for disposable capture profile",
+                      "payload":  {
+                                      "target":  "accountWelcomeContinueLocal"
+                                  }
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "Home shell appears after local-mode choice",
+                      "payload":  {
+                                      "object":  "modePill_Tankoban",
+                                      "prop":  "visible",
+                                      "value":  true,
+                                      "timeout_ms":  10000
+                                  },
+                      "expect":  [
+                                     {
+                                         "path":  "matched",
+                                         "op":  "==",
+                                         "value":  "true"
+                                     }
+                                 ]
+                  },
+                  {
+                      "cmd":  "ui-click",
+                      "label":  "open Vault",
+                      "payload":  {
+                                      "target":  "taskbarVaultDoor"
+                                  }
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "Vault is populated",
+                      "payload":  {
+                                      "object":  "vaultPage",
+                                      "prop":  "vaultState",
+                                      "value":  "populated",
+                                      "timeout_ms":  15000
+                                  }
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "Vault grid has fixture rows",
+                      "payload":  {
+                                      "object":  "vaultBrowseGrid",
+                                      "prop":  "count",
+                                      "value":  5,
+                                      "timeout_ms":  10000
+                                  }
+                  },
+                  {
+                      "capture":  {
+                                      "action":  "start",
+                                      "name":  "reddit-vault"
+                                  },
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "start Vault capture"
+                  },
+                  {
+                      "presentation_hold_ms":  800,
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "show local catalogue"
+                  },
+                  {
+                      "cmd":  "ui-click",
+                      "label":  "expand Vault rail",
+                      "payload":  {
+                                      "target":  "vaultBrowseRailToggle"
+                                  }
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "Vault rail expands",
+                      "payload":  {
+                                      "object":  "vaultBrowseRail",
+                                      "prop":  "expanded",
+                                      "value":  true,
+                                      "timeout_ms":  4000
+                                  }
+                  },
+                  {
+                      "presentation_hold_ms":  800,
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "show roots"
+                  },
+                  {
+                      "cmd":  "ui-click",
+                      "label":  "collapse Vault rail",
+                      "payload":  {
+                                      "target":  "vaultBrowseRailToggle"
+                                  }
+                  },
+                  {
+                      "cmd":  "ui-wait-for",
+                      "label":  "Vault rail collapses",
+                      "payload":  {
+                                      "object":  "vaultBrowseRail",
+                                      "prop":  "expanded",
+                                      "value":  false,
+                                      "timeout_ms":  4000
+                                  }
+                  },
+                  {
+                      "presentation_hold_ms":  600,
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "return to catalogue"
+                  },
+                  {
+                      "capture":  {
+                                      "action":  "stop"
+                                  },
+                      "cmd":  "__runner_local_presentation__",
+                      "expect":  [
+                                     {
+                                         "path":  "type",
+                                         "op":  "==",
+                                         "value":  "reply"
+                                     }
+                                 ],
+                      "label":  "stop Vault capture"
+                  }
+              ]
+}

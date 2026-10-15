@@ -1,0 +1,1105 @@
+// ComicSeries — the western-comics series page (Tankoban mode). A GetComics tag IS
+// the series (ratified 2026-07-04: GetComics for both catalog and download, iTunes
+// posters on top, no metadata brain in v1). The shelf is the tag's release posts,
+// newest-first, lightly grouped: collections (TPB/omnibus/treasury) lead, single
+// issues follow. Each release = ONE volume unit (TB2-ratified: TPB is king) — a
+// single archive download, ingested by `Comics` into ONE canonical CBZ the reader
+// opens directly (CBZ-in-place, 2026-08-06: a readable CBZ moves in unextracted;
+// anything else extracts then repacks). Legacy page dirs migrate on boot.
+// Covers: each release's own og_image (exact by construction); iTunes art is the
+// series-level hero only. Same glass-over-wallpaper language as MangaSeries.
+
+import QtQuick
+import QtQuick.Controls
+import "ComicsApi.js" as Api
+import "ComicResolve.js" as Resolve
+
+Item {
+    id: page
+    focus: true
+    activeFocusOnTab: true
+    property Item backdrop
+    property string seriesTitle: ""
+    property string tagSlug: ""            // GetComics tag slug — the series identity
+    property int    tagId: 0               // WP tag id (0 = resolve from the slug)
+    property string poster: ""             // iTunes series art (fetched here if empty)
+    // ---- baked mode (availability-first catalogue, spec 2026-07-17): the run-scoped
+    //      series page. Injected releases from ComicsCatalog skip live tag resolution;
+    //      everything else — sections, filter/sort, downloads, reader — is inherited.
+    property var bakedReleases: null       // null = live shelf; []+ = catalogue-fed
+    property int gcdId: 0                  // the GCD run id (baked mode identity)
+    // ---- pack mode (Slice 5, 2026-08-07): a downloads-backed multi-volume shelf. The
+    //      demuxed volumes live in the downloads index (packVolumes() hands them back as
+    //      {mains, extras}); we inject them as bakedReleases the same way openGcdSeries
+    //      injects a catalogue run, but the identity is an explicit packSeriesId (the
+    //      parent's seriesId, e.g. "gc:chew") instead of a gcdId. When non-empty, this
+    //      mode wins over live (tagSlug) and catalogue (gcdId): packSeriesId is set BEFORE
+    //      openChapterId so ComicReaderShell mounts with a stable progress key (df003eb).
+    property string packSeriesId: ""       // pack-injection mode: the downloads-backed series identity
+
+    // Arc 19: injectable service seams preserve production defaults while letting the
+    // consume-vs-acquire contract run deterministically in an offscreen harness.
+    property var comicsRef: (typeof Comics !== "undefined") ? Comics : null
+    property var progressRef: (typeof Progress !== "undefined") ? Progress : null
+    signal backRequested()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal closeRequested()
+    // reader chrome verbs (Windows-window vocabulary, same as MangaSeries)
+    signal readerMinimizeRequested()
+    signal readerFullscreenRequested()
+    signal readerCloseRequested()
+    // Back used to be swallowed locally (clearing openChapterId just revealed this page
+    // underneath); it now raises upward like the other three verbs, so Main.qml can route it
+    // through the same teardown authority Close already uses and land on the Tankoban library.
+    signal readerBackRequested()
+
+    Keys.onPressed: comicSeriesKeys.handle(event)
+    Keys.onReleased: (event) => comicSeriesKeys.handleRelease(event)
+
+    // --- resolved state ---
+    property var releases: []              // [{id,url,name,cover,year,sizeMB,synopsis,collection}]
+    property int totalReleases: 0          // GetComics' own count (> releases.length while loading / past cap)
+    property bool loading: true
+    property string errorMsg: ""
+    // Progress/reader key: live shelf = "gc:<tag>" (unchanged); baked mode = "gcd:<run>"
+    // ("gcd:…".indexOf("gc:") !== 0 — the continue router can't confuse the two); pack mode =
+    // the explicit packSeriesId (the parent seriesId, e.g. "gc:chew" — stable from injection).
+    // packSeriesId wins when set: a pack shelf is downloads-backed, not tag- or catalogue-fed.
+    readonly property string seriesId: packSeriesId.length > 0 ? packSeriesId
+                                     : bakedReleases !== null ? "gcd:" + gcdId
+                                     : "gc:" + tagSlug
+
+    // Foreground consumption intent is ephemeral. Download state remains entirely
+    // owned by ComicDownloader and survives navigation/cancellation independently.
+    property int _readIntentGeneration: 0
+    property string pendingReadReleaseId: ""
+    property string pendingReadSeriesId: ""
+    property var pendingReadRelease: null
+    readonly property bool pendingReadActive: page.pendingReadReleaseId.length > 0
+    readonly property int _progressRevision:
+        page.progressRef && page.progressRef.revision !== undefined ? Number(page.progressRef.revision) : 0
+    readonly property var resumeRec: {
+        var revisionDependency = page._progressRevision
+        return page.progressRef && page.seriesId.length
+            ? page.progressRef.get("comic", page.seriesId) : ({})
+    }
+
+    // --- shelf navigation: filter + sort (big series run to hundreds of releases).
+    // View-only — the reader's chapter list stays date-newest-first so its
+    // next/previous crossing keeps meaning regardless of how the shelf is sorted. ---
+    property string filter: ""
+    property string sortMode: "new"        // new | old | az
+    // natural compare: digit runs compare as numbers, so "#2" sorts before "#10"
+    function natCmp(a, b) {
+        var ax = String(a).toLowerCase().match(/(\d+)|(\D+)/g) || []
+        var bx = String(b).toLowerCase().match(/(\d+)|(\D+)/g) || []
+        for (var i = 0; i < Math.max(ax.length, bx.length); i++) {
+            var av = ax[i], bv = bx[i]
+            if (av === undefined) return -1
+            if (bv === undefined) return 1
+            if (/^\d/.test(av) && /^\d/.test(bv)) {
+                var d = Number(av) - Number(bv)
+                if (d) return d
+            } else if (av !== bv) return av < bv ? -1 : 1
+        }
+        return 0
+    }
+    readonly property var shown: {
+        var list = releases
+        var f = filter.trim().toLowerCase()
+        if (f.length) list = list.filter(function(r) { return r.name.toLowerCase().indexOf(f) >= 0 })
+        if (sortMode === "old") {
+            // publication order, not site-upload order: the parsed Year is the
+            // comic's own year (upload date would put a 2015 re-up before #1).
+            list = list.slice()
+            list.sort(function(a, b) {
+                var ay = a.year || 9999, by = b.year || 9999
+                return (ay - by) || page.natCmp(a.name, b.name)
+            })
+        } else if (sortMode === "az") {
+            list = list.slice()
+            list.sort(function(a, b) { return page.natCmp(a.name, b.name) })
+        }
+        return list
+    }
+    readonly property var collections: shown.filter(function(r) { return r.collection })
+    readonly property var issues: shown.filter(function(r) { return !r.collection })
+    // ---- pack mode (Slice 5): split the injected rows by packRole. The API (packVolumes)
+    //      already separates mains from extras and orders each by packOrder ASCENDING (v1
+    //      first); the filter here just re-derives the two lists from the flat releases array
+    //      so the section model stays consistent with filter/sort. ----
+    readonly property bool packMode: packSeriesId.length > 0
+    readonly property var packMains: shown.filter(function(r) { return r.packRole === "main" })
+    readonly property var packExtras: shown.filter(function(r) { return r.packRole === "extra" })
+    // The section list the table Repeater consumes. Pack mode = VOLUMES + EXTRAS (by role);
+    // live/catalogue = COLLECTED EDITIONS + ISSUES (by collection flag, unchanged).
+    readonly property var sectionModel: packMode
+        ? [ { label: "VOLUMES", items: packMains }, { label: "EXTRAS", items: packExtras } ]
+        : [ { label: "COLLECTED EDITIONS", items: collections }, { label: "ISSUES", items: issues } ]
+    // the reader's chapter list. Pack mode = MAINS ONLY, DESCENDING by packOrder (v8→v1, index 0
+    // = newest/highest volume — the crossing convention: nextEntry steps index-1 toward v1, the
+    // natural reading order). The API hands mains ascending; we reverse here. Extras NEVER appear
+    // in the crossing chain — opening one sets page.soloChapters (a single-entry array) at click.
+    // Live/catalogue mode = every release newest-first (crossing = next issue), unchanged.
+    readonly property var chaptersModel: packMode
+        ? packMains.slice().sort(function(a, b) { return (b.packOrder || 0) - (a.packOrder || 0) })
+                    .map(function(r) { return { id: r.id, name: r.name } })
+        : releases.map(function(r) {
+            return { id: r.id, name: r.name, url: r.url, cover: r.cover, sizeMB: r.sizeMB }
+        })
+
+    Theme { id: theme }
+
+    onTagSlugChanged: resolve()
+    onSeriesIdChanged: page._invalidateReadIntent()
+    Component.onCompleted: if (tagSlug.length || seriesTitle.length) resolve()
+    Component.onDestruction: page._invalidateReadIntent()
+
+    onBakedReleasesChanged: {
+        if (bakedReleases === null) return               // switching back to live: resolve() owns it
+        releases = bakedReleases
+        totalReleases = releases.length
+        loading = false; errorMsg = ""
+        if (!poster.length && seriesTitle.length)
+            Api.posterFor(seriesTitle + " comic", function(art) { if (art && bakedReleases !== null) page.poster = art })
+        enrichBaked()
+    }
+    // one WP call (chunked) fills covers+sizes onto the baked rows; rows paint instantly
+    // from the catalogue, art fades in when the response lands. Generation-guarded —
+    // the page is reused across opens.
+    property int _bakedGen: 0
+    function enrichBaked() {
+        var gen = ++_bakedGen
+        var ids = []
+        for (var i = 0; i < releases.length; i++)
+            if (!releases[i].cover || !releases[i].sizeMB) ids.push(releases[i].id)
+        if (!ids.length) return
+        Api.postsById(ids, function(map) {
+            if (gen !== page._bakedGen || page.bakedReleases === null) return
+            var out = page.releases.slice()
+            for (var j = 0; j < out.length; j++) {
+                var e = map[out[j].id]
+                if (e) out[j] = Object.assign({}, out[j], {
+                    cover: out[j].cover || e.cover || "",
+                    sizeMB: out[j].sizeMB || e.sizeMB || 0,
+                    year: out[j].year || e.year || 0 })
+            }
+            page.releases = out
+        })
+    }
+
+    function resolve() {
+        if (bakedReleases !== null) return   // catalogue-fed: nothing to resolve
+        loading = true; errorMsg = ""; releases = []
+        revealGuard.restart()
+        if (!poster.length && seriesTitle.length)
+            Api.posterFor(seriesTitle + " comic", function(art) { if (art) page.poster = art })
+        if (tagId > 0) { loadReleases(); return }
+        if (!tagSlug.length) {
+            // title-only open (a Top-10 tile, a genre-page tile): SLUG-FIRST (2026-07-12).
+            // WP's tag search is token-OR + count-ordered — popular titles get flooded out
+            // of their own results ("Absolute Batman" ranks under "Batman", 1417 releases),
+            // so blind tags[0] opened the WRONG franchise shelf or nothing. The exact slug
+            // derived from the title has no ambiguity; the ranked search stays as fallback,
+            // preferring an exact normalized-title hit over tags[0] when it must guess.
+            if (!seriesTitle.length) { errorMsg = "No series tag."; loading = false; return }
+            var wantNorm = String(seriesTitle).toLowerCase()
+                .replace(/\(\d{4}\)/g, "").replace(/\[[^\]]*\]/g, "")
+                .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
+            Api.tagBySlug(wantNorm.replace(/\s+/g, "-"), function(exact) {
+                if (exact) {
+                    page.tagId = exact.tagId
+                    page.tagSlug = exact.tag    // change signal re-enters resolve() on the tagId path
+                    return
+                }
+                Api.searchSeries(page.seriesTitle, function(tags) {
+                    if (!tags || !tags.length) {
+                        page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on GetComics."
+                        page.loading = false
+                        return
+                    }
+                    var pick = tags[0]
+                    for (var i = 0; i < tags.length; i++) {
+                        var tn = String(tags[i].title).toLowerCase()
+                            .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
+                        if (tn === wantNorm) { pick = tags[i]; break }
+                    }
+                    page.tagId = pick.tagId
+                    page.tagSlug = pick.tag
+                })
+            })
+            return
+        }
+        Api.tagBySlug(tagSlug, function(t) {
+            if (!t) { page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on GetComics."; page.loading = false; return }
+            page.tagId = t.tagId
+            if (!page.seriesTitle.length) page.seriesTitle = t.title
+            loadReleases()
+        })
+    }
+    function loadReleases() {
+        Api.releases(tagId, function(rs, total) {   // fires twice on multi-page series: page 1, then all
+            page.releases = rs || []
+            page.totalReleases = total || page.releases.length
+            page.loading = false
+            revealGuard.stop()
+            if (!page.releases.length) page.errorMsg = "No releases under this series tag."
+        })
+    }
+    Timer { id: revealGuard; interval: 12000; repeat: false; onTriggered: page.loading = false }
+
+    function collectionEntry() {
+        return { "id": page.seriesId, "type": "comic",
+                 "title": page.seriesTitle, "cover": page.poster,
+                 "payload": ({ "tag": page.tagSlug, "tagId": page.tagId }) }
+    }
+
+    function fmtMB(mb) {
+        if (!mb) return ""
+        return mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : mb + " MB"
+    }
+
+    // ===================== consumption intent (Arc 19) =====================
+    function _releaseSnapshot(release) {
+        if (!release) return null
+        return { "id": String(release.id || ""), "name": String(release.name || ""),
+                 "url": String(release.url || ""), "sizeMB": Number(release.sizeMB || 0),
+                 "packRole": String(release.packRole || "") }
+    }
+
+    function _stateOf(releaseId) {
+        var service = page.comicsRef
+        if (!service || !service.statusOf) return "none"
+        var status = service.statusOf(String(releaseId || "")) || ({})
+        return String(status.state || "none")
+    }
+
+    function _inFlightState(state) {
+        return state === "resolving" || state === "queued"
+            || state === "downloading" || state === "extracting"
+    }
+
+    function _clearReadIntent() {
+        page.pendingReadReleaseId = ""
+        page.pendingReadSeriesId = ""
+        page.pendingReadRelease = null
+    }
+
+    function _invalidateReadIntent() {
+        page._readIntentGeneration += 1
+        page._clearReadIntent()
+    }
+
+    function _beginReadIntent(release) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length) return 0
+        page._readIntentGeneration += 1
+        page.pendingReadReleaseId = snap.id
+        page.pendingReadSeriesId = page.seriesId
+        page.pendingReadRelease = snap
+        return page._readIntentGeneration
+    }
+
+    function _readIntentMatches(releaseId, generation) {
+        return page.pendingReadActive
+            && String(releaseId) === page.pendingReadReleaseId
+            && Number(generation) === page._readIntentGeneration
+            && page.pendingReadSeriesId === page.seriesId
+    }
+
+    function _openRelease(release) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length) return false
+        if (snap.packRole === "extra")
+            page.soloChapters = [ { "id": snap.id, "name": snap.name } ]
+        else
+            page.soloChapters = null
+        page.openChapterId = snap.id
+        page.openChapterLabel = snap.name
+        return true
+    }
+
+    function _completePendingRead(releaseId, generation) {
+        var id = String(releaseId || "")
+        if (!page._readIntentMatches(id, generation)) return false
+        if (page._stateOf(id) !== "done") return false
+        var service = page.comicsRef
+        var pages = service && service.localPages ? (service.localPages(id) || []) : []
+        if (!pages.length) return false
+        var release = page.pendingReadRelease
+        page._clearReadIntent()
+        return page._openRelease(release)
+    }
+
+    function _startDownload(release) {
+        var snap = page._releaseSnapshot(release)
+        var service = page.comicsRef
+        if (!snap || !snap.id.length || !service || !service.downloadIssue) return false
+        service.downloadIssue(snap.id, snap.url, page.seriesId, page.seriesTitle, snap.name,
+                              snap.sizeMB * 1024 * 1024)
+        if (typeof Collection !== "undefined")
+            Collection.add("tankoban", page.collectionEntry())
+        return true
+    }
+
+    function readRelease(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length || String(stateHint || "") === "dead") return false
+        var state = page._stateOf(snap.id)
+        if (state === "done") {
+            page._invalidateReadIntent()
+            return page._openRelease(snap)
+        }
+        var generation = page._beginReadIntent(snap)
+        if (!generation) return false
+        if (page._inFlightState(state)) return true
+        if (page._startDownload(snap)) return true
+        if (page._readIntentMatches(snap.id, generation)) page._invalidateReadIntent()
+        return false
+    }
+
+    function downloadRelease(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length || String(stateHint || "") === "dead") return false
+        var state = page._stateOf(snap.id)
+        if (state === "done" || page._inFlightState(state)) return false
+        return page._startDownload(snap)
+    }
+
+    function _resumeFor(releaseId) {
+        var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
+        return r && String(r.chapterId || "") === String(releaseId || "") ? r : null
+    }
+
+    function readingPercent(releaseId) {
+        var r = page._resumeFor(releaseId)
+        if (!r || !page.resumeRec) return -1
+        var value = Number(page.resumeRec.progress)
+        if (!isFinite(value)) return -1
+        return Math.round(Math.max(0, Math.min(1, value)) * 100)
+    }
+
+    function readActionLabel(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length) return "Read"
+        var hint = String(stateHint || "")
+        if (hint === "dead") return "Unavailable"
+        var state = page._stateOf(snap.id)
+        if (page.pendingReadReleaseId === snap.id && page._inFlightState(state))
+            return "Reading when ready"
+        if (state === "done") {
+            var r = page._resumeFor(snap.id)
+            if (r && r.finished !== true) {
+                var pct = page.readingPercent(snap.id)
+                return pct > 0 ? ("Continue · " + pct + "%") : "Continue"
+            }
+        }
+        if (hint === "error") return "Retry Read"
+        if (page._inFlightState(state)) return "Read when ready"
+        return "Read"
+    }
+
+    function readStatusLine(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length || String(stateHint || "") !== "done") return ""
+        var r = page._resumeFor(snap.id)
+        if (!r) return ""
+        if (r.finished === true) return "Finished"
+        var pct = page.readingPercent(snap.id)
+        return pct >= 0 ? (pct + "% read") : ""
+    }
+
+    Connections {
+        target: page.comicsRef
+        ignoreUnknownSignals: true
+        function onFinished(releaseId) {
+            if (!page.pendingReadActive || String(releaseId) !== page.pendingReadReleaseId) return
+            page._completePendingRead(String(releaseId), page._readIntentGeneration)
+        }
+        function onFailed(releaseId, reason) {
+            if (page.pendingReadActive && String(releaseId) === page.pendingReadReleaseId)
+                page._invalidateReadIntent()
+        }
+        function onRemoved(releaseId) {
+            if (page.pendingReadActive && String(releaseId) === page.pendingReadReleaseId)
+                page._invalidateReadIntent()
+        }
+    }
+
+    // ===================== visual tree =====================
+    MouseArea { anchors.fill: parent }                      // absorb clicks from the world below
+
+    Rectangle { anchors.fill: parent; color: "#000000" }
+    ShaderEffectSource {
+        anchors.fill: parent
+        sourceItem: page.backdrop
+        live: true; hideSource: false
+        visible: page.backdrop !== null
+        opacity: 0.5
+    }
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.5) }
+            GradientStop { position: 0.42; color: Qt.rgba(0, 0, 0, 0.78) }
+            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.95) }
+        }
+    }
+
+    ChromeScrim { z: 16 }
+
+    // ---- ‹ Back ----
+    BackAction {
+        id: backBtn
+        x: theme.margin; y: 28; z: 20
+        onTriggered: { page._invalidateReadIntent(); page.backRequested() }
+    }
+
+    // ---- window controls (minimize / power) ----
+    Row {
+        z: 30
+        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        spacing: 20
+        Item {
+            width: 22; height: 22
+            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
+                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
+                opacity: minMa.containsMouse ? 1.0 : 0.72 }
+            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: { page._invalidateReadIntent(); page.minimizeRequested() } }
+            KeyboardAction {
+                id: minimizeKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Minimize window"
+                onTriggered: { page._invalidateReadIntent(); page.minimizeRequested() }
+            }
+        }
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg"
+                        : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: fsMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: fsMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: page.fullscreenRequested()
+            }
+            KeyboardAction {
+                id: fullscreenKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Toggle fullscreen"
+                onTriggered: page.fullscreenRequested()
+            }
+        }
+        Item {
+            width: 22; height: 22
+            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
+                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
+                opacity: clMa.containsMouse ? 1.0 : 0.72 }
+            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: { page._invalidateReadIntent(); page.closeRequested() } }
+            KeyboardAction {
+                id: closeKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Close series"
+                onTriggered: { page._invalidateReadIntent(); page.closeRequested() }
+            }
+        }
+    }
+
+    // ---- the page: banner hero → release shelf (glass table, collections then issues) ----
+    Flickable {
+        id: flick
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: pageCol.height
+        clip: true
+        pixelAligned: false
+        boundsBehavior: Flickable.StopAtBounds
+        opacity: page.loading ? 0.0 : 1.0
+        ScrollBar.vertical: HouseScrollBar { flick: flick }
+        Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+
+        Column {
+            id: pageCol
+            width: flick.width
+            spacing: 0
+
+            // ── BANNER HERO — iTunes series art washed into the page ──
+            Item {
+                width: parent.width
+                height: 320
+
+                Image {
+                    anchors.fill: parent
+                    source: page.poster
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true; cache: true
+                    opacity: status === Image.Ready ? 0.55 : 0.0
+                    Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.035, 0.055, 0.25) }
+                        GradientStop { position: 0.55; color: Qt.rgba(0.03, 0.035, 0.05, 0.55) }
+                        GradientStop { position: 1.0; color: Qt.rgba(0.02, 0.025, 0.04, 0.92) }
+                    }
+                }
+
+                Row {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin; anchors.bottomMargin: 28
+                    spacing: 26
+
+                    // the series poster as a real cover, not just a wash
+                    Rectangle {
+                        width: 128; height: 190; visible: page.poster.length > 0
+                        color: "#1a1c24"; border.width: 1; border.color: Qt.rgba(1,1,1,0.14)
+                        anchors.bottom: parent.bottom
+                        Image {
+                            anchors.fill: parent; anchors.margins: 1
+                            source: page.poster
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true; cache: true
+                        }
+                    }
+                    Column {
+                        spacing: 12
+                        anchors.bottom: parent.bottom
+                        Text {
+                            text: "Western Comics · Tankoban"
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                            font.letterSpacing: 3; font.capitalization: Font.AllUppercase
+                        }
+                        Text {
+                            width: flick.width - 2 * theme.margin - 180
+                            text: page.seriesTitle
+                            color: theme.ink; font.family: theme.display; font.pixelSize: 54
+                            font.weight: Font.DemiBold
+                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
+                        }
+                        // INLINE metadata — bright count + dim medium (the transparent-tablet law)
+                        Row {
+                            spacing: 11
+                            Text { text: page.releases.length
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "releases" + (page.totalReleases > page.releases.length
+                                                       ? " of " + page.totalReleases : "")
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                            Text { visible: page.collections.length > 0; text: "·"
+                                color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
+                            Text { visible: page.collections.length > 0
+                                text: page.collections.length + " collected editions"
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                        }
+
+                        LibraryButton {
+                            world: "tankoban"
+                            entry: page.collectionEntry()
+                        }
+                        // No Ratings & Reviews action here: comics are outside the
+                        // admitted route (Arc 49 Slice 1 identity exclusion).
+                    }
+                }
+            }
+
+            // ── SHELF CONTROLS — filter + sort; view-only, the reader is untouched ──
+            Item {
+                width: parent.width; height: 64
+                visible: page.releases.length > 0
+
+                // search-within-the-shelf (left): underlined inline field, no chrome
+                Item {
+                    id: filterBox
+                    x: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(380, parent.width * 0.4); height: 36
+                    TextInput {
+                        id: filterInput
+                        anchors.left: parent.left; anchors.right: clearBtn.visible ? clearBtn.left : parent.right
+                        anchors.top: parent.top; anchors.bottom: parent.bottom
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: 15
+                        clip: true; selectByMouse: true
+                        onTextChanged: page.filter = text
+                    }
+                    Text {
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        visible: filterInput.text.length === 0 && !filterInput.activeFocus
+                        text: "Search releases…"
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 15
+                    }
+                    Item {
+                        id: clearBtn
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        width: 24; height: 24
+                        visible: filterInput.text.length > 0
+                        Text { anchors.centerIn: parent; text: "✕"
+                            color: clearMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 13 }
+                        MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: filterInput.text = "" }
+                        KeyboardAction {
+                            id: clearKeyboard
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: clearBtn.visible
+                            accessibleName: "Clear release search"
+                            onTriggered: filterInput.text = ""
+                        }
+                    }
+                    Rectangle {
+                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                        height: 1
+                        color: filterInput.activeFocus ? Qt.rgba(0.94, 0.77, 0.29, 0.7) : theme.edge
+                    }
+                }
+                // live match count while filtering (inline, dim)
+                Text {
+                    anchors.left: filterBox.right; anchors.leftMargin: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: page.filter.trim().length > 0
+                    text: page.shown.length + (page.shown.length === 1 ? " match" : " matches")
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                }
+                // sort (right): Newest · Oldest · A–Z — A–Z is numeric-aware (#2 before #10)
+                Row {
+                    anchors.right: parent.right; anchors.rightMargin: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 22
+                    Repeater {
+                        model: [{ k: "new", l: "Newest" }, { k: "old", l: "Oldest" }, { k: "az", l: "A–Z" }]
+                        delegate: Item {
+                            id: sopt
+                            required property var modelData
+                            width: soptText.implicitWidth; height: 26
+                            readonly property bool on: page.sortMode === sopt.modelData.k
+                            Text { id: soptText; text: sopt.modelData.l
+                                color: sopt.on ? theme.gold : (soptMa.containsMouse ? theme.ink : theme.inkDim)
+                                font.family: theme.ui; font.pixelSize: 13
+                                font.weight: sopt.on ? Font.DemiBold : Font.Normal }
+                            Rectangle { visible: sopt.on; anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 18; height: 2; radius: 2; color: theme.gold }
+                            MouseArea { id: soptMa; anchors.fill: parent; anchors.margins: -4
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: page.sortMode = sopt.modelData.k }
+                            KeyboardAction {
+                                id: sortKeyboard
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                pointerEnabled: false
+                                accessibleName: "Sort releases " + sopt.modelData.l
+                                onTriggered: page.sortMode = sopt.modelData.k
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── RELEASE TABLE — collections lead, issues follow, one glass widget ──
+            Item {
+                width: parent.width
+                height: relTable.height + 24
+                visible: page.shown.length > 0
+
+                Glass {
+                    id: relTable
+                    x: theme.margin
+                    width: parent.width - 2 * theme.margin
+                    height: tableInner.height
+                    radius: 18
+                    backdrop: page.backdrop
+                    track: flick.contentY
+
+                    Column {
+                        id: tableInner
+                        width: parent.width
+
+                        Repeater {
+                            // Pack mode renders VOLUMES + EXTRAS (by packRole); live/catalogue
+                            // renders COLLECTED EDITIONS + ISSUES (by collection flag). The
+                            // delegate is shape-agnostic — it reads modelData.label / .items.
+                            model: page.sectionModel
+                            delegate: Column {
+                                id: section
+                                required property var modelData
+                                width: tableInner.width
+                                visible: section.modelData.items.length > 0
+
+                                // section header
+                                Item {
+                                    width: parent.width; height: 52
+                                    Row {
+                                        anchors.left: parent.left; anchors.leftMargin: 24
+                                        anchors.verticalCenter: parent.verticalCenter; spacing: 14
+                                        Text { text: section.modelData.label; color: theme.inkDimmer
+                                            font.family: theme.display; font.pixelSize: 13; font.letterSpacing: 3
+                                            anchors.verticalCenter: parent.verticalCenter }
+                                        Text { text: section.modelData.items.length; color: theme.ink
+                                            font.family: theme.display; font.pixelSize: 15; font.weight: Font.Bold
+                                            anchors.verticalCenter: parent.verticalCenter }
+                                    }
+                                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
+                                }
+
+                                Repeater {
+                                    model: section.modelData.items
+                                    delegate: Item {
+                                        id: row
+                                        required property var modelData
+                                        objectName: "comicReleaseRow_" + String(row.modelData.id || "")
+                                        width: tableInner.width; height: 96
+
+                                        property string relId: String(row.modelData.id || "")
+                                        property string dlState: "none"   // none|resolving|queued|downloading|extracting|done|error
+                                        property real dlDone: 0
+                                        property real dlTotal: 0
+                                        readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
+                                                                       || dlState === "resolving" || dlState === "extracting"
+                                        function statusLine() {
+                                            if (dlState === "done") {
+                                                var reading = page.readStatusLine(row.modelData, dlState)
+                                                return reading.length ? reading : "● Downloaded"
+                                            }
+                                            if (dlState === "resolving") return "Resolving link…"
+                                            if (dlState === "queued") return "Queued…"
+                                            if (dlState === "extracting") return "Extracting pages…"
+                                            if (dlState === "downloading")
+                                                return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%")
+                                                                   : "Downloading…"
+                                            if (dlState === "dead") return "Not available from this source"
+                                            if (dlState === "error") return "⚠ Failed — Read to retry"
+                                            var bits = []
+                                            if (row.modelData.year) bits.push(row.modelData.year)
+                                            if (row.modelData.sizeMB) bits.push(page.fmtMB(row.modelData.sizeMB))
+                                            return bits.join(" · ")
+                                        }
+                                        function primary() {
+                                            if (row.dlState === "dead") return
+                                            page.readRelease(row.modelData, row.dlState)
+                                            Qt.callLater(row.refreshDl)
+                                        }
+                                        function downloadOnly() {
+                                            if (page.downloadRelease(row.modelData, row.dlState))
+                                                Qt.callLater(row.refreshDl)
+                                        }
+                                        function activateTrailing() {
+                                            var service = page.comicsRef
+                                            if (!service) return
+                                            if (row.dlState === "done" && service.deleteIssue) service.deleteIssue(row.relId)
+                                            else if (row.inFlight && service.cancelDownload) service.cancelDownload(row.relId)
+                                            else row.downloadOnly()
+                                        }
+                                        function refreshDl() {
+                                            var service = page.comicsRef
+                                            if (!service || !service.statusOf) return
+                                            var st = service.statusOf(row.relId) || ({})
+                                            row.dlState = String(st.state || "none")
+                                            row.dlDone = Number(st.done || 0); row.dlTotal = Number(st.total || 0)
+                                        }
+                                        Component.onCompleted: refreshDl()
+                                        Connections {
+                                            target: page.comicsRef
+                                            function onProgress(cid, done, total) {
+                                                if (cid !== row.relId) return
+                                                row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
+                                            }
+                                            function onFinished(cid) { if (cid === row.relId) row.dlState = "done" }
+                                            // terminal "no-source" (all mirrors CF-blocked/offline) → dead, not retryable
+                                            function onFailed(cid, reason) {
+                                                if (cid === row.relId) row.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                                            }
+                                            function onRemoved(cid) { if (cid === row.relId) row.dlState = "none" }
+                                        }
+                                        // extraction has no byte progress — poll state while in flight
+                                        Timer {
+                                            interval: 700; repeat: true
+                                            running: row.inFlight
+                                            onTriggered: row.refreshDl()
+                                        }
+
+                                        Rectangle { anchors.fill: parent; color: rowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
+
+                                        KeyboardAction {
+                                            id: rowKeyboard
+                                            anchors.fill: parent
+                                            pointerEnabled: false
+                                            focusEnabled: row.dlState !== "dead"
+                                            accessibleName: "Read " + String(row.modelData.name || "release")
+                                            onTriggered: row.primary()
+                                        }
+
+                                        // release cover (GetComics og_image — exact per release)
+                                        Item {
+                                            id: thumb
+                                            anchors.left: parent.left; anchors.leftMargin: 22
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 58; height: 82
+                                            Rectangle {
+                                                anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1
+                                                border.color: row.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
+                                                Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
+                                                    text: "#"; color: theme.inkDimmer
+                                                    font.family: theme.display; font.pixelSize: 22 }
+                                            }
+                                            Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
+                                                source: row.modelData.cover || ""; visible: status === Image.Ready
+                                                fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
+                                                sourceSize.width: 170
+                                                // wp.com 429-throttles a 28-cover burst — staggered re-request lands them
+                                                property int retries: 0
+                                                onStatusChanged: if (status === Image.Error && retries < 2) coverRetry.restart()
+                                                Timer { id: coverRetry; interval: 1200 + Math.random() * 2400
+                                                    onTriggered: { thumbImg.retries += 1
+                                                        var s = row.modelData.cover || ""
+                                                        thumbImg.source = ""; thumbImg.source = s } }
+                                            }
+                                        }
+
+                                        Column {
+                                            anchors.left: thumb.right; anchors.leftMargin: 16
+                                            anchors.right: readAction.left; anchors.rightMargin: 14
+                                            anchors.verticalCenter: parent.verticalCenter; spacing: 4
+                                            Text { width: parent.width; text: row.modelData.name
+                                                color: rowMa.containsMouse ? theme.gold : theme.ink
+                                                font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
+                                            Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
+                                                color: row.dlState === "done" ? theme.gold
+                                                     : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
+                                                font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                        }
+
+                                        // Stable consume verb: the row and this control always mean Read.
+                                        // Transport state may change the helper text, never the user's intent.
+                                        Item {
+                                            id: readAction
+                                            objectName: "comicReadAction_" + row.relId
+                                            anchors.right: trailing.left; anchors.rightMargin: 10
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: Math.max(86, readText.implicitWidth + 28); height: 36
+                                            Rectangle {
+                                                anchors.fill: parent; radius: 9
+                                                color: page.pendingReadReleaseId === row.relId ? theme.glassTint : theme.gold
+                                                border.width: page.pendingReadReleaseId === row.relId ? 1 : 0
+                                                border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
+                                                opacity: row.dlState === "dead" ? 0.45 : 1.0
+                                            }
+                                            Text {
+                                                id: readText; anchors.centerIn: parent
+                                                text: page.readActionLabel(row.modelData, row.dlState)
+                                                color: page.pendingReadReleaseId === row.relId ? theme.gold : "#171205"
+                                                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; z: 5
+                                                enabled: row.dlState !== "dead"
+                                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                onClicked: row.primary()
+                                            }
+                                        }
+
+                                        // trailing acquire-only utility: ✓→✕ delete · ✕ cancel · ↓/↻ download/retry
+                                        Item {
+                                            id: trailing
+                                            objectName: "comicDownloadAction_" + row.relId
+                                            anchors.right: parent.right; anchors.rightMargin: 22
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 36; height: 36
+                                            Rectangle { anchors.fill: parent; radius: 18
+                                                color: trMa.containsMouse ? theme.glassHi : "transparent" }
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: row.dlState === "dead" ? ""
+                                                    : row.dlState === "done" ? (trMa.containsMouse ? "✕" : "✓")
+                                                    : row.inFlight ? "✕"
+                                                    : row.dlState === "error" ? "↻" : "↓"
+                                                color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
+                                                     : row.dlState === "done" ? theme.gold
+                                                     : trMa.containsMouse ? theme.gold : theme.inkDim
+                                                font.pixelSize: 16
+                                                font.weight: (row.dlState === "done" && !trMa.containsMouse) ? Font.Bold : Font.Normal
+                                            }
+                                            MouseArea {
+                                                id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
+                                                enabled: row.dlState !== "dead"   // no usable source — no verb
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: trailing.activateTrailing()
+                                            }
+                                            KeyboardAction {
+                                                id: trailingKeyboard
+                                                anchors.fill: parent
+                                                pointerEnabled: false
+                                                focusEnabled: row.dlState !== "dead"
+                                                accessibleName: row.dlState === "done" ? "Remove downloaded release"
+                                                    : row.inFlight ? "Cancel release download" : "Download release"
+                                                onTriggered: trailing.activateTrailing()
+                                            }
+                                        }
+
+                                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1
+                                            color: Qt.rgba(1,1,1,0.05) }
+                                        MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true
+                                            cursorShape: row.dlState === "dead" ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                            onClicked: row.primary() }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // filter came up empty (the shelf itself isn't)
+            Text {
+                visible: !page.loading && page.releases.length > 0 && page.shown.length === 0
+                x: theme.margin
+                text: "No releases match “" + page.filter.trim() + "”."
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                topPadding: 10
+            }
+
+            // post-reveal error (inset)
+            Text {
+                visible: !page.loading && page.errorMsg.length > 0
+                x: theme.margin
+                text: page.errorMsg
+                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 13
+                topPadding: 18
+            }
+
+            Item { width: 1; height: 70 }
+        }
+    }
+
+    ScrollGlide { id: comicSeriesGlide; flick: flick }
+    KeyboardScrollController {
+        id: comicSeriesKeys
+        flick: flick
+        glide: comicSeriesGlide
+    }
+
+    // ---- scroll bar: always visible when the page overflows, draggable, click-to-jump ----
+    Item {
+        id: sbar
+        z: 26
+        visible: flick.contentHeight > flick.height + 8 && !page.loading
+        anchors.right: parent.right; anchors.rightMargin: 4
+        y: 76
+        width: 12
+        height: parent.height - 96
+        Rectangle {   // track
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 3; height: parent.height; radius: 1.5
+            color: Qt.rgba(1, 1, 1, 0.07)
+        }
+        Rectangle {
+            id: sHandle
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: (sMa.containsMouse || sMa.drag.active) ? 7 : 5
+            radius: width / 2
+            height: Math.max(40, sbar.height * flick.height / Math.max(1, flick.contentHeight))
+            color: sMa.drag.active ? theme.gold
+                 : (sMa.containsMouse ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(1, 1, 1, 0.28))
+            Behavior on width { NumberAnimation { duration: 100 } }
+        }
+        // content drives the handle EXCEPT while the handle itself is being dragged
+        Binding {
+            target: sHandle; property: "y"
+            value: (sbar.height - sHandle.height)
+                   * (flick.contentY / Math.max(1, flick.contentHeight - flick.height))
+            when: !sMa.drag.active
+        }
+        MouseArea {
+            id: sMa
+            anchors.fill: parent; hoverEnabled: true
+            drag.target: sHandle; drag.axis: Drag.YAxis
+            drag.minimumY: 0; drag.maximumY: Math.max(0, sbar.height - sHandle.height)
+            onPositionChanged: {
+                if (!drag.active) return
+                flick.contentY = sHandle.y / Math.max(1, sbar.height - sHandle.height)
+                                 * (flick.contentHeight - flick.height)
+            }
+            onClicked: function(m) {
+                var frac = (m.y - sHandle.height / 2) / Math.max(1, sbar.height - sHandle.height)
+                flick.contentY = Math.max(0, Math.min(1, frac)) * (flick.contentHeight - flick.height)
+            }
+        }
+    }
+
+    // ---- clean loading state ----
+    Column {
+        visible: page.loading
+        opacity: page.loading ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        anchors.centerIn: parent
+        width: parent.width * 0.7
+        spacing: 14
+        Text {
+            width: parent.width; horizontalAlignment: Text.AlignHCenter
+            text: page.seriesTitle
+            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+        }
+        Text {
+            width: parent.width; horizontalAlignment: Text.AlignHCenter
+            text: page.errorMsg.length ? page.errorMsg : "Loading…"
+            color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
+            font.family: theme.ui; font.pixelSize: 14
+        }
+    }
+
+    // ---- reader overlay: the SAME recreated reader, fed by the Comics store ----
+    // Direct child (not a Loader+Component) for the same id-resolution reason as
+    // MangaSeries' reader. `western: true` flips its page/download source to Comics.
+    property string openChapterId: ""
+    property string openChapterLabel: ""
+    function requestReaderEscape() {
+        if (readerLayer.visible) readerLayer.closeTop()
+    }
+    // Transient: when non-null, the reader binds THIS as its chapters array instead of
+    // chaptersModel. Set by _openRelease() when an extra is clicked (single-entry — no crossing).
+    // Cleared (null) when a main is clicked, restoring the full mains-descending chain.
+    property var soloChapters: null
+    MangaReader {
+        id: readerLayer
+        anchors.fill: parent; z: 60
+        visible: page.openChapterId.length > 0
+        western: true
+        backdrop: page.backdrop
+        seriesTitle: page.seriesTitle
+        seriesId: page.seriesId
+        seriesCover: page.poster
+        chapters: page.soloChapters || page.chaptersModel
+        chapterId: page.openChapterId
+        chapterLabel: page.openChapterLabel
+        // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)
+        // to pick the right teardown lane. Clearing it first would make that routing fall
+        // through to the wrong branch.
+        onBackRequested: page.readerBackRequested()
+        onMinimizeRequested: page.readerMinimizeRequested()
+        onFullscreenRequested: page.readerFullscreenRequested()
+        onCloseRequested: page.readerCloseRequested()
+    }
+}

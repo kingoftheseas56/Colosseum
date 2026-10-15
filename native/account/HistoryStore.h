@@ -1,0 +1,181 @@
+#pragma once
+
+// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
+
+#include <QObject>
+#include <QSettings>
+#include <QString>
+#include <QVariantList>
+#include <QVariantMap>
+#include <QHash>
+
+#include <memory>
+
+
+class HistoryStore final : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(
+        int revision
+        READ revision
+        NOTIFY changed)
+
+public:
+    explicit HistoryStore(
+        QObject *parent = nullptr);
+
+    explicit HistoryStore(
+        const QString &iniPath,
+        QObject *parent = nullptr);
+
+    int revision() const;
+
+    bool healthy(
+        QString *error = nullptr) const;
+
+    // Presentation/read seam. Sorted by most recent activity descending.
+    Q_INVOKABLE QVariantList records() const;
+
+    Q_INVOKABLE QVariantMap get(
+        const QString &kind,
+        const QString &id) const;
+
+    // Local durable history facts. These are intentionally independent from
+    // Continue/progress ownership.
+    Q_INVOKABLE bool recordActivity(
+        const QString &kind,
+        const QString &id,
+        qint64 activityAtMs);
+
+    Q_INVOKABLE bool completed(const QString &kind, const QString &id) const;
+
+    bool recordActivityRange(const QString &kind, const QString &id,
+                             qint64 firstActivityAtMs, qint64 lastActivityAtMs);
+
+    Q_INVOKABLE bool markCompleted(
+        const QString &kind,
+        const QString &id,
+        qint64 completedAtMs);
+
+    // ProgressStore crosses the native completion threshold without creating
+    // an Activity event. A same-tick Activity event ID or same-session token,
+    // when present, links both projections without changing portable History.
+    bool markProgressCompleted(
+        const QString &kind,
+        const QString &id,
+        qint64 completedAtMs,
+        const QString &activityEventId = QString(),
+        const QString &activitySessionId = QString());
+    bool trackerEvidenceHealthy(QString *error = nullptr) const;
+    QVariantList trackerLocalCompletionFacts() const;
+    QVariantMap trackerLocalCompletionFact(const QString &eventId) const;
+
+    // Explicit user history deletion. Removing Continue/progress does not call
+    // this method.
+    Q_INVOKABLE bool remove(
+        const QString &kind,
+        const QString &id);
+
+    Q_INVOKABLE bool clearAll();
+
+    // Remote Activity privacy reset clears the derived History projection
+    // without manufacturing a second local cloud mutation.
+    bool clearSyncedAll(qint64 barrierAtMs = 0);
+
+    // Native sync/export seam.
+    QVariantList syncEntries() const;
+
+    qint64 syncResetGeneration() const { return m_resetGeneration; }
+    qint64 syncResetBarrierAtMs() const { return m_resetBarrierAtMs; }
+
+    // Exact remote winner application. These deliberately do not emit
+    // syncDirty(); SyncAdapterRegistry suppresses synchronous owner echo and
+    // the owner itself never manufactures a local mutation for remote state.
+    bool applySyncedRecord(
+        const QVariantMap &record);
+
+    // Applies a durable category reset without emitting a new local cloud
+    // mutation. Generation is the ordering authority; the timestamp only
+    // prevents an already accepted barrier from moving backwards.
+    bool applySyncedReset(
+        qint64 generation,
+        qint64 resetAtMs);
+
+    bool removeSyncedRecord(
+        const QString &kind,
+        const QString &id);
+
+signals:
+    void changed();
+    void syncDirty();
+    void trackerLocalCompletionCommitted(const QVariantMap &fact);
+
+private:
+    struct OwnerState {
+        QVariantMap records;
+        QVariantMap trackerLocalCompletions;
+        QHash<QString, qint64> tombstones;
+        qint64 resetGeneration = 0;
+        qint64 resetBarrierAtMs = 0;
+    };
+
+    static QString recordKey(
+        const QString &kind,
+        const QString &id);
+
+    static bool normalizeRecord(
+        const QVariantMap &input,
+        QVariantMap *normalized);
+
+    static bool validIdentity(
+        const QString &kind,
+        const QString &id);
+
+    void load();
+
+    bool commit(
+        const QVariantMap &next,
+        bool localMutation,
+        const OwnerState &previous);
+
+    OwnerState ownerState() const;
+    void restoreOwnerState(const OwnerState &state);
+
+    bool saveRecords(
+        const QVariantMap &records) const;
+    bool markCompletedInternal(
+        const QString &kind,
+        const QString &id,
+        qint64 completedAtMs,
+        bool fromProgress,
+        const QString &activityEventId = QString(),
+        const QString &activitySessionId = QString());
+    void removeTrackerCompletions(const QString &kind, const QString &id);
+
+    static qint64 recordFirst(
+        const QVariantMap &record);
+    static qint64 recordLast(
+        const QVariantMap &record);
+    static qint64 recordCompletion(
+        const QVariantMap &record);
+    static QVariantMap mergeRecords(
+        const QVariantMap &left,
+        const QVariantMap &right);
+
+    bool blockedByTombstone(
+        const QVariantMap &record) const;
+    void clearTombstone(
+        const QString &key);
+    void rememberTombstone(
+        const QString &key,
+        qint64 atMs);
+
+    std::unique_ptr<QSettings> m_settings;
+    QVariantMap m_records;
+    QVariantMap m_trackerLocalCompletions;
+    QHash<QString, qint64> m_tombstones;
+    qint64 m_resetGeneration = 0;
+    qint64 m_resetBarrierAtMs = 0;
+    QString m_loadError;
+    QString m_trackerEvidenceError;
+    int m_revision = 0;
+};

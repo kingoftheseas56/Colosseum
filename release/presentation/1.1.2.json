@@ -1,0 +1,44 @@
+{
+  "eyebrow": "THE HOUSE GETS STURDIER",
+  "title": "Colosseum 1.1.2",
+  "summary": "Vault's file tracking is hardened and gets a home portal, Watch Party ships on by default with auto-fetching joins, Tankoban gets a Library tab, and Biblio's catalogue is rebuilt underneath Discover and Explore.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.2",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "VAULT",
+      "title": "Hardened, with a home portal",
+      "body": "Live deletion and replacement reconcile instantly, stale enrichment can no longer overwrite newer data, and CBR fails closed. A new home portal opens Vault from Colosseum's home screen.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "WATCH PARTY",
+      "title": "On by default",
+      "body": "Watch Party points at a hosted relay out of the box. Joining a room now fetches that room's exact source automatically.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "TANKOBAN",
+      "title": "Library tab",
+      "body": "A fourth tab, Library, gives the volumes you already own a dedicated home next to Discover.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "BIBLIO",
+      "title": "Catalogue overhaul",
+      "body": "New Open Library providers, expanded ranking, and a reworked catalogue store sit underneath Discover and Explore.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "SHELL",
+      "title": "ScrollGlide and the chronicle",
+      "body": "Grid surfaces carry scroll momentum instead of snapping, and the Update page's chronicle view moved to the top bar, full-bleed.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}

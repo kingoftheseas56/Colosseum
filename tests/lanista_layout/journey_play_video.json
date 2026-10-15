@@ -1,0 +1,9 @@
+{
+  "checkpoint": "journey_play_video",
+  "root": "player",
+  "comment": "Against the real Colosseum player once decoded-frame readiness has already been proven by journey_play_video.json's own qml-get waits (this checkpoint is the L2 CONTROL — proof the layout evaluator returns a real deterministic verdict for this screen, not proof of decode). PlayerPage.qml exposes exactly one automation objectName, 'player' (the root Item hosting mpv and every transport control), added by J1-Video-Seam alongside the decoded-frame proxies — no transport-control child objectNames exist yet (ground-truthed 2026-08-13: grep for objectName: in qml/PlayerPage.qml and qml/player2host/Player2Page.qml finds none besides 'player' itself), so this checkpoint's only addressable target is that root. `root:\"player\"` scopes the dump-ui walk to the player's own subtree (ground-truthed live 2026-08-13/14: an unscoped whole-window walk against the fully-loaded assembled app — taskbar, Continue row, catalog content, AND the player layer all resident at once — did not surface 'player' within the runner's 50-page ceiling; scoping the walk to the target itself is the documented purpose of dump-ui's optional `root` bound, not a new capability). `$rootWindow` (the synthetic whole-window viewport LayoutSnapshot builds from dump-ui's own top-level `rootWindow` reply field) stays available regardless of `root` scoping — it is not a walked item. No peer to name means no noPeerOverlap rule — the plan's three rule kinds are available, not mandatory per checkpoint (harness.json/app_home.json use all three because they have peers; this one genuinely does not, matching L2's own no-fabrication law).",
+  "rules": [
+    { "kind": "actionableNonzero", "name": "playerActionable", "target": "player" },
+    { "kind": "contained", "name": "playerWithinWindow", "target": "player", "viewport": "$rootWindow", "toleranceLogicalPx": 0 }
+  ]
+}

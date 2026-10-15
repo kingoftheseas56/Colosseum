@@ -1,0 +1,23 @@
+{
+  "name": "biblio-virtualized-v1",
+  "version": 1,
+  "provenance": {
+    "bug": "Arc 41 keyboard navigation must cross a real virtualized Biblio GridView without losing stable identity or visibility.",
+    "date": "2026-09-10"
+  },
+  "placement": [
+    {
+      "content": "collection-store.ini",
+      "destination": "roaming",
+      "relPath": "collection-store.ini"
+    }
+  ],
+  "expectedOnBoot": [
+    {
+      "surface": "bootSplash",
+      "property": "visible",
+      "value": false
+    }
+  ],
+  "note": "160 metadata-only Biblio Collection entries. The production GridView supplies virtualization; no fake QML collection is introduced."
+}

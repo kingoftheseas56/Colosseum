@@ -1,0 +1,45 @@
+{
+  "version": 3,
+  "type": "roomSnapshot",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 0,
+  "payload": {
+    "roomId": "room-abc123",
+    "hostParticipantId": "participant-1",
+    "source": {
+      "kind": "torrent",
+      "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "fileIdx": 0
+    },
+    "controlMode": "host",
+    "timeline": {
+      "playing": false,
+      "positionMs": 0,
+      "revision": 1
+    },
+    "participants": [
+      {
+        "participantId": "participant-1",
+        "displayName": "Host Name",
+        "identityKind": "signedIn",
+        "joinOrder": 0,
+        "host": true,
+        "connected": true,
+        "ready": true,
+        "syncStatus": "inSync"
+      },
+      {
+        "participantId": "participant-2",
+        "displayName": "Guest Name",
+        "identityKind": "guest",
+        "joinOrder": 1,
+        "host": false,
+        "connected": true,
+        "ready": false,
+        "syncStatus": "unknown"
+      }
+    ],
+    "hostReconnectDeadlineMs": -1
+  }
+}

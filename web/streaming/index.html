@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Streaming · Colosseum</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./catalog.js"></script>
+  <script defer src="./preview-data.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="shell" id="shell">
+    <header class="masthead">
+      <a class="wordmark" href="./index.html" aria-label="Colosseum Streaming home">
+        <span class="colosseum-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="wordmark-name">Colosseum</span><span class="wordmark-divider"></span><span class="wordmark-place">Streaming</span>
+      </a>
+      <div class="masthead-actions">
+        <button class="icon-action" id="search-button" type="button" aria-label="Search titles" title="Search titles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg></button>
+        <button class="account-action" id="account-button" type="button" aria-label="Account center" title="Account center"><span>H</span></button>
+      </div>
+    </header>
+
+    <main class="main-content" id="main-content">
+      <section class="resume-section" aria-labelledby="resume-title">
+        <div class="section-heading resume-heading"><div><p class="eyebrow"><span class="eyebrow-line"></span> Your next scene</p><h1 id="resume-title">Pick up where you left off<span class="gold-stop">.</span></h1></div><p class="section-aside" id="resume-aside">Across your connected services</p></div>
+        <div id="resume-list" class="resume-list"></div>
+      </section>
+
+      <section class="discovery-section" aria-labelledby="discovery-title">
+        <div class="section-heading discovery-heading"><div><p class="eyebrow"><span class="eyebrow-line"></span> The collection</p><h2 id="discovery-title">Explore a world</h2></div><p class="section-aside" id="catalog-source"></p></div>
+        <div class="discovery-frame">
+          <nav class="provider-rail" id="provider-rail" aria-label="Streaming services"></nav>
+          <div class="provider-content">
+            <div class="provider-heading"><div><p class="provider-kicker" id="provider-kicker">Selected service</p><h3 id="provider-name">Netflix</h3></div><div class="provider-heading-actions"><button class="text-action" id="refresh-button" type="button">Refresh catalog <span aria-hidden="true">↗</span></button><button class="outline-action" id="open-provider-button" type="button">Open provider <span aria-hidden="true">↗</span></button></div></div>
+            <div id="catalog-status" class="catalog-status" role="status" aria-live="polite"></div>
+            <div id="shelves" class="shelves"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="screen-shade" id="screen-shade" hidden></div>
+    <aside class="detail-drawer" id="detail-drawer" aria-labelledby="detail-title" aria-modal="true" role="dialog" hidden>
+      <button class="drawer-close icon-action" id="drawer-close" type="button" aria-label="Close details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button>
+      <div class="drawer-art" id="drawer-art"></div>
+      <div class="drawer-content"><p class="eyebrow" id="detail-provider"></p><h2 id="detail-title"></h2><p class="detail-subtitle" id="detail-subtitle"></p><div class="detail-actions"><button class="primary-action" id="detail-primary" type="button">Open on provider <span aria-hidden="true">↗</span></button><button class="outline-action" id="detail-watchlist" type="button" hidden>Save to watchlist</button></div><p class="detail-description" id="detail-description"></p><div class="detail-divider"></div><div id="detail-more"></div></div>
+    </aside>
+
+    <div class="search-layer" id="search-layer" role="dialog" aria-modal="true" aria-label="Search streaming titles" hidden><div class="search-panel"><div class="search-top"><span class="eyebrow" id="search-scope">Search discovery catalogues</span><button class="icon-action" id="search-close" type="button" aria-label="Close search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button></div><label class="search-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg><input id="search-input" type="search" placeholder="A title, a story, a person…" autocomplete="off" aria-label="Search titles"></label><p class="search-note" id="search-note">Search covers titles loaded for each service.</p><div class="search-results" id="search-results"></div></div></div>
+    <div class="account-layer" id="account-layer" role="dialog" aria-modal="true" aria-labelledby="account-title" hidden><div class="account-panel"><div class="account-panel-top"><div><p class="eyebrow">Your services</p><h2 id="account-title">Account center</h2></div><button class="icon-action" id="account-close" type="button" aria-label="Close account center"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg></button></div><div class="account-layout"><nav class="account-roster" id="account-roster" aria-label="Services"></nav><div class="account-detail" id="account-detail"></div></div></div></div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+</body>
+</html>

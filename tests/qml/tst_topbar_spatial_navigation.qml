@@ -1,0 +1,155 @@
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import QtTest 1.3
+import "../../qml" as Colosseum
+
+TestCase {
+    id: testCase
+    name: "TopBarSpatialNavigation"
+    when: windowShown
+
+    Window {
+        id: testWindow
+        width: 1100
+        height: 180
+        visible: true
+
+        Item { id: backdrop; anchors.fill: parent }
+
+        Colosseum.TopBar {
+            id: bar
+            backdrop: backdrop
+            x: 30; y: 30
+            width: 1040
+        }
+    }
+
+    SignalSpy { id: boundarySpy; target: bar; signalName: "boundaryArrowRequested" }
+    SignalSpy { id: stremioSpy; target: bar; signalName: "stremioClicked" }
+    SignalSpy { id: mediumSpy; target: bar; signalName: "mediumSelected" }
+    SignalSpy { id: searchSpy; target: bar; signalName: "searchClicked" }
+
+    function test_compact_world_picker_does_not_overlap_search_data() {
+        return [{tag: "Tankoban", medium: "Tankoban"},
+                {tag: "Biblio", medium: "Biblio"},
+                {tag: "Theatre", medium: "Theatre"},
+                {tag: "Feria", medium: "Feria"}]
+    }
+    function test_compact_world_picker_does_not_overlap_search(data) {
+        bar.width = 904 // 1024px window minus the production side margins
+        bar.activeMedium = data.medium
+        bar.trackersEnabled = true
+        wait(30)
+        var picker = findChild(bar, "topBarWorldPicker")
+        var systems = findChild(bar, "topBarSystemChrome")
+        verify(picker.x + picker.width + 8 <= systems.x,
+               "World picker must leave space before system controls")
+        var feria = findChild(bar, "modePillFocus_Feria")
+        mediumSpy.clear(); searchSpy.clear()
+        mouseClick(feria)
+        compare(mediumSpy.count, 1)
+        compare(mediumSpy.signalArguments[0][0], "Feria")
+        compare(searchSpy.count, 0)
+        bar.width = 1040
+        bar.trackersEnabled = false
+    }
+
+    function findChild(root, objectName) {
+        if (!root) return null
+        if (root.objectName === objectName) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var found = findChild(kids[i], objectName)
+            if (found) return found
+        }
+        return null
+    }
+
+    function focusableFace(root) {
+        if (!root) return null
+        if (root.focusPolicy !== undefined && root.focusPolicy !== Qt.NoFocus)
+            return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var found = focusableFace(kids[i])
+            if (found) return found
+        }
+        return null
+    }
+
+    function init() {
+        testWindow.requestActivate()
+        boundarySpy.clear()
+        stremioSpy.clear()
+        mediumSpy.clear()
+        bar.activeMedium = ""
+        bar.lifecycleActive = true
+        wait(20)
+    }
+
+    function test_stremio_is_theatre_only_and_between_search_and_account() {
+        bar.activeMedium = "Theatre"
+        wait(0)
+        var stremio = findChild(bar, "topBarStremioButton")
+        var search = findChild(bar, "topBarSearch")
+        var account = findChild(bar, "colosseumTopbarAccountButton")
+        verify(stremio !== null)
+        var asset = findChild(stremio, "topBarStremioOfficialAsset")
+        verify(asset !== null)
+        verify(String(asset.source).indexOf("assets/icons/stremio-official.svg") >= 0)
+        bar.activeMedium = "Biblio"
+        compare(stremio.visible, false)
+        bar.activeMedium = "Tankoban"
+        compare(stremio.visible, false)
+        bar.activeMedium = "Theatre"
+        wait(0)
+        compare(stremio.visible, true)
+        compare(search.parent, stremio.parent)
+        compare(stremio.parent, account.parent)
+        var siblings = search.parent.children
+        verify(siblings.indexOf(search) < siblings.indexOf(stremio))
+        verify(siblings.indexOf(stremio) < siblings.indexOf(account))
+        var face = focusableFace(stremio)
+        verify(face !== null)
+        face.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Return)
+        compare(stremioSpy.count, 1)
+        bar.lifecycleActive = false
+        compare(stremio.visible, false)
+    }
+
+    function test_right_moves_between_visible_mode_pills() {
+        var tankoban = focusableFace(findChild(bar, "modePill_Tankoban"))
+        var biblio = focusableFace(findChild(bar, "modePill_Biblio"))
+        verify(tankoban !== null)
+        verify(biblio !== null)
+        tankoban.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Right)
+        verify(biblio.activeFocus)
+    }
+
+    function test_down_at_topbar_boundary_is_exported_to_host() {
+        var tankoban = focusableFace(findChild(bar, "modePill_Tankoban"))
+        verify(tankoban !== null)
+        tankoban.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Down)
+        compare(boundarySpy.count, 1)
+        compare(boundarySpy.signalArguments[0][0], Qt.Key_Down)
+    }
+
+    function test_feria_is_the_fifth_world_and_keyboard_reachable() {
+        var universes = focusableFace(findChild(bar, "modePill_Universes"))
+        var feriaPill = findChild(bar, "modePill_Feria")
+        var feria = focusableFace(feriaPill)
+        verify(universes !== null && feria !== null)
+        universes.forceActiveFocus(Qt.OtherFocusReason)
+        keyClick(Qt.Key_Right)
+        verify(feria.activeFocus)
+        keyClick(Qt.Key_Return)
+        compare(mediumSpy.count, 1)
+        compare(mediumSpy.signalArguments[0][0], "Feria")
+        bar.activeMedium = "Feria"
+        compare(feriaPill.active, true)
+        compare(findChild(bar, "modePill_Universes").active, false)
+    }
+}

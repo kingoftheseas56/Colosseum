@@ -1,0 +1,17 @@
+{
+  "batch": "biblio-genres",
+  "target": "qml/BiblioGenreApi.js  GENRE_DESC map (review-fill by hand; do NOT edit it from the runner)",
+  "voice_reference": "Present-tense, evocative-but-grounded, literary. 2-3 short sentences. Names what the genre IS and what it does to a reader. See current_blurb for the house voice to match and beat.",
+  "genres": [
+    { "genre": "Fiction & Literature",     "apple_books_id": 9031,  "current_blurb": "The broad country of made lives. Fiction and literature follow people through desire, damage, wit, and consequence - the ordinary world made strange by attention." },
+    { "genre": "Mysteries & Thrillers",    "apple_books_id": 9032,  "current_blurb": "A secret, a threat, and the pressure of time. Mysteries and thrillers turn pages by withholding the truth, then tightening every room around it." },
+    { "genre": "Sci-Fi & Fantasy",         "apple_books_id": 9020,  "current_blurb": "The impossible with rules. Science fiction and fantasy build other orders - future, magical, alien, or mythic - then ask what humans become inside them." },
+    { "genre": "Romance",                  "apple_books_id": 9003,  "current_blurb": "Two people moving toward each other, and everything that says they cannot. Romance lives in longing, friction, trust, and the courage to choose feeling." },
+    { "genre": "Biographies & Memoirs",    "apple_books_id": 9008,  "current_blurb": "A life looked at directly. Biography and memoir turn memory, evidence, and voice into a portrait - the person, the era, and the cost of becoming." },
+    { "genre": "History",                  "apple_books_id": 9015,  "current_blurb": "The past as a living argument. History follows power, accident, invention, and witness - not just what happened, but why it still presses on us." },
+    { "genre": "Young Adult",              "apple_books_id": 11165, "current_blurb": "Stories at the edge of becoming. Young adult fiction carries first stakes at full volume - identity, loyalty, danger, love, and the future arriving fast." },
+    { "genre": "Comics & Graphic Novels",  "apple_books_id": 9026,  "current_blurb": "Sequential art in book form. Comics and graphic novels make image and text move together - panels, rhythm, silence, and impact on the turn." },
+    { "genre": "Humor",                    "apple_books_id": 9012,  "current_blurb": "Built around the release of a laugh. Humor sharpens absurdity, embarrassment, and social truth until the joke becomes the cleanest way to say it." },
+    { "genre": "Travel & Adventure",       "apple_books_id": 9004,  "current_blurb": "Motion with consequence. Travel and adventure leave the familiar behind - across maps, cultures, dangers, and the self that changes on the road." }
+  ]
+}

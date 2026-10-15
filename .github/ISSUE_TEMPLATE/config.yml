@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support and troubleshooting
+    url: https://github.com/kingoftheseas56/Colosseum/blob/master/SUPPORT.md
+    about: Check known boundaries, troubleshooting details, and what to include in a support request.
+  - name: Security vulnerability
+    url: https://github.com/kingoftheseas56/Colosseum/blob/master/SECURITY.md
+    about: Use the private security-reporting route when available. Do not publish exploit details in an issue.

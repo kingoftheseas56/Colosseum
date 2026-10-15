@@ -1,0 +1,15 @@
+{
+  "name": "arc12_theatre_visual_check",
+  "comment": "Short production Theatre paint check after tab-bar automation seam cleanup.",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "__runner_local_presentation__", "presentation_wait_ms": 5000, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreWorld", "prop": "visible", "value": true, "timeout_ms": 15000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "capture", "capture": { "action": "start", "name": "arc12-theatre-visual-check" }, "cmd": "__runner_local_presentation__", "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "__runner_local_presentation__", "presentation_hold_ms": 1200, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "capture", "capture": { "action": "stop" }, "cmd": "__runner_local_presentation__", "expect": [{ "path": "type", "op": "==", "value": "reply" }] }
+  ]
+}
