@@ -1,0 +1,13 @@
+{
+  "name": "reddit-account-centre",
+  "steps": [
+    { "cmd": "ui-wait-for", "label": "Account Centre visible", "payload": { "object": "accountCenter", "prop": "visible", "value": true, "timeout_ms": 15000 } },
+    { "capture": { "action": "start", "name": "07-account-centre" }, "label": "record Account Centre" },
+    { "presentation_hold_ms": 800, "label": "Your Colosseum frame" },
+    { "cmd": "ui-keypress", "label": "show Data and privacy", "payload": { "key": "2" } },
+    { "presentation_hold_ms": 1000, "label": "Data and privacy frame" },
+    { "cmd": "ui-keypress", "label": "return to Your Colosseum", "payload": { "key": "1" } },
+    { "presentation_hold_ms": 700, "label": "return frame" },
+    { "capture": { "action": "stop" }, "label": "finish Account Centre clip" }
+  ]
+}

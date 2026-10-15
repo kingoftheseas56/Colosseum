@@ -1,0 +1,859 @@
+{
+  "name": "feria-taskbar-native",
+  "comment": "Feria world launched from the shared world selector: service showcase, apps, search, lenses, provider back, and return to Colosseum.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated app answers",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash leaves",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local entry is available",
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue locally",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell is ready",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Feria through the world selector",
+      "payload": {
+        "target": "modePill_Feria"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "original Feria app is active",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "lifecycleActive",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "native Feria controller owns discovery",
+      "payload": {
+        "object": "feriaAppPage",
+        "props": [
+          "liveDiscovery",
+          "discoveryStarted",
+          "viewState"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.liveDiscovery",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.discoveryStarted",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.viewState",
+          "op": "==",
+          "value": "home"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "original home and service showcase render",
+      "payload": {
+        "object": "home-focus-variant",
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 1",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 2",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 3",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 4",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 5",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 6",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 7",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 8",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 9",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 10",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 11",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 12",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 13",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open original app management",
+      "payload": {
+        "target": "feriaApp_manage"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "original app manager opens",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "account",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "return from app management",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Escape stays inside Feria",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "home",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Feria stays open after app manager back",
+      "payload": {
+        "object": "feriaAppPage",
+        "props": [
+          "lifecycleActive",
+          "viewState"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.lifecycleActive",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.viewState",
+          "op": "==",
+          "value": "home"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open original Feria search",
+      "payload": {
+        "target": "feriaSearchButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "original search opens",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "search",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "return from Feria search",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "search closes without leaving Feria",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "home",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "reveal the lens controls",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
+    },
+    {
+      "cmd": "ui-click",
+      "label": "switch Feria to Watch",
+      "payload": {
+        "target": "feriaLens_watch"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "native discovery lens changes",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "lens",
+        "value": "watch",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "restore All lens",
+      "payload": {
+        "target": "feriaLens_all"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "All lens restored",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "lens",
+        "value": "all",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 1",
+      "payload": {
+        "key": "Up"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 2",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 3",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 4",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 5",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 6",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 7",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 8",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 9",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 10",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 11",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 12",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 13",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 14",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open original provider destination",
+      "payload": {
+        "target": "feriaApp_netflix"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "original provider screen opens",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "host",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "WebView2 initializes in Feria",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "browserReady",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Netflix loads in WebView2",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "loadSucceeded",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "try QtWebEngine for the same service",
+      "payload": {
+        "target": "feriaBrowserSwitch"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "alternative browser is selected",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "engine",
+        "value": "qtwebengine",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Netflix loads in QtWebEngine",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "loadSucceeded",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "return through the Feria browser control",
+      "payload": {
+        "target": "feriaBrowserReturn"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "browser closes back to home",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "home",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "navigate provider tiles 1",
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "presentation_wait_ms": 350,
+      "label": "allow focus scrolling to settle"
+    },
+    {
+      "cmd": "ui-click",
+      "label": "reopen Netflix with the remembered browser",
+      "payload": {
+        "target": "feriaApp_netflix"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "browser choice persists for Netflix",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "engine",
+        "value": "qtwebengine",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "remembered browser loads Netflix",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "loadSucceeded",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "restore default WebView2 for Netflix",
+      "payload": {
+        "target": "feriaBrowserSwitch"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "default host is restored",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "engine",
+        "value": "webview2",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "WebView2 reopens Netflix",
+      "payload": {
+        "object": "feriaBrowserHost",
+        "prop": "loadSucceeded",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "return from provider screen",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "provider back restores Feria",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "viewState",
+        "value": "home",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "return from Feria to Colosseum",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Feria closes back to Colosseum",
+      "payload": {
+        "object": "feriaLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "world selector reopens Feria",
+      "payload": {
+        "target": "modePill_Feria"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "original Feria reopens",
+      "payload": {
+        "object": "feriaAppPage",
+        "prop": "lifecycleActive",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "capture original Feria from dock",
+      "payload": {
+        "object": "feriaAppPage",
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "close Feria after dock entry",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Feria closes back to Colosseum",
+      "payload": {
+        "object": "feriaLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+ "search": [
+  {
+   "id": "217f190a-a809-42c7-97a4-f51ad7f268a1",
+   "name": "Lifafa",
+   "score": 100,
+   "country": null,
+   "disambiguation": null
+  }
+ ],
+ "mbid": "217f190a-a809-42c7-97a4-f51ad7f268a1",
+ "releaseGroups": [
+  {
+   "id": "a44b021c-d914-4ceb-8dc9-945d1a4e3488",
+   "title": "SUPERPOWER 2020 सुपरपॉवर २०२०",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2021-05-21"
+  },
+  {
+   "id": "f041a022-839a-4e06-a31f-437f4b86a3a8",
+   "title": "Jaago जागो",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2019-01-01"
+  }
+ ],
+ "count": 2
+}

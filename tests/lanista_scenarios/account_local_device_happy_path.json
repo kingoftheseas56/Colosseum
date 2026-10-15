@@ -1,0 +1,204 @@
+{
+  "name": "account-local-device-happy-path",
+  "comment": "Backend-free fresh-profile proof of the final local-device shell: generic Device top bar, friendly Device NNNNNN inside AccountFlyout, local actions, and explicit continue-without-account return.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated local-device session is alive",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash is gone",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "fresh profile is already local and auth host is not blocking",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Device control is visible",
+      "payload": {
+        "object": "colosseumTopbarAccountButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "top bar uses the generic Device label",
+      "payload": {
+        "object": "colosseumTopbarDeviceLabel",
+        "props": ["text", "visible"]
+      },
+      "expect": [
+        { "path": "props.visible", "op": "==", "value": "true" },
+        { "path": "props.text", "op": "==", "value": "Device" }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open local AccountFlyout from Device",
+      "payload": {
+        "target": "colosseumTopbarAccountButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local AccountFlyout is visible",
+      "payload": {
+        "object": "accountFlyout",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "flyout shows the friendly six-digit device identity",
+      "payload": {
+        "object": "accountFlyoutLocalDeviceLabel",
+        "props": ["text", "visible"]
+      },
+      "expect": [
+        { "path": "props.visible", "op": "==", "value": "true" },
+        { "path": "props.text", "op": "matches", "value": "^Device [0-9]{6}$" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Your Colosseum local action is visible",
+      "payload": {
+        "object": "accountFlyoutLocalYourColosseum",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Data and privacy local action is visible",
+      "payload": {
+        "object": "accountFlyoutLocalPrivacy",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local Sign in action is visible",
+      "payload": {
+        "object": "accountFlyoutLocalSignIn",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local Create account action is visible",
+      "payload": {
+        "object": "accountFlyoutLocalCreateAccount",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "enter Sign in from the local flyout",
+      "payload": {
+        "target": "accountFlyoutLocalSignIn"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "existing Sign in surface is visible",
+      "payload": {
+        "object": "accountSignIn",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue without an account",
+      "payload": {
+        "target": "accountSignInContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "auth host closes back into the local shell",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [{ "path": "matched", "op": "==", "value": "true" }]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "local shell still exposes generic Device after returning",
+      "payload": {
+        "object": "colosseumTopbarDeviceLabel",
+        "props": ["text", "visible"]
+      },
+      "expect": [
+        { "path": "props.visible", "op": "==", "value": "true" },
+        { "path": "props.text", "op": "==", "value": "Device" }
+      ]
+    }
+  ]
+}

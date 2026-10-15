@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "type": "hostChanged",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 13,
+  "payload": {
+    "hostParticipantId": "participant-2"
+  }
+}

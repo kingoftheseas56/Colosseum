@@ -1,0 +1,30 @@
+{
+  "name": "row-index-biblio",
+  "steps": [
+    { "cmd": "ping", "label": "session", "expect": [ { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "boot", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "continue local", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "shell", "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 10000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "open Biblio", "payload": { "target": "modePill_Biblio" } },
+    { "cmd": "ui-wait-for", "label": "Biblio world", "payload": { "object": "biblioWorld", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "Explore tab", "payload": { "object": "biblioTab_explore", "prop": "visible", "value": true, "timeout_ms": 20000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "__runner_local_presentation__", "label": "let Biblio settle", "presentation_wait_ms": 3000, "expect": [ { "path": "type", "op": "==", "value": "reply" } ] },
+    { "cmd": "ui-click", "label": "open Explore", "payload": { "target": "biblioTab_explore" } },
+    { "cmd": "__runner_local_presentation__", "label": "let the Explore layout settle", "presentation_wait_ms": 2000, "expect": [ { "path": "type", "op": "==", "value": "reply" } ] },
+    { "cmd": "ui-wait-for", "label": "Biblio index starts closed", "payload": { "object": "biblioRowIndexSidebar", "prop": "collapsed", "value": true, "timeout_ms": 10000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-scroll", "label": "bring the Biblio index into view", "payload": { "target": "biblioWorldScroll", "dy": -700 } },
+    { "cmd": "__runner_local_presentation__", "label": "let the Biblio index settle in the viewport", "presentation_wait_ms": 1500, "expect": [ { "path": "type", "op": "==", "value": "reply" } ] },
+    { "cmd": "qml-get", "label": "closed Biblio row index", "payload": { "object": "biblioRowIndexSidebar", "props": ["width", "automationRows"], "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "props.width", "op": "==", "value": "52" }, { "path": "props.automationRows", "op": "contains", "value": "Classics" }, { "path": "grabPath", "op": "exists" } ] },
+    { "cmd": "ui-click", "label": "open Biblio row index", "payload": { "target": "biblioRowIndexCollapse" } },
+    { "cmd": "ui-wait-for", "label": "Biblio index opens", "payload": { "object": "biblioRowIndexSidebar", "prop": "width", "value": 240, "timeout_ms": 3000 }, "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-scroll", "label": "reveal Classics", "payload": { "target": "biblioRowIndexList", "dy": -6000 } },
+    { "cmd": "__runner_local_presentation__", "label": "let the Biblio index settle", "presentation_wait_ms": 1500, "expect": [ { "path": "type", "op": "==", "value": "reply" } ] },
+    { "cmd": "ui-click", "label": "park Classics", "payload": { "target": "biblioRowIndexRow_classics" } },
+    { "cmd": "__runner_local_presentation__", "label": "let the Biblio park settle", "presentation_wait_ms": 1500, "expect": [ { "path": "type", "op": "==", "value": "reply" } ] },
+    { "cmd": "qml-get", "label": "Classics becomes current", "payload": { "object": "biblioRowIndexSidebar", "props": ["automationCurrentRow"] },
+      "expect": [ { "path": "props.automationCurrentRow", "op": "==", "value": "Classics" } ] },
+    { "cmd": "qml-get", "label": "Biblio park and open-rail evidence", "payload": { "object": "biblioExploreFlick", "props": ["contentY"], "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "props.contentY", "op": ">", "value": 0 }, { "path": "grabPath", "op": "exists" } ] }
+  ]
+}

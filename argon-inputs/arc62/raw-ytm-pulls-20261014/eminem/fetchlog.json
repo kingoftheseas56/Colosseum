@@ -1,0 +1,31 @@
+{
+ "channelId": "UCfM3zsQsOnfWNUppiycmBuw",
+ "fetchedAt": "2026-10-14T16:20:08.026120+00:00",
+ "calls": [
+  {
+   "call": "get_artist",
+   "ok": true,
+   "ms": 2601
+  },
+  {
+   "call": "get_artist_albums:albums",
+   "ok": true,
+   "ms": 158
+  },
+  {
+   "call": "get_artist_albums:singles",
+   "ok": true,
+   "ms": 187
+  },
+  {
+   "call": "get_playlist:songs",
+   "ok": true,
+   "ms": 1470
+  },
+  {
+   "call": "get_playlist:videos",
+   "ok": true,
+   "ms": 2185
+  }
+ ]
+}

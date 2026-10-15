@@ -1,0 +1,32 @@
+********* Start testing of ArtistBridgeTests *********
+Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-llp64 shared (dynamic) release build; by MSVC 2022), windows 11
+INFO   : ArtistBridgeTests::initTestCase() entering
+PASS   : ArtistBridgeTests::initTestCase()
+INFO   : ArtistBridgeTests::metaObjectAndTypedResults() entering
+PASS   : ArtistBridgeTests::metaObjectAndTypedResults()
+INFO   : ArtistBridgeTests::cancelAndLateArtistReplies() entering
+PASS   : ArtistBridgeTests::cancelAndLateArtistReplies()
+INFO   : ArtistBridgeTests::leaveAndReturnFencesLateResponses() entering
+PASS   : ArtistBridgeTests::leaveAndReturnFencesLateResponses()
+INFO   : ArtistBridgeTests::profileSavedIndependenceAndReentrancy() entering
+PASS   : ArtistBridgeTests::profileSavedIndependenceAndReentrancy()
+INFO   : ArtistBridgeTests::browsingDoesNotStopPlayback() entering
+PASS   : ArtistBridgeTests::browsingDoesNotStopPlayback()
+INFO   : ArtistBridgeTests::strongExactSelectionAndClearRetryError() entering
+PASS   : ArtistBridgeTests::strongExactSelectionAndClearRetryError()
+INFO   : ArtistBridgeTests::emptyOfflineNotFoundAndRetry() entering
+PASS   : ArtistBridgeTests::emptyOfflineNotFoundAndRetry()
+INFO   : ArtistBridgeTests::cursorFilterAndSourceRevisionFence() entering
+PASS   : ArtistBridgeTests::cursorFilterAndSourceRevisionFence()
+INFO   : ArtistBridgeTests::mismatchedArtistAndPayloadFailClosed() entering
+PASS   : ArtistBridgeTests::mismatchedArtistAndPayloadFailClosed()
+INFO   : ArtistBridgeTests::profileSwitchRejectsLateReadAndForeignProfileReply() entering
+PASS   : ArtistBridgeTests::profileSwitchRejectsLateReadAndForeignProfileReply()
+INFO   : ArtistBridgeTests::duplicateReleaseGroupAndMissingSourceFailClosed() entering
+PASS   : ArtistBridgeTests::duplicateReleaseGroupAndMissingSourceFailClosed()
+INFO   : ArtistBridgeTests::concurrentLanesDoNotCancelEachOther() entering
+PASS   : ArtistBridgeTests::concurrentLanesDoNotCancelEachOther()
+INFO   : ArtistBridgeTests::cleanupTestCase() entering
+PASS   : ArtistBridgeTests::cleanupTestCase()
+Totals: 14 passed, 0 failed, 0 skipped, 0 blacklisted, 6ms
+********* Finished testing of ArtistBridgeTests *********

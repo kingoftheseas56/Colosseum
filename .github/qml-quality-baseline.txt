@@ -1,0 +1,3 @@
+# Known QML quality debt present when the gate was introduced.
+# Remove an entry when the underlying defect is fixed. New findings still fail CI.
+qml/player2/controls/StatsOverlay.qml|duplicate-property-binding|Duplicate binding on property 'data'

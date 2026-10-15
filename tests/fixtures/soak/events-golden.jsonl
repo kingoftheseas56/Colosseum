@@ -1,0 +1,23 @@
+{"type":"nav","at":"2026-08-12T00:00:00.000","subject":"tankoban:home->library"}
+{"type":"mem","at":"2026-08-12T00:00:00.000","subject":"process","memMb":500}
+{"type":"open","at":"2026-08-12T00:00:05.000","subject":"tankoban:One Piece/Vol 1","durationMs":100}
+{"type":"open","at":"2026-08-12T00:05:00.000","subject":"tankoban:One Piece/Vol 2","durationMs":200}
+{"type":"nav","at":"2026-08-12T00:05:05.000","subject":"tankoban:library->reader"}
+{"type":"open","at":"2026-08-12T00:10:00.000","subject":"tankoban:Naruto/Vol 1","durationMs":300}
+{"type":"fail","at":"2026-08-12T00:10:05.000","subject":"tankoban:Naruto/Vol 1","outcome":"corrupt_archive"}
+{"type":"mem","at":"2026-08-12T00:20:00.000","subject":"process","memMb":520}
+{"type":"download","at":"2026-08-12T00:25:00.000","subject":"vault:fixture-download-1","durationMs":800,"bytes":1048576}
+{"type":"open","at":"2026-08-12T00:30:00.000","subject":"vault:Movie A","durationMs":400}
+{"type":"ready","at":"2026-08-12T00:32:00.000","subject":"local-video:clip1.mp4","durationMs":50}
+{"type":"frames","at":"2026-08-12T00:32:05.000","subject":"local-video:clip1.mp4","droppedFrames":12}
+{"type":"mem","at":"2026-08-12T00:40:00.000","subject":"process","memMb":560}
+{"type":"fail","at":"2026-08-12T00:42:00.000","subject":"vault:Movie B","outcome":"decode_error"}
+{"type":"open","at":"2026-08-12T00:45:00.000","subject":"vault:Movie B","durationMs":500}
+{"type":"ready","at":"2026-08-12T00:47:00.000","subject":"local-video:clip2.mp4","durationMs":150}
+{"type":"frames","at":"2026-08-12T00:47:05.000","subject":"local-video:clip2.mp4","droppedFrames":0}
+{"type":"download","at":"2026-08-12T00:50:00.000","subject":"vault:fixture-download-2","durationMs":1200,"bytes":2097152}
+{"type":"ready","at":"2026-08-12T00:55:00.000","subject":"local-video:clip3.mp4","durationMs":250}
+{"type":"frames","at":"2026-08-12T00:55:05.000","subject":"local-video:clip3.mp4","droppedFrames":5}
+{"type":"fail","at":"2026-08-12T01:00:00.000","subject":"tankoban:Naruto/Vol 1","outcome":"corrupt_archive"}
+{"type":"mem","at":"2026-08-12T01:00:00.000","subject":"process","memMb":600}
+{"type":"nav","at":"2026-08-12T01:15:00.000","subject":"tankoban:reader->home"}

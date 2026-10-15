@@ -1,0 +1,18 @@
+﻿{
+    "source_repo":  "C:\\Users\\Suprabha\\.codex\\worktrees\\vinyl-live-listening\\Colosseum",
+    "allowed_children":  [
+                             "catalogue",
+                             "artwork",
+                             "personal",
+                             "media",
+                             "bridge",
+                             "dispatch"
+                         ],
+    "source_commit":  "860b96ae27a59c955f6aa9bf4642351ed8ce21e3",
+    "intent":  "Isolated backend code prototypes for catalogue, artwork, personal state, media, live bridge",
+    "owner":  "Preflight Spawn",
+    "status":  "PREPARED, NOT DISPATCHED",
+    "task":  "20261015-vinyl-artist-backend-prototypes",
+    "source_branch":  "codex/vinyl-live-listening",
+    "created":  "2026-10-15"
+}

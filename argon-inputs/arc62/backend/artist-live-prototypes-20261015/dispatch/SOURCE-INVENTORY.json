@@ -1,0 +1,160 @@
+{
+    "title":  "Arc 62 Artist backend standalone prototype receipt",
+    "taskDate":  "2026-10-15",
+    "sourceBranch":  "codex/vinyl-live-listening",
+    "sourceCommit":  "860b96ae27a59c955f6aa9bf4642351ed8ce21e3",
+    "testSummary":  "5/5 native CTest suites PASS independently; see BATCH-VERIFY.txt",
+    "productionIntegration":  "NOT PERFORMED",
+    "files":  [
+                  {
+                      "path":  "artwork/ArtistArtworkResolver.cpp",
+                      "bytes":  21866,
+                      "sha256":  "664c3f80ed8b9011b0502c5c485d1509904e214b00107a8382da6bd990ade71d"
+                  },
+                  {
+                      "path":  "artwork/ArtistArtworkResolver.h",
+                      "bytes":  3812,
+                      "sha256":  "380b269ef39c447cb19efc0d1f046073fd866c43bbeaebb4f9aea47074682d85"
+                  },
+                  {
+                      "path":  "artwork/CMakeLists.txt",
+                      "bytes":  579,
+                      "sha256":  "4e62bed63de8c8a18d0495cbae2c1458dfcf15c3136e240260741a443ef47c9f"
+                  },
+                  {
+                      "path":  "artwork/README.md",
+                      "bytes":  4016,
+                      "sha256":  "c898d3e0a43d29ca46370bef5ee722e6c13aac66942939fba1ff2734eb04d580"
+                  },
+                  {
+                      "path":  "artwork/REPLY-ARC62-SPAWN-ARTIST-ARTWORK-002.md",
+                      "bytes":  7969,
+                      "sha256":  "764e8da2ba5af3740d3bf84db71f514de2e9d0975564e95e4b7a9f6c14dd50b7"
+                  },
+                  {
+                      "path":  "artwork/test_artist_artwork.cpp",
+                      "bytes":  14063,
+                      "sha256":  "464a639bf8ac2bb7f8df47e34c71450d357fa60d257f45037ee0c39263ba5c20"
+                  },
+                  {
+                      "path":  "bridge/ArtistServiceBridge.cpp",
+                      "bytes":  18664,
+                      "sha256":  "b4502b8cfb2f9373fa96e00a85bd5359d5bf67df301b1139323e2d4dc8fe210f"
+                  },
+                  {
+                      "path":  "bridge/ArtistServiceBridge.h",
+                      "bytes":  8635,
+                      "sha256":  "4589a11f6382dfb0dcde1ec25839c24cdeab729b5905689d0564c36f76e79727"
+                  },
+                  {
+                      "path":  "bridge/CMakeLists.txt",
+                      "bytes":  743,
+                      "sha256":  "3379f7d3cf6eda7b05600ac754ce53a907b7d3fe52c04f7eb177e0ea9c6ec047"
+                  },
+                  {
+                      "path":  "bridge/README.md",
+                      "bytes":  4547,
+                      "sha256":  "d2dc7376ee7aa7662f362322cb2e02b143f21322a283681aa157d8d864583108"
+                  },
+                  {
+                      "path":  "bridge/REPLY-ARC62-SPAWN-ARTIST-LIVE-BRIDGE-005.md",
+                      "bytes":  7331,
+                      "sha256":  "dfee674683336fa7e58ebfd95f357760a272481f3ef23e05ce62bfa24660950a"
+                  },
+                  {
+                      "path":  "bridge/test_artist_service_bridge.cpp",
+                      "bytes":  19911,
+                      "sha256":  "354ddcf242a25ddcd7a7e22e89f5a2d40fbf8dfe46577302450304458c7313eb"
+                  },
+                  {
+                      "path":  "catalogue/ArtistCatalogueQuery.cpp",
+                      "bytes":  26562,
+                      "sha256":  "63b22d58cfdba5ec839f5fe6c36fa298a48c7ba63b12c52a2fe3f65039829eea"
+                  },
+                  {
+                      "path":  "catalogue/ArtistCatalogueQuery.h",
+                      "bytes":  4140,
+                      "sha256":  "66ebfd131b62612f2b8b9f4a6c41a0a05ee64f39a2b162a3ff7dffe215824cef"
+                  },
+                  {
+                      "path":  "catalogue/CMakeLists.txt",
+                      "bytes":  1007,
+                      "sha256":  "44563ce317d6d71e888e7f9d944a15e00fe012ca42796c29d804560a12dca8a8"
+                  },
+                  {
+                      "path":  "catalogue/README.md",
+                      "bytes":  5496,
+                      "sha256":  "0b53fb0e955961d5074d30566b19e859fd1f002951dd0239e782d6c313569c5b"
+                  },
+                  {
+                      "path":  "catalogue/REPLY-ARC62-SPAWN-ARTIST-CATALOGUE-001.md",
+                      "bytes":  6560,
+                      "sha256":  "7bb827691796ab8d33fe0344cba755f1b3aff7cf035645303f14f8d45e1326c8"
+                  },
+                  {
+                      "path":  "catalogue/test_artist_catalogue.cpp",
+                      "bytes":  19283,
+                      "sha256":  "66e0c848da590509495ee4e0221ac8cd075b14214ba92a9055c6164edf51df51"
+                  },
+                  {
+                      "path":  "media/ArtistMediaQuery.cpp",
+                      "bytes":  14660,
+                      "sha256":  "9516aa8bda8d4ce00e245c0ec064a2ed8d44eb92e50cab1fa50ea4515599f5c4"
+                  },
+                  {
+                      "path":  "media/ArtistMediaQuery.h",
+                      "bytes":  4667,
+                      "sha256":  "76331dd0df8b5ff983e13df8c4fc8f455a3f09c100d6ffd0d70c92ca93c6e58b"
+                  },
+                  {
+                      "path":  "media/CMakeLists.txt",
+                      "bytes":  843,
+                      "sha256":  "88f0583707813a22ae6a23562d01f07a877200bee0c35e41e287ee50e58f9a72"
+                  },
+                  {
+                      "path":  "media/README.md",
+                      "bytes":  4736,
+                      "sha256":  "175fd2ab7a865ebf7cb4421192fa62ea4caa50feed2f719b5ec3aeeb4d1754f5"
+                  },
+                  {
+                      "path":  "media/REPLY-ARC62-SPAWN-ARTIST-MEDIA-004.md",
+                      "bytes":  6194,
+                      "sha256":  "a58b4c231f2dfee29fe0776fa497428d308db8389173967900db1cd9cae73e35"
+                  },
+                  {
+                      "path":  "media/test_artist_media_query.cpp",
+                      "bytes":  20824,
+                      "sha256":  "c67d19e2a44fb523cbc2256d5c8968d37d33a624ad4bde3e7882297f2f006aa0"
+                  },
+                  {
+                      "path":  "personal/ArtistPersonalState.cpp",
+                      "bytes":  15720,
+                      "sha256":  "e37c1e612ac180a749b1661cad4c818a88c41b53bacd9275641eb11a0868ae48"
+                  },
+                  {
+                      "path":  "personal/ArtistPersonalState.h",
+                      "bytes":  4367,
+                      "sha256":  "07907084ddcdc84899809f5b2e64e0d13a4360d9e2ea14b4fd6356ce60beb1d2"
+                  },
+                  {
+                      "path":  "personal/CMakeLists.txt",
+                      "bytes":  1135,
+                      "sha256":  "a3e6c51bfa0812be5baadce74ad2e80fc0556d7bd56f8586126d88407a7146a5"
+                  },
+                  {
+                      "path":  "personal/README.md",
+                      "bytes":  4295,
+                      "sha256":  "55ccc0cec60dc80f02a437e8d9f7be481f8545921e0be9b9d18c1403c592294a"
+                  },
+                  {
+                      "path":  "personal/REPLY-ARC62-SPAWN-ARTIST-PERSONAL-003.md",
+                      "bytes":  5682,
+                      "sha256":  "f687080fc8d1e5f8bbbcfbf13cd884fc8347d0a18809fdc5545cd14d91beefae"
+                  },
+                  {
+                      "path":  "personal/test_artist_personal.cpp",
+                      "bytes":  15390,
+                      "sha256":  "397e40fd81d6ff9f8646cb3ff912db7e278952d31a058851315204999e6c4934"
+                  }
+              ]
+}

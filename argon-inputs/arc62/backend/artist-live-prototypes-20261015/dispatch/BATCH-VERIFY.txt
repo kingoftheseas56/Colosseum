@@ -1,0 +1,50 @@
+INDEPENDENT PRE-FLIGHT ARC62 ARTIST BACKEND BATCH CTEST
+RUN: 
+2026-10-15T07:02:44.0871036+05:30
+### catalogue exit=0
+Internal ctest changing into directory: C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/catalogue/build
+Test project C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/catalogue/build
+    Start 1: vinyl_artist_catalogue_harness
+1/1 Test #1: vinyl_artist_catalogue_harness ...   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.03 sec
+### artwork exit=0
+Internal ctest changing into directory: C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/artwork/build-cmake
+Test project C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/artwork/build-cmake
+    Start 1: artist_artwork_deterministic
+1/1 Test #1: artist_artwork_deterministic .....   Passed    0.02 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.03 sec
+### personal exit=0
+Internal ctest changing into directory: C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/personal/build
+Test project C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/personal/build
+    Start 1: artist_personal_harness
+1/1 Test #1: artist_personal_harness ..........   Passed    0.26 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.27 sec
+### media exit=0
+Internal ctest changing into directory: C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/media/build
+Test project C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/media/build
+    Start 1: artist_media_query
+1/1 Test #1: artist_media_query ...............   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.04 sec
+### bridge exit=0
+Internal ctest changing into directory: C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/bridge/build
+Test project C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/bridge/build
+    Start 1: artist_service_bridge_harness
+1/1 Test #1: artist_service_bridge_harness ....   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.04 sec
+SOURCE_HEAD=860b96ae27a59c955f6aa9bf4642351ed8ce21e3
+SOURCE_DIRTY_LINES=11

@@ -1,0 +1,21 @@
+{
+ "channelId": "UCLo0ZqEI1xTikp4sU-bAIMA",
+ "fetchedAt": "2026-10-14T16:21:52.255357+00:00",
+ "calls": [
+  {
+   "call": "get_artist",
+   "ok": true,
+   "ms": 1333
+  },
+  {
+   "call": "get_playlist:songs",
+   "ok": true,
+   "ms": 282
+  },
+  {
+   "call": "get_playlist:videos",
+   "ok": true,
+   "ms": 240
+  }
+ ]
+}

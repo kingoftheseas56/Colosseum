@@ -1,0 +1,37 @@
+{
+  "eyebrow": "TANKOBAN GOES OFFLINE-FIRST",
+  "title": "Colosseum 1.1.1",
+  "summary": "Tankoban series pages now come from a baked catalogue with real cover art, chapters are gone in favor of volumes, and Nyaa moves behind the same opt-in gate as every other source.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.1",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "TANKOBAN",
+      "title": "Catalogue, offline",
+      "body": "Series pages render instantly from a baked 10,000-series catalogue. No live scraping on the browse path.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "COVERS",
+      "title": "Real cover art",
+      "body": "Volume shelves carry real BookWalker cover art, with honest NO COVER tiles where art is still pending.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "VOLUMES",
+      "title": "Volume-only",
+      "body": "Chapter browsing and downloading are removed. Downloaded volumes stay; a one-time migration clears old chapter files.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "EXTENSIONS",
+      "title": "Nyaa opts in",
+      "body": "Nyaa is now an extension, disabled by default like every other acquisition source. Enable it in Extensions.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}

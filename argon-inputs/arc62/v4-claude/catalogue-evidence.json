@@ -1,0 +1,3593 @@
+{
+ "generatedAt": "2026-10-14T16:28:16+00:00",
+ "primaryProvider": "YouTube Music (ytmusicapi 1.12.3, unauthenticated, location=IN)",
+ "identityProvider": "MusicBrainz web service v2",
+ "heroRule": "artist header image is used only when its largest provider size is >= 1440px wide and >= 1.6:1; otherwise the page uses the current Colosseum wallpaper",
+ "artists": {
+  "eminem": {
+   "state": "Rich catalogue",
+   "name": "Eminem",
+   "channelId": "UCfM3zsQsOnfWNUppiycmBuw",
+   "sourceUrl": "https://music.youtube.com/channel/UCfM3zsQsOnfWNUppiycmBuw",
+   "fetchedAt": "2026-10-14T16:20:08.026120+00:00",
+   "calls": [
+    {
+     "call": "get_artist",
+     "ok": true,
+     "ms": 2601
+    },
+    {
+     "call": "get_artist_albums:albums",
+     "ok": true,
+     "ms": 158
+    },
+    {
+     "call": "get_artist_albums:singles",
+     "ok": true,
+     "ms": 187
+    },
+    {
+     "call": "get_playlist:songs",
+     "ok": true,
+     "ms": 1470
+    },
+    {
+     "call": "get_playlist:videos",
+     "ok": true,
+     "ms": 2185
+    }
+   ],
+   "musicbrainz": {
+    "artistMbid": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4",
+    "releaseGroupsBrowsed": 317,
+    "matchedBy": "MBID browse"
+   },
+   "hero": {
+    "largestProviderSize": [
+     2880,
+     1200
+    ],
+    "eligible": true,
+    "file": "assets/eminem/hero.jpg",
+    "reason": "meets size rule; rights review still pending"
+   },
+   "popularSongs": {
+    "artistShelfCount": 5,
+    "playlistTracksFetched": 150,
+    "shown": 10,
+    "shelfMatchesPlaylistHead": true,
+    "rankMeaning": "provider order of the YouTube Music artist Songs shelf; not a Colosseum popularity algorithm; no play counts shown"
+   },
+   "releases": {
+    "albumsShelf": {
+     "source": "get_artist_albums",
+     "entries": 21
+    },
+    "singlesShelf": {
+     "source": "get_artist_albums",
+     "entries": 26
+    },
+    "afterEditionGrouping": {
+     "albums": 11,
+     "singles": 25,
+     "compilations": 2,
+     "soundtracks": 1,
+     "other": 1
+    },
+    "groups": [
+     {
+      "id": "7d8c5624-7c04-4d82-85ea-7adb00f55e8e",
+      "mbid": "7d8c5624-7c04-4d82-85ea-7adb00f55e8e",
+      "category": "soundtracks",
+      "title": "STANS (The Official Soundtrack)",
+      "year": "2025",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_DmBhgAVua1o",
+        "title": "STANS (The Official Soundtrack)",
+        "year": "2025",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/xIN67aenJGjjn7dl1SugpJFocYQiXMiYoFfaukVxJJ7NGhLZhm18n8Pr2-k7m8wr9-wJy5BdpMloqzS8=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_6MMDcE8iF3T",
+        "title": "STANS (The Official Soundtrack)",
+        "year": "2025",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/ZVCYMDH6774Yq2bbxEpxUnrZoIoxv0TO5nKEKZ24hnBBQOQUFIO-gwyj2PEW8AHFMoe8Wb7IXknsIrM=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key2",
+      "browseId": "MPREb_DmBhgAVua1o",
+      "cover": "assets/eminem/covers/MPREb_DmBhgAVua1o.jpg"
+     },
+     {
+      "id": "b0fa91c8-0996-38f1-ab84-797f58d7c4eb",
+      "mbid": "b0fa91c8-0996-38f1-ab84-797f58d7c4eb",
+      "category": "albums",
+      "title": "The Marshall Mathers LP",
+      "year": "2000",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_BEDvMqhixtx",
+        "title": "The Marshall Mathers LP (25th Anniversary)",
+        "year": "2025",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/1ecKTaGoX6fqHS38i_xeAQz5ue6C7hJdyd7geaEGkrAjSv01BcGCyyfZDuwfkc6ILC7aHW0CE5GfK_c=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_1Xjf214SdV1",
+        "title": "The Marshall Mathers LP",
+        "year": "2000",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/O-SeXg61tYo15uWSBzWPVoUlBx2mQAioidlHq3y-AurmaQZI2Vso7BJoGeDNAm2g6HquAq1z4g-1EBI=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_yEWFDeetJ3I",
+        "title": "The Marshall Mathers LP",
+        "year": "2000",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/gncQNuC-_EwzNbCoI7bGlIvrbKndtFuVPXHrCuyM2CspLJWyxs9AhBngm8o_eMHjvAGShDEzf7tKRldykA=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_1Xjf214SdV1",
+      "cover": "assets/eminem/covers/MPREb_1Xjf214SdV1.jpg"
+     },
+     {
+      "id": "3ec8da7f-a4c3-4951-a967-334321a24342",
+      "mbid": "3ec8da7f-a4c3-4951-a967-334321a24342",
+      "category": "albums",
+      "title": "The Death of Slim Shady (Coup De Grâce)",
+      "year": "2024",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_2kf42kzdMwc",
+        "title": "The Death of Slim Shady (Coup De Grâce): Expanded Mourner’s Edition",
+        "year": "2024",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/TwkIhptyjf4i_ia5wLzOwgWIJ9v2_dAHQ8qhbZQiLVtQkRkqo1twBJzE2VsSuh2T_iToLngQTSpO_Zs=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_VfwB9V2ZGFR",
+        "title": "The Death of Slim Shady (Coup De Grâce)",
+        "year": "2024",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/Xx3dX1EJDirqwpfQL05uAgmKGYpzTcFDXjjHqjNpIhgY5MWTJRLSlOjaYVtup2Ku6gBYEqXoxw5aGKC3=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key2",
+      "browseId": "MPREb_2kf42kzdMwc",
+      "cover": "assets/eminem/covers/MPREb_2kf42kzdMwc.jpg"
+     },
+     {
+      "id": "b1fdc9cc-8680-44da-abab-59edca6b2ad3",
+      "mbid": "b1fdc9cc-8680-44da-abab-59edca6b2ad3",
+      "category": "albums",
+      "title": "The Marshall Mathers LP2",
+      "year": "2013",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_UeKuRTAGddf",
+        "title": "The Marshall Mathers LP2 (Expanded Edition)",
+        "year": "2023",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/567tP7HQCfh3Aip6wsFdu89mHVYBO8DRAD1_ubtqo-p97Pwt4hJbDEeUmlmNeXwbxdSv0aPtaUIgFyIO9w=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_xz8bbrE3RP7",
+        "title": "The Marshall Mathers LP2",
+        "year": "2013",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/B1N8NXaM93AU45Jwma_drzsPUN5IV9TGm2i4uFBjFeBP6qVVzvZdf09Xj54c_vTaMURvWG-jYYC-D1k=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_xz8bbrE3RP7",
+      "cover": "assets/eminem/covers/MPREb_xz8bbrE3RP7.jpg"
+     },
+     {
+      "id": "77c24600-5610-473b-876e-09d8a42296b7",
+      "mbid": "77c24600-5610-473b-876e-09d8a42296b7",
+      "category": "compilations",
+      "title": "Curtain Call 2",
+      "year": "2022",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_WALokSukf0y",
+        "title": "Curtain Call 2",
+        "year": "2022",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/RO5rWMzQC54EdvsxtXp85RAQL9_C63IqIZwIVNJ7cFa3wLGuzhp0HQR4yIkbO6e_9GC7gazPDligUNs=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_WALokSukf0y",
+      "cover": "assets/eminem/covers/MPREb_WALokSukf0y.jpg"
+     },
+     {
+      "id": "e9585ed4-d148-3711-bbee-55a97b58325a",
+      "mbid": "e9585ed4-d148-3711-bbee-55a97b58325a",
+      "category": "albums",
+      "title": "The Eminem Show",
+      "year": "2002",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_nVOvQM1ODKM",
+        "title": "The Eminem Show (Expanded Edition)",
+        "year": "2022",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/qZ1t1WxAxBits3wzoatt34NtCK3Nwq6w3Z7L_UFVL6zxusQzAh07TpwXOi2M3_mgykASPVxT2CAh0ul6=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_nVOvQM1ODKM",
+      "cover": "assets/eminem/covers/MPREb_nVOvQM1ODKM.jpg"
+     },
+     {
+      "id": "bc217c64-db43-4311-9b73-fca6d25c4ac5",
+      "mbid": "bc217c64-db43-4311-9b73-fca6d25c4ac5",
+      "category": "albums",
+      "title": "Music To Be Murdered By",
+      "year": "2020",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_QPXlibAvU0z",
+        "title": "Music To Be Murdered By - Side B (Deluxe Edition)",
+        "year": "2020",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/Zna3iLEEUvPiNSMKt9YKT50KH7Y3GKbMUIqRVi1xm9HOYyzPfQUOZ9tjcsdh847ltomBQF3cWjzdIs3X=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_XTY8uZGf9Gt",
+        "title": "Music To Be Murdered By",
+        "year": "2020",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/gSjSpiwhol20w2GLjYSR81AOBvdo1UiLRBeu8RbVuRZjtHh6yipa22c26_TZK2Jm7_BGi4FApSXFIZo2VA=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key2",
+      "browseId": "MPREb_XTY8uZGf9Gt",
+      "cover": "assets/eminem/covers/MPREb_XTY8uZGf9Gt.jpg"
+     },
+     {
+      "id": "802d62ee-65c3-4666-8f47-44844321a6a0",
+      "mbid": "802d62ee-65c3-4666-8f47-44844321a6a0",
+      "category": "albums",
+      "title": "Kamikaze",
+      "year": "2018",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_7bUXWh9VGGx",
+        "title": "Kamikaze",
+        "year": "2018",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/JS6MK7XawzUUeCq-ANPfjk2BvkRnz5lblyK59uOhV9lmYSNdlZJx3KUQ6eF2CC7gjKOPO4Rq8tMPO2g=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_7bUXWh9VGGx",
+      "cover": "assets/eminem/covers/MPREb_7bUXWh9VGGx.jpg"
+     },
+     {
+      "id": "cfc62e61-686c-46cd-a453-608979646f71",
+      "mbid": "cfc62e61-686c-46cd-a453-608979646f71",
+      "category": "albums",
+      "title": "Revival",
+      "year": "2017",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_4pL8gzRtw1p",
+        "title": "Revival",
+        "year": "2017",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/b-euORTq-_MSzc3SyI0QOjLqnCBJbWuMmH1YlyJKAVvJfOpPqv3bFH-KSDoQwV9e8Xey1X2NRo9xZ2U=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_4pL8gzRtw1p",
+      "cover": "assets/eminem/covers/MPREb_4pL8gzRtw1p.jpg"
+     },
+     {
+      "id": "a5056c3b-730f-493b-b10e-52f678d72b85",
+      "mbid": "a5056c3b-730f-493b-b10e-52f678d72b85",
+      "category": "albums",
+      "title": "Recovery",
+      "year": "2010",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_UUFKiZYr3uO",
+        "title": "Recovery",
+        "year": "2010",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/IUuZFSUqFLMQlejTtsnLM_cB16A0T1g-savL7DYbWz5NFh2-DOw5-v9_PREJt9keX48NSan-8yUQCPM=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_UUFKiZYr3uO",
+      "cover": "assets/eminem/covers/MPREb_UUFKiZYr3uO.jpg"
+     },
+     {
+      "id": "ea1d0073-b586-3545-8607-f2632d53b0c0",
+      "mbid": "ea1d0073-b586-3545-8607-f2632d53b0c0",
+      "category": "albums",
+      "title": "Relapse",
+      "year": "2009",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_GoxkoIndLFi",
+        "title": "Relapse",
+        "year": "2009",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/uug1FXZw9zd6z8YNleGWyiKBBxvMXSBPtnTGqLJDt3mINoyUyo2s7bZocZPfDFIPEyEteOMexpbw7Q0=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_GoxkoIndLFi",
+      "cover": "assets/eminem/covers/MPREb_GoxkoIndLFi.jpg"
+     },
+     {
+      "id": "yt:albums:eminempresentsthereup",
+      "mbid": null,
+      "category": "other",
+      "title": "Eminem Presents The Re-Up",
+      "year": "2006",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_A9oTNsEPVX4",
+        "title": "Eminem Presents The Re-Up",
+        "year": "2006",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/sirvtdAu96E1HYp8FSRx87jbTNSfRVQkeTKxRaMFNXXvFMY-4PlBzyBTgJ-xpR3mk_2JfFZ2tBigxm5i=w544-h544-s-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_A9oTNsEPVX4",
+      "cover": "assets/eminem/covers/MPREb_A9oTNsEPVX4.jpg"
+     },
+     {
+      "id": "38a1cae8-d480-3a44-835a-19b0fe768813",
+      "mbid": "38a1cae8-d480-3a44-835a-19b0fe768813",
+      "category": "albums",
+      "title": "Encore",
+      "year": "2004",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_xFN2XG22AXC",
+        "title": "Encore",
+        "year": "2004",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/oWyLklmIlgBVjLy63kmFrXfgmzK8EIwpzyXneeLu3Ly6eqB_Usf7zZhZzo-LlwbxMx4WugYNW1Lp-ec=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_xFN2XG22AXC",
+      "cover": "assets/eminem/covers/MPREb_xFN2XG22AXC.jpg"
+     },
+     {
+      "id": "be725de4-4633-3c8a-9a03-f2c4392b6e0d",
+      "mbid": "be725de4-4633-3c8a-9a03-f2c4392b6e0d",
+      "category": "albums",
+      "title": "The Slim Shady LP",
+      "year": "1999",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_u1CGn06jajC",
+        "title": "The Slim Shady LP (Expanded Edition)",
+        "year": "1999",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/7X0KL8r154rKuRuEAF8CyvqaJA6mmess6fF9vamynE6RgXIff2JOvo7p_SETOXjWt_iuiWF1aZwWWTFS=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_u1CGn06jajC",
+      "cover": "assets/eminem/covers/MPREb_u1CGn06jajC.jpg"
+     },
+     {
+      "id": "1a18928e-1d32-32f2-a10e-e1f76e86bc8b",
+      "mbid": "1a18928e-1d32-32f2-a10e-e1f76e86bc8b",
+      "category": "compilations",
+      "title": "Curtain Call: The Hits",
+      "year": "2005",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_LQCAymzbaKJ",
+        "title": "Curtain Call: The Hits",
+        "year": "2005",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/M3bE7uvxto_SLeAM0dVltklsikCiUxdh1-6oGlHd0x_6kuxd7pUgvjqjBJCdSc-7tSPuGo-7FGHaIOG_=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_LQCAymzbaKJ",
+      "cover": "assets/eminem/covers/MPREb_LQCAymzbaKJ.jpg"
+     },
+     {
+      "id": "e5c5d16a-f89b-4f97-a18b-40a112b6a908",
+      "mbid": "e5c5d16a-f89b-4f97-a18b-40a112b6a908",
+      "category": "singles",
+      "title": "MADARA (feat. Neil Kaplan & Hideyoshi)",
+      "year": "2026",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_7rsHacXYE9Z",
+        "title": "MADARA (feat. Neil Kaplan & Hideyoshi)",
+        "year": "2026",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/csI77mb6fxBjJs8glQyV5rFSuT3ll36eezuZVV8myVOs9AV_IOf39FoRF2yBSAT2LqoOSMt7k4i6xU4G=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_7rsHacXYE9Z",
+      "cover": "assets/eminem/covers/MPREb_7rsHacXYE9Z.jpg"
+     },
+     {
+      "id": "ac425362-6272-4437-a599-cf9426d47bd0",
+      "mbid": "ac425362-6272-4437-a599-cf9426d47bd0",
+      "category": "singles",
+      "title": "Animals (Pt. I)",
+      "year": "2025",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_S2hp7UfN49G",
+        "title": "Animals (Pt. I)",
+        "year": "2025",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/97yz7Jf9T0acHGx9oF-uj4lqu89S7YVGS0p12I8U8yFWIDZC6pdb5fh_Wyfh3lHxJnRorwLxaGBKEog1xA=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_S2hp7UfN49G",
+      "cover": "assets/eminem/covers/MPREb_S2hp7UfN49G.jpg"
+     },
+     {
+      "id": "c7e62fc2-f671-42b3-a0f5-a2e23100e6b6",
+      "mbid": "c7e62fc2-f671-42b3-a0f5-a2e23100e6b6",
+      "category": "singles",
+      "title": "Somebody Save Me",
+      "year": "2024",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_jKo15BXoYmR",
+        "title": "Somebody Save Me",
+        "year": "2024",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/t4q-b1JIIzrix-_T5uBcNSNKm6TrdwEhXjMiZkly1WNP3xktKSgST0wX2ODJepauplDhGLL37wsiT-Kt=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_jKo15BXoYmR",
+      "cover": "assets/eminem/covers/MPREb_jKo15BXoYmR.jpg"
+     },
+     {
+      "id": "4384e7d6-207e-4f3a-bc5d-74c22c6b0fc4",
+      "mbid": "4384e7d6-207e-4f3a-bc5d-74c22c6b0fc4",
+      "category": "singles",
+      "title": "Tobey",
+      "year": "2024",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_ENmFulmcWoO",
+        "title": "Tobey",
+        "year": "2024",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/JvQAGzJGg-LLZw3nXR5c8vKBR9r3-5vCTBKLuXNMOa7Unxb1jOQ9WxtfKiUuB5zlqWNOvjKLr34fZk6w=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_ENmFulmcWoO",
+      "cover": "assets/eminem/covers/MPREb_ENmFulmcWoO.jpg"
+     },
+     {
+      "id": "785f6f52-460e-485f-9ab7-66224931fdef",
+      "mbid": "785f6f52-460e-485f-9ab7-66224931fdef",
+      "category": "singles",
+      "title": "Houdini",
+      "year": "2024",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_rvNEKlC0c6B",
+        "title": "Houdini",
+        "year": "2024",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/CQyUJawPkic5ab9xRAfLULZd4WaKLxdPsxZrKeV7KpNrCu_9TExzSEyl3QtWu516l8wQTlo8Jmjx-hfQ=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_rvNEKlC0c6B",
+      "cover": "assets/eminem/covers/MPREb_rvNEKlC0c6B.jpg"
+     },
+     {
+      "id": "112f6ea2-2817-4d18-9ecd-d2146722523f",
+      "mbid": "112f6ea2-2817-4d18-9ecd-d2146722523f",
+      "category": "singles",
+      "title": "Lace It",
+      "year": "2023",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_DWqo7HrYEmt",
+        "title": "Lace It",
+        "year": "2023",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/6aOVxyoia1UtIny48rIKgq2P0-2NE602mhG4lup_s_YNl271v1ONNWj6PsoyQaEa9gAVy6XHCTEsFBp47A=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_DWqo7HrYEmt",
+      "cover": "assets/eminem/covers/MPREb_DWqo7HrYEmt.jpg"
+     },
+     {
+      "id": "yt:singles:realest:2023",
+      "mbid": null,
+      "category": "singles",
+      "title": "Realest",
+      "year": "2023",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_J0wDVDGuvac",
+        "title": "Realest",
+        "year": "2023",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/8UbznV8lEqTA_TlikgMvapzNT9GaFrSLzgHb28RnkJg_gKVlhYzfmNQ_UwTjr-gV2hBStAKN84X5Vr7Z=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_J0wDVDGuvac",
+      "cover": "assets/eminem/covers/MPREb_J0wDVDGuvac.jpg"
+     },
+     {
+      "id": "009effe2-48c7-4e74-b753-bf719fe193e8",
+      "mbid": "009effe2-48c7-4e74-b753-bf719fe193e8",
+      "category": "singles",
+      "title": "From The D 2 The LBC",
+      "year": "2022",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_k15oukterJY",
+        "title": "From The D 2 The LBC",
+        "year": "2022",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/XvlkHCNeuPMfq5lD2J3Iv9YjgMnG7Uy1M1gw5mCQQ8yXrF4FSS8Iyc5pRrjioJsU1J9yzcGBArRkqejYqA=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_k15oukterJY",
+      "cover": "assets/eminem/covers/MPREb_k15oukterJY.jpg"
+     },
+     {
+      "id": "fe7b377d-ba28-469a-a204-1b606731b139",
+      "mbid": "fe7b377d-ba28-469a-a204-1b606731b139",
+      "category": "singles",
+      "title": "The King and I (From the Original Motion Picture Soundtrack ELVIS) (feat. CeeLo Green)",
+      "year": "2022",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_sEtfSnGV9Xa",
+        "title": "The King and I (From the Original Motion Picture Soundtrack ELVIS) (feat. CeeLo Green)",
+        "year": "2022",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/0VHW4bx3i2seXON4O5v0394JOkU2q_OX7t8T9BmC9MQczXPh08CjHPviKaJeq_KufrfwwGh3sScChVY2=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_sEtfSnGV9Xa",
+      "cover": "assets/eminem/covers/MPREb_sEtfSnGV9Xa.jpg"
+     },
+     {
+      "id": "17411dc7-8d79-4c06-9b90-402ba46ce8bf",
+      "mbid": "17411dc7-8d79-4c06-9b90-402ba46ce8bf",
+      "category": "singles",
+      "title": "Gospel",
+      "year": "2022",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_esbACb9ryh3",
+        "title": "Gospel",
+        "year": "2022",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/o3Snlk-Ub6WRwYjVT84ZIBsMftXILBGg-qTawiQw1uEf5zMcxFMOws76gj_hkjyCrs8XU0XaZE19ZG2R=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_esbACb9ryh3",
+      "cover": "assets/eminem/covers/MPREb_esbACb9ryh3.jpg"
+     },
+     {
+      "id": "78edd2ef-19c2-43b7-8164-a64d30c208ce",
+      "mbid": "78edd2ef-19c2-43b7-8164-a64d30c208ce",
+      "category": "singles",
+      "title": "The Adventures Of Moon Man & Slim Shady",
+      "year": "2020",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_wjwcKSp2Osd",
+        "title": "The Adventures Of Moon Man & Slim Shady",
+        "year": "2020",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/Ps3uFGFhlj6E4OmNUSctmYKGvsV9Fvq3usFwe2vi3pWyPq_0AeAjSE6paF1iw0JfH3jWOsZktBIMtB-L=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_wjwcKSp2Osd",
+      "cover": "assets/eminem/covers/MPREb_wjwcKSp2Osd.jpg"
+     },
+     {
+      "id": "2758ec76-9ec9-4be8-b3ea-9fdc569a2fec",
+      "mbid": "2758ec76-9ec9-4be8-b3ea-9fdc569a2fec",
+      "category": "singles",
+      "title": "Venom (Music From The Motion Picture)",
+      "year": "2018",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_AqPUZdEKe0A",
+        "title": "Venom (Music From The Motion Picture)",
+        "year": "2018",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/dfJllE8TuyeMROlvqAp38lph2IPkAD_zIWZtF60nrZSFox3qiEJ4FLSIQdtieb4gDAyRCh9MkT49K3Fb=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_AqPUZdEKe0A",
+      "cover": "assets/eminem/covers/MPREb_AqPUZdEKe0A.jpg"
+     },
+     {
+      "id": "7236cf16-f251-4787-88e3-b65355c2d4e0",
+      "mbid": "7236cf16-f251-4787-88e3-b65355c2d4e0",
+      "category": "singles",
+      "title": "Killshot",
+      "year": "2018",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_ffSLrwxqcfd",
+        "title": "Killshot",
+        "year": "2018",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/bVRFSKvGn8NxqDEQqedK9sZAxcRvW85feFS11zvGi8m7kXs5VxazPgjVGuuoxyCe3uu7MgOgnmuwykwF=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_ffSLrwxqcfd",
+      "cover": "assets/eminem/covers/MPREb_ffSLrwxqcfd.jpg"
+     },
+     {
+      "id": "b4f5bb83-2e0a-4790-816f-de4e37cfe556",
+      "mbid": "b4f5bb83-2e0a-4790-816f-de4e37cfe556",
+      "category": "singles",
+      "title": "Nowhere Fast (Extended Version) (feat. Kehlani)",
+      "year": "2018",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_P0If0ivjiNX",
+        "title": "Nowhere Fast (Extended Version) (feat. Kehlani)",
+        "year": "2018",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/vaY-1kdf4xa3bnSFsMW6OAcCq9lYA9sxxqhppeCb5gv2-IxRINlCvhODKl0nxhAegEqyVt80BYygTK8C=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_P0If0ivjiNX",
+      "cover": "assets/eminem/covers/MPREb_P0If0ivjiNX.jpg"
+     },
+     {
+      "id": "b2d7ce96-a6d3-41e3-a1f3-550e35ad5255",
+      "mbid": "b2d7ce96-a6d3-41e3-a1f3-550e35ad5255",
+      "category": "singles",
+      "title": "Campaign Speech",
+      "year": "2016",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_dK0aulHS88l",
+        "title": "Campaign Speech",
+        "year": "2016",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/_uel--wO3tXO_3Xdqnti7tjWIoPtlxQjA7INlqRjPypYLSw8nZVjcQkQsmuRtiMrdvhL6PPTIsFRgofSjA=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_dK0aulHS88l",
+      "cover": "assets/eminem/covers/MPREb_dK0aulHS88l.jpg"
+     },
+     {
+      "id": "26b50a2d-d1fd-42ca-8370-4b71cd5ff8a5",
+      "mbid": "26b50a2d-d1fd-42ca-8370-4b71cd5ff8a5",
+      "category": "singles",
+      "title": "Rap God",
+      "year": "2013",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_EPz4TobP2QC",
+        "title": "Rap God",
+        "year": "2013",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/pbff_r8bJlc5iWG4-9SkmgY-yKgY_I4W1f9fzowGDqtsT2mrBBwtu90gLTy3wDUoVYT5TI7tq2O4du3L=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_EPz4TobP2QC",
+      "cover": "assets/eminem/covers/MPREb_EPz4TobP2QC.jpg"
+     },
+     {
+      "id": "81a235bb-7501-3b04-8d4e-83af93e03236",
+      "mbid": "81a235bb-7501-3b04-8d4e-83af93e03236",
+      "category": "singles",
+      "title": "We Made You (International Version)",
+      "year": "2009",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_IIprLF2Vf5q",
+        "title": "We Made You (International Version)",
+        "year": "2009",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/acFKFqE2NKNty_Iy3X9aHXraLkEubHM4GxhSuIRZ1Aa-_g-JWW-3Yb3cZ6Yg6yEsLKQW6z0No8L_Us8=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_IIprLF2Vf5q",
+      "cover": "assets/eminem/covers/MPREb_IIprLF2Vf5q.jpg"
+     },
+     {
+      "id": "c51090e5-c0f6-3029-baed-bb76ebb04845",
+      "mbid": "c51090e5-c0f6-3029-baed-bb76ebb04845",
+      "category": "singles",
+      "title": "When I'm Gone",
+      "year": "2005",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_1gZRXuZuGRz",
+        "title": "When I'm Gone",
+        "year": "2005",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/9YBAKxPIYWeNXLfeRcfK6fsJ3ctb5BuhhgTubnZdshjPKfM0JrRxp3jhAaT1gJD4JInGLG23yceZZsgG=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_1gZRXuZuGRz",
+      "cover": "assets/eminem/covers/MPREb_1gZRXuZuGRz.jpg"
+     },
+     {
+      "id": "df4b48f5-77fe-499d-a6a2-ca83d186beb8",
+      "mbid": "df4b48f5-77fe-499d-a6a2-ca83d186beb8",
+      "category": "singles",
+      "title": "Mockingbird",
+      "year": "2005",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_gSYtf8clrpu",
+        "title": "Mockingbird",
+        "year": "2005",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/2i-qbdJKIZBETO_zRVv5TrLro0SI5hBFyyA_1glWir5jW9awf-GYXcIs-iz40vXVIB36Af2axqQUt7Mn=w544-h544-l90-rj"
+       },
+       {
+        "browseId": "MPREb_EK3pQhuYOw2",
+        "title": "Mockingbird",
+        "year": "2005",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/2i-qbdJKIZBETO_zRVv5TrLro0SI5hBFyyA_1glWir5jW9awf-GYXcIs-iz40vXVIB36Af2axqQUt7Mn=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_gSYtf8clrpu",
+      "cover": "assets/eminem/covers/MPREb_gSYtf8clrpu.jpg"
+     },
+     {
+      "id": "71c1700f-0879-3a67-88e9-348a52744358",
+      "mbid": "71c1700f-0879-3a67-88e9-348a52744358",
+      "category": "singles",
+      "title": "Ass Like That",
+      "year": "2004",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_T5iiu2LZBkq",
+        "title": "Ass Like That",
+        "year": "2005",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/HEkBKsCcjf7VYWFrkeXtz4PPFYtHMJZVwJX0Uati-aNz5in9GwEM-tbBn6Zd7CyrrUVU68Ii-jqdgQo=w544-h544-s-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_T5iiu2LZBkq",
+      "cover": "assets/eminem/covers/MPREb_T5iiu2LZBkq.jpg"
+     },
+     {
+      "id": "21ab8b79-2669-3ab7-af7d-14d40c028c70",
+      "mbid": "21ab8b79-2669-3ab7-af7d-14d40c028c70",
+      "category": "singles",
+      "title": "Just Lose It",
+      "year": "2004",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_7VtLy3uZcRJ",
+        "title": "Just Lose It",
+        "year": "2004",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/l3YLI3P88BQAoQJ_WbNAMv9IZy4rEY3hM-L70riw5UNk7UxA_6om4HSuTANBIujbAIRfHXi4M0-nSEel=w544-h544-s-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_7VtLy3uZcRJ",
+      "cover": "assets/eminem/covers/MPREb_7VtLy3uZcRJ.jpg"
+     },
+     {
+      "id": "yt:singles:911:2003",
+      "mbid": null,
+      "category": "singles",
+      "title": "911",
+      "year": "2003",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_3ZfHo0FTgMH",
+        "title": "911",
+        "year": "2003",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/pmbzydm8YryfsyIqXYPgE6Z-f1jNdhONjQnZT2y5svkJGe6hN-2MHEf3ivrc5rivJiYfSeaBvP_-zRk=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_3ZfHo0FTgMH",
+      "cover": "assets/eminem/covers/MPREb_3ZfHo0FTgMH.jpg"
+     },
+     {
+      "id": "64feed6d-3a44-4ead-bdb9-fcecd1c7096f",
+      "mbid": "64feed6d-3a44-4ead-bdb9-fcecd1c7096f",
+      "category": "singles",
+      "title": "Live at Ford Field",
+      "year": "2025",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_q8NSlBwTysl",
+        "title": "Live at Ford Field",
+        "year": "2025",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/zNk7R7Ydk5ifGopXJ6bpcj7n9HdoBcSBg6T4tZ7RGp4Hzb52uZ8e64jTZwRdQ0eNIopWX3WzG_GkTds=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_q8NSlBwTysl",
+      "cover": "assets/eminem/covers/MPREb_q8NSlBwTysl.jpg"
+     },
+     {
+      "id": "yt:singles:killer:2021",
+      "mbid": null,
+      "category": "singles",
+      "title": "Killer (Remix) (feat. Jack Harlow & Cordae)",
+      "year": "2021",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_FRKTfWn0yyw",
+        "title": "Killer (Remix) (feat. Jack Harlow & Cordae)",
+        "year": "2021",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/wmNI8bxqo6DYEct4Z93OB3vVde8HnKp4MSae-_eE1w89GFAre0DvrPsUbkCgrUk3P-mGArzCaUtSzPgZ=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_FRKTfWn0yyw",
+      "cover": "assets/eminem/covers/MPREb_FRKTfWn0yyw.jpg"
+     },
+     {
+      "id": "yt:singles:chloraseptic:2018",
+      "mbid": null,
+      "category": "singles",
+      "title": "Chloraseptic (Remix) (feat. 2 Chainz & Phresher)",
+      "year": "2018",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_ywHEQzqKbsB",
+        "title": "Chloraseptic (Remix) (feat. 2 Chainz & Phresher)",
+        "year": "2018",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/GU2trSIKBVIaQm373qGg-uGAg_HE2kMEn6-dgLFQqRA5qU_cr_B_XJIunqu26KZXD4JWpJNdb0pM5Co=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_ywHEQzqKbsB",
+      "cover": "assets/eminem/covers/MPREb_ywHEQzqKbsB.jpg"
+     }
+    ],
+    "unmatchedInMusicBrainz": [
+     {
+      "title": "Eminem Presents The Re-Up",
+      "browseId": "MPREb_A9oTNsEPVX4",
+      "ytShelf": "albums"
+     },
+     {
+      "title": "Realest",
+      "browseId": "MPREb_J0wDVDGuvac",
+      "ytShelf": "singles"
+     },
+     {
+      "title": "911",
+      "browseId": "MPREb_3ZfHo0FTgMH",
+      "ytShelf": "singles"
+     },
+     {
+      "title": "Killer (Remix) (feat. Jack Harlow & Cordae)",
+      "browseId": "MPREb_FRKTfWn0yyw",
+      "ytShelf": "singles"
+     },
+     {
+      "title": "Chloraseptic (Remix) (feat. 2 Chainz & Phresher)",
+      "browseId": "MPREb_ywHEQzqKbsB",
+      "ytShelf": "singles"
+     }
+    ]
+   },
+   "videos": {
+    "source": "artist videos playlist",
+    "fetched": 109,
+    "musicVideos": 105,
+    "livePerformances": 4,
+    "liveRule": "title contains the word 'Live' (provider title text); separate rail only when 2+ exist",
+    "durationsMissing": 0
+   },
+   "related": {
+    "source": "artist page related shelf",
+    "count": 10
+   }
+  },
+  "lifafa": {
+   "state": "Sparse catalogue",
+   "name": "Lifafa",
+   "channelId": "UCYBh5kDH7w7pFeLiLMX6lkA",
+   "sourceUrl": "https://music.youtube.com/channel/UCYBh5kDH7w7pFeLiLMX6lkA",
+   "fetchedAt": "2026-10-14T16:21:50.058325+00:00",
+   "calls": [
+    {
+     "call": "get_artist",
+     "ok": true,
+     "ms": 1308
+    },
+    {
+     "call": "get_playlist:songs",
+     "ok": true,
+     "ms": 198
+    }
+   ],
+   "musicbrainz": {
+    "artistMbid": "217f190a-a809-42c7-97a4-f51ad7f268a1",
+    "releaseGroupsBrowsed": 2,
+    "matchedBy": "name search, top score 100 (verify)"
+   },
+   "hero": {
+    "largestProviderSize": [
+     2880,
+     1200
+    ],
+    "eligible": true,
+    "file": "assets/lifafa/hero.jpg",
+    "reason": "meets size rule; rights review still pending"
+   },
+   "popularSongs": {
+    "artistShelfCount": 5,
+    "playlistTracksFetched": 18,
+    "shown": 10,
+    "shelfMatchesPlaylistHead": true,
+    "rankMeaning": "provider order of the YouTube Music artist Songs shelf; not a Colosseum popularity algorithm; no play counts shown"
+   },
+   "releases": {
+    "albumsShelf": {
+     "source": "get_artist inline shelf",
+     "entries": 2
+    },
+    "singlesShelf": {
+     "source": "get_artist inline shelf",
+     "entries": 1
+    },
+    "afterEditionGrouping": {
+     "albums": 2,
+     "singles": 1
+    },
+    "groups": [
+     {
+      "id": "a44b021c-d914-4ceb-8dc9-945d1a4e3488",
+      "mbid": "a44b021c-d914-4ceb-8dc9-945d1a4e3488",
+      "category": "albums",
+      "title": "SUPERPOWER 2020",
+      "year": "2021",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_eDMHaqPwOZa",
+        "title": "SUPERPOWER 2020",
+        "year": "2021",
+        "explicit": false,
+        "thumb": "https://yt3.googleusercontent.com/6yEpWZHbMN7wntg4gVnTUbWUNLMXeXb2daE0UQm_j6IEDPRokqJ2sRzMvH33gN5KQBznJoTiJz-Hz4M=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key3",
+      "browseId": "MPREb_eDMHaqPwOZa",
+      "cover": "assets/lifafa/covers/MPREb_eDMHaqPwOZa.jpg"
+     },
+     {
+      "id": "f041a022-839a-4e06-a31f-437f4b86a3a8",
+      "mbid": "f041a022-839a-4e06-a31f-437f4b86a3a8",
+      "category": "albums",
+      "title": "Jaago",
+      "year": "2019",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_r3Sup4ZhJxG",
+        "title": "Jaago",
+        "year": "2019",
+        "explicit": false,
+        "thumb": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key3",
+      "browseId": "MPREb_r3Sup4ZhJxG",
+      "cover": "assets/lifafa/covers/MPREb_r3Sup4ZhJxG.jpg"
+     },
+     {
+      "id": "yt:singles:dinraat:2018",
+      "mbid": null,
+      "category": "singles",
+      "title": "Din Raat",
+      "year": "2018",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_DLratCDFLuv",
+        "title": "Din Raat",
+        "year": "2018",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/7aQRuPFIPp-oc5WJ-5ZU4TCrm_uyGnn4y2l_sx8JTJOUSX6OCMDWGolOSR46CYHfzS4BplfBtJSHAFc5=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_DLratCDFLuv",
+      "cover": "assets/lifafa/covers/MPREb_DLratCDFLuv.jpg"
+     }
+    ],
+    "unmatchedInMusicBrainz": [
+     {
+      "title": "Din Raat",
+      "browseId": "MPREb_DLratCDFLuv",
+      "ytShelf": "singles"
+     }
+    ]
+   },
+   "videos": {
+    "source": "artist page videos shelf (no playlist handle returned)",
+    "fetched": 4,
+    "musicVideos": 4,
+    "livePerformances": 0,
+    "liveRule": "title contains the word 'Live' (provider title text); separate rail only when 2+ exist",
+    "durationsMissing": 4
+   },
+   "related": {
+    "source": "artist page related shelf",
+    "count": 10
+   }
+  },
+  "easywanderlings": {
+   "state": "No eligible artist image",
+   "name": "Easy Wanderlings",
+   "channelId": "UCPv2LOFD6FTk6bzEK2lHbWQ",
+   "sourceUrl": "https://music.youtube.com/channel/UCPv2LOFD6FTk6bzEK2lHbWQ",
+   "fetchedAt": "2026-10-14T16:21:52.255357+00:00",
+   "calls": [
+    {
+     "call": "get_artist",
+     "ok": true,
+     "ms": 1333
+    },
+    {
+     "call": "get_playlist:songs",
+     "ok": true,
+     "ms": 282
+    },
+    {
+     "call": "get_playlist:videos",
+     "ok": true,
+     "ms": 240
+    }
+   ],
+   "musicbrainz": {
+    "artistMbid": "db7571d3-fde7-4fb5-b6ea-157411241a24",
+    "releaseGroupsBrowsed": 2,
+    "matchedBy": "name search, top score 100 (verify)"
+   },
+   "hero": {
+    "largestProviderSize": [
+     1080,
+     450
+    ],
+    "eligible": false,
+    "file": null,
+    "reason": "largest provider image is 1080x450, below the 1440px rule -> current wallpaper"
+   },
+   "popularSongs": {
+    "artistShelfCount": 5,
+    "playlistTracksFetched": 21,
+    "shown": 10,
+    "shelfMatchesPlaylistHead": true,
+    "rankMeaning": "provider order of the YouTube Music artist Songs shelf; not a Colosseum popularity algorithm; no play counts shown"
+   },
+   "releases": {
+    "albumsShelf": {
+     "source": "get_artist inline shelf",
+     "entries": 1
+    },
+    "singlesShelf": {
+     "source": "get_artist inline shelf",
+     "entries": 5
+    },
+    "afterEditionGrouping": {
+     "albums": 1,
+     "singles": 5
+    },
+    "groups": [
+     {
+      "id": "2529549c-5b79-4f8d-bf41-7586d87a3eff",
+      "mbid": "2529549c-5b79-4f8d-bf41-7586d87a3eff",
+      "category": "albums",
+      "title": "As Written in the Stars",
+      "year": "2017",
+      "ytType": "Album",
+      "editions": [
+       {
+        "browseId": "MPREb_OPCLh8vwJNl",
+        "title": "As Written in the Stars",
+        "year": "2017",
+        "explicit": false,
+        "thumb": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_OPCLh8vwJNl",
+      "cover": "assets/easywanderlings/covers/MPREb_OPCLh8vwJNl.jpg"
+     },
+     {
+      "id": "yt:singles:mellow:2026",
+      "mbid": null,
+      "category": "singles",
+      "title": "Mellow",
+      "year": "2026",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_YYSLl7eF61q",
+        "title": "Mellow",
+        "year": "2026",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_YYSLl7eF61q",
+      "cover": "assets/easywanderlings/covers/MPREb_YYSLl7eF61q.jpg"
+     },
+     {
+      "id": "8dfa7a01-a5cc-442e-ad27-b8c18824ad57",
+      "mbid": "8dfa7a01-a5cc-442e-ad27-b8c18824ad57",
+      "category": "singles",
+      "title": "Caught in a Parade",
+      "year": "2022",
+      "ytType": "EP",
+      "editions": [
+       {
+        "browseId": "MPREb_jIvIf1k88wy",
+        "title": "Caught in a Parade",
+        "year": "2022",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": "key1",
+      "browseId": "MPREb_jIvIf1k88wy",
+      "cover": "assets/easywanderlings/covers/MPREb_jIvIf1k88wy.jpg",
+      "kind": "EP"
+     },
+     {
+      "id": "yt:singles:flyaway:2020",
+      "mbid": null,
+      "category": "singles",
+      "title": "Fly Away",
+      "year": "2020",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_Nf0BeqFdf9q",
+        "title": "Fly Away",
+        "year": "2020",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_Nf0BeqFdf9q",
+      "cover": "assets/easywanderlings/covers/MPREb_Nf0BeqFdf9q.jpg"
+     },
+     {
+      "id": "yt:singles:myplacetoyou:2019",
+      "mbid": null,
+      "category": "singles",
+      "title": "My Place to You",
+      "year": "2019",
+      "ytType": "Single",
+      "editions": [
+       {
+        "browseId": "MPREb_DefB8uIrdyK",
+        "title": "My Place to You",
+        "year": "2019",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_DefB8uIrdyK",
+      "cover": "assets/easywanderlings/covers/MPREb_DefB8uIrdyK.jpg"
+     },
+     {
+      "id": "yt:singles:theakkaretapes:2021",
+      "mbid": null,
+      "category": "singles",
+      "title": "The Akkare Tapes (Live from Akkarai)",
+      "year": "2021",
+      "ytType": "EP",
+      "editions": [
+       {
+        "browseId": "MPREb_7xd00FQXMFQ",
+        "title": "The Akkare Tapes (Live from Akkarai)",
+        "year": "2021",
+        "explicit": null,
+        "thumb": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w544-h544-l90-rj"
+       }
+      ],
+      "matchedBy": null,
+      "browseId": "MPREb_7xd00FQXMFQ",
+      "cover": "assets/easywanderlings/covers/MPREb_7xd00FQXMFQ.jpg",
+      "kind": "EP"
+     }
+    ],
+    "unmatchedInMusicBrainz": [
+     {
+      "title": "Mellow",
+      "browseId": "MPREb_YYSLl7eF61q",
+      "ytShelf": "singles"
+     },
+     {
+      "title": "Fly Away",
+      "browseId": "MPREb_Nf0BeqFdf9q",
+      "ytShelf": "singles"
+     },
+     {
+      "title": "My Place to You",
+      "browseId": "MPREb_DefB8uIrdyK",
+      "ytShelf": "singles"
+     },
+     {
+      "title": "The Akkare Tapes (Live from Akkarai)",
+      "browseId": "MPREb_7xd00FQXMFQ",
+      "ytShelf": "singles"
+     }
+    ]
+   },
+   "videos": {
+    "source": "artist videos playlist",
+    "fetched": 26,
+    "musicVideos": 23,
+    "livePerformances": 3,
+    "liveRule": "title contains the word 'Live' (provider title text); separate rail only when 2+ exist",
+    "durationsMissing": 0
+   },
+   "related": {
+    "source": "artist page related shelf",
+    "count": 10
+   }
+  }
+ },
+ "wallpaper": {
+  "default": "assets/wallpaper/cold-ripple.jpg",
+  "current": "assets/wallpaper/current-home-pick.jpg",
+  "currentSource": {
+   "from": "Colosseum/wallpapers.ini [wallpapers] homePick",
+   "title": "Wallhaven odw8e7",
+   "sourceUrl": "https://wallhaven.cc/w/odw8e7",
+   "attribution": "Wallhaven / original uploader"
+  }
+ },
+ "assets": [
+  {
+   "file": "assets/eminem/hero.jpg",
+   "kind": "artist-hero",
+   "entity": "UCfM3zsQsOnfWNUppiycmBuw",
+   "sourceUrl": "https://lh3.googleusercontent.com/JFI6JZrS-Lco4UdpqDfHY5Wgwy51VXWxmNdI7bCBU5CDlIpN6WWyisZ7MGlpjbrxEGYMFpsqoR_UwcE=w1920-h800-p-l90-rj",
+   "bytes": 122464,
+   "sha256": "8157105af923352c67423c5facee9f3c2e4a7aec676385fcc8f73560b5e99b51",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/9kznlAwE-8o.jpg",
+   "kind": "song-art",
+   "entity": "9kznlAwE-8o",
+   "sourceUrl": "https://yt3.googleusercontent.com/oWyLklmIlgBVjLy63kmFrXfgmzK8EIwpzyXneeLu3Ly6eqB_Usf7zZhZzo-LlwbxMx4WugYNW1Lp-ec=w120-h120-l90-rj",
+   "bytes": 8484,
+   "sha256": "564170fe2a967f77ed58a68a59e1af9c1f1a7f2a7e154155fc401e5c42f8d19e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/tqxRidAWER8.jpg",
+   "kind": "song-art",
+   "entity": "tqxRidAWER8",
+   "sourceUrl": "https://yt3.googleusercontent.com/GJmbTYfaMrWuPSzhOAy7jGCQ70a2UN2-0moTq-uh_Prd73-Au51FDHhGteg543a7iBv1Y9SPm4huMSBS=w120-h120-l90-rj",
+   "bytes": 7906,
+   "sha256": "5a838125e071cf36feeecfb0dde93fdad14a71a9628ee976928b303777e7eda2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/RnkShwdXfyc.jpg",
+   "kind": "song-art",
+   "entity": "RnkShwdXfyc",
+   "sourceUrl": "https://yt3.googleusercontent.com/IUuZFSUqFLMQlejTtsnLM_cB16A0T1g-savL7DYbWz5NFh2-DOw5-v9_PREJt9keX48NSan-8yUQCPM=w120-h120-l90-rj",
+   "bytes": 4271,
+   "sha256": "d67c1fb5d9662ff64b646c27eff3919e3aea54bc4763ba5d1b8474c63d418e86",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/4wOLVrGHiIU.jpg",
+   "kind": "song-art",
+   "entity": "4wOLVrGHiIU",
+   "sourceUrl": "https://yt3.googleusercontent.com/8aW-ynltCML7Hwi4_XWQykhMaIYeL11W8WxBHyWvcuQABlNaJQf-1CTW_QpEglC8taIi9JDfXH9B-9ob=w120-h120-l90-rj",
+   "bytes": 9961,
+   "sha256": "348eeea2650d205dbd8a54b63ed3322b76b59493a160f0e1db53e8b00fa4857d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/-grPV-Fae6I.jpg",
+   "kind": "song-art",
+   "entity": "-grPV-Fae6I",
+   "sourceUrl": "https://yt3.googleusercontent.com/IUuZFSUqFLMQlejTtsnLM_cB16A0T1g-savL7DYbWz5NFh2-DOw5-v9_PREJt9keX48NSan-8yUQCPM=w120-h120-l90-rj",
+   "bytes": 4271,
+   "sha256": "d67c1fb5d9662ff64b646c27eff3919e3aea54bc4763ba5d1b8474c63d418e86",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/r5MR7_INQwg.jpg",
+   "kind": "song-art",
+   "entity": "r5MR7_INQwg",
+   "sourceUrl": "https://yt3.googleusercontent.com/O-SeXg61tYo15uWSBzWPVoUlBx2mQAioidlHq3y-AurmaQZI2Vso7BJoGeDNAm2g6HquAq1z4g-1EBI=w120-h120-l90-rj",
+   "bytes": 3667,
+   "sha256": "6bfc047602ccd677086ad4a222e9e5d695e6cd6f5bfcf3674b59646608737463",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/K_8yRH2KPVo.jpg",
+   "kind": "song-art",
+   "entity": "K_8yRH2KPVo",
+   "sourceUrl": "https://yt3.googleusercontent.com/GJmbTYfaMrWuPSzhOAy7jGCQ70a2UN2-0moTq-uh_Prd73-Au51FDHhGteg543a7iBv1Y9SPm4huMSBS=w120-h120-l90-rj",
+   "bytes": 7906,
+   "sha256": "5a838125e071cf36feeecfb0dde93fdad14a71a9628ee976928b303777e7eda2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/SQVkYgkMzhY.jpg",
+   "kind": "song-art",
+   "entity": "SQVkYgkMzhY",
+   "sourceUrl": "https://yt3.googleusercontent.com/Y1g2sIdzam7aOAuJUJbOc015H8_BQ1XzdKsY8KIEn4JT5wekLrJ5RurMQLz28l2YxyNknDtXfkUb4x0=w120-h120-l90-rj",
+   "bytes": 7591,
+   "sha256": "6b97828bbbb1a04ea47d38107b6c73f57a618423157fd46a8dbe97ea80a79d1e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/HIqQ0PfuPo8.jpg",
+   "kind": "song-art",
+   "entity": "HIqQ0PfuPo8",
+   "sourceUrl": "https://yt3.googleusercontent.com/O-SeXg61tYo15uWSBzWPVoUlBx2mQAioidlHq3y-AurmaQZI2Vso7BJoGeDNAm2g6HquAq1z4g-1EBI=w120-h120-l90-rj",
+   "bytes": 3667,
+   "sha256": "6bfc047602ccd677086ad4a222e9e5d695e6cd6f5bfcf3674b59646608737463",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/songs/CO4kW70AchE.jpg",
+   "kind": "song-art",
+   "entity": "CO4kW70AchE",
+   "sourceUrl": "https://yt3.googleusercontent.com/qZ1t1WxAxBits3wzoatt34NtCK3Nwq6w3Z7L_UFVL6zxusQzAh07TpwXOi2M3_mgykASPVxT2CAh0ul6=w120-h120-l90-rj",
+   "bytes": 6973,
+   "sha256": "1532318850ab99e8ad6597fa34b94d6b612a5079b62147ad8636686b5a3fc642",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_DmBhgAVua1o.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_DmBhgAVua1o",
+   "sourceUrl": "https://yt3.googleusercontent.com/xIN67aenJGjjn7dl1SugpJFocYQiXMiYoFfaukVxJJ7NGhLZhm18n8Pr2-k7m8wr9-wJy5BdpMloqzS8=w300-h300-l90-rj",
+   "bytes": 45434,
+   "sha256": "26c4af9ceb6d2761ecd38608fb78ba9f9f196c7fc8de108258eda166f44d51bc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_1Xjf214SdV1.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_1Xjf214SdV1",
+   "sourceUrl": "https://yt3.googleusercontent.com/O-SeXg61tYo15uWSBzWPVoUlBx2mQAioidlHq3y-AurmaQZI2Vso7BJoGeDNAm2g6HquAq1z4g-1EBI=w300-h300-l90-rj",
+   "bytes": 20040,
+   "sha256": "3ccd243f25be7c88d5bacea73190413fcb258d61b7e3f7277130dcdf7da997ec",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_2kf42kzdMwc.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_2kf42kzdMwc",
+   "sourceUrl": "https://yt3.googleusercontent.com/TwkIhptyjf4i_ia5wLzOwgWIJ9v2_dAHQ8qhbZQiLVtQkRkqo1twBJzE2VsSuh2T_iToLngQTSpO_Zs=w300-h300-l90-rj",
+   "bytes": 35302,
+   "sha256": "f6bfb4cd4b949a68099331ac99fa6eabc375d649d0dbddceebdd72dc9547821e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_xz8bbrE3RP7.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_xz8bbrE3RP7",
+   "sourceUrl": "https://yt3.googleusercontent.com/B1N8NXaM93AU45Jwma_drzsPUN5IV9TGm2i4uFBjFeBP6qVVzvZdf09Xj54c_vTaMURvWG-jYYC-D1k=w300-h300-l90-rj",
+   "bytes": 43464,
+   "sha256": "0cd6abd9d5961638e097027d7399942beace8589cc72a448d9e988e9e5a85657",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_WALokSukf0y.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_WALokSukf0y",
+   "sourceUrl": "https://yt3.googleusercontent.com/RO5rWMzQC54EdvsxtXp85RAQL9_C63IqIZwIVNJ7cFa3wLGuzhp0HQR4yIkbO6e_9GC7gazPDligUNs=w300-h300-l90-rj",
+   "bytes": 55606,
+   "sha256": "baf53b40750fa326deaf92768a72eb5dc3848025b5bb81377bf8ff71147fbbf8",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_nVOvQM1ODKM.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_nVOvQM1ODKM",
+   "sourceUrl": "https://yt3.googleusercontent.com/qZ1t1WxAxBits3wzoatt34NtCK3Nwq6w3Z7L_UFVL6zxusQzAh07TpwXOi2M3_mgykASPVxT2CAh0ul6=w300-h300-l90-rj",
+   "bytes": 32747,
+   "sha256": "607f65014bcf2868d6856c4113b848e4d1fb78c61eb826128a8782e6de8252f8",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_XTY8uZGf9Gt.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_XTY8uZGf9Gt",
+   "sourceUrl": "https://yt3.googleusercontent.com/gSjSpiwhol20w2GLjYSR81AOBvdo1UiLRBeu8RbVuRZjtHh6yipa22c26_TZK2Jm7_BGi4FApSXFIZo2VA=w300-h300-l90-rj",
+   "bytes": 28975,
+   "sha256": "6a4c7f3783625fd1297b7261c53e8e14917122da1917f3d0121e71440a1909ec",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_7bUXWh9VGGx.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_7bUXWh9VGGx",
+   "sourceUrl": "https://yt3.googleusercontent.com/JS6MK7XawzUUeCq-ANPfjk2BvkRnz5lblyK59uOhV9lmYSNdlZJx3KUQ6eF2CC7gjKOPO4Rq8tMPO2g=w300-h300-l90-rj",
+   "bytes": 22207,
+   "sha256": "ffa30b7be2858860ec4154d6ec71d32d807753d622aa5c3819c856a9570963d5",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_4pL8gzRtw1p.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_4pL8gzRtw1p",
+   "sourceUrl": "https://yt3.googleusercontent.com/b-euORTq-_MSzc3SyI0QOjLqnCBJbWuMmH1YlyJKAVvJfOpPqv3bFH-KSDoQwV9e8Xey1X2NRo9xZ2U=w300-h300-l90-rj",
+   "bytes": 35003,
+   "sha256": "853bca0e146a1257a3d8639ec3578276e4fedaf8c77564027b24041865e93bf9",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_UUFKiZYr3uO.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_UUFKiZYr3uO",
+   "sourceUrl": "https://yt3.googleusercontent.com/IUuZFSUqFLMQlejTtsnLM_cB16A0T1g-savL7DYbWz5NFh2-DOw5-v9_PREJt9keX48NSan-8yUQCPM=w300-h300-l90-rj",
+   "bytes": 15317,
+   "sha256": "268cb7cbbe390d9f4869106b808684287e6804797c0d2bc55af47cbd0551ca9c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_GoxkoIndLFi.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_GoxkoIndLFi",
+   "sourceUrl": "https://yt3.googleusercontent.com/uug1FXZw9zd6z8YNleGWyiKBBxvMXSBPtnTGqLJDt3mINoyUyo2s7bZocZPfDFIPEyEteOMexpbw7Q0=w300-h300-l90-rj",
+   "bytes": 84633,
+   "sha256": "c8c454090a99a1ee2a207c5ea9b40a9ecbceb66781c1f731debc3f1243593671",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_A9oTNsEPVX4.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_A9oTNsEPVX4",
+   "sourceUrl": "https://yt3.googleusercontent.com/sirvtdAu96E1HYp8FSRx87jbTNSfRVQkeTKxRaMFNXXvFMY-4PlBzyBTgJ-xpR3mk_2JfFZ2tBigxm5i=w300-h300-l90-rj",
+   "bytes": 49517,
+   "sha256": "f6851fae96d5e57d9f52f5da325585a91e916c1445de766d2cf70d24bb989955",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_xFN2XG22AXC.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_xFN2XG22AXC",
+   "sourceUrl": "https://yt3.googleusercontent.com/oWyLklmIlgBVjLy63kmFrXfgmzK8EIwpzyXneeLu3Ly6eqB_Usf7zZhZzo-LlwbxMx4WugYNW1Lp-ec=w300-h300-l90-rj",
+   "bytes": 38019,
+   "sha256": "9e92b05e559bdc6b3ab9adae35ca32554bcf69516b85a4578a62e6da62addf1a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_u1CGn06jajC.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_u1CGn06jajC",
+   "sourceUrl": "https://yt3.googleusercontent.com/7X0KL8r154rKuRuEAF8CyvqaJA6mmess6fF9vamynE6RgXIff2JOvo7p_SETOXjWt_iuiWF1aZwWWTFS=w300-h300-l90-rj",
+   "bytes": 39906,
+   "sha256": "02d315ff26d0d7aec466d8270477760cb2a9659b98c1455d22388160c5e870b1",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_LQCAymzbaKJ.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_LQCAymzbaKJ",
+   "sourceUrl": "https://yt3.googleusercontent.com/M3bE7uvxto_SLeAM0dVltklsikCiUxdh1-6oGlHd0x_6kuxd7pUgvjqjBJCdSc-7tSPuGo-7FGHaIOG_=w300-h300-l90-rj",
+   "bytes": 43167,
+   "sha256": "bb94a5ebe350247a393161dd012d9892c148ac1bd6e276c1187fe01f6af03215",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_7rsHacXYE9Z.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_7rsHacXYE9Z",
+   "sourceUrl": "https://yt3.googleusercontent.com/csI77mb6fxBjJs8glQyV5rFSuT3ll36eezuZVV8myVOs9AV_IOf39FoRF2yBSAT2LqoOSMt7k4i6xU4G=w300-h300-l90-rj",
+   "bytes": 45093,
+   "sha256": "421a4b499803cab2683a03ce2f161d941f445de148592d5f3740020b4cbe31a8",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_S2hp7UfN49G.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_S2hp7UfN49G",
+   "sourceUrl": "https://yt3.googleusercontent.com/97yz7Jf9T0acHGx9oF-uj4lqu89S7YVGS0p12I8U8yFWIDZC6pdb5fh_Wyfh3lHxJnRorwLxaGBKEog1xA=w300-h300-l90-rj",
+   "bytes": 45613,
+   "sha256": "6f434a689d6c9bb2a55b8f35a2851cca5556a195edc8232721e77002c5b48857",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_jKo15BXoYmR.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_jKo15BXoYmR",
+   "sourceUrl": "https://yt3.googleusercontent.com/t4q-b1JIIzrix-_T5uBcNSNKm6TrdwEhXjMiZkly1WNP3xktKSgST0wX2ODJepauplDhGLL37wsiT-Kt=w300-h300-l90-rj",
+   "bytes": 27370,
+   "sha256": "11426077b495e653e808f46c5d17f1b27b82c9bf5f36b3941e394fa9386bf278",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_ENmFulmcWoO.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_ENmFulmcWoO",
+   "sourceUrl": "https://yt3.googleusercontent.com/JvQAGzJGg-LLZw3nXR5c8vKBR9r3-5vCTBKLuXNMOa7Unxb1jOQ9WxtfKiUuB5zlqWNOvjKLr34fZk6w=w300-h300-l90-rj",
+   "bytes": 40654,
+   "sha256": "a80c4e3fd2139cca5f002ffbe8ad9724920b54ca4954966f09afe41fa942e42a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_rvNEKlC0c6B.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_rvNEKlC0c6B",
+   "sourceUrl": "https://yt3.googleusercontent.com/CQyUJawPkic5ab9xRAfLULZd4WaKLxdPsxZrKeV7KpNrCu_9TExzSEyl3QtWu516l8wQTlo8Jmjx-hfQ=w300-h300-l90-rj",
+   "bytes": 60858,
+   "sha256": "3aac9bb6d464fa5f90e58cf54be859d4786419234f259a8d7231e48144c82931",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_DWqo7HrYEmt.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_DWqo7HrYEmt",
+   "sourceUrl": "https://yt3.googleusercontent.com/6aOVxyoia1UtIny48rIKgq2P0-2NE602mhG4lup_s_YNl271v1ONNWj6PsoyQaEa9gAVy6XHCTEsFBp47A=w300-h300-l90-rj",
+   "bytes": 50337,
+   "sha256": "86b3912053fa4b6a82d05010877d4832b36a83700e5319c451dfdd62dab5edb9",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_J0wDVDGuvac.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_J0wDVDGuvac",
+   "sourceUrl": "https://yt3.googleusercontent.com/8UbznV8lEqTA_TlikgMvapzNT9GaFrSLzgHb28RnkJg_gKVlhYzfmNQ_UwTjr-gV2hBStAKN84X5Vr7Z=w300-h300-l90-rj",
+   "bytes": 36092,
+   "sha256": "1dea277ead098accfe0373aaf6e5fdd2c83b9f06e90ef0ce39f4033ce66179b7",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_k15oukterJY.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_k15oukterJY",
+   "sourceUrl": "https://yt3.googleusercontent.com/XvlkHCNeuPMfq5lD2J3Iv9YjgMnG7Uy1M1gw5mCQQ8yXrF4FSS8Iyc5pRrjioJsU1J9yzcGBArRkqejYqA=w300-h300-l90-rj",
+   "bytes": 58503,
+   "sha256": "a48ba8124e2d850db16cac0dfff9ec27a877be784e5052cf55c76532597090de",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_sEtfSnGV9Xa.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_sEtfSnGV9Xa",
+   "sourceUrl": "https://yt3.googleusercontent.com/0VHW4bx3i2seXON4O5v0394JOkU2q_OX7t8T9BmC9MQczXPh08CjHPviKaJeq_KufrfwwGh3sScChVY2=w300-h300-l90-rj",
+   "bytes": 50220,
+   "sha256": "4cdc4f241b2d08b7923dc1dd894ce79c72fa60b1a1cb0bf8c4eff8c84f472b68",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_esbACb9ryh3.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_esbACb9ryh3",
+   "sourceUrl": "https://yt3.googleusercontent.com/o3Snlk-Ub6WRwYjVT84ZIBsMftXILBGg-qTawiQw1uEf5zMcxFMOws76gj_hkjyCrs8XU0XaZE19ZG2R=w300-h300-l90-rj",
+   "bytes": 33065,
+   "sha256": "a82e743db734da17219363e87242562645e6d6dae8ccb1f1f912e4f558f8966b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_wjwcKSp2Osd.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_wjwcKSp2Osd",
+   "sourceUrl": "https://yt3.googleusercontent.com/Ps3uFGFhlj6E4OmNUSctmYKGvsV9Fvq3usFwe2vi3pWyPq_0AeAjSE6paF1iw0JfH3jWOsZktBIMtB-L=w300-h300-l90-rj",
+   "bytes": 56377,
+   "sha256": "8c986510c31ce4a3be1d9ae929f8f94021f7e4e6165058624cd141a8927ff921",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_AqPUZdEKe0A.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_AqPUZdEKe0A",
+   "sourceUrl": "https://yt3.googleusercontent.com/dfJllE8TuyeMROlvqAp38lph2IPkAD_zIWZtF60nrZSFox3qiEJ4FLSIQdtieb4gDAyRCh9MkT49K3Fb=w300-h300-l90-rj",
+   "bytes": 38453,
+   "sha256": "e66baf9f17ff4cc0880aa2b9a386fe62f2fe6b6d0c557baa632e15b87d15ad4d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_ffSLrwxqcfd.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_ffSLrwxqcfd",
+   "sourceUrl": "https://yt3.googleusercontent.com/bVRFSKvGn8NxqDEQqedK9sZAxcRvW85feFS11zvGi8m7kXs5VxazPgjVGuuoxyCe3uu7MgOgnmuwykwF=w300-h300-l90-rj",
+   "bytes": 33035,
+   "sha256": "6b944bc588e8ecea2d0f283d9b11167070919713f1702b51995c1f8e3aed6705",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_P0If0ivjiNX.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_P0If0ivjiNX",
+   "sourceUrl": "https://yt3.googleusercontent.com/vaY-1kdf4xa3bnSFsMW6OAcCq9lYA9sxxqhppeCb5gv2-IxRINlCvhODKl0nxhAegEqyVt80BYygTK8C=w300-h300-l90-rj",
+   "bytes": 21890,
+   "sha256": "8da84dc8dda382cd5e30c899655cd1f49b1ee74aa7f7798efe10b8471076064d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_dK0aulHS88l.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_dK0aulHS88l",
+   "sourceUrl": "https://yt3.googleusercontent.com/_uel--wO3tXO_3Xdqnti7tjWIoPtlxQjA7INlqRjPypYLSw8nZVjcQkQsmuRtiMrdvhL6PPTIsFRgofSjA=w300-h300-l90-rj",
+   "bytes": 6033,
+   "sha256": "fcfcc5f904e4cde1c05104eddcaeea7ca88f86cbc6a63d580bfb11b2a401f915",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_EPz4TobP2QC.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_EPz4TobP2QC",
+   "sourceUrl": "https://yt3.googleusercontent.com/pbff_r8bJlc5iWG4-9SkmgY-yKgY_I4W1f9fzowGDqtsT2mrBBwtu90gLTy3wDUoVYT5TI7tq2O4du3L=w300-h300-l90-rj",
+   "bytes": 20873,
+   "sha256": "88dff6bbb24a2b1f7868949f5dccd93127350d0958f46e7370b277b2407ecfc3",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_IIprLF2Vf5q.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_IIprLF2Vf5q",
+   "sourceUrl": "https://yt3.googleusercontent.com/acFKFqE2NKNty_Iy3X9aHXraLkEubHM4GxhSuIRZ1Aa-_g-JWW-3Yb3cZ6Yg6yEsLKQW6z0No8L_Us8=w300-h300-l90-rj",
+   "bytes": 48357,
+   "sha256": "b640e403403a8f0c2e6ebbac541eee384760998449ea6cd53b16c27c9c30338c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_1gZRXuZuGRz.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_1gZRXuZuGRz",
+   "sourceUrl": "https://yt3.googleusercontent.com/9YBAKxPIYWeNXLfeRcfK6fsJ3ctb5BuhhgTubnZdshjPKfM0JrRxp3jhAaT1gJD4JInGLG23yceZZsgG=w300-h300-l90-rj",
+   "bytes": 28417,
+   "sha256": "4c95efb05cac409b63620e8e83a8f7f420e9ccb8af89b47eacf5dee751a8b282",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_gSYtf8clrpu.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_gSYtf8clrpu",
+   "sourceUrl": "https://yt3.googleusercontent.com/2i-qbdJKIZBETO_zRVv5TrLro0SI5hBFyyA_1glWir5jW9awf-GYXcIs-iz40vXVIB36Af2axqQUt7Mn=w300-h300-l90-rj",
+   "bytes": 26662,
+   "sha256": "a61f371d810217739e75dcd49d05241386ad435d455f1b077b767210e38e626f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_T5iiu2LZBkq.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_T5iiu2LZBkq",
+   "sourceUrl": "https://yt3.googleusercontent.com/HEkBKsCcjf7VYWFrkeXtz4PPFYtHMJZVwJX0Uati-aNz5in9GwEM-tbBn6Zd7CyrrUVU68Ii-jqdgQo=w300-h300-l90-rj",
+   "bytes": 36168,
+   "sha256": "5097fbce0528b67b98e9f47031eb9c054bf01c8035f90e9012c2560a655efd35",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_7VtLy3uZcRJ.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_7VtLy3uZcRJ",
+   "sourceUrl": "https://yt3.googleusercontent.com/l3YLI3P88BQAoQJ_WbNAMv9IZy4rEY3hM-L70riw5UNk7UxA_6om4HSuTANBIujbAIRfHXi4M0-nSEel=w300-h300-l90-rj",
+   "bytes": 32080,
+   "sha256": "cd47bdaa2a09c13807dd95bd90447d28629bba379eac9560e22c3f70c9d37e55",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_3ZfHo0FTgMH.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_3ZfHo0FTgMH",
+   "sourceUrl": "https://yt3.googleusercontent.com/pmbzydm8YryfsyIqXYPgE6Z-f1jNdhONjQnZT2y5svkJGe6hN-2MHEf3ivrc5rivJiYfSeaBvP_-zRk=w300-h300-l90-rj",
+   "bytes": 33746,
+   "sha256": "b5845744ed5bf22faacb502ab6677b195deabad5b3e1c44db7cc0c9fef60ad7b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_q8NSlBwTysl.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_q8NSlBwTysl",
+   "sourceUrl": "https://yt3.googleusercontent.com/zNk7R7Ydk5ifGopXJ6bpcj7n9HdoBcSBg6T4tZ7RGp4Hzb52uZ8e64jTZwRdQ0eNIopWX3WzG_GkTds=w300-h300-l90-rj",
+   "bytes": 14578,
+   "sha256": "0aa976260bc7e07843c6bb9b868f09bc1272c44cdefce5a7c0d4d17e4a2cbf8f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_FRKTfWn0yyw.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_FRKTfWn0yyw",
+   "sourceUrl": "https://yt3.googleusercontent.com/wmNI8bxqo6DYEct4Z93OB3vVde8HnKp4MSae-_eE1w89GFAre0DvrPsUbkCgrUk3P-mGArzCaUtSzPgZ=w300-h300-l90-rj",
+   "bytes": 45667,
+   "sha256": "f3bfacfcdee002560173492e1909208194aa2bb7f9a5d18cd4b9cda6b596441c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/covers/MPREb_ywHEQzqKbsB.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_ywHEQzqKbsB",
+   "sourceUrl": "https://yt3.googleusercontent.com/GU2trSIKBVIaQm373qGg-uGAg_HE2kMEn6-dgLFQqRA5qU_cr_B_XJIunqu26KZXD4JWpJNdb0pM5Co=w300-h300-l90-rj",
+   "bytes": 43656,
+   "sha256": "9ff0ffaae21a77cf864631a5a6079dd95d26bc09089e0ac92e831f3d05aa5ac8",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/S9bCLPwzSC0.jpg",
+   "kind": "video-still",
+   "entity": "S9bCLPwzSC0",
+   "sourceUrl": "https://i.ytimg.com/vi/S9bCLPwzSC0/mqdefault.jpg",
+   "bytes": 7997,
+   "sha256": "2a11f09313e7c6b303b3450366fc7c2e9b8920dfaad59c5b7e927b22eb2fba6e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/uelHwf8o7_U.jpg",
+   "kind": "video-still",
+   "entity": "uelHwf8o7_U",
+   "sourceUrl": "https://i.ytimg.com/vi/uelHwf8o7_U/mqdefault.jpg",
+   "bytes": 7914,
+   "sha256": "8e3034fb7e2b1b34631f4e5dff0b9bcc7d05400deab5df7ef1ccad9125c84b9f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/YVkUvmDQ3HY.jpg",
+   "kind": "video-still",
+   "entity": "YVkUvmDQ3HY",
+   "sourceUrl": "https://i.ytimg.com/vi/YVkUvmDQ3HY/mqdefault.jpg",
+   "bytes": 11305,
+   "sha256": "f78a5d9a0aacebe2f1446abdd4a3d21b6c115060539ebb80741c016d14c8d913",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/xFYQQPAOz7Y.jpg",
+   "kind": "video-still",
+   "entity": "xFYQQPAOz7Y",
+   "sourceUrl": "https://i.ytimg.com/vi/xFYQQPAOz7Y/mqdefault.jpg",
+   "bytes": 4180,
+   "sha256": "9ba9cd20d11e574e14ae7f706d086edf24464776f34badda33e307b05956b068",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/j5-yKhDd64s.jpg",
+   "kind": "video-still",
+   "entity": "j5-yKhDd64s",
+   "sourceUrl": "https://i.ytimg.com/vi/j5-yKhDd64s/mqdefault.jpg",
+   "bytes": 9829,
+   "sha256": "10790c4cafef46810a244f2831f1167872f8c47406b768745e93dd75eeb63e3d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/eJO5HU_7_1w.jpg",
+   "kind": "video-still",
+   "entity": "eJO5HU_7_1w",
+   "sourceUrl": "https://i.ytimg.com/vi/eJO5HU_7_1w/mqdefault.jpg",
+   "bytes": 13087,
+   "sha256": "9a8a24e4f1db0ca1e53f04a7481abfd25bfb8e097e2c54fd810a10c2fea1fbfc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/8kYkciD9VjU.jpg",
+   "kind": "video-still",
+   "entity": "8kYkciD9VjU",
+   "sourceUrl": "https://i.ytimg.com/vi/8kYkciD9VjU/mqdefault.jpg",
+   "bytes": 9283,
+   "sha256": "f89a2185ff7a5effc48a22266326975dd5e38e601d0c15b23103818b7ca88b5c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/EHkozMIXZ8w.jpg",
+   "kind": "video-still",
+   "entity": "EHkozMIXZ8w",
+   "sourceUrl": "https://i.ytimg.com/vi/EHkozMIXZ8w/mqdefault.jpg",
+   "bytes": 8739,
+   "sha256": "8d582932dd09df85d0280b83f567b3160b83f87003b1d6bfe5cf2a65522d1582",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/gOMhN-hfMtY.jpg",
+   "kind": "video-still",
+   "entity": "gOMhN-hfMtY",
+   "sourceUrl": "https://i.ytimg.com/vi/gOMhN-hfMtY/mqdefault.jpg",
+   "bytes": 8472,
+   "sha256": "4f63c97107e192946ec695a43bd844e36a34991d11a0080046f8346faeb36db1",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/D4hAVemuQXY.jpg",
+   "kind": "video-still",
+   "entity": "D4hAVemuQXY",
+   "sourceUrl": "https://i.ytimg.com/vi/D4hAVemuQXY/mqdefault.jpg",
+   "bytes": 9331,
+   "sha256": "e923a55cb0f049e2467b8000b7e0d416c02050d0fc6da7c5ba71cfb4aedc241d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/XbGs_qK2PQA.jpg",
+   "kind": "video-still",
+   "entity": "XbGs_qK2PQA",
+   "sourceUrl": "https://i.ytimg.com/vi/XbGs_qK2PQA/mqdefault.jpg",
+   "bytes": 16469,
+   "sha256": "c596680f8f7cd018d1456281f44519a2e9ee475fbc559987a2f70f6d1750f6ec",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/8CdcCD5V-d8.jpg",
+   "kind": "video-still",
+   "entity": "8CdcCD5V-d8",
+   "sourceUrl": "https://i.ytimg.com/vi/8CdcCD5V-d8/mqdefault.jpg",
+   "bytes": 8069,
+   "sha256": "337f44d5885471f30176068b8533fa7a863c2302dd5af676b96f9604ae16417c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/KV2ssT8lzj8.jpg",
+   "kind": "video-still",
+   "entity": "KV2ssT8lzj8",
+   "sourceUrl": "https://i.ytimg.com/vi/KV2ssT8lzj8/mqdefault.jpg",
+   "bytes": 10136,
+   "sha256": "2b9dadc040c38925d0924eb9a9e0b90325b114c160b8c41e00b17f56e1293695",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/WrjwGPb0Hvw.jpg",
+   "kind": "video-still",
+   "entity": "WrjwGPb0Hvw",
+   "sourceUrl": "https://i.ytimg.com/vi/WrjwGPb0Hvw/mqdefault.jpg",
+   "bytes": 15207,
+   "sha256": "54c77335fb86864c201bd29cf8e42b8a137f8f4112d2f38675288be34b63372f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/RQ9_TKayu9s.jpg",
+   "kind": "video-still",
+   "entity": "RQ9_TKayu9s",
+   "sourceUrl": "https://i.ytimg.com/vi/RQ9_TKayu9s/mqdefault.jpg",
+   "bytes": 9484,
+   "sha256": "b9c462ad5f46aef5953dd86202cd4e8389630a7ce406542aae24b5202741c704",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/1wYNFfgrXTI.jpg",
+   "kind": "video-still",
+   "entity": "1wYNFfgrXTI",
+   "sourceUrl": "https://i.ytimg.com/vi/1wYNFfgrXTI/mqdefault.jpg",
+   "bytes": 10905,
+   "sha256": "38f3b00ae301eac14c94238d60e7614c383952db83f223de3e723ac389e3b5f6",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/22tVWwmTie8.jpg",
+   "kind": "video-still",
+   "entity": "22tVWwmTie8",
+   "sourceUrl": "https://i.ytimg.com/vi/22tVWwmTie8/mqdefault.jpg",
+   "bytes": 13927,
+   "sha256": "1a835fecec377734ec582bdac2464782bdd4f063153ad73c91c5850838df602a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ngH0fkiNo-g.jpg",
+   "kind": "video-still",
+   "entity": "ngH0fkiNo-g",
+   "sourceUrl": "https://i.ytimg.com/vi/ngH0fkiNo-g/mqdefault.jpg",
+   "bytes": 7831,
+   "sha256": "163002c95bffa09a032000802dcfc565694bdb2418f5f0a38b768eb05c6d60ea",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/r_0JjYUe5jo.jpg",
+   "kind": "video-still",
+   "entity": "r_0JjYUe5jo",
+   "sourceUrl": "https://i.ytimg.com/vi/r_0JjYUe5jo/mqdefault.jpg",
+   "bytes": 16538,
+   "sha256": "40d1403da75f02a5f4d7acfa799ddf9448031142fc4cb31c6bdc954094fc76c9",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/lgT1AidzRWM.jpg",
+   "kind": "video-still",
+   "entity": "lgT1AidzRWM",
+   "sourceUrl": "https://i.ytimg.com/vi/lgT1AidzRWM/mqdefault.jpg",
+   "bytes": 7208,
+   "sha256": "0eb1ea4d6c6bea40f88e295d0c4138cf0a47f43ef956c88132aafad0d9101182",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/mQvteoFiMlg.jpg",
+   "kind": "video-still",
+   "entity": "mQvteoFiMlg",
+   "sourceUrl": "https://i.ytimg.com/vi/mQvteoFiMlg/mqdefault.jpg",
+   "bytes": 10674,
+   "sha256": "b5f21948f473c23de4eb09c4783bea00cda9a55c70bbeeeb958c7ec7675b8436",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/um4-d7VzZiE.jpg",
+   "kind": "video-still",
+   "entity": "um4-d7VzZiE",
+   "sourceUrl": "https://i.ytimg.com/vi/um4-d7VzZiE/mqdefault.jpg",
+   "bytes": 12329,
+   "sha256": "0f6c972e7152bbf4d952e13e01f5cfc806d62c5d1dc3dac4a31ed07b24bd9372",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/lexLAjh8fPA.jpg",
+   "kind": "video-still",
+   "entity": "lexLAjh8fPA",
+   "sourceUrl": "https://i.ytimg.com/vi/lexLAjh8fPA/mqdefault.jpg",
+   "bytes": 11709,
+   "sha256": "7bc1fec22f1965ca408c31705e4149e93efbc84537b307ccc06df6a9fb281c95",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/FxQTY-W6GIo.jpg",
+   "kind": "video-still",
+   "entity": "FxQTY-W6GIo",
+   "sourceUrl": "https://i.ytimg.com/vi/FxQTY-W6GIo/mqdefault.jpg",
+   "bytes": 8278,
+   "sha256": "0d20c82335d385ee4f689647969a659a46c3d9f4d0730100216442a28cabd687",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/9dcVOmEQzKA.jpg",
+   "kind": "video-still",
+   "entity": "9dcVOmEQzKA",
+   "sourceUrl": "https://i.ytimg.com/vi/9dcVOmEQzKA/mqdefault.jpg",
+   "bytes": 11567,
+   "sha256": "ee382a544d452ca9abe2c0cd751da6a4375d1d118fd2efbcfd2a58f0cc3c4f08",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/sNPnbI1arSE.jpg",
+   "kind": "video-still",
+   "entity": "sNPnbI1arSE",
+   "sourceUrl": "https://i.ytimg.com/vi/sNPnbI1arSE/mqdefault.jpg",
+   "bytes": 8304,
+   "sha256": "41ff11bce993941e824a7d7885cd2c3b7dd949c85c91d44376efdd1157fe62d2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/JByDbPn6A1o.jpg",
+   "kind": "video-still",
+   "entity": "JByDbPn6A1o",
+   "sourceUrl": "https://i.ytimg.com/vi/JByDbPn6A1o/mqdefault.jpg",
+   "bytes": 9238,
+   "sha256": "3908914989946c3df7dd01eb3efa0be6279857baf8f8257f5c7ef9b5f7d307e4",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/CanCZktm0TQ.jpg",
+   "kind": "video-still",
+   "entity": "CanCZktm0TQ",
+   "sourceUrl": "https://i.ytimg.com/vi/CanCZktm0TQ/mqdefault.jpg",
+   "bytes": 11314,
+   "sha256": "d202444d1a9068d22b4a7ebfbd641e4d0077081203d3c5df82c20fcf2a2dffff",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/wfWIs2gFTAM.jpg",
+   "kind": "video-still",
+   "entity": "wfWIs2gFTAM",
+   "sourceUrl": "https://i.ytimg.com/vi/wfWIs2gFTAM/mqdefault.jpg",
+   "bytes": 11265,
+   "sha256": "c6f15f8fa33532fe8ab368e79bf0a4c1c132475f796f50b72ec8582c7e0a748a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/t5H_CewqpKA.jpg",
+   "kind": "video-still",
+   "entity": "t5H_CewqpKA",
+   "sourceUrl": "https://i.ytimg.com/vi/t5H_CewqpKA/mqdefault.jpg",
+   "bytes": 17513,
+   "sha256": "4ad0e118757fff26265087327b53b453670b18df43f6161d382d194bfe3705ea",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/mvSItvjFE1c.jpg",
+   "kind": "video-still",
+   "entity": "mvSItvjFE1c",
+   "sourceUrl": "https://i.ytimg.com/vi/mvSItvjFE1c/mqdefault.jpg",
+   "bytes": 7081,
+   "sha256": "c9ee5760bc132cf73a5fa97ce8b48e6a262a8f5f90b46cee9ede8860deb418db",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Vwa0HenQMi4.jpg",
+   "kind": "video-still",
+   "entity": "Vwa0HenQMi4",
+   "sourceUrl": "https://i.ytimg.com/vi/Vwa0HenQMi4/mqdefault.jpg",
+   "bytes": 5512,
+   "sha256": "d787baca2e931be8c8d294d19230f6c7bb7d051498d8bf2ed950623f1643665e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/MfTbHITdhEI.jpg",
+   "kind": "video-still",
+   "entity": "MfTbHITdhEI",
+   "sourceUrl": "https://i.ytimg.com/vi/MfTbHITdhEI/mqdefault.jpg",
+   "bytes": 8224,
+   "sha256": "681b46fa7bb682433f77b61bc220fccf94cfd8dba097d4688cb952527626b4fc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ubEublECnMU.jpg",
+   "kind": "video-still",
+   "entity": "ubEublECnMU",
+   "sourceUrl": "https://i.ytimg.com/vi/ubEublECnMU/mqdefault.jpg",
+   "bytes": 8911,
+   "sha256": "7643eabaa871de118de3aa452d33cede79c6e500b6de1cd89e7ee99806ed382a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/4haurn3S8z8.jpg",
+   "kind": "video-still",
+   "entity": "4haurn3S8z8",
+   "sourceUrl": "https://i.ytimg.com/vi/4haurn3S8z8/mqdefault.jpg",
+   "bytes": 22328,
+   "sha256": "afaeba6bd2b9c9e6ea5224ca21d6cc4b8fc12bb074a4facf6575f0d51c784759",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/_wN3wl473M0.jpg",
+   "kind": "video-still",
+   "entity": "_wN3wl473M0",
+   "sourceUrl": "https://i.ytimg.com/vi/_wN3wl473M0/mqdefault.jpg",
+   "bytes": 11756,
+   "sha256": "81371dfb613ed0b88f727a956cf31a07be69309b8a1477fd91c7ca8ac6db70ad",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/RZIzD0ZfTFg.jpg",
+   "kind": "video-still",
+   "entity": "RZIzD0ZfTFg",
+   "sourceUrl": "https://i.ytimg.com/vi/RZIzD0ZfTFg/mqdefault.jpg",
+   "bytes": 9045,
+   "sha256": "af54cb94b680de3d29efa7f15263ab9766375c553e5f87bb1f50ee423628c059",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/RjrA-slMoZ4.jpg",
+   "kind": "video-still",
+   "entity": "RjrA-slMoZ4",
+   "sourceUrl": "https://i.ytimg.com/vi/RjrA-slMoZ4/mqdefault.jpg",
+   "bytes": 16066,
+   "sha256": "cd83e3787d9530389c3e9ae956a9e261b3ec01f5871a0724b90c8843768c03ac",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/7bDLIV96LD4.jpg",
+   "kind": "video-still",
+   "entity": "7bDLIV96LD4",
+   "sourceUrl": "https://i.ytimg.com/vi/7bDLIV96LD4/mqdefault.jpg",
+   "bytes": 11109,
+   "sha256": "4c44abc34f917455e21983001b824125ca90a1350ea358eb777a9f1455d7a83b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/rpERSigjqXs.jpg",
+   "kind": "video-still",
+   "entity": "rpERSigjqXs",
+   "sourceUrl": "https://i.ytimg.com/vi/rpERSigjqXs/mqdefault.jpg",
+   "bytes": 14974,
+   "sha256": "3d2ca9ea7393821f6b2aa0bd76889e1229f00caaf7e1d45e13adaa6255319515",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/RSdKmX2BH7o.jpg",
+   "kind": "video-still",
+   "entity": "RSdKmX2BH7o",
+   "sourceUrl": "https://i.ytimg.com/vi/RSdKmX2BH7o/mqdefault.jpg",
+   "bytes": 9056,
+   "sha256": "f0907a42990eed1e6d063218b7508a98baa4b4535c58a156a662ba14869c586a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ZaK9Wi5ho0o.jpg",
+   "kind": "video-still",
+   "entity": "ZaK9Wi5ho0o",
+   "sourceUrl": "https://i.ytimg.com/vi/ZaK9Wi5ho0o/mqdefault.jpg",
+   "bytes": 12561,
+   "sha256": "deb47bc0aa6d0161100b4ed6a3177a70c879229c368cf6a790b42bfdc8f2affa",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/0AqnCSdkjQ0.jpg",
+   "kind": "video-still",
+   "entity": "0AqnCSdkjQ0",
+   "sourceUrl": "https://i.ytimg.com/vi/0AqnCSdkjQ0/mqdefault.jpg",
+   "bytes": 6359,
+   "sha256": "19f1ff7c8ca766d6da1a4f25d0350d6d5c50569dc41ac039b0596bd0768439e5",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ab9176Srb5Y.jpg",
+   "kind": "video-still",
+   "entity": "ab9176Srb5Y",
+   "sourceUrl": "https://i.ytimg.com/vi/ab9176Srb5Y/mqdefault.jpg",
+   "bytes": 12309,
+   "sha256": "d54b0d4d6fb06e3210078ddda04813ed2423c35b29524644c3b866574a67a9e3",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/vs-Bsqt5ooQ.jpg",
+   "kind": "video-still",
+   "entity": "vs-Bsqt5ooQ",
+   "sourceUrl": "https://i.ytimg.com/vi/vs-Bsqt5ooQ/mqdefault.jpg",
+   "bytes": 8135,
+   "sha256": "35ae7c1155e4a4541aaf0930ecabbc5d308bae475e09da109bf75feb9530d376",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/NlmezywdxPI.jpg",
+   "kind": "video-still",
+   "entity": "NlmezywdxPI",
+   "sourceUrl": "https://i.ytimg.com/vi/NlmezywdxPI/mqdefault.jpg",
+   "bytes": 6563,
+   "sha256": "1f38426911869a93e765df42ba5e18b0d4acb94d381fab14329c8648139af331",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/IKU-yswi8HU.jpg",
+   "kind": "video-still",
+   "entity": "IKU-yswi8HU",
+   "sourceUrl": "https://i.ytimg.com/vi/IKU-yswi8HU/mqdefault.jpg",
+   "bytes": 8762,
+   "sha256": "4f5d16b4317c49f11b382b92c85b47945ce36f9af61ea461aac3c8947c21b155",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/BgqD-Bn5Quk.jpg",
+   "kind": "video-still",
+   "entity": "BgqD-Bn5Quk",
+   "sourceUrl": "https://i.ytimg.com/vi/BgqD-Bn5Quk/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Evut8BfrZ2U.jpg",
+   "kind": "video-still",
+   "entity": "Evut8BfrZ2U",
+   "sourceUrl": "https://i.ytimg.com/vi/Evut8BfrZ2U/mqdefault.jpg",
+   "bytes": 10083,
+   "sha256": "69f99f5d62de50bfa9d1204061a260feba5431380cbab243c33f09c9e0be418b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/0QvdDX2Q7rI.jpg",
+   "kind": "video-still",
+   "entity": "0QvdDX2Q7rI",
+   "sourceUrl": "https://i.ytimg.com/vi/0QvdDX2Q7rI/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/EosMazKaPbU.jpg",
+   "kind": "video-still",
+   "entity": "EosMazKaPbU",
+   "sourceUrl": "https://i.ytimg.com/vi/EosMazKaPbU/mqdefault.jpg",
+   "bytes": 11655,
+   "sha256": "70b5ab568d0d3120e262b46b6fa159868a2e332002d4ca5ea4e49783caf34aed",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/oeCihv9A3ac.jpg",
+   "kind": "video-still",
+   "entity": "oeCihv9A3ac",
+   "sourceUrl": "https://i.ytimg.com/vi/oeCihv9A3ac/mqdefault.jpg",
+   "bytes": 7426,
+   "sha256": "2cfd912f1728d0ea55f65d473722fd896e1cb4dece7851f4d14d1c1e6dac8207",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/G1Xjzd97d_E.jpg",
+   "kind": "video-still",
+   "entity": "G1Xjzd97d_E",
+   "sourceUrl": "https://i.ytimg.com/vi/G1Xjzd97d_E/mqdefault.jpg",
+   "bytes": 6636,
+   "sha256": "2df71fee7557fa931c17547bfe4ad5c8d115c7ade37cf55f20ef9529bb218887",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/QejtJWrVpTQ.jpg",
+   "kind": "video-still",
+   "entity": "QejtJWrVpTQ",
+   "sourceUrl": "https://i.ytimg.com/vi/QejtJWrVpTQ/mqdefault.jpg",
+   "bytes": 8696,
+   "sha256": "2b288bce9834d2d1c4634785617c43890550eabad89a87cbe4e1eafa55a66750",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/wIQWRHJq_kE.jpg",
+   "kind": "video-still",
+   "entity": "wIQWRHJq_kE",
+   "sourceUrl": "https://i.ytimg.com/vi/wIQWRHJq_kE/mqdefault.jpg",
+   "bytes": 16226,
+   "sha256": "416aa43e875db0fb94fdc9b6807c013d2338b387c4ff9e475eaf8ff0dd5cae3b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/cdssTIMXQ1Y.jpg",
+   "kind": "video-still",
+   "entity": "cdssTIMXQ1Y",
+   "sourceUrl": "https://i.ytimg.com/vi/cdssTIMXQ1Y/mqdefault.jpg",
+   "bytes": 4890,
+   "sha256": "b76e631ddf59c0871ba42e74d4dee4703490e1d15df6bed3415b751cb7272b9b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/jfobiCq0YUc.jpg",
+   "kind": "video-still",
+   "entity": "jfobiCq0YUc",
+   "sourceUrl": "https://i.ytimg.com/vi/jfobiCq0YUc/mqdefault.jpg",
+   "bytes": 3547,
+   "sha256": "0076af5986be105a1efeec276c318058c9a35e82c913706fe50c654dcc26cc4c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/5yeGhfL0zCU.jpg",
+   "kind": "video-still",
+   "entity": "5yeGhfL0zCU",
+   "sourceUrl": "https://i.ytimg.com/vi/5yeGhfL0zCU/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/NI4qHvsjz7I.jpg",
+   "kind": "video-still",
+   "entity": "NI4qHvsjz7I",
+   "sourceUrl": "https://i.ytimg.com/vi/NI4qHvsjz7I/mqdefault.jpg",
+   "bytes": 8070,
+   "sha256": "9848a4e5b34108b2a2bd568fc442b4c44aa78437ac67b7627fd981d033d5982f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ijZwWUo_be4.jpg",
+   "kind": "video-still",
+   "entity": "ijZwWUo_be4",
+   "sourceUrl": "https://i.ytimg.com/vi/ijZwWUo_be4/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/nFDSmhRbtyU.jpg",
+   "kind": "video-still",
+   "entity": "nFDSmhRbtyU",
+   "sourceUrl": "https://i.ytimg.com/vi/nFDSmhRbtyU/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Xbw_BxDwdjk.jpg",
+   "kind": "video-still",
+   "entity": "Xbw_BxDwdjk",
+   "sourceUrl": "https://i.ytimg.com/vi/Xbw_BxDwdjk/mqdefault.jpg",
+   "bytes": 9413,
+   "sha256": "5e330240f3dfe4f3812054b42a36691acc148743d7c3e8e415b1628376f702dc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/RHQC4fAhcbU.jpg",
+   "kind": "video-still",
+   "entity": "RHQC4fAhcbU",
+   "sourceUrl": "https://i.ytimg.com/vi/RHQC4fAhcbU/mqdefault.jpg",
+   "bytes": 5105,
+   "sha256": "a647b85d7dc75f33903d923a3dd6a21eca017318850f83b020490e9336e8230e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/X-TkrWpO75k.jpg",
+   "kind": "video-still",
+   "entity": "X-TkrWpO75k",
+   "sourceUrl": "https://i.ytimg.com/vi/X-TkrWpO75k/mqdefault.jpg",
+   "bytes": 10016,
+   "sha256": "c853113247d9e218086312a81fccc5d95914216eef5ce0423d12785b8676a0cc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ANzYzZOQOLk.jpg",
+   "kind": "video-still",
+   "entity": "ANzYzZOQOLk",
+   "sourceUrl": "https://i.ytimg.com/vi/ANzYzZOQOLk/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/AuQ36zwFA3s.jpg",
+   "kind": "video-still",
+   "entity": "AuQ36zwFA3s",
+   "sourceUrl": "https://i.ytimg.com/vi/AuQ36zwFA3s/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/wq8ZOm3uwzU.jpg",
+   "kind": "video-still",
+   "entity": "wq8ZOm3uwzU",
+   "sourceUrl": "https://i.ytimg.com/vi/wq8ZOm3uwzU/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/7QqYC0HjyQc.jpg",
+   "kind": "video-still",
+   "entity": "7QqYC0HjyQc",
+   "sourceUrl": "https://i.ytimg.com/vi/7QqYC0HjyQc/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/rkdLQ7HLLuU.jpg",
+   "kind": "video-still",
+   "entity": "rkdLQ7HLLuU",
+   "sourceUrl": "https://i.ytimg.com/vi/rkdLQ7HLLuU/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/9wRLd5l7WYE.jpg",
+   "kind": "video-still",
+   "entity": "9wRLd5l7WYE",
+   "sourceUrl": "https://i.ytimg.com/vi/9wRLd5l7WYE/mqdefault.jpg",
+   "bytes": 5293,
+   "sha256": "0392ffb825e65658222f7c52af998ab995fe5c4d6cc125eca81bff576416b5bc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/hCdgDxQbW_U.jpg",
+   "kind": "video-still",
+   "entity": "hCdgDxQbW_U",
+   "sourceUrl": "https://i.ytimg.com/vi/hCdgDxQbW_U/mqdefault.jpg",
+   "bytes": 14581,
+   "sha256": "4d88e96fba82d59e2afd1d2e2274fbcde41152ac4482331cbb68a5b8b71a85fc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/RkZQzzNkcXo.jpg",
+   "kind": "video-still",
+   "entity": "RkZQzzNkcXo",
+   "sourceUrl": "https://i.ytimg.com/vi/RkZQzzNkcXo/mqdefault.jpg",
+   "bytes": 5287,
+   "sha256": "ac369f6e4f6d898cdc388b9a6111621b10a503439455802866367bba8ea83427",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/rHZSSzjZLBs.jpg",
+   "kind": "video-still",
+   "entity": "rHZSSzjZLBs",
+   "sourceUrl": "https://i.ytimg.com/vi/rHZSSzjZLBs/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ryr75N0nki0.jpg",
+   "kind": "video-still",
+   "entity": "ryr75N0nki0",
+   "sourceUrl": "https://i.ytimg.com/vi/ryr75N0nki0/mqdefault.jpg",
+   "bytes": 6712,
+   "sha256": "40153942747578f76429727776bbe20d0ab5dda03ccf7163060aeef13e9c7a87",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Zl64MRAqQxk.jpg",
+   "kind": "video-still",
+   "entity": "Zl64MRAqQxk",
+   "sourceUrl": "https://i.ytimg.com/vi/Zl64MRAqQxk/mqdefault.jpg",
+   "bytes": 15533,
+   "sha256": "a47c01de63424f46fe0d6c4c4839ca67326a2a8e5761b80c7b21be857536ea85",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/gmlKBsPCiUk.jpg",
+   "kind": "video-still",
+   "entity": "gmlKBsPCiUk",
+   "sourceUrl": "https://i.ytimg.com/vi/gmlKBsPCiUk/mqdefault.jpg",
+   "bytes": 13649,
+   "sha256": "fda63fb7f9f4011551baf592a17b6948d855f9ec1255da02079c8c2024d0c36e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/kfERO0-jdtw.jpg",
+   "kind": "video-still",
+   "entity": "kfERO0-jdtw",
+   "sourceUrl": "https://i.ytimg.com/vi/kfERO0-jdtw/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/kzxnrgelES8.jpg",
+   "kind": "video-still",
+   "entity": "kzxnrgelES8",
+   "sourceUrl": "https://i.ytimg.com/vi/kzxnrgelES8/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/qleJpzB4q7A.jpg",
+   "kind": "video-still",
+   "entity": "qleJpzB4q7A",
+   "sourceUrl": "https://i.ytimg.com/vi/qleJpzB4q7A/mqdefault.jpg",
+   "bytes": 18026,
+   "sha256": "6009bfaefeba2b817bc53f97b025319f68156fb9ce45f21e3d6bb8ce19f403b7",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/k1OquBida9s.jpg",
+   "kind": "video-still",
+   "entity": "k1OquBida9s",
+   "sourceUrl": "https://i.ytimg.com/vi/k1OquBida9s/mqdefault.jpg",
+   "bytes": 11066,
+   "sha256": "28f8b25b84e3656a07f4f36e4579e6e4528c9bab035b85794dde7d59dd149337",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/-vkqC72sAkU.jpg",
+   "kind": "video-still",
+   "entity": "-vkqC72sAkU",
+   "sourceUrl": "https://i.ytimg.com/vi/-vkqC72sAkU/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/QZVEGqhfS20.jpg",
+   "kind": "video-still",
+   "entity": "QZVEGqhfS20",
+   "sourceUrl": "https://i.ytimg.com/vi/QZVEGqhfS20/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/OYYPnBboGao.jpg",
+   "kind": "video-still",
+   "entity": "OYYPnBboGao",
+   "sourceUrl": "https://i.ytimg.com/vi/OYYPnBboGao/mqdefault.jpg",
+   "bytes": 15390,
+   "sha256": "e19c1281b752329912515da3dea87f9b45450e628f25010b487e8b0ea7cdb6b6",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/nL5W5Xi5jq8.jpg",
+   "kind": "video-still",
+   "entity": "nL5W5Xi5jq8",
+   "sourceUrl": "https://i.ytimg.com/vi/nL5W5Xi5jq8/mqdefault.jpg",
+   "bytes": 10649,
+   "sha256": "3aae4f483709d7368b98ef980599ccd0ac26ccc5f81d25fd2c648f840c379377",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/vx_IMvFkrfA.jpg",
+   "kind": "video-still",
+   "entity": "vx_IMvFkrfA",
+   "sourceUrl": "https://i.ytimg.com/vi/vx_IMvFkrfA/mqdefault.jpg",
+   "bytes": 10624,
+   "sha256": "eedb8e519f71c8dc87e3bd86e28efc9a9eaa100d704ce6625dcfb888f474f805",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/PVbQrvlB_gw.jpg",
+   "kind": "video-still",
+   "entity": "PVbQrvlB_gw",
+   "sourceUrl": "https://i.ytimg.com/vi/PVbQrvlB_gw/mqdefault.jpg",
+   "bytes": 14277,
+   "sha256": "8e699cf699b38e45a8d9bb8d7d6b21a1574e82ff0b2a8d1ba334f2f63742a74a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/jkhdzOK0JtQ.jpg",
+   "kind": "video-still",
+   "entity": "jkhdzOK0JtQ",
+   "sourceUrl": "https://i.ytimg.com/vi/jkhdzOK0JtQ/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/aaizv9m616c.jpg",
+   "kind": "video-still",
+   "entity": "aaizv9m616c",
+   "sourceUrl": "https://i.ytimg.com/vi/aaizv9m616c/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/7o1bslaG4h0.jpg",
+   "kind": "video-still",
+   "entity": "7o1bslaG4h0",
+   "sourceUrl": "https://i.ytimg.com/vi/7o1bslaG4h0/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/EksSDDte7EM.jpg",
+   "kind": "video-still",
+   "entity": "EksSDDte7EM",
+   "sourceUrl": "https://i.ytimg.com/vi/EksSDDte7EM/mqdefault.jpg",
+   "bytes": 9401,
+   "sha256": "11910ed2b86e2b67c32082505c73a134d4836b292bb2e7dfc60d911334a07668",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/OUZoRT_T0Rg.jpg",
+   "kind": "video-still",
+   "entity": "OUZoRT_T0Rg",
+   "sourceUrl": "https://i.ytimg.com/vi/OUZoRT_T0Rg/mqdefault.jpg",
+   "bytes": 8550,
+   "sha256": "46c2e7157f748faf443c3290079d36710f1ce1681db471cc1745a42f21d1ba91",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/6lEg1Nt7A8A.jpg",
+   "kind": "video-still",
+   "entity": "6lEg1Nt7A8A",
+   "sourceUrl": "https://i.ytimg.com/vi/6lEg1Nt7A8A/mqdefault.jpg",
+   "bytes": 8376,
+   "sha256": "ee2e64b28ae0bd328adec761999939fd7d3d773fc5c4495249932e9515ddebc6",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/kqdfjdTQcdY.jpg",
+   "kind": "video-still",
+   "entity": "kqdfjdTQcdY",
+   "sourceUrl": "https://i.ytimg.com/vi/kqdfjdTQcdY/mqdefault.jpg",
+   "bytes": 7712,
+   "sha256": "a56ea03514bb3beab937c9b4f808c66155cafbfeb807a9841da6b3dd92049e30",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Ffm9R18XDdw.jpg",
+   "kind": "video-still",
+   "entity": "Ffm9R18XDdw",
+   "sourceUrl": "https://i.ytimg.com/vi/Ffm9R18XDdw/mqdefault.jpg",
+   "bytes": 11293,
+   "sha256": "4733bb4c797da18f923af5acb262651f19397a38acc3c9d5fdf84aa6065c5224",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/1_C3SwIyE2g.jpg",
+   "kind": "video-still",
+   "entity": "1_C3SwIyE2g",
+   "sourceUrl": "https://i.ytimg.com/vi/1_C3SwIyE2g/mqdefault.jpg",
+   "bytes": 8816,
+   "sha256": "38aca596a1b159deb6a3370eed140dc5faba37929e08741e10b1d345ef14bd3b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Sugb_SVOO4E.jpg",
+   "kind": "video-still",
+   "entity": "Sugb_SVOO4E",
+   "sourceUrl": "https://i.ytimg.com/vi/Sugb_SVOO4E/mqdefault.jpg",
+   "bytes": 5227,
+   "sha256": "0682c70b36287becf76fd0d34f63abd5c59e44403787ace9ee16224e0b4dd6cc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/IJvjj6Fiwvw.jpg",
+   "kind": "video-still",
+   "entity": "IJvjj6Fiwvw",
+   "sourceUrl": "https://i.ytimg.com/vi/IJvjj6Fiwvw/mqdefault.jpg",
+   "bytes": 13347,
+   "sha256": "e02f88dd373f605e9311b0ab69edca2dc620c8e8c0053c5768832961b17112ce",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/_Ci6LhAmYJk.jpg",
+   "kind": "video-still",
+   "entity": "_Ci6LhAmYJk",
+   "sourceUrl": "https://i.ytimg.com/vi/_Ci6LhAmYJk/mqdefault.jpg",
+   "bytes": 10221,
+   "sha256": "4d29d1883f487d42d97423dd78d843772e1f72f05196e0520c0601c315d99f16",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/OiBSeGoc9FQ.jpg",
+   "kind": "video-still",
+   "entity": "OiBSeGoc9FQ",
+   "sourceUrl": "https://i.ytimg.com/vi/OiBSeGoc9FQ/mqdefault.jpg",
+   "bytes": 19171,
+   "sha256": "6d3522d3df206b06d1717f991acc125da29ce4cfc7d109fe828e456b89b0699d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/Bq6T0a2o6Lw.jpg",
+   "kind": "video-still",
+   "entity": "Bq6T0a2o6Lw",
+   "sourceUrl": "https://i.ytimg.com/vi/Bq6T0a2o6Lw/mqdefault.jpg",
+   "bytes": 7361,
+   "sha256": "e0bd07c5b0515c268140026034bcf509296e4df1a3edd10d192ef7f2990fe941",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/A75Ot8IXLfI.jpg",
+   "kind": "video-still",
+   "entity": "A75Ot8IXLfI",
+   "sourceUrl": "https://i.ytimg.com/vi/A75Ot8IXLfI/mqdefault.jpg",
+   "bytes": 8972,
+   "sha256": "a9fdebb6d76aab0c688572610c5cff0fb1657846c485a1a42fc856a627f04838",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/cE2E6bj0Hg4.jpg",
+   "kind": "video-still",
+   "entity": "cE2E6bj0Hg4",
+   "sourceUrl": "https://i.ytimg.com/vi/cE2E6bj0Hg4/mqdefault.jpg",
+   "bytes": 11856,
+   "sha256": "3088035ca2c7e0ffcc433cb60c686f82186567f558361ce301c9be77dd98bbc3",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/QD0fvO7A6NQ.jpg",
+   "kind": "video-still",
+   "entity": "QD0fvO7A6NQ",
+   "sourceUrl": "https://i.ytimg.com/vi/QD0fvO7A6NQ/mqdefault.jpg",
+   "bytes": 7939,
+   "sha256": "cca93f38f4bc7f23afb8f50aad5bf97fa5711c7b3817c24f8218a9b2b4e7e59d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/GxkLy_mvGXE.jpg",
+   "kind": "video-still",
+   "entity": "GxkLy_mvGXE",
+   "sourceUrl": "https://i.ytimg.com/vi/GxkLy_mvGXE/mqdefault.jpg",
+   "bytes": 7494,
+   "sha256": "fc6e81d0ca05304e99c5bc6f887a72b4495ea211734c463e75559bd12ee84ef8",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/ZvqYabGI6HQ.jpg",
+   "kind": "video-still",
+   "entity": "ZvqYabGI6HQ",
+   "sourceUrl": "https://i.ytimg.com/vi/ZvqYabGI6HQ/mqdefault.jpg",
+   "bytes": 1742,
+   "sha256": "20c2bcdd15556f6d0e67ed879ed9c3fc28a740494d2c5d6d03ce29697a471ef2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/w7IlXq2qlRc.jpg",
+   "kind": "video-still",
+   "entity": "w7IlXq2qlRc",
+   "sourceUrl": "https://i.ytimg.com/vi/w7IlXq2qlRc/mqdefault.jpg",
+   "bytes": 17450,
+   "sha256": "588399bf18357111b556bb6d8cda6e0caf330eafce4cd7f2cbbccb3bdc96b7ee",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/V7SVgl1HnK8.jpg",
+   "kind": "video-still",
+   "entity": "V7SVgl1HnK8",
+   "sourceUrl": "https://i.ytimg.com/vi/V7SVgl1HnK8/mqdefault.jpg",
+   "bytes": 8183,
+   "sha256": "7b571354385ace55f5fecf06d59f72c144e0f043a0db8156a48ad4c8458b1aab",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/NEGjmd_RzLU.jpg",
+   "kind": "video-still",
+   "entity": "NEGjmd_RzLU",
+   "sourceUrl": "https://i.ytimg.com/vi/NEGjmd_RzLU/mqdefault.jpg",
+   "bytes": 8055,
+   "sha256": "d798f1b8025f26a18421cbffb7169dfe33a432875edf936ea5bf9732a0907344",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/videos/hF3FTtPuVDc.jpg",
+   "kind": "video-still",
+   "entity": "hF3FTtPuVDc",
+   "sourceUrl": "https://i.ytimg.com/vi/hF3FTtPuVDc/mqdefault.jpg",
+   "bytes": 7334,
+   "sha256": "dbef71c54c88ea3cfaf20b45339ae52e5d6c14956f09080ceeff2a7eede6f057",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCjiGsk3ePl9fajUfgNVFGBA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCjiGsk3ePl9fajUfgNVFGBA",
+   "sourceUrl": "https://lh3.googleusercontent.com/ef0HldvFY8DG6TTtZhYJwvnBF9_PQsj141cgnJ8LN8M10H5PkiAUvkt1LmI0i4U7zYIKI4cckrDP46A=w240-h240-p-l90-rj",
+   "bytes": 3417,
+   "sha256": "4f17696bae7fb5add156c1ebd4baf8c7c726c4d9227993fb86e9c9131b49538b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UC1g7JmTw4Gv8W9YINg3M1FA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UC1g7JmTw4Gv8W9YINg3M1FA",
+   "sourceUrl": "https://lh3.googleusercontent.com/7X19_I6_n_vrHdGqRp59wX2fOjpIAGCEle5pFDy86aon-NVFl89pgmFXfZhjm_YIFNkFVNRaxq0U4hc=w240-h240-p-l90-rj",
+   "bytes": 7523,
+   "sha256": "50595e22e00df17ee62a57f947269ad90f4538e0286c349ccfcbcc98040b1e80",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UC48nZNzBVu13HPwJ3upxQnQ.jpg",
+   "kind": "artist-thumb",
+   "entity": "UC48nZNzBVu13HPwJ3upxQnQ",
+   "sourceUrl": "https://lh3.googleusercontent.com/SHHFY-NokHL38CoB0xEaM4SndJN0yZvgTC39VruFyilaR4CBbdYGoybZKz4rvl_mHLgaab4t7D4GyyVa=w240-h240-p-l90-rj",
+   "bytes": 16760,
+   "sha256": "4c48d7e0c6b838d7ef8bb07446e656d07fb019bb48857850e40ff537d680e7d3",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCXnAmS7kU1IfUYoRdRiAG2w.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCXnAmS7kU1IfUYoRdRiAG2w",
+   "sourceUrl": "https://yt3.googleusercontent.com/i-mqH0CAQdJ2LLvp1tlBK8qAlSSECWxAwDazYUNnt3YJr-j7RSoy8ntbK2hcMUTYFTxh22jXqQ=w240-h240-p-l90-rj",
+   "bytes": 15576,
+   "sha256": "aedc8e0fe52690dd935a7024e01c1b2e0ab408615bc042f3a8a4c717c3d3e16a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCztmP5OtijziqOMYuCixISQ.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCztmP5OtijziqOMYuCixISQ",
+   "sourceUrl": "https://lh3.googleusercontent.com/0eGRSO_Kso1clrrTttEQWX0Gdnd3_wUwUTu23fAEftiB3PkUyIPdYXhIX4-peBQbiHkaOrVrgHY06w=w240-h240-p-l90-rj",
+   "bytes": 12759,
+   "sha256": "f438d3eddba352aa3286c15907bfce48f2f9cbbef2c01296bfb72e2635d37dd2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCOcnYBwT1jb6EHlS0cwhNkA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCOcnYBwT1jb6EHlS0cwhNkA",
+   "sourceUrl": "https://yt3.googleusercontent.com/ehmcEEYnAXMF6YKFGKmoYauiTTYjpzzNlFdD0keF9bYlrA3-4jecCyyKSavrjGEARNpMSJL2SITdzxrV=w240-h240-p-l90-rj",
+   "bytes": 25878,
+   "sha256": "fb07befa8c3b60f1e6a6f85cde83a3c33ec6e5df7873029774fff9a261d65f0f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCGhzAi-qOk8BdHGHFUEtqUA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCGhzAi-qOk8BdHGHFUEtqUA",
+   "sourceUrl": "https://yt3.googleusercontent.com/XLSIR13z4BYuZkvxET2nkHAuCtOBHwEkD7sGd19qyhF7Wxm1MDFaZgi-ZmjBRfvhEvfuHYayZaLcsA=w240-h240-p-l90-rj",
+   "bytes": 13784,
+   "sha256": "703e42046de49006005277321a025d2f7adc9ff1671bc41da52025a048f2b4ab",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCA_77dmbsh_c3LnDly2-Q_Q.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCA_77dmbsh_c3LnDly2-Q_Q",
+   "sourceUrl": "https://lh3.googleusercontent.com/x0bOmhlQBVZz0bYOxO3_O-ZRQpkZIM-wqX91gCvW_Tyb4m6Li-lvgIsS6NvfRWrDHI-Qfdmx35z7R3k=w240-h240-p-l90-rj",
+   "bytes": 13067,
+   "sha256": "2a6126e397d3898511c145e0e7da953f3932904eda8d22f362e0fcbfeec073a3",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCC0ydtpsVWZNHLvKSf4MnYw.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCC0ydtpsVWZNHLvKSf4MnYw",
+   "sourceUrl": "https://yt3.ggpht.com/ytc/AIdro_ng1eE9lPzxCZsmA8sh5-irvcIxK_mD1GKaa9ewVJyJiD5U=w544-h544-l90-rj-dcqWSWzSUI",
+   "bytes": 79856,
+   "sha256": "dbc9ace5009e6496d7d9d8fca827e8bad4fe91ae3067e4f37023881ed7657904",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/eminem/related/UCU1JusGzZe0Msn79JB3g46w.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCU1JusGzZe0Msn79JB3g46w",
+   "sourceUrl": "https://lh3.googleusercontent.com/qdt842vwJNASiJ0AWH4r78AtrMzS16IECZ90IZb0yrPyzd0o1TAkZGcMbts8K_4cJaRw3TNLjVbViA=w240-h240-p-l90-rj",
+   "bytes": 14430,
+   "sha256": "ea1d3237a528291d5fb72a0c8dc5c6298655a7d39c0fb0814116e7f7b2ec5d73",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/hero.jpg",
+   "kind": "artist-hero",
+   "entity": "UCYBh5kDH7w7pFeLiLMX6lkA",
+   "sourceUrl": "https://lh3.googleusercontent.com/2kCy1LTLcl800rsRFZxomMScftpoFqnYjsLxBc9PMLyKW2Y6ZN2aCqoPytmQRCXza4q0S6eenxj5Y2k=w1920-h800-p-l90-rj",
+   "bytes": 61850,
+   "sha256": "b983f4961b7071f63dfd48971df0b5d50c5de7abc8f1c5bb0fadc2fd0c50024b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/ybPfjnX-iHk.jpg",
+   "kind": "song-art",
+   "entity": "ybPfjnX-iHk",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w120-h120-l90-rj",
+   "bytes": 9141,
+   "sha256": "fc555cd63bd9ae8d1960e93374f6fdd3ba033e5b0447bd32f735fd0b6b4c0079",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/W9teUoAtvoE.jpg",
+   "kind": "song-art",
+   "entity": "W9teUoAtvoE",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w120-h120-l90-rj",
+   "bytes": 9141,
+   "sha256": "fc555cd63bd9ae8d1960e93374f6fdd3ba033e5b0447bd32f735fd0b6b4c0079",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/ovItSbeYtNs.jpg",
+   "kind": "song-art",
+   "entity": "ovItSbeYtNs",
+   "sourceUrl": "https://yt3.googleusercontent.com/6yEpWZHbMN7wntg4gVnTUbWUNLMXeXb2daE0UQm_j6IEDPRokqJ2sRzMvH33gN5KQBznJoTiJz-Hz4M=w120-h120-l90-rj",
+   "bytes": 10005,
+   "sha256": "09f93906f2f570e2d2d4ad888a9dc84ccce89057475e1f2b0b8c3dbd2ec7ec16",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/GOH724gpJV8.jpg",
+   "kind": "song-art",
+   "entity": "GOH724gpJV8",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w120-h120-l90-rj",
+   "bytes": 9141,
+   "sha256": "fc555cd63bd9ae8d1960e93374f6fdd3ba033e5b0447bd32f735fd0b6b4c0079",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/tzu3K8vYpEc.jpg",
+   "kind": "song-art",
+   "entity": "tzu3K8vYpEc",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w120-h120-l90-rj",
+   "bytes": 9141,
+   "sha256": "fc555cd63bd9ae8d1960e93374f6fdd3ba033e5b0447bd32f735fd0b6b4c0079",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/6fvhlB31orw.jpg",
+   "kind": "song-art",
+   "entity": "6fvhlB31orw",
+   "sourceUrl": "https://yt3.googleusercontent.com/7aQRuPFIPp-oc5WJ-5ZU4TCrm_uyGnn4y2l_sx8JTJOUSX6OCMDWGolOSR46CYHfzS4BplfBtJSHAFc5=w120-h120-l90-rj",
+   "bytes": 9580,
+   "sha256": "8316141230b3cab4f7ffa21585878a60305140931052e8740bc213193ed1a7f2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/xDJimqGJT5Y.jpg",
+   "kind": "song-art",
+   "entity": "xDJimqGJT5Y",
+   "sourceUrl": "https://yt3.googleusercontent.com/6yEpWZHbMN7wntg4gVnTUbWUNLMXeXb2daE0UQm_j6IEDPRokqJ2sRzMvH33gN5KQBznJoTiJz-Hz4M=w120-h120-l90-rj",
+   "bytes": 10005,
+   "sha256": "09f93906f2f570e2d2d4ad888a9dc84ccce89057475e1f2b0b8c3dbd2ec7ec16",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/ad7eFwzk7UQ.jpg",
+   "kind": "song-art",
+   "entity": "ad7eFwzk7UQ",
+   "sourceUrl": "https://yt3.googleusercontent.com/6yEpWZHbMN7wntg4gVnTUbWUNLMXeXb2daE0UQm_j6IEDPRokqJ2sRzMvH33gN5KQBznJoTiJz-Hz4M=w120-h120-l90-rj",
+   "bytes": 10005,
+   "sha256": "09f93906f2f570e2d2d4ad888a9dc84ccce89057475e1f2b0b8c3dbd2ec7ec16",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/HdS6TF8GJU8.jpg",
+   "kind": "song-art",
+   "entity": "HdS6TF8GJU8",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w120-h120-l90-rj",
+   "bytes": 9141,
+   "sha256": "fc555cd63bd9ae8d1960e93374f6fdd3ba033e5b0447bd32f735fd0b6b4c0079",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/songs/3vHzgQ278fg.jpg",
+   "kind": "song-art",
+   "entity": "3vHzgQ278fg",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w120-h120-l90-rj",
+   "bytes": 9141,
+   "sha256": "fc555cd63bd9ae8d1960e93374f6fdd3ba033e5b0447bd32f735fd0b6b4c0079",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/covers/MPREb_eDMHaqPwOZa.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_eDMHaqPwOZa",
+   "sourceUrl": "https://yt3.googleusercontent.com/6yEpWZHbMN7wntg4gVnTUbWUNLMXeXb2daE0UQm_j6IEDPRokqJ2sRzMvH33gN5KQBznJoTiJz-Hz4M=w300-h300-l90-rj",
+   "bytes": 45308,
+   "sha256": "9a97a9b98dc74044090916d3ca875f544d3cab40e74b09a57783d1902737114c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/covers/MPREb_r3Sup4ZhJxG.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_r3Sup4ZhJxG",
+   "sourceUrl": "https://yt3.googleusercontent.com/V9Qc2PvfLtHCLMnNRYCcEEOx4HlHQsUC7xsAD75G33ESP1scZs03oUsKOs-qYthlU5GYNeBr7iy_jkgxwQ=w300-h300-l90-rj",
+   "bytes": 48300,
+   "sha256": "ae172fc7f0545de7f4c6dacb2586e263301caddb98ca730d6a588fa4fa2d9efd",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/covers/MPREb_DLratCDFLuv.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_DLratCDFLuv",
+   "sourceUrl": "https://yt3.googleusercontent.com/7aQRuPFIPp-oc5WJ-5ZU4TCrm_uyGnn4y2l_sx8JTJOUSX6OCMDWGolOSR46CYHfzS4BplfBtJSHAFc5=w300-h300-l90-rj",
+   "bytes": 49745,
+   "sha256": "09c17415191d6e5438d9e616743a3849f6e1f2a0dc745e6f5f82e47a1a65e3ca",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/videos/rSp-nERTqtY.jpg",
+   "kind": "video-still",
+   "entity": "rSp-nERTqtY",
+   "sourceUrl": "https://i.ytimg.com/vi/rSp-nERTqtY/mqdefault.jpg",
+   "bytes": 7820,
+   "sha256": "33863ddc9479049240af14115989110b245b8d1a2ce695a819e79d440bc1853a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/videos/1091s0VNs7s.jpg",
+   "kind": "video-still",
+   "entity": "1091s0VNs7s",
+   "sourceUrl": "https://i.ytimg.com/vi/1091s0VNs7s/mqdefault.jpg",
+   "bytes": 7011,
+   "sha256": "c12bfc753f1058641bbf1a62116c5a999a366ba4c20b1305bc95f8889f56ea3d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/videos/CCkO78PWJFY.jpg",
+   "kind": "video-still",
+   "entity": "CCkO78PWJFY",
+   "sourceUrl": "https://i.ytimg.com/vi/CCkO78PWJFY/mqdefault.jpg",
+   "bytes": 5633,
+   "sha256": "da3a3b7f9476822a75f01d3520f99f67fa2f190c1b432eab78d8181bc140b473",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/videos/KvdqgCNOiOE.jpg",
+   "kind": "video-still",
+   "entity": "KvdqgCNOiOE",
+   "sourceUrl": "https://i.ytimg.com/vi/KvdqgCNOiOE/mqdefault.jpg",
+   "bytes": 9270,
+   "sha256": "77d4e4b0f793f6f4e7a86646fb0c7aa577613ee6c592a15618d11a2c8507818e",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCZM0s_f1gcNQgqFWkLbYUDQ.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCZM0s_f1gcNQgqFWkLbYUDQ",
+   "sourceUrl": "https://lh3.googleusercontent.com/lwfYs7avrb6J7GJm9HzjdkesaFYzmMEPRuAdHjVfbsfyW1fHyNQTWGmFKHczq4lLzBDxSMFyiuFuhA4=w240-h240-p-l90-rj",
+   "bytes": 27729,
+   "sha256": "8c19871c9c037bd5c669f3dd11b2c58a8e5d513dd78fb37f148f7b474206fbd2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCWRnjKEhHbMtCJCqNHcpw1Q.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCWRnjKEhHbMtCJCqNHcpw1Q",
+   "sourceUrl": "https://yt3.googleusercontent.com/-7ILfHA4opcsDWzv4gr_-bPtRT7sbsU71JBxxA_bDCx1Hfc-xx4XSlrwOarji-N7vOdBA3N-0es=w240-h240-p-l90-rj",
+   "bytes": 7089,
+   "sha256": "f9e029e67b805907cf00c28312cf648bfd9d5f168f91c58c72b600f12c9bb039",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCvWGUGsB4nDlfxlCGZOv6kw.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCvWGUGsB4nDlfxlCGZOv6kw",
+   "sourceUrl": "https://yt3.googleusercontent.com/kNfKLH9l3Fi961HxaRpSq-irKl7SBuNCUOapVmDFjjyJmbDO6XcryUYiq9SHisIXU-c9vuanvpRLwRw=w240-h240-p-l90-rj",
+   "bytes": 4467,
+   "sha256": "e7aef087aed4c81c0158679ef9c789e2e40636e321e90a3fdda75d5aaa951a18",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCX6nSbunDkKru8uFl9SzgGg.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCX6nSbunDkKru8uFl9SzgGg",
+   "sourceUrl": "https://yt3.googleusercontent.com/CJ3uA6vnD2guBZ-68kcuFuFOv1I8r1DpEfG-optrg6bwSdcgrEYMbh4mFoNsO8O9bRLYDLj0HLlHGkc=w240-h240-p-l90-rj",
+   "bytes": 31273,
+   "sha256": "f94c594e344362a650081b698551f940b678695d81130429ac08c37558e40b2a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCPiXkRHQXIylsdUFjjW99zw.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCPiXkRHQXIylsdUFjjW99zw",
+   "sourceUrl": "https://yt3.googleusercontent.com/-DFngm3Xkt3RHJv5vZCX0Ac656KFukct7-PrZtrenXDZOrC2SS0DsbUpdb28jl96qiQx1NPnsuQ1ow=w240-h240-p-l90-rj",
+   "bytes": 17849,
+   "sha256": "d05575e916479e2c71b1027a983ec1f0af53c77cca8e3a07ac993c4860cce1df",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UC8_SYUe-x9ku2ZnO0CEyB9w.jpg",
+   "kind": "artist-thumb",
+   "entity": "UC8_SYUe-x9ku2ZnO0CEyB9w",
+   "sourceUrl": "https://lh3.googleusercontent.com/QUVm5SMqta-srmGI-hvOwn-lfSsFEqvI0A4VSyex46F5W4bzcenroqfG01MjLIV-O66HJXSij6j0G_0=w240-h240-p-l90-rj",
+   "bytes": 18322,
+   "sha256": "0ebc1a57f04f8a7eebc08e53178d0905c627e3106ad8458cbe0bd1cc1b11dd9d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCGwSb3aXZ55VoCm5Oh-5dug.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCGwSb3aXZ55VoCm5Oh-5dug",
+   "sourceUrl": "https://yt3.googleusercontent.com/Fmizak8wNd7PtiQVBRP9zXJnfzOgEmI3Cl_DcwXJhmxAUgHXEY2Zur2TNqz0Ua64EXnVRByDsQ=w240-h240-p-l90-rj",
+   "bytes": 25657,
+   "sha256": "bde7a2f1ecad47479d4d2cd704d571307a28a59697ed13d7fa848e4b78aca5c6",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCvFGwg71GAMRnGAg-7T-Z2Q.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCvFGwg71GAMRnGAg-7T-Z2Q",
+   "sourceUrl": "https://yt3.googleusercontent.com/BKwKitbnjetrc20dxxIGNelh7l_rpW4BUrzQcXisYOm3XlA1z8E7U5QA2ruzl_rKnqYqmNC5dmt4Rqdu=w240-h240-p-l90-rj",
+   "bytes": 47765,
+   "sha256": "d9d31f86182c2ffb810a505c158c2838ef217bd6e0ddc915a545f6d1b6c93fc8",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UC9v0XAmk71BAzH5tElTRZKw.jpg",
+   "kind": "artist-thumb",
+   "entity": "UC9v0XAmk71BAzH5tElTRZKw",
+   "sourceUrl": "https://yt3.ggpht.com/ytc/AIdro_nS3LnJhcmSscMKPmLiFL5grsquxLUUrAuiaqEVIArPRhs=w544-h544-l90-rj-dcgTSS7ZkJ",
+   "bytes": 152096,
+   "sha256": "6b15e67d8a4fe1b6463a48222cd0f8f849ebf1cb69f4ccd4dafa04fbf31fe4bb",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/lifafa/related/UCnE4jSq__ZhC67l-ZzZK9uA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCnE4jSq__ZhC67l-ZzZK9uA",
+   "sourceUrl": "https://lh3.googleusercontent.com/KWTzI4QDG-x3ge8KHQ542W__SRvfY1P0e_8sZCjQsTnrd-YDqLRXaj0Pyz8lK6mT4EcQCk2ao5oFjnnI=w240-h240-p-l90-rj",
+   "bytes": 8131,
+   "sha256": "462097e7fc2ca915376cb9ef0466db311ddbd58e5c7ee867480fce3f6368e560",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/x8JIr7Ai82Q.jpg",
+   "kind": "song-art",
+   "entity": "x8JIr7Ai82Q",
+   "sourceUrl": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w120-h120-l90-rj",
+   "bytes": 9438,
+   "sha256": "ebb794d978f45c308d10cc88648bd35948dac2518168e0b0b93f139c25f0cd1d",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/hUf9MdsgvSU.jpg",
+   "kind": "song-art",
+   "entity": "hUf9MdsgvSU",
+   "sourceUrl": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+   "bytes": 10476,
+   "sha256": "a144419966c63582c56b7fbf632431c54cb05a02263c07af203a00b21f644be7",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/bJfdlN8uHss.jpg",
+   "kind": "song-art",
+   "entity": "bJfdlN8uHss",
+   "sourceUrl": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+   "bytes": 8071,
+   "sha256": "2c2d438b3a7d831b14d24a2ee9517366a074b288d8027bb60b5d01ce91baf93c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/GAQs3UgGSfc.jpg",
+   "kind": "song-art",
+   "entity": "GAQs3UgGSfc",
+   "sourceUrl": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+   "bytes": 8071,
+   "sha256": "2c2d438b3a7d831b14d24a2ee9517366a074b288d8027bb60b5d01ce91baf93c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/gkmG6YJf9Ow.jpg",
+   "kind": "song-art",
+   "entity": "gkmG6YJf9Ow",
+   "sourceUrl": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+   "bytes": 10476,
+   "sha256": "a144419966c63582c56b7fbf632431c54cb05a02263c07af203a00b21f644be7",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/xnSQKedX9SU.jpg",
+   "kind": "song-art",
+   "entity": "xnSQKedX9SU",
+   "sourceUrl": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+   "bytes": 10476,
+   "sha256": "a144419966c63582c56b7fbf632431c54cb05a02263c07af203a00b21f644be7",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/oc3PC5peYSo.jpg",
+   "kind": "song-art",
+   "entity": "oc3PC5peYSo",
+   "sourceUrl": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+   "bytes": 10476,
+   "sha256": "a144419966c63582c56b7fbf632431c54cb05a02263c07af203a00b21f644be7",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/RKb_RCFir48.jpg",
+   "kind": "song-art",
+   "entity": "RKb_RCFir48",
+   "sourceUrl": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w120-h120-l90-rj",
+   "bytes": 8477,
+   "sha256": "d7832511fddc819ebd132f6c423ee8b09ed5c45487ce1fecd565a0183d16433b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/w1NSjAJhOzA.jpg",
+   "kind": "song-art",
+   "entity": "w1NSjAJhOzA",
+   "sourceUrl": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+   "bytes": 8071,
+   "sha256": "2c2d438b3a7d831b14d24a2ee9517366a074b288d8027bb60b5d01ce91baf93c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/songs/E28nS86APHk.jpg",
+   "kind": "song-art",
+   "entity": "E28nS86APHk",
+   "sourceUrl": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+   "bytes": 8071,
+   "sha256": "2c2d438b3a7d831b14d24a2ee9517366a074b288d8027bb60b5d01ce91baf93c",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/covers/MPREb_OPCLh8vwJNl.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_OPCLh8vwJNl",
+   "sourceUrl": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w300-h300-l90-rj",
+   "bytes": 44352,
+   "sha256": "51cc0de8bc7b7eba8fba920ea0ffd0b974cf8372827fbc71a18d406be24ad491",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/covers/MPREb_YYSLl7eF61q.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_YYSLl7eF61q",
+   "sourceUrl": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w300-h300-l90-rj",
+   "bytes": 55254,
+   "sha256": "60f893d8ce4a4b5bc9b4d9efc57fc9c7ce439d50ca8e8d82d2a868b2f5b62886",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/covers/MPREb_jIvIf1k88wy.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_jIvIf1k88wy",
+   "sourceUrl": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w300-h300-l90-rj",
+   "bytes": 43015,
+   "sha256": "1b288b010edf203204916905c1490adf1ffe0b370cd869b2f69dc1ff97620d14",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/covers/MPREb_Nf0BeqFdf9q.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_Nf0BeqFdf9q",
+   "sourceUrl": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w300-h300-l90-rj",
+   "bytes": 26995,
+   "sha256": "252f20e8acc918b7842309e4397831a16298335e6dbe6a1e0c09f6ecf7cf417f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/covers/MPREb_DefB8uIrdyK.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_DefB8uIrdyK",
+   "sourceUrl": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w300-h300-l90-rj",
+   "bytes": 39309,
+   "sha256": "d4f98a3bf295c2cdf720c9a2a4035096f0a2c504a8e741f64eae3043c693010a",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/covers/MPREb_7xd00FQXMFQ.jpg",
+   "kind": "release-cover",
+   "entity": "MPREb_7xd00FQXMFQ",
+   "sourceUrl": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w300-h300-l90-rj",
+   "bytes": 25146,
+   "sha256": "7c68f87372b80d812a034c34cb01b4e8c10c0bb51d68bd911e838f76c404edfe",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/tVmSky2lA5A.jpg",
+   "kind": "video-still",
+   "entity": "tVmSky2lA5A",
+   "sourceUrl": "https://i.ytimg.com/vi/tVmSky2lA5A/mqdefault.jpg",
+   "bytes": 17747,
+   "sha256": "f47c49f8764f6eb279d8775abb53b4ee1261bfab5a4d117f3e86175889aec0b6",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/kPyzCPztkQw.jpg",
+   "kind": "video-still",
+   "entity": "kPyzCPztkQw",
+   "sourceUrl": "https://i.ytimg.com/vi/kPyzCPztkQw/mqdefault.jpg",
+   "bytes": 12093,
+   "sha256": "d8df448567fde0068e18ac02b4574106d49fdaad3650c6600c8cf147e423b853",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/-3V4OpteifI.jpg",
+   "kind": "video-still",
+   "entity": "-3V4OpteifI",
+   "sourceUrl": "https://i.ytimg.com/vi/-3V4OpteifI/mqdefault.jpg",
+   "bytes": 5644,
+   "sha256": "0bbeeeb50c59cfd8a8773653a3fa05770122ba599ee7935f3dc13419564d59bf",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/pcE0dO9b-10.jpg",
+   "kind": "video-still",
+   "entity": "pcE0dO9b-10",
+   "sourceUrl": "https://i.ytimg.com/vi/pcE0dO9b-10/mqdefault.jpg",
+   "bytes": 3052,
+   "sha256": "302b3a4fe3615ee48facea8a7ecf91c8097a481dd2c6c1c116bec9f911b5c29b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/_ewU3NpB9gY.jpg",
+   "kind": "video-still",
+   "entity": "_ewU3NpB9gY",
+   "sourceUrl": "https://i.ytimg.com/vi/_ewU3NpB9gY/mqdefault.jpg",
+   "bytes": 9280,
+   "sha256": "b3265172ae201b347710fec853f844004b8415a010928e00fc0e39a6bed39047",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/YpLTswi9E_Y.jpg",
+   "kind": "video-still",
+   "entity": "YpLTswi9E_Y",
+   "sourceUrl": "https://i.ytimg.com/vi/YpLTswi9E_Y/mqdefault.jpg",
+   "bytes": 16360,
+   "sha256": "7d1dd5a3dc6864515dd4f622a496c7554771ced9de5101894f0866129b0e8524",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/NiqtIHnckYo.jpg",
+   "kind": "video-still",
+   "entity": "NiqtIHnckYo",
+   "sourceUrl": "https://i.ytimg.com/vi/NiqtIHnckYo/mqdefault.jpg",
+   "bytes": 7701,
+   "sha256": "73ae520a8fbd3421301f6c188eed1f349bb57f513791709bc8713dfb89bf934b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/SfckFY8aQS0.jpg",
+   "kind": "video-still",
+   "entity": "SfckFY8aQS0",
+   "sourceUrl": "https://i.ytimg.com/vi/SfckFY8aQS0/mqdefault.jpg",
+   "bytes": 3457,
+   "sha256": "63dd7810bf6a2bbb93737257376c0bd52b3c49190930262d68e1894deb4c8f06",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/WI3umkfenQI.jpg",
+   "kind": "video-still",
+   "entity": "WI3umkfenQI",
+   "sourceUrl": "https://i.ytimg.com/vi/WI3umkfenQI/mqdefault.jpg",
+   "bytes": 9134,
+   "sha256": "8a59b1da71506074f3e636dd0962ddf0b65248eb505477a8fa396f90571dfb7f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/pjEzlNsm1Tg.jpg",
+   "kind": "video-still",
+   "entity": "pjEzlNsm1Tg",
+   "sourceUrl": "https://i.ytimg.com/vi/pjEzlNsm1Tg/mqdefault.jpg",
+   "bytes": 8982,
+   "sha256": "9e6581f8bfcf4acc9ea7d683bcd8bde7267fcc716c9f094d7c708d7284309619",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/t7SsTV6kzJA.jpg",
+   "kind": "video-still",
+   "entity": "t7SsTV6kzJA",
+   "sourceUrl": "https://i.ytimg.com/vi/t7SsTV6kzJA/mqdefault.jpg",
+   "bytes": 15737,
+   "sha256": "e256ab616bc2c1605d4af16caeb4c0e88de3bd978bc1c177163630d1c1b98014",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/7E-WPytdIk0.jpg",
+   "kind": "video-still",
+   "entity": "7E-WPytdIk0",
+   "sourceUrl": "https://i.ytimg.com/vi/7E-WPytdIk0/mqdefault.jpg",
+   "bytes": 11693,
+   "sha256": "a358c7ba9d9533d0732f6effd53c8b1b76c31ce94aee0e72ba4ea87de73d9be2",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/8e6V6td1LvE.jpg",
+   "kind": "video-still",
+   "entity": "8e6V6td1LvE",
+   "sourceUrl": "https://i.ytimg.com/vi/8e6V6td1LvE/mqdefault.jpg",
+   "bytes": 13739,
+   "sha256": "395a91547e4075ec3159c59e6204d581cc9a03773344844bbb8234b490187685",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/3u3kCnc5Aok.jpg",
+   "kind": "video-still",
+   "entity": "3u3kCnc5Aok",
+   "sourceUrl": "https://i.ytimg.com/vi/3u3kCnc5Aok/mqdefault.jpg",
+   "bytes": 12881,
+   "sha256": "16b6e95b03a07595c5d7803076dd42204596f347c8d5a22715c30bb3ea57f48f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/WuXLDf6H9JI.jpg",
+   "kind": "video-still",
+   "entity": "WuXLDf6H9JI",
+   "sourceUrl": "https://i.ytimg.com/vi/WuXLDf6H9JI/mqdefault.jpg",
+   "bytes": 8293,
+   "sha256": "8775a13d539890680401bfcec646f577f9edb04b627d1827ad6e8877c31d5543",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/6dPDvq1dbjw.jpg",
+   "kind": "video-still",
+   "entity": "6dPDvq1dbjw",
+   "sourceUrl": "https://i.ytimg.com/vi/6dPDvq1dbjw/mqdefault.jpg",
+   "bytes": 13824,
+   "sha256": "41b81320d6b683b37385d7bda5a666e2660e52af26ab7ebe5f880ad745b06df6",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/XjYp7Wv9R-o.jpg",
+   "kind": "video-still",
+   "entity": "XjYp7Wv9R-o",
+   "sourceUrl": "https://i.ytimg.com/vi/XjYp7Wv9R-o/mqdefault.jpg",
+   "bytes": 20275,
+   "sha256": "7ca9d109fe379d338f097b191c7d82819bf0ff7984c5605604dce6d80184bb21",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/6GDJvTcQ7n8.jpg",
+   "kind": "video-still",
+   "entity": "6GDJvTcQ7n8",
+   "sourceUrl": "https://i.ytimg.com/vi/6GDJvTcQ7n8/mqdefault.jpg",
+   "bytes": 13868,
+   "sha256": "89825586ee7dd901f3a5205a33053a590e91894e57e48e687cc5be56bbfcee57",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/bCKtmVs5sp8.jpg",
+   "kind": "video-still",
+   "entity": "bCKtmVs5sp8",
+   "sourceUrl": "https://i.ytimg.com/vi/bCKtmVs5sp8/mqdefault.jpg",
+   "bytes": 9302,
+   "sha256": "2b1feb17dd96edeb352dc8047eda84b20362f4656b02941ff54b5607c8b8adee",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/4iYsRhjFIVo.jpg",
+   "kind": "video-still",
+   "entity": "4iYsRhjFIVo",
+   "sourceUrl": "https://i.ytimg.com/vi/4iYsRhjFIVo/mqdefault.jpg",
+   "bytes": 8893,
+   "sha256": "51f9c807629cede3759dba94f312a828ee2e146d537d658144384dbce4e356cb",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/N3cXqri28kg.jpg",
+   "kind": "video-still",
+   "entity": "N3cXqri28kg",
+   "sourceUrl": "https://i.ytimg.com/vi/N3cXqri28kg/mqdefault.jpg",
+   "bytes": 14430,
+   "sha256": "b63b04c781c49c505208b40d32df5c305b03b8faef128c9f172abb4c69fc5f6b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/KmSnVCg_zOg.jpg",
+   "kind": "video-still",
+   "entity": "KmSnVCg_zOg",
+   "sourceUrl": "https://i.ytimg.com/vi/KmSnVCg_zOg/mqdefault.jpg",
+   "bytes": 15769,
+   "sha256": "3e5df27a0cfa0d8c5c080c177f6d35ea8a9535fb5459737e4139da212153a005",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/U_NMTgb8YeE.jpg",
+   "kind": "video-still",
+   "entity": "U_NMTgb8YeE",
+   "sourceUrl": "https://i.ytimg.com/vi/U_NMTgb8YeE/mqdefault.jpg",
+   "bytes": 9762,
+   "sha256": "8bacf86f571dcbd014145a95886f949cd62793870b5ea65151ca894b0273a009",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/BB76GgtoHK8.jpg",
+   "kind": "video-still",
+   "entity": "BB76GgtoHK8",
+   "sourceUrl": "https://i.ytimg.com/vi/BB76GgtoHK8/mqdefault.jpg",
+   "bytes": 5165,
+   "sha256": "e7bd3f5a3aa669446ddbdc3e25456394de9f9361ae48f0d8950daa6712b345cf",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/m6DPENslzkA.jpg",
+   "kind": "video-still",
+   "entity": "m6DPENslzkA",
+   "sourceUrl": "https://i.ytimg.com/vi/m6DPENslzkA/mqdefault.jpg",
+   "bytes": 20691,
+   "sha256": "4c3fbab44ad706f86dd023eab85ff94adfef9264dfbd06f4497a2c1d99a90518",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/videos/ggfhP8SKk8c.jpg",
+   "kind": "video-still",
+   "entity": "ggfhP8SKk8c",
+   "sourceUrl": "https://i.ytimg.com/vi/ggfhP8SKk8c/mqdefault.jpg",
+   "bytes": 14218,
+   "sha256": "37d5dd50c0d609d303a6ab7e11d621c4c003b865e7e5e7e1834d2f27c0fbefcc",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCQZ8pv2pXGEg1TAB2Worrtg.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCQZ8pv2pXGEg1TAB2Worrtg",
+   "sourceUrl": "https://yt3.googleusercontent.com/-FvKJB2JVHBkWHrL1PP9lumcybMg7g4lmoz91CAAqUCbR46Ar3lLSA6JFM8cTZHWRXqvwYni2XspOyfC=w240-h240-p-l90-rj",
+   "bytes": 31992,
+   "sha256": "107cfbcb6a46e3fddd22e2f27d428ee4fb33154294b6f8eb938284085c2736ad",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCC5pejTxnZ118nhznFVZ3SA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCC5pejTxnZ118nhznFVZ3SA",
+   "sourceUrl": "https://yt3.googleusercontent.com/35zCUymfiN9aNRMcTkdXMq2yZ3srKmS2sEffVh8nIbSWW8Z_B3-v9GjMCWGD0jufqZam5Y_oEhtko-s2=w240-h240-p-l90-rj",
+   "bytes": 30991,
+   "sha256": "cb6f650b35e3466f3e2ddf626ad11b62fc929d1baa4753e3741e346de9afad78",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCKuFYOKMVNkSGOXrDa3CCTA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCKuFYOKMVNkSGOXrDa3CCTA",
+   "sourceUrl": "https://yt3.googleusercontent.com/B0C_xf8WpLwJYdqhWDYqB68Gxb0OzQ4YUkPgCN8jiihPVf4RsilSaPCtx_v83EHNCJ5o7v2ea9Q_x84=w240-h240-p-l90-rj",
+   "bytes": 30101,
+   "sha256": "bf9705500a227ff1b2a1da17c3dd74a330f3340decd4de4be0c849aba2bba549",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCeWHRKbZzuYfrWfP8qEpnHQ.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCeWHRKbZzuYfrWfP8qEpnHQ",
+   "sourceUrl": "https://yt3.ggpht.com/ytc/AIdro_newPSL2LOxs-QuaALlMvjXP7iid9N9k94OF1SdK-rmefU=w544-h544-l90-rj-dcmXaSSa4H",
+   "bytes": 45618,
+   "sha256": "6298d295bb22e4da4dfe17eee4fa21f5e6eefc3146c9595eb54113bd211812ce",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCZxMvZTGzCpUagjhoXg7GTA.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCZxMvZTGzCpUagjhoXg7GTA",
+   "sourceUrl": "https://yt3.googleusercontent.com/Ez_MPu5NGRdIkfv-6ZAESQFjrr9tQJkKGOTbC-yRMO5b9iRF45eFqTi5r-SD26faPmH-o_ELnJyMHN-Heg=w240-h240-p-l90-rj",
+   "bytes": 25488,
+   "sha256": "cbce832f8c8c91f27793c2254a61dac21fde4488769d8d6b42769f40e03ee731",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCdwefxATkqYstXixr2J4acw.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCdwefxATkqYstXixr2J4acw",
+   "sourceUrl": "https://yt3.googleusercontent.com/vdlbU9cZVlRiY-w3ePYqSoMdg0M3vmjgICGRdqA4amgC6E3cDH0Mz_BBmYinu780qmKRGvC5ObcqmGPq=w240-h240-p-l90-rj",
+   "bytes": 6408,
+   "sha256": "226c567300d14c9c5546ec5ad91ed52ec86dc0bd966219c89bb542576c5a037f",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCZ89QoJtRdluUDJ493jOMww.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCZ89QoJtRdluUDJ493jOMww",
+   "sourceUrl": "https://yt3.googleusercontent.com/9o7ogvPkK-HqC1ofImzeDkQAWtIhfhhjts13_4Gt_hAkNU_cHKlDA8YJNIggV7OM4xHwHelA=w240-h240-p-l90-rj",
+   "bytes": 14680,
+   "sha256": "020fbf5f88b5cdb8f9274cddce9871b3aa6e2076161d25184f46d9fd64d60c23",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCArnPzJWGhJA63bAKnWnE4w.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCArnPzJWGhJA63bAKnWnE4w",
+   "sourceUrl": "https://yt3.googleusercontent.com/eZBriT9PcCS9mhf6wj6oVdyjsyGnMdgfFAAyWRkXd4Y1Ueiy_LG5e0Hdd5IzHs6NMbTUyW7lYTXSD_Bing=w240-h240-p-l90-rj",
+   "bytes": 22111,
+   "sha256": "e684b6e84f94a9b1685772ffb80a88c9a106b3fae60050c0a74c0722ef13a233",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCP6A8gfd84mc8gVd9hysjTg.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCP6A8gfd84mc8gVd9hysjTg",
+   "sourceUrl": "https://yt3.googleusercontent.com/M6QeQwYGFlbFQr95iqesjvIUWuzqafDNaFTqCmyk2Q_m0WLM5-WtzoGjNu7SiLpb08TyyGI428yTr5cJTA=w240-h240-p-l90-rj",
+   "bytes": 19317,
+   "sha256": "7ac198f0b72c0464947709291a2c4fd13d79f7b7adbf47679b8d8072b54a4875",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/easywanderlings/related/UCiTL447wmioAHqoJTu8zE5g.jpg",
+   "kind": "artist-thumb",
+   "entity": "UCiTL447wmioAHqoJTu8zE5g",
+   "sourceUrl": "https://yt3.googleusercontent.com/ENO43j6QR-qfYPOCwTJ_KCQDGsQUT-2vUwpEClaiK8YwF9zSnVD5ktTjZg7tO7N_mN33CargkSvV3NrjQw=w240-h240-p-l90-rj",
+   "bytes": 28274,
+   "sha256": "b2a6e64b51bf69e240f0b3b8be5c3c711cb2b1d448e77248e981f191e1dfba0b",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  },
+  {
+   "file": "assets/wallpaper/current-home-pick.jpg",
+   "kind": "wallpaper",
+   "entity": "https://wallhaven.cc/w/odw8e7",
+   "sourceUrl": "https://w.wallhaven.cc/full/od/wallhaven-odw8e7.jpg",
+   "bytes": 241514,
+   "sha256": "5d39edcbe9a9b9083c67104307a8be444cd095c8dc9d29b4c78b52d5f99ca736",
+   "rights": "Provider-returned image. Reference use in this prototype only; not rights-cleared for production (see ARTIST-ARTWORK-SOURCE-STRATEGY)."
+  }
+ ]
+}

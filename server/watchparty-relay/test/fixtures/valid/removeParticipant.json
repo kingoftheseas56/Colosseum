@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "type": "removeParticipant",
+  "roomId": "room-abc123",
+  "senderId": "participant-1",
+  "sequence": 7,
+  "payload": {
+    "participantId": "participant-2"
+  }
+}

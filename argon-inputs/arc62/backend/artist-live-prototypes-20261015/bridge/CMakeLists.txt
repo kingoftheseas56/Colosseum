@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.21)
+project(vinyl_artist_service_bridge VERSION 0.1 LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Test)
+
+add_library(vinyl_artist_service_bridge STATIC ArtistServiceBridge.h ArtistServiceBridge.cpp)
+target_link_libraries(vinyl_artist_service_bridge PUBLIC Qt6::Core)
+target_include_directories(vinyl_artist_service_bridge PUBLIC .)
+
+add_executable(test_artist_service_bridge test_artist_service_bridge.cpp)
+target_link_libraries(test_artist_service_bridge PRIVATE vinyl_artist_service_bridge Qt6::Core Qt6::Test)
+enable_testing()
+add_test(NAME artist_service_bridge_harness COMMAND test_artist_service_bridge)

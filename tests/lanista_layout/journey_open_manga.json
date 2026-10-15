@@ -1,0 +1,9 @@
+{
+  "checkpoint": "journey_open_manga",
+  "comment": "Against the real assembled app once J1-Manga's seeded chapter has opened (isolated session, never the daily pipe). Target is the production reader root, objectName 'comicReaderShell' (qml/MangaReader.qml wraps ComicReaderShell with this name — the same surface J1-Manga-Seam adds readerReady/readerSourceId/readerPageCount/readerPageIndex to). '$rootWindow' is the synthetic whole-window viewport LayoutSnapshot builds from dump-ui's own rootWindow field. 'root' is scoped to the reader itself (found live 2026-08-14: with the Downloads page's tree still mounted underneath plus every pre-warmed world, an unscoped whole-window dump-ui walk did not reach comicReaderShell within the runner's 50-page cap — scoping root to the known-visible reader avoids walking the rest of the app for a checkpoint that only asserts the reader's own geometry).",
+  "root": "comicReaderShell",
+  "rules": [
+    { "kind": "actionableNonzero", "name": "readerActionable", "target": "comicReaderShell" },
+    { "kind": "contained", "name": "readerContainedInWindow", "target": "comicReaderShell", "viewport": "$rootWindow", "toleranceLogicalPx": 0 }
+  ]
+}

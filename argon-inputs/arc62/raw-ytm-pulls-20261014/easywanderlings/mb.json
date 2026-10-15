@@ -1,0 +1,29 @@
+{
+ "search": [
+  {
+   "id": "db7571d3-fde7-4fb5-b6ea-157411241a24",
+   "name": "Easy Wanderlings",
+   "score": 100,
+   "country": "IN",
+   "disambiguation": null
+  }
+ ],
+ "mbid": "db7571d3-fde7-4fb5-b6ea-157411241a24",
+ "releaseGroups": [
+  {
+   "id": "2529549c-5b79-4f8d-bf41-7586d87a3eff",
+   "title": "As Written In The Stars",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2017-08-06"
+  },
+  {
+   "id": "8dfa7a01-a5cc-442e-ad27-b8c18824ad57",
+   "title": "Caught in a Parade",
+   "primary": "EP",
+   "secondary": [],
+   "first": "2022-10-07"
+  }
+ ],
+ "count": 2
+}

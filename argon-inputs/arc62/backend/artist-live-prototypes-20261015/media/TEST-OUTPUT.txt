@@ -1,0 +1,36 @@
+﻿ARC62 artist media L1 MSVC19.44 Qt6.11.1 C++17
+
+BUILD_EXIT=0
+MSBuild version 17.14.40+3e7442088 for .NET Framework
+
+  arc62_artist_media.vcxproj -> C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\62-vinyl\backend\artist-live-prototypes-20261015\media\build\Release\arc62_artist_media.lib
+  test_artist_media_query.cpp
+  test_arc62_artist_media.vcxproj -> C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\62-vinyl\backend\artist-live-prototypes-20261015\media\build\Release\test_arc62_artist_media.exe
+
+HARNESS_EXIT=0
+PASS unknown_artist_empty_no_fabrication
+PASS unmapped_official_claim_rejected
+PASS qualified_specific_videos_live_separate
+PASS unrelated_artist_and_item_rejected
+PASS spoofed_officiality_fuzzy_rejected
+PASS fuzzy_strong_evidence_invalid
+PASS provider_duplicates_and_stable_order
+PASS conflicting_provider_ids_invalid
+PASS wrong_artist_thumbnail_duration_invalid
+PASS unavailable_and_port_failures
+PASS cancellation_stale_duplicate_destroyed
+PASS exact_open_switch_expiry_errors
+PASS alternate_and_artist_only_official_guard
+PASS opaque_provider_id_not_canonical_mbid
+PASS invalid_artist_prevents_source_fetch
+PASS total=15 failed=0
+
+CTEST_EXIT=0
+Internal ctest changing into directory: C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/media/build
+Test project C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/backend/artist-live-prototypes-20261015/media/build
+    Start 1: artist_media_query
+1/1 Test #1: artist_media_query ...............   Passed    0.05 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.07 sec

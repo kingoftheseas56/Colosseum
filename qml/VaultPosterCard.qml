@@ -1,0 +1,336 @@
+// Vault poster/list card. Live browse and progress facts control artwork, status,
+// identification, availability, and activation; no metadata is fabricated.
+import QtQuick
+import QtQuick.Effects
+
+Item {
+    id: card
+    required property var row              // {key,nodeType,displayTitle,physicalFact,path,
+                                             //  counts:{items},coverRef,state,away}
+    property bool compact: false
+    property int cardWidth: 150
+
+    // ---- the Lanista/Quick-Test vocabulary ---------------------------------------------------
+    readonly property string state: row && row.state !== undefined ? row.state : "resolving"
+    readonly property string displayTitle: row && row.displayTitle !== undefined ? row.displayTitle : ""
+    readonly property string physicalFact: row && row.physicalFact !== undefined ? row.physicalFact : ""
+    readonly property bool away: !!(row && row.away)
+    readonly property string coverRef: row && row.coverRef !== undefined ? row.coverRef : ""
+    // Browse-artwork execution plan, Slice 3 part 2 — the runtime seam the controller's live
+    // proof reads directly: true once coverRef carries a real local ref (any rung of
+    // VaultArtworkResolver's ladder), false for the default/never-resolved "" (the typographic
+    // face below). Deliberately NOT tied to faceState/settledOpacity — those track state
+    // (resolving vs settled) as a Film/Show/Season/Episode card in ANY settled state (identified,
+    // uncertain, localOnly) can be settled with no art at all; hasArt is coverRef's own honest
+    // fact, nothing more.
+    readonly property bool hasArt: coverRef !== ""
+    readonly property string nodeKey: row && row.key !== undefined ? row.key : ""
+    readonly property string nodeType: row && row.nodeType !== undefined ? row.nodeType : ""
+    readonly property int itemCount: (row && row.counts && row.counts.items !== undefined) ? row.counts.items : 0
+    // Vault ux uplift S6 — live Progress facts, joined page-side (VaultApi.joinRows in
+    // VaultPage.qml) and never recomputed here: progressFraction is the STORED resume
+    // position (0..1, clamped defensively), `progressFinished` a live finished record, and
+    // `watched` S3's durable mark (ProgressStore.watchedMark === 1), which OUTLIVES the
+    // resume record's own retirement at completion. Absent on plain seeded rows → 0/false,
+    // so an un-joined caller (a test, the hidden-shelf translation) paints no progress chrome.
+    readonly property real progressFraction: row && row.progressFraction !== undefined
+        ? Math.max(0, Math.min(1, Number(row.progressFraction) || 0)) : 0
+    readonly property bool progressFinished: !!(row && row.progressFinished)
+    readonly property bool watched: !!(row && row.watched) || card.progressFinished
+    // the spec's gold resume hairline: settled face, never on an away tile (away is reduced
+    // ink — no bright bar), never once watched (the tick owns a finished item).
+    readonly property bool showsProgressHairline: card.faceState === "settled" && !card.away
+        && !card.watched && card.progressFraction > 0
+
+    // "filename" while unresolved (the design's signature latency state, §4.6); "settled" once
+    // there is a face to show (identified / uncertain / localOnly all have SOMETHING to paint,
+    // even if that something is only the typographic fallback).
+    readonly property string faceState: card.state === "resolving" ? "filename" : "settled"
+    // one crossfade run per faceState change; a single Behavior is the one source of the signal
+    // so a swap never double-fires (two layers reading the same animated value would).
+    property real settledOpacity: card.faceState === "settled" ? 1 : 0
+    Behavior on settledOpacity {
+        NumberAnimation { duration: 220; easing.type: Easing.OutCubic
+            onRunningChanged: if (!running) card.faceCrossfaded()
+        }
+    }
+    signal faceCrossfaded()
+    signal openRequested(var row)
+    signal identifyRequested(var row)
+
+    // away beats uncertainty beats watched/progress beats a plain item count (design §4.3,
+    // extended by vault ux uplift S6 with the progress/watched tier); a film/episode/clip's
+    // own copy-of-one is not interesting enough to badge — only multi-item container nodes
+    // are. The gold progress HAIRLINE (below) is an edge bar, not a corner mark — it paints
+    // alongside whichever corner indicator owns the corner.
+    readonly property bool showIndicator: card.faceState === "settled" && (card.away
+        || card.state === "uncertain"
+        || card.watched
+        || (card.itemCount > 0 && card.nodeType !== "film" && card.nodeType !== "episode" && card.nodeType !== "clip"))
+    readonly property string indicatorKind: card.away ? "away"
+        : (card.state === "uncertain" ? "uncertain"
+        : (card.watched ? "watched" : "count"))
+
+    objectName: "vaultBrowseCard_" + card.nodeKey
+    width: cardWidth
+    height: compact ? 82 : artBox.height + textBlock.height + 9
+    opacity: card.away ? 0.62 : 1.0
+
+    VaultTheme { id: theme }
+
+    Rectangle {
+        id: artBox
+        objectName: "vaultBrowseCard_" + card.nodeKey + "_art"
+        width: card.compact ? 52 : parent.width
+        height: Math.round(width * 3 / 2)   // 2:3 poster
+        radius: 12
+        clip: true
+        color: theme.panel
+        border.width: 1
+        border.color: cardMa.containsMouse ? theme.gold : theme.edge
+
+        // ── FILENAME LAYER (resolving): the raw name on plain ground, nothing else printed. ──
+        Text {
+            id: filenameText
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_filename"
+            anchors.fill: parent
+            anchors.margins: 12
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            elide: Text.ElideRight
+            maximumLineCount: 6
+            text: card.displayTitle
+            color: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 11
+            opacity: 1 - card.settledOpacity
+            visible: opacity > 0
+        }
+
+        // ── SETTLED LAYER: typographic fallback (always present underneath) + real art on top. ──
+        Item {
+            id: settledLayer
+            anchors.fill: parent
+            opacity: card.settledOpacity
+            visible: opacity > 0
+
+            // typographic treatment of the real title — the permanent floor. Never an empty
+            // frame, never a broken-image glyph: real art crossfades ONTO this, never replaces it.
+            Text {
+                anchors.fill: parent
+                anchors.margins: 12
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                elide: Text.ElideRight
+                maximumLineCount: 4
+                text: card.displayTitle
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 13
+            }
+
+            Image {
+                id: artImage
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_artImage"
+                anchors.fill: parent
+                asynchronous: true
+                cache: true
+                fillMode: Image.PreserveAspectCrop
+                source: card.coverRef
+                visible: false   // sampled by the effect below so away can desaturate uniformly
+            }
+            MultiEffect {
+                // Browse-artwork execution plan, Slice 4 (fade-in on art arrival) — objectName
+                // only; the opacity/Behavior pair below already existed from this card's original
+                // Slice 4 commit and is the fade itself (the visible layer, since artImage above
+                // is `visible: false`). Named so tst_vault_cards.qml can assert on cover opacity
+                // directly instead of inferring it from artImage.status.
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_cover"
+                anchors.fill: parent
+                source: artImage
+                saturation: card.away ? -1.0 : 0.0
+                maskEnabled: true
+                maskSource: Rectangle {
+                    parent: artBox
+                    width: artBox.width; height: artBox.height
+                    radius: artBox.radius; color: "white"
+                    layer.enabled: true; visible: false
+                }
+                opacity: artImage.status === Image.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            }
+
+            // hover: dim the art and reveal a play affordance — never a scale transform.
+            Rectangle {
+                id: hoverScrim
+                anchors.fill: parent
+                radius: artBox.radius
+                color: Qt.rgba(0, 0, 0, 0.55)
+                opacity: cardMa.containsMouse ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            }
+            Rectangle {
+                anchors.centerIn: parent
+                width: 44; height: 44; radius: 22
+                color: Qt.rgba(0, 0, 0, 0.5)
+                border.width: 1; border.color: theme.edge
+                opacity: hoverScrim.opacity
+                Image {
+                    anchors.centerIn: parent
+                    width: 14; height: 14
+                    source: "../assets/icons/play.svg"
+                    fillMode: Image.PreserveAspectFit
+                }
+            }
+        }
+        // ── VAULT UX UPLIFT S6: the spec's gold progress hairline — the live resume position
+        //    as a thin bar along the art's bottom edge (the same language the Continue tile's
+        //    own gold hairline already speaks). Gold is allowed here by the spec's own §4.5
+        //    progress treatment; it never paints on an away tile. ──
+        Rectangle {
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_progressTrack"
+            visible: card.showsProgressHairline
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            height: 3
+            color: Qt.rgba(1, 1, 1, 0.14)
+            Rectangle {
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_progressFill"
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                width: parent.width * card.progressFraction
+                color: theme.gold
+            }
+        }
+
+        // The hit area is a sibling of settledLayer, not nested inside it: settledLayer is
+        // `visible: opacity > 0`, and an invisible item receives no mouse events, so a MouseArea
+        // living inside it would only ever be reachable once the card had already settled. That
+        // silently broke design §4.6's own contract ("a tile mid-resolve remains fully
+        // interactive — openable") — found live driving a real Play click on a resolving Film
+        // card in Slice 5's Lanista replay (its identity never resolves without a live catalogue
+        // lookup, so it would have stayed permanently unclickable). Hover chrome (the scrim +
+        // play glyph above) stays settled-only by design; only the CLICK now works in both faces.
+        MouseArea {
+            id: cardMa
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_hitArea"
+            anchors.fill: parent
+            enabled: !card.away
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: card.openRequested(card.row)
+        }
+
+        // ── circular corner indicator: away glyph, uncertainty mark, or a plain item count. ──
+        Rectangle {
+            id: indicator
+            visible: card.showIndicator && !card.compact
+            anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 7
+            width: indicatorText.implicitWidth + (card.indicatorKind === "watched" ? 28 : 12); height: 22; radius: 4
+            color: Qt.rgba(0, 0, 0, 0.62)
+            border.width: 1
+            border.color: card.indicatorKind === "uncertain"
+                ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.5) : theme.edge
+
+            Text {
+                id: indicatorText
+                anchors.centerIn: parent
+                anchors.horizontalCenterOffset: card.indicatorKind === "watched" ? 7 : 0
+                text: card.indicatorKind === "uncertain" ? "Identify"
+                    : card.indicatorKind === "away" ? "Away"
+                    : card.indicatorKind === "watched" ? "Watched" : String(card.itemCount)
+                color: card.indicatorKind === "uncertain" ? theme.gold : theme.ink
+                font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
+            }
+            // Vault ux uplift S6 — the watched tick (S3's durable mark): a plain check in the
+            // house ink, never gold (gold stays the uncertainty mark's alone).
+            Text {
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_watchedTick"
+                visible: card.indicatorKind === "watched"
+                anchors.centerIn: parent
+                text: "✓"
+                anchors.horizontalCenterOffset: -indicatorText.implicitWidth / 2 - 3
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+            }
+            // away glyph: a slashed circle — no icon asset invented for this, two primitives.
+            Item {
+                visible: false // Availability is stated by the badge text.
+                anchors.centerIn: parent
+                width: 12; height: 12
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: 1.4; border.color: theme.inkDim
+                }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 1.15; height: 1.4
+                    rotation: 45
+                    color: theme.inkDim
+                }
+            }
+
+            MouseArea {
+                // Slice 6: the uncertain mark's own automation name — the Lanista bridge
+                // resolves targets by objectName only (never a QML id), and this MouseArea
+                // previously had none, making identify-in-place structurally undrivable.
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_mark"
+                anchors.fill: parent
+                enabled: card.indicatorKind === "uncertain"
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: card.identifyRequested(card.row)
+            }
+        }
+    }
+
+    Column {
+        id: textBlock
+        anchors.top: card.compact ? parent.top : artBox.bottom
+        anchors.topMargin: card.compact ? 12 : 10
+        anchors.left: card.compact ? artBox.right : parent.left
+        anchors.leftMargin: card.compact ? 16 : 0
+        width: card.compact ? parent.width - artBox.width - 24 : parent.width
+        spacing: 3
+
+        Text {
+            id: titleText
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_title"
+            width: parent.width
+            horizontalAlignment: Text.AlignLeft
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            text: card.faceState === "filename" ? qsTr("Resolving…") : card.displayTitle
+            color: card.faceState === "filename" ? theme.inkDimmer : theme.ink
+            font.family: theme.ui
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+        }
+        Text {
+            id: factText
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_fact"
+            width: parent.width
+            horizontalAlignment: Text.AlignLeft
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            // Column excludes invisible children from layout on its own; no manual height
+            // collapse needed (an earlier `height: visible ? implicitHeight : 0` binding here
+            // created a self-referential binding loop QML warned about — the fix is to trust
+            // the positioner instead of fighting it).
+            visible: card.faceState === "settled" && card.physicalFact.length > 0
+            text: card.physicalFact + (card.compact ? (card.away ? " · Drive disconnected"
+                : card.state === "uncertain" ? " · Identify needed" : card.watched ? " · Watched" : "") : "")
+            color: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 11
+        }
+    }
+    MouseArea {
+        visible: card.compact
+        anchors.left: artBox.right; anchors.right: parent.right
+        anchors.top: parent.top; anchors.bottom: parent.bottom
+        enabled: !card.away; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        onClicked: card.openRequested(card.row)
+    }
+}

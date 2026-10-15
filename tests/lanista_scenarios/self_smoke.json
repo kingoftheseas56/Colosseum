@@ -1,0 +1,19 @@
+{
+  "name": "lanista-self-smoke",
+  "steps": [
+    { "cmd": "ping", "label": "bridge answers",
+      "expect": [ { "path": "type", "op": "==", "value": "reply" },
+                  { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "commands", "op": "contains", "value": "ui-snapshot" } ] },
+    { "cmd": "get-state", "label": "window is real",
+      "expect": [ { "path": "windows.0.width", "op": ">", "value": "0" } ] },
+    { "cmd": "ui-snapshot", "label": "snapshot finds elements",
+      "expect": [ { "path": "count", "op": ">", "value": "3" } ] },
+    { "cmd": "ui-query", "label": "clip detection sees the overflow box",
+      "payload": { "object": "clippedBox" },
+      "expect": [ { "path": "clippedByWindow", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "driving refused without the gate",
+      "payload": { "target": "counterMouse" },
+      "expect": [ { "path": "code", "op": "==", "value": "DRIVE_DISABLED" } ] }
+  ]
+}

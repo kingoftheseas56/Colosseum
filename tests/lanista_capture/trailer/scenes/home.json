@@ -1,0 +1,14 @@
+{
+  "name": "trailer_home_production",
+  "comment": "Trailer Home overview through production Main.qml.",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "ui-wait-for", "label": "boot splash has left", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "label": "fresh capture profile shows local-mode choice", "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "label": "continue without account", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "Home shell appears", "payload": { "object": "modePill_Tankoban", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "__runner_local_presentation__", "label": "start production Home clip", "capture": { "action": "start", "name": "trailer-home" }, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "__runner_local_presentation__", "label": "show production Home overview", "presentation_hold_ms": 1800, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "__runner_local_presentation__", "label": "stop production Home clip", "capture": { "action": "stop" }, "expect": [{ "path": "type", "op": "==", "value": "reply" }] }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "type": "leaveRoom",
+  "roomId": "room-abc123",
+  "senderId": "participant-1",
+  "sequence": 2,
+  "payload": {}
+}

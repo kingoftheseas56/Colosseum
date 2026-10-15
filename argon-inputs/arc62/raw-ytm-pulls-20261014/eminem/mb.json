@@ -1,0 +1,2595 @@
+{
+ "mbid": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4",
+ "releaseGroups": [
+  {
+   "id": "015056d7-b095-49d9-9043-17de27e28aad",
+   "title": "Twerk Dat Pop That",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2014-07-04"
+  },
+  {
+   "id": "02329d55-a072-4ae5-89bd-88af46249898",
+   "title": "My Life",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2012-01-01"
+  },
+  {
+   "id": "048756a9-bfd6-3623-9a8b-27f2cc601aea",
+   "title": "The Way I Am",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999-12-31"
+  },
+  {
+   "id": "0e1927da-dcd9-306f-8653-00297724993a",
+   "title": "Smack That",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2006-11-03"
+  },
+  {
+   "id": "16fe87d6-fe9c-439f-882d-7180c5cf1706",
+   "title": "The Shady Project",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2011-02-28"
+  },
+  {
+   "id": "1a18928e-1d32-32f2-a10e-e1f76e86bc8b",
+   "title": "Curtain Call: The Hits",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2005-12-02"
+  },
+  {
+   "id": "1b914476-f22b-4ddb-a71d-811720d01968",
+   "title": "Best Friend",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2015-04-14"
+  },
+  {
+   "id": "1ce0b2e5-f37d-4327-a2e2-520091fa8f78",
+   "title": "Walk on Water",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2017-11-10"
+  },
+  {
+   "id": "1d835264-b1f3-414b-a15b-bf74dcba8cb1",
+   "title": "Guilty Conscience / I’m Shady",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "1da9b62b-7fbf-38f4-ad84-3cea2e087fd7",
+   "title": "Cleanin’ Out My Closet",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002-09-23"
+  },
+  {
+   "id": "1e43f60e-c401-3963-a444-fa288661c662",
+   "title": "Crack a Bottle",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-02-12"
+  },
+  {
+   "id": "21ab8b79-2669-3ab7-af7d-14d40c028c70",
+   "title": "Just Lose It",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2004-09-28"
+  },
+  {
+   "id": "227982d5-90b7-42f7-8417-4155711f5810",
+   "title": "Homicide",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2019-05-03"
+  },
+  {
+   "id": "2300bc34-9059-42c6-8822-1ed06c27f0fa",
+   "title": "Any Man / WWIII",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "26b50a2d-d1fd-42ca-8370-4b71cd5ff8a5",
+   "title": "Rap God",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2013-10-15"
+  },
+  {
+   "id": "2ba55937-ec49-4f22-bda1-fc46014c2c75",
+   "title": "Hellbound",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002-04-01"
+  },
+  {
+   "id": "2bc9d81e-2638-4fec-91ad-31df29981490",
+   "title": "Berzerk",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2013-08-27"
+  },
+  {
+   "id": "2ee8180f-109a-3fdf-817f-3f9d3813a825",
+   "title": "Business",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2003-07-07"
+  },
+  {
+   "id": "34656af2-b68d-36d7-86e2-40878fa1f536",
+   "title": "Like Toy Soldiers",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2004"
+  },
+  {
+   "id": "367cdef0-a014-45cc-b443-129b654fe82d",
+   "title": "As The Doom Surrounds With Gloom",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1989"
+  },
+  {
+   "id": "38a1cae8-d480-3a44-835a-19b0fe768813",
+   "title": "Encore",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2004-11-12"
+  },
+  {
+   "id": "3aa049e2-497f-4733-a702-2f39935de692",
+   "title": "Encore",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2004-11-09"
+  },
+  {
+   "id": "3b0814f1-da11-3b94-8939-4d4fbd9082ff",
+   "title": "My Name Is",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999-03-29"
+  },
+  {
+   "id": "3e80b693-ee31-4cc0-a554-6509cb4c6d9b",
+   "title": "Bottom of the Bottle",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2013-11-29"
+  },
+  {
+   "id": "3ec8da7f-a4c3-4951-a967-334321a24342",
+   "title": "The Death of Slim Shady (Coup de Grâce)",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2024-07-12"
+  },
+  {
+   "id": "406bd200-2586-39d2-96af-15a2c26c207d",
+   "title": "The Anger Management Tour Live",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2005-07-27"
+  },
+  {
+   "id": "40f9f74a-ac10-366f-92c7-4b4c1489af0f",
+   "title": "Without Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002-05-20"
+  },
+  {
+   "id": "41d93354-52b5-4395-bd08-2463cbb7bb8e",
+   "title": "Elevator",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-12-15"
+  },
+  {
+   "id": "43f85210-e770-44bb-9aba-cd3804e6a569",
+   "title": "Love the Way You Lie",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2010-08-09"
+  },
+  {
+   "id": "4521787d-5a29-353b-baea-fb03b5e290a0",
+   "title": "Slim Shady EP",
+   "primary": "EP",
+   "secondary": [],
+   "first": "1997-12-16"
+  },
+  {
+   "id": "4836c529-a42b-40f9-a445-93e62ffd5b29",
+   "title": "Pooh Butt Day",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1990"
+  },
+  {
+   "id": "4a856dd9-dde0-4090-9938-cf66ada0566b",
+   "title": "Headlights",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2014-02-05"
+  },
+  {
+   "id": "4b3aba84-ccd2-4815-b65a-3e996508acac",
+   "title": "Bitch Please II",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2000"
+  },
+  {
+   "id": "4d4ddee0-4eed-4138-a0fd-3e03c6015d0b",
+   "title": "Foolish Pride",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1988"
+  },
+  {
+   "id": "4e942e27-1493-3511-b3c0-6856bbb7000b",
+   "title": "The Real Slim Shady",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2000-06-12"
+  },
+  {
+   "id": "5237c377-a19e-495d-ab6d-75696bd6c929",
+   "title": "River",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2017"
+  },
+  {
+   "id": "58fdfc39-fc50-49e9-b5da-6bc3fd9f265e",
+   "title": "Beautiful",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-01-01"
+  },
+  {
+   "id": "59c4008a-0577-4178-80c9-fe02d5685422",
+   "title": "Drama Setter",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2005-07-12"
+  },
+  {
+   "id": "5d514748-2d01-376a-a3e5-ad9708fca8e5",
+   "title": "Stan",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2000-11-21"
+  },
+  {
+   "id": "5eb3e409-ceec-4cae-9c62-92e0af86a175",
+   "title": "The Album Collection",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2005"
+  },
+  {
+   "id": "5ecf8ef8-cd5b-4ffd-9c44-a0b955b903a5",
+   "title": "The Shady Project",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2013"
+  },
+  {
+   "id": "602fc20f-0ea4-3039-a9b0-4e716a22ae12",
+   "title": "Guilty Conscience",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999-08-02"
+  },
+  {
+   "id": "6733a937-99f8-3022-a027-30b5c080dea5",
+   "title": "Sing for the Moment",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002"
+  },
+  {
+   "id": "67e94a91-f48e-3e59-9701-38a4dba28d0b",
+   "title": "The Re‐Up",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2006-12-04"
+  },
+  {
+   "id": "683e3f34-d2c2-4216-bccf-4634918591f2",
+   "title": "I Need a Doctor",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2011-02-01"
+  },
+  {
+   "id": "6d126770-a401-47cb-953f-6a1517328c44",
+   "title": "Encore (Bonus CD)",
+   "primary": "EP",
+   "secondary": [],
+   "first": "2004-11-02"
+  },
+  {
+   "id": "6fd7247b-06cb-4fe5-b72e-5caf19de097a",
+   "title": "Not Afraid",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2010-05-18"
+  },
+  {
+   "id": "715be5e7-3677-35c0-a39a-abf300ff9ba1",
+   "title": "Infinite",
+   "primary": "Album",
+   "secondary": [],
+   "first": "1996-11-12"
+  },
+  {
+   "id": "71c1700f-0879-3a67-88e9-348a52744358",
+   "title": "Ass Like That",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2004"
+  },
+  {
+   "id": "7236cf16-f251-4787-88e3-b65355c2d4e0",
+   "title": "Killshot",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2018-09-14"
+  },
+  {
+   "id": "77c24600-5610-473b-876e-09d8a42296b7",
+   "title": "Curtain Call 2",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2022-08-05"
+  },
+  {
+   "id": "7bac4bf9-a93d-3648-87f4-4df7c7bc1db0",
+   "title": "Shake That",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2005-12-07"
+  },
+  {
+   "id": "7d8c5624-7c04-4d82-85ea-7adb00f55e8e",
+   "title": "STANS: The Official Soundtrack",
+   "primary": "Album",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2025-08-25"
+  },
+  {
+   "id": "802d62ee-65c3-4666-8f47-44844321a6a0",
+   "title": "Kamikaze",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2018-08-31"
+  },
+  {
+   "id": "81a235bb-7501-3b04-8d4e-83af93e03236",
+   "title": "We Made You",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-04-13"
+  },
+  {
+   "id": "84c0289a-80f7-4461-81c3-87dd9dda7971",
+   "title": "Just Don’t Give a Fuck",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1997-12-10"
+  },
+  {
+   "id": "85c0bec6-9d41-472c-bbef-6bec94c9e019",
+   "title": "Hell Breaks Loose",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-12-15"
+  },
+  {
+   "id": "8a6c2d23-9669-46b6-b72f-c588ad8cefd4",
+   "title": "From the D",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-02-09"
+  },
+  {
+   "id": "8dc8c77b-2396-3ef8-8fc5-efcebe00a105",
+   "title": "E",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2004-12-12"
+  },
+  {
+   "id": "8ee274ec-d38a-407b-a1f7-243e2c1a5876",
+   "title": "Eminem x Fortnite Radio",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2024-03-01"
+  },
+  {
+   "id": "8f0b621b-5600-40ee-91dc-b9042c5a512b",
+   "title": "Shady Classics",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2014-11-22"
+  },
+  {
+   "id": "958ca783-f880-4b52-9c5e-f367b9e2fd50",
+   "title": "Speedom",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2015-04-21"
+  },
+  {
+   "id": "97dbd19d-9154-471b-823c-125d6a05564a",
+   "title": "New Jacks",
+   "primary": "EP",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "9b540a13-b839-4eb7-be93-51bcce445ffe",
+   "title": "For The Moment (The Urban Noize Remixes)",
+   "primary": "EP",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "9be9e85b-51b2-4db5-a665-b9ccde0c2b3e",
+   "title": "Throw That",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2012-08-21"
+  },
+  {
+   "id": "9e7dcb20-9fb1-4047-8e7f-0524dd4a67d0",
+   "title": "Masters of Slang",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1992"
+  },
+  {
+   "id": "a2ca850f-80b4-4eb0-ac37-0865c96948d6",
+   "title": "Rock City",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2001"
+  },
+  {
+   "id": "a3730ed7-58d7-4b7e-b221-4153f6ad1fe0",
+   "title": "Nuttin’ to Do (radio edit)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2018"
+  },
+  {
+   "id": "a5056c3b-730f-493b-b10e-52f678d72b85",
+   "title": "Recovery",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2010-06-18"
+  },
+  {
+   "id": "a55fdf97-2507-406d-b8da-1210d02cb902",
+   "title": "Calm Down",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2014-07-01"
+  },
+  {
+   "id": "a7f6cfe8-422a-4aef-aff8-d1da15ee4a10",
+   "title": "Jimmy Crack Corn (Ca$his vocal mix)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2007-03-06"
+  },
+  {
+   "id": "aa43c6aa-19f2-314a-ac3f-1723c22473ab",
+   "title": "Forgot About Dre",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "afb3c3d7-19fc-3d11-b24b-46bcf3becad2",
+   "title": "Raw & Uncut",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix"
+   ],
+   "first": "2006-10"
+  },
+  {
+   "id": "b0fa91c8-0996-38f1-ab84-797f58d7c4eb",
+   "title": "The Marshall Mathers LP",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2000-05-22"
+  },
+  {
+   "id": "b1fdc9cc-8680-44da-abab-59edca6b2ad3",
+   "title": "The Marshall Mathers LP 2",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2013-11-05"
+  },
+  {
+   "id": "b2d7ce96-a6d3-41e3-a1f3-550e35ad5255",
+   "title": "Campaign Speech",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2016-10-22"
+  },
+  {
+   "id": "b4f5bb83-2e0a-4790-816f-de4e37cfe556",
+   "title": "Nowhere Fast (extended version)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2018-03-17"
+  },
+  {
+   "id": "ba0efbea-d9ce-4c6b-b093-a7b70e1e787e",
+   "title": "Bar Shots",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2006-08"
+  },
+  {
+   "id": "bc217c64-db43-4311-9b73-fca6d25c4ac5",
+   "title": "Music to Be Murdered By",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2020-01-17"
+  },
+  {
+   "id": "be725de4-4633-3c8a-9a03-f2c4392b6e0d",
+   "title": "The Slim Shady LP",
+   "primary": "Album",
+   "secondary": [],
+   "first": "1999-02-23"
+  },
+  {
+   "id": "c38e7c23-ef6c-47ec-8d10-04a5ba314ec7",
+   "title": "Forever",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-09-15"
+  },
+  {
+   "id": "c51090e5-c0f6-3029-baed-bb76ebb04845",
+   "title": "When I’m Gone",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2005-11-23"
+  },
+  {
+   "id": "cb1cd85a-aa42-4427-bc4e-4c1f32427312",
+   "title": "Writer’s Block",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2011"
+  },
+  {
+   "id": "cfc62e61-686c-46cd-a453-608979646f71",
+   "title": "Revival",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2017-12-15"
+  },
+  {
+   "id": "cfd0f1c1-fc85-4cf1-8b7a-8a4e77951f8a",
+   "title": "DJ Hero: Renegade Edition",
+   "primary": "Album",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2009-10-27"
+  },
+  {
+   "id": "de307adf-da87-4471-bbb0-327571efdc4a",
+   "title": "The Monster",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2013-10-28"
+  },
+  {
+   "id": "df4b48f5-77fe-499d-a6a2-ca83d186beb8",
+   "title": "Mockingbird",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2005-04-25"
+  },
+  {
+   "id": "e0b70512-5c59-4b60-bc6e-088df4ba7881",
+   "title": "A Day Without A Rhyme",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1990"
+  },
+  {
+   "id": "e0e48c3c-a707-451a-9830-4fd2d6eb823b",
+   "title": "C’mon Let Me Ride",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2012-12-11"
+  },
+  {
+   "id": "e2deb04a-6cd6-4972-8786-c1584f40af16",
+   "title": "Scary Movies (Stand Well Back radio edit)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2018-07-05"
+  },
+  {
+   "id": "e4e5a82a-0425-4b81-8d45-6aae4324c95f",
+   "title": "Drop the World",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2010-01-08"
+  },
+  {
+   "id": "e4feda93-b9c9-4fe6-ae73-190cf15eb7a7",
+   "title": "What's Your Nem",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2009"
+  },
+  {
+   "id": "e6eeeb26-40ac-422b-a000-e4b9fc6581dd",
+   "title": "Detroit vs. Everybody",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2014-11-11"
+  },
+  {
+   "id": "e9585ed4-d148-3711-bbee-55a97b58325a",
+   "title": "The Eminem Show",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2002-05-27"
+  },
+  {
+   "id": "ea1d0073-b586-3545-8607-f2632d53b0c0",
+   "title": "Relapse",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2009-05-15"
+  },
+  {
+   "id": "ebe6dc4d-e73a-38f7-9d1b-d6839432aab5",
+   "title": "Just Don’t Give a Fuck",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1998-10-13"
+  },
+  {
+   "id": "ed65273f-3b1e-4839-a40a-52ecd010b2ca",
+   "title": "No Love",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2010-11-16"
+  },
+  {
+   "id": "f457a78a-1c7a-40e8-b509-bfe3b697bb76",
+   "title": "3AM",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2009-04-28"
+  },
+  {
+   "id": "f970e478-7104-461e-9dcd-9629bd505e93",
+   "title": "Survival",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2013-08"
+  },
+  {
+   "id": "fa576e4a-2222-4c5d-bf8c-b8298c88392a",
+   "title": "Guts Over Fear",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2014-08-25"
+  },
+  {
+   "id": "009effe2-48c7-4e74-b753-bf719fe193e8",
+   "title": "From the D 2 the LBC",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2022-06-24"
+  },
+  {
+   "id": "018408cb-c663-4434-ae92-3f6f2e57766d",
+   "title": "The Man in the Mirror",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2012"
+  },
+  {
+   "id": "03508b88-5857-49b5-9f37-61f77250d727",
+   "title": "Eminem & Friends: Game Over Sessions",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2005-08-30"
+  },
+  {
+   "id": "09bdf667-357f-48d4-a72c-1ac6d8860a42",
+   "title": "Mathers Massacre",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2013-07-08"
+  },
+  {
+   "id": "112f6ea2-2817-4d18-9ecd-d2146722523f",
+   "title": "Lace It",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2023-12-16"
+  },
+  {
+   "id": "117fe371-9824-4405-8695-29e19666cbd4",
+   "title": "E",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2013"
+  },
+  {
+   "id": "15a0c05e-2f26-47cb-9207-b6923d72ce4c",
+   "title": "Anthem of the Outsiders",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2025-03-29"
+  },
+  {
+   "id": "1643f619-6300-4f0a-96d6-59e50ba0ca38",
+   "title": "Just Lose It (Cobra303 remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2025-05-24"
+  },
+  {
+   "id": "17411dc7-8d79-4c06-9b90-402ba46ce8bf",
+   "title": "Gospel",
+   "primary": "Single",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2022-02-04"
+  },
+  {
+   "id": "188fbe30-5c38-4398-bf64-5fb531eb1111",
+   "title": "Just Don't Give A Fuck / Still Don't Give A Fuck",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2019-11-19"
+  },
+  {
+   "id": "193e7057-5e02-413e-b348-6c717405fe86",
+   "title": "Murdergram Deux",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2024-08-20"
+  },
+  {
+   "id": "1aaedf3c-7294-40d4-94ad-e3ae2790c772",
+   "title": "Back in the Studio",
+   "primary": null,
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010-11-30"
+  },
+  {
+   "id": "1bc2af69-b0f5-4ee5-8207-80b18020b169",
+   "title": "Unreleased & Uncensored",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2005"
+  },
+  {
+   "id": "2558e959-a879-4b9e-9834-50a705fa14a9",
+   "title": "Detroit Chainsaw Massacre",
+   "primary": null,
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "2758ec76-9ec9-4be8-b3ea-9fdc569a2fec",
+   "title": "Venom (music from the motion picture)",
+   "primary": "Single",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2018-09-21"
+  },
+  {
+   "id": "284d57c1-9990-3a96-8c1c-ade8530c9484",
+   "title": "Diss Me, Diss You",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2003"
+  },
+  {
+   "id": "2e6ad2b6-4c04-3c3a-9740-66294a15dae4",
+   "title": "Maximum Pressure",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "32f63367-d286-4a23-b36d-8eb272f85eda",
+   "title": "Without Me (D3zza & Codge mix)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2023-09-08"
+  },
+  {
+   "id": "32fbdbde-5cf8-4e45-a782-5cce4f89a23a",
+   "title": "The Recovery",
+   "primary": null,
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2009-06-01"
+  },
+  {
+   "id": "339a290d-799c-40bb-847c-4ff6642ed188",
+   "title": "Shady 2.0 Boys (Detroit)",
+   "primary": "Other",
+   "secondary": [],
+   "first": "2013-02-08"
+  },
+  {
+   "id": "37c3e190-3872-455b-bde0-e6cbd72f3a3e",
+   "title": "Kings Never Die",
+   "primary": "Single",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2015-07-10"
+  },
+  {
+   "id": "3a08ad72-b9da-35d6-b39e-63d10d878959",
+   "title": "Off the Wall",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000-12-01"
+  },
+  {
+   "id": "3a59b894-b342-3b3e-88ba-c671ca011050",
+   "title": "Conscience",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "1999"
+  },
+  {
+   "id": "3a8021ca-4df6-3e76-9a37-063cacdd1400",
+   "title": "Eminem Is Back",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2004-09-28"
+  },
+  {
+   "id": "3eada0c8-ca63-4238-86df-032b80f8305d",
+   "title": "My Favorite 20",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2014"
+  },
+  {
+   "id": "428d1f44-9814-4d4b-8b8b-0cd70faca6d4",
+   "title": "Deluxe collection",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "42a0f165-0526-460a-a97c-1d58cc3739ac",
+   "title": "Detox",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2010-08-10"
+  },
+  {
+   "id": "4384e7d6-207e-4f3a-bc5d-74c22c6b0fc4",
+   "title": "Tobey",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2024-07-02"
+  },
+  {
+   "id": "47c76417-dabd-37c4-89a4-46f0fd3ff338",
+   "title": "Just Finish It",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2004"
+  },
+  {
+   "id": "4fbf5443-aad0-4eb0-83de-7f35677858b1",
+   "title": "Straight From the Lab, Part 2",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2011"
+  },
+  {
+   "id": "4ff58dbb-81ab-34e5-adce-8546d2880ea9",
+   "title": "Psycho",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "59f6c893-e1ea-48dc-b6b7-a7a50e3dacde",
+   "title": "Infinite (F.B.T. remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2016-11-19"
+  },
+  {
+   "id": "5a6a5a1b-9686-4c78-8c4c-f44adf3435fd",
+   "title": "Shady Beats",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2016-04-08"
+  },
+  {
+   "id": "5d43a886-0d2d-4675-8901-b9267054df77",
+   "title": "Confused? You Should Be",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "5ed05b4d-252c-4ad9-8dc7-a32fccffbbe6",
+   "title": "Better Man",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2019"
+  },
+  {
+   "id": "64feed6d-3a44-4ead-bdb9-fcecd1c7096f",
+   "title": "Live at Ford Field",
+   "primary": "Single",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2025-11-27"
+  },
+  {
+   "id": "65b7c309-79c1-320c-b4dc-d6b89b45b624",
+   "title": "Platinum Collection 2001",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2001"
+  },
+  {
+   "id": "6c69085f-d4db-47a4-8ee1-b5e53691feeb",
+   "title": "Marshall’s Law",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2014-04-29"
+  },
+  {
+   "id": "6cd20724-9deb-4fdf-901f-0ed068e381ec",
+   "title": "The Setback",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2010-08-16"
+  },
+  {
+   "id": "6d1c7fb7-b1e7-3e68-87cf-8308f435e5b9",
+   "title": "Get the Guns",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2006"
+  },
+  {
+   "id": "6ea247b4-d16b-4edb-93ec-eb2ea1101653",
+   "title": "Bang",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2019-07-19"
+  },
+  {
+   "id": "714934ad-6ba5-3abd-8a9d-83a56b285c8c",
+   "title": "Anger Management 3: The Exclusive Shade 45 Mixtape",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2005-08-08"
+  },
+  {
+   "id": "721f12cd-e784-3f2f-afb9-8493c6a2a196",
+   "title": "Shady Lane",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "76f259e7-b81d-3e96-8185-d15629a80445",
+   "title": "Fucking Crazy",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000-02-16"
+  },
+  {
+   "id": "77f0237c-75cf-4953-9215-bf45d4b84e88",
+   "title": "Breaking Point",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2014"
+  },
+  {
+   "id": "785f6f52-460e-485f-9ab7-66224931fdef",
+   "title": "Houdini",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2024-05-30"
+  },
+  {
+   "id": "78c8eddf-f481-41d2-8b09-210f0ac07283",
+   "title": "MTV Music History",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "78edd2ef-19c2-43b7-8164-a64d30c208ce",
+   "title": "The Adventures Of Moon Man & Slim Shady",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2020-07-10"
+  },
+  {
+   "id": "7cdb6d1c-381e-43e2-9c3c-3e79684bd062",
+   "title": "Greatest Hits",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2008"
+  },
+  {
+   "id": "7e1978ee-0c62-4a7e-90f2-83d17d2be448",
+   "title": "Shady Lane + Prank Phone Call",
+   "primary": "Album",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "7ec0ac2d-1b8b-4283-ad2f-d4d9cb6b6249",
+   "title": "Shady Situation",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "87bf0ce3-8da5-3c5e-99c3-1f8ab2ce3158",
+   "title": "Freestyles 2",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2001"
+  },
+  {
+   "id": "88df7110-f219-3821-83b8-56443eaa34c3",
+   "title": "Lose Yourself",
+   "primary": "Single",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2002-10-22"
+  },
+  {
+   "id": "8f4f1cb7-83e3-41f2-8bb4-ac14a87947bc",
+   "title": "Unreleased Collection",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2001"
+  },
+  {
+   "id": "8ffe1cf9-7027-4951-8ded-eb3db0a6110a",
+   "title": "The Marijuna Mix",
+   "primary": "Single",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "93c8fedb-b392-4e5c-b97b-2a56d7dd3279",
+   "title": "Like My Shit",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2024-09-13"
+  },
+  {
+   "id": "958a973d-980d-48de-b049-01a2f7ff7705",
+   "title": "Curtain Call: Stan's Mixtape (Bonus CD)",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2005-12-16"
+  },
+  {
+   "id": "964601ab-1abe-31e5-aae1-fb92acaf05a9",
+   "title": "The Hits & Unreleased 2",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2004"
+  },
+  {
+   "id": "99e880f6-8827-4e7e-8e22-99c513f9ee3f",
+   "title": "Tracks From the Slim Shady EP",
+   "primary": null,
+   "secondary": [],
+   "first": "1997"
+  },
+  {
+   "id": "9abf5236-04fb-3d2b-aff7-282858f48b8a",
+   "title": "The Freestyle Show",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "a016f2a1-d701-47f5-a9fa-9c060ecf5cc6",
+   "title": "Last One Standing",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2021-09-30"
+  },
+  {
+   "id": "a0cc7edc-e003-3540-8538-88d3e8aba13c",
+   "title": "Best of Slim Shady",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2003-01-24"
+  },
+  {
+   "id": "a0e07c4c-ef87-4996-9652-5b20ccdc0225",
+   "title": "Chloraseptic (remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2018-01-08"
+  },
+  {
+   "id": "a16de9f6-b9c2-4ea3-8d2e-b06f3fd9cd5e",
+   "title": "Renegades",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2009-06-13"
+  },
+  {
+   "id": "a315ff4d-d873-43c0-bdbf-ba7d09f3c721",
+   "title": "The Shady Mathers Sessions",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "a39088b4-a7ed-484c-a7f6-f27a5f6baff5",
+   "title": "King Mathers",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2007"
+  },
+  {
+   "id": "a8338b38-b252-3cc8-8317-42de66d1cf9e",
+   "title": "The Singles Boxset",
+   "primary": "Single",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2003-12-15"
+  },
+  {
+   "id": "a862d9cd-c1af-4b54-ac95-126cf9a8212f",
+   "title": "Back to the Basics",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2013-12-03"
+  },
+  {
+   "id": "a8cf3ead-8fc5-48c1-b42d-b71229e25d1a",
+   "title": "Relapse 2",
+   "primary": "Album",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "a970edb8-5961-4368-ba48-7af8781beaa6",
+   "title": "Kyrie & Luka",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2024-09-13"
+  },
+  {
+   "id": "a997ad3a-d732-4718-af83-240d834d5366",
+   "title": "Just Rhymin' (freestyle)",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2003"
+  },
+  {
+   "id": "ac425362-6272-4437-a599-cf9426d47bd0",
+   "title": "Animals (Pt. I)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2025-07-07"
+  },
+  {
+   "id": "afd1d8fb-e9a0-4403-b626-9252ab8a5b64",
+   "title": "Look at Me Now",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2011-01-20"
+  },
+  {
+   "id": "be9b4d43-afd7-48a0-b5d6-3d82eea04d74",
+   "title": "The First Suckerin' Rhyme Ever",
+   "primary": "Single",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "c1586abb-3a6a-3e32-900d-40c9421d0174",
+   "title": "The Return of Slim Shady",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2004-08"
+  },
+  {
+   "id": "c3b00e0a-97b2-4397-8d5a-a6419e3c6818",
+   "title": "The Marshall Mathers LP Snippet Tape",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2000"
+  },
+  {
+   "id": "c48c74b7-1d66-34ec-99ed-f9277c8120ab",
+   "title": "Losing It",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "c7e62fc2-f671-42b3-a0f5-a2e23100e6b6",
+   "title": "Somebody Save Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2024-07-19"
+  },
+  {
+   "id": "cad75b1b-bcdf-3924-991e-54ec3ba68ff1",
+   "title": "Hits and Unreleased",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "cbaa675f-0d6d-45cc-8b06-1e9f94cc896c",
+   "title": "Unmastered Sequence",
+   "primary": "Album",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "ce86a0e8-1c8b-30f5-9e64-eaa9e8a55242",
+   "title": "The Angry Blonde",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "cfce2a8c-fecf-468a-9eb8-dd829b4bae9d",
+   "title": "Fuel",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2025-02-07"
+  },
+  {
+   "id": "d34b9040-959e-4cd9-b3fc-35b8160c14d5",
+   "title": "Superman (sped up version)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2023-03-20"
+  },
+  {
+   "id": "da5f3166-0fde-44c8-b80f-465b175c25a8",
+   "title": "Music To Be Murdered By [Epilogue]",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2026-01-17"
+  },
+  {
+   "id": "db28a462-8234-33b6-af7d-6b2865c523a5",
+   "title": "Don't Call Me Marshall",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2003"
+  },
+  {
+   "id": "db739bc3-29f4-4efa-956c-66844506e6c3",
+   "title": "Without Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "e0502ec3-60d5-4a2f-8c78-f50f2d7ac5fa",
+   "title": "Global Warning",
+   "primary": "Single",
+   "secondary": [],
+   "first": ""
+  },
+  {
+   "id": "e5c5d16a-f89b-4f97-a18b-40a112b6a908",
+   "title": "MADARA",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2026-10-09"
+  },
+  {
+   "id": "e6188adc-3c6e-3788-89cd-dfb1ab1c20db",
+   "title": "Unrelease V",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "e8b872a9-240a-4100-9804-58e2c2ae390d",
+   "title": "The King Is Back",
+   "primary": "Album",
+   "secondary": [],
+   "first": "2009-04-03"
+  },
+  {
+   "id": "e93dde8e-df67-4707-8f76-4885ba1f5785",
+   "title": "Freestyles",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2012"
+  },
+  {
+   "id": "f0faf23c-f158-4e9a-9349-71aee6e9fd62",
+   "title": "3 A.M. (Travis Barker remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2009-08-11"
+  },
+  {
+   "id": "f35d27ed-bb49-41c1-bb19-05329eaf8eaf",
+   "title": "Killer (remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2021-05-28"
+  },
+  {
+   "id": "f4ce6f2d-c2c3-44bc-b359-362130d02e1e",
+   "title": "The Underground Collection",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2004"
+  },
+  {
+   "id": "f4e164f8-5144-4101-9845-f5bb7112b0a6",
+   "title": "Remember the Name",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2019-07-11"
+  },
+  {
+   "id": "f795340e-a790-3571-8929-c43e8ab36ac3",
+   "title": "Ready 4 War: Tha Best of Eminem",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2001"
+  },
+  {
+   "id": "f81e587c-e94f-40c3-864b-951422a01d22",
+   "title": "Temporary",
+   "primary": "Other",
+   "secondary": [],
+   "first": "2024-10-04"
+  },
+  {
+   "id": "fa7ffc9a-0b5e-4527-9bcb-c338498949b5",
+   "title": "Big Weenie (sped up version)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2023-03-17"
+  },
+  {
+   "id": "fba4ed9a-c977-4f39-aac5-653227325643",
+   "title": "Phenomenal",
+   "primary": "Single",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2015-06-02"
+  },
+  {
+   "id": "fe7b377d-ba28-469a-a204-1b606731b139",
+   "title": "The King and I (From the Original Motion Picture Soundtrack ELVIS)",
+   "primary": "Single",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2022-06-16"
+  },
+  {
+   "id": "0235aae2-eeba-4ab4-be23-c1a9884e152f",
+   "title": "8 Mile and Abbey: Eminem Meets the Beatles",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2014-07-12"
+  },
+  {
+   "id": "0311b896-925b-4095-bf90-33debc195b26",
+   "title": "Live at Reading (2017)",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2017-08-26"
+  },
+  {
+   "id": "07c59e64-31c7-4f7c-ad1e-6d036d74f5a2",
+   "title": "Long Time No See",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2008-12-01"
+  },
+  {
+   "id": "09388c55-b4dc-449d-ba33-9c2aef121ed4",
+   "title": "Role Model / Cum on Everybody / ’97 Bonnie & Clyde",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "1185d3d6-7a29-498f-8986-29478a29a587",
+   "title": "Blow My Buzz",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2001"
+  },
+  {
+   "id": "1349b8f7-db29-49f3-9c8f-ab14bda39501",
+   "title": "Stan - live from the 43th annual Grammy Awards",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2001"
+  },
+  {
+   "id": "149e7dde-b353-4428-ae54-7e27bd8fd106",
+   "title": "White America 2",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2005"
+  },
+  {
+   "id": "1ad9010e-8b33-4745-acde-9119cbf56783",
+   "title": "Nightmare on Em Street",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010-05-01"
+  },
+  {
+   "id": "1d3cd8b6-d333-4e94-9951-ac3f7437afe6",
+   "title": "Shady Records vs. The World",
+   "primary": "EP",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": ""
+  },
+  {
+   "id": "1d9ac100-c3da-43ce-b1d0-58ad7011ebaf",
+   "title": "Unreleased 2",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2013-10-08"
+  },
+  {
+   "id": "20106398-3851-4612-b106-ad04e8b8e6a5",
+   "title": "’Till I Collapse (Single)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002"
+  },
+  {
+   "id": "22fb31b0-e587-45ee-bfc3-124ed6a029e5",
+   "title": "Fight Night",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "25fa1b75-421e-4ce3-9689-ed1d4a97b700",
+   "title": "The Marshall Mathers LP (Slowed & Chopped)",
+   "primary": "Album",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "2bebf815-a299-4e0e-a4db-d078f8e6afa6",
+   "title": "The Storm (BET Cypher)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2017-10-10"
+  },
+  {
+   "id": "2e24632e-f212-3b55-9c86-8a46384bf480",
+   "title": "So U Wanna Freestyle?",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2008-01-28"
+  },
+  {
+   "id": "2ea98794-adbb-4df1-80bc-36a4dc0d9e1f",
+   "title": "Straight From the Lab, Part 3",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2025-01-12"
+  },
+  {
+   "id": "3073ae10-4f34-463c-8f69-edd77cb8b07e",
+   "title": "Lose Yourself / Made You Look",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2007-07-09"
+  },
+  {
+   "id": "33702ce9-0401-4170-8af9-c9e16a672a26",
+   "title": "Shake That (The Elektrolite Remix)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2006"
+  },
+  {
+   "id": "33cc9bd6-42ee-4f9a-b80c-258261269d4e",
+   "title": "I Am Marshall",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "Mixtape/Street"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "368de849-9ddf-4411-a774-d092a530173c",
+   "title": "Things Get Worse",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2011"
+  },
+  {
+   "id": "38be13a6-4962-4d93-8f70-ad656e94c772",
+   "title": "Shady Vs. Stretch",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "3aed8e4e-bd72-42b7-90f9-948b3f799933",
+   "title": "Without Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2003"
+  },
+  {
+   "id": "3c08a4e3-2670-396f-a5e5-6a162de9d7ac",
+   "title": "Who’s the Hottest",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "3f0ec94b-5f07-32f0-8272-44a8a57fe3a0",
+   "title": "Unreleased Collection",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "3f77a764-549c-4f5e-ac12-2e2a9d195a02",
+   "title": "Lyrical Invasion",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2016"
+  },
+  {
+   "id": "403347b2-f19a-462b-93ff-da89a100616f",
+   "title": "Shoot to Kill",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010-06-23"
+  },
+  {
+   "id": "4125d2b4-8431-400f-bd2f-4be49a2e0578",
+   "title": "The Freestyle Manual",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2006"
+  },
+  {
+   "id": "437e3782-dc41-4242-b51c-010f5772115f",
+   "title": "Makaveli vs. Mathers",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2009-05-25"
+  },
+  {
+   "id": "4472b7cb-0539-3eff-b1e3-75938f7bfe28",
+   "title": "R.I.P. Kim",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "448d96f1-5d48-4b72-b18e-4ca25257f761",
+   "title": "What’s the Difference",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "483112a2-11af-36a8-b4c0-14e5c7af01e7",
+   "title": "White America",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010-10-22"
+  },
+  {
+   "id": "49f4afe4-6c42-48cb-9b3d-616ec641591d",
+   "title": "Role Model",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "4d0f3b5a-371e-408d-a425-ad8e22369d23",
+   "title": "The Slim Shady LP Snippet Tape",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "1998"
+  },
+  {
+   "id": "5246febe-7c3b-49bd-803d-8f48e53a89ab",
+   "title": "Forgot About Dre (Remix)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2000"
+  },
+  {
+   "id": "589cef01-7e64-41ce-be59-267d794b3190",
+   "title": "Live From Comerica Park",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2015"
+  },
+  {
+   "id": "5d0e771f-faad-4646-b283-df8013199c7b",
+   "title": "Without Me (Necrow remix)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2003"
+  },
+  {
+   "id": "5efcb52b-96c3-4222-9ffd-d7c2f382ffab",
+   "title": "Role Model / Cum On Everybody",
+   "primary": "Single",
+   "secondary": [],
+   "first": "1999"
+  },
+  {
+   "id": "5f2f7375-9f1e-459e-abba-7ff6bb6ae44d",
+   "title": "Recovery: The Mixtape",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2010-05-19"
+  },
+  {
+   "id": "614ce976-25ba-4841-95f6-dda232410e11",
+   "title": "Shoot to Kill",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2010-07-06"
+  },
+  {
+   "id": "63987041-0a47-311d-b09e-853debc9de69",
+   "title": "Greatest Hits (Chopped & Screwed)",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "6506a2cf-ee91-4c4c-9b3c-1b960c8a8b15",
+   "title": "Without Me / What You Say",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002"
+  },
+  {
+   "id": "71acd538-7146-49ed-8ea1-b9abdfe30c78",
+   "title": "Green Lantern",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2011-07"
+  },
+  {
+   "id": "73ccdc34-3877-4509-9d82-8a6fe9941957",
+   "title": "Whiteboy Wasted",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2011-09-25"
+  },
+  {
+   "id": "746ea976-d0e4-49c6-96c6-88647a563370",
+   "title": "The Unreleased, Hits & Features",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2009-09-11"
+  },
+  {
+   "id": "7669eea6-2419-4c0a-bcf5-bb45b29b3928",
+   "title": "Remission",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "78630ee5-f28d-412b-8057-9829dddc9219",
+   "title": "Double",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix"
+   ],
+   "first": "2004"
+  },
+  {
+   "id": "7c576bf4-dbd4-416e-a852-3c18be6ceaff",
+   "title": "You Don’t Know",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2006"
+  },
+  {
+   "id": "7c5968db-8ab0-4977-bae6-3bacd8b03b57",
+   "title": "Detroit King",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2015"
+  },
+  {
+   "id": "7e92dfd3-cfac-497c-9199-7c04c277ddad",
+   "title": "You Hear Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002"
+  },
+  {
+   "id": "7ea55a64-bffa-4e36-be6b-9db801c662ac",
+   "title": "8 Mile EP",
+   "primary": "EP",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2003"
+  },
+  {
+   "id": "8405d821-c90e-3975-8d54-04d7edb6110f",
+   "title": "Remix Album",
+   "primary": "Album",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2001"
+  },
+  {
+   "id": "865fcbc3-df8d-47c6-ac09-27372ac0a156",
+   "title": "I'm Still #1",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2011"
+  },
+  {
+   "id": "888d281d-ae6c-4c65-b4cf-2ebdf17013cc",
+   "title": "Say What You Say",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "8ad6b67b-a84c-4da2-820b-ba51845a64dc",
+   "title": "The Story of Marshall Mathers",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "Mixtape/Street"
+   ],
+   "first": "2012"
+  },
+  {
+   "id": "8fa726bb-52ed-44a3-a166-144de9aafb1c",
+   "title": "Black Amerika",
+   "primary": "Album",
+   "secondary": [
+    "Remix",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2009"
+  },
+  {
+   "id": "8fecae0b-248d-46a0-aef9-856b8c7892f6",
+   "title": "Marshall Carter",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2011-06-18"
+  },
+  {
+   "id": "9d6c8a10-4c89-3e46-9da7-3e6d5ef222e8",
+   "title": "Rap Attack",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "a7b080fd-283e-4b76-ac1b-7630d74e6764",
+   "title": "The Man Not the Myth",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2009-08-03"
+  },
+  {
+   "id": "a7ccbd82-4c1e-4e35-be99-3d80115a952a",
+   "title": "Before the Curtain Closes",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": ""
+  },
+  {
+   "id": "a97231e1-2269-4aef-b1e6-df0e4276911e",
+   "title": "Return of the Psycho",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "Mixtape/Street"
+   ],
+   "first": "2010-02-16"
+  },
+  {
+   "id": "aa48c27a-6ef2-3e57-90ca-ab10a0cad116",
+   "title": "Straight From the Lab",
+   "primary": "EP",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "abf58048-5328-4088-aa27-3782d9b56d1a",
+   "title": "The Marshall Mathers LP (Swisha House remix)",
+   "primary": "Album",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "acfff6b6-5e65-3826-99ff-c8df9e56776d",
+   "title": "Live and Fucked Up",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": ""
+  },
+  {
+   "id": "afe5697f-67f1-4d9f-b3ff-98d4de7a1564",
+   "title": "Straight From the Vault, Volume 1",
+   "primary": "EP",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2011-03-01"
+  },
+  {
+   "id": "b69eaeec-7de1-4b91-8ed0-10039d975fe5",
+   "title": "The Definitive Collection: Disc 1",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": ""
+  },
+  {
+   "id": "b9f885cc-46c1-4116-bb7c-02e27233338b",
+   "title": "Shady Lady",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2001-05-22"
+  },
+  {
+   "id": "ba73af74-96df-4270-80a5-809b5b7de9e1",
+   "title": "Unreleased and Rare",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "ba7f498b-325c-4f6e-9217-57c0b8e7a85d",
+   "title": "Live In Europe",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "bfc6b0f7-591b-33b8-a9ff-4db1cfacb728",
+   "title": "Marshall Bruce Mathers III",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "bfe42990-8e81-4fa5-b99e-18575a2353dc",
+   "title": "8 Mile",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2003"
+  },
+  {
+   "id": "c4a299c1-b136-37de-aeeb-a42d2d96e217",
+   "title": "2000-07-19: Up in Smoke Tour: San Jose, CA, USA",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2012-04-20"
+  },
+  {
+   "id": "c5f86a67-6957-4dbe-a2f8-915d9c1c7fdc",
+   "title": "A Beautiful Mind",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010-11-14"
+  },
+  {
+   "id": "c6a69f52-0a3f-4178-a859-03f31c6479a1",
+   "title": "Eminem vs Barry Williams - The Real Greg Brady (ext vers)",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2000"
+  },
+  {
+   "id": "c6cadb92-3f23-3bdf-af2c-3eb43f8e881e",
+   "title": "Piece of Mind",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix"
+   ],
+   "first": "2006"
+  },
+  {
+   "id": "c8d34ebb-6bbf-4be3-aa09-bf418f278d5a",
+   "title": "8 Mile Movie Freestyles",
+   "primary": "Album",
+   "secondary": [
+    "Soundtrack"
+   ],
+   "first": "2002"
+  },
+  {
+   "id": "cd175bff-460d-4f53-82b2-ed3dc36217ca",
+   "title": "Watch The Throne",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2013-04-11"
+  },
+  {
+   "id": "cee1f816-da09-4f8c-a1d6-b90defe3d271",
+   "title": "The White Rapper Show",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2011"
+  },
+  {
+   "id": "d21cba04-c0df-4ea6-99e3-324826ef187d",
+   "title": "All Eyes on Me",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2010-04-24"
+  },
+  {
+   "id": "d32f57f6-623d-429f-a996-6c137b00a2be",
+   "title": "Road to Recovery: Withdrawal",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix"
+   ],
+   "first": "2010-05-04"
+  },
+  {
+   "id": "d6d370d0-5464-4c2a-978e-69703bcb2831",
+   "title": "Before the Relapse 2",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2008"
+  },
+  {
+   "id": "d78c1a91-df5f-488d-bb29-cf86b095eb2c",
+   "title": "The Return of Marshall Mathers 2",
+   "primary": "Album",
+   "secondary": [
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2007-08-01"
+  },
+  {
+   "id": "d7ecf607-6db3-4321-8d40-d24b01a4e93b",
+   "title": "House Yaself",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2004"
+  },
+  {
+   "id": "d7f85ace-8619-311c-bc87-42b8e861746f",
+   "title": "Da King of Da Rap Game?? (Mixed by DJ Jay Faire)",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix"
+   ],
+   "first": ""
+  },
+  {
+   "id": "da311223-4b00-4dac-a7bb-a30d10196055",
+   "title": "The Ultimate Best of Eminem 2014",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2014"
+  },
+  {
+   "id": "db4363d3-d588-4d6a-af74-1af767f56a14",
+   "title": "It Ain't Over",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "e083ed6a-821e-4c9c-8c0b-483b70ee918a",
+   "title": "Love Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002"
+  },
+  {
+   "id": "e7fea12e-5702-4032-85cb-03152f0553d3",
+   "title": "Just The Way I Am",
+   "primary": "Album",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": ""
+  },
+  {
+   "id": "eb3a625c-4f33-4246-891f-064de8729e21",
+   "title": "Marshall and the Soul Brother",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2017-07-01"
+  },
+  {
+   "id": "ebaf6788-b397-4a3f-b833-d8a11e778ae2",
+   "title": "Superman",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2002"
+  },
+  {
+   "id": "eeab5fe6-1d61-4b25-9d6e-9883dfa42027",
+   "title": "Another Set Back",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010-11-26"
+  },
+  {
+   "id": "f70c02c9-df94-4d6f-ba59-706e8f65ac3d",
+   "title": "Live at Brixton Academy",
+   "primary": "Album",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "f7f4ba30-03f0-4a65-88ed-42284e4f7a8f",
+   "title": "The Day Before Relapse",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2009"
+  },
+  {
+   "id": "f9dcb08d-5eac-49a1-be9e-74d3618d3006",
+   "title": "Recovery (Chopped Not Slopped by OG Ron C)",
+   "primary": "Album",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "fa11d597-e8da-4474-8453-83be9d014789",
+   "title": "Diary of a Madman",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2007-09-24"
+  },
+  {
+   "id": "fad85bbb-83e1-4efd-81e0-84be2e88d243",
+   "title": "Gimme Some Head, Slim (The Remix Album)",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "Remix"
+   ],
+   "first": "2004"
+  },
+  {
+   "id": "fba61390-3193-4c3b-8ac5-bb58d77658ee",
+   "title": "Dreams on Shady Park",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2010"
+  },
+  {
+   "id": "fc39b6f6-a576-49fd-a561-9e23ff6b89d2",
+   "title": "Quitter / Just Rhymin’ With Proof",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2000"
+  },
+  {
+   "id": "fca9a3b9-3a2b-4086-8342-937ffccfd26d",
+   "title": "Before the Relapse",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2008-11-09"
+  },
+  {
+   "id": "fea0f046-8496-4cc8-b220-17b55a254dd4",
+   "title": "Attack of the Martians",
+   "primary": "Album",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2008-08-14"
+  },
+  {
+   "id": "ffcbc060-f7ad-4238-85b3-478c7d02af90",
+   "title": "The E Tox: A Prelude to Relapse",
+   "primary": "Album",
+   "secondary": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "first": "2009"
+  },
+  {
+   "id": "03f67aee-967c-4694-a863-6e63b2eab92f",
+   "title": "Business (Matoma remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2015-10-02"
+  },
+  {
+   "id": "1c80c3c4-c470-4ba8-ad0d-e073139bc349",
+   "title": "King Mathers",
+   "primary": "Other",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": ""
+  },
+  {
+   "id": "2ada92bd-cfa0-4589-939c-88649b46eb5d",
+   "title": "Eminem - Lose Yourself (Hardwell & Maddix Bootleg)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2018-03-24"
+  },
+  {
+   "id": "38ef8fdc-aa47-4e73-83c5-8703ad7ed70c",
+   "title": "Lost in London",
+   "primary": "Other",
+   "secondary": [],
+   "first": "2006"
+  },
+  {
+   "id": "3a399798-7989-4f14-937b-ef2e48ed54b6",
+   "title": "2017-11-18: Saturday Night Live: New York, NY, USA",
+   "primary": "Broadcast",
+   "secondary": [
+    "Live"
+   ],
+   "first": "2017-11-18"
+  },
+  {
+   "id": "4242efc6-a778-4d9d-b0b8-56d53b3abfb7",
+   "title": "Liners",
+   "primary": "Other",
+   "secondary": [
+    "Spokenword"
+   ],
+   "first": "2004"
+  },
+  {
+   "id": "5a192e05-6240-4a3d-ae90-686cb95b4b62",
+   "title": "America's Nightmare",
+   "primary": "Other",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2009"
+  },
+  {
+   "id": "912213e0-acff-4cdd-a66c-273470adbd48",
+   "title": "Lose Yourself (remix) / Girlfriend (drum and bass remix)",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": ""
+  },
+  {
+   "id": "97317597-0ecc-41b6-a077-a5dc67c0dbae",
+   "title": "Crank Calls",
+   "primary": "Other",
+   "secondary": [
+    "Mixtape/Street"
+   ],
+   "first": "2000"
+  },
+  {
+   "id": "9d04b5ef-7e93-45fa-8c3a-d49cebf6555c",
+   "title": "Godzilla",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2020"
+  },
+  {
+   "id": "a1275631-21da-43c0-acca-90048ccb4a7c",
+   "title": "Snippets From the Forthcoming Slim Shady LP",
+   "primary": "Other",
+   "secondary": [],
+   "first": "1998"
+  },
+  {
+   "id": "ba8bd7bd-84dd-40c4-82bc-97df11dd5f7e",
+   "title": "Wordap.net Presents: The Bassmint Files",
+   "primary": "Other",
+   "secondary": [],
+   "first": "2012"
+  },
+  {
+   "id": "c3a30345-077a-4bb6-8709-20bb50ff4c80",
+   "title": "The Underground Collection",
+   "primary": "Other",
+   "secondary": [
+    "Compilation"
+   ],
+   "first": "2003-12-31"
+  },
+  {
+   "id": "c8badeb6-77f7-4bb8-a9c1-c2ccb8f923e2",
+   "title": "Lose Yourself (1950's Motown Soul AI Cover)",
+   "primary": "Other",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2025-10-10"
+  },
+  {
+   "id": "e5d11dab-bf9d-4bdc-b5ba-d458b8c0b3c1",
+   "title": "Without Me",
+   "primary": "Single",
+   "secondary": [],
+   "first": "2023-07-24"
+  },
+  {
+   "id": "ebae7da8-db33-4960-80de-421269661b32",
+   "title": "Shady/Stronger",
+   "primary": "Single",
+   "secondary": [
+    "Remix"
+   ],
+   "first": "2018-07-01"
+  },
+  {
+   "id": "fc0a07a9-2b6a-3442-a2a8-b0394a5e0aa3",
+   "title": "How to Be an MC, Volume 13 (Eminem Instrumentals)",
+   "primary": "Other",
+   "secondary": [
+    "DJ-mix"
+   ],
+   "first": ""
+  }
+ ],
+ "count": 317
+}

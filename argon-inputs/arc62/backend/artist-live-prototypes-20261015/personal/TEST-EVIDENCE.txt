@@ -1,0 +1,33 @@
+TASK: arc62-spawn-artist-personal-003
+Machine: Laptop 1 via Brotherhood Desktop Commander.
+Frozen source: 860b96ae27a59c955f6aa9bf4642351ed8ce21e3.
+Build: Visual Studio 17 2022 x64; MSVC 19.44; Qt 6.11.1; C++17; Release.
+Final focused BDC execution:
+  MSBuild version 17.14.40+3e7442088 for .NET Framework
+  ArtistPersonalState.cpp
+  artist_personal.vcxproj -> build\Release\artist_personal.lib
+  test_artist_personal.cpp
+  artist_personal_harness.vcxproj -> build\Release\artist_personal_harness.exe
+  BUILD_EXIT=0
+  PASS save_toggle_restart
+  PASS playlist_order_mutations
+  PASS profile_partition_CAS
+  PASS corruption_migration
+  PASS write_failure_catalogue_offline
+  RESULT 5 PASS, 0 FAIL / Qt 6.11.1
+  HARNESS_EXIT=0
+  Start 1: artist_personal_harness
+  1/1 Test #1: artist_personal_harness .......... Passed 0.28 sec
+  100% tests passed, 0 tests failed out of 1
+  Total Test time (real) = 0.29 sec
+  CTEST_EXIT=0
+
+Earlier failed attempts were diagnosed and repaired:
+- Nested Windows test fixture path was too long for repeat QLockFile use.
+  The harness fixture root was shortened to build\Release\fx and QLockFile
+  is explicitly unlocked on successful writes.
+- A stale-byte test incorrectly expected conflict after restoring identical
+  bytes. Negative control now changes raw bytes and proves CAS fails closed.
+After these focused corrections the final build, harness and CTest all passed.
+No production runtime, actual cross-process race, crash/power-failure injection,
+or live provider path was executed.

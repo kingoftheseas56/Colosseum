@@ -1,0 +1,15 @@
+{
+  "name": "continue-home-qualification-v1",
+  "version": 1,
+  "provenance": {
+    "purpose": "Measurement-only seed for the Home Continue rail. The entry is file-backed under the tagged Lanista AppData root and does not require a live provider or network reply.",
+    "date": "2026-08-30"
+  },
+  "placement": [
+    { "content": "progress-store.ini", "destination": "roaming", "relPath": "progress-store.ini" }
+  ],
+  "expectedOnBoot": [
+    { "surface": "bootSplash", "property": "visible", "value": false }
+  ],
+  "note": "This seed intentionally carries one video Continue record with no cover URL. The scenario proves Progress.recent() data reaches the Home Repeater by reading the structural dump and counting ContinueTile delegates. It does not claim cover fetch success or resume playback."
+}

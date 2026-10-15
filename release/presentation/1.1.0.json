@@ -1,0 +1,50 @@
+{
+  "eyebrow": "A NEW CHAPTER IS READY",
+  "title": "Colosseum 1.1",
+  "summary": "The house can now tell you when a new release is ready, show what changed, and carry the verified update into place.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.0",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "READER",
+      "title": "Reader",
+      "body": "A reader built for the page.",
+      "artwork_assets": ["colosseum-reader.png"]
+    },
+    {
+      "kind": "feature",
+      "section": "DISCOVER",
+      "title": "Discover",
+      "body": "Discover comes to Tankoban.",
+      "artwork_assets": ["colosseum-tankoban-discover.png"]
+    },
+    {
+      "kind": "feature",
+      "section": "BIBLIO",
+      "title": "Biblio",
+      "body": "Reader2 grew up.",
+      "artwork_assets": ["colosseum-biblio.png"]
+    },
+    {
+      "kind": "feature",
+      "section": "THEATRE",
+      "title": "Theatre",
+      "body": "Theatre goes deeper.",
+      "artwork_assets": ["colosseum-theatre.png"]
+    },
+    {
+      "kind": "feature",
+      "section": "THE HOUSE",
+      "title": "The house",
+      "body": "One collection. One vault.",
+      "artwork_assets": ["colosseum-house.png"]
+    }
+  ],
+  "artwork": [
+    { "asset": "colosseum-reader.png", "path": "release/presentation/artwork/colosseum-reader.png" },
+    { "asset": "colosseum-tankoban-discover.png", "path": "release/presentation/artwork/colosseum-tankoban-discover.png" },
+    { "asset": "colosseum-biblio.png", "path": "release/presentation/artwork/colosseum-biblio.png" },
+    { "asset": "colosseum-theatre.png", "path": "release/presentation/artwork/colosseum-theatre.png" },
+    { "asset": "colosseum-house.png", "path": "release/presentation/artwork/colosseum-house.png" }
+  ]
+}

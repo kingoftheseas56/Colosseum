@@ -1,0 +1,20 @@
+{
+  "name": "arc12_theatre_tab_probe",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "modePill_Tankoban", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "modePill_Theatre" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreDiscoverPage", "prop": "loading", "value": false, "timeout_ms": 30000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-scroll", "payload": { "target": "theatreWorldScroll", "dy": -650 }, "expect": [{ "path": "scrolled", "op": "==", "value": "theatreWorldScroll" }] },
+    { "cmd": "__runner_local_presentation__", "label": "settle the production tab bar", "presentation_wait_ms": 1500, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "ui-snapshot", "label": "list live Theatre actions" },
+    { "cmd": "ui-query", "label": "inspect Theatre tab bar structure", "payload": { "object": "theatreTabBar" } },
+    { "cmd": "qml-get", "label": "inspect Movies tab geometry and state", "payload": { "object": "theatreTab_movies", "props": ["visible", "enabled", "activeState", "x", "y", "width", "height"] } },
+    { "cmd": "qml-get", "label": "inspect Theatre active tab before click", "payload": { "object": "theatreWorld", "props": ["activeTab"] } },
+    { "cmd": "ui-click", "label": "click Movies tab", "payload": { "target": "theatreTab_movies" } },
+    { "cmd": "qml-get", "label": "inspect Theatre active tab after click", "payload": { "object": "theatreWorld", "props": ["activeTab"] } }
+  ]
+}

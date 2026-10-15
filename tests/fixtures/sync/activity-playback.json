@@ -1,0 +1,25 @@
+{
+  "category": "activity_fact",
+  "schema_version": 1,
+  "record_key": "activity/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "payload": {
+    "v": 1,
+    "type": "playback_delta",
+    "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "sessionId": "session-1",
+    "world": "theatre",
+    "kind": "movie",
+    "titleKey": "movie:fixture",
+    "itemKey": "movie:fixture",
+    "title": "Fixture Movie",
+    "itemLabel": "",
+    "cover": "",
+    "utcOffsetMinutes": 0,
+    "syncable": true,
+    "source": "test",
+    "startAtMs": 1000,
+    "endAtMs": 6000,
+    "activeMs": 5000,
+    "rateMilli": 1000
+  }
+}

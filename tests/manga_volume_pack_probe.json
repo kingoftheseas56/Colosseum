@@ -1,0 +1,562 @@
+[
+  {
+    "series": "One Piece",
+    "targetVolume": 35,
+    "totalRows": 75,
+    "packs": 6,
+    "packsCoveringTarget": 2,
+    "singles": 3,
+    "singlesOnTarget": 0,
+    "noCoverage": 53,
+    "packTitles": [
+      {
+        "lo": "0",
+        "hi": "105",
+        "size": "35.6 GiB",
+        "seeders": 33,
+        "coversTarget": true,
+        "title": "One Piece - Digital Colored Comics+Cover Stories V1 Batch (v000-v105 & ch0035-1078)"
+      },
+      {
+        "lo": "1",
+        "hi": "111",
+        "size": "20.3 GiB",
+        "seeders": 81,
+        "coversTarget": true,
+        "title": "One Piece v001-111 + 1134-1176 (2003-2026) (Digital) (1r0n)"
+      },
+      {
+        "lo": "102",
+        "hi": "105",
+        "size": "1.8 GiB",
+        "seeders": 7,
+        "coversTarget": false,
+        "title": "[ENG] One Piece - Vol. 102-105 (FULL COLOR Digital Colored Comics)"
+      },
+      {
+        "lo": "1",
+        "hi": "2",
+        "size": "62.1 MiB",
+        "seeders": 14,
+        "coversTarget": false,
+        "title": "One Piece: Heroines v01-02 [VIZ Media] [Stick]"
+      },
+      {
+        "lo": "1",
+        "hi": "11",
+        "size": "2.1 GiB",
+        "seeders": 17,
+        "coversTarget": false,
+        "title": "One Piece Definitive Edition Re-Translation v001-011 (Colored) (Digital) (VLT) {East Blue} {2.0}"
+      },
+      {
+        "lo": "12",
+        "hi": "23",
+        "size": "4.0 GiB",
+        "seeders": 13,
+        "coversTarget": false,
+        "title": "One Piece Definitive Edition Re-Translation v012-023 (Colored) (Digital) (VLT) {Alabasta} {v1.0}"
+      }
+    ]
+  },
+  {
+    "series": "Bleach",
+    "targetVolume": 5,
+    "totalRows": 149,
+    "packs": 10,
+    "packsCoveringTarget": 5,
+    "singles": 29,
+    "singlesOnTarget": 1,
+    "noCoverage": 65,
+    "packTitles": [
+      {
+        "lo": "43",
+        "hi": "52",
+        "size": "1.2 GiB",
+        "seeders": 1,
+        "coversTarget": false,
+        "title": "Bleach - Digital Colored Comics v43-52 (2021) (Colored Council)"
+      },
+      {
+        "lo": "1",
+        "hi": "74",
+        "size": "11.3 GiB",
+        "seeders": 89,
+        "coversTarget": true,
+        "title": "Bleach - Digital Colored Comics v01-74 (2021) (Colored Council)"
+      },
+      {
+        "lo": "1",
+        "hi": "18",
+        "size": "4.8 GiB",
+        "seeders": 1,
+        "coversTarget": true,
+        "title": "Bleach - Digital Colored Comics v01-18 (2021) (KojoZero Scans)"
+      },
+      {
+        "lo": "14",
+        "hi": "15",
+        "size": "550.8 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Bleach - Digital Colored Comics v14-15 (KojoZero Scans)"
+      },
+      {
+        "lo": "11",
+        "hi": "13",
+        "size": "756.9 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Bleach - Digital Colored Comics v11-13 (KojoZero Scans)"
+      },
+      {
+        "lo": "1",
+        "hi": "10",
+        "size": "2.6 GiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "Bleach - Digital Colored Comics v01-10 (KojoZero Scans)"
+      },
+      {
+        "lo": "1",
+        "hi": "74",
+        "size": "15.3 GiB",
+        "seeders": 42,
+        "coversTarget": true,
+        "title": "Bleach v01-v74 COMPLETE (VIZ Digital) [FIXED]"
+      },
+      {
+        "lo": "66",
+        "hi": "67",
+        "size": "355.6 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Bleach v66-v67 (2016) (Digital) (LostNerevarine-Empire) (VIZ)"
+      },
+      {
+        "lo": "68",
+        "hi": "74",
+        "size": "1.1 GiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Bleach v68-v74 (2016-2018) (digital) (aKraa)"
+      },
+      {
+        "lo": "1",
+        "hi": "65",
+        "size": "13.9 GiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "Bleach v01-v65 (VIZ)"
+      }
+    ]
+  },
+  {
+    "series": "Naruto",
+    "targetVolume": 20,
+    "totalRows": 77,
+    "packs": 16,
+    "packsCoveringTarget": 5,
+    "singles": 7,
+    "singlesOnTarget": 0,
+    "noCoverage": 37,
+    "packTitles": [
+      {
+        "lo": "1",
+        "hi": "3",
+        "size": "380.7 MiB",
+        "seeders": 4,
+        "coversTarget": false,
+        "title": "Naruto - Chibi Sasuke's Sharingan Legend v01-03 (2017-2018) (Digital) (DigitalMangaFan)"
+      },
+      {
+        "lo": "1",
+        "hi": "14",
+        "size": "2.4 GiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Boruto - Naruto Next Generations v01-14 (2017-2022) (Digital) (jxc3764)"
+      },
+      {
+        "lo": "1",
+        "hi": "12",
+        "size": "1.6 GiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Boruto - Naruto Next Generations v01-12,048-061 (2017-2021) (Digital) (aKraa+Anonymous+anadius)"
+      },
+      {
+        "lo": "1",
+        "hi": "7",
+        "size": "1017.4 MiB",
+        "seeders": 1,
+        "coversTarget": false,
+        "title": "Boruto - Naruto Next Generations v01-07 (2017-2019) (digital) (aKraa)"
+      },
+      {
+        "lo": "23",
+        "hi": "33",
+        "size": "275.0 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "[TINY UPLOADS] Naruto manga 201-300 (Volumes 23-33)"
+      },
+      {
+        "lo": "12",
+        "hi": "22",
+        "size": "263.0 MiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "[TINY UPLOADS] Naruto manga 101-200 (Volumes 12-22)"
+      },
+      {
+        "lo": "11",
+        "hi": "12",
+        "size": "13.1 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Naruto Novels v11-12 [VIZ Media] [Stick]"
+      },
+      {
+        "lo": "1",
+        "hi": "72",
+        "size": "17.1 GiB",
+        "seeders": 70,
+        "coversTarget": true,
+        "title": "[0v3r] Naruto v01-72 (Colored Manga) (complete)"
+      },
+      {
+        "lo": "1",
+        "hi": "9",
+        "size": "42.9 MiB",
+        "seeders": 1,
+        "coversTarget": false,
+        "title": "Naruto Novels v01-09 [VIZ Media] [LuCaZ]"
+      },
+      {
+        "lo": "1",
+        "hi": "28",
+        "size": "657.0 MiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "Naruto chapter(1-245) v01-v28 manga Complete download."
+      },
+      {
+        "lo": "29",
+        "hi": "72",
+        "size": "10.1 GiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Naruto v29-72 + The Seventh Hokage and the Scarlet Spring (Digital) (AnHeroGold-Empire)"
+      },
+      {
+        "lo": "1",
+        "hi": "8",
+        "size": "779.3 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Boruto Naruto Next Generations Manga Volume 1 - 8 English (UPDATED)"
+      },
+      {
+        "lo": "1",
+        "hi": "8",
+        "size": "768.4 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Boruto Naruto Next Generations Manga Volume 1 - 8 English"
+      },
+      {
+        "lo": "1",
+        "hi": "2",
+        "size": "143.0 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Boruto - Naruto Next Generations - (v01-v02) [Digital] [Viz] [Tikas]"
+      },
+      {
+        "lo": "1",
+        "hi": "73",
+        "size": "9.8 GiB",
+        "seeders": 12,
+        "coversTarget": true,
+        "title": "[VON] Naruto Manga Volumes 01-73 + Data Books [VIZ]"
+      },
+      {
+        "lo": "1",
+        "hi": "28",
+        "size": "5.7 GiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "Naruto v01-v28 (VIZ)"
+      }
+    ]
+  },
+  {
+    "series": "Vagabond",
+    "targetVolume": 10,
+    "totalRows": 26,
+    "packs": 8,
+    "packsCoveringTarget": 6,
+    "singles": 2,
+    "singlesOnTarget": 0,
+    "noCoverage": 15,
+    "packTitles": [
+      {
+        "lo": "1",
+        "hi": "12",
+        "size": "11.9 GiB",
+        "seeders": 38,
+        "coversTarget": true,
+        "title": "Vagabond v01-12 (VIZBIG) + v37 (VIZSIG) (2008-2015) (Scan) (HQ)"
+      },
+      {
+        "lo": "1",
+        "hi": "3",
+        "size": "4.0 GiB",
+        "seeders": 3,
+        "coversTarget": false,
+        "title": "[0v3r] Vagabond v01-03 (VizBig Omnibus) (ColoredManga)"
+      },
+      {
+        "lo": "1",
+        "hi": "37",
+        "size": "15.7 GiB",
+        "seeders": 49,
+        "coversTarget": true,
+        "title": "[Grunbeld] Vagabond v01-37"
+      },
+      {
+        "lo": "1",
+        "hi": "37",
+        "size": "8.0 GiB",
+        "seeders": 11,
+        "coversTarget": true,
+        "title": "Vagabond Volume 01-37+ [complete] + Art Books Hiatus + JP/VIZ covers"
+      },
+      {
+        "lo": "1",
+        "hi": "37",
+        "size": "2.4 GiB",
+        "seeders": 74,
+        "coversTarget": true,
+        "title": "[Pajeet] Vagabond Volume 01-37 & Chapters 323-327 + Art Books Hiatus [CBZ]"
+      },
+      {
+        "lo": "1",
+        "hi": "37",
+        "size": "2.1 GiB",
+        "seeders": 2,
+        "coversTarget": true,
+        "title": "Vagabond (v01-37) TwoShotEdition (Satisfactory Repack) vodoo_12"
+      },
+      {
+        "lo": "28",
+        "hi": "37",
+        "size": "829.7 MiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "Vagabond Vol. 28-37 (Scans)"
+      },
+      {
+        "lo": "1",
+        "hi": "27",
+        "size": "1.3 GiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "Vagabond v01-27"
+      }
+    ]
+  },
+  {
+    "series": "My Hero Academia",
+    "targetVolume": 12,
+    "totalRows": 79,
+    "packs": 11,
+    "packsCoveringTarget": 4,
+    "singles": 14,
+    "singlesOnTarget": 0,
+    "noCoverage": 38,
+    "packTitles": [
+      {
+        "lo": "1",
+        "hi": "2",
+        "size": "336.4 MiB",
+        "seeders": 3,
+        "coversTarget": false,
+        "title": "My Hero Academia v01-02 (Colored) (Digital) (PZG)"
+      },
+      {
+        "lo": "1",
+        "hi": "7",
+        "size": "1.4 GiB",
+        "seeders": 16,
+        "coversTarget": false,
+        "title": "My Hero Academia - Team-Up Missions v01-07 (2022-2025) (Digital) (1r0n)"
+      },
+      {
+        "lo": "1",
+        "hi": "35",
+        "size": "7.7 GiB",
+        "seeders": 1,
+        "coversTarget": true,
+        "title": "Boku no Hero Academia / My Hero Academia v01-35,351-399 (2015-2023) (Digital) (LuCaZ)"
+      },
+      {
+        "lo": "1",
+        "hi": "6",
+        "size": "126.5 MiB",
+        "seeders": 9,
+        "coversTarget": false,
+        "title": "My Hero Academia - School Briefs v01-06 [VIZ Media] [LuCaZ]"
+      },
+      {
+        "lo": "1",
+        "hi": "6",
+        "size": "586.1 MiB",
+        "seeders": 8,
+        "coversTarget": false,
+        "title": "My Hero Academia - School Briefs v01-06 (2019-2023) (Digital) (LuCaZ)"
+      },
+      {
+        "lo": "1",
+        "hi": "5",
+        "size": "95.3 MiB",
+        "seeders": 1,
+        "coversTarget": false,
+        "title": "My Hero Academia - School Briefs v01-05 [VIZ Media] [Shizu]"
+      },
+      {
+        "lo": "1",
+        "hi": "29",
+        "size": "3.7 GiB",
+        "seeders": 1,
+        "coversTarget": true,
+        "title": "My Hero Academia v01-29,286-325 (2015-2021) (Digital) (aKraa+Anonymous+anadius)"
+      },
+      {
+        "lo": "25",
+        "hi": "27",
+        "size": "336.4 MiB",
+        "seeders": 2,
+        "coversTarget": false,
+        "title": "My Hero Academia v25-27 (2020-2021) (digital) (aKraa)"
+      },
+      {
+        "lo": "1",
+        "hi": "23",
+        "size": "2.6 GiB",
+        "seeders": 2,
+        "coversTarget": true,
+        "title": "My Hero Academia v01-23 (2015-2020) (digital) (aKraa)"
+      },
+      {
+        "lo": "1",
+        "hi": "20",
+        "size": "5.4 GiB",
+        "seeders": 0,
+        "coversTarget": true,
+        "title": "My Hero Academia v01-v20 (2015-2019) (digital) (BlackManta+danke+LuCaZ+aKraa)"
+      },
+      {
+        "lo": "15",
+        "hi": "17",
+        "size": "1.0 GiB",
+        "seeders": 0,
+        "coversTarget": false,
+        "title": "My Hero Academia v15-v17 (2018-2019) (Digital HD) (aKraa)"
+      }
+    ]
+  },
+  {
+    "series": "Death Note",
+    "targetVolume": 3,
+    "totalRows": 24,
+    "packs": 3,
+    "packsCoveringTarget": 3,
+    "singles": 8,
+    "singlesOnTarget": 0,
+    "noCoverage": 12,
+    "packTitles": [
+      {
+        "lo": "1",
+        "hi": "8",
+        "size": "3.9 GiB",
+        "seeders": 11,
+        "coversTarget": true,
+        "title": "Death Note (Full Color) v01-08 (Colored Council)"
+      },
+      {
+        "lo": "1",
+        "hi": "12",
+        "size": "1.4 GiB",
+        "seeders": 27,
+        "coversTarget": true,
+        "title": "Death Note v01-12 (2005-2007) (Digital) (KG Manga)"
+      },
+      {
+        "lo": "1",
+        "hi": "12",
+        "size": "3.3 GiB",
+        "seeders": 40,
+        "coversTarget": true,
+        "title": "Death Note (v01-v12) (2005-2007) (Digital TPB) (DarkZone-Empire)"
+      }
+    ]
+  },
+  {
+    "series": "Fullmetal Alchemist",
+    "targetVolume": 7,
+    "totalRows": 18,
+    "packs": 2,
+    "packsCoveringTarget": 2,
+    "singles": 1,
+    "singlesOnTarget": 0,
+    "noCoverage": 14,
+    "packTitles": [
+      {
+        "lo": "1",
+        "hi": "27",
+        "size": "2.6 GiB",
+        "seeders": 70,
+        "coversTarget": true,
+        "title": "Fullmetal Alchemist (v01-v27) (2005-2011) (Digital) (LostNerevarine-Empire)"
+      },
+      {
+        "lo": "1",
+        "hi": "27",
+        "size": "2.6 GiB",
+        "seeders": 1,
+        "coversTarget": true,
+        "title": "Fullmetal Alchemist v01-v27 (Yen Press)"
+      }
+    ]
+  },
+  {
+    "series": "20th Century Boys",
+    "targetVolume": 10,
+    "totalRows": 5,
+    "packs": 2,
+    "packsCoveringTarget": 1,
+    "singles": 1,
+    "singlesOnTarget": 0,
+    "noCoverage": 2,
+    "packTitles": [
+      {
+        "lo": "1",
+        "hi": "2",
+        "size": "877.0 MiB",
+        "seeders": 17,
+        "coversTarget": false,
+        "title": "20th Century Boys v01-02 (2018) (The Perfect Edition) (Scan-HQ)"
+      },
+      {
+        "lo": "1",
+        "hi": "22",
+        "size": "1.7 GiB",
+        "seeders": 86,
+        "coversTarget": true,
+        "title": "[Pajeet] 20th Century Boys Volume 01-22 + 21st Century Boys Volume 01-02 (Complete) [CBZ]"
+      }
+    ]
+  }
+]
