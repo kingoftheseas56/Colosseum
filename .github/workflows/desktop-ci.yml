@@ -1,8 +1,6 @@
 name: desktop-ci
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:

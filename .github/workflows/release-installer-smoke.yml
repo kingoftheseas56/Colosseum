@@ -1,11 +1,6 @@
 name: release-installer-smoke
 
 on:
-  push:
-    paths:
-      - ".github/workflows/release-installer-smoke.yml"
-      - "tests/installer/release_installer_smoke.ps1"
-      - "tests/test_release_installer_smoke_contract.py"
   workflow_dispatch:
     inputs:
       source_sha:
@@ -23,7 +18,7 @@ permissions:
 
 concurrency:
   group: release-installer-smoke-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   build-installer:
     runs-on: windows-2025
