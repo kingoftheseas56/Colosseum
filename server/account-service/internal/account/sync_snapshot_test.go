@@ -207,12 +207,31 @@ func TestSyncSnapshotFirstPageFreezesCursorAcrossPages(t *testing.T) {
 		}
 		seen[snapshotEntryKey(entry)] = true
 	}
-	for index := 197; index <= 203; index++ {
+	// Which rows remain for page two depends on the database collation, so derive
+	// the expectation instead of assuming byte order: every seeded collection row
+	// not served on page one, except the row updated after the frozen cursor.
+	firstKeys := map[string]bool{}
+	for _, entry := range first.Entries {
+		firstKeys[snapshotEntryKey(entry)] = true
+	}
+	frozenOut := "collection/" + fixtureCollectionRecordKey("snapshot/item-204")
+	if firstKeys[frozenOut] {
+		t.Fatalf("precondition: post-freeze row %s was already served on page one", frozenOut)
+	}
+	expected := 0
+	for index := 0; index <= 204; index++ {
 		key := "collection/" + fixtureCollectionRecordKey(
 			fmt.Sprintf("snapshot/item-%03d", index))
+		if firstKeys[key] || key == frozenOut {
+			continue
+		}
+		expected++
 		if !seen[key] {
 			t.Fatalf("second page missing expected row %s; seen=%v", key, seen)
 		}
+	}
+	if expected != len(seen) {
+		t.Fatalf("second page rows = %d distinct, want %d remaining seeded rows", len(seen), expected)
 	}
 
 	recovery, err := fixture.service.PullSync(
