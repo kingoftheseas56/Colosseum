@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
 	"fmt"
 	"time"
@@ -42,6 +43,23 @@ var verifiedCanonicalNames = []string{
 	"0010_ratings_reviews_sync.sql",
 }
 
+// Independent, reviewed SHA-256 of canonicalMigrationSQL for the exact
+// 11869834 target sources. In particular, 0005 and 0009 are substituted by
+// forward bridge DDL; a same-name edited canonical file is NOT equivalent.
+// Each digest is indexed by the corresponding verifiedCanonicalNames entry.
+var verifiedCanonicalSHA256 = [...]string{
+	"00cb4e49790795b2f89383fa0cf46ca4000e6fcf2cf708761c966a8c6ac91482", // 0001_bootstrap.sql
+	"79c7da98a677410cf62e8bea50455fd6bfa9f99eead3618f6fe5a4b99cbc6bc7", // 0002_identity_security.sql
+	"e63cfc2d7d64a5f632720cb84b8384f57ce4c04a3ca9c02b019339764cafb510", // 0003_sync_core.sql
+	"d6127bee25a9f078ddff5ec8c1bdff15f674d692a66461983fa8fb2672c8d6ae", // 0004_trusted_recovery_retry.sql
+	"9c682592c0cbfc7bebde3be459408728f395f68e46eaf5533027ab399544d2a8", // 0005_activity_fact_sync.sql
+	"3c6d7c905aea5bf124b88876c5c4d50252090264e1ff3e1443a010cf310c474e", // 0006_sync_mutation_aliases.sql
+	"2c1ed6731c6541e9caff045a56d5a51fe83bdb80ac14ca20eb472884ac99e4df", // 0007_account_lifecycle.sql
+	"b2f97d1f90b475a8c91ec44f0f9644857ba3d9b4999539f48d736ac60ded1bd7", // 0008_domain_sync_semantics.sql
+	"3f4a2b59e0c4ae7d676571e0c17b89e5371d1f359a299fcbb40764c50f613b6c", // 0009_profile_attachments.sql
+	"b4cd7041a534459fe49c2c36c3cc1cac5fca9795849f2f9e5c21e7a5c0b3e8fe", // 0010_ratings_reviews_sync.sql
+}
+
 // RunLegacyBridge is a fixture/test entrypoint using the same transaction and
 // advisory lock as the production-only direct-connection variant.
 func RunLegacyBridge(ctx context.Context, pool *pgxpool.Pool) error {
@@ -59,6 +77,13 @@ func RunLegacyBridgeOnConn(ctx context.Context, conn *pgx.Conn) error {
 }
 
 func runLegacyBridge(ctx context.Context, beginner migrationBeginner) error {
+	return runLegacyBridgeWithSource(ctx, beginner, embeddedMigrations)
+}
+
+// The loader is an internal regression-test seam; production always uses
+// embeddedMigrations. Neither entrypoint skips the reviewed source pin.
+func runLegacyBridgeWithSource(ctx context.Context, beginner migrationBeginner,
+	load func() ([]migration, error)) error {
 	tx, err := beginner.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin legacy bridge: %w", err)
@@ -68,17 +93,12 @@ func runLegacyBridge(ctx context.Context, beginner migrationBeginner) error {
 		return fmt.Errorf("lock legacy bridge: %w", err)
 	}
 
-	canonical, err := embeddedMigrations()
+	canonical, err := load()
 	if err != nil {
 		return err
 	}
-	if len(canonical) != len(verifiedCanonicalNames) {
-		return legacyReject("unreviewed_canonical_migrations")
-	}
-	for i, want := range verifiedCanonicalNames {
-		if canonical[i].name != want {
-			return legacyReject("unreviewed_canonical_migrations")
-		}
+	if err := verifyReviewedCanonicalSource(canonical); err != nil {
+		return err
 	}
 
 	var alreadyBridged bool
@@ -210,6 +230,28 @@ func runLegacyBridge(ctx context.Context, beginner migrationBeginner) error {
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit legacy bridge: %w", err)
+	}
+	return nil
+}
+
+// Reject same-name SQL changes BEFORE bridge DDL or canonical receipt writes.
+// The migrations' self-calculated checksums cannot authorize new content:
+// require BOTH the digest of the SQL that would execute and its reported
+// checksum to agree with independently reviewed, frozen target digests.
+func verifyReviewedCanonicalSource(canonical []migration) error {
+	if len(canonical) != len(verifiedCanonicalNames) ||
+		len(canonical) != len(verifiedCanonicalSHA256) {
+		return legacyReject("unreviewed_canonical_migrations")
+	}
+	for i, current := range canonical {
+		if current.name != verifiedCanonicalNames[i] {
+			return legacyReject("unreviewed_canonical_migrations")
+		}
+		digest := sha256.Sum256([]byte(current.sql))
+		if fmt.Sprintf("%x", digest) != verifiedCanonicalSHA256[i] ||
+			current.checksum != verifiedCanonicalSHA256[i] {
+			return legacyReject("unreviewed_canonical_sql")
+		}
 	}
 	return nil
 }
