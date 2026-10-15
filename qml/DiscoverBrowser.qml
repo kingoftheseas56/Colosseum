@@ -130,6 +130,10 @@ Item {
     property string warning: ""
     property string freshness: ""
     property string noticeText: ""           // a missing-catalogue explanation, when any
+    // A page the adapter reported as {failed:true}: rows and cursor stay, scroll paging pauses
+    // until an explicit retry (adapter.retryPage, optional) or a catalogue reload.
+    property bool pageFailed: false
+    property bool pageRetryable: false
     property var pinValue: null
 
     property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
@@ -146,6 +150,8 @@ Item {
     property string textFilterEmpty: "Nothing here matches this filter."
     property string noticeMissingFormat: "%1 is no longer available — showing the built-in catalogue instead."
     property string offlineWarning: "Showing offline catalogue"
+    property string textPageFailed: "Couldn't reach the catalogue."
+    property string textPageRetry: "Couldn't reach the catalogue. Click to try again."
 
     // Data-vault Slice 3 (2026-08-22): world-neutral seam a wrapper sets true when the wall is
     // empty ONLY because its backing catalogue db has not landed yet (CatalogVault still
@@ -266,8 +272,9 @@ Item {
     readonly property string emptyMessage: !currentCatalog ? textNoCatalogue
         : (activeFilterCount > 0 ? textFilterEmpty : textCatalogueEmpty)
     readonly property bool showOfflineNotice: offlineWarning.length > 0 && warning === offlineWarning
-    readonly property string bannerText: showOfflineNotice ? warning : noticeText
-    readonly property bool bannerVisible: showOfflineNotice || noticeText.length > 0
+    readonly property string bannerText: pageFailed ? (pageRetryable ? textPageRetry : textPageFailed)
+        : showOfflineNotice ? warning : noticeText
+    readonly property bool bannerVisible: pageFailed || showOfflineNotice || noticeText.length > 0
 
     // ─────────────────────────────── behaviour ───────────────────────────────
 
@@ -327,6 +334,7 @@ Item {
         // that incomplete request; settled retained state is left untouched.
         if (_pageResumePending || (!items.length && !exhausted)) {
             _pageResumePending = false
+            pageFailed = false
             requestPage()
         }
         if (wall) wall.forceActiveFocus()
@@ -521,6 +529,7 @@ Item {
         items = st.items; cursor = st.cursor; exhausted = st.exhausted
         warning = st.warning || ""; freshness = st.freshness || ""; noticeText = st.noticeText || ""
         loading = false
+        pageFailed = false
         _pageResumePending = st.pageResumePending === true
         // A type LEFT during its first-page fetch saved {items:[], exhausted:false}: the generation
         // fence dropped that in-flight reply, and onContentYChanged can't re-page an empty wall — so
@@ -540,19 +549,31 @@ Item {
     function reloadForCatalog() {
         cancelPageRequest()
         items = []; cursor = null; exhausted = false; loading = false
-        warning = ""; freshness = ""
+        warning = ""; freshness = ""; pageFailed = false
+        requestPage()
+    }
+
+    function pageState() {
+        var chosen = {}
+        for (var k in filters) chosen[k] = filters[k]
+        return { type: currentType, catalogKey: currentCatalogKey, filters: chosen,
+                 filterGroup: filterGroup, filterKey: filterKey }   // first pair: single-filter adapters
+    }
+
+    // Explicit retry of the failed page only; existing rows and cursor are kept.
+    function retryPage() {
+        if (!pageFailed || loading || !adapter) return
+        if (typeof adapter.retryPage === "function") adapter.retryPage(pageState(), cursor)
+        pageFailed = false
         requestPage()
     }
 
     function requestPage() {
-        if (!active || !adapter || loading || exhausted || currentCatalogKey.length === 0) return
+        if (!active || !adapter || loading || exhausted || pageFailed || currentCatalogKey.length === 0) return
         _pageResumePending = false
         loading = true
         var gen = ++fetchGen
-        var chosen = {}
-        for (var k in filters) chosen[k] = filters[k]
-        var st = { type: currentType, catalogKey: currentCatalogKey, filters: chosen,
-                   filterGroup: filterGroup, filterKey: filterKey }   // first pair: single-filter adapters
+        var st = pageState()
         var handle = adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
             if (!browser.active || replyGen !== browser.fetchGen) return
             browser._pageCancel = null
@@ -573,6 +594,13 @@ Item {
     function acceptPage(page) {
         loading = false
         if (!page) { exhausted = true; return }
+        if (page.failed === true) {
+            // Keep the wall's rows, cursor and exhaustion; a failure is not an empty catalogue.
+            pageFailed = true
+            pageRetryable = page.retryable === true
+            return
+        }
+        pageFailed = false
         warning = page.warning || ""
         freshness = page.freshness || ""
         var incoming = page.items || []
@@ -918,6 +946,15 @@ Item {
             color: theme.ink; font.family: theme.ui; font.pixelSize: 13
             elide: Text.ElideRight
         }
+        MouseArea {
+            anchors.fill: parent
+            enabled: browser.pageFailed && browser.pageRetryable
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: browser.retryPage()
+        }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false
+            enabled: browser.pageFailed && browser.pageRetryable
+            accessibleName: "Try again"; focusRadius: 12; onTriggered: browser.retryPage() }
     }
 
     // ─── the wall — full-width Stremio grid (no side pane; a click opens the title) ───
@@ -1122,7 +1159,7 @@ Item {
             // one quiet downloading line replaces the normal empty copy — same font/color, no
             // other visual change.
             Text {
-                visible: !browser.loading && browser.items.length === 0
+                visible: !browser.loading && !browser.pageFailed && browser.items.length === 0
                 anchors.centerIn: parent
                 text: browser.catalogueDownloading ? browser._downloadingText : browser.emptyMessage
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
