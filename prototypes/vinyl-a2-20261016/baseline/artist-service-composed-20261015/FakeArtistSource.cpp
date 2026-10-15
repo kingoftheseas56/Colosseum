@@ -148,9 +148,7 @@ void FakeArtistSource::fetchMedia(
         using ::vinyl::artist_media::QueryStatus;
         using ::vinyl::artist_media::SourceBatch;
         if (!m_online) {
-            SourceBatch unavailable;
-            unavailable.artist = artist;
-            unavailable.status = QueryStatus::Unavailable;
+            SourceBatch unavailable{artist, QueryStatus::Unavailable, {}, {}, {}};
             done(std::move(unavailable));
             return;
         }
@@ -160,11 +158,8 @@ void FakeArtistSource::fetchMedia(
             done(it.value());
             return;
         }
-        SourceBatch empty;
-        empty.artist = artist;
-        empty.status = QueryStatus::Empty;
-        empty.sourceLabel = QStringLiteral("FakeArtistSource");
-        empty.snapshotId = m_corpusVersion;
+        SourceBatch empty{artist, QueryStatus::Empty,
+                          QStringLiteral("FakeArtistSource"), m_corpusVersion, {}};
         done(std::move(empty));
     });
 }

@@ -104,8 +104,8 @@ QVariantMap serializeGroupRow(const GroupRow &row) {
             {QStringLiteral("recordingMbid"), rec.canonical.mbid.toString().toLower()},
             {QStringLiteral("title"), rec.canonical.title},
             {QStringLiteral("lengthMs"),
-             rec.canonical.lengthMs.has_value()
-                 ? QVariant::fromValue<qlonglong>(*rec.canonical.lengthMs)
+             rec.canonical.lengthMs > 0
+                 ? QVariant::fromValue<qlonglong>(rec.canonical.lengthMs)
                  : QVariant()}
         };
         if (rec.source) {
