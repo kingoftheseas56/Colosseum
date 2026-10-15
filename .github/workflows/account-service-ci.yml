@@ -10,14 +10,7 @@
 name: account-service
 
 on:
-  push:
-    paths:
-      - "server/account-service/**"
-      - ".github/workflows/account-service-ci.yml"
-  pull_request:
-    paths:
-      - "server/account-service/**"
-      - ".github/workflows/account-service-ci.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
