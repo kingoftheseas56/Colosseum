@@ -44,6 +44,26 @@ bool validMedium(const QString& m) {
     return m == QStringLiteral("anime") || m == QStringLiteral("manga");
 }
 
+// Single canonical description for remote read, state inspection, and retry.
+// No normalization: the accepted owner hashes exactly these five arguments.
+struct RemoteDiscoverPage {
+    QString method;
+    QVariantList args;
+    QVariantMap empty;
+};
+RemoteDiscoverPage remoteDiscoverPage(const QString& catalogId, const QVariantList& filters,
+                                      bool includeExplicit, int offset, int limit)
+{
+    return {QStringLiteral("discoverPageFiltered"),
+            QVariantList{catalogId, filters, includeExplicit, offset, limit},
+            QVariantMap{{QStringLiteral("items"), QVariantList{}},
+                        {QStringLiteral("nextOffset"), std::max(0, offset)},
+                        {QStringLiteral("exhausted"), true},
+                        {QStringLiteral("freshness"), QStringLiteral("bundled")},
+                        {QStringLiteral("fallbackCatalog"),
+                         catalogId == QStringLiteral("trending") ? QStringLiteral("popular") : QString()}}};
+}
+
 QVariantList queryDiscoverFilters(const QSqlDatabase& db, const QString& axis,
                                   bool includeExplicit)
 {
@@ -97,6 +117,7 @@ MalCatalog::MalCatalog(const QString& dbPath, QObject* parent)
     m_remote = new CatalogRemote(QStringLiteral("mal"), this);
     connect(m_remote, &CatalogRemote::changed, this, &MalCatalog::revisionChanged);
     connect(m_remote, &CatalogRemote::failed, this, &MalCatalog::requestFailed);
+    connect(m_remote, &CatalogRemote::queryChanged, this, &MalCatalog::remoteQueryChanged);
     m_ok = openAt(dbPath);
     warmDiscoverFilters();
 }
@@ -560,10 +581,44 @@ QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& fi
     return discoverPageFiltered(catalogId, filters, includeExplicit, offset, limit);
 }
 
+QVariantMap MalCatalog::discoverPageFilteredState(const QString& catalogId,
+                                                  const QVariantList& filters,
+                                                  bool includeExplicit, int offset, int limit) const
+{
+    if (m_ok) {
+        // Local SQLite is authoritative for this route. Do not make consumers
+        // wait for a remote page key that read() will never queue.
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false}, // Remote cache, not SQLite availability.
+                {QStringLiteral("error"), QString()},
+                {QStringLiteral("retryable"), false}};
+    }
+    const auto request = remoteDiscoverPage(catalogId, filters, includeExplicit, offset, limit);
+    auto state = m_remote->queryState(request.method, request.args, request.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool MalCatalog::retryDiscoverPageFiltered(const QString& catalogId, const QVariantList& filters,
+                                           bool includeExplicit, int offset, int limit)
+{
+    if (m_ok) return false;
+    const auto request = remoteDiscoverPage(catalogId, filters, includeExplicit, offset, limit);
+    return m_remote->retry(request.method, request.args, request.empty);
+}
+
 QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVariantList& filters,
                                              bool includeExplicit, int offset, int limit) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("discoverPageFiltered"), QVariantList{catalogId, filters, includeExplicit, offset, limit}, QVariantMap{{QStringLiteral("items"), QVariantList{}}, {QStringLiteral("nextOffset"), std::max(0, offset)}, {QStringLiteral("exhausted"), true}, {QStringLiteral("freshness"), QStringLiteral("bundled")}, {QStringLiteral("fallbackCatalog"), catalogId == QStringLiteral("trending") ? QStringLiteral("popular") : QString()}}).toMap();
+    if (!m_ok) {
+        const auto request = remoteDiscoverPage(catalogId, filters, includeExplicit, offset, limit);
+        return m_remote->read(request.method, request.args, request.empty).toMap();
+    }
     // Deterministic vote-confidence floor for the Top Rated Bayesian weight (m in
     // WR = (v/(v+m))*R + (m/(v+m))*C). A few thousand votes is the confidence bar:
     // a 9.9 from ~120 voters is pulled hard toward the catalogue mean C and cannot

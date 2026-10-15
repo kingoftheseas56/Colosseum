@@ -108,11 +108,24 @@ public:
                                                  const QVariantList& filters,
                                                  bool includeExplicit,
                                                  int offset, int limit) const;
+    // Exact-query state for this page route. SQLite readiness is reported as
+    // source=local,status=success; no remote request is required in that mode.
+    Q_INVOKABLE QVariantMap discoverPageFilteredState(const QString& catalogId,
+                                                      const QVariantList& filters,
+                                                      bool includeExplicit,
+                                                      int offset, int limit) const;
+    // Explicit retry only for the same failed remote page key. Never fetch in local mode.
+    Q_INVOKABLE bool retryDiscoverPageFiltered(const QString& catalogId,
+                                                const QVariantList& filters,
+                                                bool includeExplicit,
+                                                int offset, int limit);
 
 signals:
     void readyChanged();
     void revisionChanged();
     void requestFailed(QString method, QString reason);
+    // All native MAL query keys; subscribers compare against the exact page state key.
+    void remoteQueryChanged(QString key);
     void filterCacheReady();
 
 private:

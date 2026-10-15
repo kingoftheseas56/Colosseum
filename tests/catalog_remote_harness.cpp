@@ -3,6 +3,9 @@
 #include "engine/MalCatalog.h"
 #include "engine/ComicsCatalog.h"
 #include <QCoreApplication>
+#include <QMetaMethod>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
@@ -51,6 +54,15 @@ int main(int argc,char** argv) {
      if(lastMethod=="search" || lastMethod=="matchByTitle") result=QJsonArray{};
      if(lastMethod=="mangaById" || lastMethod=="series") result=QJsonObject{{"title","Detail"}};
      if (!emptyArg.isEmpty() && selector==emptyArg) result=QJsonArray{};
+     if(lastMethod=="discoverPageFiltered") {
+      const int pageOffset=lastArgs.at(3).toInt();
+      QJsonArray items;
+      if (selector!=emptyArg)
+       items.append(QJsonObject{{"mal_id",44},{"title","Remote Manga"},{"availability",false}});
+      result=QJsonObject{{"items",items},{"nextOffset",pageOffset+items.size()},
+                         {"exhausted",true},{"freshness","bundled"},
+                         {"fallbackCatalog",selector=="trending" ? "popular" : ""}};
+     }
      response={{"apiVersion",1},{"revision",sourceRevision},{"method",invalid ? "wrong" : lastMethod},{"result",result}};
     }
     const auto body=status==304 ? QByteArray() : QJsonDocument(response).toJson(QJsonDocument::Compact);
@@ -90,8 +102,151 @@ int main(int argc,char** argv) {
  imdb.configureRemote(nullptr,endpoint,cache);
  require(!imdb.remoteEnabled() && imdb.available() && !imdb.ready(),"offline cache availability distinct from local readiness");
  require(imdb.titleCatalog(query,0,24).size()==1,"durable offline semantic cache");
- MalCatalog mal(""); mal.configureRemote(&nam,endpoint,temp.filePath("mal.json"));
+ MalCatalog mal(""); const QString malCache=temp.filePath("mal.json"); mal.configureRemote(&nam,endpoint,malCache);
  mal.mangaById(7); until([&]{return !mal.remotePending();}); require(mal.mangaById(7).value("title")=="Detail","MAL map adapter");
+ // F2b MAL page projection: QML invokables and typed exact-query notification.
+ const QMetaObject* malMeta=mal.metaObject();
+ const int pageStateIndex=malMeta->indexOfMethod("discoverPageFilteredState(QString,QVariantList,bool,int,int)");
+ const int pageRetryIndex=malMeta->indexOfMethod("retryDiscoverPageFiltered(QString,QVariantList,bool,int,int)");
+ const int pageNoticeIndex=malMeta->indexOfSignal("remoteQueryChanged(QString)");
+ require(pageStateIndex>=0 && pageRetryIndex>=0 && pageNoticeIndex>=0,
+         "MAL projected page state/retry/signal are visible to QML metaobject");
+ require(QByteArray(malMeta->method(pageStateIndex).typeName())=="QVariantMap"
+         && QByteArray(malMeta->method(pageRetryIndex).typeName())=="bool"
+         && malMeta->method(pageNoticeIndex).methodType()==QMetaMethod::Signal,
+         "MAL projected invokables have typed return values and signal");
+ const QVariantList genre{QVariantMap{{"axis","genre"},{"key","romance"}}};
+ const QVariantList demographic{QVariantMap{{"axis","demographic"},{"key","seinen"}}};
+ const auto pageState=[&](const QString& id,const QVariantList& filters,bool explicitContent,int offset) {
+     return mal.discoverPageFilteredState(id,filters,explicitContent,offset,24);
+ };
+ QStringList pageNotices;
+ QObject::connect(&mal,&MalCatalog::remoteQueryChanged,&app,[&](const QString& key){pageNotices.append(key);});
+ const int inspectedCalls=calls;
+ const auto page0=pageState("popular",genre,false,0);
+ const auto page24=pageState("popular",genre,false,24);
+ const auto filtered24=pageState("popular",demographic,false,24);
+ require(page0.value("source").toString()=="remote"
+         && page0.value("status").toString()=="missing"
+         && page0.value("key").toString()!=page24.value("key").toString()
+         && page24.value("key").toString()!=filtered24.value("key").toString()
+         && calls==inspectedCalls && pageNotices.isEmpty(),
+         "MAL inspection is nonfetching; offset and filters form distinct exact keys");
+ const auto cold0=mal.discoverPageFiltered("popular",genre,false,0,24);
+ const auto cold24=mal.discoverPageFiltered("popular",genre,false,24,24);
+ const auto coldFiltered24=mal.discoverPageFiltered("popular",demographic,false,24,24);
+ require(cold0.value("items").toList().isEmpty() && cold0.value("nextOffset").toInt()==0
+         && cold0.value("exhausted").toBool()
+         && cold24.value("nextOffset").toInt()==24
+         && coldFiltered24.value("nextOffset").toInt()==24
+         && pageState("popular",genre,false,0).value("pending").toBool()
+         && pageState("popular",genre,false,24).value("pending").toBool()
+         && pageNotices.isEmpty(),"MAL cold fallback retained; enqueue notification deferred");
+ until([&]{return !mal.remotePending();});
+ const auto loaded0=mal.discoverPageFiltered("popular",genre,false,0,24);
+ const auto loaded24=mal.discoverPageFiltered("popular",genre,false,24,24);
+ const auto loadedFiltered24=mal.discoverPageFiltered("popular",demographic,false,24,24);
+ require(calls==inspectedCalls+3 && loaded0.value("items").toList().size()==1
+         && loaded24.value("nextOffset").toInt()==25
+         && loadedFiltered24.value("items").toList().size()==1
+         && loaded0.value("freshness").toString()=="bundled"
+         && loaded0.value("fallbackCatalog").toString().isEmpty()
+         && pageState("popular",genre,false,0).value("status").toString()=="success"
+         && pageNotices.contains(page0.value("key").toString())
+         && pageNotices.contains(page24.value("key").toString())
+         && pageNotices.contains(filtered24.value("key").toString()),
+         "MAL page result has the real native map and two independent key notices");
+ const int inspectionOnlyCalls=calls;
+ pageState("popular",genre,false,0); pageState("popular",genre,false,24);
+ require(calls==inspectionOnlyCalls,"page inspection does not send network traffic");
+ const auto trendingCold=mal.discoverPageFiltered("trending",{},false,0,24);
+ require(trendingCold.value("fallbackCatalog").toString()=="popular",
+         "MAL remote cold trending fallback remains popular");
+ until([&]{return !mal.remotePending();});
+ require(mal.discoverPageFiltered("trending",{},false,0,24).value("fallbackCatalog").toString()=="popular",
+         "MAL loaded remote trending fallback remains popular");
+ // Successful empty map must never be confused with an uncached failed fallback map.
+ emptyArg="g03-empty"; failArg="g03-fail";
+ mal.discoverPageFiltered("g03-empty",{},false,48,24);
+ mal.discoverPageFiltered("g03-fail",{},false,72,24);
+ until([&]{return !mal.remotePending();});
+ const auto emptyPage=mal.discoverPageFiltered("g03-empty",{},false,48,24);
+ const auto failedPage=mal.discoverPageFiltered("g03-fail",{},false,72,24);
+ require(emptyPage.value("items").toList().isEmpty() && emptyPage.value("nextOffset").toInt()==48
+         && pageState("g03-empty",{},false,48).value("status").toString()=="success"
+         && pageState("g03-empty",{},false,48).value("cached").toBool()
+         && failedPage.value("items").toList().isEmpty() && failedPage.value("nextOffset").toInt()==72
+         && pageState("g03-fail",{},false,72).value("status").toString()=="failure"
+         && !pageState("g03-fail",{},false,72).value("cached").toBool()
+         && pageState("g03-fail",{},false,72).value("error").toString()=="HTTP_503",
+         "MAL projected success-empty and uncached failure fallback stay distinct");
+ emptyArg.clear(); failArg.clear();
+ // Force a cached revalidation via the existing stale-disk fixture technique.
+ const QVariantList refreshedFilter{QVariantMap{{"axis","genre"},{"key","fantasy"}}};
+ mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24);
+ until([&]{return !mal.remotePending();});
+ const auto savedPage=mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24);
+ require(savedPage.value("items").toList().size()==1,"MAL page to revalidate was cached");
+ const QString refreshKey=pageState("g03-refresh",refreshedFilter,true,96).value("key").toString();
+ QFile malDisk(malCache); require(malDisk.open(QIODevice::ReadOnly),"MAL fixture page cache readable");
+ auto malDocument=QJsonDocument::fromJson(malDisk.readAll()).object(); malDisk.close();
+ auto malEntries=malDocument.value("entries").toObject();
+ require(malEntries.contains(refreshKey),"MAL refresh key persisted in owner cache");
+ auto malEntry=malEntries.value(refreshKey).toObject();
+ malEntry.insert("fetchedAt","2020-01-01T00:00:00Z");malEntries.insert(refreshKey,malEntry);
+ malDocument.insert("entries",malEntries);
+ const QByteArray staleMalBytes=QJsonDocument(malDocument).toJson(QJsonDocument::Compact);
+ require(malDisk.open(QIODevice::WriteOnly|QIODevice::Truncate)
+         && malDisk.write(staleMalBytes)==staleMalBytes.size(),"MAL fixture cache made stale");malDisk.close();
+ mal.configureRemote(&nam,endpoint,malCache);
+ require(pageState("g03-refresh",refreshedFilter,true,96).value("cached").toBool(),
+         "MAL cached result survives source configuration");
+ failArg="g03-peer";
+ mal.discoverPageFiltered("g03-peer",{},false,120,24);
+ until([&]{return !mal.remotePending();});
+ require(pageState("g03-peer",{},false,120).value("status").toString()=="failure",
+         "independent failed MAL peer established");
+ failArg="g03-refresh";
+ const auto staleRead=mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24);
+ require(staleRead.value("items").toList().size()==1
+         && pageState("g03-refresh",refreshedFilter,true,96).value("pending").toBool()
+         && pageState("g03-refresh",refreshedFilter,true,96).value("cached").toBool()
+         && !pageState("g03-refresh",refreshedFilter,true,96).value("waiting").toBool(),
+         "stale cached MAL result remains readable during refresh");
+ until([&]{return !mal.remotePending();});
+ const auto failedRefresh=pageState("g03-refresh",refreshedFilter,true,96);
+ require(failedRefresh.value("status").toString()=="failure"
+         && failedRefresh.value("cached").toBool()
+         && failedRefresh.value("retryable").toBool()
+         && failedRefresh.value("error").toString()=="HTTP_503"
+         && mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24).value("items").toList().size()==1,
+         "MAL failed revalidation keeps old validated page and exposes cached error");
+ require(malDisk.open(QIODevice::ReadOnly) && malDisk.readAll()==staleMalBytes,
+         "MAL failed revalidation does not corrupt durable cached page");malDisk.close();
+ failArg.clear(); const int retryStartCalls=calls;
+ require(mal.retryDiscoverPageFiltered("g03-refresh",refreshedFilter,true,96,24)
+         && !mal.retryDiscoverPageFiltered("g03-refresh",refreshedFilter,true,96,24),
+         "MAL exact failed retry dedupes immediately inside cooldown");
+ require(mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24).value("items").toList().size()==1,
+         "MAL page remains readable while retry is in flight");
+ until([&]{return !mal.remotePending();});
+ require(calls==retryStartCalls+1 && lastMethod=="discoverPageFiltered"
+         && lastArgs.at(0).toString()=="g03-refresh"
+         && lastArgs.at(1).toArray()==QJsonArray::fromVariantList(refreshedFilter)
+         && lastArgs.at(2).toBool() && lastArgs.at(3).toInt()==96 && lastArgs.at(4).toInt()==24
+         && pageState("g03-refresh",refreshedFilter,true,96).value("status").toString()=="success"
+         && pageState("g03-refresh",refreshedFilter,true,96).value("error").toString().isEmpty()
+         && pageState("g03-peer",{},false,120).value("status").toString()=="failure"
+         && pageNotices.contains(refreshKey)
+         && !mal.retryDiscoverPageFiltered("g03-refresh",refreshedFilter,true,96,24),
+         "MAL targeted retry recovers exact page only without touching failed peer");
+ const int offlinePageCalls=calls;
+ mal.configureRemote(nullptr,endpoint,malCache);
+ require(!pageState("g03-refresh",refreshedFilter,true,96).value("enabled").toBool()
+         && pageState("g03-refresh",refreshedFilter,true,96).value("cached").toBool()
+         && pageState("g03-refresh",refreshedFilter,true,96).value("status").toString()=="success"
+         && mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24).value("items").toList().size()==1
+         && calls==offlinePageCalls,"offline MAL page state exposes durable cached result");
  ComicsCatalog comics(""); comics.configureRemote(&nam,endpoint,temp.filePath("comics.json"));
  comics.series(12); until([&]{return !comics.remotePending();}); require(comics.series(12).value("title")=="Detail","Comics map adapter");
  CatalogRemote remote("imdb"); remote.configure(&nam,endpoint,{});
@@ -258,5 +413,42 @@ int main(int argc,char** argv) {
  QCoreApplication::processEvents();
  require(!notificationReset.pending() && sessions==beforeResetSessions && calls==beforeResetCalls,
          "enqueue subscriber reconfiguration cannot dispatch old-source work");
- std::cout<<"PASS async semantic RPC: existing fixture plus F2a query scopes, empty/error, cached refresh, retry, revision reset, late response, offline cache, enqueue reentrancy\n";
+ // SQLite stays authoritative even if a remote endpoint is configured.
+ const QString localMalDb=temp.filePath("mal-local-fixture.sqlite");
+ {
+  QSqlDatabase db=QSqlDatabase::addDatabase("QSQLITE","mal-page-test-seed");
+  db.setDatabaseName(localMalDb);
+  require(db.open(),"local MAL SQLite fixture opened");
+  QSqlQuery sql(db);
+  require(sql.exec("CREATE TABLE manga(mal_id INTEGER PRIMARY KEY,title TEXT,title_english TEXT,"
+                   "type TEXT,score REAL,scored_by INTEGER,members INTEGER,favorites INTEGER,"
+                   "year INTEGER,start_date TEXT,cover TEXT,tags TEXT,explicit INTEGER)")
+          && sql.exec("CREATE TABLE classification(medium TEXT,axis TEXT,value TEXT,mal_id INTEGER)")
+          && sql.exec("INSERT INTO manga VALUES (44,'Local Manga','','Manga',9.3,20000,"
+                   "100000,100,2020,'2020-01-01','local.png','[]',0)")
+          && sql.exec("INSERT INTO classification VALUES ('manga','genre','Romance',44)"),
+          "local MAL SQLite fixture seeded");
+  db.close();
+ }
+ QSqlDatabase::removeDatabase("mal-page-test-seed");
+ {
+  MalCatalog localMal(localMalDb);
+  localMal.configureRemote(&nam,endpoint,temp.filePath("mal-local-unused.json"));
+  const int beforeLocal=calls;
+  const auto localState=localMal.discoverPageFilteredState("popular",{},false,0,24);
+  const auto localPage=localMal.discoverPageFiltered("popular",{},false,0,24);
+  require(localMal.ready() && localMal.remoteEnabled()
+          && localState.value("source").toString()=="local"
+          && localState.value("status").toString()=="success"
+          && localState.value("key").toString().isEmpty()
+          && !localState.value("enabled").toBool()
+          && !localState.value("retryable").toBool()
+          && localPage.value("items").toList().size()==1
+          && localPage.value("items").toList().at(0).toMap().value("title").toString()=="Local Manga"
+          && !localMal.retryDiscoverPageFiltered("popular",{},false,0,24)
+          && !localMal.remotePending() && calls==beforeLocal,
+          "ready SQLite MAL answers real page without remote wait or retry");
+  until([&]{return !localMal.cachedDiscoverFilters("genre",false).isEmpty();});
+ }
+ std::cout<<"PASS async semantic RPC: existing fixture plus F2a and F2b MAL page projection, notifications, failed cache, retry, offline and SQLite paths\n";
 }
