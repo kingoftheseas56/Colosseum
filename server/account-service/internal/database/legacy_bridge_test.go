@@ -302,8 +302,13 @@ func TestLegacyBridgeFrozenSourceAndHistoricalNames(t *testing.T) {
 func TestLegacyBridgeConvertsWithPreservationAndIdempotence(t *testing.T) {
 	pool, ctx := createLegacyBridgeFixture(t)
 	seedLegacySentinels(t, ctx, pool)
+	wholeBefore := snapshotBridgeDatabase(t, ctx, pool)
 	before := snapshotSentinels(t, ctx, pool)
 	receipt := snapshotReceipt(t, ctx, pool, "schema_migrations")
+	var oldOID uint32
+	if err := pool.QueryRow(ctx, "SELECT 'account_change_seq'::regclass::oid").Scan(&oldOID); err != nil {
+		t.Fatal(err)
+	}
 	var oldValue int64
 	if err := pool.QueryRow(ctx, "SELECT last_value FROM account_change_seq").Scan(&oldValue); err != nil {
 		t.Fatal(err)
@@ -315,8 +320,11 @@ func TestLegacyBridgeConvertsWithPreservationAndIdempotence(t *testing.T) {
 	// First reproduce the actual blocker RED with the unchanged migrator.
 	if err := RunMigrations(ctx, pool); err == nil {
 		t.Fatal("unmodified migration path incorrectly accepted divergent legacy history")
+	} else {
+		t.Logf("expected ordinary migrator RED: %v", err)
 	}
 	assertNoBridgeSideEffects(t, ctx, pool, before, receipt, false)
+	assertBridgeDatabaseEqual(t, wholeBefore, snapshotBridgeDatabase(t, ctx, pool))
 
 	if err := RunLegacyBridge(ctx, pool); err != nil {
 		t.Fatalf("bridge failed: %v", err)
@@ -330,6 +338,8 @@ func TestLegacyBridgeConvertsWithPreservationAndIdempotence(t *testing.T) {
 	if got := snapshotReceipt(t, ctx, pool, "account_legacy_migration_receipts"); got != receipt {
 		t.Fatal("historical receipt names/timestamps not preserved")
 	}
+	assertBridgeCountsPreserved(t, wholeBefore, snapshotBridgeDatabase(t, ctx, pool))
+	wholeCanonical := snapshotBridgeDatabase(t, ctx, pool)
 	canonical := snapshotReceipt(t, ctx, pool, "schema_migrations")
 	if err := RunMigrations(ctx, pool); err != nil {
 		t.Fatalf("ordinary canonical migrator no longer idempotent: %v", err)
@@ -343,6 +353,15 @@ func TestLegacyBridgeConvertsWithPreservationAndIdempotence(t *testing.T) {
 	if got := snapshotSentinels(t, ctx, pool); got != before {
 		t.Fatal("idempotent bridge changed sentinels")
 	}
+	assertBridgeDatabaseEqual(t, wholeCanonical, snapshotBridgeDatabase(t, ctx, pool))
+	var newOID uint32
+	if err := pool.QueryRow(ctx, "SELECT 'account_sync_journal_server_seq_seq'::regclass::oid").Scan(&newOID); err != nil {
+		t.Fatal(err)
+	}
+	if oldOID != newOID {
+		t.Fatalf("sequence identity changed: %d -> %d", oldOID, newOID)
+	}
+	t.Logf("same sequence OID across rename: %d", oldOID)
 	var seq int64
 	if err := pool.QueryRow(ctx,
 		"SELECT last_value FROM account_sync_journal_server_seq_seq").Scan(&seq); err != nil {
@@ -364,6 +383,7 @@ func TestLegacyBridgeConvertsWithPreservationAndIdempotence(t *testing.T) {
 func TestLegacyBridgeRejectsUnknownHistoryAndPhysicalHybrid(t *testing.T) {
 	for _, scenario := range []struct{ name, sql string }{
 		{"future-ledger", "INSERT INTO schema_migrations(name) VALUES('0999_unknown.sql')"},
+		{"hybrid-ledger", "UPDATE schema_migrations SET name='0005_activity_fact_sync.sql' WHERE name='0005_profile_portable_sync.sql'"},
 		{"hybrid-table", "ALTER TABLE accounts ADD COLUMN unsupported_future_field text"},
 		{"name-only-checksum-hybrid", "ALTER TABLE schema_migrations ADD COLUMN checksum text"},
 	} {
@@ -371,6 +391,7 @@ func TestLegacyBridgeRejectsUnknownHistoryAndPhysicalHybrid(t *testing.T) {
 			pool, ctx := createLegacyBridgeFixture(t)
 			seedLegacySentinels(t, ctx, pool)
 			mustFixtureExec(t, ctx, pool, scenario.sql)
+			wholeBefore := snapshotBridgeDatabase(t, ctx, pool)
 			before := snapshotSentinels(t, ctx, pool)
 			receipt := snapshotReceipt(t, ctx, pool, "schema_migrations")
 			if err := RunLegacyBridge(ctx, pool); err == nil {
@@ -378,6 +399,7 @@ func TestLegacyBridgeRejectsUnknownHistoryAndPhysicalHybrid(t *testing.T) {
 			}
 			assertNoBridgeSideEffects(t, ctx, pool, before, receipt,
 				scenario.name == "name-only-checksum-hybrid")
+			assertBridgeDatabaseEqual(t, wholeBefore, snapshotBridgeDatabase(t, ctx, pool))
 		})
 	}
 }
@@ -397,12 +419,18 @@ func TestLegacyBridgeDDLFailureRollsBackAllChanges(t *testing.T) {
                 '22222222-2222-4222-8222-222222222222',
                 1,12347,1,'delete',NULL,1,now())
     `)
+	wholeBefore := snapshotBridgeDatabase(t, ctx, pool)
 	before := snapshotSentinels(t, ctx, pool)
 	receipt := snapshotReceipt(t, ctx, pool, "schema_migrations")
 	if err := RunLegacyBridge(ctx, pool); err == nil {
 		t.Fatal("incompatible old data did not roll back the full transition")
+	} else if !strings.Contains(err.Error(), "0010_ratings_reviews_sync.sql") || !strings.Contains(err.Error(), "23514") {
+		t.Fatalf("failure did not reach intended late constraint: %v", err)
+	} else {
+		t.Logf("expected late-stage rollback RED: %v", err)
 	}
 	assertNoBridgeSideEffects(t, ctx, pool, before, receipt, false)
+	assertBridgeDatabaseEqual(t, wholeBefore, snapshotBridgeDatabase(t, ctx, pool))
 	var renamed bool
 	if err := pool.QueryRow(ctx,
 		"SELECT to_regclass('public.account_change_seq') IS NOT NULL").Scan(&renamed); err != nil {
@@ -430,6 +458,7 @@ func TestLegacyBridgeRejectsChecksumDriftOnRepeat(t *testing.T) {
 	before := snapshotSentinels(t, ctx, pool)
 	mustFixtureExec(t, ctx, pool,
 		"UPDATE schema_migrations SET checksum='tampered' WHERE name='0009_profile_attachments.sql'")
+	wholeBefore := snapshotBridgeDatabase(t, ctx, pool)
 	receipt := snapshotReceipt(t, ctx, pool, "schema_migrations")
 	if err := RunLegacyBridge(ctx, pool); err == nil {
 		t.Fatal("repeat bridge accepted checksum drift")
@@ -440,4 +469,5 @@ func TestLegacyBridgeRejectsChecksumDriftOnRepeat(t *testing.T) {
 	if got := snapshotSentinels(t, ctx, pool); got != before {
 		t.Fatal("checksum-drift rejection modified data")
 	}
+	assertBridgeDatabaseEqual(t, wholeBefore, snapshotBridgeDatabase(t, ctx, pool))
 }

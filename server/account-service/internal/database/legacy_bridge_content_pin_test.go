@@ -42,6 +42,7 @@ func TestLegacyBridgeSameNameSQLDriftRejectsBeforeDDL(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			pool, ctx := createLegacyBridgeFixture(t)
 			seedLegacySentinels(t, ctx, pool)
+			wholeBefore := snapshotBridgeDatabase(t, ctx, pool)
 			before := snapshotSentinels(t, ctx, pool)
 			receipts := snapshotReceipt(t, ctx, pool, "schema_migrations")
 
@@ -63,6 +64,7 @@ func TestLegacyBridgeSameNameSQLDriftRejectsBeforeDDL(t *testing.T) {
 				t.Fatalf("canonical drift was not stopped by source pin: %v", err)
 			}
 			assertNoBridgeSideEffects(t, ctx, pool, before, receipts, false)
+			assertBridgeDatabaseEqual(t, wholeBefore, snapshotBridgeDatabase(t, ctx, pool))
 			var originalSequence, createdAlias bool
 			if err := pool.QueryRow(ctx, `
                 SELECT to_regclass('public.account_change_seq') IS NOT NULL,
