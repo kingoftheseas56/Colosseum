@@ -786,7 +786,7 @@ int main(int argc,char** argv) {
                    "votes INTEGER,episodes INTEGER,origLang TEXT,isAnime INTEGER)")
           && sql.exec("CREATE TABLE genre(tt TEXT,genre TEXT)")
           && sql.exec("INSERT INTO title VALUES ('tt0133093','movie','The Matrix','matrix',"
-                      "1999,0,136,'["Action","Sci-Fi"]',8.7,2000000,0,'en',0)"),
+                      "1999,0,136,'[\"Action\",\"Sci-Fi\"]',8.7,2000000,0,'en',0)"),
           "local IMDb SQLite fixture seeded");
   db.close();
  }
