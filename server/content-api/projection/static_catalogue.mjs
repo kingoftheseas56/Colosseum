@@ -8,6 +8,7 @@ import {catalogueMethod,imdbRow,malRow} from '../src/catalogue-semantic.ts';
 import {comicsPreparedList,legacyRow} from '../src/catalogue-comics.ts';
 import {selectionKey} from '../src/catalogue-prebuilt.ts';
 import schema from '../src/source-schema.json' with {type:'json'};
+import {publicationSql} from './publication_sql.mjs';
 const [artifact,output,qmlRoot]=process.argv.slice(2);
 if(!artifact||!output||!qmlRoot)throw Error('Usage: node projection/static_catalogue.mjs static-source.sqlite fresh-output qml-directory');
 const sourceReport=JSON.parse(readFileSync(join(dirname(artifact),'static-source-report.json'),'utf8'));
@@ -21,9 +22,9 @@ const sqlite=new DatabaseSync(artifact,{readOnly:true});
 function adapter(unpaged=false){return{prepare(sql){return{bind(...args){return{async all(){
  if(unpaged&&/ LIMIT \? OFFSET \?$/.test(sql)){sql=sql.replace(/ LIMIT \? OFFSET \?$/,'');args=args.slice(0,-2);}
  else if(unpaged&&/ LIMIT \?$/.test(sql)){sql=sql.replace(/ LIMIT \?$/,'');args=args.slice(0,-1);}
- // The deployed packed view has source-scan tie order for genreCounts.
- // Local helper indexes must not silently add an alphabetical tie-break.
- sql=sql.replace(/FROM lib_mal_tag_count\b/g,'FROM lib_mal_tag_count NOT INDEXED');
+ // Packed genre counts and MAL anime score ties follow source-scan order.
+ // Local helper indexes must not silently change these ranking ties.
+ sql=publicationSql(sql);
  return{success:true,results:sqlite.prepare(sql).all(...args)};
 }}}}}};}
 const db=adapter(),all=adapter(true),revision=sourceReport.revision,prefix='/internal/prebuilt/'+revision+'/';

@@ -3,6 +3,7 @@ import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,lstatSync} f
 import {join,dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const encode=value=>Buffer.from(JSON.stringify(value));
@@ -34,8 +35,27 @@ function walk(root,relative=''){
  });
 }
 
-export function buildPublicCatalogue({source,content,output,maxFiles=20000,maxFileBytes=25*1024*1024}){
+export function retainArtwork({previous,output,verifyOnly=false}){
+ const roots=Array.isArray(previous)?previous:previous?[previous]:[];
+ if(!roots.length)throw Error('RETENTION_BASELINE_REQUIRED');
+ const entries=new Map();let copiedFiles=0;
+ for(const root of roots){
+  let result;
+  try{result=JSON.parse(execFileSync(process.env.PYTHON||'python',[
+   fileURLToPath(new URL('./publish_content.py',import.meta.url)),
+   verifyOnly?'--verify-retained':'--retain-only','--retain-assets-from',root,'--output',output
+  ],{encoding:'utf8',stdio:['ignore','pipe','pipe']}));}
+  catch(error){throw Error('ARTWORK_RETENTION_FAILED: '+String(error.stderr||error.message));}
+  copiedFiles+=result.copiedFiles;
+  for(const entry of result.entries)entries.set(entry.path,entry);
+ }
+ const inventory=[...entries.values()].sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+ return{requiredFiles:inventory.length,copiedFiles,inventorySha256:sha(encode(inventory)),entries:inventory};
+}
+
+export function buildPublicCatalogue({source,content,output,previous,maxFiles=20000,maxFileBytes=25*1024*1024}){
  if(existsSync(output))throw Error('OUTPUT_EXISTS');
+ if(!previous||(Array.isArray(previous)&&!previous.length))throw Error('RETENTION_BASELINE_REQUIRED');
  const reportBytes=file(source,'static-catalogue-report.json'),report=JSON.parse(reportBytes);
  if(!hashPattern.test(report.revision)||!/^\d{4}-\d{2}-\d{2}$/.test(report.date)||!/^[0-9]{4}$/.test(report.year))throw Error('SOURCE_INVALID_REPORT');
  const legacyPrefix='/internal/prebuilt/'+report.revision+'/',oldManifestPath=legacyPrefix+'manifest.json';
@@ -70,7 +90,8 @@ export function buildPublicCatalogue({source,content,output,maxFiles=20000,maxFi
  }
  // Publication identity includes the exact source index, date policy and content.
  // LIBRARY's source revision remains unchanged for old authenticated clients.
- const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),date:report.date,year:report.year}));
+ const retention=retainArtwork({previous,output});
+ const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year}));
  const publicPrefix='/catalogue/'+revision+'/',written=new Map(),converted=new Map(),loading=new Set();
  function write(path,raw){
   if(raw.length>maxFileBytes)throw Error('FREE_FILE_SIZE');
@@ -79,6 +100,7 @@ export function buildPublicCatalogue({source,content,output,maxFiles=20000,maxFi
   const target=join(output,path);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,raw);written.set(path,raw.length);return path;
  }
  function putRaw(raw){return write(publicPrefix+'shared/'+sha(raw)+'.json',raw);}
+ for(const item of retention.entries)write(item.path,file(output,item.path));
  function put(value){return putRaw(encode(value));}
  function rewrite(value){
   if(typeof value==='string'&&value.startsWith('/internal/prebuilt/'))return convert(value);
@@ -109,20 +131,21 @@ export function buildPublicCatalogue({source,content,output,maxFiles=20000,maxFi
  write('/internal/content/manifest.json',contentRaw);write('/internal/content/rpc-bundle.json',bundleRaw);
  for(const [id,raw]of Object.entries(documents))write('/internal/content/documents/'+id+'.json',Buffer.from(raw));
  for(const path of artwork)write('/assets/content'+path,file(content,'/assets/content'+path));
+ retainArtwork({previous,output,verifyOnly:true});
  write('/_headers',Buffer.from(PUBLIC_HEADERS));
  const entry={schemaVersion:1,revision,sourceRevision:report.revision,index:{path:indexPath,sha256:sha(indexRaw),bytes:indexRaw.length}};
  // Publish the entry last: failed validation never leaves a usable current pointer.
  write('/catalogue/current.json',encode(entry));
  return{schemaVersion:1,revision,sourceRevision:report.revision,index:entry.index,sourceReportSha256:sha(reportBytes),sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),date:report.date,year:report.year,
   files:written.size,totalBytes:[...written.values()].reduce((a,b)=>a+b,0),largestFileBytes:Math.max(...written.values()),freeFileLimit:maxFiles,freeFileBytes:maxFileBytes,
-  artworkFiles:artwork.length,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,d1Writes:0,deployed:false,
+  artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,d1Writes:0,deployed:false,
   entries:[...written].map(([path,bytes])=>({path,bytes}))};
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const [source,content,output,evidence]=process.argv.slice(2);
- if(!source||!content||!output||!evidence)throw Error('Usage: node projection/public_static.mjs I01-publication content-publication fresh-output report-outside-output.json');
+ const [source,content,output,evidence,...previous]=process.argv.slice(2);
+ if(!source||!content||!output||!evidence||!previous.length)throw Error('Usage: node projection/public_static.mjs I01-publication content-publication fresh-output report-outside-output.json previous-publication [other-previous-publications...]');
  if(resolve(evidence).startsWith(resolve(output)))throw Error('REPORT_MUST_STAY_OUTSIDE_ASSETS');
- const result=buildPublicCatalogue({source,content,output});writeFileSync(evidence,JSON.stringify(result,null,2));
- console.log(JSON.stringify({...result,entries:undefined}));
+ const result=buildPublicCatalogue({source,content,output,previous});writeFileSync(evidence,JSON.stringify(result,null,2));
+ console.log(JSON.stringify({...result,entries:undefined,retention:{...result.retention,entries:undefined}}));
 }

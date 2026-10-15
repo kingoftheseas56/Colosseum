@@ -41,6 +41,38 @@ def encode(value):
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
 
 
+def retain_immutable_artwork(previous, output, verify_only=False):
+    """The existing cumulative retention policy, shared with static publication."""
+    previous_art = (Path(previous).resolve() / "assets/content").resolve(strict=True)
+    output = Path(output).resolve()
+    retained, entries = 0, []
+    for path in sorted(previous_art.iterdir()):
+        if not path.is_file():
+            continue
+        if path.is_symlink() or not path.resolve().is_relative_to(previous_art) or not re.fullmatch(r"[a-f0-9]{64}\.[a-z0-9]+", path.name):
+            raise ValueError("Unsafe previous immutable asset")
+        with path.open("rb") as stream:
+            actual = hashlib.file_digest(stream, "sha256").hexdigest()
+        size = path.stat().st_size
+        if actual != path.stem or size > 25 * 1024 * 1024:
+            raise ValueError("Previous immutable asset checksum or size mismatch")
+        relative = "/assets/content/" + path.name
+        target = output / relative.lstrip("/")
+        if not target.exists():
+            if verify_only:
+                raise ValueError("IMMUTABLE_ARTWORK_DROPPED: " + relative)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, target)
+            retained += 1
+        if target.is_symlink() or not target.resolve().is_relative_to(output):
+            raise ValueError("Unsafe retained immutable asset")
+        with target.open("rb") as stream:
+            if target.stat().st_size != size or hashlib.file_digest(stream, "sha256").hexdigest() != actual:
+                raise ValueError("Retained immutable asset checksum mismatch")
+        entries.append({"path": relative, "sha256": actual, "bytes": size})
+    return {"requiredFiles": len(entries), "copiedFiles": retained, "entries": entries}
+
+
 def build(native_source, output, starter=None, previous=None):
     native_source, output = Path(native_source).resolve(), Path(output).resolve()
     if output.exists():
@@ -100,21 +132,7 @@ def build(native_source, output, starter=None, previous=None):
         assets[path.relative_to(native_source).as_posix()] = asset
     retained = 0
     if previous:
-        previous_art = (Path(previous).resolve() / "assets/content").resolve(strict=True)
-        for path in previous_art.iterdir():
-            if not path.is_file():
-                continue
-            if not path.resolve().is_relative_to(previous_art) or not re.fullmatch(r"[a-f0-9]{64}\.[a-z0-9]+", path.name):
-                raise ValueError("Unsafe previous immutable asset")
-            with path.open("rb") as stream:
-                actual = hashlib.file_digest(stream, "sha256").hexdigest()
-            if actual != path.stem or path.stat().st_size > 25 * 1024 * 1024:
-                raise ValueError("Previous immutable asset checksum or size mismatch")
-            target = output / "assets/content" / path.name
-            if not target.exists():
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(path, target)
-                retained += 1
+        retained = retain_immutable_artwork(previous, output)["copiedFiles"]
     manifest = {"schemaVersion": 1, "documents": descriptions, "assets": assets}
     manifest["revision"] = hashlib.sha256(encode(manifest).encode()).hexdigest()
     bundle = {"manifest": manifest, "documents": texts}
@@ -140,9 +158,19 @@ def build(native_source, output, starter=None, previous=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--native-source", required=True)
+    parser.add_argument("--native-source")
     parser.add_argument("--output", required=True)
     parser.add_argument("--starter")
     parser.add_argument("--retain-assets-from", help="Previous publication root whose immutable artwork URLs remain valid")
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--retain-only", action="store_true")
+    action.add_argument("--verify-retained", action="store_true")
     args = parser.parse_args()
-    print(encode(build(args.native_source, args.output, args.starter, args.retain_assets_from)))
+    if args.retain_only or args.verify_retained:
+        if not args.retain_assets_from:
+            parser.error("--retain-assets-from is required for retention")
+        print(encode(retain_immutable_artwork(args.retain_assets_from, args.output, args.verify_retained)))
+    else:
+        if not args.native_source:
+            parser.error("--native-source is required to build content")
+        print(encode(build(args.native_source, args.output, args.starter, args.retain_assets_from)))

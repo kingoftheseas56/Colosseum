@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {createHash} from 'node:crypto';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
-import {buildPublicCatalogue} from '../projection/public_static.mjs';
+import {buildPublicCatalogue,retainArtwork} from '../projection/public_static.mjs';
 import {prebuiltCatalogue,selectionKey} from '../src/catalogue-prebuilt.ts';
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const sourceRevision='1'.repeat(64),prefix='/internal/prebuilt/'+sourceRevision+'/';
@@ -29,7 +29,7 @@ function fixture(t){
  return{root,source,content,output,manifest,entries,records,artPath,write};
 }
 test('public graph is hash-addressed, preserves old Worker results and shares one payload tree',async t=>{
- const f=fixture(t),report=buildPublicCatalogue({source:f.source,content:f.content,output:f.output});
+ const f=fixture(t),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const entry=JSON.parse(readFileSync(join(f.output,'catalogue/current.json'))),raw=readFileSync(join(f.output,entry.index.path));
  assert.equal(hash(raw),entry.index.sha256);assert.equal(raw.length,entry.index.bytes);assert.equal(entry.schemaVersion,1);
  const index=JSON.parse(raw);assert.equal(index.revision,entry.revision);assert.equal(index.sourceRevision,sourceRevision);
@@ -46,13 +46,13 @@ test('public graph is hash-addressed, preserves old Worker results and shares on
  const headers=readFileSync(join(f.output,'_headers'),'utf8');assert.match(headers,/max-age=31536000, immutable/);assert.match(headers,/max-age=60, must-revalidate/);
 });
 test('deterministic generation; changed content yields a new immutable publication revision',t=>{
- const f=fixture(t),one=buildPublicCatalogue({source:f.source,content:f.content,output:f.output});
- const two=buildPublicCatalogue({source:f.source,content:f.content,output:join(f.root,'second')});assert.equal(one.revision,two.revision);assert.equal(one.index.sha256,two.index.sha256);
+ const f=fixture(t),one=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const two=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:join(f.root,'second')});assert.equal(one.revision,two.revision);assert.equal(one.index.sha256,two.index.sha256);
  const cmPath=join(f.content,'internal/content/manifest.json'),cm=JSON.parse(readFileSync(cmPath));cm.revision='4'.repeat(64);writeFileSync(cmPath,JSON.stringify(cm));
  // An inconsistent bundle must fail, rather than publishing a mixed generation.
- assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,output:join(f.root,'mixed')}),/CONTENT_BUNDLE_MISMATCH/);
+ assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:join(f.root,'mixed')}),/CONTENT_BUNDLE_MISMATCH/);
  const bp=join(f.content,'internal/content/rpc-bundle.json'),bundle=JSON.parse(readFileSync(bp));bundle.revision=cm.revision;bundle.result.manifest=cm;writeFileSync(bp,JSON.stringify(bundle));
- const three=buildPublicCatalogue({source:f.source,content:f.content,output:join(f.root,'changed')});assert.notEqual(one.revision,three.revision);
+ const three=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:join(f.root,'changed')});assert.notEqual(one.revision,three.revision);
 });
 test('corrupt, missing, unlisted and unsafe input files fail before any usable entry is published',t=>{
  for(const kind of ['hash','missing','unlisted','path']){
@@ -63,24 +63,24 @@ test('corrupt, missing, unlisted and unsafe input files fail before any usable e
   if(kind==='unlisted')report.entries=report.entries.filter(e=>e.path!==f.records);
   if(kind==='path')report.entries[0].path='/internal/prebuilt/'+sourceRevision+'/../../bad.json';
   writeFileSync(reportPath,JSON.stringify(report));
-  assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,output:f.output}),/SOURCE_|ENOENT/);
+  assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output}),/SOURCE_|ENOENT/);
   assert.throws(()=>readFileSync(join(f.output,'catalogue/current.json')));
  }
 });
 test('file and byte budgets include content, artwork, compatibility manifest and controls',t=>{
  const f=fixture(t);
- assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,output:f.output,maxFiles:3}),/FREE_FILE_LIMIT/);
- const g=fixture(t);assert.throws(()=>buildPublicCatalogue({source:g.source,content:g.content,output:g.output,maxFileBytes:12}),/FREE_FILE_SIZE/);
+ assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output,maxFiles:3}),/FREE_FILE_LIMIT/);
+ const g=fixture(t);assert.throws(()=>buildPublicCatalogue({source:g.source,content:g.content,previous:g.content,output:g.output,maxFileBytes:12}),/FREE_FILE_SIZE/);
 });
 test('legacy compatibility refuses a shard from any other public generation',async t=>{
- const f=fixture(t);buildPublicCatalogue({source:f.source,content:f.content,output:f.output});
+ const f=fixture(t);buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const path=join(f.output,prefix+'manifest.json'),manifest=JSON.parse(readFileSync(path));
  manifest.fixed[selectionKey('comics','curatedReady',[])]=`/catalogue/${'0'.repeat(64)}/shared/${'f'.repeat(64)}.json`;writeFileSync(path,JSON.stringify(manifest));
  const assets={async fetch(req){return new Response(readFileSync(join(f.output,new URL(req.url).pathname)));}};
  await assert.rejects(prebuiltCatalogue(assets,sourceRevision,'comics','curatedReady',[]),/INVALID_PREBUILT_PATH/);
 });
 test('actual static router bypasses Worker for public files, preserves cache/ETag and protects internal routes',async t=>{
- const cleanup=[],f=fixture({after:cb=>cleanup.push(cb)}),report=buildPublicCatalogue({source:f.source,content:f.content,output:f.output});
+ const cleanup=[],f=fixture({after:cb=>cleanup.push(cb)}),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8').replace(/^\s*\/\/.*$/gm,''));
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,compatibilityDate:config.compatibility_date,
   script:'export default {fetch(){return new Response("WORKER_INVOKED",{status:418,headers:{"X-Worker-Invoked":"yes"}})}}',
@@ -98,4 +98,33 @@ test('actual static router bypasses Worker for public files, preserves cache/ETa
   const r=await mf.dispatchFetch('https://static.invalid'+path);assert.equal(r.status,418,path);assert.equal(r.headers.get('X-Worker-Invoked'),'yes');await r.text();
  }
  }catch(error){console.error(error);throw error;}finally{await mf.dispose();for(const cb of cleanup)cb();}
+});
+
+test('publication retains historical immutable artwork omitted from the current manifest',t=>{
+ const f=fixture(t),previous=join(f.root,'previous'),old=Buffer.from('historical original PNG');
+ const path='/assets/content/'+hash(old)+'.png';f.write(previous,path,old);
+ const report=buildPublicCatalogue({source:f.source,content:f.content,output:f.output,previous});
+ assert.deepEqual(readFileSync(join(f.output,path)),old);
+ assert.equal(report.artworkFiles,2);
+ assert.equal(report.retention.requiredFiles,1);
+});
+
+test('publication refuses an absent retention baseline instead of silently deleting old artwork',t=>{
+ const f=fixture(t);
+ assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,output:f.output}),/RETENTION_BASELINE_REQUIRED/);
+});
+
+test('corrupt historical artwork fails publication before the current pointer exists',t=>{
+ const f=fixture(t),previous=join(f.root,'previous');
+ f.write(previous,'/assets/content/'+hash('original')+'.png','corrupted');
+ assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,output:f.output,previous}),/checksum|HASH/);
+ assert.throws(()=>readFileSync(join(f.output,'catalogue/current.json')));
+});
+
+test('independent retention gate rejects a historical blob removed after generation',t=>{
+ const f=fixture(t),previous=join(f.root,'previous'),old=Buffer.from('old cached manifest image');
+ const path='/assets/content/'+hash(old)+'.jpg';f.write(previous,path,old);
+ buildPublicCatalogue({source:f.source,content:f.content,output:f.output,previous});
+ rmSync(join(f.output,path));
+ assert.throws(()=>retainArtwork({previous,output:f.output,verifyOnly:true}),/IMMUTABLE_ARTWORK_DROPPED/);
 });

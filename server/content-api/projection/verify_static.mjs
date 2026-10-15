@@ -10,12 +10,13 @@ import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {catalogueMethod} from '../src/catalogue-semantic.ts';
 import {prebuiltCatalogue} from '../src/catalogue-prebuilt.ts';
 import schema from '../src/source-schema.json' with {type:'json'};
+import {publicationSql} from './publication_sql.mjs';
 const [artifact,publication,evidence,liveFlag]=process.argv.slice(2);
 if(!artifact||!publication||!evidence)throw Error('Usage: node projection/verify_static.mjs static-source.sqlite publication report.json [--live]');
 const entry=join(publication,'catalogue/current.json');
 const report=JSON.parse(readFileSync(existsSync(entry)?entry:join(publication,'static-catalogue-report.json'),'utf8')),revision=report.sourceRevision??report.revision;
 const sqlite=new DatabaseSync(artifact,{readOnly:true});
-const adapter={prepare(sql){sql=sql.replace(/FROM lib_mal_tag_count\b/g,'FROM lib_mal_tag_count NOT INDEXED');return{bind(...args){return{async all(){return{success:true,results:sqlite.prepare(sql).all(...args)}}}}}}};
+const adapter={prepare(sql){sql=publicationSql(sql);return{bind(...args){return{async all(){return{success:true,results:sqlite.prepare(sql).all(...args)}}}}}}};
 let assetReads=0,assetBytes=0;
 const assets={async fetch(request){assetReads++;try{const raw=readFileSync(join(publication,new URL(request.url).pathname));assetBytes+=raw.byteLength;return new Response(raw,{headers:{'Content-Type':'application/json'}});}catch(e){if(e.code==='ENOENT')return new Response('',{status:404});throw e;}}};
 const cases=[

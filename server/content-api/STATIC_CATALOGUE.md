@@ -9,7 +9,8 @@ catalogue data contains no account records, tokens, progress or private library.
 Build from I01's qualified `static-release`, without rebuilding its SQL oracle:
 
 ```text
-node projection/public_static.mjs <I01-static-release> <content-publication> <fresh-output> <report-outside-output.json>
+node projection/public_static.mjs <I01-static-release> <content-publication> <fresh-output> <report-outside-output.json> <previous-publication> [other-previous-publications...]
+node projection/verify_public_static.mjs <fresh-output> <report-outside-output.json> <verification.json> <previous-publication> [other-previous-publications...]
 ```
 
 The content publication is produced by the existing `publish_content.py` owner.
@@ -19,6 +20,15 @@ hashes, references, document/art hashes and bundle correspondence. It refuses an
 existing output, links, traversal, cycles and unlisted references. Failed builds
 are unusable: `current.json` is written last. Reports, databases, credentials and
 the original private catalogue payload tree are not copied into served output.
+
+Previous-publication roots are mandatory. The existing Python content owner's
+`retain_immutable_artwork` policy is shared by the static builder and independent
+verifier: every historical `/assets/content/<sha256>.<suffix>` is validated and
+retained, even when the current manifest no longer references it. The report
+binds their cumulative inventory by hash; a missing/corrupt retained image or
+missing baseline fails rather than publishing a current pointer. Future
+publications must carry forward that cumulative set. Free file/size budgets
+include retained originals as well as current optimized delivery copies.
 
 `/catalogue/*` and `/assets/content/*` are asset-first. The existing Wrangler
 `run_worker_first` list is `/v1/*`, `/admin/*`, `/healthz`, `/internal/*`; do not add
@@ -63,11 +73,13 @@ hashes apply to content documents and owned artwork; provider URLs stay URLs.
 
 `sourceRevision` identifies the frozen I01/LIBRARY data. `revision` identifies
 the entire public generation. It is SHA-256 of compact JSON, in this exact field
-order: `{contract:"i05-static-v1",sourceManifestSha256,contentManifestSha256,date,year}`.
+order: `{contract:"i05-static-v1",sourceManifestSha256,contentManifestSha256,retainedArtworkSha256,date,year}`.
 The latter hashes refer to the exact source manifests, and date/year come from
 I01's report. New data, selection publication date or content generation changes
 the public identity. Index/shard hashes transitively bind all rewritten data.
-Within a publication, URLs and bytes must never change.
+Within a publication, URLs and bytes must never change. Retaining an expanded
+historical artwork set also creates a new public revision; no schema change or
+native code change is needed.
 
 The entry is trusted via HTTPS at the configured origin; hashes detect corruption
 and mixed generations, not compromise of that origin. Follow no cross-origin
