@@ -35,14 +35,15 @@ reviews:
     - "!**/package-lock.json"
     - "!**/*.min.js"
     - "!resources/reader2/vendor/**"
-    - "!tests/**/fixtures/**/*.json"
+    # Hand-authored test fixtures / expected outputs under tests/ stay REVIEWED;
+    # only clearly bulk/generated data above is excluded.
 
   path_instructions:
     - path: "qml/**"
       instructions: |
         Qt Quick/QML is the application UI.
         - Never load remote or executable QML from data; state comes from validated data, not code.
-        - Feria and Vinyl worlds must stay behind the single "Soon" gate (TopBar comingSoon pills, the Main.qml openWorld guard, lazy Feria runtime).
+        - Feria and Vinyl visibility/enablement must be controlled from a single place (TopBar pill state + Main.qml openWorld routing, and the feriaComingSoon gate once it exists); flag new entry points that bypass or duplicate that control; do not assume Feria is gated.
         - Android-only UI belongs in qml/+android/* (same file names as desktop), never inlined in shared QML files.
         - Keyboard/controller navigation must keep working; flag changes that regress focus or navigation.
 
