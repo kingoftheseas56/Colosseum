@@ -49,6 +49,7 @@ public:
             connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
                 const auto request = socket->readAll();
                 if (!request.contains("\r\n\r\n")) return;
+                if(request.startsWith("GET /catalogue/")){socket->write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");socket->disconnectFromHost();return;}
                 QByteArray body;
                 int responseStatus = 200;
                 const bool guest = request.startsWith("POST /v1/guest/session ");

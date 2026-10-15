@@ -20,6 +20,7 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 class QJsonObject;
+class StaticCatalogueResolver;
 
 class TankobanCatalog final : public QObject {
     Q_OBJECT
@@ -80,10 +81,16 @@ private:
     QByteArray remoteCacheBytes() const;
     void boundRemoteCache(int protectedMalId = 0);
     void saveRemoteCache() const;
+    void adoptPublication(const QString&);
+    void installRemoteSeries(int, const QJsonObject&, const QString& publication = {});
     QHash<int, RemoteSeries> m_remoteSeries;
     QString m_cachePath;
     QPointer<QNetworkAccessManager> m_nam;
     QPointer<QNetworkReply> m_reply;
+    QPointer<StaticCatalogueResolver> m_static;
+    QMetaObject::Connection m_staticConnection;
+    quint64 m_staticJob=0;
+    QString m_publication;
     QUrl m_endpoint;
     QByteArray m_lease;
     quint64 m_generation = 0;

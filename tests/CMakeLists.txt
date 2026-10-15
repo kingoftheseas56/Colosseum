@@ -715,6 +715,9 @@ add_executable(tst_tankoban_catalog
     auto/tankoban/tst_tankoban_catalog.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.h")
+target_sources(tst_tankoban_catalog PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h")
 target_include_directories(tst_tankoban_catalog PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Network Qt6::Test)
 set_target_properties(tst_tankoban_catalog PROPERTIES

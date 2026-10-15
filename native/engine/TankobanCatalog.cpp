@@ -1,5 +1,6 @@
 // TankobanCatalog.cpp — see header. [Agent 1 sub-exec (Sonnet), Tankoban catalogue independence]
 #include "TankobanCatalog.h"
+#include "StaticCatalogueResolver.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -93,6 +94,7 @@ TankobanCatalog::TankobanCatalog(const QString& dbPath, QObject* parent)
 TankobanCatalog::~TankobanCatalog()
 {
     cancelRequest();
+    disconnect(m_staticConnection);m_static=nullptr;
     if (m_db.isOpen()) m_db.close();
     m_db = QSqlDatabase();
     if (QSqlDatabase::contains(m_conn))
@@ -214,6 +216,7 @@ void TankobanCatalog::configureRemote(QNetworkAccessManager* nam, const QUrl& en
                                      const QString& cachePath)
 {
     cancelRequest();
+    disconnect(m_staticConnection);m_static=nullptr;
     m_lease.clear();
     m_nam = nam;
     const auto previousEndpoint = m_endpoint;
@@ -234,9 +237,15 @@ void TankobanCatalog::configureRemote(QNetworkAccessManager* nam, const QUrl& en
         m_remoteSeries.clear();
         changed = true;
     }
+    if(previousEndpoint!=m_endpoint||previousCachePath!=m_cachePath)m_publication.clear();
     // Load into a temporary map first. Reconfiguring an unchanged source with
     // a corrupt/partial file must not destroy already validated memory facts.
     changed = loadRemoteCache() || changed;
+    if(!m_endpoint.isEmpty()){
+        m_static=StaticCatalogueResolver::shared(nam,m_endpoint,cachePath.isEmpty()?QString():QFileInfo(cachePath).absolutePath(),this);
+        m_staticConnection=connect(m_static,&StaticCatalogueResolver::publicationChanged,this,&TankobanCatalog::adoptPublication);
+        if(m_static->hasLastGood())adoptPublication(m_static->publication());
+    }
     if (changed) ++m_revision;
     emit revisionChanged();
 }
@@ -244,6 +253,7 @@ void TankobanCatalog::configureRemote(QNetworkAccessManager* nam, const QUrl& en
 void TankobanCatalog::cancelRequest()
 {
     ++m_generation;
+    if(m_staticJob&&m_static){m_static->cancel(m_staticJob);m_staticJob=0;}
     if (m_reply) {
         m_reply->disconnect(this);
         m_reply->abort();
@@ -273,17 +283,45 @@ void TankobanCatalog::requestSeries(int malId, bool refresh)
     const auto age = cached == m_remoteSeries.constEnd() ? -1
         : cached->fetchedAt.secsTo(QDateTime::currentDateTimeUtc());
     if (local || (!refresh && cached != m_remoteSeries.constEnd()
-        && age >= 0 && age < kRemoteFreshSeconds)) {
+        && age >= 0 && age < kRemoteFreshSeconds && !(m_static&&m_static->needsRefresh()))) {
         emit seriesChanged(malId);
         return;
     }
-    if (!m_nam || m_endpoint.isEmpty()) {
+    if ((!m_nam&&!(m_static&&m_static->hasLastGood())) || m_endpoint.isEmpty()) {
         if (cached != m_remoteSeries.constEnd()) emit seriesChanged(malId);
         else emit seriesFailed(malId, QStringLiteral("REMOTE_DISABLED"));
         return;
     }
-    if (m_lease.isEmpty()) issueLease(malId, m_generation);
-    else fetchRemoteSeries(malId, m_generation, true);
+    const auto generation=m_generation;
+    if(refresh&&m_static)m_static->refresh();
+    if(m_static){
+        m_staticJob=m_static->resolve("tankoban","series",{malId},this,[this,malId,generation](StaticCatalogueResolver::Outcome out){
+            if(generation!=m_generation)return;m_staticJob=0;
+            if(out.status==StaticCatalogueResolver::Status::Failure){emit seriesFailed(malId,out.error);return;}
+            if(out.status==StaticCatalogueResolver::Status::Prepared){
+                if(m_static&&out.publication!=m_static->publication()){emit seriesFailed(malId,"STATIC_REVISION_CHANGED");return;}
+                adoptPublication(out.publication);if(generation!=m_generation)return;
+                installRemoteSeries(malId,out.result.toObject(),out.publication);return;
+            }
+            if(!m_nam){emit seriesFailed(malId,"REMOTE_DISABLED");return;}
+            if(m_lease.isEmpty())issueLease(malId,generation);else fetchRemoteSeries(malId,generation,true);
+        });
+    }else if(m_lease.isEmpty())issueLease(malId,generation);else fetchRemoteSeries(malId,generation,true);
+}
+
+void TankobanCatalog::adoptPublication(const QString& revision) {
+    if(revision.isEmpty()||m_publication==revision)return;
+    const auto ids=m_remoteSeries.keys();m_remoteSeries.clear();m_publication=revision;saveRemoteCache();++m_revision;emit revisionChanged();
+    const auto generation=m_generation;for(const auto id:ids){emit seriesChanged(id);if(generation!=m_generation)return;}
+}
+
+void TankobanCatalog::installRemoteSeries(int malId,const QJsonObject& root,const QString& publication) {
+    if(QJsonDocument(root).toJson(QJsonDocument::Compact).size()>kRemoteResponseBytes){emit seriesFailed(malId,"RESPONSE_TOO_LARGE");return;}
+    if(root.value("apiVersion")!=QJsonValue(kRemoteApiVersion)||root.value("ready")!=QJsonValue(true)
+       ||(root.contains("malId")&&root.value("malId")!=QJsonValue(malId))){emit seriesFailed(malId,"INCOMPATIBLE_RESPONSE");return;}
+    RemoteSeries series;QString reason;if(!validateRemoteSeries(root,&series,&reason)){emit seriesFailed(malId,reason);return;}
+    if(!publication.isEmpty())m_publication=publication;
+    series.fetchedAt=QDateTime::currentDateTimeUtc();m_remoteSeries.insert(malId,series);boundRemoteCache(malId);saveRemoteCache();++m_revision;emit revisionChanged();emit seriesChanged(malId);
 }
 
 void TankobanCatalog::issueLease(int malId, quint64 generation)
@@ -350,26 +388,7 @@ void TankobanCatalog::readReply(QNetworkReply* reply, int malId, quint64 generat
             fetchRemoteSeries(malId, generation, false);
             return;
         }
-        if (root.value(QStringLiteral("apiVersion")) != QJsonValue(kRemoteApiVersion)
-            || root.value(QStringLiteral("ready")) != QJsonValue(true)
-            || (root.contains(QStringLiteral("malId"))
-                && root.value(QStringLiteral("malId")) != QJsonValue(malId))) {
-            emit seriesFailed(malId, QStringLiteral("INCOMPATIBLE_RESPONSE")); return;
-        }
-        RemoteSeries series;
-        QString reason;
-        if (!validateRemoteSeries(root, &series, &reason)) {
-            emit seriesFailed(malId, reason); return;
-        }
-        // A revision is per fetched series. Keep usable neighbors from older
-        // revisions until their own revalidation (or bounded oldest eviction).
-        series.fetchedAt = QDateTime::currentDateTimeUtc();
-        m_remoteSeries.insert(malId, series);
-        boundRemoteCache(malId);
-        saveRemoteCache();
-        ++m_revision;
-        emit revisionChanged();
-        emit seriesChanged(malId);
+        installRemoteSeries(malId,root);
     });
 }
 
@@ -469,6 +488,7 @@ bool TankobanCatalog::loadRemoteCache()
     }
     // Publish only after the whole document validates; no partial startup state.
     m_remoteSeries = restored;
+    const auto publication=root.value("publication").toString();static const QRegularExpression publicationHash(QStringLiteral("^[a-f0-9]{64}$"));if(publicationHash.match(publication).hasMatch())m_publication=publication;
     boundRemoteCache();
     return !restored.isEmpty();
 }
@@ -489,6 +509,7 @@ QByteArray TankobanCatalog::remoteCacheBytes() const
     return QJsonDocument(QJsonObject{{QStringLiteral("schemaVersion"), kRemoteCacheSchema},
         {QStringLiteral("apiVersion"), kRemoteApiVersion},
         {QStringLiteral("endpoint"), m_endpoint.toString(QUrl::FullyEncoded)},
+        {QStringLiteral("publication"), m_publication},
         {QStringLiteral("entries"), entries}}).toJson(QJsonDocument::Compact);
 }
 

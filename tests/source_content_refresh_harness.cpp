@@ -84,6 +84,7 @@ int main(int argc, char** argv) {
                 if (received->size() < separator + 4 + length) return;
                 *handled = true;
                 const auto path = header.split(' ').value(1);
+                if(path.startsWith("/catalogue/")){socket->write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");socket->disconnectFromHost();return;}
                 const auto request = QJsonDocument::fromJson(received->mid(separator + 4, length)).object();
                 QJsonObject response;
                 if (path == "/v1/guest/session") {

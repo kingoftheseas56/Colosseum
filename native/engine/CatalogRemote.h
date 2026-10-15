@@ -10,6 +10,7 @@
 #include <functional>
 class QNetworkAccessManager;
 class QNetworkReply;
+class StaticCatalogueResolver;
 // Per-query semantic cache. A configured service is not a complete local database.
 class CatalogRemote final : public QObject {
     Q_OBJECT
@@ -20,7 +21,7 @@ public:
     void setResultValidator(std::function<bool(const QString&, const QJsonValue&)> validator);
     void configure(QNetworkAccessManager*, const QUrl&, const QString& cachePath);
     bool enabled() const;
-    bool available() const { return enabled() || !m_cache.isEmpty(); }
+    bool available() const;
     int revision() const { return m_revision; }
     QVariant read(const QString& method, const QVariantList& args, const QVariant& empty, bool force = false);
     // Read-only snapshot for the exact method+args key used by read().
@@ -36,10 +37,14 @@ signals:
     void queryChanged(QString key);
 private:
     struct Entry { QString method; QJsonValue result; QDateTime fetched; QString revision; QString etag; };
-    struct Query { QString method; QVariantList args; QVariant empty; bool renewed = false; bool dispatched = false; QString conditionalEtag; };
+    struct Query { QString method; QVariantList args; QVariant empty; bool renewed = false; bool dispatched = false; QString conditionalEtag;
+        quint64 staticJob = 0, attempt = 0; bool staticChecked = false; int restarts = 0; QString expectedSource; };
     struct Failure { QDateTime when; QString reason; };
     QString key(const QString&, const QVariantList&) const;
     void dispatch(const QString&);
+    void tryStatic(const QString&);
+    void adoptPublication(const QString&);
+    void complete(const QString&, const QJsonValue&, const QString&, const QString& etag = {});
     bool queue(const QString&, const QString&, const QVariantList&, const QVariant&, bool bypassCooldown);
     void lease();
     void observe(QNetworkReply*, const QString&, bool session);
@@ -48,7 +53,9 @@ private:
     void save();
     void bound();
     std::function<bool(const QString&, const QJsonValue&)> m_validator;
-    QString m_dataset, m_path, m_sourceRevision;
+    QString m_dataset, m_path, m_sourceRevision, m_publication;
+    QPointer<StaticCatalogueResolver> m_static;
+    QMetaObject::Connection m_staticConnection;
     quint64 m_sourceGeneration = 0;
     QUrl m_endpoint;
     QPointer<QNetworkAccessManager> m_nam;

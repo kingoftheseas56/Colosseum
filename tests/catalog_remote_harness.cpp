@@ -40,6 +40,7 @@ int main(int argc,char** argv) {
     if(bytes->size()<split+4+length) return;
     socket->disconnect(SIGNAL(readyRead()));
     const auto path=header.split(' ').value(1); const auto request=QJsonDocument::fromJson(bytes->mid(split+4,length)).object();
+    if(path.startsWith("/catalogue/")){socket->write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");socket->disconnectFromHost();return;}
     QJsonObject response; int status=200;
     if(path=="/v1/guest/session") {
      ++sessions; require(request.value("appId")==QJsonValue("colosseum"),"guest app id");

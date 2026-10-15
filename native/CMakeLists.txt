@@ -2877,3 +2877,23 @@ add_executable(catalog_remote_harness
 target_include_directories(catalog_remote_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(catalog_remote_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 add_test(NAME colosseum.catalog_remote_harness COMMAND catalog_remote_harness)
+
+add_executable(static_catalogue_resolver_harness
+    ../tests/static_catalogue_resolver_harness.cpp
+    ../tests/static_catalogue_probe.cpp
+    engine/CatalogRemote.cpp engine/CatalogRemote.h
+    engine/TankobanCatalog.cpp engine/TankobanCatalog.h)
+target_include_directories(static_catalogue_resolver_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(static_catalogue_resolver_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
+add_test(NAME colosseum.static_catalogue_resolver_harness COMMAND static_catalogue_resolver_harness)
+
+# Every existing owner/test that compiles either transport needs the same resolver.
+# Keep this in one place so focused harnesses cannot silently omit its implementation.
+get_property(_catalogue_owner_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_catalogue_target IN LISTS _catalogue_owner_targets)
+    get_target_property(_catalogue_sources ${_catalogue_target} SOURCES)
+    if("${_catalogue_sources}" MATCHES "engine/(CatalogRemote|TankobanCatalog)\\.cpp")
+        target_sources(${_catalogue_target} PRIVATE
+            engine/StaticCatalogueResolver.cpp engine/StaticCatalogueResolver.h)
+    endif()
+endforeach()

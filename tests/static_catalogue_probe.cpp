@@ -1,0 +1,203 @@
+// Reusable local publication probe for Phase 2 measurements and later parity.
+// No live endpoints, credentials, application profile or visible GUI.
+#include "engine/StaticCatalogueResolver.h"
+#include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QSharedPointer>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QTemporaryDir>
+#include <iostream>
+#include <functional>
+
+int staticCatalogueProbe(const QString &publication, const QString &casesPath,
+                         const QString &evidence) {
+    const auto require = [](bool ok, const QString &why) {
+        if (!ok) {
+            std::cerr << "FAIL " << why.toStdString() << '\n';
+            std::exit(1);
+        }
+    };
+    const auto until = [&](const std::function<bool()> &done) {
+        QElapsedTimer t;
+        t.start();
+        while (!done() && t.elapsed() < 60000)
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        require(done(), "probe async timeout");
+    };
+    const auto read = [&](const QString &path) {
+        QFile f(path);
+        require(f.open(QIODevice::ReadOnly), "probe input: " + path);
+        return f.readAll();
+    };
+    QFile input(casesPath);
+    require(input.open(QIODevice::ReadOnly), "cases input");
+    const auto cases = QJsonDocument::fromJson(input.readAll()).array();
+    require(!cases.isEmpty(), "nonempty cases");
+    QTemporaryDir profile;
+    require(profile.isValid(), "isolated cache");
+    QTcpServer server;
+    require(server.listen(QHostAddress::LocalHost), "local publication server");
+    const QUrl origin(QStringLiteral("http://127.0.0.1:%1").arg(server.serverPort()));
+    int requests = 0, workerRequests = 0;
+    qint64 transferred = 0;
+    bool offline = false;
+    QObject::connect(&server, &QTcpServer::newConnection, &server, [&] {
+        while (server.hasPendingConnections()) {
+            auto *s = server.nextPendingConnection();
+            auto buffer = QSharedPointer<QByteArray>::create();
+            QObject::connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+            QObject::connect(s, &QTcpSocket::readyRead, s, [&, s, buffer] {
+                buffer->append(s->readAll());
+                if (!buffer->contains("\r\n\r\n"))
+                    return;
+                s->disconnect(SIGNAL(readyRead()));
+                ++requests;
+                const auto path = QString::fromUtf8(buffer->split(' ').value(1));
+                if (path.startsWith("/v1/"))
+                    ++workerRequests;
+                if (offline) {
+                    s->disconnectFromHost();
+                    return;
+                }
+                QFile file(QDir(publication).filePath(path.mid(1)));
+                QByteArray body;
+                int status = 200;
+                if (path.contains("..") ||
+                    !(path.startsWith("/catalogue/") || path.startsWith("/assets/content/")) ||
+                    !file.open(QIODevice::ReadOnly) || file.size() > 25 * 1024 * 1024)
+                    status = 404;
+                else
+                    body = file.readAll();
+                transferred += body.size();
+                s->write("HTTP/1.1 " + QByteArray::number(status) +
+                         " Fixture\r\nContent-Type: application/json\r\nContent-Length: " +
+                         QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+                s->disconnectFromHost();
+            });
+        }
+    });
+    QJsonArray rows;
+    int caseNumber = 0;
+    for (const auto &v : cases) {
+        const auto spec = v.toObject();
+        const auto dataset = spec.value("dataset").toString(),
+                   method = spec.value("method").toString();
+        const auto args = spec.value("args").toArray().toVariantList();
+        const auto expected = spec.value("expected");
+        const bool notPrepared = spec.value("notPrepared").toBool();
+        QNetworkAccessManager nam;
+        const auto cache = profile.filePath(QString::number(caseNumber++));
+        auto *r = StaticCatalogueResolver::shared(&nam, origin, cache, &nam);
+        for (const auto &mode :
+             {QStringLiteral("cold"), QStringLiteral("warm"), QStringLiteral("offline-restart")}) {
+            QObject offlineOwner;
+            auto *resolver =
+                mode == "offline-restart"
+                    ? StaticCatalogueResolver::shared(nullptr, origin, cache, &offlineOwner)
+                    : r;
+            const int before = requests;
+            qint64 beforeBytes = transferred;
+            bool done = false;
+            StaticCatalogueResolver::Outcome out;
+            QElapsedTimer clock;
+            clock.start();
+            resolver->resolve(dataset, method, args, &server, [&](auto result) {
+                out = result;
+                done = true;
+            });
+            until([&] { return done; });
+            require(out.status == (notPrepared ? StaticCatalogueResolver::Status::NotPrepared
+                                               : StaticCatalogueResolver::Status::Prepared),
+                    dataset + "/" + method + " " + mode + " " + out.error);
+            if (!notPrepared)
+                require(out.result == expected,
+                        dataset + "/" + method + " result mismatch " + mode);
+            if (mode != "cold")
+                require(requests == before, "warm/offline performs no HTTP");
+            rows.append(QJsonObject{{"dataset", dataset},
+                                    {"method", method},
+                                    {"mode", mode},
+                                    {"requestFiles", requests - before},
+                                    {"networkBytes", transferred - beforeBytes},
+                                    {"wallMs", clock.nsecsElapsed() / 1e6},
+                                    {"metrics", QJsonObject::fromVariantMap(out.metrics)},
+                                    {"notPrepared", notPrepared},
+                                    {"pass", true}});
+        }
+    }
+    // This is the largest *artwork* file, which the resolver deliberately doesn't
+    // parse. Measure native QFile/hash and loopback HTTP separately from JSON loads.
+    const auto entry =
+        QJsonDocument::fromJson(read(QDir(publication).filePath("catalogue/current.json")))
+            .object();
+    const auto index =
+        QJsonDocument::fromJson(
+            read(QDir(publication)
+                     .filePath(entry.value("index").toObject().value("path").toString().mid(1))))
+            .object();
+    QFileInfo largest;
+    const auto artwork =
+        QDir(QDir(publication).filePath("assets/content")).entryInfoList(QDir::Files);
+    for (const auto &f : artwork)
+        if (f.size() > largest.size())
+            largest = f;
+    QJsonObject big;
+    if (largest.exists()) {
+        QElapsedTimer clock;
+        clock.start();
+        const auto bytes = read(largest.absoluteFilePath());
+        const double diskMs = clock.nsecsElapsed() / 1e6;
+        clock.restart();
+        const auto hash = QString::fromLatin1(
+            QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
+        const double hashMs = clock.nsecsElapsed() / 1e6;
+        require(hash == largest.completeBaseName(), "largest artwork fingerprint");
+        QNetworkAccessManager nam;
+        QNetworkRequest request(origin.resolved(QUrl("/assets/content/" + largest.fileName())));
+        request.setTransferTimeout(15000);
+        clock.restart();
+        auto *reply = nam.get(request);
+        QByteArray body;
+        bool done = false;
+        QObject::connect(reply, &QNetworkReply::readyRead, reply,
+                         [&] { body += reply->readAll(); });
+        QObject::connect(reply, &QNetworkReply::finished, reply, [&] {
+            body += reply->readAll();
+            done = true;
+        });
+        until([&] { return done; });
+        const double networkMs = clock.nsecsElapsed() / 1e6;
+        require(reply->error() == QNetworkReply::NoError && body == bytes,
+                "largest loopback transfer bytes");
+        reply->deleteLater();
+        big = {{"bytes", bytes.size()},       {"path", "/assets/content/" + largest.fileName()},
+               {"fileReadMs", diskMs},        {"sha256Ms", hashMs},
+               {"loopbackHttpMs", networkMs}, {"internetLatencyQualified", false}};
+    }
+    QFile output(evidence);
+    require(output.open(QIODevice::WriteOnly), "probe report output");
+    output.write(QJsonDocument(QJsonObject{{"cases", cases.size()},
+                                           {"checks", rows.size()},
+                                           {"measurements", rows},
+                                           {"workerRequests", workerRequests},
+                                           {"largestArtwork", big},
+                                           {"sourceRevision", index.value("sourceRevision")},
+                                           {"publication", entry.value("revision")},
+                                           {"remoteRequests", 0},
+                                           {"deployed", false}})
+                     .toJson());
+    std::cout << "PASS publication probe " << cases.size() << " cases / " << rows.size()
+              << " cold-warm-offline checks\n";
+    return 0;
+}

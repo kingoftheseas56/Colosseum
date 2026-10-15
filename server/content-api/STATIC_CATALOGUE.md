@@ -237,6 +237,12 @@ descending and `tt` lexical, or MAL numeric ID. Exact omits the exactness rank.
 Limits apply **per family** (IMDb default 100; MAL default 20, clamp 1..100).
 Exact methods return all matches, ignoring search limits.
 
+**Phase 2 review decision:** native Comics `search` (contains) remains on the
+existing Worker, with measured fallback counts, until actual usage justifies
+additional client machinery. It must not scan/download the full name index.
+Exact Comics title lookups can use the public index. The following contains
+semantics remain the I01/Worker oracle contract for any future implementation.
+
 Comics scans the complete name index. Split query on non-Unicode-letter/number;
 each word must occur as a case-insensitive ASCII-folded substring. Punctuation
 only yields empty search. Exact compares folded full names. Rank search by full
@@ -285,6 +291,52 @@ only genuinely unprepared queries use fallback. Existing Worker routes keep
 authentication, readiness, result envelopes and SQL unchanged. Their private
 manifest gains `publicRevision` and points at the same public shard tree; the
 legacy parser permits only that exact revision's hashed shared paths.
+
+## Native resolver (Phase 2)
+
+`StaticCatalogueResolver` shares public file I/O within the existing network
+manager, catalogue origin and cache directory. `CatalogRemote` remains the
+owner of exact-query state, results, cooldown and retry; `TankobanCatalog` keeps
+its existing series validation, local SQLite precedence and result cache.
+Prepared calls do not acquire a guest lease. Unprepared calls retain the old
+transport. No QML API or query-key calculation changes.
+The existing query-state `enabled` field includes an available last-good static
+transport, so F2 consumers wait for disk assembly without a network manager.
+The `enabled()` method still describes the legacy network transport itself.
+
+Entry revalidation uses ETag and a 60-second freshness interval. A new public
+revision invalidates owner result caches even when the dataset source revision
+is unchanged. Corrupt entry/index/shard data fails explicitly; a network outage
+may use the validated last-good publication. Failed prepared calls do not
+silently become empty results or SQL fallback. Explicit retry revalidates the
+entry and preserves the existing exact-query notification contract.
+
+Hash verification precedes parsing and immutable disk persistence. Disk writes
+use `QSaveFile` with direct-write fallback disabled. Each origin's cache lives
+under `static-catalogue-v1/<SHA256(origin)>/`; shard filenames are their hashes.
+`last-good.json` contains the origin, public entry and ETag. Restoring it verifies
+the entry and cached index again; cached shards are rehashed when loaded.
+Damaged shards are discarded and fetched again when online, or fail when offline.
+No credentials, account state or reading progress enter this cache.
+
+Limits: 128 pending resolver jobs, four simultaneous transfers, 15 seconds per
+transfer, 45 seconds per query, 512 distinct shard files per query, 25 MiB per
+file, 4 MiB per assembled result, 64 MiB of retained serialized shards per query,
+128 MiB across active queries, 32 MiB of serialized-cost parsed-cache entries,
+and 256 MiB of immutable disk blobs per origin plus small last-good metadata.
+These byte budgets describe serialized costs, not a guarantee on Qt heap size.
+Cancellation or consumer destruction suppresses delivery and aborts a shard
+transfer when its last owner leaves. Files shared by other queries stay active.
+Publication churn is bounded to two query restarts.
+
+The `measured(dataset, method, metrics)` signal reports logical file events,
+network/disk bytes and file counts, shared/memory hits, elapsed time, and the
+largest-file and slowest-read timings. The logging category
+`colosseum.catalogue.static` emits the aggregate summary without arguments or
+credentials. Its `outcome: worker` counts deliberate fallback, including Comics
+contains search; representative fixtures do not establish real user frequency.
+Warm cached owner reads need not invoke the resolver and therefore emit no new
+file measurement. Local publication probe timings are not live CDN latency.
 
 ## Review and deployment boundary
 
