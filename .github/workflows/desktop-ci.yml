@@ -521,7 +521,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26"
+          go-version: "1.26.9"
       # Reachability-aware gate: govulncheck fails only when a vulnerability is
       # actually CALLED by the code (unlike a plain version scanner). The known
       # unreachable advisory (x/crypto/openpgp) does NOT fail the gate; a newly
