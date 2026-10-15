@@ -1,0 +1,3 @@
+# Historical legacy migration fixtures are pinned by exact original bytes (CRLF);
+# never let core.autocrlf or eol normalization rewrite them.
+internal/database/testdata/legacy/*.sql -text
