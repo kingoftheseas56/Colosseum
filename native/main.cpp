@@ -1442,6 +1442,36 @@ int main(int argc, char *argv[]) {
 #ifdef COLOSSEUM_CONTENT_API_URL
     contentEndpoint = QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL));
 #endif
+    // Opt-in loopback qualification of the actual app, never the daily profile.
+    // No arbitrary remote origin, visible window, default IPC or account override.
+    const QString testCatalogueOrigin = qEnvironmentVariable("COLOSSEUM_TEST_CATALOGUE_ORIGIN");
+    if (!testCatalogueOrigin.isEmpty()) {
+        const QUrl testOrigin(testCatalogueOrigin);
+        const bool isolatedFixture = isolatedAppData
+            && qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").startsWith(QLatin1String("i05-static-"))
+            && qEnvironmentVariable("COLOSSEUM_LANISTA_PIPE").startsWith(QLatin1String("i05-static-"))
+            && qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_DRIVE") == 1
+            && qEnvironmentVariable("QT_QPA_PLATFORM") == QLatin1String("offscreen");
+        if (!isolatedFixture || !testOrigin.isValid() || testOrigin.scheme() != QLatin1String("http")
+            || testOrigin.host() != QLatin1String("127.0.0.1") || testOrigin.port() <= 0
+            || !testOrigin.userInfo().isEmpty() || !testOrigin.path().isEmpty()
+            || !testOrigin.query().isEmpty() || !testOrigin.fragment().isEmpty())
+            qFatal("Invalid isolated static catalogue qualification origin");
+        contentEndpoint = testOrigin;
+        if (qEnvironmentVariableIntValue("COLOSSEUM_TEST_CATALOGUE_OFFLINE") == 1) {
+            // The fixture controller stops its own listener before this run.
+            const QNetworkProxy offlineProxy(QNetworkProxy::HttpProxy,
+                testOrigin.host(), quint16(testOrigin.port()));
+            QNetworkProxy::setApplicationProxy(offlineProxy);
+            updateNam->setProxy(offlineProxy);
+            qInfo("I05_OFFLINE process HTTP proxy points at the stopped fixture listener");
+        }
+        QObject::connect(updateNam, &QNetworkAccessManager::finished, &backendServices,
+            [](QNetworkReply* reply) {
+                qInfo().noquote() << "I05_NETWORK" << reply->url().host() << reply->url().path()
+                    << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            });
+    }
     const bool contentApiConfigured = contentEndpoint.isValid() && !contentEndpoint.isEmpty()
         && contentEndpoint.userInfo().isEmpty() && contentEndpoint.query().isEmpty()
         && contentEndpoint.fragment().isEmpty() && (contentEndpoint.scheme() == QLatin1String("https")
@@ -1464,7 +1494,7 @@ int main(int argc, char *argv[]) {
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
     auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &backendServices);
 #ifdef COLOSSEUM_CONTENT_API_URL
-    tankobanCatalog->configureRemote(updateNam, QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL)),
+    tankobanCatalog->configureRemote(updateNam, contentEndpoint,
                                     catalogVaultDir + QStringLiteral("/tankoban_remote_v1.json"));
 #endif
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
