@@ -274,6 +274,16 @@ QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
     return out;
 }
 
+QVariantMap ImdbCatalog::searchState(const QString& text, int limit) const
+{
+    if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
+        {"status", "success"}, {"pending", false}, {"waiting", false},
+        {"cached", false}, {"error", QString()}, {"retryable", false}};
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit}, QVariantList{});
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
 QVariantList ImdbCatalog::search(const QString& text, int limit) const
 {
     if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit}, QVariantList{}).toList();

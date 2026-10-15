@@ -521,6 +521,16 @@ QVariantMap MalCatalog::mangaById(int malId) const
     return m;
 }
 
+QVariantMap MalCatalog::searchState(const QString& text, int limit, const QString& medium) const
+{
+    if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
+        {"status", "success"}, {"pending", false}, {"waiting", false},
+        {"cached", false}, {"error", QString()}, {"retryable", false}};
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit, medium}, QVariantList{});
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
 QVariantList MalCatalog::search(const QString& text, int limit, const QString& medium) const
 {
     if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit, medium}, QVariantList{}).toList();

@@ -136,6 +136,16 @@ QVariantMap ComicsCatalog::series(int gcdId) const {
     return out;
 }
 
+QVariantMap ComicsCatalog::searchState(const QString& text, int limit) const
+{
+    if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
+        {"status", "success"}, {"pending", false}, {"waiting", false},
+        {"cached", false}, {"error", QString()}, {"retryable", false}};
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{text, limit}, QVariantList{});
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
 QVariantList ComicsCatalog::search(const QString& text, int limit) const {
     if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{text, limit}, QVariantList{}).toList();
     QVariantList out;

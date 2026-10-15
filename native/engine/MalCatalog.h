@@ -93,6 +93,8 @@ public:
     // prefix-ranked and remain fully offline; an empty/unknown medium returns no rows.
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 20,
                                     const QString& medium = {}) const;
+    Q_INVOKABLE QVariantMap searchState(const QString& text, int limit = 20,
+                                       const QString& medium = {}) const;
 
     // Tankoban Discover (spec 2026-08-01): paged, allowlisted, fully-bound MANGA
     // discovery over the same baked artifact. `axis` is "genre" | "demographic";

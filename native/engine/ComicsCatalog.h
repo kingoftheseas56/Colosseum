@@ -44,6 +44,7 @@ public:
     // ranked: exact-title class first, then prefix, then contains; downloads DESC within class
     // rows: {gcdId,title,year,yearEnded,publisher,cover,downloads}
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 30) const;
+    Q_INVOKABLE QVariantMap searchState(const QString& text, int limit = 30) const;
     // {postId,title,link,date,kind,method,fanMade,yearStart,mirrors:[{url,host,label}]} date DESC
     Q_INVOKABLE QVariantList downloadsFor(int gcdId) const;
     // every series whose title equals text (case-insensitive), downloads DESC —

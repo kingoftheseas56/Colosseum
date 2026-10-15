@@ -811,5 +811,28 @@ int main(int argc,char** argv) {
           && !localImdb.remotePending() && calls==beforeLocalImdb,
           "ready SQLite IMDb answers titleCatalog synchronously with local state");
  }
+ {
+  ImdbCatalog searchImdb(""); MalCatalog searchMal(""); ComicsCatalog searchComics("");
+  searchImdb.configureRemote(&nam,endpoint,temp.filePath("search-imdb.json"));
+  searchMal.configureRemote(&nam,endpoint,temp.filePath("search-mal.json"));
+  searchComics.configureRemote(&nam,endpoint,temp.filePath("search-comics.json"));
+  const int beforeSearch=calls;
+  const auto imdbKey=searchImdb.searchState("The Matrix",20).value("key");
+  require(searchImdb.searchState("matrix",20).value("key")==imdbKey
+          && searchImdb.searchState("matrix",20).value("status")=="missing"
+          && searchMal.searchState("ONE PIECE",24,"manga").value("status")=="missing"
+          && searchComics.searchState("Batman",30).value("status")=="missing" && calls==beforeSearch,
+          "native search inspection is nonfetching and uses the exact normalized owner key");
+  searchImdb.search("The Matrix",20); searchMal.search("ONE PIECE",24,"manga"); searchComics.search("Batman",30);
+  require(searchImdb.searchState("matrix",20).value("status")=="pending"
+          && searchMal.searchState("one piece",24,"manga").value("status")=="pending"
+          && searchComics.searchState("Batman",30).value("status")=="pending",
+          "all native search projections expose pending for their exact read arguments");
+  until([&]{return !searchImdb.remotePending()&&!searchMal.remotePending()&&!searchComics.remotePending();});
+  require(searchImdb.searchState("matrix",20).value("status")=="success"
+          && searchMal.searchState("one piece",24,"manga").value("status")=="success"
+          && searchComics.searchState("Batman",30).value("status")=="success",
+          "native search state settles via the existing transport notification contract");
+ }
  std::cout<<"PASS async semantic RPC: existing fixture plus F2a, MAL, Comics, and Theatre page projection, notifications, failure, retry, offline and SQLite paths\n";
 }

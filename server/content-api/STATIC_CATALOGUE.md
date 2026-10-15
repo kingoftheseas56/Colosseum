@@ -349,8 +349,15 @@ Phase 1 verifies the publisher, full local asset integrity, routing/headers/304,
 and legacy TypeScript/Worker parity. It does not establish native, live CDN,
 hosted Worker CPU or app qualification. Phase 2 adds the C++ resolver behind the
 existing CatalogRemote owner; Phase 3/4 prove native parity and isolated app
-journeys. No QML change, deploy, D1 write or Cloudflare setting change is part
-of this phase. Claude reviews each gate; Hemanth approves deployment afterward.
+journeys. Phase 4 found that the existing World Search still used live provider
+adapters. Its SearchSurface/WorldSearch wiring now uses the existing native
+MAL/IMDb search and genre owners through exact-query delivery, without a visual
+change. Search therefore uses the catalogue's indexed prefix semantics; it does
+not promise identical results to AniList/Cinemeta search. Comics contains search
+remains on the Worker and may report a partial error alongside healthy manga
+results. Builds without an available native catalogue keep their provider path.
+No deploy, D1 write or Cloudflare setting change accompanies qualification.
+Claude reviews the final deploy plan; Hemanth approves deployment afterward.
 
 References checked 2026-10-15: [asset routing](https://developers.cloudflare.com/workers/static-assets/routing/worker-script/),
 [headers/ETags](https://developers.cloudflare.com/workers/static-assets/headers/),

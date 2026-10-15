@@ -23,6 +23,10 @@ Item {
     property string lastDispatchedQuery: ""
     property var historyStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
     property var searchDispatcher: WorldSearch.searchFor
+    readonly property var nativeCatalogues: ({
+        malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null,
+        imdbCatalog: (typeof ImdbCatalog !== "undefined") ? ImdbCatalog : null
+    })
     property string searchError: ""
     property string browseError: ""
     readonly property int resultCount: results.length
@@ -136,7 +140,7 @@ Item {
             surf.searchError = error || ""
             surf.searching = false
             surf.searched = true
-        }, (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null)
+        }, (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null, surf.nativeCatalogues)
     }
     function historyScope() { return surf.searchMode.toLowerCase() }
     function loadRecent() { surf.recent = surf.historyStore ? surf.historyStore.list(surf.historyScope()) : [] }
@@ -171,7 +175,7 @@ Item {
             surf.browseItems = items || []
             surf.browseError = error || ""
             surf.browseLoading = false
-        })
+        }, surf.nativeCatalogues)
     }
     function closeGenre() { surf.cancelBrowse(); surf.browseGenre = ""; surf.browseItems = []; surf.browseError = "" }
     function doSurprise() {
@@ -184,7 +188,7 @@ Item {
             surf.surprising = false
             surf.browseError = error || ""
             if (item && item.data) surf.itemRequested(item.data)
-        })
+        }, surf.nativeCatalogues)
     }
 
     // results (minus the Top Match) split into ordered sections by their group — Movies / Series for
