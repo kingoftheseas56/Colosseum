@@ -69,11 +69,29 @@ QList<TrackerProviderDescriptor> trackerBuiltInProviderCatalog()
         | TrackerProviderCapability::WriteCompletion
         | TrackerProviderCapability::Scrobble;
 #endif
+    // MAL availability follows the app registration only, never the baked
+    // MalCatalog metadata database.
+    TrackerProviderCapabilities mal;
+#if defined(COLOSSEUM_MAL_CLIENT_ID) && defined(COLOSSEUM_MAL_REDIRECT_URI)
+    mal = TrackerProviderCapability::ReadProgress
+        | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion;
+#endif
+    TrackerProviderCapabilities trakt;
+#if defined(COLOSSEUM_TRAKT_CLIENT_ID) && defined(COLOSSEUM_TRAKT_TOKEN_BROKER_URL)
+    trakt = TrackerProviderCapability::ReadHistory
+        | TrackerProviderCapability::ReadProgress
+        | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion
+        | TrackerProviderCapability::Scrobble;
+#endif
     return {
         {TrackerProviderId::Simkl, trackerProviderDisplayName(TrackerProviderId::Simkl),
          simkl, simkl != TrackerProviderCapabilities{}},
-        {TrackerProviderId::Mal, trackerProviderDisplayName(TrackerProviderId::Mal), {}, false},
-        {TrackerProviderId::Trakt, trackerProviderDisplayName(TrackerProviderId::Trakt), {}, false},
+        {TrackerProviderId::Mal, trackerProviderDisplayName(TrackerProviderId::Mal),
+         mal, mal != TrackerProviderCapabilities{}},
+        {TrackerProviderId::Trakt, trackerProviderDisplayName(TrackerProviderId::Trakt),
+         trakt, trakt != TrackerProviderCapabilities{}},
         {TrackerProviderId::AniList, trackerProviderDisplayName(TrackerProviderId::AniList), {}, false}
     };
 }

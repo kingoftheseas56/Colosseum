@@ -2,9 +2,21 @@
 
 ## Authority
 - Follow the user's current task first.
+- Use canonical Brotherhood Event Memory proactively when relevant prior decisions, work, verification, integrations or blockers could affect the task; follow the installed `brotherhood-event-memory` skill with targeted queries (limit 3-5), compact summaries and exact-event expansion only as needed. Reuse relevant results already in context. Do not automatically preload `MEMORY.md` or dump all history.
 - Use live source, tests, build files, and runtime evidence for implementation facts.
-- Treat plans, handoffs, recaps, memory, and Git history as optional context; read them only when the task requires them.
+- Treat plans, handoffs, recaps, and Git history as optional context; read them only when the task requires them.
 - Do not preload documentation, skills, or historical context "just in case."
+
+## Product invariants
+- Colosseum is one product with five worlds: Tankoban, Biblio, Theatre, Universes, and Vault.
+- Universes is the fourth world. Vault is the fifth world even though it is not part of the normal world picker.
+- Tributes are separate stylized franchise experiences, not a sixth world and not a replacement for the structured Universe surface.
+- Core local use must not depend on third-party accounts or services. External providers, trackers, and accounts are optional enhancements.
+- Colosseum owns canonical state for identity, library, history, progress, and preferences; external services may enrich or synchronize it but do not silently become authority.
+- Prefer local-first behavior and graceful cached/offline operation where practical.
+- Keep providers replaceable and medium-aware rather than allowing one provider to define the product architecture.
+- Before creating a new store, cache, resolver, history system, identity system, player, database, or extension mechanism, check whether Colosseum already owns that truth and extend the existing owner when practical.
+- Do not lower the intended product end state merely because a shortcut is easier to implement.
 
 ## Task discipline
 - Treat the current conversation as one bounded task.
@@ -41,10 +53,13 @@
 
 ## Working-tree safety
 - Preserve unrelated modified, staged, and untracked work.
+- After completing and verifying a task, commit and push only your own work by default, unless Hemanth asks otherwise. Leave unrelated changes out of the commit.
 - Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task.
 - Do not commit credentials, tokens, machine-specific paths, local databases, caches, logs, screenshots, or build output unless they are intentional repository artifacts.
 
 ## Verification
+- Hemanth testing is an optional acceptance ritual, never a prerequisite for completing otherwise verified work. Offer a short, relevant checklist when useful; do not require Hemanth to pilot the app.
+- For recent implementations, record outstanding human/live-provider checks and their actual results. Skipped or unrecorded checks remain unverified; automated, agent-runtime, and Hemanth-tested evidence stay distinct.
 - Start with the smallest meaningful check for the changed surface.
 - Broaden testing only when affected dependencies, failures, risk, or the task itself justify it.
 - Do not run full builds, full suites, runtime harnesses, or broad searches by default.

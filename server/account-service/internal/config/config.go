@@ -121,7 +121,10 @@ func Load() (Config, error) {
 		avatarRegion = "auto"
 	}
 
-	if environment == "production" {
+	// Preserve deployments using built-in avatars without upload storage.
+	// Only an explicit disabled value waives the production storage requirement.
+	avatarStorage := strings.ToLower(strings.TrimSpace(os.Getenv("AVATAR_STORAGE")))
+	if environment == "production" && avatarStorage != "disabled" {
 		if avatarBucketName == "" {
 			return Config{}, errors.New("BUCKET_NAME is required in production")
 		}

@@ -29,7 +29,8 @@ TrackerMediaDomain mediaDomainFor(const QString &kind, const QString &id)
     if (kind == QLatin1String("anime") || kind.startsWith(QLatin1String("anime_")))
         return TrackerMediaDomain::Anime;
     if (kind == QLatin1String("manga") || kind.startsWith(QLatin1String("manga_"))
-        || kind == QLatin1String("manga_chapter")) {
+        || kind == QLatin1String("manga_chapter")
+        || kind == QLatin1String("tankoban")) {
         return TrackerMediaDomain::Manga;
     }
     if (kind == QLatin1String("movie") || kind == QLatin1String("film"))
@@ -39,6 +40,8 @@ TrackerMediaDomain mediaDomainFor(const QString &kind, const QString &id)
         return TrackerMediaDomain::Television;
     }
     if (kind == QLatin1String("video")) {
+        if (id.startsWith(QLatin1String("mal:")))
+            return TrackerMediaDomain::Anime;
         return id.count(QLatin1Char(':')) >= 2
             ? TrackerMediaDomain::Television
             : TrackerMediaDomain::Movie;

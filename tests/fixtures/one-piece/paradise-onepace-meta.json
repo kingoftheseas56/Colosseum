@@ -1,0 +1,322 @@
+﻿{
+    "catalogue":  "https://stremio-addons.net/addons/one-pace-addon",
+    "catalogueVersion":  "3.0.0",
+    "source":  "https://fedew04.github.io/OnePaceStremio/meta/series/pp_onepace.json",
+    "retrieved":  "2026-10-04",
+    "extensionId":  "com.onepace.fedew",
+    "metaId":  "pp_onepace",
+    "arcs":  [
+                 {
+                     "arcId":  "reverse-mountain",
+                     "season":  8,
+                     "prefix":  "RM_",
+                     "count":  2,
+                     "first":  {
+                                   "id":  "RM_1",
+                                   "title":  "Reverse Mountain"
+                               },
+                     "last":  {
+                                  "id":  "RM_2",
+                                  "title":  "Cape Promise"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "whisky-peak",
+                     "season":  9,
+                     "prefix":  "WH_",
+                     "count":  2,
+                     "first":  {
+                                   "id":  "WH_1",
+                                   "title":  "The Town of Celebration"
+                               },
+                     "last":  {
+                                  "id":  "WH_2",
+                                  "title":  "The Secret Criminal Organization"
+                              },
+                     "excludedExtras":  [
+                                            {
+                                                "id":  "COVER_KOBYMEPPO_1",
+                                                "title":  "[Cover Story] The Trials of Koby-Meppo"
+                                            }
+                                        ]
+                 },
+                 {
+                     "arcId":  "little-garden",
+                     "season":  10,
+                     "prefix":  "LI_",
+                     "count":  5,
+                     "first":  {
+                                   "id":  "LI_1",
+                                   "title":  "Adventure on Little Garden"
+                               },
+                     "last":  {
+                                  "id":  "LI_5",
+                                  "title":  "Straight Ahead!!"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "drum-island",
+                     "season":  11,
+                     "prefix":  "DI_",
+                     "count":  8,
+                     "first":  {
+                                   "id":  "DI_1",
+                                   "title":  "Tin Plate Wapol"
+                               },
+                     "last":  {
+                                  "id":  "DI_8",
+                                  "title":  "Hiriluk\u0027s Cherry Blossoms"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "arabasta",
+                     "season":  12,
+                     "prefix":  "AL_",
+                     "count":  21,
+                     "first":  {
+                                   "id":  "AL_1",
+                                   "title":  "Sir Crocodile, the Pirate"
+                               },
+                     "last":  {
+                                  "id":  "AL_21",
+                                  "title":  "Stowaway"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "jaya",
+                     "season":  13,
+                     "prefix":  "JA_",
+                     "count":  8,
+                     "first":  {
+                                   "id":  "JA_1",
+                                   "title":  "Why the Log Pose Is Spherical"
+                               },
+                     "last":  {
+                                  "id":  "JA_8",
+                                  "title":  "The Knock-Up Stream"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "skypiea",
+                     "season":  14,
+                     "prefix":  "SK_",
+                     "count":  25,
+                     "first":  {
+                                   "id":  "SK_1",
+                                   "title":  "Heaven\u0027s Gate"
+                               },
+                     "last":  {
+                                  "id":  "SK_25",
+                                  "title":  "Finale"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "long-ring-long-land",
+                     "season":  15,
+                     "prefix":  "LR_",
+                     "count":  7,
+                     "first":  {
+                                   "id":  "LR_0",
+                                   "title":  "Prologue"
+                               },
+                     "last":  {
+                                  "id":  "LR_6",
+                                  "title":  "Navy HQ Admiral Aokiji"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "water-7",
+                     "season":  16,
+                     "prefix":  "WS_",
+                     "count":  20,
+                     "first":  {
+                                   "id":  "WS_1",
+                                   "title":  "The City of Water, Water Seven"
+                               },
+                     "last":  {
+                                  "id":  "WS_20",
+                                  "title":  "Necessary Evil"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "enies-lobby",
+                     "season":  17,
+                     "prefix":  "EN_",
+                     "count":  25,
+                     "first":  {
+                                   "id":  "EN_1",
+                                   "title":  "The Superhumans of Enies Lobby"
+                               },
+                     "last":  {
+                                  "id":  "EN_25",
+                                  "title":  "A Gentle Snowfall of Remembrance"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "post-enies-lobby",
+                     "season":  18,
+                     "prefix":  "PEN_",
+                     "count":  5,
+                     "first":  {
+                                   "id":  "PEN_1",
+                                   "title":  "The Strongest Family Lineage?! The Vice-Admiral and The Revolutionary!"
+                               },
+                     "last":  {
+                                  "id":  "PEN_5",
+                                  "title":  "The Circling Bounties and The Duel on Banaro Island!"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "thriller-bark",
+                     "season":  19,
+                     "prefix":  "TB_",
+                     "count":  22,
+                     "first":  {
+                                   "id":  "TB_1",
+                                   "title":  "The Mysterious Sea and The Skeleton Brook!"
+                               },
+                     "last":  {
+                                  "id":  "TB_22",
+                                  "title":  "Brook\u0027s Promise! The Eighth Member"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "sabaody",
+                     "season":  20,
+                     "prefix":  "SAB_",
+                     "count":  11,
+                     "first":  {
+                                   "id":  "SAB_1",
+                                   "title":  "Flying Fish Riders"
+                               },
+                     "last":  {
+                                  "id":  "SAB_11",
+                                  "title":  "I Couldn\u0027t Save Them!!!"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "amazon-lily",
+                     "season":  21,
+                     "prefix":  "AM_",
+                     "count":  5,
+                     "first":  {
+                                   "id":  "AM_1",
+                                   "title":  "Adventure on the Island of Women"
+                               },
+                     "last":  {
+                                  "id":  "AM_5",
+                                  "title":  "No One Can Stop This Now"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "impel-down",
+                     "season":  22,
+                     "prefix":  "IM_",
+                     "count":  10,
+                     "first":  {
+                                   "id":  "IM_1",
+                                   "title":  "The Underwater Prison, Impel Down"
+                               },
+                     "last":  {
+                                  "id":  "IM_10",
+                                  "title":  "Thank You"
+                              },
+                     "excludedExtras":  [
+                                            {
+                                                "id":  "COVER_SHSS_1",
+                                                "title":  "[Cover Story] The Adventures of the Straw Hats"
+                                            }
+                                        ]
+                 },
+                 {
+                     "arcId":  "marineford",
+                     "season":  23,
+                     "prefix":  "MA_",
+                     "count":  17,
+                     "first":  {
+                                   "id":  "MA_1",
+                                   "title":  "Navy Headquarters"
+                               },
+                     "last":  {
+                                  "id":  "MA_17",
+                                  "title":  "The War\u0027s Conclusion"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "post-war",
+                     "season":  24,
+                     "prefix":  "PW_",
+                     "count":  8,
+                     "first":  {
+                                   "id":  "PW_1",
+                                   "title":  "Creeping Future"
+                               },
+                     "last":  {
+                                  "id":  "PW_8",
+                                  "title":  "3D2Y"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 },
+                 {
+                     "arcId":  "return-to-sabaody",
+                     "season":  25,
+                     "prefix":  "RTS_",
+                     "count":  3,
+                     "first":  {
+                                   "id":  "RTS_1",
+                                   "title":  "Two Years Later"
+                               },
+                     "last":  {
+                                  "id":  "RTS_3",
+                                  "title":  "Dive, Dive, Dive!"
+                              },
+                     "excludedExtras":  [
+
+                                        ]
+                 }
+             ]
+}

@@ -524,10 +524,11 @@ TestCase {
         function beginConnection(providerKey) {
             beginCalls++
             lastProviderKey = providerKey
-            if (providerKey !== "simkl")
+            if (providerKey !== "simkl" && providerKey !== "trakt")
                 return false
             phase = "connected"
-            statusMessage = "SIMKL is connected to this Colosseum profile."
+            statusMessage = (providerKey === "trakt" ? "Trakt" : "SIMKL")
+                            + " is connected to this Colosseum profile."
             connectionEstablished(providerKey)
             return true
         }
@@ -963,7 +964,7 @@ TestCase {
         mouseClick(dossierButton)
         wait(0)
         compare(findChild(page, "trackerDossierStatus").text,
-                "Unavailable in this build")
+                Qt.platform.os === "linux" ? "Unavailable on Linux" : "Unavailable in this build")
         compare(findChild(page, "trackerConnectButton").enabled, false)
         compare(page.selectedProviderKey, "simkl")
     }
@@ -1032,7 +1033,56 @@ TestCase {
         compare(findChild(page, "trackerSimklDismiss").text, "Done")
     }
 
+    function test_configured_trakt_connects_directly_and_keeps_stremio_link_separate() {
+        modelUnderTest = fixtureModel
+        page.trackerConnector = fixtureConnector
+        page.stremioState = ({ linkedAccount: true, hasTrakt: true })
+        var directTrakt = {
+            found: true, providerKey: "trakt", providerName: "Trakt",
+            available: true, status: "Not connected", connected: false,
+            capabilities: ["read_history", "read_progress", "write_completion", "scrobble"],
+            connectEnabled: true, pendingWork: false,
+            waitingCount: 0, unresolvedCount: 0
+        }
+        fixtureModel.catalogue = [directTrakt]
+        fixtureModel.dossiers = ({ trakt: directTrakt })
+        fixtureModel.modelChanged()
+        wait(0)
+        compare(findChild(page, "trackerCatalogueStatus_trakt").text, "Connect")
+        verify(page.openDossier("trakt"))
+        wait(0)
+        compare(findChild(page, "trackerDossierStatus").text, "Not connected")
+        compare(findChild(page, "trackerTraktStremioLinkState").text, "Stremio link: Linked")
+        page.stremioState = ({ linkedAccount: false, hasTrakt: false })
+        compare(findChild(page, "trackerTraktStremioLinkState").text, "Stremio link: Not linked")
+        var connect = findChild(page, "trackerConnectButton")
+        compare(connect.enabled, true)
+        compare(connect.text, "Connect")
+        mouseClick(connect)
+        compare(fixtureConnector.beginCalls, 1)
+        compare(fixtureConnector.lastProviderKey, "trakt")
+        compare(page.connectionPanelOpen, true)
+    }
+
     function test_trakt_uses_stremio_link_and_future_cards_say_coming_soon() {
+        if (Qt.platform.os === "linux") {
+            for (var key of ["trakt", "simkl", "mal"]) {
+                compare(findChild(page, "trackerCatalogueStatus_" + key).text,
+                        "Unavailable on Linux")
+                revealCatalogueCards()
+                mouseClick(findChild(page, "trackerCatalogue_" + key))
+                compare(findChild(page, "trackerDossierStatus").text,
+                        "Unavailable on Linux")
+                var connect = findChild(page, "trackerConnectButton")
+                compare(connect.enabled, false)
+                compare(connect.text, "Unavailable on Linux")
+                mouseClick(connect)
+                compare(fixtureConnector.beginCalls, 0)
+                page.closeDossier()
+            }
+            compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")
+            return
+        }
         compare(findChild(page, "trackerCatalogueStatus_trakt").text, "Not linked")
         compare(findChild(page, "trackerCatalogueStatus_mal").text, "Coming soon")
         compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Coming soon")
@@ -1113,7 +1163,11 @@ TestCase {
         mouseClick(findChild(page, "trackerCard_trakt"))
         wait(0)
         compare(page.dossierOpen, true)
-        compare(findChild(page, "trackerDossierStatus").text, "Not linked")
+        compare(findChild(page, "trackerDossierStatus").text, "Waiting")
+        compare(findChild(page, "trackerTraktStremioLinkState").text, "Stremio link: Not linked")
+        page.stremioState = ({ linkedAccount: true, hasTrakt: true })
+        compare(findChild(page, "trackerDossierStatus").text, "Waiting")
+        compare(findChild(page, "trackerTraktStremioLinkState").text, "Stremio link: Linked")
         compare(page.dossierCapabilities.length, 2)
         compare(findChild(page, "trackerDeliveryQueueSection").visible, true)
         compare(findChild(page, "trackerDeliveryState").text, "Checking delivery")
@@ -2358,8 +2412,7 @@ TestCase {
         page.reducedMotion = true
         compare(page.motionEnabled, false)
         testWindow.width = 680
-        wait(0)
-        compare(page.catalogueColumns, 1)
+        tryCompare(page, "catalogueColumns", 1, 1000)
         verify(findChild(page, "trackerMainSyncButton") !== null)
     }
 }

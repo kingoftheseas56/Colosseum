@@ -22,6 +22,13 @@ Item {
     property bool reducedMotion: false
     property string selectedProviderKey: ""
     property var selectedDossier: ({})
+    property string connectionProviderName: String(selectedDossier.providerName || "tracker")
+    // MyAnimeList approval is a web sign-in with no device code, so it runs
+    // inside the app rather than in the outside browser.
+    readonly property bool embeddedApproval: selectedProviderKey === "mal"
+                                             && trackerConnector
+                                             && trackerConnector.phase === "awaiting_approval"
+                                             && trackerConnector.verificationUrl.length > 0
     property Item dossierInvoker: null
     property bool recoveryRouteActive: false
     property string recoveryRouteProviderKey: ""
@@ -217,10 +224,12 @@ Item {
         return ""
     }
 
-    function providerSubject(providerKey) {
+    function providerSubject(providerKey, available) {
         if (providerKey === "simkl") return "Movies, series, and anime"
         if (providerKey === "mal") return "Anime and manga"
-        if (providerKey === "trakt") return "Via your Stremio account"
+        if (providerKey === "trakt")
+            return available === true || platformUnavailable(providerKey, available)
+                    ? "Movies and series" : "Via your Stremio account"
         if (providerKey === "anilist") return "Anime and manga"
         return ""
     }
@@ -259,10 +268,23 @@ Item {
         if (status === "Owner unavailable") return "Needs attention"
         return status || "Unknown"
     }
-    function providerStatus(providerKey, status) {
-        if (providerKey === "trakt")
+    function platformUnavailable(providerKey, available) {
+        return Qt.platform.os === "linux" && available !== true
+                && (providerKey === "trakt" || providerKey === "simkl" || providerKey === "mal")
+    }
+    // Linux has no secure tracker vault. Missing Windows registrations retain
+    // their existing future-provider and Stremio-linked presentation.
+    function comingSoon(providerKey, available) {
+        return providerKey === "anilist"
+                || (providerKey === "mal" && available !== true
+                    && !platformUnavailable(providerKey, available))
+    }
+    function providerStatus(providerKey, status, available) {
+        if (platformUnavailable(providerKey, available))
+            return "Unavailable on Linux"
+        if (providerKey === "trakt" && available !== true)
             return stremioConnected && stremioState.hasTrakt === true ? "Linked" : "Not linked"
-        if (providerKey === "mal" || providerKey === "anilist")
+        if (comingSoon(providerKey, available))
             return "Coming soon"
         return displayStatus(status)
     }
@@ -2377,7 +2399,8 @@ Item {
                             padding: 15
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
-                                             + root.providerStatus(modelData.providerKey, modelData.status)
+                                             + root.providerStatus(modelData.providerKey, modelData.status,
+                                                                  modelData.available)
                             onClicked: root.openDossier(modelData.providerKey, catalogueCard)
 
                             background: Rectangle {
@@ -2416,7 +2439,8 @@ Item {
                                             elide: Text.ElideRight
                                         }
                                         Text {
-                                            text: root.providerSubject(catalogueCard.modelData.providerKey)
+                                            text: root.providerSubject(catalogueCard.modelData.providerKey,
+                                                                       catalogueCard.modelData.available)
                                             color: theme.inkDimmer
                                             font.family: theme.ui
                                             font.pixelSize: 11
@@ -2437,11 +2461,15 @@ Item {
                                         id: catalogueStateText
                                         objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
                                         anchors.centerIn: parent
-                                        text: catalogueCard.modelData.providerKey === "trakt"
-                                              || catalogueCard.modelData.providerKey === "mal"
-                                              || catalogueCard.modelData.providerKey === "anilist"
+                                        text: root.platformUnavailable(catalogueCard.modelData.providerKey,
+                                                                       catalogueCard.modelData.available)
+                                              || (catalogueCard.modelData.providerKey === "trakt"
+                                               && catalogueCard.modelData.available !== true)
+                                              || root.comingSoon(catalogueCard.modelData.providerKey,
+                                                                 catalogueCard.modelData.available)
                                               ? root.providerStatus(catalogueCard.modelData.providerKey,
-                                                                    catalogueCard.modelData.status)
+                                                                    catalogueCard.modelData.status,
+                                                                    catalogueCard.modelData.available)
                                               : catalogueCard.modelData.available
                                               ? (catalogueCard.modelData.connected ? "Connected"
                                                  : (catalogueCard.modelData.pendingWork === true
@@ -2625,7 +2653,8 @@ Item {
                                         id: dossierStatus
                                         objectName: "trackerDossierStatus"
                                         text: root.providerStatus(root.selectedProviderKey,
-                                                                  root.selectedDossier.status)
+                                                                  root.selectedDossier.status,
+                                                                  root.selectedDossier.available)
                                         color: root.selectedDossier.status === "Attention" ? theme.gold : theme.ink
                                         font.family: theme.ui
                                         font.pixelSize: 14
@@ -2641,12 +2670,22 @@ Item {
                                     }
                                 }
                                 Text {
-                                    text: root.selectedProviderKey === "trakt"
+                                    text: root.platformUnavailable(root.selectedProviderKey,
+                                                                   root.selectedDossier.available)
+                                          ? "Tracker connections are Windows-only for now. Colosseum's local progress and History remain available."
+                                          : root.selectedProviderKey === "trakt"
+                                          && root.selectedDossier.available !== true
                                           ? (root.stremioConnected && root.stremioState.hasTrakt === true
                                              ? "Trakt is linked through your Stremio account. Playback scrobbles through Stremio."
                                              : "Link Trakt at web.stremio.com in your Stremio account, then sync Colosseum.")
-                                          : (root.selectedProviderKey === "mal"
-                                             || root.selectedProviderKey === "anilist")
+                                          : root.selectedProviderKey === "trakt"
+                                            && root.selectedDossier.available === true
+                                            && root.selectedDossier.pendingWork !== true
+                                          ? (root.selectedDossier.connected
+                                             ? "Trakt is connected directly to this Colosseum profile."
+                                             : "Connect Trakt to this Colosseum profile to import history and track playback.")
+                                          : root.comingSoon(root.selectedProviderKey,
+                                                            root.selectedDossier.available)
                                           ? "Coming soon."
                                           : root.selectedProviderKey === "global"
                                           ? "Trackers are optional. Colosseum saves local changes first."
@@ -2663,6 +2702,19 @@ Item {
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
+                                Text {
+                                    objectName: "trackerTraktStremioLinkState"
+                                    visible: root.selectedProviderKey === "trakt"
+                                             && root.selectedDossier.available === true
+                                    text: "Stremio link: "
+                                          + (root.stremioConnected && root.stremioState.hasTrakt === true
+                                             ? "Linked" : "Not linked")
+                                    color: theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
                                 Button {
                                     id: connectButton
                                     objectName: "trackerConnectButton"
@@ -2670,18 +2722,26 @@ Item {
                                              && root.selectedDossier.connected !== true
                                     enabled: root.selectedDossier.connectEnabled === true
                                              && root.selectedDossier.available === true
-                                    text: root.selectedProviderKey === "trakt"
+                                    text: root.platformUnavailable(root.selectedProviderKey,
+                                                                   root.selectedDossier.available)
+                                          ? "Unavailable on Linux"
+                                          : root.selectedProviderKey === "trakt"
+                                          && root.selectedDossier.available !== true
                                           ? "Via your Stremio account"
-                                          : (root.selectedProviderKey === "mal"
-                                             || root.selectedProviderKey === "anilist")
+                                          : root.comingSoon(root.selectedProviderKey,
+                                                            root.selectedDossier.available)
                                           ? "Coming soon"
                                           : root.selectedDossier.pendingWork === true
                                           ? "Reconnect to recover pending work"
                                           : (root.selectedDossier.available ? "Connect" : "Not available")
-                                    Accessible.name: root.selectedProviderKey === "trakt"
+                                    Accessible.name: root.platformUnavailable(root.selectedProviderKey,
+                                                                              root.selectedDossier.available)
+                                                     ? "Unavailable on Linux"
+                                                     : root.selectedProviderKey === "trakt"
+                                                     && root.selectedDossier.available !== true
                                                      ? "Via your Stremio account"
-                                                     : (root.selectedProviderKey === "mal"
-                                                        || root.selectedProviderKey === "anilist")
+                                                     : root.comingSoon(root.selectedProviderKey,
+                                                                       root.selectedDossier.available)
                                                      ? "Coming soon"
                                                      : root.selectedDossier.available
                                                      ? (root.selectedDossier.pendingWork === true
@@ -4574,7 +4634,7 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            width: Math.min(parent.width - 48, 540)
+            width: Math.min(parent.width - 48, root.embeddedApproval ? 820 : 540)
             implicitHeight: connectionApprovalContent.implicitHeight + 54
             radius: 18
             color: "#111318"
@@ -4590,7 +4650,8 @@ Item {
                 Text {
                     text: root.trackerConnector
                           && root.trackerConnector.phase === "connected"
-                          ? "SIMKL connected" : "Connect SIMKL"
+                          ? root.connectionProviderName + " connected"
+                          : "Connect " + root.connectionProviderName
                     color: theme.ink
                     font.family: theme.display
                     font.pixelSize: 28
@@ -4598,12 +4659,25 @@ Item {
                 }
                 Text {
                     text: root.trackerConnector
-                          ? root.trackerConnector.statusMessage : "SIMKL connection is unavailable."
+                          ? root.trackerConnector.statusMessage
+                          : root.connectionProviderName + " connection is unavailable."
                     color: theme.inkDim
                     font.family: theme.ui
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+                Loader {
+                    id: approvalWebLoader
+                    objectName: "trackerApprovalWebLoader"
+                    active: root.embeddedApproval && root.connectionPanelOpen
+                    visible: active
+                    source: "TrackerApprovalWebView.qml"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: active
+                                            ? Math.max(320, Math.min(connectionApprovalLayer.height - 260, 620))
+                                            : 0
+                    onLoaded: item.approvalUrl = root.trackerConnector.verificationUrl
                 }
                 Rectangle {
                     visible: root.trackerConnector
@@ -4640,6 +4714,7 @@ Item {
                 Text {
                     visible: root.trackerConnector
                              && root.trackerConnector.verificationUrl.length > 0
+                             && root.trackerConnector.userCode.length > 0
                     text: "The browser page is prefilled. The code remains here as a fallback."
                     color: theme.inkDimmer
                     font.family: theme.ui
@@ -4684,7 +4759,9 @@ Item {
                         objectName: "trackerSimklOpenApproval"
                         visible: root.trackerConnector
                                  && root.trackerConnector.verificationUrl.length > 0
-                        text: "Open SIMKL"
+                        text: root.embeddedApproval
+                              ? "Open in browser instead"
+                              : "Open " + root.connectionProviderName
                         onClicked: root.trackerConnector.openApprovalPage()
                     }
                     Item { Layout.fillWidth: true }

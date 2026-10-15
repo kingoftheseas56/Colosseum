@@ -17,7 +17,10 @@ import "NextUp.js" as NextUp
 
 WorldPage {
     id: tanko
-    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft : 0   // dock sits right of the Discover rail
+    property real rowIndexContentLeft: 80
+    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft
+                     : (tanko.activeTab === "manga" || tanko.activeTab === "comics")
+                       ? tanko.rowIndexContentLeft : 0
     objectName: "tankobanWorld"
     medium: "Tankoban"
     tabBarSource: tankobanTabBarItem          // docks under the TopBar when scrolled past (WorldPage)
@@ -319,9 +322,13 @@ WorldPage {
               : tanko.activeTab === "manga" ? "TankobanMangaTab.qml"
               : ""
         active: tanko.lifecycleActive && (tanko.activeTab === "manga" || tanko.activeTab === "comics")
+        onSourceChanged: tanko.rowIndexContentLeft = 80
         // Built across frames: the Comics tab took ~0.5 s to create in one block (profiled).
         asynchronous: true
         onLoaded: {
+            item.pageFlick = Qt.binding(function() { return tanko.pageFlickable })
+            item.backdrop = Qt.binding(function() { return tanko.backdrop })
+            item.parkRowHandler = function(target) { tanko.parkRow(target) }
             if (item.collectionOpenRequested) item.collectionOpenRequested.connect(tanko.collectionOpenRequested)
             // Task 8: a See-all pin from either browse tab routes into the in-tab Discover
             // wall — switch to Discover and apply the pin (the adapter validates/drops a
@@ -345,6 +352,11 @@ WorldPage {
                 item.genreIndexRequested.connect(tanko.genreIndexRequested)
             }
         }
+    }
+    Connections {
+        target: tabContent.item
+        ignoreUnknownSignals: true
+        function onContentLeftUpdated(value) { tanko.rowIndexContentLeft = value }
     }
 
     // Task 8: route a See-all pin from a Manga/Comics shelf into the in-tab Discover wall.

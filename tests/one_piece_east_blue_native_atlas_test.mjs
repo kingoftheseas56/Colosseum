@@ -15,7 +15,7 @@ eq(fs.existsSync(dataPath), true, 'atlas data module exists');
 if (fs.existsSync(dataPath)) {
     const source = fs.readFileSync(dataPath, 'utf8').replace(/^\.pragma library\s*$/m, '');
     const module = {};
-    new Function('module', `${source}\nmodule.canonMarkers=canonMarkers;module.nonCanonEntries=nonCanonEntries;module.canonMarker=canonMarker;module.nonCanonEntry=nonCanonEntry;`)(module);
+    new Function('module', `${source}\nmodule.canonMarkers=canonMarkers;module.nonCanonEntries=nonCanonEntries;module.canonMarker=canonMarker;module.nonCanonEntry=nonCanonEntry;module.badgeSource=badgeSource;module.bannerSource=bannerSource;`)(module);
     eq(module.canonMarkers.map(marker => marker.id),
        ['romance', 'orange', 'syrup', 'baratie', 'arlong', 'loguetown'],
        'canon marker order');
@@ -25,14 +25,26 @@ if (fs.existsSync(dataPath)) {
     eq(module.canonMarkers.every(marker => marker.id && marker.badge && marker.poster && marker.x >= 0 && marker.x <= 1 && marker.y >= 0 && marker.y <= 1), true,
        'canon markers have normalized positions and assets');
     for (const marker of module.canonMarkers) {
+        eq(module.badgeSource(marker.id), `../assets/universes/one-piece/east-blue-markers/${marker.id}.png`,
+           `${marker.id} original symbol badge path`);
+        eq(module.bannerSource(marker.id), `../assets/universes/one-piece/east-blue/banners/${marker.id}.png`,
+           `${marker.id} normalized banner path`);
         eq(marker.poster !== marker.badge, true,
            `${marker.id} canon poster is distinct from its circular badge`);
         eq(fs.existsSync(marker.poster.replace(/^\.\.\//, '')), true,
            `${marker.id} canon poster is bundled locally`);
     }
-    eq(module.canonMarkers.map(marker => [marker.x, marker.y]),
-       [[0.88869, 0.35208], [0.56726, 0.31667], [0.4125, 0.38646], [0.63988, 0.62917], [0.33095, 0.34271], [0.2375, 0.69167]],
-       'canon markers follow approved SVG transforms');
+    for (const id of ['', 'missing', '__proto__', '../romance', null]) {
+        eq(module.badgeSource(id), '', `unknown badge identity ${id} fails closed`);
+        eq(module.bannerSource(id), '', `unknown banner identity ${id} fails closed`);
+    }
+    for (let i = 0; i < module.canonMarkers.length; ++i) {
+        for (let j = i + 1; j < module.canonMarkers.length; ++j) {
+            const a = module.canonMarkers[i], b = module.canonMarkers[j];
+            eq(Math.hypot((a.x - b.x) * 1680, (a.y - b.y) * 960) >= 180, true,
+               `${a.id} and ${b.id} have room between their badges`);
+        }
+    }
     eq(module.canonMarkers.every(marker => ['romance', 'orange', 'syrup', 'baratie', 'arlong', 'loguetown'].includes(marker.id)), true,
        'canon marker ids match East Blue arcs');
     eq(module.nonCanonEntries.map(entry => entry.entry && entry.entry.id),

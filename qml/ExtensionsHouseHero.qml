@@ -17,16 +17,6 @@ Item {
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
-    readonly property var houseApps: [
-        { name: "Universes", id: "", icon: "../assets/icons/universes-atom.svg", kind: "universes" },
-        { name: "Grand Database", id: "", icon: "../assets/addon-logos/colosseum-grand-database.png", kind: "builtin" },
-        { name: "Nyaa", id: "colosseum.well.nyaa", icon: "../assets/addon-logos/nyaa.png", kind: "source" },
-        { name: "Tankoyomi", id: "colosseum.well.tankoyomi", icon: "../assets/addon-logos/tankoyomi.png", kind: "source" },
-        { name: "GetComics", id: "colosseum.well.getcomics.issues", icon: "../assets/addon-logos/getcomics.png", kind: "source" },
-        { name: "Tankorent", id: "colosseum.well.indexers", icon: "../assets/addon-logos/tankorent.png", kind: "source" },
-        { name: "LibGen", id: "colosseum.well.libgen", icon: "../assets/addon-logos/libgen.ico", kind: "source" },
-        { name: "AudioBookBay", id: "colosseum.well.audiobookbay", icon: "../assets/addon-logos/audiobookbay.png", kind: "source" }
-    ]
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
@@ -168,13 +158,21 @@ Item {
         }
 
         Row {
-            id: appsRow
             anchors.centerIn: parent
             spacing: hero.compact ? 8 : 15
             scale: Math.min(1, (tray.width - 40) / Math.max(1, implicitWidth))
 
             Repeater {
-                model: hero.houseApps
+                model: [
+                    { name: "Tributes", id: "", icon: "../assets/icons/universes-atom.svg", kind: "universes" },
+                    { name: "Grand Database", id: "", icon: "../assets/addon-logos/colosseum-grand-database.png", kind: "builtin" },
+                    { name: "Nyaa", id: "colosseum.well.nyaa", icon: "../assets/addon-logos/nyaa.png", kind: "source" },
+                    { name: "Tankoyomi", id: "colosseum.well.tankoyomi", icon: "../assets/addon-logos/tankoyomi.png", kind: "source" },
+                    { name: "GetComics", id: "colosseum.well.getcomics.issues", icon: "../assets/addon-logos/getcomics.png", kind: "source" },
+                    { name: "Tankorent", id: "colosseum.well.indexers", icon: "../assets/addon-logos/tankorent.png", kind: "source" },
+                    { name: "LibGen", id: "colosseum.well.libgen", icon: "../assets/addon-logos/libgen.ico", kind: "source" },
+                    { name: "AudioBookBay", id: "colosseum.well.audiobookbay", icon: "../assets/addon-logos/audiobookbay.png", kind: "source" }
+                ]
                 delegate: Item {
                     id: tile
                     required property var modelData
@@ -261,7 +259,6 @@ Item {
                             KeyboardAction {
                                 id: toggleAction
                                 anchors.fill: parent
-                                focusInset: -2
                                 enabled: hero.isPresent(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
                                 focusRadius: 14

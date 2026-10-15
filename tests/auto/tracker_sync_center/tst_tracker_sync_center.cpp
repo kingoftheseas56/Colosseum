@@ -2372,8 +2372,10 @@ void TrackerSyncCenterTest::connectionServiceCountsOnlyCurrentSupportedReceipts(
         TrackerProviderId::Simkl, TrackerMediaDomain::Television));
     QVERIFY(!TrackerDeliveryStore::supportsProviderDelivery(
         TrackerProviderId::Simkl, TrackerMediaDomain::Manga));
-    QVERIFY(!TrackerDeliveryStore::supportsProviderDelivery(
+    QVERIFY(TrackerDeliveryStore::supportsProviderDelivery(
         TrackerProviderId::Trakt, TrackerMediaDomain::Television));
+    QVERIFY(!TrackerDeliveryStore::supportsProviderDelivery(
+        TrackerProviderId::Trakt, TrackerMediaDomain::Manga));
     QVERIFY(!trackerProviderIdFromKey(QStringLiteral("stremio")));
 }
 

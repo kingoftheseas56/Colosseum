@@ -25,7 +25,8 @@ import "VaultApi.js" as VaultApi
 
 WorldPage {
     id: biblio
-    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft : 0   // dock sits right of the Discover rail
+    dockContentLeft: discoverPage.visible ? discoverPage.contentLeft
+                     : explorePage.visible ? explorePage.contentLeft : 0
     objectName: "biblioWorld"   // automation identity, like theatreWorld / tankobanWorld
     medium: "Biblio"
     tabBarSource: biblioTabBarItem          // docks under the TopBar when scrolled past (WorldPage)
@@ -197,6 +198,7 @@ WorldPage {
         height: visible ? Math.max(620, biblio.height - 200) : 0
         active: biblio.lifecycleActive && visible
         showExplicit: biblio.showExplicit
+        backdrop: biblio.backdrop
         onItemRequested: (item) => biblio.openBookCard(item)
         onDiscoverPinRequested: (pin) => {
             biblio.activeTab = "discover"

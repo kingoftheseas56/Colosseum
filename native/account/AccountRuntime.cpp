@@ -604,36 +604,27 @@ QVariantList localRowsForStremioAddons(
 } // namespace
 
 AccountRuntime::AccountRuntime(QObject *parent)
-    : AccountRuntime(StremioSyncOptions{}, createAccountCredentialStore(), parent) {
+    : AccountRuntime(StremioSyncOptions{}, parent) {
 }
 
 AccountRuntime::AccountRuntime(
     const StremioSyncOptions &stremioOptions,
     QObject *parent)
-    : AccountRuntime(stremioOptions, createAccountCredentialStore(), parent) {
-}
-
-AccountRuntime::AccountRuntime(
-    std::unique_ptr<AccountCredentialStore> credentialStore,
-    QObject *parent)
-    : AccountRuntime(StremioSyncOptions{}, std::move(credentialStore), parent) {
+    : AccountRuntime(stremioOptions, AccountRuntimeCredentialOptions{}, parent) {
 }
 
 AccountRuntime::AccountRuntime(
     const StremioSyncOptions &stremioOptions,
-    std::unique_ptr<AccountCredentialStore> credentialStore,
+    const AccountRuntimeCredentialOptions &credentials,
     QObject *parent)
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
-      m_credentialStore(credentialStore
-          ? std::move(credentialStore)
-          : createAccountCredentialStore(Colosseum::Platform::Kind::Other)),
-      m_sensitiveClipboard(createAccountSensitiveClipboard()),
-      m_recoveryKeyPresenter(m_sensitiveClipboard.get()),
-      m_profileCoordinator(
-          &m_profileStores,
-          QString(),
+      m_credentialStore(createAccountCredentialStore()),
+      m_stremioCredentials(credentials.stremio.load && credentials.stremio.save
+                              && credentials.stremio.clear
+          ? credentials.stremio
+          :
           StremioCredentialAdoptionCallbacks{
               [this](const QString &profileId, const QString &accountId)
                   -> std::optional<QByteArray> {
@@ -651,7 +642,13 @@ AccountRuntime::AccountRuntime(
               },
               [this](const QString &profileId) {
                   return m_credentialStore->clearStremio(profileId);
-              }},
+              }}),
+      m_sensitiveClipboard(createAccountSensitiveClipboard()),
+      m_recoveryKeyPresenter(m_sensitiveClipboard.get()),
+      m_profileCoordinator(
+          &m_profileStores,
+          QString(),
+          m_stremioCredentials,
           RatingsReviewsPrivateAdoptionCallbacks{
               [](const RatingsReviewsPrivateProfileBinding &source,
                  const RatingsReviewsPrivateProfileBinding &destination,
@@ -667,13 +664,13 @@ AccountRuntime::AccountRuntime(
       m_stremioSync(stremioOptions),
       m_controller(
           &m_client,
-          m_credentialStore.get(),
+          credentials.accountStore ? credentials.accountStore : m_credentialStore.get(),
           &m_deviceIdentity,
           &m_bootstrapStore,
           &m_recoveryKeyPresenter),
       m_lifecycleCoordinator(
           &m_client,
-          m_credentialStore.get(),
+          credentials.accountStore ? credentials.accountStore : m_credentialStore.get(),
           &m_controller) {
     setObjectName(QStringLiteral("accountRuntime"));
     m_controller.setProfileCoordinator(
@@ -681,20 +678,9 @@ AccountRuntime::AccountRuntime(
     m_controller.setSyncEngine(
         &m_syncEngine);
     m_stremioSync.setCredentialCallbacks(
-        [this](const QString &profileId, const QString &accountId, const QByteArray &authKey) {
-            return m_credentialStore->saveStremio(
-                StoredStremioCredential{profileId, accountId, authKey});
-        },
-        [this](const QString &profileId) {
-            return m_credentialStore->clearStremio(profileId);
-        },
-        [this](const QString &profileId, const QString &accountId)
-            -> std::optional<QByteArray> {
-            const auto credential = m_credentialStore->loadStremio(profileId, accountId);
-            if (!credential.has_value())
-                return std::nullopt;
-            return credential->authKey;
-        });
+        m_stremioCredentials.save,
+        m_stremioCredentials.clear,
+        m_stremioCredentials.load);
     connect(&m_stremioSync, &StremioSync::stateChanged,
             this, &AccountRuntime::syncTraktAddon);
     connect(&m_stremioSync, &StremioSync::stateChanged, this, [this] {

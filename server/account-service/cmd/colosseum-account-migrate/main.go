@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -31,6 +33,13 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
+	// Forward compatibility is opt-in. Normal migration runs stay unchanged.
+	bridgeLegacy := flag.Bool("bridge-legacy", false,
+		"explicitly transition the verified historical seven-file lineage")
+	flag.Parse()
+	if flag.NArg() != 0 {
+		return fmt.Errorf("unexpected migration command arguments")
+	}
 	cfg, err := config.LoadMigration()
 	if err != nil {
 		return err
@@ -50,5 +59,8 @@ func run(logger *slog.Logger) error {
 	}
 	defer func() { _ = conn.Close(context.Background()) }()
 
+	if *bridgeLegacy {
+		return database.RunLegacyBridgeOnConn(ctx, conn)
+	}
 	return database.RunMigrationsOnConn(ctx, conn)
 }

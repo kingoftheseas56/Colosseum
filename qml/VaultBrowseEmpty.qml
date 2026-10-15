@@ -62,7 +62,7 @@ Item {
     implicitWidth: col.implicitWidth
     implicitHeight: col.implicitHeight
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     Column {
         id: col

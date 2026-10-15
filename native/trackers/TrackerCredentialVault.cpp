@@ -36,11 +36,22 @@ bool validProfileId(const QString &profileId)
         || (!uuid.isNull() && normalized == uuid.toString(QUuid::WithoutBraces).toLower());
 }
 
-bool validRemoteAccountId(const QString &remoteAccountId)
+bool validRemoteAccountId(TrackerProviderId providerId, const QString &remoteAccountId)
 {
     const QString normalized = remoteAccountId.trimmed();
     if (normalized.isEmpty() || normalized != remoteAccountId || normalized.size() > 64)
         return false;
+    if (providerId == TrackerProviderId::Trakt) {
+        // Opaque lowercase hex account identifier; see traktAccountUuidIsCanonical.
+        if (normalized.size() < 16)
+            return false;
+        for (const QChar character : normalized) {
+            const char16_t c = character.unicode();
+            if (!((c >= u'0' && c <= u'9') || (c >= u'a' && c <= u'f') || c == u'-'))
+                return false;
+        }
+        return true;
+    }
     for (const QChar character : normalized) {
         if (!character.isDigit())
             return false;
@@ -48,9 +59,16 @@ bool validRemoteAccountId(const QString &remoteAccountId)
     return normalized != QLatin1String("0");
 }
 
-bool validScopes(const QStringList &scopes)
+bool validScopes(TrackerProviderId providerId, const QStringList &scopes)
 {
+    if (providerId == TrackerProviderId::Trakt)
+        return scopes.isEmpty();
     if (scopes.isEmpty() || scopes.size() > kMaximumScopeCount)
+        return false;
+    // MAL issues no granular scopes; "mal:api" is Colosseum's own sentinel.
+    if (providerId == TrackerProviderId::Mal)
+        return scopes == QStringList{QStringLiteral("mal:api")};
+    if (providerId != TrackerProviderId::Simkl)
         return false;
     for (const QString &scope : scopes) {
         if (scope != QLatin1String("media:read")
@@ -63,16 +81,18 @@ bool validScopes(const QStringList &scopes)
 
 bool validCredential(const TrackerCredential &credential)
 {
-    return credential.slot.providerId == TrackerProviderId::Simkl
+    return (credential.slot.providerId == TrackerProviderId::Simkl
+            || credential.slot.providerId == TrackerProviderId::Mal
+            || credential.slot.providerId == TrackerProviderId::Trakt)
         && validProfileId(credential.slot.profileId)
-        && validRemoteAccountId(credential.slot.remoteAccountId)
+        && validRemoteAccountId(credential.slot.providerId, credential.slot.remoteAccountId)
         && !credential.accessToken.isEmpty()
         && credential.accessToken.size() <= kMaximumTokenBytes
         && !credential.refreshToken.isEmpty()
         && credential.refreshToken.size() <= kMaximumTokenBytes
         && credential.accessTokenExpiresAtMs > 0
         && credential.refreshTokenExpiresAtMs > credential.accessTokenExpiresAtMs
-        && validScopes(credential.grantedScopes);
+        && validScopes(credential.slot.providerId, credential.grantedScopes);
 }
 
 QByteArray encodeCredential(const TrackerCredential &credential)
@@ -266,8 +286,12 @@ QString WindowsTrackerCredentialVault::targetName(
     const QString &profileId,
     TrackerProviderId providerId)
 {
-    if (!validProfileId(profileId) || providerId != TrackerProviderId::Simkl)
+    if (!validProfileId(profileId)
+        || (providerId != TrackerProviderId::Simkl
+            && providerId != TrackerProviderId::Mal
+            && providerId != TrackerProviderId::Trakt)) {
         return {};
+    }
     const QString profileHash = QString::fromLatin1(QCryptographicHash::hash(
         profileId.toUtf8(), QCryptographicHash::Sha256).toHex());
     QString target = QString::fromLatin1(kCredentialPrefix)

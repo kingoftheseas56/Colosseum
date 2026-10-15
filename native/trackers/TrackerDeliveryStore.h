@@ -188,6 +188,8 @@ public:
                          const TrackerConnectionStore *connections);
 
     static QString storagePath(const ProfilePaths &profile);
+    static bool mappingMatchesFact(const TrackerTitleMapping &mapping,
+                                   const TrackerDeliveryFact &fact);
     static bool supportsProviderDelivery(TrackerProviderId providerId,
                                         TrackerMediaDomain domain);
 

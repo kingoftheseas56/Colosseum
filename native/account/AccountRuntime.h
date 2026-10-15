@@ -44,6 +44,13 @@ namespace Colosseum::WatchParty {
 class IWatchPartyAccountBridge;
 }
 
+// Native composition only. Supplied stores and callback owners must outlive
+// the runtime. Empty options retain the production platform credential store.
+struct AccountRuntimeCredentialOptions {
+    AccountCredentialStore *accountStore = nullptr;
+    StremioCredentialAdoptionCallbacks stremio;
+};
+
 class AccountRuntime final : public QObject {
     Q_OBJECT
 
@@ -57,11 +64,10 @@ public:
         QObject *parent = nullptr);
     // Platform seam: the credential store is chosen per platform (Windows
     // Credential Manager on desktop, Android Keystore-backed storage on Android).
-    AccountRuntime(std::unique_ptr<AccountCredentialStore> credentialStore, QObject *parent);
     AccountRuntime(
         const StremioSyncOptions &stremioOptions,
-        std::unique_ptr<AccountCredentialStore> credentialStore,
-        QObject *parent);
+        const AccountRuntimeCredentialOptions &credentials,
+        QObject *parent = nullptr);
 
     AccountController *controller();
     AccountRecoveryKeyPresenter *recoveryKeyPresenter();
@@ -137,6 +143,7 @@ private:
     AccountHttpTransport m_transport;
     AccountClient m_client;
     std::unique_ptr<AccountCredentialStore> m_credentialStore;
+    StremioCredentialAdoptionCallbacks m_stremioCredentials;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;
     std::unique_ptr<AccountSensitiveClipboard> m_sensitiveClipboard;

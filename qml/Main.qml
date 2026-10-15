@@ -11,10 +11,12 @@ import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
 import "account"
+import "feria" as Feria
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
+import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -40,6 +42,7 @@ Window {
 
     property string currentSurface: "Home"
     readonly property alias televisionMode: phoneShell.televisionMode
+    property var feriaReturnSnapshot: null
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -422,9 +425,13 @@ Window {
     function pickFor(world) {
         return parsePick(wallpaperSettings[wallpaperKey(world)])
     }
+    property string activeBrowserSessionId: ""
+    property bool browserReturnToFeria: false
+    property bool parkingBrowserForWorld: false
     function wallpaperWorldForSession(rec) {
         var appType = rec && rec.appType ? ("" + rec.appType).toLowerCase() : ""
         var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
+        if (contentKind === "browser") return "Feria"
         if (appType === "theatre" || contentKind === "movie") return "Theatre"
         if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
         if (appType === "biblio" || contentKind === "book" || contentKind === "audiobook") return "Biblio"
@@ -625,6 +632,8 @@ Window {
                 win.openUniverse("com.colosseum.universe.starwars", "Star Wars")
             else if (devUniverse === "cosmere")
                 win.openUniverse("com.colosseum.universe.cosmere", "Cosmere")
+            else   // COLOSSEUM_OPEN_UNIVERSE="Harry Potter": an archived universe, by curated name
+                win.openUniverseByName(String(DevOpenUniverse))
         }
         // bakeoff harness (COLOSSEUM_BAKEOFF_STRIP=<dir>): page-only production
         // MangaReader over the canonical fixture (long-strip bakeoff spec §10)
@@ -726,8 +735,10 @@ Window {
             comicReaderActive: win.embeddedComicReaderOpen(),
             updateActive: updateLayer.active,
             historyStatsActive: historyStatsLayer.active,
+            yourFeriaActive: yourFeriaLayer.active,
             syncCenterActive: syncCenterLayer.active,
             extensionsActive: extensionsLayer.active,
+            feriaActive: feriaLayer.open,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
             profileActive: phoneShell.profileActive,
@@ -741,7 +752,6 @@ Window {
                     && universeLayer.item
                     && universeLayer.item.atlasTransientOpen === true,
             universeActive: universeLayer.active,
-            universeHallActive: universeHallLayer.active,
             searchActive: searchLayer.active,
             worldSearchActive: worldSearchLayer.active,
             comicSeriesActive: comicSeriesLayer.active,
@@ -782,8 +792,8 @@ Window {
         if (bookReaderLayer.active) win.closeBookReader()
     }
     function requestUniverseEscape() {
-        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape) {
-            universeLayer.item.requestEscape()
+        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape
+                && universeLayer.item.requestEscape()) {
             return
         }
         win.closeUniverse()
@@ -838,6 +848,7 @@ Window {
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
         case "historyStats": win.closeHistoryStatsPage(); return
+        case "yourFeria": win.closeYourFeriaPage(); return
         case "syncCenter":
             if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
                 syncCenterLayer.item.requestEscape()
@@ -848,6 +859,10 @@ Window {
             if (extensionsLayer.item && extensionsLayer.item.requestEscape
                     && extensionsLayer.item.requestEscape()) return
             win.closeExtensionsPage(); return
+        case "feria":
+            if (feriaLayer.item) feriaLayer.item.back()
+            else win.closeFeriaPage()
+            return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
         case "profile": phoneShell.closeProfilePage(); return
@@ -858,7 +873,6 @@ Window {
         case "onePieceArc": win.closeOnePieceArc(); return
         case "onePieceAtlasTransient": win.requestOnePieceAtlasEscape(); return
         case "universe": win.requestUniverseEscape(); return
-        case "universeHall": win.closeUniverseHall(); return
         case "search": win.closeSearch(); return
         case "worldSearch": win.closeWorldSearch(); return
         case "comicSeries": win.closeComicSeries(); return
@@ -876,7 +890,11 @@ Window {
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
-    Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
+    Shortcut {
+        sequences: escapeCommand.sequences
+        enabled: !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
+        onActivated: escapeCommand.invoke("shortcut")
+    }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
     // shortcut), and the Vault keeps its own Backspace (folder up), so it is off while Vault is open.
     Shortcut {
@@ -1031,7 +1049,8 @@ Window {
     readonly property var worldDefinitions: [
         { name: "Theatre",  source: "TheatreWorld.qml",  icon: "../assets/icons/projector-theatre.svg" },
         { name: "Tankoban", source: "TankobanWorld.qml", icon: "../assets/icons/comic-book.svg" },
-        { name: "Biblio",   source: "BiblioWorld.qml",   icon: "../assets/icons/book-library.svg" }
+        { name: "Biblio",   source: "BiblioWorld.qml",   icon: "../assets/icons/book-library.svg" },
+        { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
     ]
     function worldSourceFor(medium) {
         for (var i = 0; i < win.worldDefinitions.length; ++i)
@@ -1039,7 +1058,34 @@ Window {
                 return win.worldDefinitions[i].source
         return "DemoWorld.qml"
     }
+    function parkFeria(preserveSnapshot) {
+        var preserve = preserveSnapshot !== false
+        if (!preserve) {
+            feriaReturnSnapshot = null
+        } else if (feriaLayer.open && feriaLayer.item && feriaLayer.item.navigationSnapshot) {
+            feriaReturnSnapshot = feriaLayer.item.navigationSnapshot()
+        }
+        if (win.activeBrowserSessionId.length > 0) {
+            win.parkingBrowserForWorld = true
+            Sessions.switchTo("")
+            win.parkingBrowserForWorld = false
+        }
+        if (feriaLayer.open) feriaLayer.open = false
+    }
+    function restoreFeriaIfReady() {
+        if (win.activeBrowserSessionId.length > 0) return false
+        if (!feriaLayer.open || !feriaReturnSnapshot || !feriaLayer.item
+                || !feriaLayer.item.restoreNavigationSnapshot)
+            return false
+        var snapshot = feriaReturnSnapshot
+        if (!feriaLayer.item.restoreNavigationSnapshot(snapshot))
+            return false
+        feriaReturnSnapshot = null
+        return true
+    }
     function openWorld(medium) {
+        if (medium === "Feria") { win.openFeriaPage(); return }
+        win.parkFeria(true)
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -1049,8 +1095,6 @@ Window {
         phoneShell.recordWorldOpened(medium)
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
-        topbar.visible = false
-        page.visible = false
     }
     // Vault identity door: reuse the already-owned world entry points. The Vault never edits a
     // world page or invents a second reader route; it only hands over a certain identity.
@@ -1076,12 +1120,11 @@ Window {
     }
     function closeWorld() {
         if (win.androidHost) return
+        win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
         setGuiStallContext("navigate", "Home")
         refreshWallpaper()
-        topbar.visible = true
-        page.visible = true
         win.armHomeIntroWidgets()
         win.armHomeContinueRail()
     }
@@ -1777,8 +1820,30 @@ Window {
         }
     }
 
+    // ---- Feria: streaming world, entered from the shared selector ----
+    function openFeriaPage() {
+        win.bookRouteGeneration += 1
+        downloadsLayer.active = false
+        vaultLayer.active = false
+        extensionsLayer.active = false
+        updateLayer.active = false
+        historyStatsLayer.active = false
+        syncCenterLayer.active = false
+        feriaLayer.open = true
+        worldStack.current = ""
+        currentSurface = "Feria"
+        refreshWallpaper()
+        taskbar.open = false
+        Qt.callLater(win.restoreFeriaIfReady)
+    }
+    function closeFeriaPage() {
+        win.parkFeria(false)
+        win.closeWorld()
+    }
+
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1814,6 +1879,7 @@ Window {
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1825,6 +1891,18 @@ Window {
         if (historyStatsLayer.item && historyStatsLayer.item.takeKeyboardFocus)
             Qt.callLater(historyStatsLayer.item.takeKeyboardFocus)
     }
+    function openYourFeriaPage(section) {
+        if (!feriaLayer.open) win.openFeriaPage()
+        accountCenter.close()
+        feriaLayer.item.accountTab = ["history", "highlights", "stats"].indexOf(section) >= 0 ? section : "history"
+        yourFeriaLayer.open = true
+        taskbar.open = false
+        if (yourFeriaLayer.item) Qt.callLater(yourFeriaLayer.item.takeKeyboardFocus)
+    }
+    function closeYourFeriaPage() {
+        yourFeriaLayer.open = false
+        taskbar.focusHistoryStatsAction()
+    }
     function closeHistoryStatsPage() {
         historyStatsLayer.active = false
         taskbar.focusHistoryStatsAction()
@@ -1834,6 +1912,7 @@ Window {
     // Downloads and Extensions are taskbar full-pages; opening either one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
@@ -1853,6 +1932,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -1886,6 +1966,23 @@ Window {
         win.closeVaultPage()
     }
 
+    Loader {
+        id: yourFeriaLayer
+        objectName: "yourFeriaLayer"
+        anchors.fill: parent
+        z: 58.5
+        property bool open: false
+        active: open && feriaLayer.open && feriaLayer.item !== null
+        visible: active
+        onActiveChanged: if (!active) open = false
+        sourceComponent: Feria.YourFeriaPage { controller: feriaLayer.item }
+        onLoaded: {
+            item.backRequested.connect(win.closeYourFeriaPage)
+            item.settingsRequested.connect(function() { feriaLayer.item.openApps() })
+            item.takeKeyboardFocus()
+        }
+    }
+
     // ---- Extensions page: the store, entered from the taskbar beside Downloads ----
     // The installed roster, live. The universes rail derives from it rather than from a
     // baked list, so installing or removing a universe changes Home with no other edit.
@@ -1914,9 +2011,11 @@ Window {
     // for the header band before the payload lands.
     // One renderer for every universe. The per-category dispatcher is gone: it existed to
     // pick between bespoke per-IP pages, and those are being deleted (next task).
-    function openUniverse(extensionId, name) {
+    function openUniverse(extensionId, name, plain) {
         if (!extensionId) return
         win.closeOnePieceArc()
+        universeLayer.templatePage = ""
+        universeLayer.plain = plain === true
         universeLayer.extensionId = extensionId
         universeLayer.universeName = name || ""
         if (universeLayer.item) {
@@ -1924,6 +2023,40 @@ Window {
             universeLayer.item.universeName = name || ""
         }
         universeLayer.active = true
+    }
+    // An archived universe has no extension; it opens by name on its category's template.
+    function openArchivedUniverse(name, page) {
+        if (!name || !universeLayer.templateSources[page]) return
+        win.closeOnePieceArc()
+        universeLayer.plain = false
+        universeLayer.extensionId = "archive." + page
+        universeLayer.universeName = name
+        universeLayer.templatePage = page
+        if (universeLayer.item && universeLayer.status === Loader.Ready && universeLayer.item.universeName !== undefined)
+            universeLayer.item.universeName = name
+        universeLayer.active = true
+    }
+    // A banner in the Universes world opens the universe's STANDARD page. An entry with a
+    // page (a curated sagaGrid, or an archived universe's template) opens through
+    // openArchivedUniverse; only an entry with no page falls back to the extension route —
+    // an installed One Piece carries both, and its story-grid page wins over the payload
+    // route (a payload-less Cosmere still lands on its Tribute).
+    function openRosterUniverse(entry) {
+        if (!entry) return
+        if (entry.page)
+            win.openArchivedUniverse(entry.name, entry.page)
+        else
+            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0)
+    }
+    // The Universes world's carousel: the hand-made art page.
+    function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }
+    // A "More universes" card names a sibling; its template comes from the curated list.
+    function openUniverseByName(name) {
+        var cfg = UniverseCanon.configFor(name)
+        // same rule as the Universes world's roster: an anime universe (curated manga)
+        // opens its shelves page; a curated sagaGrid opens the story grid
+        if (cfg && cfg.category)
+            win.openArchivedUniverse(cfg.name, (cfg.shelves || cfg.manga) ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
         win.closeOnePieceArc()
@@ -1937,6 +2070,8 @@ Window {
     function closeOnePieceArc() {
         onePieceArcLayer.active = false
         onePieceArcLayer.arcData = null
+        if (universeLayer.active && universeLayer.item && universeLayer.item.takeKeyboardFocus)
+            Qt.callLater(universeLayer.item.takeKeyboardFocus)
     }
     function routeUniverseSeries(e) {
         var requested = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
@@ -1950,13 +2085,12 @@ Window {
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
-    function openUniverseHall() { universeHallLayer.active = true }
-    function closeUniverseHall() { universeHallLayer.active = false }
 
     // world (optional, R1 2026-08-21): lands the page straight on that world's Sources
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         updateLayer.active = false
@@ -1974,6 +2108,7 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
+        win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         extensionsLayer.active = false
@@ -2532,7 +2667,10 @@ Window {
             // volume id rides in resume.chapterId (curChapterId of the volume reader).
             win.openComicSession(title, entry.id || "", r.chapterId || "", "tankoban")
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            win.openComicSession(title, entry.id || "", r.chapterId || "")
+            // Loose Vault comics save the archive as chapterId; they have no series page.
+            if (/^(vault:|vault-file:)/.test(String(entry.id || "")))
+                win.openVaultComic(r.path || r.chapterId || "", entry.id, title)
+            else win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
             if (r.path) win.openBookSession(r.path, r.book ? r.book : entry)
             else win.openBook(r.book ? r.book : entry)
@@ -2797,6 +2935,12 @@ Window {
     function closeSession(id) {
         if (!id) return
         var rec = Sessions.get(id)
+        // Browser close must await the exact page's unload veto/terminal result.
+        // The changed/active signals tear down its presentation after acceptance.
+        if (rec && rec.contentKind === "browser") {
+            feriaSessionDeck.closeTab(id)
+            return
+        }
         // the store removes the record BEFORE the switch glue can look it up, so the live
         // surface must come down here when closing the active one (else it lingers on screen).
         if (id === Sessions.activeId) win.teardownSession(rec)
@@ -2910,6 +3054,16 @@ Window {
 
     function activateSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "browser") {
+            if (!win.activeBrowserSessionId.length) win.browserReturnToFeria = feriaLayer.open
+            win.activeBrowserSessionId = rec.id
+            feriaLayer.open = true
+            win.currentSurface = "Feria"
+            win.refreshWallpaper()
+            if (feriaLayer.item) feriaLayer.item.activateBrowserRecord(rec)
+            return
+        }
+        win.activeBrowserSessionId = ""
         var t = rec.target || ({})
         var st = rec.savedState || ({})
         currentSurface = wallpaperWorldForSession(rec)
@@ -2929,9 +3083,9 @@ Window {
                 vaultComicLayer.vaultId = t.id || ""
                 vaultComicLayer.title = t.title || rec.title || "Comic"
                 if (vaultComicLayer.active && vaultComicLayer.item) {
-                    vaultComicLayer.item.archivePath = t.vaultPath
                     vaultComicLayer.item.vaultId = t.id || ""
                     vaultComicLayer.item.title = vaultComicLayer.title
+                    vaultComicLayer.item.archivePath = t.vaultPath
                 } else vaultComicLayer.active = true
                 return
             }
@@ -3012,6 +3166,17 @@ Window {
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
     function teardownSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "browser") {
+            // activeId's property signal already selects the incoming entry.
+            // Tear down presentation on the outgoing record, never its sibling.
+            var outgoing = feriaSessionDeck.entries[rec.id]
+            if (outgoing && outgoing.fullSizeHost) feriaSessionDeck.restoreSession(rec.id)
+            if (outgoing && outgoing.browser && outgoing.browser.fullScreenActive)
+                outgoing.browser.runJavaScript(
+                    "if(document.fullscreenElement) document.exitFullscreen()")
+            feriaLayer.open = false
+            return
+        }
         if (rec.contentKind === "movie") {
             // If first-open incubation has not dispatched playback yet, cancel that queued open;
             // there is no warm stream to resume. Once playback exists, preserve the old keep-alive.
@@ -3146,7 +3311,7 @@ Window {
         onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
         z: 20
-        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
+        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
@@ -3283,7 +3448,7 @@ Window {
         id: page
         objectName: "homePageFlickable"
         z: 0
-        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
+        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
@@ -3411,13 +3576,8 @@ Window {
                                 anchors.margins: 44
                                 width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                 spacing: 12
-                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                Text {
-                                    width: parent.width
-                                    text: slide.modelData.name; color: theme.ink; font.family: theme.display
-                                    font.pixelSize: 48
-                                    maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.WordWrap
-                                }
+                                Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
                                 // (the blurb line went with the baked list — the roster carries
                                 // identity and art, no prose, and a faked one would be a lie)
                                 Row {
@@ -3433,7 +3593,7 @@ Window {
                                         Behavior on border.color { ColorAnimation { duration: 160 } }
                                         Row {
                                             id: exploreRow; anchors.centerIn: parent; spacing: 10
-                                            Text { text: "Explore the universe"; color: theme.ink
+                                            Text { text: "Explore the tribute"; color: theme.ink
                                                 font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                                 anchors.verticalCenter: parent.verticalCenter }
                                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
@@ -3447,7 +3607,7 @@ Window {
                                             // assertions ambiguous even though only one is a legal target.
                                             objectName: slide.SwipeView.isCurrentItem ? "homeHeroExplore" : ""
                                             anchors.fill: parent
-                                            accessibleName: "Explore the universe"
+                                            accessibleName: "Explore the tribute"
                                             pointerEnabled: false
                                             focusRadius: 12
                                             onTriggered: win.openUniverse(slide.modelData.extensionId,
@@ -3486,7 +3646,9 @@ Window {
                                      heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
                 }
 
-                // the door to the Hall of Worlds — quiet, top-right, gold on hover
+                // the door to the Universes world, the single front door to every universe
+                // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
+                // — quiet, top-right, gold on hover
                 Item {
                     id: hallDoor
                     z: 5
@@ -3496,7 +3658,7 @@ Window {
                         id: hallRow
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         spacing: 7
-                        Text { text: win.installedUniverses.length + " worlds"
+                        Text { text: win.installedUniverses.length + (win.installedUniverses.length === 1 ? " tribute" : " tributes")
                                color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
                                font.family: theme.display; font.pixelSize: 16
                                Behavior on color { ColorAnimation { duration: 120 } } }
@@ -3509,15 +3671,15 @@ Window {
                         id: hallKey
                         objectName: "homeUniverseHall"
                         anchors.fill: parent
-                        accessibleName: "Hall of Worlds"
+                        accessibleName: "Universes"
                         pointerEnabled: false
                         focusRadius: 8
-                        onTriggered: win.openUniverseHall()
+                        onTriggered: win.openWorld("Universes")
                     }
                     MouseArea {
                         id: hallMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: win.openUniverseHall()
+                        onClicked: win.openWorld("Universes")
                     }
                     KeyboardAction {
                         anchors.fill: parent
@@ -3652,7 +3814,7 @@ Window {
             // is exactly the hitch Hemanth reported. Everything else in this file already stands
             // down for immersiveSurfaceOpen (wallpaper animation :1423, download reveal :2328/:2337,
             // chrome :2345); the warmer was the one that did not.
-            if (worldStack.current !== "" || win.immersiveSurfaceOpen) return   // → yield, retry next tick
+            if (worldStack.current !== "" || feriaLayer.open || win.immersiveSurfaceOpen) return   // → yield, retry next tick
             var names = []
             for (var i = 0; i < openModes.count; i++) names.push(openModes.get(i).mode)
             var next = Warming.nextWarmMode(names, warmer.targets)
@@ -3728,6 +3890,10 @@ Window {
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                    // the Universes world: its list is the installed roster plus the archived templates
+                    if (item.universeRequested) item.universeRequested.connect(win.openRosterUniverse)
+                    if (item.tributeRequested) item.tributeRequested.connect(win.openTribute)
+                    if (item.installed !== undefined) item.installed = Qt.binding(function() { return win.installedUniverses })
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
                     if (item.libraryResumeRequested) item.libraryResumeRequested.connect(win.resumeLibraryEntry)
                     if (item.libraryMarkWatchedRequested) item.libraryMarkWatchedRequested.connect(win.markLibraryWatched)
@@ -4427,7 +4593,13 @@ Window {
             if (next && next.id) win.activateSession(next)
             else {
                 // no next session: land on the world behind (Windows-like), not always home
-                currentSurface = worldStack.current || "Home"
+                if (win.activeBrowserSessionId === prevId && win.browserReturnToFeria
+                        && !win.parkingBrowserForWorld && feriaLayer.item) {
+                    feriaLayer.item.restoreBrowserWorld()
+                    feriaLayer.open = true
+                    currentSurface = "Feria"
+                } else currentSurface = worldStack.current || "Home"
+                win.activeBrowserSessionId = ""
                 refreshWallpaper()
                 // a MINIMIZE (record kept, nothing became active): pop the taskbar out so the
                 // user sees where the session went; it pulls back after 15 idle seconds.
@@ -4540,23 +4712,53 @@ Window {
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
-        source: extensionId === "com.colosseum.universe.dcau"
+        // An archived universe on a shared template (Arc 58) is opened by NAME, not by an
+        // installed extension: "saga" | "eras" | "studio" | "anime", empty for extensions.
+        property string templatePage: ""
+        // An installed universe has two faces (Arc 58): its hand-made TRIBUTE page, and — when
+        // it ships a payload — the plain standard page the Universes world's banner opens.
+        property bool plain: false
+        readonly property string bespokeId: plain ? "" : extensionId
+        readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "shelves": "ShelvesUniversePage.qml" })
+        source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
+              : bespokeId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
-                : (extensionId === "com.colosseum.universe.starwars"
+                : (bespokeId === "com.colosseum.universe.starwars"
                    ? "GalaxyUniversePage.qml"
-                   : (extensionId === "com.colosseum.universe.onepiece"
+                   : (bespokeId === "com.colosseum.universe.onepiece"
                       ? "OnePieceUniversePage.qml"
-                      : (extensionId === "com.colosseum.universe.cosmere"
+                      : (bespokeId === "com.colosseum.universe.cosmere"
                          ? "CosmereUniversePage.qml"
                          : "UniverseExtensionPage.qml")))
         onLoaded: {
+            if (universeLayer.templatePage.length) {
+                // Template pages share one contract; a page simply lacks the signals it has no use for.
+                item.backdrop = wall
+                item.universeName = universeLayer.universeName
+                item.backRequested.connect(win.closeUniverse)
+                item.minimizeRequested.connect(win.minimizeShell)
+                item.fullscreenRequested.connect(win.toggleFullscreenShell)
+                item.closeRequested.connect(function() { Qt.quit() })
+                if (accountHost.visible) accountHost.focusReturnItem = item
+                item.watchRequested.connect(win.openTheatreSeries)
+                if (item.bookRequested) item.bookRequested.connect(win.openBook)
+                if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openUniverseComic)
+                if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)
+                // an edition manga (e.g. the One Piece colour edition) arrives as a whole
+                // entry — same router as the arc pages, its provider/seriesId profile intact
+                if (item.seriesEntryRequested) item.seriesEntryRequested.connect(win.routeUniverseSeries)
+                if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
+                if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                if (item.universeRequested) item.universeRequested.connect(win.openUniverseByName)
+                return
+            }
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
-            if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
-                    universeLayer.extensionId === "com.colosseum.universe.starwars" ||
-                    universeLayer.extensionId === "com.colosseum.universe.onepiece")
+            if (universeLayer.bespokeId === "com.colosseum.universe.dcau" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.starwars" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
-            if (universeLayer.extensionId === "com.colosseum.universe.onepiece")
+            if (universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.installedExtensions = Qt.binding(function() { return win.installedExtensions })
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4573,16 +4775,17 @@ Window {
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
-            if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+            if (universeLayer.bespokeId === "com.colosseum.universe.onepiece") {
+                item.arcPageOpen = Qt.binding(function() { return onePieceArcLayer.active })
                 item.arcRequested.connect(win.openOnePieceArc)
                 item.mediaRequested.connect(win.openTheatreSeries)
-            } else if (universeLayer.extensionId === "com.colosseum.universe.cosmere") {
+            } else if (universeLayer.bespokeId === "com.colosseum.universe.cosmere") {
                 // The Cognitive Atlas self-sources from CosmereApi; its only content signal
                 // is a resolved Biblio book opening into the reader.
                 item.bookRequested.connect(win.openBook)
             } else {
                 item.watchRequested.connect(win.openTheatreSeries)
-                if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
+                if (universeLayer.bespokeId === "com.colosseum.universe.dcau") {
                     item.comicRequested.connect(win.openGcdSeries)
                     item.continueResumeRequested.connect(win.resumeContinue)
                     item.continueDetailRequested.connect(win.detailContinue)
@@ -4622,23 +4825,119 @@ Window {
         }
     }
 
+    // ---- Feria: its own native app, entered from the taskbar. ----
     Loader {
-        id: universeHallLayer
-        objectName: "universeHallLayer"
+        id: feriaLayer
+        objectName: "feriaLayer"
         anchors.fill: parent
-        z: 51
-        active: false
-        visible: active
-        asynchronous: true
-        source: "UniverseHallPage.qml"
+        z: 58
+        property bool open: false
+        onOpenChanged: {
+            if (!open && win.currentSurface === "Feria") {
+                win.currentSurface = worldStack.current || "Home"
+                win.refreshWallpaper()
+            }
+        }
+        active: open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0)
+        visible: open
+        source: "feria/FeriaWorld.qml"
+        Binding {
+            target: feriaLayer.item
+            property: "lifecycleActive"
+            value: feriaLayer.open
+            when: feriaLayer.item !== null
+        }
+        Binding {
+            target: feriaLayer.item
+            property: "browserSuppressed"
+            value: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible || accountHost.visible
+                || watchPartyJoinSheet.opened || openRecentPanel.visible
+            when: feriaLayer.item !== null
+        }
         onLoaded: {
             item.backdrop = wall
-            item.universes = win.installedUniverses
-            item.backRequested.connect(win.closeUniverseHall)
-            item.exploreRequested.connect(function (extensionId, name) {
-                win.closeUniverseHall(); win.openUniverse(extensionId, name)
+            item.sharedAccount = true
+            item.browserDeck = feriaSessionDeck
+            item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
+                var id = Sessions.openBrowser(descriptor, fresh, navigate)
+                if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
+                item.activateBrowserRecord(Sessions.get(id))
+                if (navigate) Qt.callLater(function() {
+                    if (Sessions.get(id).id) feriaSessionDeck.navigateSession(
+                        id, descriptor.url, descriptor.position, descriptor.locator, descriptor.visitContext)
+                })
             })
+            item.browserParkRequested.connect(function(returnToFeria) {
+                if (returnToFeria) win.browserReturnToFeria = true
+                Sessions.switchTo("")
+            })
+            item.browserCloseRequested.connect(win.closeSession)
+            if (win.activeBrowserSessionId.length)
+                item.activateBrowserRecord(Sessions.get(win.activeBrowserSessionId))
+            item.mediumSelected.connect(win.openWorld)
+            item.accountRequested.connect(function(tab) {
+                yourFeriaLayer.open = false
+                accountCenter.open("feria", item.keyboardTarget, "feria")
+            })
+            item.accountDestinationRequested.connect(function() {
+                win.openFeriaPage()
+                yourFeriaLayer.open = false
+                accountCenter.close()
+            })
+            item.homeRequested.connect(win.closeFeriaPage)
+            item.fullscreenClicked.connect(win.toggleFullscreenShell)
+            item.minimizeClicked.connect(win.minimizeShell)
+            item.powerClicked.connect(function() { Qt.quit() })
+            item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                accountFlyout.toggleAt(anchorRight, anchorBottom)
+            })
+            Qt.callLater(win.restoreFeriaIfReady)
         }
+    }
+    Connections {
+        target: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
+        function onProfileChanged() { win.feriaReturnSnapshot = null }
+    }
+
+    Feria.FeriaSessionDeck {
+        id: feriaSessionDeck
+        sessions: Sessions
+        accountStore: FeriaAccount
+        policy: FeriaBrowserPolicy
+        fullSizeSurface: feriaFullSizeSurface
+        z: 58.5
+        readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
+                                                        : Qt.rect(0, 160, win.width, win.height - 160)
+        x: viewport.x; y: viewport.y; width: viewport.width; height: viewport.height
+        displayed: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
+            && feriaLayer.item.hostSessionId.length > 0
+        suppressed: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
+            || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
+        onMessage: function(id, text) {
+            if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+        }
+        Component.onCompleted: attachConsentSurface(feriaConsentSurface)
+    }
+
+    // Permanent hosts outlive the Feria Loader. Max moves the live page here;
+    // the embedded world's geometry and anchors remain its saved restore point.
+    Item {
+        id: feriaFullSizeSurface
+        objectName: "feriaFullSizeSurface"
+        anchors.fill: parent
+        anchors.topMargin: feriaConsentSurface.height
+        z: 58.75
+        visible: false
+    }
+    Item {
+        id: feriaConsentSurface
+        objectName: "feriaConsentSurface"
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: !feriaSessionDeck.activeEntry || !feriaSessionDeck.activeEntry.hostWindow
+            ? (feriaSessionDeck.embeddedConsent || feriaSessionDeck.embeddedDiagnostic.length ? 100 : 0) : 0
+        // Hidden Feria pages may ask while Theatre's z:60 player is open.
+        // Keep shell consent above world surfaces and below the taskbar.
+        z: 899
     }
 
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
@@ -4654,7 +4953,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             if (item.universeHallRequested)
-                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openUniverseHall() })
+                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openWorld("Universes") })
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
@@ -4775,7 +5074,9 @@ Window {
     Taskbar {
         id: taskbar
         z: 900
-        visible: !win.immersiveSurfaceOpen && !win.androidHost
+        visible: !win.immersiveSurfaceOpen
+            && !win.androidHost
+            && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)
@@ -4795,8 +5096,17 @@ Window {
         onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
-        historyStatsActive: historyStatsLayer.active
-        onHistoryStatsClicked: !historyStatsLayer.active ? win.openHistoryStatsPage() : win.closeHistoryStatsPage()
+        historyStatsActive: historyStatsLayer.active || yourFeriaLayer.active
+        feriaContext: feriaLayer.open
+        onHistoryStatsClicked: {
+            if (feriaLayer.open) {
+                if (yourFeriaLayer.active) win.closeYourFeriaPage()
+                else win.openYourFeriaPage("history")
+            } else {
+                if (historyStatsLayer.active) win.closeHistoryStatsPage()
+                else win.openHistoryStatsPage()
+            }
+        }
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -5157,6 +5467,8 @@ Window {
     AccountCenter {
         id: accountCenter
         objectName: "accountCenter"
+        feriaController: feriaLayer.item
+        onFeriaActivityRequested: function(section) { win.openYourFeriaPage(section) }
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
         privacyDataExportBusy: typeof AccountLifecycle !== "undefined"

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.7 LANGUAGES C CXX)
+project(colosseum VERSION 1.1.8 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -25,8 +25,31 @@ set(COLOSSEUM_ACCOUNT_SERVICE_URL "" CACHE STRING
 # SIMKL AUTH V2 uses a public client identifier for desktop/device clients.
 # It is safe to ship, but the provider remains fail-closed when this value is
 # absent so an unregistered build can never present a false Connect action.
-set(COLOSSEUM_SIMKL_CLIENT_ID "" CACHE STRING
+# The default is Colosseum's own public SIMKL client ID; set it to "" to build
+# without SIMKL.
+set(COLOSSEUM_SIMKL_CLIENT_ID "eb9f0eeabf3c5a9cbca24b9b7d479ffb34d365a0e2dcc245878761a7578ab35d" CACHE STRING
     "Public SIMKL AUTH V2 client_id for Colosseum; empty keeps SIMKL unavailable")
+
+# MyAnimeList desktop OAuth. Prefer an app registration with no client secret.
+# A confidential client must use COLOSSEUM_MAL_TOKEN_BROKER_URL; never compile
+# a MAL client_secret into Colosseum.
+# The defaults are Colosseum's own secretless ("other" type) MAL registration:
+# a public identifier that is meant to ship. Set both to "" to build without MAL.
+set(COLOSSEUM_MAL_CLIENT_ID "6bd232aab8b5ff253b75b32332a6d6d2" CACHE STRING
+    "Public MyAnimeList client_id; empty keeps MAL unavailable")
+set(COLOSSEUM_MAL_REDIRECT_URI "http://127.0.0.1:38191/oauth/mal/callback" CACHE STRING
+    "Registered fixed loopback redirect URI")
+set(COLOSSEUM_MAL_TOKEN_BROKER_URL "" CACHE STRING
+    "Optional HTTPS Colosseum-owned confidential-client token broker")
+
+# Trakt device OAuth requires Colosseum's own public registration and HTTPS
+# broker; confidential provider credentials remain on the broker.
+# The defaults are Colosseum's own public Trakt client ID and its hosted token
+# broker; both are meant to ship. Set both to "" to build without direct Trakt.
+set(COLOSSEUM_TRAKT_CLIENT_ID "AZQUUtagNQxy1B1TmvY2Qo3FjxqR31iYLwIxi0OORyo" CACHE STRING
+    "Public Trakt client_id; empty keeps direct Trakt unavailable")
+set(COLOSSEUM_TRAKT_TOKEN_BROKER_URL "https://colosseum-tj1t.onrender.com" CACHE STRING
+    "HTTPS Colosseum-owned Trakt token broker; empty keeps direct Trakt unavailable")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -285,6 +308,20 @@ qt_add_executable(colosseum
     trackers/SimklConnectionController.cpp
     trackers/SimklApiClient.cpp
     trackers/SimklSyncRuntime.cpp
+    trackers/MalProtocol.cpp
+    trackers/MalLoopbackServer.cpp
+    trackers/MalHttpTransport.cpp
+    trackers/MalApiClient.cpp
+    trackers/MalListStateStore.cpp
+    trackers/MalConnectionController.cpp
+    trackers/MalSyncRuntime.cpp
+    trackers/TraktAuth.cpp
+    trackers/TraktCodec.cpp
+    trackers/TraktHttpTransport.cpp
+    trackers/TraktApiClient.cpp
+    trackers/TraktConnectionController.cpp
+    trackers/TraktSyncRuntime.cpp
+    trackers/TrackerConnectionRouter.cpp
     trackers/TrackerMappingStore.cpp
     trackers/TrackerHistoryEvidenceStore.cpp
     trackers/TrackerImportStore.cpp
@@ -378,6 +415,20 @@ qt_add_executable(colosseum
     trackers/TrackerScrobbleRuntime.h
     trackers/SimklApiClient.h
     trackers/SimklSyncRuntime.h
+    trackers/MalProtocol.h
+    trackers/MalLoopbackServer.h
+    trackers/MalHttpTransport.h
+    trackers/MalApiClient.h
+    trackers/MalListStateStore.h
+    trackers/MalConnectionController.h
+    trackers/MalSyncRuntime.h
+    trackers/TraktAuth.h
+    trackers/TraktCodec.h
+    trackers/TraktHttpTransport.h
+    trackers/TraktApiClient.h
+    trackers/TraktConnectionController.h
+    trackers/TraktSyncRuntime.h
+    trackers/TrackerConnectionRouter.h
     trackers/TrackerCanonicalDeliverySource.h
     trackers/TrackerDeliveryRuntime.h
     trackers/TrackerSyncSettingsStore.h
@@ -801,6 +852,51 @@ if(COLOSSEUM_SIMKL_CLIENT_ID)
 else()
     message(STATUS "SIMKL AUTH V2 disabled: COLOSSEUM_SIMKL_CLIENT_ID is empty")
 endif()
+if(COLOSSEUM_MAL_CLIENT_ID OR COLOSSEUM_MAL_REDIRECT_URI OR COLOSSEUM_MAL_TOKEN_BROKER_URL)
+    string(STRIP "${COLOSSEUM_MAL_CLIENT_ID}" colosseum_mal_client_id)
+    string(STRIP "${COLOSSEUM_MAL_REDIRECT_URI}" colosseum_mal_redirect_uri)
+    string(STRIP "${COLOSSEUM_MAL_TOKEN_BROKER_URL}" colosseum_mal_token_broker_url)
+
+    if(colosseum_mal_client_id STREQUAL "" OR colosseum_mal_redirect_uri STREQUAL "")
+        message(FATAL_ERROR "MAL requires both COLOSSEUM_MAL_CLIENT_ID and COLOSSEUM_MAL_REDIRECT_URI")
+    endif()
+    if(colosseum_mal_client_id MATCHES "[\"\\\\]"
+       OR colosseum_mal_redirect_uri MATCHES "[\"\\\\]"
+       OR colosseum_mal_token_broker_url MATCHES "[\"\\\\]")
+        message(FATAL_ERROR "MAL build configuration contains unsafe quoting")
+    endif()
+    if(NOT colosseum_mal_redirect_uri MATCHES "^http://(localhost|127[.]0[.]0[.]1|\\[::1\\]):[0-9]+/")
+        message(FATAL_ERROR "COLOSSEUM_MAL_REDIRECT_URI must be a fixed loopback HTTP URI with a port")
+    endif()
+    if(NOT colosseum_mal_token_broker_url STREQUAL ""
+       AND NOT colosseum_mal_token_broker_url MATCHES "^https://")
+        message(FATAL_ERROR "COLOSSEUM_MAL_TOKEN_BROKER_URL must be HTTPS")
+    endif()
+
+    target_compile_definitions(colosseum PRIVATE
+        COLOSSEUM_MAL_CLIENT_ID="${colosseum_mal_client_id}"
+        COLOSSEUM_MAL_REDIRECT_URI="${colosseum_mal_redirect_uri}")
+    if(NOT colosseum_mal_token_broker_url STREQUAL "")
+        target_compile_definitions(colosseum PRIVATE
+            COLOSSEUM_MAL_TOKEN_BROKER_URL="${colosseum_mal_token_broker_url}")
+    endif()
+    message(STATUS "MyAnimeList tracker enabled for this build")
+else()
+    message(STATUS "MyAnimeList tracker disabled: registration is not configured")
+endif()
+if(COLOSSEUM_TRAKT_CLIENT_ID OR COLOSSEUM_TRAKT_TOKEN_BROKER_URL)
+    if(NOT COLOSSEUM_TRAKT_CLIENT_ID MATCHES "^[A-Za-z0-9_-]+$"
+       OR NOT COLOSSEUM_TRAKT_TOKEN_BROKER_URL MATCHES "^https://[^/?#@ ]+"
+       OR COLOSSEUM_TRAKT_TOKEN_BROKER_URL MATCHES "[\"\\\\; \t\r\n?#@]")
+        message(FATAL_ERROR "Direct Trakt requires a public client_id and a valid HTTPS token broker URL")
+    endif()
+    target_compile_definitions(colosseum PRIVATE
+        COLOSSEUM_TRAKT_CLIENT_ID="${COLOSSEUM_TRAKT_CLIENT_ID}"
+        COLOSSEUM_TRAKT_TOKEN_BROKER_URL="${COLOSSEUM_TRAKT_TOKEN_BROKER_URL}")
+    message(STATUS "Direct Trakt enabled for this build")
+else()
+    message(STATUS "Direct Trakt disabled: registration and token broker are not configured")
+endif()
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
 endif()
@@ -838,11 +934,25 @@ target_link_libraries(colosseum PRIVATE
     Qt6::WebSockets colosseum_libtorrent
 )
 if(NOT ANDROID)
-    target_link_libraries(colosseum PRIVATE
-        colosseum_update_crypto MpvQt::MpvQt
+    # Desktop-only links: the Android Qt kit ships no WebEngine/MpvQt. MediaAdmissionProbe
+    # links libmpv directly, not via MpvQt (Slice 8); Feria (Portico/WebEngineQuick) is
+    # desktop-only too, so its target and WebView2 loader stay off the Android graph.
+    target_link_libraries(colosseum PRIVATE colosseum_update_crypto MpvQt::MpvQt
         Qt6::WebEngineQuick Qt6::WebChannel
-        ${Libmpv_LIBRARIES}
-    )
+        ${Libmpv_LIBRARIES})
+
+    if(WIN32)
+        find_package(unofficial-webview2 CONFIG QUIET)
+    endif()
+    add_subdirectory(feria)
+    target_link_libraries(colosseum PRIVATE feria_discovery)
+    if(TARGET unofficial::webview2::webview2)
+        add_custom_command(TARGET colosseum POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:unofficial::webview2::webview2>"
+                "$<TARGET_FILE_DIR:colosseum>/WebView2Loader.dll"
+            VERBATIM)
+    endif()
 endif()
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose

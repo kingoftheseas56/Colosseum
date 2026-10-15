@@ -41,7 +41,7 @@ Item {
     readonly property int sliceCount: model.length
     readonly property int leftoverCount: totalLeftover
 
-    Theme { id: theme }
+    VaultTheme { id: theme }
 
     function kindLabel(k) {
         return k === "comic" ? "Comics" : k === "book" ? "Books" : k === "video" ? "Video" : k
@@ -91,7 +91,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, parent.height * 0.09)
         radius: 20
-        color: Qt.rgba(0.071, 0.082, 0.110, 0.99)
+        color: theme.panel
         border.width: 1
         border.color: theme.edge
 
@@ -175,7 +175,7 @@ Item {
                         width: bodyCol.width
                         height: rowGrid.implicitHeight + 32
                         radius: 14
-                        color: Qt.rgba(0.094, 0.110, 0.145, 0.96)
+                        color: theme.panel
                         border.width: 1
                         border.color: theme.edge
                         anchors.horizontalCenter: undefined
@@ -281,7 +281,7 @@ Item {
                                     width: 140
                                     height: pickCol.implicitHeight + 10
                                     radius: 12
-                                    color: Qt.rgba(0.071, 0.082, 0.110, 0.99)
+                                    color: theme.panel
                                     border.width: 1; border.color: theme.edge
                                     Column {
                                         id: pickCol

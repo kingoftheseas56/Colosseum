@@ -147,6 +147,11 @@
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
 // compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
 #include "ScrollProbe.h"     // diagnostic wheel-input probe (env-gated; see header)
+#if !defined(Q_OS_ANDROID)
+#include "feria/PorticoComposition.h"
+#include "feria/FeriaBrowserPolicy.h"
+#include "feria/FeriaAccountStore.h"
+#endif
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -682,6 +687,9 @@ int main(int argc, char *argv[]) {
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 
+    // Backend stores and workers must finish while Qt and its event dispatcher
+    // still exist. QML goes first so its destruction handlers can flush activity.
+    QObject backendServices(&app);
     QQmlApplicationEngine engine;
 
     // One host/platform facade for lifecycle, Android Back, safe insets,
@@ -866,7 +874,7 @@ int main(int argc, char *argv[]) {
         }
     }
     auto *updates = new Colosseum::Update::UpdateService(
-        *installedVersion, updateCache->rootPath(), std::move(updateHooks), &app);
+        *installedVersion, updateCache->rootPath(), std::move(updateHooks), &backendServices);
 #ifdef COLOSSEUM_UPDATE_TESTING
     if (qEnvironmentVariableIsSet("COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE")) {
         const QString requestedState = qEnvironmentVariable("COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE");
@@ -969,7 +977,7 @@ int main(int argc, char *argv[]) {
         // captured-motion asset (humbled-current recap 2026-07-24). Same scar, same fix.
         QStringLiteral("wsrv.nl")
     };
-    auto *pinStore = new Ipv4PinStore(QString(), Ipv4PinStore::Lookup(), &app);
+    auto *pinStore = new Ipv4PinStore(QString(), Ipv4PinStore::Lookup(), &backendServices);
     const QHash<QString, QString> initialPins = pinStore->snapshot();
     for (auto it = initialPins.constBegin(); it != initialPins.constEnd(); ++it)
         qInfo("[net] cached IPv4 pin %s -> %s", qUtf8Printable(it.key()), qUtf8Printable(it.value()));
@@ -983,7 +991,7 @@ int main(int argc, char *argv[]) {
     const QSet<QString> metahubHosts = {
         QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space")
     };
-    auto *concierge = new LoopbackPinProxy(pinStore, &app);
+    auto *concierge = new LoopbackPinProxy(pinStore, &backendServices);
     const bool conciergeOk = concierge->start();
     if (conciergeOk)
         qInfo("[net] connection concierge on 127.0.0.1:%u (metahub -> HTTP/2)", concierge->port());
@@ -1004,7 +1012,7 @@ int main(int argc, char *argv[]) {
     // NAM; dumped at quit so a real run answers "did the posters actually arrive?"
     // with numbers instead of a shrug. The webp check is the dev-hack scar made loud:
     // the decoder must ship BESIDE the exe (deploy-runtime.bat), not live in the Qt install.
-    auto *scoreboard = new PosterScoreboard(&app);
+    auto *scoreboard = new PosterScoreboard(&backendServices);
     {
         const bool webpOk =
             QImageReader::supportedImageFormats().contains(QByteArrayLiteral("webp"));
@@ -1045,10 +1053,10 @@ int main(int argc, char *argv[]) {
     }
     // Per-URL image diagnostics behind the Lanista biblio.imageDiag probe (decision
     // brief 2026-08-06 §4) — same lifetime contract as the scoreboard beside it.
-    auto *imageDiag = new BiblioImageDiag(&app);
+    auto *imageDiag = new BiblioImageDiag(&backendServices);
     const bool posterTimingEnabled = qEnvironmentVariable("COLOSSEUM_POSTER_TIMING") == QLatin1String("1");
     const bool frameProbeEnabled = qEnvironmentVariable("COLOSSEUM_FRAME_PROBE") == QLatin1String("1");
-    auto *posterTiming = new PosterTimingProbe(posterTimingEnabled, &app);
+    auto *posterTiming = new PosterTimingProbe(posterTimingEnabled, &backendServices);
     auto frameTiming = std::make_shared<FrameTimingProbe>(frameProbeEnabled);
     if (posterTimingEnabled) app.installEventFilter(posterTiming);
     engine.setNetworkAccessManagerFactory(
@@ -1077,15 +1085,15 @@ int main(int argc, char *argv[]) {
     }
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
-    auto *manga = new MangaEngine(&app);
+    auto *manga = new MangaEngine(&backendServices);
     manga->setIpv4Pins(initialPins);   // cached pins are available before async refresh
     engine.rootContext()->setContextProperty(QStringLiteral("Manga"), manga);
 
     // Download-fed reading backbone exposed to QML as `Downloads`. Reading is never
     // a live stream: a chapter is downloaded to loose local files once, then the
     // reader reads those offline. Own plain NAM (no cache) — it persists to disk itself.
-    auto *dlNam = new QNetworkAccessManager(&app);
-    auto *downloads = new MangaDownloader(dlNam, &app, {}, {}, manga->tankoyomiService());
+    auto *dlNam = new QNetworkAccessManager(&backendServices);
+    auto *downloads = new MangaDownloader(dlNam, &backendServices, {}, {}, manga->tankoyomiService());
     downloads->setIpv4Pins(initialPins);   // cached pins are available before async refresh
     pinStore->setPinChangedCallback([manga, downloads, pinStore](const QString&, const QString&) {
         const QHash<QString, QString> pins = pinStore->snapshot();
@@ -1101,7 +1109,7 @@ int main(int argc, char *argv[]) {
     // Book download backbone (LibGen → local .epub) exposed to QML as `Books`.
     // Same download-fed law as manga: a book is fetched to disk once, then the
     // reader opens the local file (never a stream). Shares the plain uncached NAM.
-    auto *books = new BookDownloader(dlNam, &app);
+    auto *books = new BookDownloader(dlNam, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Books"), books);
     if (qEnvironmentVariableIsSet("COLOSSEUM_BOOK_DLTEST"))
         books->selfTest(qEnvironmentVariable("COLOSSEUM_BOOK_DLTEST"));
@@ -1121,7 +1129,7 @@ int main(int argc, char *argv[]) {
     // — the standalone audiobook strip — was retired 2026-07-18 (Main.qml:1412). It
     // had no live caller in qml/, tests/ or native/. BookStores stays: it is shared
     // storage, not part of the old reader.
-    auto *reader2Bridge = new Reader2Bridge(&app);
+    auto *reader2Bridge = new Reader2Bridge(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
 #ifdef Q_OS_ANDROID
     Colosseum::Platform::installAndroidEngineBindings(&engine, reader2Bridge, &app);
@@ -1137,7 +1145,7 @@ int main(int argc, char *argv[]) {
     // live-generation the provider reads. Registered now so the seam is live and
     // boot-tested; the QML surfaces (Task 9+) are what consume it. Scheme is
     // `comicreader`, distinct from Reader2's Biblio book reader.
-    auto *comicReaderCore = new comicreader::ComicReaderCore(&app);
+    auto *comicReaderCore = new comicreader::ComicReaderCore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicReaderCore"), comicReaderCore);
     engine.addImageProvider(QStringLiteral("comicreader"), comicReaderCore->createProvider());
 
@@ -1160,9 +1168,9 @@ int main(int argc, char *argv[]) {
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/vault");
     QDir().mkpath(vaultDir);
-    auto *localLaunch = new LocalLaunch(vaultDir, &app);
+    auto *localLaunch = new LocalLaunch(vaultDir, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalLaunch"), localLaunch);
-    auto *vaultPageStore = new VaultPageStore(&app);
+    auto *vaultPageStore = new VaultPageStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultPageStore"), vaultPageStore);
 
     // VaultLibrary — the Vault's single QML façade: the read-model the page + door + shelves
@@ -1172,11 +1180,11 @@ int main(int argc, char *argv[]) {
     // and C++ owns the scan/publish threading and multi-step sequence. VaultEnricher is
     // constructed below (UX-uplift S5): census facts still shelve first via the inline
     // static pass, then the instance fills video durations + local artwork.
-    auto *vaultIndex = new VaultIndex(vaultDir + QStringLiteral("/index-v1.sqlite"), &app);
-    auto *vaultConfig = new VaultConfig(vaultDir, &app);
-    auto *vaultIdentity = new VaultIdentity(vaultDir, &app);
+    auto *vaultIndex = new VaultIndex(vaultDir + QStringLiteral("/index-v1.sqlite"), &backendServices);
+    auto *vaultConfig = new VaultConfig(vaultDir, &backendServices);
+    auto *vaultIdentity = new VaultIdentity(vaultDir, &backendServices);
     localLaunch->setIdentity(vaultIdentity);
-    auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &app);
+    auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &backendServices);
     // Slice 15: VaultLibrary OWNS the VaultWatcher (per-root QFileSystemWatcher + debounce);
     // it needs the identity to build arrival rows identical to the census's.
     // Browse-artwork execution plan, Slice 3 part 2: `vaultDir` is reused as-is — the SAME
@@ -1184,7 +1192,7 @@ int main(int argc, char *argv[]) {
     // VaultLibrary's owned VaultThumbnailer/VaultPosterFetcher (thumbs/, posters/ subdirs) land
     // beside config.json/identity.json/index-v1.sqlite instead of scattering a second cache root.
     auto *vaultLibrary =
-        new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, vaultDir, &app);
+        new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, vaultDir, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
 
     // ── VaultEnricher, the instance the app never constructed (UX-uplift S5) ──────
@@ -1196,7 +1204,7 @@ int main(int argc, char *argv[]) {
     // owner thread (its own resurrection barrier, commitRowsOnIndexThread), so a slow
     // ffprobe pass can never overwrite newer index data. Lives on the GUI thread;
     // enrich() itself runs on a worker.
-    auto *vaultEnricher = new VaultEnricher(vaultIndex, vaultDir, &app);
+    auto *vaultEnricher = new VaultEnricher(vaultIndex, vaultDir, &backendServices);
 
     // The video duration + local-artwork pass. Chained AFTER the census-enrichment
     // lambda below completes (its finished handler / empty-todo return), so admission
@@ -1397,7 +1405,7 @@ int main(int argc, char *argv[]) {
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
-    auto *stream = new StreamServer(&app);
+    auto *stream = new StreamServer(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
     // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
     // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
@@ -1413,7 +1421,7 @@ int main(int argc, char *argv[]) {
     // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
     // (from AudioBookBay) downloads its audio files to <appdata>/audiobooks, keyed
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
-    auto *audiobooks = new AudiobookDownloader(dlNam, stream, &app);
+    auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
 
     // ── Tankorent engine (Phase 2 — books consume it) ───────────────────────
@@ -1427,18 +1435,18 @@ int main(int argc, char *argv[]) {
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/torrent-engine");
     QDir().mkpath(torrentEngineDir);
-    auto *torrentEngine = new TorrentEngine(torrentEngineDir, &app);
+    auto *torrentEngine = new TorrentEngine(torrentEngineDir, &backendServices);
     torrentEngine->setGlobalSeedingRules(0.f, 1);
 
     // Book torrents shelf (Biblio): federated indexer search + engine-fed single-file pull.
     // searchNam = pinned + UA-stamped + UNCACHED CachingNam (live seeder counts, no stale
     // cache); torrentEngine carries the download bytes. pinnedHosts/ipv4ByHost include the
     // 3 indexers.
-    auto *searchNam = new CachingNam(pinnedHosts, pinStore, &app, /*useCache=*/false);
+    auto *searchNam = new CachingNam(pinnedHosts, pinStore, &backendServices, /*useCache=*/false);
 
     // Comics keeps one public reader/download identity (`Comics`) while privately
     // composing torrent search + archive download with its proven extraction/index.
-    auto *comics = new ComicDownloader(dlNam, searchNam, torrentEngine, &app);
+    auto *comics = new ComicDownloader(dlNam, searchNam, torrentEngine, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Comics"), comics);
     if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_DLTEST"))
         comics->selfTest(qEnvironmentVariable("COLOSSEUM_COMIC_DLTEST"));
@@ -1481,22 +1489,22 @@ int main(int argc, char *argv[]) {
 
     // Availability-first SQLite catalogue (spec 2026-07-17): read-only seam; the db
     // is pipeline-deployed to data/ (cwd = repo root) on dev machines, vault-fed elsewhere.
-    auto *comicsCatalog = new ComicsCatalog(comicsRes.path, &app);
+    auto *comicsCatalog = new ComicsCatalog(comicsRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicsCatalog"), comicsCatalog);
 
     // Baked MyAnimeList catalog (genre-page revival 2026-07-18): same doctrine —
     // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
-    auto *malCatalog = new MalCatalog(malRes.path, &app);
+    auto *malCatalog = new MalCatalog(malRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
 
     // Baked Tankoban volume catalogue (catalogue-independence Slice 1, 2026-08-20): same
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
-    auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &app);
+    auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
-    auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &app);
+    auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
-                                                 imdbCatalog, &app);
+                                                 imdbCatalog, &backendServices);
     vaultLibrary->setIdentifier(vaultIdentifier);
 
     // CatalogVaultClient (Slice 1) only manages the names that did NOT resolve via a
@@ -1585,10 +1593,10 @@ int main(int argc, char *argv[]) {
     const QString biblioCatalogPath =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/catalog/biblio-v1.sqlite");
-    auto *biblioCatalog = new BiblioCatalog(biblioCatalogPath, nullptr, &app);
+    auto *biblioCatalog = new BiblioCatalog(biblioCatalogPath, nullptr, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioCatalog"), biblioCatalog);
 
-    auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
+    auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
 
     // Tankoban "volume mode" façade exposed to QML as `TankobanVolumes` (Task 8).
@@ -1597,7 +1605,7 @@ int main(int argc, char *argv[]) {
     // (wrapped in a queued IMangaTorrentEngine adapter built inside), the
     // WeebCentral chapter-pack fallback + synopsis enrichment over the plain
     // dlNam, and ingestion into a durable local index under AppDataLocation.
-    auto *tankobanVolumes = new MangaTankobanService(searchNam, dlNam, torrentEngine, QString(), &app);
+    auto *tankobanVolumes = new MangaTankobanService(searchNam, dlNam, torrentEngine, QString(), &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanVolumes"), tankobanVolumes);
     if (qEnvironmentVariableIsSet("COLOSSEUM_TANKOBAN_DLTEST")) {
         // Honest end-to-end self-test (Task 11). Spec:
@@ -1634,8 +1642,8 @@ int main(int argc, char *argv[]) {
     // UA-stamped + UNCACHED NAM production uses, so a slow-but-alive indexer isn't
     // falsely declared dead by an unpinned IPv6 stall. Ends on searchFinished.
     if (qEnvironmentVariableIsSet("COLOSSEUM_TORRENT_SEARCHTEST")) {
-        auto *smokeNam = new CachingNam(pinnedHosts, pinStore, &app, /*useCache=*/false);
-        auto *svc = new TankorentSearchService(smokeNam, &app);
+        auto *smokeNam = new CachingNam(pinnedHosts, pinStore, &backendServices, /*useCache=*/false);
+        auto *svc = new TankorentSearchService(smokeNam, &backendServices);
         svc->selfTest(qEnvironmentVariable("COLOSSEUM_TORRENT_SEARCHTEST"));
         QTimer::singleShot(45000, &app, &QCoreApplication::quit);   // hard backstop only
     }
@@ -1646,7 +1654,7 @@ int main(int argc, char *argv[]) {
         if (a.size() == 3) {
             comics->selfTestTorrent(a[0], a[1], a[2]);
         } else if (a.size() == 2) {
-            auto* dl = new BookTorrentDownloader(torrentEngine, &app);
+            auto* dl = new BookTorrentDownloader(torrentEngine, &backendServices);
             dl->selfTest(a[0], a[1]);
         }
         QTimer::singleShot(240000, &app, []() {   // >= live gate's 240s DHT wait
@@ -1657,11 +1665,11 @@ int main(int argc, char *argv[]) {
 
     // Cast session state exposed to QML as `Cast`. Network discovery/control is the
     // later backend; this slice gives the player real device/session state today.
-    auto *cast = new CastStore(&app);
+    auto *cast = new CastStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Cast"), cast);
 
     // Current-player video download state exposed to QML as `Download`.
-    auto *download = new DownloadStore(&app);
+    auto *download = new DownloadStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Download"), download);
     if (qEnvironmentVariableIsSet("COLOSSEUM_VIDEOQ_SELFTEST"))
         download->selfTest(qEnvironmentVariable("COLOSSEUM_VIDEOQ_SELFTEST"));
@@ -1670,7 +1678,7 @@ int main(int argc, char *argv[]) {
     // Downloads page renders this; every mutation still routes to the owning
     // backend (Downloads / Books / Comics / Download).
     auto *localDownloads = new LocalDownloads(downloads, books, comics, download,
-                                              tankobanVolumes, &app);
+                                              tankobanVolumes, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
 
     // OS-facing download progress seam. Android owns the notification/service
@@ -1686,7 +1694,7 @@ int main(int argc, char *argv[]) {
     // confirmed trusted root. The path is a logical identifier (the rows come
     // from the backbones, NOT a filesystem scan), pinned under AppData.
     auto *vaultDownloadsRoot = new VaultDownloadsRoot(download, books, comics,
-                                                      tankobanVolumes, &app);
+                                                      tankobanVolumes, &backendServices);
     const QString vaultDownloadsRootPath =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/downloads");
@@ -1697,7 +1705,7 @@ int main(int argc, char *argv[]) {
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
     // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
     // Shares the plain uncached NAM — manifests are small JSON, never cache-served.
-    auto *extensions = new ExtensionsStore(dlNam, &app);
+    auto *extensions = new ExtensionsStore(dlNam, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Extensions"), extensions);
 
     // dev harness: COLOSSEUM_OPEN_EXTENSIONS=1 boots straight into the store, so
@@ -1758,14 +1766,14 @@ int main(int argc, char *argv[]) {
         qEnvironmentVariable("COLOSSEUM_SUBS_SELFTEST"));
 
     // Live TV / DVR player state exposed to QML as `Live`.
-    auto *live = new LiveStore(&app);
+    auto *live = new LiveStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Live"), live);
 
     // Shared background-work spine: ONE coordinator (one worker) for every adopted
     // offline-analysis producer. The registry is the QML-facing activity/control surface
     // and is bound to the same scheduler so pause/resume cannot terminate in presentation.
-    auto *backgroundWork = new work::BackgroundWorkCoordinator(1, &app);
-    auto *backgroundActivity = new work::BackgroundActivityRegistry(&app);
+    auto *backgroundWork = new work::BackgroundWorkCoordinator(1, &backendServices);
+    auto *backgroundActivity = new work::BackgroundActivityRegistry(&backendServices);
     backgroundActivity->setCoordinator(backgroundWork);
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
@@ -1773,7 +1781,7 @@ int main(int argc, char *argv[]) {
     // Foreground-priority governor: direct user input gets a 350 ms latency-sensitive
     // lease; immersive player/reader ownership dominates as Suspended. One reasoned
     // pressure signal fans out to every adopted background seam.
-    auto *foregroundPriority = new work::ForegroundPriorityGovernor(350, &app);
+    auto *foregroundPriority = new work::ForegroundPriorityGovernor(350, &backendServices);
     app.installEventFilter(foregroundPriority);
     engine.rootContext()->setContextProperty(QStringLiteral("ForegroundPriority"),
                                              foregroundPriority);
@@ -1798,20 +1806,20 @@ int main(int argc, char *argv[]) {
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the
     // network transport will publish later.
-    auto *room = new RoomStore(&app);
+    auto *room = new RoomStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Room"), room);
 
     // Watch Party Slice 2: source eligibility is a separate, read-only decision seam.
     // The existing local RoomStore remains untouched; no room/network/account behavior
     // is adopted here. Player 1 asks this object only for a credential-free descriptor.
-    auto *watchPartySource = new Colosseum::WatchParty::SourceInspector(&app);
+    auto *watchPartySource = new Colosseum::WatchParty::SourceInspector(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartySource"),
                                              watchPartySource);
 
     // Watch Party Slice 3: narrow Player 1 timeline synchronization policy. It starts
     // inactive and owns neither room transport nor account/session state; later room
     // integration feeds it authoritative timeline state and consumes explicit commands.
-    auto *watchPartySync = new Colosseum::WatchParty::PlayerSyncController(&app);
+    auto *watchPartySync = new Colosseum::WatchParty::PlayerSyncController(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartySync"),
                                              watchPartySync);
 
@@ -1819,7 +1827,7 @@ int main(int argc, char *argv[]) {
     // is created after AccountRuntime and ownership is transferred into this controller;
     // until then only the accountless guest flow exists. The service endpoint is
     // deployment configuration, never room/shared state.
-    auto *watchPartyUi = new Colosseum::WatchParty::UiController(watchPartySync, &app);
+    auto *watchPartyUi = new Colosseum::WatchParty::UiController(watchPartySync, &backendServices);
     const QUrl watchPartyUrl = Colosseum::WatchParty::ServiceEndpoint::configuredUrl();
     if (!watchPartyUi->configureServiceUrl(watchPartyUrl))
         qWarning() << "[watch-party] ignored invalid service endpoint";
@@ -1833,7 +1841,7 @@ int main(int argc, char *argv[]) {
 
     // Playback power-inhibit exposed to QML as `Power`, matching Harbor's play-only
     // OS/display sleep prevention.
-    auto *power = new PowerStore(&app);
+    auto *power = new PowerStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Power"), power);
 
     // Efficiency gate: auto-play this local file through the app's REAL player on startup. Both
@@ -1865,7 +1873,7 @@ int main(int argc, char *argv[]) {
     // designed. Replaces the four raw store constructions this block used to
     // hold — the split-brain risk of two owners binding the same QML names is
     // closed by construction.
-    auto *accountRuntime = new AccountRuntime(&app);
+    auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
     std::unique_ptr<RatingsReviewsTaggedFixtureAdapter> ratingsReviewsFixtureA;
@@ -1933,7 +1941,7 @@ int main(int argc, char *argv[]) {
     accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
 
-    auto *ratingsReviewsIdentity = new ColosseumTitleIdentityRegistry(QString(), &app);
+    auto *ratingsReviewsIdentity = new ColosseumTitleIdentityRegistry(QString(), &backendServices);
     // Persist learned provider-id pivots (kitsu:/mal:… → tt…) under the tagged
     // AppData root; the tag re-rooting applied earlier keeps isolated test
     // sessions from touching the daily profile's learned unions.
@@ -1944,10 +1952,10 @@ int main(int argc, char *argv[]) {
             ratingsReviewsIdentity->setAliasUnionsPath(
                 unionsDir + QStringLiteral("/alias-unions-v1.json"));
     }
-    auto *ratingsReviewsProviderRead = new RatingsReviewsProviderReadProjection(&app);
+    auto *ratingsReviewsProviderRead = new RatingsReviewsProviderReadProjection(&backendServices);
     auto *ratingsReviewsController = new RatingsReviewsController(
         accountRuntime->profileStores(), ratingsReviewsIdentity,
-        ratingsReviewsProviderRead, &app, accountRuntime->ratingsReviewsDelivery());
+        ratingsReviewsProviderRead, &backendServices, accountRuntime->ratingsReviewsDelivery());
     engine.rootContext()->setContextProperty(
         QStringLiteral("RatingsReviewsIdentity"), ratingsReviewsIdentity);
     engine.rootContext()->setContextProperty(
@@ -1998,12 +2006,12 @@ int main(int argc, char *argv[]) {
     // (SearchHistory is owned + bound by the account runtime's profile stores above.)
 
     // System clipboard for QML — the sources sheet's copy-magnet button (spec 2026-07-08).
-    auto *clipboard = new ClipboardHelper(&app);
+    auto *clipboard = new ClipboardHelper(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Clipboard"), clipboard);
 
     // Open-sessions model exposed to QML as `Sessions` - the OS-shell's switcher state
     // (which surfaces are open, which is active, each one's saved-state blob).
-    auto *sessions = new SessionStore(&app);
+    auto *sessions = new SessionStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Sessions"), sessions);
     if (qEnvironmentVariableIsSet("COLOSSEUM_SESSION_SELFTEST"))
         sessions->selfTest();
@@ -2012,7 +2020,7 @@ int main(int argc, char *argv[]) {
     // datasets at runtime, caches immutable generations, and hands Theatre/player
     // a cheap synchronous resolver as `AnimeOrder`. Shares the plain download NAM;
     // never blocks first paint (progressive enhancement).
-    auto *animeOrder = new AnimeOrderService(dlNam, &app);
+    auto *animeOrder = new AnimeOrderService(dlNam, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("AnimeOrder"), animeOrder);
     const bool devWorldWarmer = qEnvironmentVariableIntValue("COLOSSEUM_WORLD_WARMER") == 1;
     engine.rootContext()->setContextProperty(QStringLiteral("DevWorldWarmer"), devWorldWarmer);
@@ -2039,6 +2047,33 @@ int main(int argc, char *argv[]) {
     // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback
     // stalls without adding work to every event delivery.
     app.setStallContext(QStringLiteral("startup"), QStringLiteral("qml-load"));
+#if !defined(Q_OS_ANDROID)
+    PorticoComposition feriaDiscovery;
+    feriaDiscovery.exposeTo(engine.rootContext());
+    auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
+    auto *feriaAccount = new FeriaAccountStore(&engine);
+    auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
+        const auto &profile = accountRuntime->profileStores()->activeProfile();
+        QString root = profile.profileRoot();
+        if (profile.kind() == ProfilePaths::Kind::LegacyLocal)
+            root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        sessions->setBrowserProfile(root);
+        feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
+        feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
+    };
+    bindFeriaProfile();
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     feriaAccount, [feriaAccount, feriaBrowserPolicy, sessions] {
+                         sessions->setBrowserProfile({});
+                         feriaAccount->setStoragePath({});
+                         feriaBrowserPolicy->setStorageRoot({});
+                     });
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     feriaAccount, bindFeriaProfile);
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
+    FeriaBrowserPolicy::registerTypes();
+#endif
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
@@ -2146,7 +2181,7 @@ int main(int argc, char *argv[]) {
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {
-        new QmlReloader(&engine, qmlPath, &app);
+        new QmlReloader(&engine, qmlPath, &backendServices);
         manga->selfTest(QStringLiteral("Berserk"));  // log WeebCentral chapter count at startup
         // DEBUG: log volume resolution. There is no WeebCentral id at startup, so this
         // exercises the LIVE Comick scrape + completeness gate only — the volume-DB read

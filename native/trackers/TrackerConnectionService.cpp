@@ -163,9 +163,7 @@ TrackerCoverageSnapshot TrackerConnectionService::coverageForTitle(
             || operation.mapping.remote.providerId != operation.providerId
             || operation.mapping.remote.remoteAccountId != operation.remoteAccountId
             || operation.mapping.remote.remoteMediaId.trimmed().isEmpty()
-            || operation.mapping.canonical.canonicalMediaId != operation.fact.canonicalMediaId
-            || operation.mapping.canonical.historyKind != operation.fact.historyKind
-            || operation.mapping.canonical.historyId != operation.fact.historyId) {
+            || !TrackerDeliveryStore::mappingMatchesFact(operation.mapping, operation.fact)) {
             receipt.currentness = TrackerReceiptCurrentness::Unsupported;
             result.receiptStatuses.append(receipt);
             continue;

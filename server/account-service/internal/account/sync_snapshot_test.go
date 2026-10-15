@@ -146,8 +146,17 @@ func TestSyncSnapshotFirstPageFreezesCursorAcrossPages(t *testing.T) {
 		if index > 0 {
 			previous := first.Entries[index-1].Mutation
 			current := entry.Mutation
-			if previous.Category > current.Category ||
-				(previous.Category == current.Category && previous.RecordKey >= current.RecordKey) {
+			// Key order is PostgreSQL's (the database collation), the same order the
+			// snapshot query and its cursor predicate use; Go byte order matches it
+			// only under C collation.
+			var ascending bool
+			if err := fixture.pool.QueryRow(context.Background(),
+				`SELECT ($1::text, $2::text) < ($3::text, $4::text)`,
+				previous.Category, previous.RecordKey, current.Category, current.RecordKey,
+			).Scan(&ascending); err != nil {
+				t.Fatalf("compare snapshot key order: %v", err)
+			}
+			if !ascending {
 				t.Fatalf("first page not sorted by (category, record_key) at %d: %s/%s then %s/%s",
 					index, previous.Category, previous.RecordKey, current.Category, current.RecordKey)
 			}
@@ -198,12 +207,31 @@ func TestSyncSnapshotFirstPageFreezesCursorAcrossPages(t *testing.T) {
 		}
 		seen[snapshotEntryKey(entry)] = true
 	}
-	for index := 197; index <= 203; index++ {
+	// Which rows remain for page two depends on the database collation, so derive
+	// the expectation instead of assuming byte order: every seeded collection row
+	// not served on page one, except the row updated after the frozen cursor.
+	firstKeys := map[string]bool{}
+	for _, entry := range first.Entries {
+		firstKeys[snapshotEntryKey(entry)] = true
+	}
+	frozenOut := "collection/" + fixtureCollectionRecordKey("snapshot/item-204")
+	if firstKeys[frozenOut] {
+		t.Fatalf("precondition: post-freeze row %s was already served on page one", frozenOut)
+	}
+	expected := 0
+	for index := 0; index <= 204; index++ {
 		key := "collection/" + fixtureCollectionRecordKey(
 			fmt.Sprintf("snapshot/item-%03d", index))
+		if firstKeys[key] || key == frozenOut {
+			continue
+		}
+		expected++
 		if !seen[key] {
 			t.Fatalf("second page missing expected row %s; seen=%v", key, seen)
 		}
+	}
+	if expected != len(seen) {
+		t.Fatalf("second page rows = %d distinct, want %d remaining seeded rows", len(seen), expected)
 	}
 
 	recovery, err := fixture.service.PullSync(

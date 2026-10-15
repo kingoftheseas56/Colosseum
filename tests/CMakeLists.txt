@@ -14,6 +14,52 @@
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
 
+if(WIN32)
+    add_subdirectory(feria_host_probe)
+endif()
+
+add_executable(feria_account_store_test feria_account_store_test.cpp)
+target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)
+add_executable(feria_media_contract_test feria_media_contract_test.cpp)
+target_link_libraries(feria_media_contract_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_media_contract_test COMMAND feria_media_contract_test)
+find_package(Qt6 QUIET COMPONENTS QuickTest)
+if(TARGET Qt6::QuickTest)
+    add_executable(feria_resume_qml_test feria_resume_qml_test.cpp)
+    set_target_properties(feria_resume_qml_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(feria_resume_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml)
+    add_test(NAME colosseum.feria_resume_qml_test COMMAND feria_resume_qml_test
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/feria_resume_probe")
+    # Explicit reviewer target: real engines, not an ordinary headless unit gate.
+    add_executable(feria_wrapper_qml_test feria_resume_qml_test.cpp)
+    set_target_properties(feria_wrapper_qml_test PROPERTIES AUTOMOC ON)
+    target_compile_definitions(feria_wrapper_qml_test PRIVATE FERIA_WRAPPER_RUNTIME)
+    target_link_libraries(feria_wrapper_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml Qt6::WebEngineQuick)
+    # Real retained WebEngine pages: run explicitly in a graphical desktop.
+    # This is not a mocked/headless CTest pass or an additional X11 CI gate.
+    add_executable(feria_session_runtime_test feria_session_runtime_test.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+    set_target_properties(feria_session_runtime_test PROPERTIES AUTOMOC ON)
+    target_include_directories(feria_session_runtime_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(feria_session_runtime_test PRIVATE feria_discovery
+        Qt6::QuickTest Qt6::WebEngineQuick Qt6::Network)
+endif()
+
+add_executable(feria_availability_test feria_availability_test.cpp)
+target_link_libraries(feria_availability_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
+
+find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
+if(COLOSSEUM_FERIA_TEST_NODE)
+    foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
+        add_test(NAME colosseum.${test_name}_test
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
+    endforeach()
+    add_test(NAME colosseum.feria_app_mode_test
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
+endif()
+
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})
@@ -123,6 +169,14 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
 
+add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+target_include_directories(feria_session_ownership_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+target_link_libraries(feria_session_ownership_test PRIVATE feria_discovery Qt6::Test)
+add_test(NAME colosseum.feria_session_ownership_test COMMAND feria_session_ownership_test)
+set_tests_properties(colosseum.feria_session_ownership_test PROPERTIES
+    LABELS "unit;feria;session;profile" TIMEOUT 60)
+
 # Slice-3 pilot: windowstatepolicy/windowmodestore contracts. Same production
 # units and link set as the legacy window_state_policy_harness, which stays
 # built and registered until parity review retires it (ledger, migration
@@ -176,7 +230,35 @@ function(colosseum_add_tracker_delivery_runtime_sources target)
         "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/SimklConnectionController.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.cpp"
-        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.h")
+        "${COLOSSEUM_NATIVE_DIR}/trackers/SimklSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalLoopbackServer.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalLoopbackServer.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktCodec.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktCodec.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TraktSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionRouter.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionRouter.h")
     # The SIMKL composition needs QtGui (QDesktopServices browser launch) and
     # QtNetwork (AUTH V2 transport) wherever ProfileStoreRuntime is compiled.
     target_link_libraries(${target} PRIVATE Qt6::Gui Qt6::Network)
@@ -1825,6 +1907,16 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
@@ -4110,6 +4202,102 @@ set_tests_properties(colosseum.qttest.tracker_auth PROPERTIES
     LABELS "unit;qttest;tracker;auth;simkl"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
+
+# Arc 60: native MyAnimeList protocol, token refresh, vault admission, and
+# list-state contracts. No production MAL build definitions reach this target,
+# so its unconfigured case proves an unregistered build stays fail-closed.
+add_executable(tst_tracker_mal
+    auto/tracker_mal/tst_tracker_mal.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalApiClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/MalListStateStore.h")
+target_include_directories(tst_tracker_mal PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_mal PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::Test)
+set_target_properties(tst_tracker_mal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_mal PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_mal POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:tst_tracker_mal>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_mal
+         COMMAND tst_tracker_mal)
+set_tests_properties(colosseum.qttest.tracker_mal PROPERTIES
+    LABELS "unit;qttest;tracker;mal"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Direct Trakt keeps production registration defines out of the fixture build.
+add_executable(tst_trakt_direct
+    auto/trakt_direct/tst_trakt_direct.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+colosseum_add_tracker_delivery_runtime_sources(tst_trakt_direct)
+target_include_directories(tst_trakt_direct PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_trakt_direct PRIVATE
+    COLOSSEUM_TRACKER_DELIVERY_TESTING=1)
+target_link_libraries(tst_trakt_direct PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_trakt_direct PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_trakt_direct PRIVATE advapi32)
+    add_custom_command(TARGET tst_trakt_direct POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Sql>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_trakt_direct>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.trakt_direct COMMAND tst_trakt_direct)
+set_tests_properties(colosseum.qttest.trakt_direct PROPERTIES
+    LABELS "unit;qttest;tracker;trakt;auth;delivery"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+find_program(COLOSSEUM_TRAKT_TEST_NODE NAMES node)
+if(COLOSSEUM_TRAKT_TEST_NODE)
+    add_test(NAME colosseum.trakt_player_relay
+        COMMAND "${COLOSSEUM_TRAKT_TEST_NODE}" --test
+                "${CMAKE_CURRENT_SOURCE_DIR}/trakt_player_relay_test.mjs")
+    set_tests_properties(colosseum.trakt_player_relay PROPERTIES
+        LABELS "unit;tracker;trakt;player" TIMEOUT 30)
+endif()
 
 # Arc 35 Slice 3: exact provider mapping and tracker-only imported History
 # evidence. This is deliberately separate from the native witnessed-History

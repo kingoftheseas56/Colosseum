@@ -327,9 +327,15 @@ Item {
             return
         var target = Math.max(glide._minY(), Math.min(glide._maxY(), y))
         glide.cancelGlide("keyboard")
-        if (Math.abs(target - glide.flick.contentY) < 1)
+        var distance = target - glide.flick.contentY
+        if (Math.abs(distance) < 1)
             return
-        glide.smoothScrollBy(target - glide.flick.contentY)
+        // maxBacklogPx bounds accumulated wheel input. An absolute park command has one
+        // authoritative destination and must reach it even on a very deep catalogue page.
+        glide._smoothY = glide.flick.contentY
+        glide._pendingPx = distance
+        glide._drainFresh = true
+        scrollDrain.running = true
         glide._keyboardGlide = true
     }
 

@@ -4,6 +4,7 @@ import "OnePieceCatalogApi.js" as CatalogApi
 
 Item {
     id: root
+    objectName: "onePieceArcCatalogue"
 
     required property var arc
     required property Item backdrop
@@ -13,6 +14,8 @@ Item {
     property var relatedItems: []
     property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
     property int mangaMalId: 13
+    readonly property string seaLabel: root.arc && root.arc.seaLabel ? String(root.arc.seaLabel) : "East Blue"
+    readonly property string sagaLabel: root.arc && root.arc.sagaLabel ? String(root.arc.sagaLabel) : root.seaLabel
 
     property var animeItems: []
     property var onePaceItems: []
@@ -53,6 +56,16 @@ Item {
     }
 
     function refresh() {
+        if (!root.arc) {
+            root.animeItems = []
+            root.onePaceItems = []
+            root.liveItems = []
+            root.volumeItems = []
+            root.animeLoading = false
+            root.onePaceLoading = false
+            root.liveLoading = false
+            return
+        }
         root.animeLoading = true
         root.onePaceLoading = true
         root.liveLoading = true
@@ -149,7 +162,7 @@ Item {
                 width: parent.width
                 spacing: 7
                 Text {
-                    text: "EAST BLUE  /  STORY CATALOGUE"
+                    text: root.seaLabel.toUpperCase() + "  /  STORY CATALOGUE"
                     color: theme.gold
                     font.family: theme.ui
                     font.pixelSize: 10
@@ -157,7 +170,7 @@ Item {
                     font.letterSpacing: 2.6
                 }
                 Text {
-                    text: root.arc.title
+                    text: root.arc ? root.arc.title : ""
                     color: theme.ink
                     font.family: theme.display
                     font.pixelSize: 44
@@ -165,7 +178,7 @@ Item {
                 }
                 Text {
                     width: Math.min(parent.width * 0.76, 900)
-                    text: root.arc.summary || ""
+                    text: root.arc ? root.arc.summary || "" : ""
                     color: theme.inkDim
                     font.family: theme.ui
                     font.pixelSize: 13
@@ -288,7 +301,7 @@ Item {
                 WidgetHeader {
                     width: parent.width
                     title: "Colored Manga"
-                    sub: root.countLabel(root.volumeItems.length, "volume") + " · WeebCentral"
+                    sub: root.countLabel(root.volumeItems.length, "volume") + " · Tankoban · Colored edition"
                     navigable: false
                 }
                 Flickable {
@@ -402,7 +415,7 @@ Item {
         z: 20
         anchors.horizontalCenter: parent.horizontalCenter
         y: 34
-        text: root.arc.title.toUpperCase() + " · EAST BLUE"
+        text: root.arc ? root.arc.title.toUpperCase() + " · " + root.sagaLabel.toUpperCase() : ""
         color: theme.inkDim
         font.family: theme.ui
         font.pixelSize: 10

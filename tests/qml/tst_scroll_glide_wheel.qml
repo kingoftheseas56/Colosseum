@@ -61,6 +61,22 @@ TestCase {
         Colosseum.ScrollGlide { id: innerGlide; flick: inner }
     }
 
+    Window {
+        id: longWindow
+        width: 480
+        height: 360
+        visible: true
+
+        Flickable {
+            id: longFlick
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: 12000
+            boundsBehavior: Flickable.StopAtBounds
+        }
+        Colosseum.ScrollGlide { id: longGlide; flick: longFlick }
+    }
+
     function test_mouse_wheel_reaches_shared_controller() {
         flick.contentY = 300
         glide.cancelGlide()
@@ -94,5 +110,14 @@ TestCase {
                   "wheel up scrolls the inner scroller first")
         compare(inner.contentY, 132)
         compare(outer.contentY, 168)
+    }
+
+    function test_absolute_glide_reaches_a_target_beyond_the_wheel_backlog_cap() {
+        longFlick.contentY = 0
+        longGlide.cancelGlide()
+        longGlide.glideTo(9000)
+        tryVerify(function() { return longGlide._pendingPx === 0 }, 3000,
+                  "the long absolute glide must settle")
+        compare(longFlick.contentY, 9000)
     }
 }

@@ -25,7 +25,7 @@ if (-not $model.Contains('return "Local only"')) {
 }
 
 foreach ($token in @('signal historyStatsClicked()', 'property bool historyStatsActive: false',
-                      'objectName: "taskbarHistoryStats"', 'accessibleName: "History, highlights, and stats"')) {
+                      'objectName: "taskbarHistoryStats"', 'accessibleName: bar.activityLabel')) {
     if (-not $taskbar.Contains($token)) { throw "Missing taskbar route token: $token" }
 }
 

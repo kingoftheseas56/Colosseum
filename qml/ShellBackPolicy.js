@@ -35,9 +35,11 @@ function actionFor(state) {
     // Taskbar full pages occupy the upper shell layers. Later document siblings win if a
     // broken caller ever leaves two active at once, so recovery remains deterministic.
     if (on(s.updateActive)) return "update"
+    if (on(s.yourFeriaActive)) return "yourFeria"
     if (on(s.historyStatsActive)) return "historyStats"
     if (on(s.syncCenterActive)) return "syncCenter"
     if (on(s.extensionsActive)) return "extensions"
+    if (on(s.feriaActive)) return "feria"
     if (on(s.vaultActive)) return "vault"
     if (on(s.downloadsActive)) return "downloads"
     // Android shell: the Profile list lies over the detail pages and under its own pages.
@@ -51,7 +53,6 @@ function actionFor(state) {
     if (on(s.onePieceArcActive)) return "onePieceArc"
     if (on(s.onePieceAtlasTransientOpen)) return "onePieceAtlasTransient"
     if (on(s.universeActive)) return "universe"
-    if (on(s.universeHallActive)) return "universeHall"
     if (on(s.searchActive)) return "search"
     if (on(s.worldSearchActive)) return "worldSearch"
     if (on(s.comicSeriesActive)) return "comicSeries"

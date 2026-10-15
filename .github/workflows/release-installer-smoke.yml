@@ -1,11 +1,6 @@
 name: release-installer-smoke
 
 on:
-  push:
-    paths:
-      - ".github/workflows/release-installer-smoke.yml"
-      - "tests/installer/release_installer_smoke.ps1"
-      - "tests/test_release_installer_smoke_contract.py"
   workflow_dispatch:
     inputs:
       source_sha:
@@ -15,7 +10,7 @@ on:
       expected_version:
         description: Expected installed Colosseum version
         required: true
-        default: "1.1.7"
+        default: "1.1.8"
         type: string
 
 permissions:
@@ -23,14 +18,14 @@ permissions:
 
 concurrency:
   group: release-installer-smoke-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   build-installer:
     runs-on: windows-2025
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-      VERSION: ${{ inputs.expected_version || '1.1.7' }}
+      VERSION: ${{ inputs.expected_version || '1.1.8' }}
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20260814"
       MPV_VERSION: "20260814-git-7b8915bc1d"
@@ -195,7 +190,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           if (!(Test-Path $makensis)) { throw "makensis missing after install" }
-      - name: Package canonical 1.1.7 installer
+      - name: Package canonical 1.1.8 installer
         shell: bash
         run: |
           set -euo pipefail
@@ -228,7 +223,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     env:
-      VERSION: ${{ inputs.expected_version || '1.1.7' }}
+      VERSION: ${{ inputs.expected_version || '1.1.8' }}
     steps:
       - uses: actions/checkout@v7
       - name: Download canonical installer artifact

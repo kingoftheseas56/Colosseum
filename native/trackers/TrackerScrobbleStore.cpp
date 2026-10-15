@@ -15,6 +15,12 @@
 
 namespace {
 
+bool supportsScrobbling(TrackerProviderId providerId)
+{
+    return providerId == TrackerProviderId::Simkl || providerId == TrackerProviderId::Trakt;
+}
+
+
 constexpr int kSchemaVersion = 3;
 constexpr auto kFileName = "tracker-scrobbles.json";
 
@@ -131,7 +137,7 @@ std::optional<TrackerScrobbleReason> reasonFromKey(const QString &value)
 bool validIntent(const TrackerScrobbleIntent &intent)
 {
     return safeText(intent.operationId, 160)
-        && intent.providerId == TrackerProviderId::Simkl
+        && supportsScrobbling(intent.providerId)
         && safeText(intent.remoteAccountId, 128)
         && intent.connectionGeneration > 0 && intent.mappingRevision > 0
         && safeText(intent.canonicalMediaId)
@@ -295,7 +301,7 @@ bool TrackerScrobbleStore::setEnabled(TrackerProviderId providerId,
                                        bool enabledValue,
                                        QString *out)
 {
-    if (!healthy(out) || providerId != TrackerProviderId::Simkl
+    if (!healthy(out) || !supportsScrobbling(providerId)
         || !safeText(remoteAccountId, 128)) {
         return setError(out, QStringLiteral("Tracker live-playback preference is invalid."));
     }
@@ -709,7 +715,7 @@ bool TrackerScrobbleStore::resumeKnownUnsentAfterReconnect(
         || !safeText(remoteAccountId, 128) || connectionGeneration == 0) {
         return setError(out, QStringLiteral("Tracker playback updates could not be resumed."));
     }
-    if (providerId != TrackerProviderId::Simkl)
+    if (!supportsScrobbling(providerId))
         return true;
 
     const auto isKnownUnsentForReconnect = [&](const TrackerScrobbleIntent &intent) {
@@ -784,7 +790,7 @@ int TrackerScrobbleStore::discardKnownUnsent(TrackerProviderId providerId,
         setError(out, QStringLiteral("Tracker playback updates could not be discarded."));
         return -1;
     }
-    if (providerId != TrackerProviderId::Simkl)
+    if (!supportsScrobbling(providerId))
         return 0;
     QList<TrackerScrobbleIntent> next = m_intents;
     int discarded = 0;
@@ -906,7 +912,7 @@ bool TrackerScrobbleStore::load()
             object.value(QStringLiteral("providerId")).toString());
         const QString account = object.value(QStringLiteral("remoteAccountId")).toString();
         const QString key = provider ? preferenceKey(*provider, account) : QString();
-        if (!provider || *provider != TrackerProviderId::Simkl || !safeText(account, 128)
+        if (!provider || !supportsScrobbling(*provider) || !safeText(account, 128)
             || !object.value(QStringLiteral("enabled")).isBool()
             || preferenceKeys.contains(key)) {
             m_healthy = false;
@@ -966,7 +972,7 @@ bool TrackerScrobbleStore::persist(const QList<Preference> &preferences,
     QSet<QString> preferenceKeys;
     for (const Preference &preference : preferences) {
         const QString key = preferenceKey(preference.providerId, preference.remoteAccountId);
-        if (preference.providerId != TrackerProviderId::Simkl
+        if (!supportsScrobbling(preference.providerId)
             || !safeText(preference.remoteAccountId, 128) || preferenceKeys.contains(key)) {
             return setError(out, QStringLiteral("Tracker scrobble preference persistence is invalid."));
         }

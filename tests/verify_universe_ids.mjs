@@ -71,10 +71,38 @@ async function checkApplebooks(e) {
     return { ok: true, resolved: hit.trackName || hit.collectionName || '(untitled)', cover: !!art };
 }
 
+// tankoban — the app's own reader route (Main.qml routeUniverseSeries): the entry is keyed
+// by its MAL id plus the reader's series key. The id is proven through AniList's idMal
+// mirror (Jikan/MAL-direct are unreachable from this machine — 21s IPv6-style stall,
+// observed 2026-10-05): if the MAL id maps to no manga, the entry is dead. Same
+// fetch-or-it-didn't-happen law as every other provider here.
+async function checkTankoban(e) {
+    if (!e.malId || !e.seriesId)
+        return { ok: false, why: 'tankoban: entry must carry malId + seriesId for the reader route' };
+    const q = 'query($id:Int){Media(idMal:$id,type:MANGA){id title{romaji english}}}';
+    try {
+        const r = await fetch('https://graphql.anilist.co', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ query: q, variables: { id: Number(e.malId) } })
+        });
+        const j = await r.json();
+        const m = j && j.data && j.data.Media;
+        if (!m) return { ok: false, why: `anilist idMal: no manga for malId ${e.malId}` };
+        return { ok: true, resolved: `mal:${e.malId} ${m.title.english || m.title.romaji} (reader ${e.seriesId})` };
+    } catch (err) { return { ok: false, why: 'anilist ' + err }; }
+}
+
 async function checkGetcomics(e) {
     const id = (e.posts || [])[0];
     if (!id) return { ok: false, why: 'no post id' };
-    const r = await head(`https://getcomics.org/?p=${id}`);
+    const url = `https://getcomics.org/?p=${id}`;
+    // getcomics rate-limits rapid bursts (429 after ~8 quick hits, observed 2026-10-05).
+    // Back off and retry — a passing id must still fetch a titled post eventually.
+    let r = await head(url);
+    for (let attempt = 1; !r.ok && (r.status === 429 || r.status === 503) && attempt <= 3; attempt++) {
+        await sleep(15000 * attempt);
+        r = await head(url);
+    }
     if (!r.ok) return { ok: false, why: `getcomics ${r.status || r.err}` };
     const html = await r.body.text();
     const m = html.match(/<title>([^<]*)<\/title>/i);
@@ -90,7 +118,7 @@ function providerOf(section, e) {
 }
 
 const CHECK = { cinemeta: checkVideo, anilist: checkAnilist, weebcentral: checkWeebcentral,
-                applebooks: checkApplebooks, getcomics: checkGetcomics };
+                applebooks: checkApplebooks, getcomics: checkGetcomics, tankoban: checkTankoban };
 
 let total = 0, failed = 0, noId = 0;
 const failures = [];

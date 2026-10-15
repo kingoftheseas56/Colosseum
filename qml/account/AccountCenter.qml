@@ -6,7 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
-import "../AccountActivityFormat.js" as AccountActivityFormat
+import "../feria" as Feria
 import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Rectangle {
@@ -14,17 +14,47 @@ Rectangle {
     objectName: "accountCenter"
 
     property var controller: null
+    property var feriaController: null
+    property bool feriaOnly: false
+    property var ownedFeriaView: null
+    signal feriaActivityRequested(string section)
+    function configureFeriaContent() {
+        if (!feriaController || !feriaContent.item) return
+        ownedFeriaView = feriaContent.item
+        feriaController.sharedAccountView = ownedFeriaView
+        feriaController.sharedAccountActive = true
+        feriaController.accountTab = "apps"
+    }
+    function releaseFeriaContent() {
+        if (feriaController && ownedFeriaView && feriaController.sharedAccountView === ownedFeriaView) {
+            feriaController.sharedAccountActive = false
+            feriaController.sharedAccountView = null
+        }
+        ownedFeriaView = null
+    }
+    onFeriaControllerChanged: configureFeriaContent()
+    Connections {
+        target: root.feriaController
+        function onAccountTabChanged() {
+            if (root.visible && root.ownedFeriaView && root.feriaController.accountTab !== "apps")
+                root.feriaActivityRequested(root.feriaController.accountTab)
+        }
+    }
+    Connections {
+        target: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
+        function onProfileChanged() { root.close() }
+    }
     property var recoveryPresenter: null
     readonly property bool accountPresent: controller
         && (controller.mode === "signedIn" || controller.mode === "offline")
     readonly property bool onlineAccount: controller
         && controller.mode === "signedIn"
     property string initial: "?"
-    property string activeSection: "colosseum"
+    property string activeSection: "profile"
     property Item focusReturnItem: null
-    readonly property var railSections: [
+    readonly property var railSections: feriaOnly ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : [
         { id: "profile", label: qsTr("Profile"), glyph: "◌" },
-        { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
+        { id: "feria", label: qsTr("Feria"), glyph: "▣" },
         { id: "security", label: qsTr("Security"), glyph: "◇" },
         { id: "devices", label: qsTr("Devices"), glyph: "▣" },
         { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
@@ -36,76 +66,6 @@ Rectangle {
                 return i
         }
         return 0
-    }
-
-    // Your Colosseum: bound to the native ProfileActivity projection (CPP-PORT-CONTRACT.md
-    // arcs/02-profile-account-centre/activity-engine/reference, section 14 "QML model
-    // contract"). This host owns selected-month UI state and formats ONE raw projection into
-    // AccountYourColosseumPage.qml's existing presentation-only seam; the page itself gained no
-    // aggregation logic (section 14: "Do not move aggregation into
-    // AccountYourColosseumPage.qml").
-
-    // Selected month, "YYYY-MM" — UI state, reset to the current system-local month each time
-    // the Centre opens from closed (see open() below), never a live clock binding (section 12).
-    property string colosseumMonthKey: ""
-    // The "current month" navigation ceiling, frozen at the same open() moment as
-    // colosseumMonthKey (section 12: "next month enabled only while selected month is before
-    // current month" — a live re-read of today's date here would make next/previous flicker
-    // mid-session if the Centre is left open across a real month boundary).
-    property string colosseumCurrentMonthKey: ""
-    // Section 12: "previous month stops at ProfileActivity.earliestActivityMonth() when one
-    // exists" — recomputed on revision too, since new activity can move the earliest month.
-    property string colosseumEarliestMonthKey: {
-        if (typeof ProfileActivity === "undefined" || !ProfileActivity)
-            return ""
-        void ProfileActivity.revision
-        return ProfileActivity.earliestActivityMonth()
-    }
-
-    // Section 14 "Recommended binding": exactly one projectMonth() call per selected
-    // month/revision (section 24 performance rule) — every yourColosseum* metric below reads
-    // THIS cached object, never calls projectMonth() itself. The null-guard/revision-read/
-    // projectMonth-call algorithm lives once in AccountActivityFormat.projectionFor() (not
-    // copy-pasted here) so tst_account_activity_binding.qml can prove the exact-one-call rule
-    // against a recording fake without instantiating this whole composed host.
-    property var colosseumProjection: AccountActivityFormat.projectionFor(
-            typeof ProfileActivity !== "undefined" ? ProfileActivity : null,
-            colosseumMonthKey)
-
-    property string yourColosseumMonthName: AccountActivityFormat.monthName(colosseumMonthKey)
-    property string yourColosseumMonthYear: AccountActivityFormat.monthYear(colosseumMonthKey)
-    property string yourColosseumWatchTimeText:
-        AccountActivityFormat.durationText(colosseumProjection.watchSeconds)
-    property string yourColosseumPagesReadText:
-        AccountActivityFormat.countText(colosseumProjection.pagesRead)
-    property string yourColosseumCompletedText:
-        AccountActivityFormat.countText(colosseumProjection.completedCount)
-    property string yourColosseumActiveDaysText:
-        AccountActivityFormat.countText(colosseumProjection.activeDays)
-    property var yourColosseumHighlights:
-        AccountActivityFormat.formatHighlights(colosseumProjection.highlights)
-    property var yourColosseumRecentActivity:
-        AccountActivityFormat.formatRecentActivityWithStremio(
-            colosseumProjection.recentActivity,
-            (typeof ProfileHistory !== "undefined" && ProfileHistory)
-                ? (ProfileHistory.revision, ProfileHistory.records()) : [])
-    property bool yourColosseumPreviousMonthEnabled:
-        AccountActivityFormat.previousMonthEnabled(colosseumMonthKey, colosseumEarliestMonthKey)
-    property bool yourColosseumNextMonthEnabled:
-        AccountActivityFormat.nextMonthEnabled(colosseumMonthKey, colosseumCurrentMonthKey)
-
-    signal yourColosseumPreviousMonthRequested()
-    signal yourColosseumNextMonthRequested()
-
-    // Mutates the host's own selected-month UI state; AccountYourColosseumPage.qml stays
-    // presentation-only and only ever emits the request.
-    onYourColosseumPreviousMonthRequested: {
-        if (yourColosseumPreviousMonthEnabled)
-            colosseumMonthKey = AccountActivityFormat.shiftMonthKey(colosseumMonthKey, -1)
-    }
-    onYourColosseumNextMonthRequested: {
-        if (yourColosseumNextMonthEnabled)
-            colosseumMonthKey = AccountActivityFormat.shiftMonthKey(colosseumMonthKey, 1)
     }
 
     property var preferencesStore:
@@ -198,7 +158,10 @@ Rectangle {
     opacity: 0
 
     Behavior on opacity { NumberAnimation { duration: 160 } }
-    onVisibleChanged: opacity = visible ? 1 : 0
+    onVisibleChanged: {
+        opacity = visible ? 1 : 0
+        if (!visible) releaseFeriaContent()
+    }
 
     function rememberInvoker(invoker) {
         if (invoker) {
@@ -236,20 +199,13 @@ Rectangle {
         root.close()
     }
 
-    function open(section, invoker) {
-        // Section 12/14: selected month resets to "current system-local month" once per
-        // closed->open transition, not on every internal rail-tab switch while already open.
+    function open(section, invoker, context) {
         if (!root.visible) {
             rememberInvoker(invoker)
-            colosseumMonthKey = AccountActivityFormat.currentMonthKey()
-            colosseumCurrentMonthKey = colosseumMonthKey
+            feriaOnly = context === "feria"
         }
-        // Preserve old flyout callers while Your library finishes migrating to
-        // the locked Your Colosseum destination.
-        if (section === "library")
-            activeSection = "colosseum"
-        else if (section)
-            activeSection = section
+        activeSection = feriaOnly ? "feria"
+            : railSections.some(function(row) { return row.id === section }) ? section : "profile"
         root.visible = true
         focusRail()
     }
@@ -355,7 +311,7 @@ Rectangle {
 
                         Text {
                             anchors.centerIn: parent
-                            text: root.accountPresent ? root.initial : "?"
+                            text: root.feriaOnly ? "F" : root.accountPresent ? root.initial : "?"
                             color: "#f0df9a"
                             font.family: "Inter"
                             font.pixelSize: 16
@@ -369,7 +325,7 @@ Rectangle {
 
                         Text {
                             objectName: "accountCenterUsername"
-                            text: root.accountPresent && root.controller
+                            text: root.feriaOnly ? qsTr("Feria settings") : root.accountPresent && root.controller
                                 ? root.controller.username
                                 : qsTr("Not signed in")
                             color: "#f2f2ef"
@@ -379,7 +335,7 @@ Rectangle {
                         }
 
                         Text {
-                            text: qsTr("Colosseum account")
+                            text: root.feriaOnly ? qsTr("Apps and services") : qsTr("Colosseum account")
                             color: "#7d7a6f"
                             font.family: "Inter"
                             font.pixelSize: 10
@@ -444,12 +400,13 @@ Rectangle {
 
                 Text {
                     id: railSessionAction
-                    text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")
+                    visible: !root.feriaOnly
+                    text: root.accountPresent ? qsTr("Sign out of Colosseum") : qsTr("Sign in to Colosseum")
                     color: railSessionAction.activeFocus || railOutMa.containsMouse
                         ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
                     font.pixelSize: 12
-                    activeFocusOnTab: root.visible
+                    activeFocusOnTab: root.visible && visible
                     Accessible.role: Accessible.Button
                     Accessible.name: text
                     Keys.onReturnPressed: root.runSessionAction()
@@ -530,34 +487,26 @@ Rectangle {
                 y: 64
                 width: parent.width - 68
                 height: parent.height - 96
-                active: root.visible && root.activeSection === "profile"
+                active: root.visible && !root.feriaOnly && root.activeSection === "profile"
                 visible: active
                 controller: root.controller
             }
 
-            AccountYourColosseumPage {
-                x: 34
-                y: 64
-                width: parent.width - 68
-                height: parent.height - 96
-                active: root.visible && root.activeSection === "colosseum"
+            Loader {
+                id: feriaContent
+                objectName: "accountFeriaContent"
+                x: 20; y: 64
+                width: parent.width - 40; height: parent.height - y - 24
+                active: root.visible && root.feriaController !== null
+                    && root.activeSection === "feria"
                 visible: active
-
-                monthName: root.yourColosseumMonthName
-                monthYear: root.yourColosseumMonthYear
-                watchTimeText: root.yourColosseumWatchTimeText
-                pagesReadText: root.yourColosseumPagesReadText
-                completedText: root.yourColosseumCompletedText
-                activeDaysText: root.yourColosseumActiveDaysText
-                highlights: root.yourColosseumHighlights
-                recentActivity: root.yourColosseumRecentActivity
-                previousMonthEnabled: root.yourColosseumPreviousMonthEnabled
-                nextMonthEnabled: root.yourColosseumNextMonthEnabled
-
-                onPreviousMonthRequested:
-                    root.yourColosseumPreviousMonthRequested()
-                onNextMonthRequested:
-                    root.yourColosseumNextMonthRequested()
+                sourceComponent: Feria.PorticoCombinedParityAccountView {
+                    controller: root.feriaController
+                    embedded: true
+                    servicesOnly: true
+                }
+                onLoaded: root.configureFeriaContent()
+                onActiveChanged: if (!active) root.releaseFeriaContent()
             }
 
             AccountSecurityPage {
