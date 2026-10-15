@@ -55,13 +55,27 @@ int main(int argc,char** argv) {
      if(lastMethod=="mangaById" || lastMethod=="series") result=QJsonObject{{"title","Detail"}};
      if (!emptyArg.isEmpty() && selector==emptyArg) result=QJsonArray{};
      if(lastMethod=="discoverPageFiltered") {
+      const bool comicsPage=path.startsWith("/v1/catalogue/comics/");
       const int pageOffset=lastArgs.at(3).toInt();
       QJsonArray items;
-      if (selector!=emptyArg)
-       items.append(QJsonObject{{"mal_id",44},{"title","Remote Manga"},{"availability",false}});
-      result=QJsonObject{{"items",items},{"nextOffset",pageOffset+items.size()},
-                         {"exhausted",true},{"freshness","bundled"},
-                         {"fallbackCatalog",selector=="trending" ? "popular" : ""}};
+      if (selector!=emptyArg) {
+       if(comicsPage)
+        items.append(QJsonObject{{"locgId","comic-44"},{"title","Remote Comic"},
+                                 {"year",2022},{"publisher","Local Press"},
+                                 {"cover","remote.png"},{"genres","Adventure"},
+                                 {"availability",true},{"explicit",false},
+                                 {"houseScore",0.65},
+                                 {"houseComponents",QJsonObject{{"popularity",0.65},
+                                                                {"availability",0.0},
+                                                                {"recency",0.0},
+                                                                {"metadata",0.0}}}});
+       else items.append(QJsonObject{{"mal_id",44},{"title","Remote Manga"},
+                                     {"availability",false}});
+      }
+      QJsonObject page{{"items",items},{"nextOffset",pageOffset+items.size()},
+                       {"exhausted",true},{"freshness","bundled"}};
+      if(!comicsPage) page.insert("fallbackCatalog",selector=="trending" ? "popular" : "");
+      result=page;
      }
      response={{"apiVersion",1},{"revision",sourceRevision},{"method",invalid ? "wrong" : lastMethod},{"result",result}};
     }
@@ -247,8 +261,183 @@ int main(int argc,char** argv) {
          && pageState("g03-refresh",refreshedFilter,true,96).value("status").toString()=="success"
          && mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24).value("items").toList().size()==1
          && calls==offlinePageCalls,"offline MAL page state exposes durable cached result");
- ComicsCatalog comics(""); comics.configureRemote(&nam,endpoint,temp.filePath("comics.json"));
+ ComicsCatalog comics(""); const QString comicsCache=temp.filePath("comics.json");
+ comics.configureRemote(&nam,endpoint,comicsCache);
  comics.series(12); until([&]{return !comics.remotePending();}); require(comics.series(12).value("title")=="Detail","Comics map adapter");
+ // F2c Comics page query-state/retry projection: typed QML methods and key signal.
+ const QMetaObject* comicsMeta=comics.metaObject();
+ const int comicsStateMethod=comicsMeta->indexOfMethod("discoverPageFilteredState(QString,QVariantList,bool,int,int)");
+ const int comicsRetryMethod=comicsMeta->indexOfMethod("retryDiscoverPageFiltered(QString,QVariantList,bool,int,int)");
+ const int comicsNoticeSignal=comicsMeta->indexOfSignal("remoteQueryChanged(QString)");
+ require(comicsStateMethod>=0 && comicsRetryMethod>=0 && comicsNoticeSignal>=0,
+         "Comics page state/retry and key notice are QML-invokable");
+ require(QByteArray(comicsMeta->method(comicsStateMethod).typeName())=="QVariantMap"
+         && QByteArray(comicsMeta->method(comicsRetryMethod).typeName())=="bool"
+         && comicsMeta->method(comicsNoticeSignal).methodType()==QMetaMethod::Signal,
+         "Comics page projection exposes typed metaobject methods and signal");
+ const QVariantList comicsGenre{QVariantMap{{"axis","genre"},{"key","Adventure"}}};
+ const QVariantList comicsPublisher{QVariantMap{{"axis","publisher"},{"key","Local Press"}}};
+ const auto comicsState=[&](const QString& id,const QVariantList& filters,bool adult,int offset,int limit=17) {
+     return comics.discoverPageFilteredState(id,filters,adult,offset,limit);
+ };
+ QStringList comicsNotices;
+ QObject::connect(&comics,&ComicsCatalog::remoteQueryChanged,&app,[&](const QString& key) {
+     comicsNotices.append(key);
+ });
+ const int beforeComicsStates=calls;
+ const auto comicsFirst=comicsState("popular",comicsGenre,false,0);
+ const auto comicsOffset=comicsState("popular",comicsGenre,false,17);
+ const auto comicsFilter=comicsState("popular",comicsPublisher,false,17);
+ const auto comicsExplicit=comicsState("popular",comicsGenre,true,17);
+ const auto comicsLimit=comicsState("popular",comicsGenre,false,17,18);
+ const auto comicsRawOffset=comicsState("popular",comicsGenre,false,-1);
+ require(comicsFirst.value("source").toString()=="remote"
+         && comicsFirst.value("status").toString()=="missing"
+         && comicsFirst.value("enabled").toBool()
+         && !comicsFirst.value("waiting").toBool()
+         && !comicsFirst.value("cached").toBool()
+         && !comicsFirst.value("retryable").toBool()
+         && !comicsFirst.value("key").toString().isEmpty()
+         && comicsFirst.value("key")!=comicsOffset.value("key")
+         && comicsOffset.value("key")!=comicsFilter.value("key")
+         && comicsOffset.value("key")!=comicsExplicit.value("key")
+         && comicsOffset.value("key")!=comicsLimit.value("key")
+         && comicsFirst.value("key")!=comicsRawOffset.value("key")
+         && calls==beforeComicsStates && comicsNotices.isEmpty(),
+         "Comics page inspection does not fetch; original filters/explicit/offset/limit isolate keys");
+ const auto comicsCold=comics.discoverPageFiltered("popular",comicsGenre,false,0,17);
+ const auto comicsPeerCold=comics.discoverPageFiltered("popular",comicsGenre,false,17,17);
+ const auto comicsFilteredCold=comics.discoverPageFiltered("popular",comicsPublisher,false,17,17);
+ require(comicsCold.value("items").toList().isEmpty()
+         && comicsCold.value("nextOffset").toInt()==0
+         && comicsCold.value("exhausted").toBool()
+         && comicsCold.value("freshness").toString()=="bundled"
+         && comicsPeerCold.value("nextOffset").toInt()==17
+         && comicsFilteredCold.value("nextOffset").toInt()==17
+         && comicsState("popular",comicsGenre,false,0).value("waiting").toBool()
+         && comicsState("popular",comicsGenre,false,17).value("pending").toBool()
+         && comicsNotices.isEmpty(),
+         "Comics cold fallback retained, enqueue key notices deferred");
+ until([&]{return comicsState("popular",comicsGenre,false,0).value("status").toString()=="success"
+                 && comicsState("popular",comicsGenre,false,17).value("status").toString()=="success"
+                 && comicsState("popular",comicsPublisher,false,17).value("status").toString()=="success";});
+ const auto comicsLoaded=comics.discoverPageFiltered("popular",comicsGenre,false,0,17);
+ const auto comicsPage17=comics.discoverPageFiltered("popular",comicsGenre,false,17,17);
+ require(calls==beforeComicsStates+3
+         && comicsLoaded.value("items").toList().size()==1
+         && comicsLoaded.value("items").toList().first().toMap().value("locgId").toString()=="comic-44"
+         && comicsLoaded.value("items").toList().first().toMap().value("title").toString()=="Remote Comic"
+         && comicsLoaded.value("items").toList().first().toMap().value("houseComponents").toMap().contains("popularity")
+         && comicsPage17.value("nextOffset").toInt()==18
+         && comicsLoaded.value("freshness").toString()=="bundled"
+         && !comicsLoaded.contains("fallbackCatalog")
+         && comicsNotices.contains(comicsFirst.value("key").toString())
+         && comicsNotices.contains(comicsOffset.value("key").toString())
+         && comicsNotices.contains(comicsFilter.value("key").toString()),
+         "Comics real typed result, independent async page states and exact notices");
+ const int afterComicsRead=calls;
+ comicsState("popular",comicsGenre,false,0); comicsState("popular",comicsGenre,false,17);
+ require(calls==afterComicsRead,"Comics state inspection remains nonfetching after success");
+ comics.discoverPageFiltered("g04-wire",comicsGenre,true,86,19);
+ until([&]{return comicsState("g04-wire",comicsGenre,true,86,19).value("status").toString()=="success";});
+ require(lastMethod=="discoverPageFiltered"
+         && lastArgs==QJsonArray::fromVariantList(QVariantList{"g04-wire",comicsGenre,true,86,19}),
+         "Comics request retains exact unnormalized five wire arguments");
+ emptyArg="g04-empty"; failArg="g04-fail";
+ comics.discoverPageFiltered("g04-empty",{},false,48,17);
+ comics.discoverPageFiltered("g04-fail",{},false,72,17);
+ until([&]{return !comics.remotePending();});
+ const auto comicsEmpty=comics.discoverPageFiltered("g04-empty",{},false,48,17);
+ const auto comicsFailed=comics.discoverPageFiltered("g04-fail",{},false,72,17);
+ require(comicsEmpty.value("items").toList().isEmpty()
+         && comicsEmpty.value("nextOffset").toInt()==48
+         && comicsState("g04-empty",{},false,48).value("status").toString()=="success"
+         && comicsState("g04-empty",{},false,48).value("cached").toBool()
+         && comicsFailed.value("items").toList().isEmpty()
+         && comicsFailed.value("nextOffset").toInt()==72
+         && comicsState("g04-fail",{},false,72).value("status").toString()=="failure"
+         && !comicsState("g04-fail",{},false,72).value("cached").toBool()
+         && comicsState("g04-fail",{},false,72).value("error").toString()=="HTTP_503",
+         "Comics successful empty is not uncached failed fallback");
+ emptyArg.clear(); failArg.clear();
+ // A failing page must not change a same-method peer still held on the wire.
+ holdArg="g04-held"; failArg="g04-held-fail";
+ comics.discoverPageFiltered("g04-held",{},false,112,17);
+ comics.discoverPageFiltered("g04-held-fail",{},false,129,17);
+ const QString heldComicsKey=comicsState("g04-held",{},false,112).value("key").toString();
+ until([&]{return comicsState("g04-held-fail",{},false,129).value("status").toString()=="failure" && heldSocket;});
+ require(comicsState("g04-held",{},false,112).value("pending").toBool()
+         && !comicsState("g04-held",{},false,112).value("cached").toBool()
+         && comicsState("g04-held",{},false,112).value("error").toString().isEmpty()
+         && comicsNotices.contains(heldComicsKey) && !heldWire.isEmpty(),
+         "Comics peer remains waiting while separate page fails");
+ heldSocket->write(heldWire); heldSocket->disconnectFromHost();
+ heldSocket=nullptr; heldWire.clear(); holdArg.clear();failArg.clear();
+ until([&]{return comicsState("g04-held",{},false,112).value("status").toString()=="success";});
+ require(comicsState("g04-held-fail",{},false,129).value("status").toString()=="failure",
+         "Comics peer completion does not erase other page failure");
+ // Make actual durable cache entry stale to force revalidation without private hooks.
+ const QVariantList comicsRefreshFacet{QVariantMap{{"axis","format"},{"key","Paperback"}}};
+ comics.discoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17);
+ until([&]{return comicsState("g04-refresh",comicsRefreshFacet,true,96).value("status").toString()=="success";});
+ const QString comicsRefreshKey=comicsState("g04-refresh",comicsRefreshFacet,true,96).value("key").toString();
+ QFile comicsDisk(comicsCache); require(comicsDisk.open(QIODevice::ReadOnly),"Comics cache on disk");
+ auto comicsDocument=QJsonDocument::fromJson(comicsDisk.readAll()).object();comicsDisk.close();
+ auto comicsEntries=comicsDocument.value("entries").toObject();
+ require(comicsEntries.contains(comicsRefreshKey),"Comics exact refresh key persisted");
+ auto comicsEntry=comicsEntries.value(comicsRefreshKey).toObject();
+ comicsEntry.insert("fetchedAt","2020-01-01T00:00:00Z");
+ comicsEntries.insert(comicsRefreshKey,comicsEntry);comicsDocument.insert("entries",comicsEntries);
+ const QByteArray staleComicsBytes=QJsonDocument(comicsDocument).toJson(QJsonDocument::Compact);
+ require(comicsDisk.open(QIODevice::WriteOnly|QIODevice::Truncate)
+         && comicsDisk.write(staleComicsBytes)==staleComicsBytes.size(),
+         "Comics durable page cache staled");comicsDisk.close();
+ comics.configureRemote(&nam,endpoint,comicsCache);
+ require(comicsState("g04-refresh",comicsRefreshFacet,true,96).value("cached").toBool(),
+         "Comics stale validated disk cache loads");
+ failArg="g04-peer";
+ comics.discoverPageFiltered("g04-peer",{},false,147,17);
+ until([&]{return comicsState("g04-peer",{},false,147).value("status").toString()=="failure";});
+ failArg="g04-refresh";
+ const auto staleComicsRead=comics.discoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17);
+ require(staleComicsRead.value("items").toList().size()==1
+         && comicsState("g04-refresh",comicsRefreshFacet,true,96).value("pending").toBool()
+         && comicsState("g04-refresh",comicsRefreshFacet,true,96).value("cached").toBool()
+         && !comicsState("g04-refresh",comicsRefreshFacet,true,96).value("waiting").toBool(),
+         "Comics stale validated page remains readable during refresh");
+ until([&]{return comicsState("g04-refresh",comicsRefreshFacet,true,96).value("status").toString()=="failure";});
+ const auto failedComicsRefresh=comicsState("g04-refresh",comicsRefreshFacet,true,96);
+ require(failedComicsRefresh.value("cached").toBool()
+         && failedComicsRefresh.value("retryable").toBool()
+         && failedComicsRefresh.value("error").toString()=="HTTP_503"
+         && comics.discoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17).value("items").toList().size()==1,
+         "Comics failed refresh retains visible cached page and exact failure");
+ require(comicsDisk.open(QIODevice::ReadOnly) && comicsDisk.readAll()==staleComicsBytes,
+         "Comics failed refresh preserves durable validated bytes");comicsDisk.close();
+ failArg.clear(); const int comicsBeforeRetry=calls;
+ require(comics.retryDiscoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17)
+         && !comics.retryDiscoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17)
+         && !comics.retryDiscoverPageFiltered("g04-wire",comicsGenre,true,86,19),
+         "Comics exact failed key retried inside cooldown; dedupe and unrelated-key refusal");
+ require(comics.discoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17).value("items").toList().size()==1,
+         "Comics cached page readable during explicit retry");
+ until([&]{return comicsState("g04-refresh",comicsRefreshFacet,true,96).value("status").toString()=="success";});
+ require(calls==comicsBeforeRetry+1 && lastMethod=="discoverPageFiltered"
+         && lastArgs==QJsonArray::fromVariantList(QVariantList{"g04-refresh",comicsRefreshFacet,true,96,17})
+         && comicsState("g04-refresh",comicsRefreshFacet,true,96).value("error").toString().isEmpty()
+         && comicsState("g04-peer",{},false,147).value("status").toString()=="failure"
+         && comicsNotices.contains(comicsRefreshKey)
+         && !comics.retryDiscoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17),
+         "Comics explicit retry recovers one query, retaining independent failed peer");
+ const int beforeComicsOffline=calls;
+ comics.configureRemote(nullptr,endpoint,comicsCache);
+ require(!comicsState("g04-refresh",comicsRefreshFacet,true,96).value("enabled").toBool()
+         && comicsState("g04-refresh",comicsRefreshFacet,true,96).value("source").toString()=="remote"
+         && comicsState("g04-refresh",comicsRefreshFacet,true,96).value("status").toString()=="success"
+         && comicsState("g04-refresh",comicsRefreshFacet,true,96).value("cached").toBool()
+         && comics.discoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17).value("items").toList().size()==1
+         && !comics.retryDiscoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17)
+         && calls==beforeComicsOffline,"Comics durable validated page survives offline");
  CatalogRemote remote("imdb"); remote.configure(&nam,endpoint,{});
  remote.read("titleCatalog",{query,0,24},QVariantList{}); until([&]{return !remote.pending();});
  const int before=calls; remote.read("titleCatalog",{query,0,24},QVariantList{},true); until([&]{return !remote.pending();}); require(calls==before+1,"explicit refresh bypasses freshness");
@@ -450,5 +639,51 @@ int main(int argc,char** argv) {
           "ready SQLite MAL answers real page without remote wait or retry");
   until([&]{return !localMal.cachedDiscoverFilters("genre",false).isEmpty();});
  }
- std::cout<<"PASS async semantic RPC: existing fixture plus F2a and F2b MAL page projection, notifications, failed cache, retry, offline and SQLite paths\n";
+ // SQLite is authoritative for Comics too, independent of configured remote.
+ const QString localComicsDb=temp.filePath("comics-local-fixture.sqlite");
+ {
+  QSqlDatabase db=QSqlDatabase::addDatabase("QSQLITE","comics-page-test-seed");
+  db.setDatabaseName(localComicsDb);
+  require(db.open(),"local Comics SQLite fixture opened");
+  QSqlQuery sql(db);
+  require(sql.exec("CREATE TABLE series(gcd_id INTEGER PRIMARY KEY,title TEXT)")
+          && sql.exec("CREATE TABLE curated_series(locg_id TEXT PRIMARY KEY,rank INTEGER,title TEXT,"
+                      "norm_title TEXT,year INTEGER,publisher TEXT,cover TEXT,synopsis TEXT)")
+          && sql.exec("CREATE TABLE curated_edition(locg_id TEXT,available INTEGER,"
+                      "getcomics_post TEXT,published TEXT,format TEXT)")
+          && sql.exec("CREATE TABLE curated_genre(locg_id TEXT,genre TEXT)")
+          && sql.exec("INSERT INTO series VALUES (12,'Local Comic')")
+          && sql.exec("INSERT INTO curated_series VALUES "
+                      "('local-comic',1,'Local Comic','local comic',2020,'Local Press','local.png','Local edition')")
+          && sql.exec("INSERT INTO curated_edition VALUES "
+                      "('local-comic',1,'https://example.invalid/local','2020','Paperback')")
+          && sql.exec("INSERT INTO curated_genre VALUES ('local-comic','Adventure')"),
+          "local Comics curated SQLite fixture seeded");
+  db.close();
+ }
+ QSqlDatabase::removeDatabase("comics-page-test-seed");
+ {
+  ComicsCatalog localComics(localComicsDb);
+  localComics.configureRemote(&nam,endpoint,temp.filePath("comics-local-unused.json"));
+  const int beforeLocalComics=calls;
+  const auto localState=localComics.discoverPageFilteredState("all",comicsGenre,false,0,17);
+  const auto localPage=localComics.discoverPageFiltered("all",comicsGenre,false,0,17);
+  require(localComics.ready() && localComics.curatedReady() && localComics.remoteEnabled()
+          && localState.value("source").toString()=="local"
+          && localState.value("status").toString()=="success"
+          && localState.value("key").toString().isEmpty()
+          && !localState.value("enabled").toBool()
+          && !localState.value("pending").toBool()
+          && !localState.value("waiting").toBool()
+          && !localState.value("cached").toBool()
+          && !localState.value("retryable").toBool()
+          && localState.value("error").toString().isEmpty()
+          && localPage.value("items").toList().size()==1
+          && localPage.value("items").toList().first().toMap().value("locgId").toString()=="local-comic"
+          && localPage.value("items").toList().first().toMap().value("title").toString()=="Local Comic"
+          && !localComics.retryDiscoverPageFiltered("all",comicsGenre,false,0,17)
+          && !localComics.remotePending() && calls==beforeLocalComics,
+          "ready curated Comics SQLite takes precedence over configured remote");
+ }
+ std::cout<<"PASS async semantic RPC: existing fixture plus F2a, MAL and Comics page projection, notifications, failure, retry, offline and SQLite paths\n";
 }

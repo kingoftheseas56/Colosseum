@@ -111,6 +111,16 @@ public:
                                                  const QVariantList& filters,
                                                  bool includeExplicit,
                                                  int offset, int limit) const;
+    // Exact CatalogRemote query snapshot. Inspecting state never starts a request.
+    Q_INVOKABLE QVariantMap discoverPageFilteredState(const QString& catalogId,
+                                                      const QVariantList& filters,
+                                                      bool includeExplicit,
+                                                      int offset, int limit) const;
+    // Explicit retry of this failed page key; does not restart unrelated pages.
+    Q_INVOKABLE bool retryDiscoverPageFiltered(const QString& catalogId,
+                                               const QVariantList& filters,
+                                               bool includeExplicit,
+                                               int offset, int limit);
 
     // --- shelf (browse-landing) — same row shape as search() ---
     // kind: "stocked" | "publisher" (arg=publisher) | "decade" (arg="2010" -> [2010,2019])
@@ -122,6 +132,8 @@ signals:
     void readyChanged();
     void revisionChanged();
     void requestFailed(QString method, QString reason);
+    // Subscribers must compare this key to discoverPageFilteredState(...).key.
+    void remoteQueryChanged(QString key);
 
 private:
     bool openAt(const QString& dbPath);

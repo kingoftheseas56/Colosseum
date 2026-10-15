@@ -12,6 +12,26 @@
 #include <utility>
 #include <vector>
 
+namespace {
+// The page read, state inspection and explicit retry must describe the same
+// *unnormalized* wire request, including the original fallback map.
+struct ComicsPageQuery {
+    QString method;
+    QVariantList args;
+    QVariantMap empty;
+};
+
+ComicsPageQuery comicsPageQuery(const QString& catalogId, const QVariantList& filters,
+                               bool includeExplicit, int offset, int limit) {
+    return {QStringLiteral("discoverPageFiltered"),
+            QVariantList{catalogId, filters, includeExplicit, offset, limit},
+            QVariantMap{{QStringLiteral("items"), QVariantList{}},
+                        {QStringLiteral("nextOffset"), std::max(0, offset)},
+                        {QStringLiteral("exhausted"), true},
+                        {QStringLiteral("freshness"), QStringLiteral("bundled")}}};
+}
+} // namespace
+
 bool ComicsCatalog::openAt(const QString& dbPath) {
     m_filterCache.clear();
     if (!QFileInfo::exists(dbPath)) {
@@ -37,6 +57,7 @@ ComicsCatalog::ComicsCatalog(const QString& dbPath, QObject* parent) : QObject(p
     m_remote = new CatalogRemote(QStringLiteral("comics"), this);
     connect(m_remote, &CatalogRemote::changed, this, &ComicsCatalog::revisionChanged);
     connect(m_remote, &CatalogRemote::failed, this, &ComicsCatalog::requestFailed);
+    connect(m_remote, &CatalogRemote::queryChanged, this, &ComicsCatalog::remoteQueryChanged);
     m_ok = openAt(dbPath);
 }
 
@@ -668,9 +689,42 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
     return discoverPageFiltered(catalogId, filters, includeExplicit, offset, limit);
 }
 
+QVariantMap ComicsCatalog::discoverPageFilteredState(const QString& catalogId,
+                                                      const QVariantList& filters,
+                                                      bool includeExplicit, int offset, int limit) const {
+    if (m_ok) {
+        // Local SQLite remains authoritative, including a local catalogue
+        // without a ready curated table. Do not even inspect remote state.
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("retryable"), false},
+                {QStringLiteral("error"), QString()}};
+    }
+    const auto query = comicsPageQuery(catalogId, filters, includeExplicit, offset, limit);
+    auto state = m_remote->queryState(query.method, query.args, query.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool ComicsCatalog::retryDiscoverPageFiltered(const QString& catalogId,
+                                               const QVariantList& filters,
+                                               bool includeExplicit, int offset, int limit) {
+    if (m_ok) return false;
+    const auto query = comicsPageQuery(catalogId, filters, includeExplicit, offset, limit);
+    return m_remote->retry(query.method, query.args, query.empty);
+}
+
 QVariantMap ComicsCatalog::discoverPageFiltered(const QString& catalogId, const QVariantList& filters,
                                                 bool includeExplicit, int offset, int limit) const {
-    if (!m_ok) return m_remote->read(QStringLiteral("discoverPageFiltered"), QVariantList{catalogId, filters, includeExplicit, offset, limit}, QVariantMap{{QStringLiteral("items"), QVariantList{}}, {QStringLiteral("nextOffset"), std::max(0, offset)}, {QStringLiteral("exhausted"), true}, {QStringLiteral("freshness"), QStringLiteral("bundled")}}).toMap();
+    if (!m_ok) {
+        const auto query = comicsPageQuery(catalogId, filters, includeExplicit, offset, limit);
+        return m_remote->read(query.method, query.args, query.empty).toMap();
+    }
     const int lim = std::clamp(limit, 1, kPageLimitMax);
     const int off = std::max(0, offset);
     auto pack = [&](const QVariantList& items, int total) {
