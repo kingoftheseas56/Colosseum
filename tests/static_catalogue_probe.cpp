@@ -22,6 +22,7 @@
 
 int staticCatalogueProbe(const QString &publication, const QString &casesPath,
                          const QString &evidence) {
+    const bool parity = casesPath.endsWith(".jsonl");
     const auto require = [](bool ok, const QString &why) {
         if (!ok) {
             std::cerr << "FAIL " << why.toStdString() << '\n';
@@ -42,8 +43,8 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
     };
     QFile input(casesPath);
     require(input.open(QIODevice::ReadOnly), "cases input");
-    const auto cases = QJsonDocument::fromJson(input.readAll()).array();
-    require(!cases.isEmpty(), "nonempty cases");
+    const auto cases = parity ? QJsonArray() : QJsonDocument::fromJson(input.readAll()).array();
+    require(parity || !cases.isEmpty(), "nonempty cases");
     QTemporaryDir profile;
     require(profile.isValid(), "isolated cache");
     QTcpServer server;
@@ -88,6 +89,53 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
         }
     });
     QJsonArray rows;
+    QNetworkAccessManager parityNam;
+    auto *parityResolver = StaticCatalogueResolver::shared(&parityNam, origin, {}, &parityNam);
+    QJsonObject groups;
+    int parityPassed = 0, equalResults = 0, expectedResourceFailures = 0;
+    if (parity) {
+        while (!input.atEnd()) {
+            const auto raw = input.readLine(8 * 1024 * 1024);
+            require(raw.endsWith('\n'), "bounded JSONL case");
+            const auto spec = QJsonDocument::fromJson(raw).object();
+            const auto dataset = spec.value("dataset").toString();
+            const auto method = spec.value("method").toString();
+            bool done = false;
+            StaticCatalogueResolver::Outcome out;
+            parityResolver->resolve(dataset, method, spec.value("args").toArray().toVariantList(),
+                                    &server, [&](auto result) { out = result; done = true; });
+            until([&] { return done; });
+            const bool fallback = spec.value("notPrepared").toBool();
+            const QString expectedFailure = spec.value("expectedFailure").toString();
+            const auto label = QString::number(parityPassed) + ":" + spec.value("label").toString();
+            require(out.status == (!expectedFailure.isEmpty() ? StaticCatalogueResolver::Status::Failure
+                                    : fallback ? StaticCatalogueResolver::Status::NotPrepared
+                                            : StaticCatalogueResolver::Status::Prepared),
+                    label + " status " + out.error);
+            if (!expectedFailure.isEmpty()) {
+                require(out.error == expectedFailure, label + " resource boundary " + out.error);
+                ++expectedResourceFailures;
+            } else if (!fallback && out.result != spec.value("expected")) {
+                QFile failed(evidence + ".mismatch.json");
+                require(failed.open(QIODevice::WriteOnly), "mismatch evidence");
+                failed.write(QJsonDocument(QJsonObject{{"case", spec}, {"actual", out.result}}).toJson());
+                require(false, label + " native/TypeScript mismatch");
+            } else if (!fallback) ++equalResults;
+            const auto group = spec.value("group").toString();
+            groups[group] = groups.value(group).toInt() + 1;
+            if (++parityPassed % 1000 == 0)
+                std::cout << "PARITY " << parityPassed << std::endl;
+        }
+        require(parityPassed > 0 && workerRequests == 0, "native parity without Worker");
+        QFile output(evidence);
+        require(output.open(QIODevice::WriteOnly), "parity report");
+        output.write(QJsonDocument(QJsonObject{{"passed", parityPassed}, {"groups", groups},
+            {"equalResults", equalResults}, {"expectedResourceFailures", expectedResourceFailures},
+            {"workerRequests", workerRequests}, {"staticRequests", requests},
+            {"staticBytes", transferred}, {"deployed", false}}).toJson());
+        std::cout << "PASS native parity " << parityPassed << std::endl;
+        return 0;
+    }
     int caseNumber = 0;
     for (const auto &v : cases) {
         const auto spec = v.toObject();
