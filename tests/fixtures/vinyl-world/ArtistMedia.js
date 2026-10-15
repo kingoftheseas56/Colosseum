@@ -99,6 +99,38 @@ var data = {
         "subtitle": "YouTube Music",
         "sourceUrl": "https://music.youtube.com/channel/UCOcnYBwT1jb6EHlS0cwhNkA"
       }
+    ],
+    "popularSongs": [
+      {
+        "id": "9kznlAwE-8o",
+        "title": "Mockingbird",
+        "albumTitle": "Encore",
+        "sourceUrl": "https://music.youtube.com/watch?v=9kznlAwE-8o"
+      },
+      {
+        "id": "tqxRidAWER8",
+        "title": "Without Me",
+        "albumTitle": "The Eminem Show",
+        "sourceUrl": "https://music.youtube.com/watch?v=tqxRidAWER8"
+      },
+      {
+        "id": "RnkShwdXfyc",
+        "title": "Love The Way You Lie (feat. Rihanna)",
+        "albumTitle": "Recovery",
+        "sourceUrl": "https://music.youtube.com/watch?v=RnkShwdXfyc"
+      },
+      {
+        "id": "4wOLVrGHiIU",
+        "title": "Lose Yourself",
+        "albumTitle": "Just Lose It",
+        "sourceUrl": "https://music.youtube.com/watch?v=4wOLVrGHiIU"
+      },
+      {
+        "id": "-grPV-Fae6I",
+        "title": "Not Afraid",
+        "albumTitle": "Recovery",
+        "sourceUrl": "https://music.youtube.com/watch?v=-grPV-Fae6I"
+      }
     ]
   },
   "Ilaiyaraaja": {
@@ -197,6 +229,38 @@ var data = {
         "cover": "artist-media/UCb9Ryvx3xg6WT0XfxuPIPRg.jpg",
         "subtitle": "YouTube Music",
         "sourceUrl": "https://music.youtube.com/channel/UCb9Ryvx3xg6WT0XfxuPIPRg"
+      }
+    ],
+    "popularSongs": [
+      {
+        "id": "oJ0t-4umnTE",
+        "title": "Kalyana Virundhu (From \"Dorothy\")",
+        "albumTitle": "Kalyana Virundhu (From \"Dorothy\")",
+        "sourceUrl": "https://music.youtube.com/watch?v=oJ0t-4umnTE"
+      },
+      {
+        "id": "ldv7A5b1vRo",
+        "title": "Muthumani (From \"Dorothy\")",
+        "albumTitle": "Muthumani (From \"Dorothy\")",
+        "sourceUrl": "https://music.youtube.com/watch?v=ldv7A5b1vRo"
+      },
+      {
+        "id": "ASmkb3qeYt8",
+        "title": "Thenmadurai Vaigai Nadhi",
+        "albumTitle": "Dharmathin Thalaivan (Original Motion Picture Soundtrack)",
+        "sourceUrl": "https://music.youtube.com/watch?v=ASmkb3qeYt8"
+      },
+      {
+        "id": "4wzHSbjRcpY",
+        "title": "Maanguyilae (Solo)",
+        "albumTitle": "Karakattakkaran",
+        "sourceUrl": "https://music.youtube.com/watch?v=4wzHSbjRcpY"
+      },
+      {
+        "id": "vQsgtsd_xxY",
+        "title": "Ennai Thottu",
+        "albumTitle": "Unna Ninachen Paatu Padichen (Original Motion Picture Soundtrack)",
+        "sourceUrl": "https://music.youtube.com/watch?v=vQsgtsd_xxY"
       }
     ]
   }

@@ -169,9 +169,9 @@ Column {
             spacing: 18
             width: parent.width
             Repeater {
-                model: root.pageData.videos
+                model: root.pageData.videos.length
                 delegate: KeyboardAction {
-                    required property var modelData
+                    readonly property var modelData: root.pageData.videos[index]
                     required property int index
                     objectName: "vinylVideo_" + index
                     width: (videos.width - 36) / 3
@@ -211,9 +211,10 @@ Column {
             text: "Editions"
         }
         Repeater {
-            model: root.editionsExpanded ? editions.sortedEditions : editions.sortedEditions.slice(0, root.editionThreshold)
+            model: root.editionsExpanded ? editions.sortedEditions.length : Math.min(editions.sortedEditions.length, root.editionThreshold)
             delegate: KeyboardAction {
-                required property var modelData
+                readonly property var modelData: editions.sortedEditions[index]
+                required property int index
                 objectName: "vinylEdition_" + modelData.id
                 width: editions.width
                 height: 75
@@ -271,9 +272,10 @@ Column {
             width: parent.width
             spacing: 20
             Repeater {
-                model: root.pageData.moreAlbums
+                model: root.pageData.moreAlbums.length
                 delegate: Column {
-                    required property var modelData
+                    readonly property var modelData: root.pageData.moreAlbums[index]
+                    required property int index
                     width: (more.width - 80) / 5
                     spacing: 10
                     Image {
@@ -316,9 +318,10 @@ Column {
             columnSpacing: 60
             rowSpacing: 32
             Repeater {
-                model: root.pageData.information
+                model: root.pageData.information.length
                 delegate: Column {
-                    required property var modelData
+                    readonly property var modelData: root.pageData.information[index]
+                    required property int index
                     objectName: "vinylInfo_" + modelData[0]
                     width: (info.width - (infoGrid.columns - 1) * 60) / infoGrid.columns
                     spacing: 12

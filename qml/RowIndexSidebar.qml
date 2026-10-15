@@ -212,11 +212,11 @@ Item {
 
             Repeater {
                 id: rowRepeater
-                model: rail.visibleRows
+                model: rail.visibleRows.length
 
                 delegate: Item {
                     id: rowItem
-                    required property var modelData
+                    readonly property var modelData: rail.visibleRows[index]
                     required property int index
                     readonly property bool current: rowItem.index === rail.currentIndex
                     readonly property alias action: rowAction

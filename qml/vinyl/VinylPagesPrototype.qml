@@ -34,7 +34,9 @@ Window {
         }
         var trail = artistTrail.slice();
         trail.push({page: root.page, name: artistData.name, filter: artistData.filter,
+            categoryFilter: artistData.categoryFilter, activeTab: artistData.activeTab,
             newestFirst: artistData.newestFirst, allSongs: artistData.allSongs,
+            category: artistPage.selectedCategory, sectionReturn: artistPage.sectionReturnY,
             y: artistPage.contentY, snapshot: pageData.snapshotEdition,
             edition: pageData.shownEditionId, disc: pageData.shownDisc,
             albumReturn: albumReturnPage, songReturn: songReturnPage,
@@ -50,8 +52,12 @@ Window {
         if (!previous) { root.page = "world"; return; }
         artistData.name = previous.name;
         artistData.filter = previous.filter;
+        artistData.categoryFilter = previous.categoryFilter || "All";
+        artistData.activeTab = previous.activeTab || "albums";
         artistData.newestFirst = previous.newestFirst;
         artistData.allSongs = previous.allSongs;
+        artistPage.selectedCategory = previous.category || "";
+        artistPage.sectionReturnY = previous.sectionReturn || 0;
         pageData.snapshotEdition = previous.snapshot;
         pageData.shownEditionId = previous.edition;
         pageData.shownDisc = previous.disc;
@@ -127,12 +133,17 @@ Window {
     VinylBackdrop {
         id: backdrop
         anchors.fill: parent
-        source: root.page === "artist" ? (artistData.record.releases.length ? artistData.artwork(artistData.record.releases[0].album.cover) : Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")) : root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
+        artistSkinActive: root.page === "artist"
+        artistLayerASource: artistPage.heroItem ? artistPage.heroItem.layerASource : ""
+        artistLayerBSource: artistPage.heroItem ? artistPage.heroItem.layerBSource : ""
+        artistActiveLayer: artistPage.heroItem ? artistPage.heroItem.activeVisualLayer : 0
+        reducedMotion: artistData.reducedMotion
+        source: root.page === "artist" ? (artistPage.heroItem && artistPage.heroItem.currentSynchronizedSource ? artistPage.heroItem.currentSynchronizedSource : (artistData.record.releases.length ? artistData.artwork(artistData.record.releases[0].album.cover) : Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg"))) : root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
         wordsShown: root.page === "song" && pageData.lyricsShown
         tallFixture: root.page === "song" && pageData.playingEdition.id === "mounamela"
         Rectangle {
             anchors.fill: parent
-            visible: root.page === "world" || root.page === "artist"
+            visible: root.page === "world"
             color: theme.biblioWashBottom
             opacity: 0.68
         }
@@ -143,8 +154,10 @@ Window {
         y: 30
         width: root.width - theme.margin * 2
         height: 55
+        z: 40
         Text {
             x: 68
+            visible: root.page !== "artist"
             text: Qt.formatTime(new Date(), "hh:mm")
             color: theme.ink
             font.family: theme.display
@@ -154,7 +167,7 @@ Window {
             x: 68
             y: 38
             text: Qt.formatDate(new Date(), "dddd, d MMMM")
-            visible: root.width >= 1150
+            visible: root.width >= 1150 && root.page !== "artist"
             color: theme.inkDim
             font.family: theme.ui
             font.pixelSize: 12
@@ -166,19 +179,30 @@ Window {
             objectName: "vinylAlbumBack"
             accessibleName: "Back"
             onTriggered: {
-                if (root.page === "artist") { root.artistBack(); return; }
+                if (root.page === "artist") {
+                    if (artistPage.selectedCategory.length > 0) {
+                        artistPage.closeCategory();
+                        return;
+                    }
+                    root.artistBack();
+                    return;
+                }
                 root.page=root.albumReturnPage;
                 Qt.callLater(function(){worldScroll.contentY=root.worldReturnY});
             }
             Text {
                 anchors.centerIn: parent
+                visible: root.page === "album"
                 text: "‹ Back"
                 color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 13
             }
         }
+        // First-layer world pills belong to TopBar / World view, NEVER inside the second-layer Artist destination.
         Glass {
+            objectName: "vinylWorldPillsBar"
+            visible: root.page !== "artist"
             anchors.horizontalCenter: parent.horizontalCenter
             width: 520
             height: 46
@@ -238,13 +262,21 @@ Window {
             left: parent.left
             right: parent.right
             top: parent.top
-            topMargin: 110
-            bottom: bar.top
-            bottomMargin: 20
+            topMargin: 0
+            bottom: parent.bottom
+            bottomMargin: 0
         }
         artistData: artistData
         worldData: worldData
+        backdrop: backdrop
         visible: root.page === "artist"
+        onBackRequested: {
+            if (artistPage.selectedCategory.length > 0) {
+                artistPage.closeCategory();
+                return;
+            }
+            root.artistBack();
+        }
         onArtistRequested: name => root.openArtist(name)
         onAlbumRequested: record => root.openArtistAlbum(record)
         onSongRequested: song => {
@@ -349,6 +381,7 @@ Window {
     }
     VinylPlayerBar {
         id: bar
+        visible: root.page !== "artist"
         x: theme.margin
         y: root.height - height - 18
         width: root.width - theme.margin * 2

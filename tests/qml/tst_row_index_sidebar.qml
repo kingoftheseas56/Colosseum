@@ -174,4 +174,18 @@ TestCase {
         keyClick(Qt.Key_Down)
         tryVerify(function() { return secondAction.activeFocus })
     }
+
+    function test_descriptors_keep_qml_owned_target_references() {
+        var row = findChild(fixture, "theatreRowIndexRow_alpha")
+        verify(row !== null)
+        verify(row.modelData === fixture.rail.visibleRows[0],
+               "QObject-bearing descriptors must stay in QML rather than copied QVariant models")
+        var descriptors = fixture.rail.rows.slice()
+        descriptors[0] = {key:"alpha", title:"Changed", target:fixture.secondRow}
+        fixture.rail.rows = descriptors
+        compare(row.modelData.target, fixture.secondRow)
+        compare(row.modelData.title, "Changed")
+        mouseClick(findChild(fixture, "theatreRowIndexRow_alphaAction"), 10, 23)
+        compare(fixture.requestedTarget, fixture.secondRow)
+    }
 }

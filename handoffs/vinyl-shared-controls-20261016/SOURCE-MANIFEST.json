@@ -1,0 +1,1748 @@
+{
+  "source_basis": "285fe6ae8eaf7cb296d8f3a94f9273f2f0faca5c",
+  "reading_branch": "codex/vinyl-shared-controls-source-20261016",
+  "candidate": "later tabbed artist page plus index-model candidate; not production integration",
+  "qualification": "10 clean full Windows offscreen runs, target 20 incomplete; user-directed shared-component revision next",
+  "files": [
+    {
+      "path": "assets/fonts/Fraunces-Italic.ttf",
+      "git_blob": "d5ce8bea39e0f834576972592c162e8a57145ecb",
+      "input_sha256": "38ecc4ffec0848602b4bafb6778494ceb173b89262d030d056efc32f29b2720d"
+    },
+    {
+      "path": "assets/fonts/Fraunces-Regular.ttf",
+      "git_blob": "eefe09f1e766c005b3ba6f2d367ec6d0b1afb189",
+      "input_sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "assets/fonts/Inter-Bold.otf",
+      "git_blob": "07cd5f081094eca107a3a5def0e4fcc8929d9f61",
+      "input_sha256": "9fc6261e817d0b1b2bf1953d8799bb1c837d11aeebbf83ae352e7b4d6de6425d"
+    },
+    {
+      "path": "assets/fonts/Inter-Medium.otf",
+      "git_blob": "8108180e92360cad0c7792945fe072c69f2087b5",
+      "input_sha256": "6c222ed2c3660524dd0c14fb745e00fee65c5361ab28f60fba6730bf4e648763"
+    },
+    {
+      "path": "assets/fonts/Inter-Regular.otf",
+      "git_blob": "13c3ec48572e2247472fb60bf2b495654f2c2879",
+      "input_sha256": "d4f2b9e148059a15f014cb0f0b8fea8cd11bfa447dd483bedf1b0adc0e2ba799"
+    },
+    {
+      "path": "assets/fonts/Inter-SemiBold.otf",
+      "git_blob": "b433abba597d420a1156a3f7c8448bc1ad779cf8",
+      "input_sha256": "0a4d30778fa2dc239368d90fd854b88b27e7ede737450da72686a90eca66f02c"
+    },
+    {
+      "path": "assets/fonts/Literata-Italic.ttf",
+      "git_blob": "ebb050c9fda3fb0e87d67cf1fc6b6e3b16d28fc8",
+      "input_sha256": "198f70cc9a17bab578553fa274b81984d58c440efe26bc06f1d841c194b6691a"
+    },
+    {
+      "path": "assets/fonts/Literata-Regular.ttf",
+      "git_blob": "b0e7f7accdf2304f19d561acd5f969eb62c9d4fb",
+      "input_sha256": "0390890de9bb9d5862a6ba4125b82c61792ccc3d66b63e73eee75c1a16fcd208"
+    },
+    {
+      "path": "assets/fonts/Switzer-Bold.otf",
+      "git_blob": "fd8c8a25a51287e5fe69d2aba41642ec2da4262f",
+      "input_sha256": "b15598c52907497ac7a014658c335e10f8f6b878ea82c79decd117e926a74b02"
+    },
+    {
+      "path": "assets/fonts/Switzer-Medium.otf",
+      "git_blob": "96abdf574d2d5f15b77d634432a3599f5b65de03",
+      "input_sha256": "dc1000a1cfd8e9269bd4c26630966e67f9bbb3abe6689aac3d913e99927c6825"
+    },
+    {
+      "path": "assets/fonts/Switzer-Regular.otf",
+      "git_blob": "fd73a2fcd4d34d0a94781aba142b25afaadd9980",
+      "input_sha256": "6208450253b06898c2b58b38d8dab5f6a35059b3fd9b25ab98c5f25cfeeebee7"
+    },
+    {
+      "path": "assets/fonts/Switzer-Semibold.otf",
+      "git_blob": "53c05f8b5daa9bc4c8d597a95c1c7a2e9526b054",
+      "input_sha256": "0b1652d8384fcd5038dc19317ab0e0c4f4b7317e6a9729d8ef38fba375b01921"
+    },
+    {
+      "path": "assets/icons/book-library.svg",
+      "git_blob": "16d293ffabb6a7f820f49b4c5502b7600c100976",
+      "input_sha256": "40761fdc558ff4338db9e36fb4231d7f4820150e8d876ab9369f0f2f2ff95a07"
+    },
+    {
+      "path": "assets/icons/books.svg",
+      "git_blob": "cd4d32777ba1e689f78a1096de006ace44b7a6f0",
+      "input_sha256": "eae1e9c978dfaf947d3ab6785b43856a8d27b97e12ae738fe9221f77f90f2163"
+    },
+    {
+      "path": "assets/icons/colosseum.ico",
+      "git_blob": "914895722cc19395a773fd96111460d665b00d1d",
+      "input_sha256": "b61b14bf4e3a005a39f35855cb0123eca6aa4de09fe19810656bf53cd11a2eeb"
+    },
+    {
+      "path": "assets/icons/colosseum.svg",
+      "git_blob": "e139208f73eec2632d7828051857838baac37d61",
+      "input_sha256": "9794195438449637b595d0cb4be3c8b9c54317c9d58c294aba2a06facb3d7b1e"
+    },
+    {
+      "path": "assets/icons/comic-book.svg",
+      "git_blob": "29ba4d04a20296c38bce87e704392ec4ae52a480",
+      "input_sha256": "899b22dd3a501b123bb48d28b20636a32f967b9399f32e25439083f9c323bc47"
+    },
+    {
+      "path": "assets/icons/comicreader/bookmark.svg",
+      "git_blob": "ca7850d48d7ba7533cc3b80a2d4bd0307f7ee2a7",
+      "input_sha256": "b0c47b3b3f85a192197d687877fcf9c5013679df01eddc33bd16c1bf056b3131"
+    },
+    {
+      "path": "assets/icons/comicreader/chapters.svg",
+      "git_blob": "09ae7452c40f024290e0dfabbb601305df4195c9",
+      "input_sha256": "231515b8aba4b9272f094165f65620f986c368084edc9263005f3d5526343b27"
+    },
+    {
+      "path": "assets/icons/comicreader/chevron-left.svg",
+      "git_blob": "2a09571a1096b3efb3eebe2c42776b9bd94adaf5",
+      "input_sha256": "1c7ff1b76bac530e2df83e2548792efbaf8db502a39c72e61c4a59902645a2af"
+    },
+    {
+      "path": "assets/icons/comicreader/chevron-right.svg",
+      "git_blob": "aaabef39c44328c2202772475e7448e69b402621",
+      "input_sha256": "101f96e5065e6d114637d819abc23d3718e1a57315687541e1dd54a0fe6de6f6"
+    },
+    {
+      "path": "assets/icons/comicreader/image.svg",
+      "git_blob": "4ff15e88b7186c2f39fb828b3c1aecbd49ed0103",
+      "input_sha256": "4b7a0b31ba0ad2376f1d29dae54015b11e4c8447e7e4a6c1127d5ee98eab8676"
+    },
+    {
+      "path": "assets/icons/comicreader/keyboard.svg",
+      "git_blob": "3b353cbebd69716ff4616e9a42d7224b84373eb2",
+      "input_sha256": "1701351b95aedded575b9237d03731d9b7f5d3f39a1d408dabe7340e7aec183a"
+    },
+    {
+      "path": "assets/icons/comicreader/layout-paired.svg",
+      "git_blob": "c4116f920a3024b77ceb7d74e52e51e02f66c57b",
+      "input_sha256": "efd1a45276df7c6a46c458d1b643dea77130fc4b9aa11cc6e9751b0987506d0b"
+    },
+    {
+      "path": "assets/icons/comicreader/layout-single.svg",
+      "git_blob": "0aa99e1557cd316261b4708c70d04edacdebb678",
+      "input_sha256": "5ccd39dab535a58a79a9c9c2f293909d97ace6054273bf18c0d3cdf5a677076c"
+    },
+    {
+      "path": "assets/icons/comicreader/layout-strip.svg",
+      "git_blob": "8d754960b96812d38252fb67548e9704faa8ddfb",
+      "input_sha256": "8ffa0e686e4be1271afa75d66e70522e1f899f1ff46848291fb126fce2a4f7db"
+    },
+    {
+      "path": "assets/icons/comicreader/maximize.svg",
+      "git_blob": "b320e948d01aa2d5257fdf4f8e7c7c40cdae6a17",
+      "input_sha256": "0cee7baf2d2f91c67f72eaee7159f06166d56016338dc6a8fb39fa9b26e29d83"
+    },
+    {
+      "path": "assets/icons/comicreader/minus.svg",
+      "git_blob": "8574a09ccc5daec39e60a1bed2234eaa03402f0e",
+      "input_sha256": "8c43205156fccfbd313d1593135a8a113305c5ee5a84c0efba3f30ae0bb3583d"
+    },
+    {
+      "path": "assets/icons/comicreader/order-ltr.svg",
+      "git_blob": "d165302c02dc1b57d185ab8934d2718ce75212c3",
+      "input_sha256": "d53cba15efe42a390ea0e51020fd4d672d9358cbe6efea5dd432984d5366ea6c"
+    },
+    {
+      "path": "assets/icons/comicreader/order-rtl.svg",
+      "git_blob": "7569ea9c5aeb4acb9e468a04bf6ebe2b7817541b",
+      "input_sha256": "ccbea5cbc048c841b5c551f46145ee06075d3c777d457a221e236a060f7e9257"
+    },
+    {
+      "path": "assets/icons/comicreader/pages.svg",
+      "git_blob": "f00b6a5273e9628c5e1eae4c9b8f494424c5d34f",
+      "input_sha256": "20638e9e4fa9c23e53aebfc9f7cf7397482ebc670e41b9882a28a1b7afa6929a"
+    },
+    {
+      "path": "assets/icons/comicreader/search.svg",
+      "git_blob": "abd1f97b3a4c88f228441d6bd02eee3127e35cc5",
+      "input_sha256": "c9cf021d1c546661879de16097931c48132f7562049dc363c044fe8142684a3e"
+    },
+    {
+      "path": "assets/icons/comicreader/sliders-horizontal.svg",
+      "git_blob": "8a163021221258b1bd0a34b601923883804cefe9",
+      "input_sha256": "40a3d92dbf56b7deff13fb87e865a407752109303737cd3472efd9c5c034696a"
+    },
+    {
+      "path": "assets/icons/comicreader/thumbnails.svg",
+      "git_blob": "42854ee57c8bca6a268aaeda81d4e0b1558870d6",
+      "input_sha256": "1ef7d994f27b8329afc64fb829ec0d801930ed64263591659fc4bc947be4fd51"
+    },
+    {
+      "path": "assets/icons/comicreader/x.svg",
+      "git_blob": "3c16b8bc03853bce00358bfdd24fa51c3a4f65a3",
+      "input_sha256": "dc2bc0d2bf9496154838dfa6257db55287f79770765562f00af1c5f84f8c1d39"
+    },
+    {
+      "path": "assets/icons/comics.svg",
+      "git_blob": "838fb8ec388f3ad2e76cf4f091a2f878c072d930",
+      "input_sha256": "25975dbbfa7fbf033783b416eac3724374ecef5600cca7253c753d13b1313d54"
+    },
+    {
+      "path": "assets/icons/download.svg",
+      "git_blob": "37dc87289b84d37b49f41e2fa0f989fb0364eab9",
+      "input_sha256": "49bdfb176bf6a8fe8b008e88b4597500c4d4fc90a2014d06445c63791d089b67"
+    },
+    {
+      "path": "assets/icons/extensions.svg",
+      "git_blob": "de647837f160110a917daa6f76a83dab29748da7",
+      "input_sha256": "be3376fadb6accb55316c551d5bea96f8a4ad964fc2d43fd8f492f7820182842"
+    },
+    {
+      "path": "assets/icons/feria-tv.svg",
+      "git_blob": "dddd6aa3a6bacdfa9e0773ceec8ade03e2c51102",
+      "input_sha256": "f2f545d0e171d212bd79b4d8f483cf9fbd035195b5edc78b7bb9ee3a65350a40"
+    },
+    {
+      "path": "assets/icons/feria.svg",
+      "git_blob": "c6598055464d68e22b6212c526b8815aca919475",
+      "input_sha256": "04aa5ae8f6d5c9e9b0880dd4b705e0f3bda3f6b896e73ffb2750edf0377e960a"
+    },
+    {
+      "path": "assets/icons/fullscreen-exit.svg",
+      "git_blob": "7323747b95f3168adb3bc317ad21d7025b87b53f",
+      "input_sha256": "0a8954af5dca33e7c781d060df61f8afc0b61a70be44adc36a474625ded0198d"
+    },
+    {
+      "path": "assets/icons/fullscreen.svg",
+      "git_blob": "79d7c290249cece25fc728bcf0694bba59dfce45",
+      "input_sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "assets/icons/lucide/LICENSE",
+      "git_blob": "325e8ff0aae2dde3134c1ceed780a11d7bd8f544",
+      "input_sha256": "c059ec5ba27c5876963f0678f63d2182a6fb6ce97d45ed8b6472ec0c2ec189bf"
+    },
+    {
+      "path": "assets/icons/lucide/SOURCE.txt",
+      "git_blob": "0c58a32fc7729701905c5ffc0112a4055e184629",
+      "input_sha256": "45d79072e20d30ec0c8207897fb3c85dae7dc8b123c700aa4afa7059471fef27"
+    },
+    {
+      "path": "assets/icons/lucide/arrow-left.svg",
+      "git_blob": "3952d9cb70f55e2f3abfae7653c8d324a635e575",
+      "input_sha256": "d160650947b31be550a41f5d071ba41c417bceaa20577e8d1f37955fee866787"
+    },
+    {
+      "path": "assets/icons/lucide/bookmark-check.svg",
+      "git_blob": "0c47ce93e5cb2939ff200ff227c2f7133d704112",
+      "input_sha256": "112bb653bfb1f064d3eec929466aeb9e579aaca2167677ce09c1618c3953a69c"
+    },
+    {
+      "path": "assets/icons/lucide/bookmark-plus.svg",
+      "git_blob": "9c1b50c012e1c9a440528e7bde884db090bfc8ac",
+      "input_sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "assets/icons/lucide/captions.svg",
+      "git_blob": "9c9ebb86be316a91a04e8c5daf84905654a7d53f",
+      "input_sha256": "bc8deb2b33fd850e1ba4c91780e1f73bf76e0bf52c088d83e116ecf3f89017f4"
+    },
+    {
+      "path": "assets/icons/lucide/chevron-left.svg",
+      "git_blob": "2a09571a1096b3efb3eebe2c42776b9bd94adaf5",
+      "input_sha256": "1c7ff1b76bac530e2df83e2548792efbaf8db502a39c72e61c4a59902645a2af"
+    },
+    {
+      "path": "assets/icons/lucide/chevron-right.svg",
+      "git_blob": "aaabef39c44328c2202772475e7448e69b402621",
+      "input_sha256": "101f96e5065e6d114637d819abc23d3718e1a57315687541e1dd54a0fe6de6f6"
+    },
+    {
+      "path": "assets/icons/lucide/circle-alert.svg",
+      "git_blob": "c2449b1652da9ca0b29f085cdc0201535ff2499c",
+      "input_sha256": "9e1d2ce45982a93541f941855584794987ad2de09057fbae612255d8978efeee"
+    },
+    {
+      "path": "assets/icons/lucide/circle-check.svg",
+      "git_blob": "95d3bf8c5de43a3fbf2a0cde019a777da66d8311",
+      "input_sha256": "e90fbab00f44915f83302ec58f63528927c488705e2b76c11c2ad3e4b744fef1"
+    },
+    {
+      "path": "assets/icons/lucide/download.svg",
+      "git_blob": "b13a549f7621f112a923efffc4bfbd9b3c06114c",
+      "input_sha256": "5b5e2ede7e2b9a0b77e0031a6b39789a5aa8288511530be09e894375baf0ddf5"
+    },
+    {
+      "path": "assets/icons/lucide/eye-off.svg",
+      "git_blob": "93a4015ac7d4b0dcc719b5ff5fd5859984569b81",
+      "input_sha256": "34ebd49c95e6e3fa82bc1b1234003a33c5c8e896de3d1937c627ec60264d13b8"
+    },
+    {
+      "path": "assets/icons/lucide/eye.svg",
+      "git_blob": "f93445f76563b3425c7424d81db2e98674a14667",
+      "input_sha256": "e885272068150028fc6c5d2b6d13f89488ff5175771f562e2f9db8e4a81bf516"
+    },
+    {
+      "path": "assets/icons/lucide/folder-open.svg",
+      "git_blob": "2ea7058c3610d1b51a3c5795ae59a327c8ab491d",
+      "input_sha256": "d7f49f77a6642c4f5fa1956daf3ebdc27a3916e7033d0709102f6637b17c4223"
+    },
+    {
+      "path": "assets/icons/lucide/gauge.svg",
+      "git_blob": "738db856ef616ff6c92dc663dbc16770e78ef965",
+      "input_sha256": "2057fb7e3d99c80d957a09fd4a26f678a9a18c854d9efd9917cd96554270efa3"
+    },
+    {
+      "path": "assets/icons/lucide/info.svg",
+      "git_blob": "ce74a41705b72d236c0d361d8056d196a13f2f5d",
+      "input_sha256": "3f0863df9ccc426a6e5045a8c433be35110a343014273987f8ac1637a8450ba8"
+    },
+    {
+      "path": "assets/icons/lucide/languages.svg",
+      "git_blob": "fcf6e228f3c98b77efe8a0b238fb66fbea643ee5",
+      "input_sha256": "79dca14e52465de16b767ff936dc62ae9f50eadd50140829dfd42e9c13657e70"
+    },
+    {
+      "path": "assets/icons/lucide/list-video.svg",
+      "git_blob": "c4771e0e67903e01be966aced4d53427d18ea4ce",
+      "input_sha256": "177d4e7d0cb43de412a1714c50e5e68a4d8b72c2dfeec5ab875b116fd65116e7"
+    },
+    {
+      "path": "assets/icons/lucide/maximize.svg",
+      "git_blob": "886136d9c0014d3bd05ce3a52cddc66feda4817e",
+      "input_sha256": "ba0945f6d1487af3d918d2cc507408c9c6bc705192af75ba71ad4bb7d514467c"
+    },
+    {
+      "path": "assets/icons/lucide/minimize.svg",
+      "git_blob": "c121a7d3f6cc2d518fe6d3022a39954236813eed",
+      "input_sha256": "a44c63c110f2e496b53a898849f8413f9718cbbea7c96ec801c3f4428bddc56b"
+    },
+    {
+      "path": "assets/icons/lucide/minus.svg",
+      "git_blob": "b153fcd0cd2a506ff928d7676859672298aeec50",
+      "input_sha256": "669a26259ff118080b02073f0194ffa97fbdc246ddc6d1e4dc7dad474a3e9bf3"
+    },
+    {
+      "path": "assets/icons/lucide/pause.svg",
+      "git_blob": "d8b50dbd54c810d0ebb467d751e5086b82f7c828",
+      "input_sha256": "7e4cbf21f90515e7d06f8dee23e4ba291d4fd25e0ba6bfa5df9273286e1a0d9b"
+    },
+    {
+      "path": "assets/icons/lucide/play.svg",
+      "git_blob": "37731e74a76c2afcebd875e21a848586916100ef",
+      "input_sha256": "69fa43fe6b2d4ccb2df7e8d661491b8ba73ea179a2cae8711584e2d8a1b3da40"
+    },
+    {
+      "path": "assets/icons/lucide/replace.svg",
+      "git_blob": "7910d30e0801e3f834ef5c6012ed0abf39c0c558",
+      "input_sha256": "aeaed3d64ffc28cb439dbab8ac9ecf14a53e5c52184ab033e12c71f50009b596"
+    },
+    {
+      "path": "assets/icons/lucide/rotate-ccw.svg",
+      "git_blob": "7eb8bc0b2adf05bf3a58c49c261138d5fa407a65",
+      "input_sha256": "5ac198a4db4cda508079a14d3c44fd4cd6d7f5d930962896a68f442331abc446"
+    },
+    {
+      "path": "assets/icons/lucide/rotate-cw.svg",
+      "git_blob": "8d97c02cf4b9e0f524952186b61a186e3f74bbf8",
+      "input_sha256": "dff56adb435ff1e03a07793264d87b406a4471eae9ab26a9ca51799cabace34e"
+    },
+    {
+      "path": "assets/icons/lucide/search.svg",
+      "git_blob": "31277f81de117a9e1ee644c64a2a39abd248b8c2",
+      "input_sha256": "8171a3e3f700807006cc63d504f39a11c7eb24d7f3ea5de33f9edc4af7af6918"
+    },
+    {
+      "path": "assets/icons/lucide/skip-back.svg",
+      "git_blob": "17920e92feda87bc239ff6b90ab8a2483552bf15",
+      "input_sha256": "090f0442ece0b439192723f73a55326dde5dc76b0276be226590508e31254d8c"
+    },
+    {
+      "path": "assets/icons/lucide/skip-forward.svg",
+      "git_blob": "06968f40ec5bf8ebd88228e2b788a7fb8919488a",
+      "input_sha256": "47891a5b7a23b8b2c42a67569dbc959e1b28301165fb5ebfa763d94ab5e41849"
+    },
+    {
+      "path": "assets/icons/lucide/sliders-horizontal.svg",
+      "git_blob": "c76b51db8c5e4b5cc8b95f33a4fbde2c3bff2442",
+      "input_sha256": "101100d86eb8095749d1f7778ee9af9f7db1035d2be2e143825d728bbeca96a0"
+    },
+    {
+      "path": "assets/icons/lucide/triangle-alert.svg",
+      "git_blob": "0c171959b8826c5ec0397afc9df3878cc77d477f",
+      "input_sha256": "96dc42d33de3fb22259e841895ffbf55a0696009dc8a2c3cbc6bfddcb413204e"
+    },
+    {
+      "path": "assets/icons/lucide/volume-2.svg",
+      "git_blob": "03ee06255a9b6050ab73d5d62d2881d792b15d5d",
+      "input_sha256": "19ea577562b77d11605689db87b1795e9ef2eef96f9bed05d05f3e82ab2447ea"
+    },
+    {
+      "path": "assets/icons/lucide/volume-x.svg",
+      "git_blob": "88f46a1c699475c6e2ea961d03495ade1399a151",
+      "input_sha256": "710e4c5f964761f46c3ab9e201b5b5cab8901a6d0d24ea15a8e392d20b8ae457"
+    },
+    {
+      "path": "assets/icons/lucide/x.svg",
+      "git_blob": "e97af2acd5bc7dc014e95a5ec855d5637f5b6b7f",
+      "input_sha256": "f2068b72db67fbe8f3a81727476f3d7d97e6f420e2828394c1aef849aa99b95c"
+    },
+    {
+      "path": "assets/icons/make_app_icon.py",
+      "git_blob": "6bf01b2b259efabffac31ace0617c95f9ec8029b",
+      "input_sha256": "fb8d1ad224c362855f8334473816b5bcaf5d68258ef53212b7d853ccc11367a9"
+    },
+    {
+      "path": "assets/icons/manga.svg",
+      "git_blob": "4bccf61c78b8365e3110ebc09faf0f844b590445",
+      "input_sha256": "67e61d2fee343bf8bb060c85cedf8ed1df2d48cc5a6682c8815e291ec95fb7ab"
+    },
+    {
+      "path": "assets/icons/minimize.svg",
+      "git_blob": "264fd6060b2d809560ad7ada6018943ee55e3c78",
+      "input_sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "assets/icons/movies.svg",
+      "git_blob": "483bc90c64fe46b712dca13b8deca79d10ce09e6",
+      "input_sha256": "52ba7262c5b924f8140f547fe8f055fec1d7465f64338e973d12490fb2d1d144"
+    },
+    {
+      "path": "assets/icons/music.svg",
+      "git_blob": "cc625171e6dcc32ecc9b9d4aa7ccb80fe88425d2",
+      "input_sha256": "0056ad0a70b3886bf411ab7fc6acce0b24fd8f9b63c5188622a882ed05692d14"
+    },
+    {
+      "path": "assets/icons/open-media.svg",
+      "git_blob": "2d4c8a6a6a428740625122dc0f12cb5d3101e283",
+      "input_sha256": "a31089a4390e1f1a3a6257496fd99f2efde0cf09e6bf54ce92e7194a228b6195"
+    },
+    {
+      "path": "assets/icons/play-dark.svg",
+      "git_blob": "686d3168e2983933605216b71c12ab7840a3fc43",
+      "input_sha256": "993707e380b693a59f3b2786c873c0dca0eb749e2766473331a77df8606c15f9"
+    },
+    {
+      "path": "assets/icons/play.svg",
+      "git_blob": "c2af27a304b883527d143688338826ea2398a3b9",
+      "input_sha256": "d25ed825560e4d47a70f8415c19fadea1e4cfad43cdf1cc7ef066e91edd0aa47"
+    },
+    {
+      "path": "assets/icons/power.svg",
+      "git_blob": "4f1dd59899325aa9cfa4eacc7acc5b45cb6b8d42",
+      "input_sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "assets/icons/preferences.svg",
+      "git_blob": "396cfd7188bfba736a1d5ef583fc72f50eba079a",
+      "input_sha256": "2b06691b5cf3b4dc7ccd2252487c77c52b7d17b7271a73144a6b3f0cfb3571b0"
+    },
+    {
+      "path": "assets/icons/projector-theatre.svg",
+      "git_blob": "e74caea84ebfd608ffacf3b596861435bd6345b0",
+      "input_sha256": "8a6021e1c79c142a3421bd953c469cc9d174d62d8d986f316da70233053bf2eb"
+    },
+    {
+      "path": "assets/icons/rating-star.svg",
+      "git_blob": "373bfff7757d62005b0cbe4d0d190f63eb9ba929",
+      "input_sha256": "99a58ebd22c76e643bf77a61c42b12252c64d8f7707cfba147ea0a199d19bfa7"
+    },
+    {
+      "path": "assets/icons/reader2/appearance.svg",
+      "git_blob": "dc7ef094d9c881b0080774a7052e2d0a0c8a8dd8",
+      "input_sha256": "57cca475dc2cb63a8fbf4691b91e8ddeeb8cd9f298509c935bb664fd5d9f318e"
+    },
+    {
+      "path": "assets/icons/reader2/back.svg",
+      "git_blob": "eb2a0626699615929e6c753e2cac6ac6db5a37aa",
+      "input_sha256": "24f053658bdce997ca60397b803b62e7d868ab19b9c16afbbcd16b29457ae568"
+    },
+    {
+      "path": "assets/icons/reader2/bookmark.svg",
+      "git_blob": "b9f4229fadd1c752929c8fb57c8fca684e14add9",
+      "input_sha256": "e9786a68da527f3e466305630c250f9a5e5ada48f2c7a039339d58a4e89e96a8"
+    },
+    {
+      "path": "assets/icons/reader2/chevron-left.svg",
+      "git_blob": "04ebe4e1f90c999dc5f39597716ae351b3592101",
+      "input_sha256": "9c9222d9ad080115a51ab6141b6eaaf27b7d8d171fdb08701fb34ffce4e5ac6e"
+    },
+    {
+      "path": "assets/icons/reader2/chevron-right.svg",
+      "git_blob": "0dba0361ab3810c3192e249d8848d73f4eee6d3e",
+      "input_sha256": "ec2b18dcccbcf8567c37cbe4adc200eeca45feca3a4f5ee010672b425835e9d0"
+    },
+    {
+      "path": "assets/icons/reader2/close.svg",
+      "git_blob": "6574a98a2afb5b5031b70310a9166b7569fd8508",
+      "input_sha256": "87202478cf9759c53bd2666b434e7ae5138d02b6304bcdd68b631fd5e9a931b9"
+    },
+    {
+      "path": "assets/icons/reader2/contents.svg",
+      "git_blob": "c712d244ca224795411d5511a10e3b86703ed1cf",
+      "input_sha256": "b95c9cf4d06d77dcf37262e156046b00e5341c2446d05638228d187388d2b5bb"
+    },
+    {
+      "path": "assets/icons/reader2/fullscreen-exit.svg",
+      "git_blob": "2cb203de1c7bbcaaa57fb7ca1a4cd9117913210f",
+      "input_sha256": "5cc99778d30660411637fbb1ae254334ff49515fc38d23404ba888b7398ac456"
+    },
+    {
+      "path": "assets/icons/reader2/fullscreen.svg",
+      "git_blob": "fea634565cd580199614dbe06b3e603b66ed5d31",
+      "input_sha256": "c9a70b5e924ebe0798c01229bd250fba2ac3e1d62d8681bf20e3210edd835761"
+    },
+    {
+      "path": "assets/icons/reader2/headphones.svg",
+      "git_blob": "70406a5c4dacced5b7496abdb33f912c8f0a62fb",
+      "input_sha256": "2dcda8cce895cddb829b721030a434d41ae45e292967e3ca763b5000d4c57adf"
+    },
+    {
+      "path": "assets/icons/reader2/highlight.svg",
+      "git_blob": "478adc8e668a135624c3c19358aeefcab88d9461",
+      "input_sha256": "bb40f82252a8364353aa1e506edf9e024fc2a301291fffa4a85c69ef2c997b5c"
+    },
+    {
+      "path": "assets/icons/reader2/minimize.svg",
+      "git_blob": "28aeff870da9697459253056119a9d1ca4a1dd13",
+      "input_sha256": "718c34594828661ef1fbec10a733ac54f57470c3630a539a0e0864c5be6a3ec0"
+    },
+    {
+      "path": "assets/icons/reader2/pause-dark.svg",
+      "git_blob": "c9f508b4c111078a7a3509ef7bf69dfc77919060",
+      "input_sha256": "7b75042d78537a21ca8fac02d4fefc7903b0f987c67ef105e27adc2612f24243"
+    },
+    {
+      "path": "assets/icons/reader2/play-dark.svg",
+      "git_blob": "3d814f5daf100d21e3f7d09a59f47a53eb437277",
+      "input_sha256": "cfb8fb33e84286929012e2e87e1bce49beb6c2da21f2e2b9978ffb18ea7a9626"
+    },
+    {
+      "path": "assets/icons/reader2/return.svg",
+      "git_blob": "39951fcf3fbe18c3d5e2caaf4de5fa9f33eab895",
+      "input_sha256": "5d64dd3f0e55e4df50debd23e68d78840c359cefb989e5bff9a8f61fcbb6bd2e"
+    },
+    {
+      "path": "assets/icons/reader2/search.svg",
+      "git_blob": "69f0fbc624f98aebc6d2ac31632a79728eb2c5a9",
+      "input_sha256": "0805e9e45634c0aac745bc762969a1d7d193c77286a534b8d54709ae59b97df9"
+    },
+    {
+      "path": "assets/icons/search.svg",
+      "git_blob": "cbf7d631b0e90059239302b8985db9431738b87d",
+      "input_sha256": "083ffab2b908e1ff515ef8dc66c3c7c9147bc7287b67e3354ad5330c1e57b779"
+    },
+    {
+      "path": "assets/icons/settings.svg",
+      "git_blob": "a42a15aa92a1c2a35ccb445e28b43fa482acf318",
+      "input_sha256": "be11c362a2ca3acca8634af162570ded82ad14a790aa616b68a00374565e77b4"
+    },
+    {
+      "path": "assets/icons/star.svg",
+      "git_blob": "118bc90187da0cf03e0153b85c7617031d95e8ab",
+      "input_sha256": "5f0fb60db5d04848decb669743ea8d7ab0c3c30de1130419495aa184ef4f1226"
+    },
+    {
+      "path": "assets/icons/stremio-official.SOURCE.md",
+      "git_blob": "b4b0cab39cb25b248b7d35dd7a03af7963d5c8bd",
+      "input_sha256": "1577c9484de162bed655278c8e4b83545950f4f5e12f0079389408fb51d677af"
+    },
+    {
+      "path": "assets/icons/stremio-official.svg",
+      "git_blob": "1baae74687f8313a96b00f24f3877f6041e2dd33",
+      "input_sha256": "33ff6f851753093937519b63f8fd7828890b09a478a7b2d67801cb606126ee6a"
+    },
+    {
+      "path": "assets/icons/sync.svg",
+      "git_blob": "133733149c13b719ca64e6b3167b20e2ad53f455",
+      "input_sha256": "342cb7688becca9fa0bb482da697dec41892b3290a37f1f1b1097021196471c3"
+    },
+    {
+      "path": "assets/icons/tracker-activity.svg",
+      "git_blob": "5fb7a369c1cc0945e4e0550663d94413641812ae",
+      "input_sha256": "51f679b09b1131d1350d32767500b921cfd115f88918effb372312bd369088ff"
+    },
+    {
+      "path": "assets/icons/tracker-history.svg",
+      "git_blob": "e2d83cab1daf2e26ba6b99f0a498ecdf75294d19",
+      "input_sha256": "2c0548280c0f66eab01f0ad11e7cc9bd607046fa800b374348a401faadc248ac"
+    },
+    {
+      "path": "assets/icons/tracker-progress.svg",
+      "git_blob": "d352e369cf24400f011a7ae074c523059c0919dc",
+      "input_sha256": "1022a4da8c315ba551a36317081cf44ab677d44c5fdccd13f4c04514e8ab56b5"
+    },
+    {
+      "path": "assets/icons/trackers.svg",
+      "git_blob": "799eb9a6d71cc8ffb89c5cb6e49fe61003905329",
+      "input_sha256": "9898c3910103bb0ac9d9487475e0438f59bb8b01f580b21d7140b798369c6a18"
+    },
+    {
+      "path": "assets/icons/trackers/anilist.svg",
+      "git_blob": "44bf779804cb69767d81b7084320034c7e4cab00",
+      "input_sha256": "ca755657cf6bbe3a5116c2ef826623624ba4105c08d9f8eb031d14e95264b09a"
+    },
+    {
+      "path": "assets/icons/trackers/myanimelist.svg",
+      "git_blob": "fa570e7cfa7589c1330c68f6e88c26e8887cf2c0",
+      "input_sha256": "e0286728a3fddd93abb6efaf2a920bc678f74841084e03f3155e9eb5e9c99db1"
+    },
+    {
+      "path": "assets/icons/trackers/simkl.svg",
+      "git_blob": "a2e52617d52477f6916f8ed675b37ed8986008e2",
+      "input_sha256": "a4a4e022c8c26053df49c77e6012ed4acf9731dd041d071dcd613f487052d2d0"
+    },
+    {
+      "path": "assets/icons/trackers/trakt.svg",
+      "git_blob": "4da6377256c4cb536b2bf0426c6653674268182d",
+      "input_sha256": "f8929cd9cb85dc839fa4e4c1c8daff166ed30aa9c0533dcf16207c782ec4fab4"
+    },
+    {
+      "path": "assets/icons/universes-atom.svg",
+      "git_blob": "819fc9724f5ae077424838b38b61cb568b63a174",
+      "input_sha256": "f0facaa83c8693ccb1bc5053240ee445c836a64bf9b833828d3351752554510f"
+    },
+    {
+      "path": "assets/icons/update.svg",
+      "git_blob": "de23015986bad145813d740225dba959b0499698",
+      "input_sha256": "a6c876dd2212818d9c478d39dac52a24e477fa307597e1b46098950b6e24d9e9"
+    },
+    {
+      "path": "assets/icons/vault-door.svg",
+      "git_blob": "8772fe986983c93e13850489a8b07ecb0dee9d8f",
+      "input_sha256": "208b63678623fab75a663b52f058b3c990248151819b6fd5fea5567d885c1a25"
+    },
+    {
+      "path": "assets/icons/vault-folder.svg",
+      "git_blob": "a422f6602ac5e1111f525ca8a83fed17e9118eed",
+      "input_sha256": "9f9b50a791a4f8f2289be07d449ac9828fe1529f46cb459b144d6b10c06e3760"
+    },
+    {
+      "path": "assets/icons/watch-party.svg",
+      "git_blob": "b8ff56e7ebd1b2a423feb7669e57268d5a86bd8f",
+      "input_sha256": "0690f9f18e2f3031efd020653000733c5957e7a6ccaf8d0176399340d48afe85"
+    },
+    {
+      "path": "assets/icons/your-colosseum-laurel.svg",
+      "git_blob": "5c1ab152a6f52c9b0d15f8a04be77fc49301a8db",
+      "input_sha256": "7f4d39f2dcfb3fb7f2ecfeb700118bfb615545d8f1cc8ee6f569b4ac1653e063"
+    },
+    {
+      "path": "assets/wallpaper/captured-motion.jpg",
+      "git_blob": "2d30b8180bb35cb6fbe49d6c53419861c8d7a7ff",
+      "input_sha256": "9f56f69ee6d80fcd612e8ff43f23ed9744114868575a873f840191ddbdd48289"
+    },
+    {
+      "path": "assets/wallpaper/cold-ripple.jpg",
+      "git_blob": "a72c555bd44ff91172250c6a5087b3dc0c5787d8",
+      "input_sha256": "e53040f1ed25876fc96a0dd5ec6554b81b778adf69e803443d6c6d3d59b15e8c"
+    },
+    {
+      "path": "assets/wallpaper/sagas/dune.jpg",
+      "git_blob": "ca329748fdbf228c749eb431ab9c3fa31a3b5485",
+      "input_sha256": "ef9fc905b6dbdce583d36eefdfebc3fa1d3a7df2fc82a5cff81f1f2a55155b6f"
+    },
+    {
+      "path": "assets/wallpaper/sagas/harry-potter.jpg",
+      "git_blob": "945d291578e5592217a4491dda9ee29ad075480d",
+      "input_sha256": "431dce5caf16b766a812760728af9b00214faa2ec3cff69b21a505f7b1815271"
+    },
+    {
+      "path": "assets/wallpaper/sagas/ice-and-fire.jpg",
+      "git_blob": "4cfbd5b89ed902413616217b129205a98ce2de26",
+      "input_sha256": "a6f746609261b0fe7d586afed48e75fab0dee6b662f8814b7625a567d64f5f52"
+    },
+    {
+      "path": "assets/wallpaper/sagas/jurassic-park.jpg",
+      "git_blob": "2371901fa86dac9a2d4e575ae144b91c5583a973",
+      "input_sha256": "d89a28066905a947a83e9f6c441ae66ff75dedfb1dc4e162fb400df465ea3647"
+    },
+    {
+      "path": "assets/wallpaper/sagas/lord-of-the-rings.jpg",
+      "git_blob": "c20e2e09f26ba892366cf611241479dbc7dfb569",
+      "input_sha256": "bf399c25885b79c278609cba73f8409cbdbf56ec691e354bc226d18b9a4620e3"
+    },
+    {
+      "path": "assets/wallpaper/sagas/percy-jackson.jpg",
+      "git_blob": "edaa26b02d74167104cb865f697d5f0d22c4aeee",
+      "input_sha256": "575035b804d444be542873599963e9db4c468965d4500aeeec7000850c570c62"
+    },
+    {
+      "path": "assets/wallpaper/sagas/sherlock-holmes.jpg",
+      "git_blob": "1fddd318cdb750d687511311c23c7defee0bd087",
+      "input_sha256": "866c98889bdf99032359dc1b745deb9127d93fb12827db8791aae9de16be4c02"
+    },
+    {
+      "path": "assets/wallpaper/sagas/the-witcher.jpg",
+      "git_blob": "53d460d156a9c98ad6e2f00861f75715fb5961cd",
+      "input_sha256": "bd81e60fed2df8d25039c769aa70cfddc257cfd87e1e31acb4154d53b4359629"
+    },
+    {
+      "path": "handoffs/vinyl-shared-controls-20261016/DOTS-HANDOFF.md",
+      "git_blob": "c98e5a54da33a2ba95e4e8b4930b0fe3c4cd6065",
+      "input_sha256": "3aeaef69a77fb5f6dd2c1125b374a8d5f11fa06445ab7ddbd41ca58893cd0433"
+    },
+    {
+      "path": "handoffs/vinyl-shared-controls-20261016/references/biblio-discover-user-reference.png",
+      "git_blob": "1bc6d88e56fe7c4f8524e11ecdffbe630c06dc69",
+      "input_sha256": "35ab90479d4f4c68836500617927914734465279f41c4fc16ce7e3cd20123461"
+    },
+    {
+      "path": "handoffs/vinyl-shared-controls-20261016/references/native-1280-albums.png",
+      "git_blob": "4e22ae2af6633ce8320f11d9be1ef4dc54f0e74a",
+      "input_sha256": "8aeeeed8123c476ebb0f44e13184dc1dc30169a1b9fcc7ed3829f7be0d4ade6c"
+    },
+    {
+      "path": "handoffs/vinyl-shared-controls-20261016/references/native-1280-videos.png",
+      "git_blob": "7a4716ac8857ae235146f866e010fe6b506624bc",
+      "input_sha256": "fa923a076b6d55768ef553c1b98c31d53ec9a3ef514105e654962b199c3829cd"
+    },
+    {
+      "path": "qml/AddonLogo.qml",
+      "git_blob": "6cec1e35a34c9e4c22f6df615c32354b5d88e661",
+      "input_sha256": "4cffa9c38c62a4746a37a7b42b30906dc0b3566199b5714f83bc693a279a6216"
+    },
+    {
+      "path": "qml/AddonLogos.js",
+      "git_blob": "16da0a62a2ec6e42ab4429301bd08cd98ac82b0e",
+      "input_sha256": "786236246fb4fdd9709704ec3c6a9307bb8190f83ae383d41f5fc383a2f08960"
+    },
+    {
+      "path": "qml/BackAction.qml",
+      "git_blob": "0c7630d1557ec459d7758da70f8312fa82e5a5ce",
+      "input_sha256": "6bf66b77511118a2395e8b9b5f5afd76ecdc7efbcf807c50b01f185e0dd41b7a"
+    },
+    {
+      "path": "qml/BiblioExplorePage.qml",
+      "git_blob": "046e5f87d9a24cd427ecf0267cc579bca6e378a7",
+      "input_sha256": "4edb3f95be982d761e6df6cee8d7af5fb2ed1e1072bb3c6d61d8146b1ef93f92"
+    },
+    {
+      "path": "qml/CarouselSlide.qml",
+      "git_blob": "60e6d0ebaed9d7183ea8c2fe953aa37303c3fbf8",
+      "input_sha256": "22aeb7fc4713b1dba2a84913d743208e14c71b78dc28faba353f63006f3b6c72"
+    },
+    {
+      "path": "qml/DiscoverBrowser.qml",
+      "git_blob": "93c2ddcb916307149e372f31aea13dc0d8650a7d",
+      "input_sha256": "e0d8f02886728929b7928799cee5ed8df09c1e53cb3aea7be15cf1aaa97d51aa"
+    },
+    {
+      "path": "qml/DiscoverPicker.qml",
+      "git_blob": "aa11d34eb83508e8b9992900e41cf88bb2aedf3e",
+      "input_sha256": "29d0e9c3dd9c72efc31439da673ad571c3d9bb4dc6e79283625d28d620048c52"
+    },
+    {
+      "path": "qml/DiscoverSidebar.qml",
+      "git_blob": "0a448614b800af3dccd34d2b5e914016b9dd4250",
+      "input_sha256": "3ad80d204e61dccf30244f425168725950e0ef5c570a4a08399b557945a858a5"
+    },
+    {
+      "path": "qml/FeaturedCarousel.qml",
+      "git_blob": "0892908b03e9f18771bb5a59875b3d552b6e997c",
+      "input_sha256": "760107e32a51e46377c5c8e20928a377e9522e956cd64f84333a2d01be9430f4"
+    },
+    {
+      "path": "qml/FocusRing.qml",
+      "git_blob": "5393c3c8c15dd4e9fc4f2a4d6009b5ee27427726",
+      "input_sha256": "42d9e0b89ea9385d3059fa6a03d8914bf31448e5b3a64941d969062c0747f28c"
+    },
+    {
+      "path": "qml/Glass.qml",
+      "git_blob": "b1f3a51e90b5c6a96602143c0caa476cb47b024a",
+      "input_sha256": "28d19c799fabeb7670af05cbcd4cc0873ffee0127253c154635b1c1959704fdd"
+    },
+    {
+      "path": "qml/HouseScrollBar.qml",
+      "git_blob": "9b5b1457783a41d468bf33e27961f24136b7c0ea",
+      "input_sha256": "b7c828df926cbcc7bc2be448f57c78299ac3dda18c119d49f6832bad3ea1a23f"
+    },
+    {
+      "path": "qml/KeyboardAction.qml",
+      "git_blob": "57776087abc6e899b50c459a0c232d851821032d",
+      "input_sha256": "ad4669e551e9f0a103148752918830590d3759d08dd84995ef8956bbd923fc4e"
+    },
+    {
+      "path": "qml/KeyboardCollectionController.qml",
+      "git_blob": "a9c0abd75c7e30b3751abfe31e9ad05bebf80a20",
+      "input_sha256": "e753354d46f6362fb5c0cb85bfae89b06c8861e50e0346554a7f2bf61f499a5b"
+    },
+    {
+      "path": "qml/KeyboardSpatialNavigator.qml",
+      "git_blob": "b7f5886f865797666b969e88ccb29b8981cf64e9",
+      "input_sha256": "8e148d816f2319f3f63ad4198577bfb394c04c0ad4a0d9d278833f1fa88e9432"
+    },
+    {
+      "path": "qml/KeyboardViewport.js",
+      "git_blob": "b34a0f11590bee7338014f73c165ad9faf26ad1e",
+      "input_sha256": "c2c3f06d93917d635eab0b8a1f4c0f14c2b0f9c47299696de3c0a171ac166b92"
+    },
+    {
+      "path": "qml/RoundedPosterImage.qml",
+      "git_blob": "f946c948e8c32f541ac9e81700c723685ef25e33",
+      "input_sha256": "f0657e56dfaff175c7389ed29e9aacd973244863ac1033c76daaceb768a0ce12"
+    },
+    {
+      "path": "qml/RowIndexSidebar.qml",
+      "git_blob": "e2812792793b3b3e80a1c517acec8a3a85bf12a0",
+      "input_sha256": "c06e19ab3c20d55be2cc737d9031dd534fa1ef300701f457c16adf4bcc3091fb"
+    },
+    {
+      "path": "qml/ScrollGlide.qml",
+      "git_blob": "4f774aee854378cf73dd035c25deaa5532713853",
+      "input_sha256": "b6d85292f7e2c3aa237410f1d0038a43804e5e467185b70bfcf3ef919ce7013e"
+    },
+    {
+      "path": "qml/ScrollGlideRegistry.js",
+      "git_blob": "2faa117c07d261e65fffaaccdbf0e9388e9afe22",
+      "input_sha256": "e8900f82d525f1630d377683b5431627839040d7baf28ffc401b779badab300e"
+    },
+    {
+      "path": "qml/TheatreCatalogPage.qml",
+      "git_blob": "597975430da966632b519f5ac324418cdec8060e",
+      "input_sha256": "d0154b4e6989d0f98a09bf2dd24aa1520444f3c2a293d76124499895ff52f52c"
+    },
+    {
+      "path": "qml/TheatreSeriesView.qml",
+      "git_blob": "55943f35e3215ab7b228a14ca3a9c702034551e6",
+      "input_sha256": "2d7df133ff65e3538df28f062b9605c0e534bf5f81201f6db0d0898a150f2260"
+    },
+    {
+      "path": "qml/Theme.qml",
+      "git_blob": "1107221c7616a07be219a00215a2d9678c567aea",
+      "input_sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495"
+    },
+    {
+      "path": "qml/TopBar.qml",
+      "git_blob": "42346af79b76d24059cf858e5396f7e833dd4bf7",
+      "input_sha256": "991214992b01c2220533416d86ceaef1d49a6424bede20d4d7e425f01d8b1b46"
+    },
+    {
+      "path": "qml/WidgetHeader.qml",
+      "git_blob": "23d67500d5dfd264189d92e33f7ab427dabf8a05",
+      "input_sha256": "9e7626ab5faf3898bd398e7164a60e74adfdfbfdb6f3857d5433c97ce4cf82b2"
+    },
+    {
+      "path": "qml/WorldTabBar.qml",
+      "git_blob": "2f1592377e646e231a931f842fd495ca7b03e142",
+      "input_sha256": "067fa853a3d2c1e317a1a0044f2ac707dc8bb63fae917c20b5ac03e34a7422a6"
+    },
+    {
+      "path": "qml/vinyl/ArtistPreview.qml",
+      "git_blob": "2c934e69d2488e2126e8de0e07fb9da141b96adb",
+      "input_sha256": "6e469903f78e97b956c482551a9fb2d2cafee44c9761c6f728f9e8341220203a"
+    },
+    {
+      "path": "qml/vinyl/VinylAlbumPage.qml",
+      "git_blob": "504e8a01e1f94d2988d792db65d96a78c705f281",
+      "input_sha256": "184823be7f9fe0cf41030ad19aa47dfa523a92c3678a96bb356564cd6c0a4d12"
+    },
+    {
+      "path": "qml/vinyl/VinylAlbumSections.qml",
+      "git_blob": "27ae94a22740b05ae6be531207c523ea94c25e6c",
+      "input_sha256": "08618d5ac164d5a0449f35774ef07539079b1695220dc7fdd6469739958b078d"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistCard.qml",
+      "git_blob": "cf31c6df70a0e75fadb09cd2b2e716b27feb87d1",
+      "input_sha256": "5e2450f1b4087f38fea84dcd821fdccb01a53b7f69e4e40b8c42787b06aa8088"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistCatalogue.js",
+      "git_blob": "0655a9c9b96320b1a7176ddfe927290653cfde9b",
+      "input_sha256": "0ab2e8e39dbff3e0899f023cf1c8c5e6e2387634fe5dc645dbddb975a8545362"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistData.qml",
+      "git_blob": "d24c9d394199c2a7a6944f17bafc6ba992ab21af",
+      "input_sha256": "1309d67b82beb0043d34f0b8226836e42f3c061375191b68ac5eaa44375d8392"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistFullCategory.qml",
+      "git_blob": "3a5c93664c0c4734931fe226a4b13aa97f1f6e0f",
+      "input_sha256": "0e3956edb2cebccc5f084b838a87aa60a8398d9a0c900be73e019b4fc27379dc"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistHero.qml",
+      "git_blob": "0c324aca08d88752bbd21005d15eb3e6ac734998",
+      "input_sha256": "6d011a0c396aa8b8dc1bcea4c8c77f45c3066b35fdbc6f8403fc0d643ff34907"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistPage.qml",
+      "git_blob": "cca19555cc34534977c7588f0bd16237f28ae433",
+      "input_sha256": "48232d2a41b2ce7c9ad2cc57a685e46defcc0d39f3156e772c0bffa1b5648903"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistShelf.qml",
+      "git_blob": "b4e52ec2fba544839092b05d3af5f830c487b554",
+      "input_sha256": "020a989e31ee5ba0dc45a2501e0df8f93b602ed1dcea4e06dfd23754fb4d72d4"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistSongs.qml",
+      "git_blob": "3f5852cef57ec4ff230a73415b020c4fb8c7eb5a",
+      "input_sha256": "f98e184d9d733eb55fe863b504b814daf6187369e7ba986f0c910e2d5b17519b"
+    },
+    {
+      "path": "qml/vinyl/VinylBackdrop.qml",
+      "git_blob": "dc60f58032ac7027eb37a049c560761316c423ff",
+      "input_sha256": "3d1ee6866a83fa2c926bd4e1cad62e76a96eaba2785ed998b9330b229ecd463c"
+    },
+    {
+      "path": "qml/vinyl/VinylBarcode.qml",
+      "git_blob": "9157800e37651b901920f7be654d432fd1f620e4",
+      "input_sha256": "eae7908c6b525e46b20adcd766c615b16ee29682fc17c5f8ea907801027e2821"
+    },
+    {
+      "path": "qml/vinyl/VinylCreditsPopup.qml",
+      "git_blob": "3600884f4e81e4ba33675a4d4f980868d00a7a68",
+      "input_sha256": "44964ccec7be4073fa6a5661478af8155c3beb4be627ba83740fe0c165d6a407"
+    },
+    {
+      "path": "qml/vinyl/VinylDiscoverPage.qml",
+      "git_blob": "2f04c16d0353419bfdd977da8445d766b3c875be",
+      "input_sha256": "ba04ba236c000bc5652ea2b1bccf4ed80b8eefbd791cf8a0119b50eb8042a194"
+    },
+    {
+      "path": "qml/vinyl/VinylFixtures.js",
+      "git_blob": "ba8b2dda976a61f97c88daabf11261e46c30cf9d",
+      "input_sha256": "79d4a7c12e840ce66026fcce1afe208cac87322bde5f44fb8cf0555ee521f28e"
+    },
+    {
+      "path": "qml/vinyl/VinylHomePage.qml",
+      "git_blob": "a6880777e06e86a938abd489c6dda7fb7bf0d62b",
+      "input_sha256": "5a9e5db9c253b9f52b20180af63fc9d7feb5b71902ac39efc068edc5fcf1fe3d"
+    },
+    {
+      "path": "qml/vinyl/VinylItemCard.qml",
+      "git_blob": "f68a0f51a4a490dbaf9991f63348a1cf1b3d3c14",
+      "input_sha256": "572641e47a3fb5af2732c0022284fee6a01f5b5051011cf8599ba401d3cfb4a6"
+    },
+    {
+      "path": "qml/vinyl/VinylLens.qml",
+      "git_blob": "91d9f67fe8fea6cd86fb0d09de2078e662a4a072",
+      "input_sha256": "47eceb2ed1e097533659f40c4f0aa8a09cdc60e5b66ccd830c2195b030f2164a"
+    },
+    {
+      "path": "qml/vinyl/VinylListPage.qml",
+      "git_blob": "0adcb626d647be24e5c86e252fbfb3203847c903",
+      "input_sha256": "f95c81a391efc4a6d8b4dad36deac465b42f2a5f75295245f0675e70bbb61152"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveSession.qml",
+      "git_blob": "42fa5461e6f6a70b32e939f3c0fa0f2169823177",
+      "input_sha256": "93283862b06b6512a0a79b163c493cee3f56a6ff90a5292bb5b6230394bc7d4d"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveWorld.qml",
+      "git_blob": "283a63e2c9725a2aefef27be851566a7969a651f",
+      "input_sha256": "dfd1bfa72f821b0d50bf2634c13ba41eaf5bb5a463e59d3026635463e12bf3c2"
+    },
+    {
+      "path": "qml/vinyl/VinylLyricsColumn.qml",
+      "git_blob": "5607fe292cd3daade3f1e1400f4f31b40a0ca928",
+      "input_sha256": "7755be19ecf70ab35b7a8b4b76da0357f48f7b8624229e3fb9c1d0483d29db9e"
+    },
+    {
+      "path": "qml/vinyl/VinylNotePicker.js",
+      "git_blob": "c7a6ea82683f475ef1819de83d8c83be716d1984",
+      "input_sha256": "55c9e02298db685e8a57e8166072df3e576b7ea02682807047a39dc0910387b1"
+    },
+    {
+      "path": "qml/vinyl/VinylNotesColumn.qml",
+      "git_blob": "c65cab3f4f25a4368d4d556cb5f534a71f7e2dce",
+      "input_sha256": "abd4dd7d04c2240fa0e6f6114f82380b33ffcca8fba74938e85690bbf9294be0"
+    },
+    {
+      "path": "qml/vinyl/VinylPageData.qml",
+      "git_blob": "1c84b785a856dbdbdcd12f8d2bf3a450e9fab864",
+      "input_sha256": "e4d1a11edced2407cddaa2e137fc49136d4bd9b7b7c396fb3219ccf94bdd2756"
+    },
+    {
+      "path": "qml/vinyl/VinylPagesPrototype.qml",
+      "git_blob": "27cb0073a48ab9fba4e2a6f5f79420594d734ab8",
+      "input_sha256": "3a66a08de7ed65cbdea1ecdd25074b945a0a50a01f6ad2935ca9cf4849ba237f"
+    },
+    {
+      "path": "qml/vinyl/VinylPlayerBar.qml",
+      "git_blob": "a67dbd039c5b2bd9e35152e12ac8efe353e7afc1",
+      "input_sha256": "61227211fe990b69f7eda8d1df95f7dd0fc1d67cb9e11a3cae9e53c496645d01"
+    },
+    {
+      "path": "qml/vinyl/VinylShelf.qml",
+      "git_blob": "1907bc830d563a7f37b2e08c9cda204e49d5b63c",
+      "input_sha256": "52fb92964db8aacd2fb5ec9ceac1dcfb3ad5f01bb2b7df1295a383feaa6bf965"
+    },
+    {
+      "path": "qml/vinyl/VinylSongPage.qml",
+      "git_blob": "2c7032e6199b9438f2fa6a3a15b4f70d8c2a53fa",
+      "input_sha256": "48545edb86460807a90a926382ba5c611109908b0ed82488fcfb9498132b30b1"
+    },
+    {
+      "path": "qml/vinyl/VinylTastePicker.qml",
+      "git_blob": "be6a1aa37e324d885f68b90bb71ad2480c595540",
+      "input_sha256": "184a8167e1393dd8d53a653b7bc3452c9eff2ea09314b530607e275fb3cd0de4"
+    },
+    {
+      "path": "qml/vinyl/VinylTrackRow.qml",
+      "git_blob": "9f9ca8f7cf4160032e3bbff8756faaf473585bfb",
+      "input_sha256": "036cf8083ab5d5a230b7c57a709eb3ce9b7602bcfd12a5dac1552ec6204d9f9a"
+    },
+    {
+      "path": "qml/vinyl/VinylWorld.qml",
+      "git_blob": "1f8e3ca60e94e59505cefc3c8acf16e1ce4ad07e",
+      "input_sha256": "9a5cf438bd302d7102033ac3d7ba6c59c4aa1cd05663ee95b2bbcce6f858134b"
+    },
+    {
+      "path": "qml/vinyl/VinylWorldButton.qml",
+      "git_blob": "c47704317193cdc926b6f43f80f0a8eafc2c92d0",
+      "input_sha256": "90a5826107c7a8a7f75b95bf0413837c8f5c9b99085a43f364daf0ee6c1169f9"
+    },
+    {
+      "path": "qml/vinyl/VinylWorldData.qml",
+      "git_blob": "6b22a62a60acb4a51a2054f61e620020d02f7f74",
+      "input_sha256": "2b3fd57075cd5a01e1c0788adb90a63453de4fadda86eff07af715b89115f12e"
+    },
+    {
+      "path": "qml/vinyl/VinylWorldLists.js",
+      "git_blob": "e1f856006cc2ff90721c55175274213453a9fe72",
+      "input_sha256": "8a755a977da22beab9a833d2d1c175b8229b5edc0b0229191d94c73711aa62ee"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/README.md",
+      "git_blob": "edd760c2c0ffac255617c8a32b873e8403c97308",
+      "input_sha256": "b7199887c2e3b65d9fda0e903400d2c3db25fc8c646ea6ad5c636f291984bf55"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/bad.jpg",
+      "git_blob": "e256a357976d17978b6e077ea08220f7fca0c523",
+      "input_sha256": "4a7dea258032ea6c629295b1d9cd38e7bbd8c9d27bc0cb123695627dc1c58256"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/dangerous.jpg",
+      "git_blob": "8603d6642f27826640149942a37dc828c04a8391",
+      "input_sha256": "584b96447577f5e6f6cbfdf08e1a73316791754dff913e224bd7b73cc9a25d83"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/eminem-show-cover.jpg",
+      "git_blob": "c700ddd0b1e47ddcccb1c5b849db351dab9aeb8f",
+      "input_sha256": "931712e3f5ac4b614ef61fe2f2888ebe627223ed31d7a43cc9341baff7bc7e84"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/history.jpg",
+      "git_blob": "fcf23789ab75284d0828e88fdfed857d8e3c2d17",
+      "input_sha256": "e0b311651f291e4c06bf01dc52907d933f7d71cc19d33a40bc18e76330c52b90"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/invincible.jpg",
+      "git_blob": "5888d85cb83c025437946ff010fa995ad9e61609",
+      "input_sha256": "8cd128ee80d33b2d98ef2c66d18b877a1e77a33211c57f7abc28ea397c829fbd"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/off-the-wall.jpg",
+      "git_blob": "0e1a0b2e65ebcd0076812eeaff7e000a8255cb5a",
+      "input_sha256": "baa8ef28ffcfdac4248884e3be2d074a35b216751c2c609c478992e43dcad4b1"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/sagara-sangamam-backdrop.png",
+      "git_blob": "db3568d31089c783db09e18627febe327a7bf8c7",
+      "input_sha256": "dbc8a5af637746c61b7a9db218078fd3d7d3822d94aa877110e65b97d58dc7f7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/sagara-sangamam-poster.jpg",
+      "git_blob": "8c39f5d0c0a6876dcb6786bf04a52f61703d5b63",
+      "input_sha256": "e0ace93b0347a3a0ff53dcd1d6fc10c0362b71d84ba2e9300799edb3b89ee31c"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/thriller-25.jpg",
+      "git_blob": "638048207b26ba5333d460eb217f997f6046f394",
+      "input_sha256": "818870c81cd656b50b2701fa96e513b4496def9b4935b141dd8b3fb803d1c8e6"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/thriller-40.jpg",
+      "git_blob": "65eac00c0bdff572a79cedf8d73493896008e138",
+      "input_sha256": "0b44f004a264fd7583b899c3b2382db6fe5599ef68df474ab9cd5f87b94ec3e7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/thriller-special.jpg",
+      "git_blob": "2f73aca5df97a51b02ccca839cc6ca6ca2387725",
+      "input_sha256": "f644981d66a93d16e0018e0bc31f26f7b81839e2398650498a808f4ece512d20"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/thriller.jpg",
+      "git_blob": "6cf0ff5df9660072668a3539ad7f1ef79af4c2fc",
+      "input_sha256": "d1e16a895c856a3760142c944f29c2a09e9099996537c04cf5a49e6ccbcc1930"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/video-beat-it.jpg",
+      "git_blob": "d5f19c2d3b50373c27803c42a60aa23623297d33",
+      "input_sha256": "b07973149a471575420d8414383c1896d246f6ff849404cb89174d2fd647dc44"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/video-billie-jean.jpg",
+      "git_blob": "091cdbb7828e2e460fbc342e9956b4c1675dc3d0",
+      "input_sha256": "467ba412f40cf24b5047b38efa7011ea15f8252c6a1f57fc57a4935d4eb3958a"
+    },
+    {
+      "path": "tests/fixtures/vinyl-pages/video-thriller.jpg",
+      "git_blob": "59f98c9a53abca6355d813e2e7c7e102bb7a1e92",
+      "input_sha256": "365af3fc8e73e3becdb7e393fa63946d37b129b29ad32dd75fc9e699e093d834"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/ArtistContext.js",
+      "git_blob": "a85adaa081ab3edf83a98d604b788b5c42e23540",
+      "input_sha256": "ce0661505687d88f8ae35d4fead4c0c6c6d5723d3b3f09e0b689606569379f7d"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/ArtistMedia.js",
+      "git_blob": "02f2497a5093c957c63532abb70086e168a93e44",
+      "input_sha256": "da8b7d0b806e0a683b0d189e61f5586e214e99a0dd51e2cdb7b9de89f08f8180"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/ArtistSingles.js",
+      "git_blob": "74a3df2e47d54558a8f642e0ff80e2386a9d2810",
+      "input_sha256": "38daddc0ec3145b1bda7add7d2f997a4eb639d746a1738b77f69d5fdb942768b"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/Catalogue.js",
+      "git_blob": "881c37bb03789c2e0deeceda408cfea40355b7e5",
+      "input_sha256": "da527ca0c7dfe9bbf1c4935236d96d7dd3f6e4c872baa4acb0773064ea6cd786"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/EminemReleases.js",
+      "git_blob": "e8aca650e4b448d8a10a7a1021f84196bcbe3b78",
+      "input_sha256": "8af52f9bf238d0259e8809497cc2f6fe878796d24cdb18459c57f31f95fd7804"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/README.md",
+      "git_blob": "e5b8b814529e9dc43527d0eed42b1e440d395999",
+      "input_sha256": "2d756cff29abdee7b3bdb0b17eb7cba2efb83c0c80e7a2c729ee7f637fd3a846"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/0X7yOYZNWJI.jpg",
+      "git_blob": "0562c015a75e85dfef1bde626aaf86e2ff92f2e9",
+      "input_sha256": "03848535f7b4d0d14f5902b7358438678c695a6902ec9cd73b7731e093e0a02c"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/BHRhl-9C9tQ.jpg",
+      "git_blob": "6e69b1bd6e3318eace70ff9d61e6cf921c345ae9",
+      "input_sha256": "bed96cc42a59c6cf28c4018ae2bdf7074c7595bc99f27b05f1d9a5dd28e80a66"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/N0KfiOTSpxs.jpg",
+      "git_blob": "51734a5689b0fec24031f2474fe1de440e10d4ef",
+      "input_sha256": "380d5d23e8101b619d975a0ca4e4da1b913d6c08e2895058e2cf6418a4159297"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/Rliqa9PmgQw.jpg",
+      "git_blob": "98402d764c0b44aa20c9d0ad1853ed2e62695936",
+      "input_sha256": "53cce259a578a5eeec94b7543c03333c7cd48b6679443341c709a2b19738a905"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/S9bCLPwzSC0.jpg",
+      "git_blob": "efc40746109a645cf064926e2d6e2aeaba1974a3",
+      "input_sha256": "efa5af6bbd5c6284492466db30242f9b466be64a5b0205bdcddb3f1c34ac443b"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UC1g7JmTw4Gv8W9YINg3M1FA.jpg",
+      "git_blob": "372b10b72cb378feb7b036edfafd11af73ada22a",
+      "input_sha256": "6bf90b2a9e238c4ae38a6f7d5ac2c6333d771a0393a84ede64809b571465fef9"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UC48nZNzBVu13HPwJ3upxQnQ.jpg",
+      "git_blob": "13f4714f0277332c199e1b28ac43d497f3fe967a",
+      "input_sha256": "b7e955cf0848be7e9130f302618637fd35dffc390f668df6d40529a2c44f9ca4"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCA_77dmbsh_c3LnDly2-Q_Q.jpg",
+      "git_blob": "fefd2de3d3e855e0b5ddf7729c646b297967aa98",
+      "input_sha256": "dace599cd736c736bb3a70a8ec794ddb9034cf5b826afcc0ab0da540234c5a1b"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCDKh9Q6obDKRh66zVmzGcpg.jpg",
+      "git_blob": "d3b29c8e0ff33f2446709fa388a83c1d25ff40b8",
+      "input_sha256": "29946feebf487a9ee04fdd2c7f85b4034a38cd62f54e1eaca8f68b2ca2ad2b3a"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCLQiZGceMt_IvFVCMOq5TCQ.jpg",
+      "git_blob": "809b6bc8e24252ff4f1faec8cda1078ae5247b23",
+      "input_sha256": "f6b08f3fad209c1b0e9912905a5209f9ba89dd81bb8310ae34fa5c6a38ce85d5"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCOcnYBwT1jb6EHlS0cwhNkA.jpg",
+      "git_blob": "b1054e5f5930ade33d09a2ca0d14c83af26a3368",
+      "input_sha256": "76adcff323555b8d173d41ca419b7d6c20164d1e077077f13da4c835eb51f393"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCVlWr_LN9y80smEMr0KTBOA-hero.jpg",
+      "git_blob": "5b68eac7ab4409ad5b909b51f0d21f3b754e3446",
+      "input_sha256": "5ec50376dcac65cd5e6f82a2a4dec3aff9cfa2ed211fc543d611735fb1ccf60e"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCb9Ryvx3xg6WT0XfxuPIPRg.jpg",
+      "git_blob": "faa1fbe2a88d089edeef4002572ef7002fe06afc",
+      "input_sha256": "78cb2a6d380ba75407d789262d1f7a6944ede31f3a693796f5f44ad3ccc2e8c0"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCfM3zsQsOnfWNUppiycmBuw-hero.jpg",
+      "git_blob": "9d0d78ad370f8a748a6e3e1383640d9bcbb3d97d",
+      "input_sha256": "86905ed10e6dabdac9ad98305d28556118d44561b5cdfacae5a73a3cff2fc190"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCjiGsk3ePl9fajUfgNVFGBA.jpg",
+      "git_blob": "a524b204a0532494d2289a9ce8928b7b2f0fcfe4",
+      "input_sha256": "0a164d7147a4b1373dedd7cf324708e94e6a738c84b04392f4289e06c326f27f"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCuL0StnzfmsjkdMi-pcsphg.jpg",
+      "git_blob": "6b95d40bc868cdee87a3146d68bfd563a271ecf6",
+      "input_sha256": "cfe9c7b98f8efae78ab27e91fb0d9c4dd8c24c90a79bb22dbe9a281e8743ed63"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCuMxwdL4DunKD08F7LDAJAw.jpg",
+      "git_blob": "7fa8563d086a6b42450cc435ee23894d64613e79",
+      "input_sha256": "54a67bd209bcc9972f37830275e4cd2e91fe6547f6846a90a48ec8a8b4dce096"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCwZXrfslml6zv0BUv0S9_cg.jpg",
+      "git_blob": "7a84e8b44471ae12df2a423c2c0114d3cc900d38",
+      "input_sha256": "72591cfd2ff6befe62cf446747bb4571115d0997a73eff6268d0d0972b64fb4b"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/UCztmP5OtijziqOMYuCixISQ.jpg",
+      "git_blob": "fbdf2faf4364dc61a5b8273a5516b81d15b23cdd",
+      "input_sha256": "4948309923f87ae7e12486a48217da77858a294496955586c1e03bf2e4930020"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/YVkUvmDQ3HY.jpg",
+      "git_blob": "588ae8ab537db163c29d83f6d35235e3e0dad0a9",
+      "input_sha256": "0551117798cadfb54b547e9aae5ea28ed840c34beb889218381dc3ae9457b3f5"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/ZwcElZ_ULAo.jpg",
+      "git_blob": "3793ad6d5a1bd36a7d9d597b22091db357c760f6",
+      "input_sha256": "f04b19b44f637a36be7a05904afdde8e63d0fb8ecb44058113ffe4841f0ef91f"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-0098708401378225e603.jpg",
+      "git_blob": "f9000a720e9862fd6f4cf604390eff655dbf0cd9",
+      "input_sha256": "a5dca61afea399af361f47d093b0a909c06ef373e01a429a5592db9c021aa2a7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-04b322a67d8ef85bd2c0.jpg",
+      "git_blob": "29a40a34fc5df716e00a327008fbf6b9dd23a202",
+      "input_sha256": "cad2f6452e40a6bf25706d219eb943bd35ee72a18a0c21c9b7fa0d63758d261e"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-09299d40deb1204db6c0.jpg",
+      "git_blob": "17bc24eb66c25b0fbc0024cb79e34c643880ecd7",
+      "input_sha256": "7385c8d5131d85bed6b8def8a6dbe9c95bd5a6dfe0c1e4c4daf7f9d4736d0086"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-2167fe2315787d327cd8.jpg",
+      "git_blob": "b0d6f06a68350b594e3c316b8b7a86476c4664f5",
+      "input_sha256": "66d51379aa62732d5463821e9137348b0a71b982c6ecdf6f4d176ede4113ce8c"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-26754d2b40cae4181c65.jpg",
+      "git_blob": "b9eac75fbb01adba00ebdac780df139e9843b4cb",
+      "input_sha256": "fd5fbd82ab949b82136cb9de5b28ceaf871d77cff8e3544c9149d43bd63f6e10"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-26ca544507082a966d79.jpg",
+      "git_blob": "755412d7633d8f0f7f7afb20f5eaa91643c0b83d",
+      "input_sha256": "0003c63b96d2354be8058e2958bcdb5ddd8ed2575fd4fc28a5187237b9aeb8bc"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-4955b7525cc6ae02dcbd.jpg",
+      "git_blob": "b2f39966daebaf8cfe85d8e220d8e40641d6cf17",
+      "input_sha256": "6e70053dcaef2a021a5f94c8615a750bacd7c2d75f124bee4c5d57fb0eda82ea"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-5dc1c28d581447565963.jpg",
+      "git_blob": "a577cb6da8b4a0bc1229bfc4a60dd69ceab97098",
+      "input_sha256": "d0f820c82da57d70827d7db3ff1500d644711509e0f5153ff398a85f08c70feb"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-8f2eed2e69edc934fbe6.jpg",
+      "git_blob": "f285b255dba4254ac0deb557af1ae2e64c1cca03",
+      "input_sha256": "02742f08c361f584d3f27ec4b79f4028110aed5e38dbdf5a4a3719b5dba4f9a4"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-9ea46ff51c6dcf691c3e.jpg",
+      "git_blob": "f285b255dba4254ac0deb557af1ae2e64c1cca03",
+      "input_sha256": "02742f08c361f584d3f27ec4b79f4028110aed5e38dbdf5a4a3719b5dba4f9a4"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/cover-adf40cc9a2f24721cc8f.jpg",
+      "git_blob": "e1bbfd68e055564093685dcddf3e8a0859f4097e",
+      "input_sha256": "d489bf40fd984f45a2e89180dd6b23d1e12a1acf852f6c9ca5f7097904e5fb20"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/eJO5HU_7_1w.jpg",
+      "git_blob": "3e3cd2aac6967b625be29e438e3961d3227d1e10",
+      "input_sha256": "de81a9242f1304c7f5e208bc2022a226047f78fe8bb1892f292765d657a792db"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/j5-yKhDd64s.jpg",
+      "git_blob": "4a7ca7624f32d0af4e533e7fa1e2ce18512d0b09",
+      "input_sha256": "fe3c9b5b76a3f3466ac049190e6b6894f632f6db4d990b91cb6b61e77a349a9d"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/sources.json",
+      "git_blob": "3b7ac5d097efa4681acefcb899a83a3e275ca5c0",
+      "input_sha256": "98042ecd61b08f06cd52439e7c9d9606cd777a6beb85e445c0111ee216f3294b"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/uelHwf8o7_U.jpg",
+      "git_blob": "b4e36d669554531f0a797c8caa75d61a79de91c9",
+      "input_sha256": "619592e86498baef4178ab8980079b3c8be2f8e3b7db7e96502f2247570a164e"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/xFYQQPAOz7Y.jpg",
+      "git_blob": "38b8905a65a1a950de0cd414980dc70a603cb1ee",
+      "input_sha256": "ea4d2ab81f1656a700f99fbfa12c393b710e0814258641c48451da2ec8900fa7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/artist-media/zdLa2uJ8jw0.jpg",
+      "git_blob": "20e0dbebb14967156d890053a6d3a41284fb6b1c",
+      "input_sha256": "4ecf0846b83981a1a3e9188ec2fd69f32bafccc99a7aae30786a2b18ad6b6d30"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/catalogue.json",
+      "git_blob": "be179341b12b3f98124b83e26c325dbfb835d725",
+      "input_sha256": "af8683e51ade85bdde24d8251a029314171154e26d771ac6478aab1340280025"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_0JJ1LXBTQTC.jpg",
+      "git_blob": "eaee7f64f021efb5563422f8745415ec240c2d9d",
+      "input_sha256": "c07fa9117d7421cd103554cead665820e2427d16cafbc9e15b59d304c6af8b6c"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_1SbgcDGdrT4.jpg",
+      "git_blob": "e96463e19b13dd02abbbf7c8211ff33521ec808b",
+      "input_sha256": "1001ce93101c41a71c95bca0135bf47c3e701a4e3153ce7f5bc64c10839628cc"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_1X1w2p5pgW0.jpg",
+      "git_blob": "1c4353c5fd0e8ca8c39ce57e5025d82c1412c08d",
+      "input_sha256": "6e8250846ed134705602f3682ba1ad538c4a8c7ac15a4044bf197ed0e3c599a4"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_3jGuGO44ziy.jpg",
+      "git_blob": "22ae42de48d26364807bffb10bff5b8444ea2bef",
+      "input_sha256": "d79555cf608eefe3ea6d7a52bac0d719e049d49b1c0c0d0d89834aefdbb6a1be"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_3khwVTxUcDb.jpg",
+      "git_blob": "6ab13a8939d7dbd5d22c294f19e1eea48ee0722b",
+      "input_sha256": "65ffce74cb707959bc4bc43bb29fe184390cf46721e14f87938bbd623aeda73e"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_4L5VumVqPLu.jpg",
+      "git_blob": "7b7f74ffa49d6ab0eedecdbb964d2b7aa5358ce1",
+      "input_sha256": "27bb78a67dc65bfb246f01fdc529c58605e431d80f3bad0fe751a7bf3c6483e7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_6pEdKESQLeh.jpg",
+      "git_blob": "8d88bc85d308904874dd2f7051134ebe0cb784d9",
+      "input_sha256": "caa31e05aad89a69bb918ff16644f4720dbf0181c134a0ba7f19f73a8ca8163a"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_74EFmf0sBVs.jpg",
+      "git_blob": "2d5d3e4dcec6e3663d550abff07e6374b5e5eb7c",
+      "input_sha256": "409923e259a65a63ea23ab7c34de32fe12ba4d713c1ea8327c809763ccc6cbe2"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_7Eqd3VY0SGr.jpg",
+      "git_blob": "801cab29426b1fce8ea23a153d487cafeb2a3581",
+      "input_sha256": "ec0d59418f06abb24d19cefc95f8e6282b93c3609604518587c0ba4522ddd3ec"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_7ltM34kr0mH.jpg",
+      "git_blob": "8eb0a6b0f3e45f4a8b9e65d5372dacb4ff9455ec",
+      "input_sha256": "b3ecb8ad8df5bdf8ab57f75f60c24772936c4ede4535811c9656bbdb1b490e63"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_8G34qEx8tZK.jpg",
+      "git_blob": "3a9cfe67d6726dcb6542ec5998916a932044e64c",
+      "input_sha256": "64b5bcf5883279ce0216853c87a7b4e000ea5ca838be55014bef43dae14d6c99"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_BAWniMjKTZx.jpg",
+      "git_blob": "7b37215f2b713f94ad95570fe122c686b44dda27",
+      "input_sha256": "1b06be0992ecfc7d56b9172e64fded87b01e694aee1c65c371e9e2925e9e5103"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_BZdFfPLotHS.jpg",
+      "git_blob": "de932bea5533e8a43555fe05ca04094a419d69cd",
+      "input_sha256": "daef3baec4ee466481ba5d4772df102fe309f6690045d178cfb982350db9bddb"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_CEsAJuezLwa.jpg",
+      "git_blob": "04c9ce297b19f32a212eaf14e07233f968ad94e7",
+      "input_sha256": "aeeb6d3a251e8fe023455006aec964174f6288e0d32ab3942b324ac5d646e989"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_DFHGzeiRf7Y.jpg",
+      "git_blob": "7e517f864fde9e0dd24a2eb106e88c02f84f7b7c",
+      "input_sha256": "adfcc83a8f4e671d216fcc0ab69f8e3a536b9ba6195acb25a49d18027a710faf"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_DtiEtdF30C4.jpg",
+      "git_blob": "ab1b17227d5dda7ee621a14b871871afb5af49f6",
+      "input_sha256": "1882e36f30bbabd2d80d7bb1d353d0b665924d3084b17d391c9996cd9c08657a"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_E4GfUXfDfhy.jpg",
+      "git_blob": "f2376a906dcb19a5018d26d7dbaf799e58173d94",
+      "input_sha256": "054e4e41144964261765076c31539118afe733bf1f14510608eb49189628ab4c"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_E9Diy6kXmlV.jpg",
+      "git_blob": "67f6e5e43a7734e66dc4cc64510f517776b66fd6",
+      "input_sha256": "a76e72276715457b36cdfc033998e450e114029f9dab13dc64dddb244ffd69d7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_EAezTjkpoJI.jpg",
+      "git_blob": "0df7422cd41c238b71d7b73eaae7da0a92d5e721",
+      "input_sha256": "141ca68bce668f3857fa8e4d2f22a02aa3e0703be6d11854bff2015f84f3b661"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_GXKcP94m4I0.jpg",
+      "git_blob": "9d8467a01c46c5fa48f135b9c3ef98c9a4c60e57",
+      "input_sha256": "eca68e6def827623f838c1bef2f08491a3ec6bd78362b0a9212bb32b44a09123"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_GiCznD7rPGz.jpg",
+      "git_blob": "587764d5f0bc6cfe7a3002811b57ea51f918539b",
+      "input_sha256": "deb670fa185141dced619e78c54032fa21c5da6f8cd665190175667c99dc3d22"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_H7hXbSZvh9z.jpg",
+      "git_blob": "5844c7368e7a9355e01b9fc298f71b47ed00e90b",
+      "input_sha256": "47e1f8329a877bc090374c0a76a2c55803c0409850df97b4afabf7741228b3e6"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_HvkCGrHIae2.jpg",
+      "git_blob": "64c055044e26f4c39eaec698b19d51af56935413",
+      "input_sha256": "949579bdc8b8cfb04045aa3222be881a360b49328f8ed6902820fa339f02fbb7"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_K8qWMWVqXGi.jpg",
+      "git_blob": "8974c61432c2b4623029f5ba376adce66dccdbb2",
+      "input_sha256": "b8e4d37163ad86ea70ec6eb546130f9d98bc5d127ad0853b8063d61d75324bae"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_KNAgjIM7e09.jpg",
+      "git_blob": "3269ded54b6b0c58e33c4e3664ffc50d00238c39",
+      "input_sha256": "e2fc45fb0653de2ca76f1f887c48d57d7da08bf687534e8783bbc0384009d851"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_KipiERroY8i.jpg",
+      "git_blob": "86f4ce3a893fcbdff61c5a7c73de52edffd417f7",
+      "input_sha256": "ed626c7530559cc74fb079e01c3e7025b10384d388cd6ff105e334fd1724a87b"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_NWtCRQBRP38.jpg",
+      "git_blob": "2695d1bd38c8377b26122bfd286db0e7e244b709",
+      "input_sha256": "4bd281e71c2a953a1371af3c379de1b1b2bbd4143db88ae5c9f0f9acfc4e1927"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_OlDsQnYS8Vu.jpg",
+      "git_blob": "5e049fcd16ddbc72abe9b1b509f81df591af3dbc",
+      "input_sha256": "b87d0e6fa63344aa8d5bed407eb011a0483dd40237393dee498f22c9204c80c6"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_PdZ3r5GOhEX.jpg",
+      "git_blob": "4918a1ae5cb1ce1464b10c46096181f580abc33f",
+      "input_sha256": "d1f97eaa318acbee91ce8be906a056df4776c7ef1319f547b3919afab3c7cf00"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_QFpeH3GzBe4.jpg",
+      "git_blob": "4d25f19fa3a7b0546e3f96557ccbda749467c20c",
+      "input_sha256": "546108c0848681aedf9c709a15618df8e42b9e8fe4c2606fa9d919d00bd79536"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_TKsnx0yK3wu.jpg",
+      "git_blob": "56e160a5012100cc03345150665fa8981b8f73b2",
+      "input_sha256": "e43a49cf18e8f2f93c9b4acb4b27fda45e70007303f21274ff99b5d80d5f93d5"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_TeNNqIVw9cn.jpg",
+      "git_blob": "5ed4bf04a5b13bea6453224a0a2bd9d6c9da2d62",
+      "input_sha256": "255ba62e13192c7b21c0584f82849f7356a3e281b4efed9ae180ddc771a7056f"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_TrOpWVKgpyE.jpg",
+      "git_blob": "b3e769ad3390bf88568b2b0732e0455f91e643e5",
+      "input_sha256": "a40390de3b516d65520ff0233d8fba5b16d5c33bd893d160f196eb44db7def00"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_W5qN7flBszY.jpg",
+      "git_blob": "ab458baa8643f13b6f2d3b5482d8e8ab9ebb1941",
+      "input_sha256": "33f33b0b1c738e24c3670bb1ad22285cedaccaee508460aafea83b12f9d8a31e"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_Y5ebh1nnQs5.jpg",
+      "git_blob": "205785e6b084897877d27ea946287f7fc262e335",
+      "input_sha256": "9e47708290b7f02b55e8098a01ffcebfdc4b00694ba2d631d9f8677ae9532378"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_Zn4e2Zq4oVK.jpg",
+      "git_blob": "751eac22ed7db87ef16fe7275c7dc7649c23616f",
+      "input_sha256": "0b0b78ffcd079e7ecf433c3f4e22bf8d20a15733e6087749ed13b31f6f7faada"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_cMoxENuJa8v.jpg",
+      "git_blob": "242626eb778393c092b0541d05a71ffb4a124d9e",
+      "input_sha256": "d336bb7938c4396a868ca849427ccdd41d3fb72dc6166f83d74c2f17b3e15a45"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_crTmGTk8aGZ.jpg",
+      "git_blob": "177e690a1e1324c0b074efabc88bfdcb2cad476a",
+      "input_sha256": "31887e1745dcd8a5b12e01dc3e4998ecdd643c426aa595c9e849220a2fc53a2c"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_cvxEwRqFR5u.jpg",
+      "git_blob": "edc0d72cb5494f9a94d291166c9470dbf57e807d",
+      "input_sha256": "90532d01cc43e3a2ff28c13b5e219e8d49f81936729610cbec309be6ad80ea19"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_dhgE6kiAvRR.jpg",
+      "git_blob": "797adb485fd873bc62b0aa8b48563c997dd3fc80",
+      "input_sha256": "e148aaffd28680bbb9d1ad48d396ead1e8affdd7f1da60a0c132f8d1263f69a0"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_dqWTncCjkSp.jpg",
+      "git_blob": "b622e8523b127c7f94343ae2763a0d56d7b6b664",
+      "input_sha256": "fc7244be991d1b049436b6c1e0743422d7344b33e918ea760438f2ee17d798b8"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_eSklbXQTF0P.jpg",
+      "git_blob": "f73647171b15c66798eb280ed3512c4df94fab25",
+      "input_sha256": "0503a47992281e2e2f1f633be103dc4e9acbb39432d61296f1067f637a21ac32"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_gLzsNqMumEh.jpg",
+      "git_blob": "75e60082cc081d625de38d2aab4c2f588b767f56",
+      "input_sha256": "c55ff6608298f09db1cbb657c504a9db8a138622afa18cac832d80e776a76e2f"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_gdubPaMNURy.jpg",
+      "git_blob": "aa09337a844a0d8705353bd7be70265c7963517a",
+      "input_sha256": "0ed5bae39ada0e54a83bae0060b6ad45bdf90d30f07e1bc945e32179daa1e9e9"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_goT56UMoafX.jpg",
+      "git_blob": "5d9f23e0f66fcb746b803c9b290cfa22b875c69e",
+      "input_sha256": "4431805592497da454f04b64e7e0d7b58e834d5002459342c735b36d5c72d1e3"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_hNBlvm0CJrV.jpg",
+      "git_blob": "b1d51d79d9951761e80cb9b9d11575c1bf12c163",
+      "input_sha256": "70583d0113dd796a4ee09c63bc4bfe339653843790b088d55cbc375a94f4d457"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_iNbKdKjDqyr.jpg",
+      "git_blob": "30283576272f7ee3f81c849fe3906d6ee7f55628",
+      "input_sha256": "aab4b3f0b887c58552029b8813ae9f0b07f428631ea1927c8267c6d82f95060a"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_jsf02DoFTS3.jpg",
+      "git_blob": "20b07471c9fb2c30cd47bcc00193fb8851a60f6e",
+      "input_sha256": "9e361ec6e2d945fa7220ed47abd56545b4efcbd1513ddc860874e302535083ba"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_k1b1fqv47ir.jpg",
+      "git_blob": "cfa0cede000b9e456f2613efe8e85b1a650881a4",
+      "input_sha256": "ec3f02c3f1c92a38ce5b08ce0b49bfdd52041e9379895c643d42651f5c81c656"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_k3jg1y2f6MF.jpg",
+      "git_blob": "7609bb6effc4bf07512f2ee277d981f330622745",
+      "input_sha256": "6b91d127eca122c898e7082b20b54a38b36c77bc5d283b7b395509a5828454dd"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_lzArHgbY5cu.jpg",
+      "git_blob": "7513600e29a79d79baa4878ef206580df41f4328",
+      "input_sha256": "3561b346418b992475c8c411b699019ffc364b6b79b38bff484a0eb2408a83c2"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_nVOvQM1ODKM.jpg",
+      "git_blob": "04f80b2880b4382c19880c03106d4630404973b6",
+      "input_sha256": "7e2efd36d0e6b3f9618a6b91d3a25d0b79e842ea4aaaad411b24d92c03838c56"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_pah6lCBHIMA.jpg",
+      "git_blob": "9fc0caa9826a0173c8b02f87724b81f0a4374841",
+      "input_sha256": "097ac5e67e85b5104fd1a39a509041dd6bde2b705bbd92f2c61032d07a92c3d5"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_prJElj3cxDf.jpg",
+      "git_blob": "452406e77d616620c13f8845e0d882c3001ace0b",
+      "input_sha256": "d889cc1238c8c210ce7ef7502c941741b505aa6bfc947e6cc9ca6de8ad3ab8ac"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_pytqecL3fsM.jpg",
+      "git_blob": "ff9012b66e44f034e820d8a54d096bebacd86a73",
+      "input_sha256": "c36b2e64eafafddbf30610ca6086bacdb1ddb1c4ac98b852b255ae6eb7d8afdc"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_r3jEPg0hFsW.jpg",
+      "git_blob": "505fb7a730d4d9ca4de677b2cc61fb74628f3e37",
+      "input_sha256": "196fcf909a1ad23f06a950e9bd7dcba06f916bcf2f2d90edf349fbafb83ac8c0"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_rCyhCrbXXz7.jpg",
+      "git_blob": "9bb52d04debdb9f1ec9a2674973c187904d73175",
+      "input_sha256": "7d691dc667b6b46ef07c5e681a189edf53d5865639a69881c983fcb67fe61c35"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_rOOa1dXXpDB.jpg",
+      "git_blob": "b56f119ac58a49eafa38053e7398a0aeaa7c745a",
+      "input_sha256": "9fe51faef5b2c842298f62d2defbcd176dd68f82ac252de5ef1a3afdd2251b21"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_ssu6fPzQdWm.jpg",
+      "git_blob": "99d8e3bca64fbdb42cc7489b68996fc41402d252",
+      "input_sha256": "bd4c213cebcbaba9b61760c071444f520f9ed2d90dfcdc8ef68f73deb2282a11"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_tQfaWH32ovE.jpg",
+      "git_blob": "e842ff052616751982d3c0df2e4534257288ac10",
+      "input_sha256": "3d9ff4918e1d09defd7918c3dad44395c84caf4c37374072111d5d6a4b1d8e9a"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_x1NV6TpyFIK.jpg",
+      "git_blob": "401745b798d373be5ab2d4d9c3f6e784220fa970",
+      "input_sha256": "3d830be2c2c7152412473c889a02082062cae4ab3d2860b41eb473e456403d94"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_xndVtgBEhzL.jpg",
+      "git_blob": "b7fef38a11ee2ea97f8684b53122540afa44d0ed",
+      "input_sha256": "268172ebfefcd59039d9793a6430aa6c38d2e1e0a03a2f0ba676c825e9b6ea76"
+    },
+    {
+      "path": "tests/fixtures/vinyl-world/covers/MPREb_yXhSI4FCUo6.jpg",
+      "git_blob": "7f10d51aaf7c22e1c254a54d05491bb2b3318630",
+      "input_sha256": "c0f66bb990108851644a05f74274ccc5f5f399d847681590f7702fb2ef1e4d7d"
+    },
+    {
+      "path": "tests/qml/tst_row_index_sidebar.qml",
+      "git_blob": "2445d318993452e4dfc3b62aad68c23ec9cf7008",
+      "input_sha256": "9e90019b980afd9da9e015947cf87e6d668935492a13c22bc8c8f20c2add6cec"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_album_page.qml",
+      "git_blob": "0220eb509bfca0111d38526f05017510a5558530",
+      "input_sha256": "f2a30a60c8bf295fab1b5e84e47912e03bdd804e97d208f35a81aaa6db09e94f"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_artist_model_replacement.qml",
+      "git_blob": "0e21496fbd8e9bf9fdcf3f84f54780d0012d2837",
+      "input_sha256": "50d6b5f6f43d03e8d401ee76053e20997359600f5a78bbe46b89d3722eb059f4"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_artist_page.qml",
+      "git_blob": "c79525eafdf196077152b4cf45b8dc76658b978b",
+      "input_sha256": "993d5cdf1eaabba50d0aa1a6b46400ae512366eba324fc4527717924bc8d5704"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_artist_photo_layers.qml",
+      "git_blob": "632bd79f1b1afd056fc2be2118940f95636bae86",
+      "input_sha256": "0d4ed660a0963dc6f3c626a76640a526fa248312bd8e8fee12bd5adebc8bcb91"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_artist_repair.qml",
+      "git_blob": "c45e939fb0594e9d44e5617b6ba5d119a364de8b",
+      "input_sha256": "f26ae403d4fb18d6284467c95f87734cb18ea2fc3c4f1c9de6d2741ad486f325"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_artist_scrollbars.qml",
+      "git_blob": "29e7b195cd25ad28a7d34799903eb6efab54bccc",
+      "input_sha256": "cabfedcde295bc5be335d1c361f510c9a3b38a85021f7f7868843452db7432fc"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_discover_page.qml",
+      "git_blob": "a03ae7afddae71a7a7de14045ac174ea8a8c46ef",
+      "input_sha256": "ed4b534070ea6a4c8d0792d3576675b473f930078d5ddaed13fd80715cbbb62d"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_home_page.qml",
+      "git_blob": "fe101d84fba841ac455a18e88eb3cd329e963115",
+      "input_sha256": "21711f1d273121b9e8617dd502816f28ae8c9202e8985d7f14c2af8de6e7e0bd"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_note_picker.qml",
+      "git_blob": "36f0ae0d80560e55b493ebaeac1c58aa406b3660",
+      "input_sha256": "0a92a3fabc7ebb8bbb79b2a0bc9728bd923dfab712615b97318ee7a76e24885f"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_page_data.qml",
+      "git_blob": "c0f8482e4ba540ae13c79d5ed51f0f0d5da02f39",
+      "input_sha256": "d458c8f310bfb5ace790265d32e7cd7b0a06da1c93e84b073afa778ae9380f15"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_song_page.qml",
+      "git_blob": "48888cf1049cb9e4d72a14783702732bf0dc9bbc",
+      "input_sha256": "2ff5f3e85bbc77a627fda9c2c28cf987e27409a99b04a7c16bf51c870b654583"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_world_journeys.qml",
+      "git_blob": "3bab2f35a6df345fe28ff167559395972b63e177",
+      "input_sha256": "3d80d7d47a5fd21e5bd59f2bb5183b451e5d9dec90dbb97d9b638c0b9083d407"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_world_lists.qml",
+      "git_blob": "9ab09dd96bebc95ad8cc146b67ed13e59a0d2524",
+      "input_sha256": "194aa08171e1fd29c79326e037c52aa4345993a04031bd741b167c8d3a8ddc1f"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_world_navigation.qml",
+      "git_blob": "e1cddc2f4e8fc420559a26cb1f5aae87bca6c0cc",
+      "input_sha256": "7d2a09e34410a52de5978be20e9198a14ca84e09780bfdcaaae2ee3000b1a873"
+    },
+    {
+      "path": "tests/qml/tst_vinyl_world_visual.qml",
+      "git_blob": "bba3f12ab7e20fe89531e8a411e9ee19006a024d",
+      "input_sha256": "6e8537193cf8cba5d2956fed1c5c354142efb8698e9ba390c05a51853a045ab6"
+    }
+  ],
+  "normalization": "Git text attributes/autocrlf applied; binary assets preserved",
+  "omitted_new_provider_artwork": [
+    "tests/fixtures/vinyl-world/artist-media/approved-release-curtain1.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-curtain2.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-d12world.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-death.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-devilsnight.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-eightmile.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-eminem-show.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-encore.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-hell.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-infinite.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-kamikaze.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-mmlp.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-mmlp2.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-mmlp2deluxe.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-mourners.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-mtbmb.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-recovery.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-refill.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-relapse.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-reup.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-revival.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-shadyxv.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-sideb.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-slim-shady.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-southpaw.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-release-stans.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-video-S9bCLPwzSC0.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-video-YVkUvmDQ3HY.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-video-eJO5HU_7_1w.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-video-j5-yKhDd64s.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-video-uelHwf8o7_U.jpg",
+    "tests/fixtures/vinyl-world/artist-media/approved-video-xFYQQPAOz7Y.jpg",
+    "tests/fixtures/vinyl-world/artist-media/eminem-early.jpg",
+    "tests/fixtures/vinyl-world/artist-media/eminem-hood.jpg",
+    "tests/fixtures/vinyl-world/artist-media/eminem-signature.jpg",
+    "tests/fixtures/vinyl-world/artist-media/eminem-warehouse.jpg"
+  ],
+  "asset_boundary": "Existing ancestor assets are retained. Newly acquired provider images are not published. Rendered application reference screenshots are included."
+}
