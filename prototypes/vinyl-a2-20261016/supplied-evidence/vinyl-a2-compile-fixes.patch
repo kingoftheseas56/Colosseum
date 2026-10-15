@@ -1,0 +1,40 @@
+--- a/ArtistReadAdapter.cpp
++++ b/ArtistReadAdapter.cpp
+@@ -104,8 +104,8 @@
+             {QStringLiteral("recordingMbid"), rec.canonical.mbid.toString().toLower()},
+             {QStringLiteral("title"), rec.canonical.title},
+             {QStringLiteral("lengthMs"),
+-             rec.canonical.lengthMs.has_value()
+-                 ? QVariant::fromValue<qlonglong>(*rec.canonical.lengthMs)
++             rec.canonical.lengthMs > 0
++                 ? QVariant::fromValue<qlonglong>(rec.canonical.lengthMs)
+                  : QVariant()}
+         };
+         if (rec.source) {
+--- a/FakeArtistSource.cpp
++++ b/FakeArtistSource.cpp
+@@ -148,9 +148,7 @@
+         using ::vinyl::artist_media::QueryStatus;
+         using ::vinyl::artist_media::SourceBatch;
+         if (!m_online) {
+-            SourceBatch unavailable;
+-            unavailable.artist = artist;
+-            unavailable.status = QueryStatus::Unavailable;
++            SourceBatch unavailable{artist, QueryStatus::Unavailable, {}, {}, {}};
+             done(std::move(unavailable));
+             return;
+         }
+@@ -160,11 +158,8 @@
+             done(it.value());
+             return;
+         }
+-        SourceBatch empty;
+-        empty.artist = artist;
+-        empty.status = QueryStatus::Empty;
+-        empty.sourceLabel = QStringLiteral("FakeArtistSource");
+-        empty.snapshotId = m_corpusVersion;
++        SourceBatch empty{artist, QueryStatus::Empty,
++                          QStringLiteral("FakeArtistSource"), m_corpusVersion, {}};
+         done(std::move(empty));
+     });
+ }

@@ -1,0 +1,1 @@
+cmake -S /workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-service-composed-20261015 -B /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON 

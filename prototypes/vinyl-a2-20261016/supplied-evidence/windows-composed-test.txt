@@ -1,0 +1,14 @@
+********* Start testing of ArtistServiceComposedTests *********
+Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-llp64 shared (dynamic) debug build; by MSVC 2022), windows 11
+PASS   : ArtistServiceComposedTests::initTestCase()
+PASS   : ArtistServiceComposedTests::enterArtistAndLoadAllLanesToReady()
+PASS   : ArtistServiceComposedTests::redirectedMbidReturnsTypedRedirectedError()
+PASS   : ArtistServiceComposedTests::invalidCursorIsRejected()
+PASS   : ArtistServiceComposedTests::switchingProfileClearsSavedState()
+PASS   : ArtistServiceComposedTests::lateReplyAfterLeaveArtistIsDroppedByGenerationFence()
+PASS   : ArtistServiceComposedTests::togglingSavedRoundTripsAndSurvivesReload()
+PASS   : ArtistServiceComposedTests::selectRecordingEmitsPlayRequestAndRefusesMismatchedEdition()
+PASS   : ArtistServiceComposedTests::artistWithNoArtworkReturnsDeterministicFallbackNotFakeImage()
+PASS   : ArtistServiceComposedTests::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 28ms
+********* Finished testing of ArtistServiceComposedTests *********

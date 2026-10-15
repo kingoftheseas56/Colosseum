@@ -1,0 +1,17 @@
+Test project /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+    Start 1: artist_service_composed_harness
+1/6 Test #1: artist_service_composed_harness ...   Passed    0.01 sec
+    Start 2: vinyl_artist_catalogue_harness
+2/6 Test #2: vinyl_artist_catalogue_harness ....   Passed    0.01 sec
+    Start 3: artist_artwork_deterministic
+3/6 Test #3: artist_artwork_deterministic ......   Passed    0.00 sec
+    Start 4: artist_personal_harness
+4/6 Test #4: artist_personal_harness ...........   Passed    0.01 sec
+    Start 5: artist_media_query
+5/6 Test #5: artist_media_query ................   Passed    0.00 sec
+    Start 6: artist_service_bridge_harness
+6/6 Test #6: artist_service_bridge_harness .....   Passed    0.01 sec
+
+100% tests passed out of 6
+
+Total Test time (real) =   0.04 sec

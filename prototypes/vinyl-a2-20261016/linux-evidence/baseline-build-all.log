@@ -1,0 +1,94 @@
+[1/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o
+FAILED: [code=1] CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o 
+/usr/bin/c++ -DQT_CORE_LIB -I/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build-baseline/vinyl_artist_service_composed_autogen/include -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015 -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/catalogue -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/artwork -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/personal -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/media -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/bridge -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba0-domain-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bg1-catalogue-client-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba5-library-playlists-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bf2-related-video-prototype -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/mkspecs/linux-g++ -g -std=c++17 -Wall -Wextra -Wpedantic -fPIC -MD -MT CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o -MF CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o.d -o CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o -c /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp: In lambda function:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:151:25: error: use of deleted function ‘vinyl::artist_media::SourceBatch::SourceBatch()’
+  151 |             SourceBatch unavailable;
+      |                         ^~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/IArtistSource.h:5,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.h:3,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:1:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/media/ArtistMediaQuery.h:39:8: note: ‘vinyl::artist_media::SourceBatch::SourceBatch()’ is implicitly deleted because the default definition would be ill-formed:
+   39 | struct SourceBatch {
+      |        ^~~~~~~~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/media/ArtistMediaQuery.h: At global scope:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/media/ArtistMediaQuery.h:39:8: error: no matching function for call to ‘vinyl::Mbid<vinyl::ArtistMbidTag>::Mbid()’
+In file included from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/VinylCatalogueTypes.h:3,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.h:3,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/IArtistSource.h:4:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:97:14: note: candidate: ‘vinyl::Mbid<Tag>::Mbid(QUuid) [with Tag = vinyl::ArtistMbidTag]’
+   97 |     explicit Mbid(QUuid uuid)
+      |              ^~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:97:14: note:   candidate expects 1 argument, 0 provided
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note: candidate: ‘constexpr vinyl::Mbid<vinyl::ArtistMbidTag>::Mbid(const vinyl::Mbid<vinyl::ArtistMbidTag>&)’
+   60 | class Mbid final
+      |       ^~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note:   candidate expects 1 argument, 0 provided
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note: candidate: ‘constexpr vinyl::Mbid<vinyl::ArtistMbidTag>::Mbid(vinyl::Mbid<vinyl::ArtistMbidTag>&&)’
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note:   candidate expects 1 argument, 0 provided
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp: In lambda function:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:151:25: note: use ‘-fdiagnostics-all-candidates’ to display considered candidates
+  151 |             SourceBatch unavailable;
+      |                         ^~~~~~~~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:163:21: error: use of deleted function ‘vinyl::artist_media::SourceBatch::SourceBatch()’
+  163 |         SourceBatch empty;
+      |                     ^~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:163:21: note: use ‘-fdiagnostics-all-candidates’ to display considered candidates
+[2/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/ArtistReadAdapter.cpp.o
+FAILED: [code=1] CMakeFiles/vinyl_artist_service_composed.dir/ArtistReadAdapter.cpp.o 
+/usr/bin/c++ -DQT_CORE_LIB -I/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build-baseline/vinyl_artist_service_composed_autogen/include -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015 -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/catalogue -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/artwork -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/personal -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/media -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/bridge -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba0-domain-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bg1-catalogue-client-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba5-library-playlists-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bf2-related-video-prototype -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/mkspecs/linux-g++ -g -std=c++17 -Wall -Wextra -Wpedantic -fPIC -MD -MT CMakeFiles/vinyl_artist_service_composed.dir/ArtistReadAdapter.cpp.o -MF CMakeFiles/vinyl_artist_service_composed.dir/ArtistReadAdapter.cpp.o.d -o CMakeFiles/vinyl_artist_service_composed.dir/ArtistReadAdapter.cpp.o -c /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp: In function ‘QVariantMap vinyl::artist::{anonymous}::serializeGroupRow(const vinyl::catalogue::artist_proof::GroupRow&)’:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp:107:37: error: request for member ‘has_value’ in ‘rec.vinyl::catalogue::artist_proof::SourcedRecording::canonical.vinyl::catalogue::Recording::lengthMs’, which is of non-class type ‘const int’
+  107 |              rec.canonical.lengthMs.has_value()
+      |                                     ^~~~~~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp:108:51: error: invalid type argument of unary ‘*’ (have ‘int’)
+  108 |                  ? QVariant::fromValue<qlonglong>(*rec.canonical.lengthMs)
+      |                                                   ^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp:110:9: error: no matching function for call to ‘QMap<QString, QVariant>::QMap(<brace-enclosed initializer list>)’
+  110 |         };
+      |         ^
+In file included from /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qdebug.h:42,
+                 from /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qvariant.h:13,
+                 from /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/QVariant:1,
+                 from /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qvariantlist.h:15,
+                 from /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/QVariantList:1,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/bridge/ArtistServiceBridge.h:7,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.h:4,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/ArtistReadAdapter.cpp:1:
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:286:14: note: candidate: ‘QMap<Key, T>::QMap(std::map<T, U>&&) [with Key = QString; T = QVariant]’
+  286 |     explicit QMap(std::map<Key, T> &&other)
+      |              ^~~~
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:286:14: note:   candidate expects 1 argument, 3 provided
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:281:14: note: candidate: ‘QMap<Key, T>::QMap(const std::map<T, U>&) [with Key = QString; T = QVariant]’
+  281 |     explicit QMap(const std::map<Key, T> &other)
+      |              ^~~~
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:281:14: note:   candidate expects 1 argument, 3 provided
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:275:5: note: candidate: ‘QMap<Key, T>::QMap(std::initializer_list<std::pair<_T1, _T2> >) [with Key = QString; T = QVariant]’
+  275 |     QMap(std::initializer_list<std::pair<Key, T>> list)
+      |     ^~~~
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:275:5: note:   candidate expects 1 argument, 3 provided
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:266:5: note: candidate: ‘constexpr QMap<Key, T>::QMap() [with Key = QString; T = QVariant]’
+  266 |     QMap() = default;
+      |     ^~~~
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:266:5: note:   candidate expects 0 arguments, 3 provided
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:252:7: note: candidate: ‘QMap<QString, QVariant>::QMap(const QMap<QString, QVariant>&)’
+  252 | class QMap
+      |       ^~~~
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:252:7: note:   candidate expects 1 argument, 3 provided
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:252:7: note: candidate: ‘QMap<QString, QVariant>::QMap(QMap<QString, QVariant>&&)’
+/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore/qmap.h:252:7: note:   candidate expects 1 argument, 3 provided
+[3/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/SavedArtistAdapter.cpp.o
+[4/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/RecordingPlaybackPort.cpp.o
+[5/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/ArtistServiceFactory.cpp.o
+[6/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp.o
+[7/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.cpp.o
+[8/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/personal/ArtistPersonalState.cpp.o
+[9/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/media/ArtistMediaQuery.cpp.o
+[10/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba0-domain-prototype/VinylDomainTypes.cpp.o
+[11/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.cpp.o
+[12/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bg1-catalogue-client-prototype/VinylCatalogueTypes.cpp.o
+[13/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba5-library-playlists-prototype/VinylLibrary.cpp.o
+[14/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba5-library-playlists-prototype/VinylPlaylist.cpp.o
+[15/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bf2-related-video-prototype/RelatedVideoContract.cpp.o
+[16/41] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba5-library-playlists-prototype/VinylPersonalStatePersistence.cpp.o
+ninja: build stopped: cannot make progress due to previous errors.

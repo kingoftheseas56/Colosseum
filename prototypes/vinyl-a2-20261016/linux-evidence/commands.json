@@ -1,0 +1,116 @@
+[
+  {
+    "name": "baseline-build-all",
+    "command": "cmake --build /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build-baseline --parallel 2 -- -k 0",
+    "exit_code": 1,
+    "raw_log": "baseline-build-all.log"
+  },
+  {
+    "name": "baseline-build",
+    "command": "cmake --build /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build-baseline --parallel 2",
+    "exit_code": 1,
+    "raw_log": "baseline-build.log"
+  },
+  {
+    "name": "baseline-configure",
+    "command": "cmake -S /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015 -B /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build-baseline -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    "exit_code": 0,
+    "raw_log": "baseline-configure.log"
+  },
+  {
+    "name": "build",
+    "command": "cmake --build /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build --parallel 2",
+    "exit_code": 0,
+    "raw_log": "build.log"
+  },
+  {
+    "name": "composed-direct",
+    "command": "/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_artist_service_composed",
+    "exit_code": 0,
+    "raw_log": "composed-direct.log"
+  },
+  {
+    "name": "configure",
+    "command": "cmake -S /workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-service-composed-20261015 -B /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    "exit_code": 0,
+    "raw_log": "configure.log"
+  },
+  {
+    "name": "ctest-verbose",
+    "command": "ctest --test-dir /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build -V",
+    "exit_code": 0,
+    "raw_log": "ctest-verbose.log"
+  },
+  {
+    "name": "ctest",
+    "command": "ctest --test-dir /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build --output-on-failure",
+    "exit_code": 0,
+    "raw_log": "ctest.log"
+  },
+  {
+    "name": "environment",
+    "command": "bash -c cat\\ /etc/os-release\\;\\ uname\\ -a\\;\\ g++\\ --version\\;\\ cmake\\ --version\\;\\ ninja\\ --version\\;\\ \\\"\\$QT_ROOT/bin/qmake\\\"\\ -query\\;\\ git\\ --version",
+    "exit_code": 0,
+    "raw_log": "environment.log"
+  },
+  {
+    "name": "final-clean-build",
+    "command": "cmake --build /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build --clean-first --parallel 2",
+    "exit_code": 0,
+    "raw_log": "final-clean-build.log"
+  },
+  {
+    "name": "final-composed-direct",
+    "command": "/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_artist_service_composed",
+    "exit_code": 0,
+    "raw_log": "final-composed-direct.log"
+  },
+  {
+    "name": "final-ctest-verbose",
+    "command": "ctest --test-dir /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build -V",
+    "exit_code": 0,
+    "raw_log": "final-ctest-verbose.log"
+  },
+  {
+    "name": "final-ctest",
+    "command": "ctest --test-dir /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build --output-on-failure",
+    "exit_code": 0,
+    "raw_log": "final-ctest.log"
+  },
+  {
+    "name": "patch-apply",
+    "command": "git apply /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/evidence/vinyl-a2-compile-fixes.patch",
+    "exit_code": 0,
+    "raw_log": "patch-apply.log"
+  },
+  {
+    "name": "patch-check",
+    "command": "git apply --check /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/evidence/vinyl-a2-compile-fixes.patch",
+    "exit_code": 0,
+    "raw_log": "patch-check.log"
+  },
+  {
+    "name": "regression-build",
+    "command": "cmake --build /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build --parallel 2",
+    "exit_code": 0,
+    "raw_log": "regression-build.log"
+  },
+  {
+    "name": "regression-composed-direct",
+    "command": "/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_artist_service_composed",
+    "exit_code": 0,
+    "raw_log": "regression-composed-direct.log"
+  },
+  {
+    "name": "regression-ctest-verbose",
+    "command": "ctest --test-dir /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build -V",
+    "exit_code": 0,
+    "raw_log": "regression-ctest-verbose.log"
+  },
+  {
+    "name": "regression-ctest",
+    "command": "ctest --test-dir /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build --output-on-failure",
+    "exit_code": 0,
+    "raw_log": "regression-ctest.log"
+  }
+]

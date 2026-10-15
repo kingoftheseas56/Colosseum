@@ -1,0 +1,43 @@
+[1/43] Automatic MOC for target vinyl_artist_service_composed
+[2/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/vinyl_artist_service_composed_autogen/mocs_compilation.cpp.o
+[3/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o
+[4/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/SavedArtistAdapter.cpp.o
+[5/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/ArtistReadAdapter.cpp.o
+[6/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/RecordingPlaybackPort.cpp.o
+[7/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/ArtistServiceFactory.cpp.o
+[8/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp.o
+[9/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.cpp.o
+[10/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/personal/ArtistPersonalState.cpp.o
+[11/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/media/ArtistMediaQuery.cpp.o
+[12/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.cpp.o
+[13/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/ba0-domain-prototype/VinylDomainTypes.cpp.o
+[14/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/ba5-library-playlists-prototype/VinylLibrary.cpp.o
+[15/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/bg1-catalogue-client-prototype/VinylCatalogueTypes.cpp.o
+[16/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/ba5-library-playlists-prototype/VinylPlaylist.cpp.o
+[17/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/bf2-related-video-prototype/RelatedVideoContract.cpp.o
+[18/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/ba5-library-playlists-prototype/VinylPersonalStatePersistence.cpp.o
+[19/43] Linking CXX static library libvinyl_artist_service_composed.a
+[20/43] Automatic MOC for target vinyl_artist_catalogue_harness
+[21/43] Automatic MOC for target test_artist_artwork
+[22/43] Automatic MOC for target artist_personal_harness
+[23/43] Automatic MOC for target test_arc62_artist_media
+[24/43] Automatic MOC for target test_artist_service_composed
+[25/43] Building CXX object CMakeFiles/test_artist_service_composed.dir/test_artist_service_composed_autogen/mocs_compilation.cpp.o
+[26/43] Automatic MOC for target test_artist_service_bridge
+[27/43] Building CXX object CMakeFiles/vinyl_artist_catalogue_harness.dir/vinyl_artist_catalogue_harness_autogen/mocs_compilation.cpp.o
+[28/43] Building CXX object CMakeFiles/vinyl_artist_catalogue_harness.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/catalogue/test_artist_catalogue.cpp.o
+[29/43] Building CXX object CMakeFiles/test_artist_artwork.dir/test_artist_artwork_autogen/mocs_compilation.cpp.o
+[30/43] Building CXX object CMakeFiles/test_artist_artwork.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/artwork/test_artist_artwork.cpp.o
+[31/43] Building CXX object CMakeFiles/artist_personal_harness.dir/artist_personal_harness_autogen/mocs_compilation.cpp.o
+[32/43] Building CXX object CMakeFiles/test_artist_service_composed.dir/test_artist_service_composed.cpp.o
+[33/43] Building CXX object CMakeFiles/test_arc62_artist_media.dir/test_arc62_artist_media_autogen/mocs_compilation.cpp.o
+[34/43] Building CXX object CMakeFiles/test_arc62_artist_media.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/media/test_artist_media_query.cpp.o
+[35/43] Building CXX object CMakeFiles/test_artist_service_bridge.dir/test_artist_service_bridge_autogen/mocs_compilation.cpp.o
+[36/43] Building CXX object CMakeFiles/artist_personal_harness.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/personal/test_artist_personal.cpp.o
+[37/43] Linking CXX executable test_artist_service_composed
+[38/43] Linking CXX executable vinyl_artist_catalogue_harness
+[39/43] Linking CXX executable test_artist_artwork
+[40/43] Linking CXX executable artist_personal_harness
+[41/43] Linking CXX executable test_arc62_artist_media
+[42/43] Building CXX object CMakeFiles/test_artist_service_bridge.dir/workspace/scratch/af0fb5da5f81/vinyl-a2-work/source/artist-live-prototypes-20261015/bridge/test_artist_service_bridge.cpp.o
+[43/43] Linking CXX executable test_artist_service_bridge

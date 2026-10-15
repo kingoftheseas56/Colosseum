@@ -1,0 +1,39 @@
+[1/43] Automatic MOC for target vinyl_artist_service_composed
+[2/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o
+FAILED: [code=1] CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o 
+/usr/bin/c++ -DQT_CORE_LIB -I/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build-baseline/vinyl_artist_service_composed_autogen/include -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015 -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/catalogue -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/artwork -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/personal -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/media -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-live-prototypes-20261015/bridge -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba0-domain-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bg1-catalogue-client-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/ba5-library-playlists-prototype -I/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/bf2-related-video-prototype -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include/QtCore -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include -isystem /workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/mkspecs/linux-g++ -g -std=c++17 -Wall -Wextra -Wpedantic -fPIC -MD -MT CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o -MF CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o.d -o CMakeFiles/vinyl_artist_service_composed.dir/FakeArtistSource.cpp.o -c /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp: In lambda function:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:151:25: error: use of deleted function ‘vinyl::artist_media::SourceBatch::SourceBatch()’
+  151 |             SourceBatch unavailable;
+      |                         ^~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/IArtistSource.h:5,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.h:3,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:1:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/media/ArtistMediaQuery.h:39:8: note: ‘vinyl::artist_media::SourceBatch::SourceBatch()’ is implicitly deleted because the default definition would be ill-formed:
+   39 | struct SourceBatch {
+      |        ^~~~~~~~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/media/ArtistMediaQuery.h: At global scope:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/media/ArtistMediaQuery.h:39:8: error: no matching function for call to ‘vinyl::Mbid<vinyl::ArtistMbidTag>::Mbid()’
+In file included from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/VinylCatalogueTypes.h:3,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.h:3,
+                 from /workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/IArtistSource.h:4:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:97:14: note: candidate: ‘vinyl::Mbid<Tag>::Mbid(QUuid) [with Tag = vinyl::ArtistMbidTag]’
+   97 |     explicit Mbid(QUuid uuid)
+      |              ^~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:97:14: note:   candidate expects 1 argument, 0 provided
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note: candidate: ‘constexpr vinyl::Mbid<vinyl::ArtistMbidTag>::Mbid(const vinyl::Mbid<vinyl::ArtistMbidTag>&)’
+   60 | class Mbid final
+      |       ^~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note:   candidate expects 1 argument, 0 provided
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note: candidate: ‘constexpr vinyl::Mbid<vinyl::ArtistMbidTag>::Mbid(vinyl::Mbid<vinyl::ArtistMbidTag>&&)’
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/../artist-live-prototypes-20261015/catalogue/../../bg1-catalogue-client-prototype/../ba0-domain-prototype/VinylDomainTypes.h:60:7: note:   candidate expects 1 argument, 0 provided
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp: In lambda function:
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:151:25: note: use ‘-fdiagnostics-all-candidates’ to display considered candidates
+  151 |             SourceBatch unavailable;
+      |                         ^~~~~~~~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:163:21: error: use of deleted function ‘vinyl::artist_media::SourceBatch::SourceBatch()’
+  163 |         SourceBatch empty;
+      |                     ^~~~~
+/workspace/scratch/af0fb5da5f81/vinyl-a2-input/packet/baseline/artist-service-composed-20261015/FakeArtistSource.cpp:163:21: note: use ‘-fdiagnostics-all-candidates’ to display considered candidates
+[3/43] Building CXX object CMakeFiles/vinyl_artist_service_composed.dir/vinyl_artist_service_composed_autogen/mocs_compilation.cpp.o
+ninja: build stopped: subcommand failed.

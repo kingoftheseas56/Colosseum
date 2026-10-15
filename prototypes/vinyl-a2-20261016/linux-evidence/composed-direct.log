@@ -1,0 +1,14 @@
+********* Start testing of ArtistServiceComposedTests *********
+Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 11.5.0 20240719 (Red Hat 11.5.0-11)), debian 13
+PASS   : ArtistServiceComposedTests::initTestCase()
+PASS   : ArtistServiceComposedTests::enterArtistAndLoadAllLanesToReady()
+PASS   : ArtistServiceComposedTests::redirectedMbidReturnsTypedRedirectedError()
+PASS   : ArtistServiceComposedTests::invalidCursorIsRejected()
+PASS   : ArtistServiceComposedTests::switchingProfileClearsSavedState()
+PASS   : ArtistServiceComposedTests::lateReplyAfterLeaveArtistIsDroppedByGenerationFence()
+PASS   : ArtistServiceComposedTests::togglingSavedRoundTripsAndSurvivesReload()
+PASS   : ArtistServiceComposedTests::selectRecordingEmitsPlayRequestAndRefusesMismatchedEdition()
+PASS   : ArtistServiceComposedTests::artistWithNoArtworkReturnsDeterministicFallbackNotFakeImage()
+PASS   : ArtistServiceComposedTests::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 4ms
+********* Finished testing of ArtistServiceComposedTests *********

@@ -1,0 +1,23 @@
+commit eb052bc93659aa11c2fdf7c09025f861e2e8ba97
+Author:     dot <dot@users.noreply.github.com>
+AuthorDate: Fri Oct 16 02:51:56 2026 +0530
+Commit:     dot <dot@users.noreply.github.com>
+CommitDate: Fri Oct 16 02:51:56 2026 +0530
+
+    Test Vinyl A2 duration and media-batch repair boundaries
+
+commit 82828ed797bf628bcfb64a3461fc1bc7914dc6a0
+Author:     dot <dot@users.noreply.github.com>
+AuthorDate: Fri Oct 16 02:51:30 2026 +0530
+Commit:     dot <dot@users.noreply.github.com>
+CommitDate: Fri Oct 16 02:51:30 2026 +0530
+
+    Apply approved Vinyl A2 compile repair; Linux six-suite qualification
+
+commit 3c421e062c6bb54c9973a63d5b23a00f63c0c9ca
+Author:     dot <dot@users.noreply.github.com>
+AuthorDate: Fri Oct 16 02:50:02 2026 +0530
+Commit:     dot <dot@users.noreply.github.com>
+CommitDate: Fri Oct 16 02:50:02 2026 +0530
+
+    Import SHA-256 verified Vinyl A2 packet baseline

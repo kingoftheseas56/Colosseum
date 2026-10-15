@@ -1,0 +1,46 @@
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.6
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+Linux b9a58f09b229 6.18.44 #1 SMP Sat Sep 26 20:02:31 UTC 2026 x86_64 GNU/Linux
+g++ (Debian 14.2.0-19) 14.2.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+cmake version 4.4.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+1.13.2.git.kitware.jobserver-pipe-1
+QT_SYSROOT:
+QT_INSTALL_PREFIX:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64
+QT_INSTALL_ARCHDATA:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64
+QT_INSTALL_DATA:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64
+QT_INSTALL_DOCS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/doc
+QT_INSTALL_HEADERS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/include
+QT_INSTALL_LIBS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/lib
+QT_INSTALL_LIBEXECS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/libexec
+QT_INSTALL_BINS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/bin
+QT_INSTALL_TESTS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/tests
+QT_INSTALL_PLUGINS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/plugins
+QT_INSTALL_QML:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/qml
+QT_INSTALL_TRANSLATIONS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/translations
+QT_INSTALL_CONFIGURATION:
+QT_INSTALL_EXAMPLES:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/examples
+QT_INSTALL_DEMOS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/examples
+QT_HOST_PREFIX:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64
+QT_HOST_DATA:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64
+QT_HOST_BINS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/bin
+QT_HOST_LIBEXECS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/libexec
+QT_HOST_LIBS:/workspace/shared/no-account-119/deps/qt/6.11.1/gcc_64/lib
+QMAKE_SPEC:linux-g++
+QMAKE_XSPEC:linux-g++
+QMAKE_VERSION:3.1
+QT_VERSION:6.11.1
+git version 2.52.0

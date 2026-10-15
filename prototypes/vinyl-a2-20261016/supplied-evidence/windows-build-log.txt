@@ -1,0 +1,97 @@
+
+C:\Users\Suprabha\Desktop\Brotherhood>call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" 
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+=== TOOLCHAIN VERSIONS ===
+Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35227 for x64
+cmake version 3.31.6-msvc6
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+1.12.1
+=== QT VERSION ===
+=== CONFIGURE ===
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Configuring done (11.6s)
+-- Generating done (0.4s)
+-- Build files have been written to: C:/a2g/build
+=== BUILD ===
+[1/43] Automatic MOC for target vinyl_artist_service_composed
+[2/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\artist-live-prototypes-20261015\artwork\ArtistArtworkResolver.cpp.obj
+[3/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\artist-live-prototypes-20261015\media\ArtistMediaQuery.cpp.obj
+[4/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\SavedArtistAdapter.cpp.obj
+[5/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\RecordingPlaybackPort.cpp.obj
+[6/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\FakeArtistSource.cpp.obj
+[7/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\ArtistServiceFactory.cpp.obj
+[8/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\vinyl_artist_service_composed_autogen\mocs_compilation.cpp.obj
+[9/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\artist-live-prototypes-20261015\catalogue\ArtistCatalogueQuery.cpp.obj
+[10/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\ArtistReadAdapter.cpp.obj
+[11/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\ba0-domain-prototype\VinylDomainTypes.cpp.obj
+[12/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\artist-live-prototypes-20261015\personal\ArtistPersonalState.cpp.obj
+[13/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\artist-live-prototypes-20261015\bridge\ArtistServiceBridge.cpp.obj
+[14/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\ba5-library-playlists-prototype\VinylLibrary.cpp.obj
+[15/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\ba5-library-playlists-prototype\VinylPlaylist.cpp.obj
+[16/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\bf2-related-video-prototype\RelatedVideoContract.cpp.obj
+[17/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\bg1-catalogue-client-prototype\VinylCatalogueTypes.cpp.obj
+[18/43] Building CXX object CMakeFiles\vinyl_artist_service_composed.dir\C_\a2g\ba5-library-playlists-prototype\VinylPersonalStatePersistence.cpp.obj
+[19/43] Linking CXX static library vinyl_artist_service_composed.lib
+[20/43] Automatic MOC for target vinyl_artist_catalogue_harness
+[21/43] Automatic MOC for target test_artist_artwork
+[22/43] Automatic MOC for target test_arc62_artist_media
+[23/43] Automatic MOC for target artist_personal_harness
+[24/43] Building CXX object CMakeFiles\test_artist_artwork.dir\test_artist_artwork_autogen\mocs_compilation.cpp.obj
+[25/43] Building CXX object CMakeFiles\vinyl_artist_catalogue_harness.dir\vinyl_artist_catalogue_harness_autogen\mocs_compilation.cpp.obj
+[26/43] Building CXX object CMakeFiles\test_arc62_artist_media.dir\test_arc62_artist_media_autogen\mocs_compilation.cpp.obj
+[27/43] Building CXX object CMakeFiles\artist_personal_harness.dir\artist_personal_harness_autogen\mocs_compilation.cpp.obj
+[28/43] Automatic MOC for target test_artist_service_composed
+[29/43] Automatic MOC for target test_artist_service_bridge
+[30/43] Building CXX object CMakeFiles\test_artist_service_composed.dir\test_artist_service_composed_autogen\mocs_compilation.cpp.obj
+[31/43] Building CXX object CMakeFiles\test_artist_service_bridge.dir\test_artist_service_bridge_autogen\mocs_compilation.cpp.obj
+[32/43] Building CXX object CMakeFiles\test_artist_artwork.dir\C_\a2g\artist-live-prototypes-20261015\artwork\test_artist_artwork.cpp.obj
+[33/43] Linking CXX executable test_artist_artwork.exe
+[34/43] Building CXX object CMakeFiles\test_arc62_artist_media.dir\C_\a2g\artist-live-prototypes-20261015\media\test_artist_media_query.cpp.obj
+[35/43] Linking CXX executable test_arc62_artist_media.exe
+[36/43] Building CXX object CMakeFiles\vinyl_artist_catalogue_harness.dir\C_\a2g\artist-live-prototypes-20261015\catalogue\test_artist_catalogue.cpp.obj
+[37/43] Linking CXX executable vinyl_artist_catalogue_harness.exe
+[38/43] Building CXX object CMakeFiles\artist_personal_harness.dir\C_\a2g\artist-live-prototypes-20261015\personal\test_artist_personal.cpp.obj
+[39/43] Linking CXX executable artist_personal_harness.exe
+[40/43] Building CXX object CMakeFiles\test_artist_service_bridge.dir\C_\a2g\artist-live-prototypes-20261015\bridge\test_artist_service_bridge.cpp.obj
+[41/43] Linking CXX executable test_artist_service_bridge.exe
+[42/43] Building CXX object CMakeFiles\test_artist_service_composed.dir\test_artist_service_composed.cpp.obj
+[43/43] Linking CXX executable test_artist_service_composed.exe
+=== CTEST ===
+Test project C:/a2g/build
+    Start 1: artist_service_composed_harness
+1/6 Test #1: artist_service_composed_harness ...   Passed    0.80 sec
+    Start 2: vinyl_artist_catalogue_harness
+2/6 Test #2: vinyl_artist_catalogue_harness ....   Passed    0.33 sec
+    Start 3: artist_artwork_deterministic
+3/6 Test #3: artist_artwork_deterministic ......   Passed    0.15 sec
+    Start 4: artist_personal_harness
+4/6 Test #4: artist_personal_harness ...........   Passed    1.08 sec
+    Start 5: artist_media_query
+5/6 Test #5: artist_media_query ................   Passed    0.21 sec
+    Start 6: artist_service_bridge_harness
+6/6 Test #6: artist_service_bridge_harness .....   Passed    0.28 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Total Test time (real) =   2.93 sec
+CTEST_EXIT=0

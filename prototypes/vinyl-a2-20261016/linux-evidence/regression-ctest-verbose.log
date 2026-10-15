@@ -1,0 +1,231 @@
+UpdateCTestConfiguration  from :/workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/DartConfiguration.tcl
+Test project /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: artist_service_composed_harness
+
+1: Test command: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_artist_service_composed
+1: Working Directory: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+1: Test timeout computed to be: 10000000
+1: ********* Start testing of ArtistServiceComposedTests *********
+1: Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 11.5.0 20240719 (Red Hat 11.5.0-11)), debian 13
+1: PASS   : ArtistServiceComposedTests::initTestCase()
+1: PASS   : ArtistServiceComposedTests::repairedDurationSerialization(positive)
+1: PASS   : ArtistServiceComposedTests::repairedDurationSerialization(zero)
+1: PASS   : ArtistServiceComposedTests::repairedDurationSerialization(negative)
+1: PASS   : ArtistServiceComposedTests::repairedMediaBatchDefaults(unavailable)
+1: PASS   : ArtistServiceComposedTests::repairedMediaBatchDefaults(missing-batch)
+1: PASS   : ArtistServiceComposedTests::enterArtistAndLoadAllLanesToReady()
+1: PASS   : ArtistServiceComposedTests::redirectedMbidReturnsTypedRedirectedError()
+1: PASS   : ArtistServiceComposedTests::invalidCursorIsRejected()
+1: PASS   : ArtistServiceComposedTests::switchingProfileClearsSavedState()
+1: PASS   : ArtistServiceComposedTests::lateReplyAfterLeaveArtistIsDroppedByGenerationFence()
+1: PASS   : ArtistServiceComposedTests::togglingSavedRoundTripsAndSurvivesReload()
+1: PASS   : ArtistServiceComposedTests::selectRecordingEmitsPlayRequestAndRefusesMismatchedEdition()
+1: PASS   : ArtistServiceComposedTests::artistWithNoArtworkReturnsDeterministicFallbackNotFakeImage()
+1: PASS   : ArtistServiceComposedTests::cleanupTestCase()
+1: Totals: 15 passed, 0 failed, 0 skipped, 0 blacklisted, 7ms
+1: ********* Finished testing of ArtistServiceComposedTests *********
+1/6 Test #1: artist_service_composed_harness ...   Passed    0.01 sec
+test 2
+    Start 2: vinyl_artist_catalogue_harness
+
+2: Test command: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/vinyl_artist_catalogue_harness
+2: Working Directory: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+2: Test timeout computed to be: 10000000
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: same displayed artist name with two MBIDs fails closed as Ambiguous
+2: PASS: provider page callback delivered
+2: PASS: discography requires a successfully resolved canonical artist
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: exact alias lookup resolves canonical ArtistMbid, not alias identity
+2: PASS: artist browse ID remains source-qualified
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: prefix/fuzzy alias must not resolve
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: valid unknown MBID returns NotFound
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: merge returns typed Redirected, no guessed follow
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: offline artist lookup is Unavailable
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: exact ID lookup selects artist A despite name collision
+2: PASS: provider page callback delivered
+2: PASS: first page returns exactly two release groups and continuation
+2: PASS: newest ordering resolves same-year title ties deterministically
+2: PASS: provider page callback delivered
+2: PASS: second page finishes without synthetic cursor
+2: PASS: deduplication preserves group ordering and page boundaries
+2: PASS: two release editions/statuses collapse into one release group
+2: PASS: duplicate group retains both source mappings with provenance
+2: PASS: recording and artist credits preserve distinct canonical MusicBrainz MBIDs
+2: PASS: recording/artist browse IDs carry explicit source provenance
+2: PASS: duplicate group merges recording once while retaining alternative source mapping
+2: PASS: provider page callback delivered
+2: PASS: same immutable revision produces identical cursor despite provider row reordering
+2: PASS: provider page callback delivered
+2: PASS: malformed cursor returns typed InvalidPage
+2: PASS: provider page callback delivered
+2: PASS: page size greater than BG1 maximum is rejected
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: provider page callback delivered
+2: PASS: typed promotion status filter applies across editions, returns one group
+2: PASS: provider page callback delivered
+2: PASS: cursor cannot cross query, session, or version identity
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: provider page callback delivered
+2: PASS: primary, secondary and status filters compose by AND
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: reversed first-release-year range fails before contacting provider
+2: PASS: new session explicitly cancels previous request
+2: PASS: out-of-order stale artist callback cannot mutate new view
+2: PASS: current artist callback is accepted
+2: PASS: stale page session is rejected without delivering a callback
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: cancellation forwards outstanding native ticket to provider
+2: PASS: late callback after cancellation is suppressed
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: latest-page wins; superseded page callback is fenced
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: provider page callback delivered
+2: PASS: corpus revision mismatch fails instead of mixing snapshots
+2: PASS: provider artist callback delivered
+2: PASS: resolution carries exact session version
+2: PASS: provider page callback delivered
+2: PASS: offline discography is Unavailable, never an empty NotFound page
+2: PASS: provider page callback delivered
+2: PASS: mismatched edition-to-release-group identity fails closed
+2: PASS: provider page callback delivered
+2: PASS: conflicting metadata for duplicate ReleaseGroupMbid fails closed
+2: PASS: late provider callback after query destruction is safe and silent
+2: RESULT PASS checks=78 provider=queued-in-process-fake transport=none
+2/6 Test #2: vinyl_artist_catalogue_harness ....   Passed    0.00 sec
+test 3
+    Start 3: artist_artwork_deterministic
+
+3: Test command: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_artist_artwork
+3: Working Directory: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+3: Test timeout computed to be: 10000000
+3: PASS zero-heros-artist-specific-composition
+3: PASS one-eligible-photo-is-static
+3: PASS two-eligible-photos-crossfade
+3: PASS three-eligible-photos-rotate
+3: PASS four-real-photos-are-not-mandatory
+3: PASS deterministic-selection-independent-of-provider-order
+3: PASS bounded-slide-list-no-clones-to-fill-slots
+3: PASS reject-photo-for-other-valid-artist-mbid
+3: PASS reject-name-only-identity
+3: PASS dedup-normalized-source-url
+3: PASS dedup-sha256-across-different-urls
+3: PASS dedup-near-perceptual-hash-tinted-variant
+3: PASS unreviewed-different-urls-cannot-fabricate-distinct-slides
+3: PASS single-unreviewed-photo-still-allowed
+3: PASS independent-perceptual-signatures-prove-distinct-slides
+3: PASS reject-too-small-or-extreme-aspect
+3: PASS reject-placeholders-baked-branding-and-album-covers
+3: PASS unknown-restricted-or-unsubstantiated-rights-never-release-cleared
+3: PASS render-permission-does-not-automatically-authorize-caching
+3: PASS expired-rights-rejected
+3: PASS eligible-portrait-in-composition-not-stretched-hero
+3: PASS offline-reuses-verified-metadata-and-bytes
+3: PASS same-local-cache-key-cannot-count-as-two-slides
+3: PASS same-cached-bytes-across-origins-are-deduped
+3: PASS cache-rejects-conflicting-origin-and-local-byte-digests
+3: PASS cached-asset-preferred-over-same-origin-candidate
+3: PASS stale-or-unverified-cache-fails-closed
+3: PASS metadata-roundtrip-never-persists-trusted-byte-presence
+3: PASS offline-reload-does-not-automatically-trust-old-cache
+3: PASS cache-revalidated-after-restart-enables-offline-playback
+3: PASS malformed-cache-rows-and-versions-ignored
+3: PASS private-user-override-is-only-local-never-release-cleared
+3: PASS release-ignores-local-only-override
+3: PASS different-artist-manual-override-rejected
+3: PASS override-key-traversal-rejected
+3: PASS three-to-two-after-image-load-failure
+3: PASS two-to-one-after-image-load-failure
+3: PASS last-image-failure-uses-artist-composition
+3: RESULT 38 PASS / 0 FAIL
+3/6 Test #3: artist_artwork_deterministic ......   Passed    0.00 sec
+test 4
+    Start 4: artist_personal_harness
+
+4: Test command: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/artist_personal_harness
+4: Working Directory: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+4: Test timeout computed to be: 10000000
+4: PASS save_toggle_restart
+4: PASS playlist_order_mutations
+4: PASS profile_partition_CAS
+4: PASS corruption_migration
+4: PASS write_failure_catalogue_offline
+4: RESULT 5 PASS, 0 FAIL / Qt 6.11.1
+4/6 Test #4: artist_personal_harness ...........   Passed    0.01 sec
+test 5
+    Start 5: artist_media_query
+
+5: Test command: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_arc62_artist_media
+5: Working Directory: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+5: Test timeout computed to be: 10000000
+5: PASS unknown_artist_empty_no_fabrication
+5: PASS unmapped_official_claim_rejected
+5: PASS qualified_specific_videos_live_separate
+5: PASS unrelated_artist_and_item_rejected
+5: PASS spoofed_officiality_fuzzy_rejected
+5: PASS fuzzy_strong_evidence_invalid
+5: PASS provider_duplicates_and_stable_order
+5: PASS conflicting_provider_ids_invalid
+5: PASS wrong_artist_thumbnail_duration_invalid
+5: PASS unavailable_and_port_failures
+5: PASS cancellation_stale_duplicate_destroyed
+5: PASS exact_open_switch_expiry_errors
+5: PASS alternate_and_artist_only_official_guard
+5: PASS opaque_provider_id_not_canonical_mbid
+5: PASS invalid_artist_prevents_source_fetch
+5: PASS total=15 failed=0
+5/6 Test #5: artist_media_query ................   Passed    0.00 sec
+test 6
+    Start 6: artist_service_bridge_harness
+
+6: Test command: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build/test_artist_service_bridge
+6: Working Directory: /workspace/scratch/af0fb5da5f81/vinyl-a2-work/build
+6: Test timeout computed to be: 10000000
+6: ********* Start testing of ArtistBridgeTests *********
+6: Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 11.5.0 20240719 (Red Hat 11.5.0-11)), debian 13
+6: PASS   : ArtistBridgeTests::initTestCase()
+6: PASS   : ArtistBridgeTests::metaObjectAndTypedResults()
+6: PASS   : ArtistBridgeTests::cancelAndLateArtistReplies()
+6: PASS   : ArtistBridgeTests::leaveAndReturnFencesLateResponses()
+6: PASS   : ArtistBridgeTests::profileSavedIndependenceAndReentrancy()
+6: PASS   : ArtistBridgeTests::browsingDoesNotStopPlayback()
+6: PASS   : ArtistBridgeTests::strongExactSelectionAndClearRetryError()
+6: PASS   : ArtistBridgeTests::emptyOfflineNotFoundAndRetry()
+6: PASS   : ArtistBridgeTests::cursorFilterAndSourceRevisionFence()
+6: PASS   : ArtistBridgeTests::mismatchedArtistAndPayloadFailClosed()
+6: PASS   : ArtistBridgeTests::profileSwitchRejectsLateReadAndForeignProfileReply()
+6: PASS   : ArtistBridgeTests::duplicateReleaseGroupAndMissingSourceFailClosed()
+6: PASS   : ArtistBridgeTests::concurrentLanesDoNotCancelEachOther()
+6: PASS   : ArtistBridgeTests::cleanupTestCase()
+6: Totals: 14 passed, 0 failed, 0 skipped, 0 blacklisted, 2ms
+6: ********* Finished testing of ArtistBridgeTests *********
+6/6 Test #6: artist_service_bridge_harness .....   Passed    0.01 sec
+
+100% tests passed out of 6
+
+Total Test time (real) =   0.04 sec
