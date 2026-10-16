@@ -1,15 +1,19 @@
 name: android
 
-# First installable Android lane. Manual dispatch only; A02 CI gate passed.
+# First installable Android lane. A02 gate passed; temporary Phase 2 qualification.
 on:
+  # Temporary Phase 2 trigger; remove after the paired qualification run.
+  push:
+    branches: [android/a02-platform-seams]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.ref }}
-  cancel-in-progress: true
+  # Share a gate only on the integration branch: one workflow runs, one waits.
+  group: ${{ github.ref == 'refs/heads/android/a02-platform-seams' && format('android-phase2-{0}', github.ref) || format('android-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/android/a02-platform-seams' }}
 
 env:
   QT_VERSION: "6.11.1"
