@@ -73,12 +73,16 @@ hashes apply to content documents and owned artwork; provider URLs stay URLs.
 
 `sourceRevision` identifies the frozen I01/LIBRARY data. `revision` identifies
 the entire public generation. It is SHA-256 of compact JSON, in this exact field
-order: `{contract:"i05-static-v1",sourceManifestSha256,contentManifestSha256,retainedArtworkSha256,date,year,ownedCoverMapSha256?,factsContract?}`.
+order: `{contract:"i05-static-v1",sourceManifestSha256,contentManifestSha256,retainedArtworkSha256,date,year,ownedCoverMapSha256?,factsContract?,factsHashContract?}`.
 The optional owned-cover identity is unchanged. When the source includes IMDb
 key blocks, `factsContract:"imdb-v1"` is appended; this intentionally gives the
 additive facts publication a distinct immutable public revision, even with the
-same underlying catalogue source. A legacy source without IMDb keys retains
-its original public-revision derivation.
+same underlying catalogue source. The hash-bucket facility appends the additive
+`factsHashContract:"imdb-sha256-utf8-prefix2"` discriminator, so the presence of
+the bucket directory always changes the public revision even when the aligned
+blocks and everything else are byte-identical; `sourceRevision` never changes
+with it. A legacy source without IMDb keys retains its original public-revision
+derivation.
 The latter hashes refer to the exact source manifests, and date/year come from
 I01's report. New data, selection publication date or content generation changes
 the public identity. Index/shard hashes transitively bind all rewritten data.
@@ -106,7 +110,7 @@ last-good entry/index for offline use; a failed refresh must not replace it.
 | `fixed` | Selection-key to shared complete JSON result path |
 | `lookups` | Two lowercase hex digits to shared exact-lookup map path |
 | `search` | Family (`imdb`, `anime`, `manga`, `comics`) to `{names:Ref[],keys:Ref[]}` |
-| `facts.imdb` (optional) | Versioned IMDb facts-specific ID directory, described below |
+| `facts.imdb` (optional) | Versioned IMDb facts-specific ID directory: aligned blocks plus optional SHA-256 hash buckets, described below |
 | `tankobanSourceHash` | Original Tankoban series manifest identity |
 | `content` | Public universe/tribute content references, described below |
 
@@ -148,7 +152,24 @@ index/parent reference, not by trying to infer it from their hashed filename:
    Rows must be strictly sorted by `tt`, with no duplicate ID; their first and
    last IDs must equal the parent block's inclusive range endpoints. Blocks
    reuse the existing IMDb sorted-key directory's boundaries (at most 2,048
-   rows/block), not a global facts dump or one shard per query.
+   rows/block), not a global facts dump or one shard per query. The aligned
+   blocks stay exactly as the legacy publisher emitted them.
+7b. **Optional IMDb facts hash-bucket body (`facts.imdb.hashBuckets`):** the
+   directory is `{version:1,keyHash:"sha256-utf8",prefixChars:2,paths}` with
+   **all 256** lowercase two-hex keys `"00"`..`"ff"` present in order. Each
+   path is `/catalogue/<publicRevision>/shared/<sha256>.json` in the same
+   publication; the filename is the body's SHA-256. A body is `[]` or an array
+   of the same five-element `[tt,rating,votes,isAnime,ordinal]` tuples with the
+   same types, null and ordinal semantics as 7a, strictly sorted by `tt`. Each
+   `tt` appears only in the bucket named by the first two lowercase hex digits
+   of SHA-256(UTF-8 bytes of `tt`); the union across the 256 buckets covers
+   every source facts tuple exactly once, with no mutation, loss or duplicate
+   IDs. Empty bodies deduplicate naturally through content addressing, so many
+   keywords legitimately repeat one empty-body path. The directory is
+   additive and optional; when absent, clients use the aligned blocks. A
+   malformed advertised directory or body (wrong key set, bad path, hash
+   mismatch, unparsable tuple, wrong bucket membership, unsorted or duplicated
+   ID) must fail, never silently fall back or return empty.
 8. **Content manifest/document/bundle:** exact bytes from the existing content
    publisher, additionally content-addressed under the public shared tree.
    Manifest is `{schemaVersion:1,revision,documents,assets}`; a document is
@@ -223,6 +244,10 @@ Unspecified combinations are **not prepared**, and go to the existing Worker.
   optional field is absent**. Its declaration is
   `{version:1,blocks:[{path,first,last},...]}` with sorted, disjoint inclusive
   IMDb `tt` ranges, pointing to same-publication SHA-256 shared JSON shards.
+  When the same directory advertises `hashBuckets` (item 7b), a structurally
+  supporting client may resolve each requested ID through its SHA-256 prefix
+  bucket instead of the aligned blocks; buckets are an alternative view of the
+  identical tuples, not different data.
   A malformed/unsupported declaration, invalid tuple/range, missing file or
   SHA mismatch is a **failed exact query**, never a prepared empty or Worker
   fallback. Facts accepts an array of IDs (non-array -> empty object), preserves

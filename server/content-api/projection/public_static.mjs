@@ -97,7 +97,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  // Publication identity includes the exact source index, date policy and content.
  // LIBRARY's source revision remains unchanged for old authenticated clients.
  const retention=retainArtwork({previous,output});
- const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{}),...(publishFacts?{factsContract:'imdb-v1'}:{})}));
+ const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{}),...(publishFacts?{factsContract:'imdb-v1',factsHashContract:'imdb-sha256-utf8-prefix2'}:{})}));
  const publicPrefix='/catalogue/'+revision+'/',written=new Map(),converted=new Map(),loading=new Set();
  function write(path,raw){
   if(raw.length>maxFileBytes)throw Error('FREE_FILE_SIZE');
@@ -128,7 +128,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  for(const path of listed.keys())if(path!==oldManifestPath)convert(path);
  let facts;
  if(publishFacts){
-  const blocks=[];let priorLast='';
+  const blocks=[],buckets=Array.from({length:256},()=>[]);let priorLast='';
   for(const ref of imdbKeys){
    if(!ref||typeof ref!=='object'||typeof ref.path!=='string'||
       typeof ref.first!=='string'||typeof ref.last!=='string'||
@@ -152,14 +152,22 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
        !(identity.votes===null||(Number.isSafeInteger(identity.votes)&&identity.votes>=0))||
        typeof identity.isAnime!=='boolean'||!Number.isSafeInteger(ordinal)||ordinal<0)
      throw Error('SOURCE_INVALID_FACTS_VALUE');
-    compact.push([row[0],identity.rating,identity.votes,identity.isAnime,ordinal]);
+    const tuple=[row[0],identity.rating,identity.votes,identity.isAnime,ordinal];
+    // Each ID belongs only in the bucket of its own SHA-256(UTF8(tt)) prefix.
+    const bucket=buckets[parseInt(sha(Buffer.from(row[0],'utf8')).slice(0,2),16)],tail=bucket[bucket.length-1];
+    if(tail&&tail[0]>=tuple[0])throw Error('SOURCE_INVALID_FACTS_BUCKET_ORDER');
+    bucket.push(tuple);compact.push(tuple);
     previous=row[0];
    }
    if(compact[0][0]!==ref.first||previous!==ref.last)throw Error('SOURCE_INVALID_FACTS_RANGE');
    blocks.push({path:put(compact),first:ref.first,last:ref.last});
    priorLast=ref.last;
   }
-  facts={imdb:{version:1,blocks}};
+  // Advertise all 256 lowercase two-hex keys in order. Empty bodies deduplicate
+  // naturally by content addressing; a repeated empty-body path is valid.
+  const bucketPaths={};
+  for(let index=0;index<256;index++)bucketPaths[index.toString(16).padStart(2,'0')]=put(buckets[index]);
+  facts={imdb:{version:1,blocks,hashBuckets:{version:1,keyHash:'sha256-utf8',prefixChars:2,paths:bucketPaths}}};
  }
  const publicDocuments={};
  for(const [id,raw]of Object.entries(documents))publicDocuments[id]={...cm.documents[id],path:putRaw(Buffer.from(raw))};
@@ -181,7 +189,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  write('/catalogue/current.json',encode(entry));
  return{schemaVersion:1,revision,sourceRevision:report.revision,index:entry.index,sourceReportSha256:sha(reportBytes),sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),date:report.date,year:report.year,
   files:written.size,totalBytes:[...written.values()].reduce((a,b)=>a+b,0),largestFileBytes:Math.max(...written.values()),freeFileLimit:maxFiles,freeFileBytes:maxFileBytes,
-  artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,factsImdbBlocks:facts?.imdb.blocks.length??0,d1Writes:0,deployed:false,
+  artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,factsImdbBlocks:facts?.imdb.blocks.length??0,factsImdbHashBuckets:facts?Object.keys(facts.imdb.hashBuckets.paths).length:0,factsImdbHashBucketFiles:facts?new Set(Object.values(facts.imdb.hashBuckets.paths)).size:0,d1Writes:0,deployed:false,
   ...(ownedCovers?{ownedCovers:ownedCovers.report}:{}),
   entries:[...written].map(([path,bytes])=>({path,bytes}))};
 }

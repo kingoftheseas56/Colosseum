@@ -92,6 +92,11 @@ test('optional IMDb facts shards are versioned, hashed and leave generic title i
  assert.equal(index.facts.imdb.version,1);
  assert.equal(index.facts.imdb.blocks.length,1);
  assert.equal(report.factsImdbBlocks,1);
+ assert.equal(index.facts.imdb.hashBuckets.version,1);
+ assert.equal(index.facts.imdb.hashBuckets.keyHash,'sha256-utf8');
+ assert.equal(index.facts.imdb.hashBuckets.prefixChars,2);
+ assert.equal(Object.keys(index.facts.imdb.hashBuckets.paths).length,256);
+ assert.equal(report.factsImdbHashBuckets,256);
  const ref=index.facts.imdb.blocks[0],raw=readFileSync(join(f.output,ref.path));
  assert.equal(hash(raw),ref.path.match(/([a-f0-9]{64})\.json$/)[1]);
  assert.equal(ref.first,'tt0000001');assert.equal(ref.last,'tt0000003');
@@ -112,6 +117,7 @@ test('legacy publisher without IMDb key directory leaves optional facts absent',
  const report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const index=JSON.parse(readFileSync(join(f.output,report.index.path)));
  assert.ok(!Object.hasOwn(index,'facts'));assert.equal(report.factsImdbBlocks,0);
+ assert.equal(report.factsImdbHashBuckets,0);assert.equal(report.factsImdbHashBucketFiles,0);
 });
 test('invalid compact input fails before publishing any usable current pointer',t=>{
  const valid=[
@@ -134,6 +140,73 @@ test('invalid compact input fails before publishing any usable current pointer',
  }
 });
 
+test('IMDb facts hash buckets: exact ordered 256 keys, hash membership, full coverage and nullable tuples',t=>{
+ const f=fixture(t,{withImdb:true});
+ const report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const index=JSON.parse(readFileSync(join(f.output,report.index.path))),hb=index.facts.imdb.hashBuckets;
+ assert.deepEqual(Object.keys(hb.paths).sort(),Array.from({length:256},(_,i)=>i.toString(16).padStart(2,'0')));
+ const prefix='/catalogue/'+index.revision+'/shared/',tuples=new Map(),distinct=new Set(),emptyPaths=new Set();
+ for(const key of Object.keys(hb.paths)){
+  const path=hb.paths[key];distinct.add(path);
+  assert.match(path,/^\/catalogue\/[a-f0-9]{64}\/shared\/[a-f0-9]{64}\.json$/,key);
+  assert.ok(path.startsWith(prefix),key);
+  const raw=readFileSync(join(f.output,path));
+  assert.equal(hash(raw),path.slice(-69,-5),key);
+  assert.equal(report.entries.filter(e=>e.path===path&&e.bytes===raw.length).length,1,'accounted '+key);
+  const body=JSON.parse(raw);assert.ok(Array.isArray(body),key);
+  if(raw.toString('utf8')==='[]')emptyPaths.add(path);
+  let previous='';
+  for(const tuple of body){
+   assert.equal(tuple.length,5,key);
+   assert.equal(hash(Buffer.from(tuple[0],'utf8')).slice(0,2),key,'sha256 membership '+tuple[0]);
+   assert.ok(tuple[0]>previous,'strict tt order within '+key);previous=tuple[0];
+   assert.ok(tuple[1]===null||(typeof tuple[1]==='number'&&Number.isFinite(tuple[1])),tuple[0]);
+   assert.ok(tuple[2]===null||(Number.isSafeInteger(tuple[2])&&tuple[2]>=0),tuple[0]);
+   assert.equal(typeof tuple[3],'boolean',tuple[0]);
+   assert.ok(Number.isSafeInteger(tuple[4])&&tuple[4]>=0,tuple[0]);
+   assert.ok(!tuples.has(tuple[0]),'duplicate '+tuple[0]);tuples.set(tuple[0],tuple);
+  }
+ }
+ assert.equal(emptyPaths.size,1,'empty bucket bodies deduplicate to one shared file');
+ assert.equal(distinct.size,report.factsImdbHashBucketFiles);
+ assert.deepEqual([...tuples.keys()].sort(),['tt0000001','tt0000002','tt0000003']);
+ assert.deepEqual(tuples.get('tt0000001'),['tt0000001',8.4,100,false,2]);
+ assert.deepEqual(tuples.get('tt0000002'),['tt0000002',9.1,220,true,0]);
+ assert.deepEqual(tuples.get('tt0000003'),['tt0000003',null,null,false,1]);
+ assert.equal(tuples.size,f.imdbSourceRows.length,'full source tuple coverage exactly once');
+ assert.equal(index.facts.imdb.blocks.length,1,'aligned V1 block retained beside buckets');
+ assert.deepEqual(JSON.parse(readFileSync(join(f.output,index.facts.imdb.blocks[0].path))),
+  ['tt0000001','tt0000002','tt0000003'].map(tt=>tuples.get(tt)),'blocks and buckets carry identical tuples');
+});
+test('hash-bucket facility changes the immutable public revision; sourceRevision and legacy derivation stay',t=>{
+ const identity=report=>({contract:'i05-static-v1',sourceManifestSha256:report.sourceManifestSha256,contentManifestSha256:report.contentManifestSha256,retainedArtworkSha256:report.retention.inventorySha256,date:report.date,year:report.year});
+ const legacy=fixture(t),legacyReport=buildPublicCatalogue({source:legacy.source,content:legacy.content,previous:legacy.content,output:legacy.output});
+ const legacyIndex=JSON.parse(readFileSync(join(legacy.output,legacyReport.index.path)));
+ assert.ok(!Object.hasOwn(legacyIndex,'facts'));assert.equal(legacyReport.factsImdbHashBuckets,0);
+ assert.equal(legacyReport.revision,hash(Buffer.from(JSON.stringify(identity(legacyReport)))),'legacy identity derivation unchanged');
+ const f=fixture(t,{withImdb:true}),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const index=JSON.parse(readFileSync(join(f.output,report.index.path)));
+ const expected=hash(Buffer.from(JSON.stringify({...identity(report),factsContract:'imdb-v1',factsHashContract:'imdb-sha256-utf8-prefix2'})));
+ assert.equal(report.revision,expected);assert.equal(index.revision,expected);
+ assert.notEqual(report.revision,hash(Buffer.from(JSON.stringify(identity(report)))),'bucket facility is an identity discriminator');
+ assert.equal(report.sourceRevision,sourceRevision);assert.equal(index.sourceRevision,sourceRevision);
+ const two=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:join(f.root,'second')});
+ assert.equal(two.revision,report.revision);assert.equal(two.index.sha256,report.index.sha256);
+});
+test('hash buckets share content addressing and free file accounting without retention regression',t=>{
+ const f=fixture(t,{withImdb:true}),previous=join(f.root,'previous'),old=Buffer.from('historical bucket-era PNG');
+ const path='/assets/content/'+hash(old)+'.png';f.write(previous,path,old);
+ const report=buildPublicCatalogue({source:f.source,content:f.content,output:f.output,previous});
+ assert.deepEqual(readFileSync(join(f.output,path)),old);
+ assert.equal(report.artworkFiles,2);assert.equal(report.retention.requiredFiles,1);assert.equal(report.retention.copiedFiles,1);
+ assert.equal(report.factsImdbHashBuckets,256);
+ const index=JSON.parse(readFileSync(join(f.output,report.index.path)));
+ const distinct=new Set(Object.values(index.facts.imdb.hashBuckets.paths));
+ assert.equal(report.factsImdbHashBucketFiles,distinct.size);
+ assert.equal(report.files,report.entries.length);
+ assert.equal(new Set(report.entries.map(e=>e.path)).size,report.entries.length,'each output file is accounted once');
+ for(const bucketPath of distinct)assert.ok(report.entries.some(e=>e.path===bucketPath),'bucket accounted '+bucketPath);
+});
 test('actual static router bypasses Worker for public files, preserves cache/ETag and protects internal routes',async t=>{
  const cleanup=[],f=fixture({after:cb=>cleanup.push(cb)}),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8').replace(/^\s*\/\/.*$/gm,''));
