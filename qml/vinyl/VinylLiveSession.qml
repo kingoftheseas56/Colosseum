@@ -58,6 +58,7 @@ Item {
     // Import callbacks use this profile-only generation; track changes must not invalidate imports.
     property int profileGeneration: 0
     property bool resetting: false
+    property bool shuttingDown: false
     property bool saved: false
     property var library: []
     readonly property bool hasLyrics: lyrics.length > 0
@@ -222,11 +223,13 @@ Item {
         if (source) source.cancel("browse");
     }
     function search(query) {
+        if(shuttingDown) return;
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="search";
         browseRequest=source.request("browse","search",query);
     }
     function openAlbum(browseId) {
+        if(shuttingDown) return;
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
         browseRequest=source.request("browse","album",browseId);
@@ -301,12 +304,14 @@ Item {
         appendRows([rowFor(shownEdition,shownDisc,index)],playNext);
     }
     function enqueueAlbum(albumId,playNext) {
+        if(shuttingDown) return;
         if(typeof albumId!=="string" || !albumId.length) return;
         if(pendingEnqueues.length>=128) {browseError="Please wait for the queued releases to finish loading.";return;}
         pendingEnqueues=pendingEnqueues.concat([{albumId:albumId,playNext:!!playNext,edition:albumId===shownAlbumId ? shownEdition : null}]);
         dispatchNextEnqueue();
     }
     function dispatchNextEnqueue() {
+        if(shuttingDown) return;
         if(queueRequest>=0) return;
         while(pendingEnqueues.length) {
             var job=pendingEnqueues[0];pendingEnqueues=pendingEnqueues.slice(1);
@@ -325,6 +330,7 @@ Item {
         unshuffledIds=unshuffledIds.concat(rows.map(r=>r.queueId));snapshot();
     }
     function playQueue(index,skipSnapshot) {
+        if(shuttingDown) return;
         if(!Number.isInteger(index) || index<0 || index>=queue.length) return;
         if(!skipSnapshot) snapshot();var row=queue[index];queueIndex=index;playingEdition=row.edition;
         playingDisc=row.discIndex;playingIndex=row.trackIndex;manualNoteLine=-1;videoShown=false;beginTrack(0);
@@ -344,6 +350,7 @@ Item {
         unshuffledIds=copy.map(r=>r.queueId);snapshot();
     }
     function clearQueue() {
+        if(shuttingDown) return;
         snapshot();resetting=true;retirePlayer();cancelQueueRequest();queue=[];queueIndex=-1;playingIndex=-1;playingDisc=0;
         playingEdition=emptyEdition;resumeSeconds=0;measuredDuration=0;paused=true;sourceState="idle";error="";
         unshuffledIds=[];resetting=false;
@@ -367,6 +374,7 @@ Item {
         audioAdvanced=false;
     }
     function beginTrack(seconds) {
+        if(shuttingDown) return;
         retirePlayer(); measuredDuration=0; resumeSeconds=Math.max(0,seconds); error="";
         sourceState="finding"; qualityLabel="Local audio";fallbackReason="";
         sourceKind=playingEdition.origin || "local";
@@ -384,6 +392,7 @@ Item {
         if (player) player.pause=true;
     }
     function loadAudio(url,headers) {
+        if(shuttingDown) return;
         player=audioComponent.createObject(root,{generation:epoch});
         player.loadFileWithHeaders(url,headers || {});player.pause=paused;
     }
@@ -397,6 +406,7 @@ Item {
         playQueue(index);
     }
     function handleNaturalEnd() {
+        if(shuttingDown) return;
         if(repeatMode==="one") {playQueue(queueIndex);return;}
         if(queueIndex+1<queue.length || repeatMode==="all") {next(1);return;}
         resumeSeconds=duration;loaded=false;sourceState="ended";paused=true;snapshot();
@@ -408,7 +418,7 @@ Item {
         player.seekExact(resumeSeconds);
     }
     onPausedChanged: {
-        if (resetting) return;
+        if (resetting || shuttingDown) return;
         if (!paused && sourceState!=="finding" && playingIndex>=0
                 && (!player || sourceState==="error" || sourceState==="ended"))
             beginTrack(sourceState==="ended" ? 0 : position);
@@ -416,7 +426,7 @@ Item {
         snapshot();
     }
     function snapshot() {
-        if (resetting || !playingEditionId || playingIndex<0 || !progressStore) return;
+        if (resetting || shuttingDown || !playingEditionId || playingIndex<0 || !progressStore) return;
         // Serialize each edition once: queue rows hold references, avoiding quadratic album copies.
         var editionTable=[], keys=new Map(), compact=[];
         queue.forEach(row=>{
@@ -432,6 +442,7 @@ Item {
                 position:position,duration:duration,trackId:playingTrack.id,completed:sourceState==="ended"}});
     }
     function restore(entry) {
+        if(shuttingDown) return;
         if (!progressStore) return;
         var recent=plainData(entry ? [entry] : progressStore.recent("music",1)) || [];
         if (!recent.length) return;
@@ -459,6 +470,7 @@ Item {
         paused=true;sourceState="paused";resetting=false;refreshLibrary();editionSelected();
     }
     function clearProfile() {
+        if(shuttingDown) return;
         profileGeneration++;
         snapshot();resetting=true;retirePlayer();cancelBrowse();cancelQueueRequest();
         shownDisc=0;playingDisc=0;shuffleEnabled=false;repeatMode="off";unshuffledIds=[];manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
@@ -468,13 +480,24 @@ Item {
         sourceKind="";fallbackReason="";
         if (source && source.setAlbums) source.setAlbums([]);
     }
+    function shutdown() {
+        if(shuttingDown) return;
+        // Checkpoint the live clock/queue once before closing the terminal fence.
+        var finalPosition=position, finalDuration=duration;
+        snapshot();shuttingDown=true;resetting=true;
+        // Invalidate every lane before cancel/pause can deliver reentrant callbacks.
+        browseRequest=-1;queueRequest=-1;playRequest=-1;pendingEnqueues=[];
+        retirePlayer();cancelBrowse();cancelQueueRequest();
+        resumeSeconds=finalPosition;measuredDuration=finalDuration;
+        paused=true;sourceState="paused";
+    }
     Component {
         id: audioComponent
         MpvItem {
             objectName: "vinylMpvPlayer"
             property int generation: -1
             width:1; height:1; visible:false
-            function current() { return root.player===this && generation===root.epoch; }
+            function current() { return !root.shuttingDown && !root.resetting && root.player===this && generation===root.epoch; }
             onFileLoaded: {
                 if (!current()) return;
                 root.loaded=true;root.sourceState="playing";
@@ -506,6 +529,7 @@ Item {
     Connections {
         target: root.source
         function onCompleted(lane,id,data,failure) {
+            if(root.shuttingDown || root.resetting) return;
             data=root.plainData(data);
             if (lane==="browse" && id>=0 && id===root.browseRequest) {
                 root.browseRequest=-1;root.browsing=false;root.browseError=failure;
@@ -530,12 +554,13 @@ Item {
         function onProfileLeaving() { root.clearProfile(); }
         function onProfileEntered() { root.restore();root.refreshLibrary(); }
         function onCheckpointRequested() { root.snapshot(); }
-        function onShuttingDown() { root.snapshot();root.resetting=true; }
+        function onShuttingDown() { root.shutdown(); }
     }
-    Timer {interval:5000;repeat:true;running:root.loaded;onTriggered:root.snapshot()}
+    Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:root.snapshot()}
     Timer {
+        objectName:"vinylStartupTimer"
         interval:15000
-        running:root.player!==null && !root.audioAdvanced && !root.paused && root.sourceState!=="error"
+        running:!root.shuttingDown && !root.resetting && root.player!==null && !root.audioAdvanced && !root.paused && root.sourceState!=="error"
         onTriggered:root.playbackFailed("The audio did not start in time. Retry this track.")
     }
     Component.onCompleted: {restore();refreshLibrary();}
