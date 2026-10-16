@@ -1,9 +1,12 @@
 name: android
 
-# First installable Android lane. Manual-only: master moved all workflows to workflow_dispatch
-# (commit 6e4a426e) and this lane follows, so a branch push never starts CI.
+# First installable Android lane. Temporary push trigger for the A02 branch so
+# Dots can validate each tested batch. Remove this trigger after the A02 job.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - android/a02-platform-seams
 
 permissions:
   contents: read
