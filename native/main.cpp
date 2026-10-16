@@ -650,28 +650,31 @@ int main(int argc, char *argv[]) {
     // HTTP/2 negotiates (SNI / cert / :authority all correct → the whole poster wall
     // multiplexes over ONE connection), while a loopback CONNECT concierge pins the
     // CONNECTION to metahub's IPv4 — dodging the dead-IPv6 stall the URL-rewrite pin
-    // exists for. If the concierge can't bind, metahub stays URL-rewrite-pinned
-    // (today's slower HTTP/1.1 path); posters never break.
-    const QSet<QString> metahubHosts = {
-        QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space")
+    // exists for. GetComics now takes this same connection-pin path so its
+    // persistent cache key remains the original URL. If binding fails, both
+    // retain the existing URL-rewrite/HTTP1.1 fallback.
+    const QSet<QString> connectionPinnedHosts = {
+        QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space"),
+        // Keep the canonical GetComics URL as the QNetworkDiskCache key.
+        QStringLiteral("getcomics.org")
     };
     auto *concierge = new LoopbackPinProxy(pinStore, &backendServices);
     const bool conciergeOk = concierge->start();
     if (conciergeOk)
-        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub -> HTTP/2)", concierge->port());
+        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub + GetComics hostname-preserved)", concierge->port());
     else
-        qWarning("[net] concierge could not bind -> metahub falls back to URL-pin + HTTP/1.1");
+        qWarning("[net] concierge could not bind -> metahub + GetComics fall back to URL-pin + HTTP/1.1");
     QNetworkProxyFactory::setApplicationProxyFactory(
-        new PinProxyFactory(metahubHosts, pinStore,
+        new PinProxyFactory(connectionPinnedHosts, pinStore,
                             conciergeOk ? concierge->port() : quint16(0), conciergeOk));
 
-    // When the concierge is up, metahub leaves the URL-rewrite pin set (its URL keeps
-    // the hostname, h2 stays on, the proxy carries the connection). Everything else —
-    // and metahub in the fallback — keeps today's URL-rewrite pin.
+    // When the concierge is up, metahub and GetComics keep their hostnames for
+    // TLS/h2 and canonical image-cache keys; the proxy pins their connections.
+    // On concierge failure, both retain the existing URL-rewrite fallback.
     QStringList namPinnedHosts = pinnedHosts;
     if (conciergeOk)
         namPinnedHosts.erase(std::remove_if(namPinnedHosts.begin(), namPinnedHosts.end(),
-            [&](const QString &h){ return metahubHosts.contains(h); }), namPinnedHosts.end());
+            [&](const QString &h){ return connectionPinnedHosts.contains(h); }), namPinnedHosts.end());
     // Felt-speed Stage 0: the poster scoreboard. Counts every reply on the QML image
     // NAM; dumped at quit so a real run answers "did the posters actually arrive?"
     // with numbers instead of a shrug. The webp check is the dev-hack scar made loud:
