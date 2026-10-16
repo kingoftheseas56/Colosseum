@@ -48,7 +48,7 @@ Item {
     }
     RowIndexSidebar {
         id: sidebar
-        objectName: "vinylDiscoverRowIndex"
+        objectName: "vinylWorldRowIndexSidebar"
         visible: root.shelfCount>0
         pageFlick: root.pageFlick
         flowHost: shelves

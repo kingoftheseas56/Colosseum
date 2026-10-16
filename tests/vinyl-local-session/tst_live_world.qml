@@ -43,7 +43,7 @@ TestCase {
         var flowing=item("vinylFlowTabs"),docked=item("vinylDockedTabs"),empty=item("vinylDiscoverEmpty"),discover=item("vinylDiscoverPage");
         verify(flowing!==null && docked!==null && empty!==null);
         compare(Number(flowing.visible)+Number(docked.visible),1,"Exactly one tab bar can be painted");
-        compare(discover.shelfCount,0);verify(empty.visible);verify(!item("vinylDiscoverRowIndex").visible);
+        compare(discover.shelfCount,0);verify(empty.visible);verify(!item("vinylWorldRowIndexSidebar").visible);
         verify(item("vinylShelf_local-albums")===null,"Empty data must not produce a header/See all over the empty message");
         var point=empty.mapToItem(world,0,0);verify(point.y>=world.worldScroll.y,"Empty message lies below world controls");
         world.worldScroll.contentY=0;wait(0);compare(Number(flowing.visible)+Number(docked.visible),1);verify(flowing.visible);
