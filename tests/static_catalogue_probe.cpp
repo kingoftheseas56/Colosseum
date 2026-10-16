@@ -194,6 +194,69 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
             read(QDir(publication)
                      .filePath(entry.value("index").toObject().value("path").toString().mid(1))))
             .object();
+    // These selectors are present in the immutable real publication's list buckets.
+    // Sample routine Movies and Discover paths, not synthetic generated rows.
+    const QJsonArray routineCases{
+        QJsonObject{{"label", "imdb-titleCatalog"},
+                    {"dataset", "imdb"}, {"method", "titleCatalog"},
+                    {"args", QJsonArray{QJsonObject{{"genre", "Thriller"}, {"type", "movie"}}, 0, 24}}},
+        QJsonObject{{"label", "mal-discover"},
+                    {"dataset", "mal"}, {"method", "discoverPageFiltered"},
+                    {"args", QJsonArray{"popular",
+                        QJsonArray{QJsonObject{{"axis", "demographic"}, {"key", "seinen"}}},
+                        false, 0, 24}}},
+        QJsonObject{{"label", "comics-discover"},
+                    {"dataset", "comics"}, {"method", "discoverPageFiltered"},
+                    {"args", QJsonArray{"popular",
+                        QJsonArray{QJsonObject{{"axis", "publisher"}, {"key", "marvel knights"}}},
+                        false, 0, 24}}}};
+    QJsonArray routineRows;
+    for (const auto &caseValue : routineCases) {
+        const auto spec = caseValue.toObject();
+        const auto ds = spec.value("dataset").toString();
+        const auto method = spec.value("method").toString();
+        const auto args = spec.value("args").toArray().toVariantList();
+        const auto label = spec.value("label").toString();
+        QNetworkAccessManager routineNam;
+        QObject diskOwner;
+        const auto cache = profile.filePath("routine-" + label);
+        auto *warmResolver = StaticCatalogueResolver::shared(
+            &routineNam, origin, cache, &routineNam);
+        auto *diskResolver = static_cast<StaticCatalogueResolver *>(nullptr);
+        QJsonValue expected;
+        for (const auto &mode : {QStringLiteral("cold"), QStringLiteral("warm"),
+                                QStringLiteral("offline-restart")}) {
+            if (mode == "offline-restart")
+                diskResolver = StaticCatalogueResolver::shared(nullptr, origin, cache, &diskOwner);
+            auto *resolver = mode == "offline-restart" ? diskResolver : warmResolver;
+            const int before = requests;
+            const qint64 beforeBytes = transferred;
+            bool done = false;
+            StaticCatalogueResolver::Outcome out;
+            QElapsedTimer clock;
+            clock.start();
+            resolver->resolve(ds, method, args, &server, [&](auto result) {
+                out = result;
+                done = true;
+            });
+            until([&] { return done; });
+            require(out.status == StaticCatalogueResolver::Status::Prepared,
+                    "real publication routine selector must be prepared: " + label);
+            if (mode == "cold") {
+                expected = out.result;
+                const auto values = expected.isArray() ? expected.toArray()
+                    : expected.toObject().value("items").toArray();
+                require(!values.isEmpty() && requests > before,
+                        "real publication routine selector must return published rows");
+            } else
+                require(out.result == expected && requests == before,
+                        "routine warm/offline selector exact parity and zero HTTP: " + label);
+            routineRows.append(QJsonObject{
+                {"label", label}, {"mode", mode}, {"wallMs", clock.nsecsElapsed() / 1e6},
+                {"requestFiles", requests - before}, {"networkBytes", transferred - beforeBytes},
+                {"metrics", QJsonObject::fromVariantMap(out.metrics)}, {"pass", true}});
+        }
+    }
     QFileInfo largest;
     const auto artwork =
         QDir(QDir(publication).filePath("assets/content")).entryInfoList(QDir::Files);
@@ -238,6 +301,7 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
     output.write(QJsonDocument(QJsonObject{{"cases", cases.size()},
                                            {"checks", rows.size()},
                                            {"measurements", rows},
+                                           {"routineSamples", routineRows},
                                            {"workerRequests", workerRequests},
                                            {"largestArtwork", big},
                                            {"sourceRevision", index.value("sourceRevision")},

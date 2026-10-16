@@ -38,6 +38,18 @@ bool hash(const QString &s) {
     static const QRegularExpression re(QStringLiteral("^[a-f0-9]{64}$"));
     return re.match(s).hasMatch();
 }
+bool imdbTitleId(const QString &id) {
+    if (id.size() <= 2 || id.at(0) != QLatin1Char('t') || id.at(1) != QLatin1Char('t'))
+        return false;
+    for (qsizetype i = 2; i < id.size(); ++i)
+        if (id.at(i) < QLatin1Char('0') || id.at(i) > QLatin1Char('9')) {
+            // Preserve QRegularExpression's exact edge-case semantics (including
+            // an end-of-input newline); valid published IDs take the fast path.
+            static const QRegularExpression original(QStringLiteral("^tt[0-9]+$"));
+            return original.match(id).hasMatch();
+        }
+    return true;
+}
 QByteArray json(const QJsonValue &v) {
     if (v.isObject())
         return QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact);
@@ -151,7 +163,8 @@ using Read = std::function<QJsonValue(const QString &)>;
 // Additive IMDb facts directory. Absence alone permits the legacy identity route;
 // an advertised but invalid directory or shard is an exact-query hard failure.
 std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJsonArray &ids,
-                                           const Read &read) {
+                                           const Read &read, quint64 *validatedTuples,
+                                           QSet<QString> *validatedBlocks) {
     if (!index.contains("facts"))
         return std::nullopt;
     const auto root = index.value("facts");
@@ -175,7 +188,6 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
         throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
     const auto prefix = "/catalogue/" + index.value("revision").toString() + "/shared/";
     static const QRegularExpression leaf(QStringLiteral("^[a-f0-9]{64}\\.json$"));
-    static const QRegularExpression titleId(QStringLiteral("^tt[0-9]+$"));
     struct Block { QString path, first, last; };
     QList<Block> blocks;
     QString previousLast;
@@ -189,7 +201,7 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
         const auto original = sourceRefs.at(blockNo).toObject();
         if (original.value("first").toString() != first ||
             original.value("last").toString() != last ||
-            !titleId.match(first).hasMatch() || !titleId.match(last).hasMatch() ||
+            !imdbTitleId(first) || !imdbTitleId(last) ||
             first > last || (!previousLast.isEmpty() && previousLast >= first) ||
             !path.startsWith(prefix) || !leaf.match(path.mid(prefix.size())).hasMatch())
             throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
@@ -199,14 +211,22 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
     QSet<QString> wanted;
     for (const auto &v : ids)
         wanted.insert(text(v));  // Mirrors legacy byId's text coercion.
-    QHash<QString, QJsonArray> matched;
+    // Bound semantic-validation progress to this exact job's hash-verified files.
+    // A missing shard still suspends asynchronously, but an earlier validated
+    // block is never scanned again; malformed earlier blocks fail before later I/O.
+    QList<Block> required;
     for (const auto &block : blocks) {
-        bool needed = false;
-        for (const auto &id : wanted)
-            if (id >= block.first && id <= block.last) { needed = true; break; }
-        if (!needed)
-            continue;
+        for (const auto &id : wanted) {
+            if (id >= block.first && id <= block.last) {
+                required.append(block);
+                break;
+            }
+        }
+    }
+    for (const auto &block : required) {
         const auto rows = array(read(block.path));
+        if (validatedBlocks && validatedBlocks->contains(block.path))
+            continue;
         if (rows.isEmpty() || rows.size() > 2048)
             throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
         QString prior;
@@ -214,10 +234,12 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
             if (!value.isArray())
                 throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
             const auto tuple = value.toArray();
-            if (tuple.size() != 5 || !tuple.at(0).isString() ||
-                !titleId.match(tuple.at(0).toString()).hasMatch() ||
-                (!prior.isEmpty() && prior >= tuple.at(0).toString()) ||
-                tuple.at(0).toString() < block.first || tuple.at(0).toString() > block.last ||
+            if (tuple.size() != 5 || !tuple.at(0).isString())
+                throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+            const auto id = tuple.at(0).toString();
+            if (!imdbTitleId(id) ||
+                (!prior.isEmpty() && prior >= id) ||
+                id < block.first || id > block.last ||
                 !(tuple.at(1).isNull() ||
                   (tuple.at(1).isDouble() && std::isfinite(tuple.at(1).toDouble()))) ||
                 !(tuple.at(2).isNull() ||
@@ -229,12 +251,38 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
                 !std::isfinite(tuple.at(4).toDouble()) || tuple.at(4).toDouble() < 0 || tuple.at(4).toDouble() > 9007199254740991.0 ||
                 std::trunc(tuple.at(4).toDouble()) != tuple.at(4).toDouble())
                 throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
-            prior = tuple.at(0).toString();
-            if (wanted.contains(prior))
-                matched.insert(prior, tuple);
+            if (validatedTuples)
+                ++*validatedTuples;
+            prior = id;
         }
         if (rows.first().toArray().at(0).toString() != block.first || prior != block.last)
             throw QStringLiteral("STATIC_INVALID_FACTS_RANGE");
+        if (validatedBlocks)
+            validatedBlocks->insert(block.path);
+    }
+    // All required blocks are now semantically valid. Recover only matching
+    // tuples by binary search within their validated, sorted existing JSON rows;
+    // keep no extra result map between suspensions or after query completion.
+    QHash<QString, QJsonArray> matched;
+    for (const auto &block : required) {
+        const auto rows = array(read(block.path));
+        for (const auto &id : wanted) {
+            if (id < block.first || id > block.last)
+                continue;
+            qsizetype lo = 0, hi = rows.size();
+            while (lo < hi) {
+                const auto mid = lo + (hi - lo) / 2;
+                if (rows.at(mid).toArray().at(0).toString() < id)
+                    lo = mid + 1;
+                else
+                    hi = mid;
+            }
+            if (lo < rows.size()) {
+                const auto tuple = rows.at(lo).toArray();
+                if (tuple.at(0).toString() == id)
+                    matched.insert(id, tuple);
+            }
+        }
     }
     QJsonObject result;
     // Preserve legacy 100-ID chunking, stable ordinal order, duplicate overwrite
@@ -261,12 +309,13 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
 // only after asynchronous verified loading. No nested event loops or GUI blocking.
 std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
                                    const QString &method, const QJsonArray &args,
-                                   const Read &read) {
+                                   const Read &read, quint64 *validatedTuples,
+                                   QSet<QString> *validatedBlocks) {
     const auto at = [&](int n) {
         return n < args.size() ? args.at(n) : QJsonValue(QJsonValue::Undefined);
     };
     if (ds == "imdb" && method == "titleFacts") {
-        const auto compact = compactImdbFacts(index, at(0).toArray(), read);
+        const auto compact = compactImdbFacts(index, at(0).toArray(), read, validatedTuples, validatedBlocks);
         if (compact)
             return compact;
     }
@@ -642,6 +691,7 @@ struct StaticCatalogueResolver::Impl {
         QJsonValue value;
         qint64 bytes = 0;
         double ms = 0;
+        double diskIoMs = 0, diskDecodeMs = 0, diskTouchMs = 0;
     };
     using AssetCallback = std::function<void(Loaded, QString)>;
     struct Job {
@@ -656,6 +706,10 @@ struct StaticCatalogueResolver::Impl {
         QElapsedTimer clock;
         qint64 bytes = 0;
         int restarts = 0;
+        int evaluationRuns = 0;
+        double evaluationMs = 0;
+        quint64 validatedFactsTuples = 0;
+        QSet<QString> validatedFactsBlocks;
         bool refreshedMissing = false;
         QPointer<QTimer> deadline;
         QMetaObject::Connection destroyed;
@@ -937,11 +991,16 @@ struct StaticCatalogueResolver::Impl {
                 file.size() <= fileCap) {
                 try {
                     const auto raw = file.readAll();
+                    const double ioMs = t.nsecsElapsed() / 1e6;
                     diskTrace.finish("success", {{"bytes", raw.size()}});
                     auto value = decode(path, raw, expected, size, "disk", 0, owner);
-                    value.ms = t.nsecsElapsed() / 1e6;
+                    const double decodeMs = t.nsecsElapsed() / 1e6 - ioMs;
                     file.setFileTime(QDateTime::currentDateTimeUtc(),
                                      QFileDevice::FileModificationTime);
+                    value.ms = t.nsecsElapsed() / 1e6;
+                    value.diskIoMs = ioMs;
+                    value.diskDecodeMs = decodeMs;
+                    value.diskTouchMs = value.ms - ioMs - decodeMs;
                     memory.insert(path, new Loaded(value), int(value.bytes));
                     QTimer::singleShot(0, q, [callback, value] { callback(value, {}); });
                     return;
@@ -995,7 +1054,9 @@ struct StaticCatalogueResolver::Impl {
     void record(const QSharedPointer<Job> &j, const Loaded &f) {
         CatalogueTrace::event("file_use", CatalogueTrace::merge(traceJob(j), CatalogueTrace::merge(CatalogueTrace::file(f.path), {{"source", f.where}, {"bytes", f.bytes}})));
         j->events.append(QVariantMap{
-            {"path", f.path}, {"source", f.where}, {"bytes", f.bytes}, {"readMs", f.ms}});
+            {"path", f.path}, {"source", f.where}, {"bytes", f.bytes}, {"readMs", f.ms},
+            {"diskIoMs", f.diskIoMs}, {"diskDecodeMs", f.diskDecodeMs},
+            {"diskTouchMs", f.diskTouchMs}});
     }
     void cancelIO(quint64 id) {
         const auto paths = assetOwners.keys();
@@ -1069,6 +1130,9 @@ struct StaticCatalogueResolver::Impl {
                        {"largestFileReadMs", largestMs},
                        {"slowestReadMs", maxMs},
                        {"elapsedMs", j->clock.nsecsElapsed() / 1e6},
+                       {"evaluationRuns", j->evaluationRuns},
+                       {"evaluationMs", j->evaluationMs},
+                       {"validatedFactsTuples", QVariant::fromValue(j->validatedFactsTuples)},
                        {"files", j->events},
                        {"outcome", status == Status::Prepared      ? "prepared"
                                    : status == Status::NotPrepared ? "worker"
@@ -1107,9 +1171,13 @@ struct StaticCatalogueResolver::Impl {
             workingBytes -= j->bytes;
             j->bytes = 0;
             j->files.clear();
+            j->validatedFactsBlocks.clear();
             j->index = index;
         }
         CatalogueTrace::Span evaluation("evaluate", traceJob(j));
+        QElapsedTimer evalClock;
+        evalClock.start();
+        ++j->evaluationRuns;
         try {
             const auto read = [&](const QString &path) -> QJsonValue {
                 const auto prefix =
@@ -1121,7 +1189,9 @@ struct StaticCatalogueResolver::Impl {
                     return j->files.value(path).value;
                 throw Need{path};
             };
-            const auto value = evaluate(j->index, j->dataset, j->method, j->args, read);
+            const auto value = evaluate(j->index, j->dataset, j->method, j->args, read,
+                                        &j->validatedFactsTuples, &j->validatedFactsBlocks);
+            j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             if (!value) {
                 evaluation.finish("not-prepared");
                 finish(id, Status::NotPrepared);
@@ -1135,6 +1205,7 @@ struct StaticCatalogueResolver::Impl {
             evaluation.finish("prepared");
             finish(id, Status::Prepared, *value);
         } catch (const Need &need) {
+            j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             evaluation.finish("needs-file");
             if (j->files.size() >= filesCap) {
                 finish(id, Status::Failure, {}, "STATIC_QUERY_FILE_LIMIT");
@@ -1174,6 +1245,7 @@ struct StaticCatalogueResolver::Impl {
                 },
                 id);
         } catch (const QString &why) {
+            j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             evaluation.finish("failure", {{"reason", why}});
             finish(id, Status::Failure, {}, why);
         }
@@ -1202,6 +1274,7 @@ struct StaticCatalogueResolver::Impl {
                 workingBytes -= j->bytes;
                 j->bytes = 0;
                 j->files.clear();
+                j->validatedFactsBlocks.clear();
             }
             j->index = index;
             if (unavailable) {

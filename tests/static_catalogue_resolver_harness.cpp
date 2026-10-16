@@ -214,6 +214,36 @@ int main(int argc, char **argv) {
                                           {"blocks", fault == "empty-directory" ? QJsonArray()
                                                                         : QJsonArray{block}}}}};
         }
+        if (fault == "split-blocks" || fault == "split-malformed-first") {
+            // A valid two-shard facts publication exposes redundant rescanning:
+            // the second Need must not revalidate the first complete tuple block.
+            const auto firstRow = fault == "split-malformed-first"
+                ? QJsonValue(QJsonArray{"tt0000001", 8.4, QStringLiteral("bad-votes"), false, 2})
+                : tuples.at(0);
+            const auto firstRaw = QJsonDocument(QJsonArray{firstRow, tuples.at(1)})
+                                      .toJson(QJsonDocument::Compact);
+            const auto lastRaw = QJsonDocument(QJsonArray{tuples.at(2)})
+                                     .toJson(QJsonDocument::Compact);
+            const auto firstPath = prefix + "shared/" + hash(firstRaw) + ".json";
+            const auto lastPath = prefix + "shared/" + hash(lastRaw) + ".json";
+            files[firstPath] = firstRaw;
+            files[lastPath] = lastRaw;
+            if (fault == "split-malformed-first")
+                files.remove(lastPath); // Must not be requested after earlier malformed shard.
+            const auto ranges = QJsonArray{
+                QJsonObject{{"path", firstPath}, {"first", "tt0000001"}, {"last", "tt0000002"}},
+                QJsonObject{{"path", lastPath}, {"first", "tt0000003"}, {"last", "tt0000003"}}};
+            auto search = index.value("search").toObject();
+            auto sourceImdb = search.value("imdb").toObject();
+            sourceImdb["keys"] = ranges;
+            search["imdb"] = sourceImdb;
+            index["search"] = search;
+            auto factsRoot = index.value("facts").toObject();
+            auto imdbFacts = factsRoot.value("imdb").toObject();
+            imdbFacts["blocks"] = ranges;
+            factsRoot["imdb"] = imdbFacts;
+            index["facts"] = factsRoot;
+        }
         const auto indexRaw = json(index);
         const auto path = prefix + "index-" + hash(indexRaw) + ".json";
         files[path] = indexRaw;
@@ -491,6 +521,46 @@ int main(int argc, char **argv) {
                     nullableResult.result.toObject() == expectedNulls,
                 "compact and legacy facts preserve null rating/votes, not numeric zero");
     }
+    publishFacts("facts-two-shards", "split-blocks");
+    const auto splitArgs = factArguments({QStringLiteral("tt0000001"),
+                                          QStringLiteral("tt0000003")});
+    const QJsonObject expectedSplit{
+        {"tt0000001", QJsonObject{{"rating", 8.4}, {"votes", 100}, {"isAnime", false}}},
+        {"tt0000003", QJsonObject{{"rating", 7.5}, {"votes", 80}, {"isAnime", false}}}};
+    const auto splitCache = temp.filePath("facts-split-cache");
+    auto *split = StaticCatalogueResolver::shared(&nam, origin, splitCache, &app);
+    const int splitGets = gets;
+    const auto splitCold = resolve(split, "titleFacts", splitArgs);
+    require(splitCold.status == StaticCatalogueResolver::Status::Prepared &&
+                splitCold.result.toObject() == expectedSplit && gets > splitGets,
+            "two-block cold compact lookup returns both exact identities");
+    require(splitCold.metrics.value("validatedFactsTuples").toULongLong() == 3,
+            "cold compact rows are validated exactly once across two async shard loads");
+    const int splitWarmGets = gets;
+    const auto splitWarm = resolve(split, "titleFacts", splitArgs);
+    require(splitWarm.result.toObject() == expectedSplit && gets == splitWarmGets &&
+                splitWarm.metrics.value("validatedFactsTuples").toULongLong() == 3,
+            "two-block warm lookup preserves JSON without repeated tuple validation");
+    QObject splitOfflineOwner;
+    auto *splitOffline = StaticCatalogueResolver::shared(
+        nullptr, origin, splitCache, &splitOfflineOwner);
+    const auto splitDisk = resolve(splitOffline, "titleFacts", splitArgs);
+    require(splitDisk.status == StaticCatalogueResolver::Status::Prepared &&
+                splitDisk.result.toObject() == expectedSplit && gets == splitWarmGets &&
+                splitDisk.metrics.value("validatedFactsTuples").toULongLong() == 3 &&
+                splitDisk.metrics.value("diskFiles").toInt() >= 2,
+            "fresh offline disk lookup verifies each compact shard once without HTTP");
+
+    publishFacts("facts-split-malformed", "split-malformed-first");
+    auto *splitInvalid = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("facts-split-invalid"), &app);
+    const int invalidBefore = gets;
+    const auto malformedFirst = resolve(splitInvalid, "titleFacts", splitArgs);
+    require(malformedFirst.status == StaticCatalogueResolver::Status::Failure &&
+                malformedFirst.error == "STATIC_INVALID_FACTS_TUPLE" &&
+                gets == invalidBefore + 3,
+            "malformed first compact block fails before requesting missing later shard");
+
     publish("publication-one");
     auto first = resolve(r);
     require(first.status == StaticCatalogueResolver::Status::Prepared &&
