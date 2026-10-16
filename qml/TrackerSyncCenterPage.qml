@@ -25,7 +25,7 @@ Item {
     property string connectionProviderName: String(selectedDossier.providerName || "tracker")
     // MyAnimeList approval is a web sign-in with no device code, so it runs
     // inside the app rather than in the outside browser.
-    readonly property bool embeddedApproval: selectedProviderKey === "mal"
+    readonly property bool embeddedApproval: Qt.platform.os !== "android" && selectedProviderKey === "mal"
                                              && trackerConnector
                                              && trackerConnector.phase === "awaiting_approval"
                                              && trackerConnector.verificationUrl.length > 0

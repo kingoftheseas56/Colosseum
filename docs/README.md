@@ -6,6 +6,7 @@ This is the public documentation front door for Colosseum. The [root README](../
 
 - [Download the latest release](https://github.com/kingoftheseas56/Colosseum/releases/latest)
 - [Windows build from source](build/windows.md)
+- [Android build and qualification](build/android.md)
 - [macOS build from source](build/macos.md)
 - [Linux build/runtime dependencies](build/linux.md)
 - [Contributing](../CONTRIBUTING.md)

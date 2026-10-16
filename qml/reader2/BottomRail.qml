@@ -7,8 +7,11 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 
-Item {
+ReaderOverlay {
     id: root
+    overlayActive: shown
+
+    Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 
     // ---- inputs ----
     property real fraction: 0                 // 0..1 book progress (fill + knob)

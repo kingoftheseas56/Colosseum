@@ -1,7 +1,7 @@
 // MalCatalog.cpp — see header. [Agent 0 (Claude), shell]
 #include "MalCatalog.h"
 
-#include "VaultKit.h"
+#include "MediaTitleNormalization.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -315,7 +315,7 @@ QVariantList MalCatalog::matchByTitle(const QString& title, int year,
     if (!medium.isEmpty() && !validMedium(medium))
         return out;
 
-    const QString norm = VaultKit::normalizedTitle(title);
+    const QString norm = MediaTitleNormalization::normalizedTitle(title);
     if (norm.isEmpty())
         return out;
 
@@ -421,7 +421,7 @@ QVariantList MalCatalog::search(const QString& text, int limit, const QString& m
     if (!medium.isEmpty() && !validMedium(medium))
         return out;
 
-    const QString norm = VaultKit::normalizedTitle(text);
+    const QString norm = MediaTitleNormalization::normalizedTitle(text);
     if (norm.isEmpty())
         return out;
     const QStringList tables = medium.isEmpty()

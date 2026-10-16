@@ -1,7 +1,7 @@
 // ImdbCatalog.cpp — see header.
 #include "ImdbCatalog.h"
 
-#include "VaultKit.h"
+#include "MediaTitleNormalization.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -177,7 +177,7 @@ QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
     if (!m_ok)
         return out;
 
-    const QString norm = VaultKit::normalizedTitle(title);
+    const QString norm = MediaTitleNormalization::normalizedTitle(title);
     if (norm.isEmpty())
         return out;
 
@@ -222,7 +222,7 @@ QVariantList ImdbCatalog::search(const QString& text, int limit) const
     QVariantList out;
     if (!m_ok)
         return out;
-    const QString norm = VaultKit::normalizedTitle(text);
+    const QString norm = MediaTitleNormalization::normalizedTitle(text);
     if (norm.isEmpty())
         return out;
 

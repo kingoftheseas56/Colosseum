@@ -5,7 +5,8 @@ import QtQuick.Effects
 Item {
     id: root
     objectName: "mangaSeriesSharedHeader"
-    height: 263
+    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    height: root.phoneNarrow ? chrome.height + hero.height : 263
 
     property bool tankobanMode: true
     property string seriesTitle: ""
@@ -76,6 +77,7 @@ Item {
             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
         }
         Row {
+            visible: !root.phoneNarrow && Qt.platform.os !== "android"
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             anchors.verticalCenter: parent.verticalCenter; spacing: 8
             Item {
@@ -109,7 +111,10 @@ Item {
     Item {
         id: hero
         anchors.top: chrome.bottom; anchors.left: parent.left; anchors.right: parent.right
-        height: 205; clip: true
+        height: root.phoneNarrow
+            ? Math.max(205, synopsisText.y + (synopsisText.visible ? synopsisText.height : 0) + 24)
+            : 205
+        clip: true
         Image {
             anchors.fill: parent
             source: root.banner.length ? root.banner : root.cover
@@ -125,18 +130,59 @@ Item {
                 GradientStop { position: 1.0; color: Qt.rgba(.02,.025,.04,.94) }
             }
         }
+        Rectangle {
+            id: phoneCover
+            visible: root.phoneNarrow
+            anchors.top: parent.top
+            anchors.topMargin: 12
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 112; height: 164
+            radius: 9
+            color: "#15171f"
+            border.width: 1; border.color: theme.edge
+            clip: true
+            Image {
+                id: phoneCoverImage
+                anchors.fill: parent
+                anchors.margins: 1
+                source: root.cover
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+            }
+            Text {
+                anchors.fill: parent
+                anchors.margins: 8
+                visible: phoneCoverImage.status !== Image.Ready
+                text: root.seriesTitle
+                color: theme.inkDim
+                font.family: theme.display; font.pixelSize: 17
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
         Column {
             id: titleBlock
             anchors.left: parent.left; anchors.leftMargin: theme.margin
-            anchors.top: parent.top; anchors.topMargin: 22; spacing: 5
+            anchors.right: root.phoneNarrow ? parent.right : undefined
+            anchors.rightMargin: root.phoneNarrow ? theme.margin : 0
+            anchors.top: root.phoneNarrow ? phoneCover.bottom : parent.top
+            anchors.topMargin: root.phoneNarrow ? 14 : 22
+            spacing: 5
             Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
             Row {
                 id: titleRow
                 spacing: 10
+                width: root.phoneNarrow ? titleBlock.width : implicitWidth
                 Text {
                     id: titleText
-                    text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 34; font.weight: Font.DemiBold
-                    elide: Text.ElideRight; width: Math.min(implicitWidth, 650, Math.max(120, hero.width * .55 - 46))
+                    text: root.seriesTitle; color: theme.ink; font.family: theme.display
+                    font.pixelSize: root.phoneNarrow ? 30 : 34; font.weight: Font.DemiBold
+                    wrapMode: root.phoneNarrow ? Text.WordWrap : Text.NoWrap
+                    elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
+                    width: root.phoneNarrow
+                        ? Math.max(0, titleRow.width - (libraryIconButton.visible ? libraryIconButton.width + 10 : 0))
+                        : Math.min(implicitWidth, 650, Math.max(120, hero.width * .55 - 46))
                     y: Math.round((titleRow.height - height) / 2)
                 }
                 Item {
@@ -172,6 +218,7 @@ Item {
                 }
             }
             Row {
+                visible: !root.phoneNarrow
                 spacing: 7
                 Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
                 Text { visible: root.author.length > 0 && root.status.length > 0; text: "·"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
@@ -181,14 +228,31 @@ Item {
             }
         }
 
+        Flow {
+            id: phoneFacts
+            visible: root.phoneNarrow
+            anchors.left: parent.left; anchors.leftMargin: theme.margin
+            anchors.right: parent.right; anchors.rightMargin: theme.margin
+            anchors.top: languageSelector.bottom; anchors.topMargin: 14
+            spacing: 9
+            Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: root.year > 0; text: String(root.year); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+        }
+
         Text {
             id: synopsisText
             anchors.left: parent.left; anchors.leftMargin: theme.margin
-            anchors.right: parent.right; anchors.rightMargin: 300
-            anchors.top: parent.top; anchors.topMargin: 111
+            anchors.right: parent.right
+            anchors.rightMargin: root.phoneNarrow ? theme.margin : 300
+            anchors.top: root.phoneNarrow ? phoneFacts.bottom : parent.top
+            anchors.topMargin: root.phoneNarrow ? 14 : 111
             text: root.synopsis
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.45
-            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+            wrapMode: Text.WordWrap
+            maximumLineCount: root.phoneNarrow ? 1000 : 2
+            elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
             visible: root.synopsis.length > 0
         }
 
@@ -197,9 +261,15 @@ Item {
         Rectangle {
             id: languageSelector
             objectName: "mangaLanguageSelector"
-            anchors.right: parent.right; anchors.rightMargin: theme.margin
-            anchors.top: parent.top; anchors.topMargin: 76
-            width: 258; height: 36; radius: 10; z: 11
+            anchors.left: root.phoneNarrow ? parent.left : undefined
+            anchors.leftMargin: theme.margin
+            anchors.right: root.phoneNarrow ? undefined : parent.right
+            anchors.rightMargin: theme.margin
+            anchors.top: root.phoneNarrow ? modeSwitch.bottom : parent.top
+            anchors.topMargin: root.phoneNarrow ? 10 : 76
+            width: root.phoneNarrow ? hero.width - 2 * theme.margin : 258
+            height: root.phoneNarrow ? 40 : 36
+            radius: 10; z: 11
             color: Qt.rgba(.06,.065,.075,.92)
             border.width: 1; border.color: theme.edge
             Text {
@@ -254,9 +324,15 @@ Item {
         Rectangle {
             id: modeSwitch
             objectName: "mangaSeriesModeSwitch"
-            anchors.right: parent.right; anchors.rightMargin: theme.margin
-            anchors.top: parent.top; anchors.topMargin: 31
-            width: 258; height: 36; radius: 10; z: 10
+            anchors.left: root.phoneNarrow ? parent.left : undefined
+            anchors.leftMargin: theme.margin
+            anchors.right: root.phoneNarrow ? undefined : parent.right
+            anchors.rightMargin: theme.margin
+            anchors.top: root.phoneNarrow ? titleBlock.bottom : parent.top
+            anchors.topMargin: root.phoneNarrow ? 12 : 31
+            width: root.phoneNarrow ? hero.width - 2 * theme.margin : 258
+            height: root.phoneNarrow ? 44 : 36
+            radius: 10; z: 10
             color: Qt.rgba(.06,.065,.075,.92)
             border.width: 1; border.color: theme.edge
             Row {

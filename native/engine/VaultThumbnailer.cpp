@@ -1,12 +1,13 @@
 #include "VaultThumbnailer.h"
 
 #include "VaultCacheKey.h"
-#include "player/mpvitem.h"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QStandardPaths>
 
 #include <algorithm>
 
@@ -16,7 +17,26 @@ constexpr int kMaxInFlight = 3;          // small bounded concurrency, not "one 
 constexpr double kOffsetFraction = 0.10; // "~10% into the file"
 constexpr double kOffsetFloorSec = 3.0;  // "floored to a few seconds in" — skip black/logo lead-in
 constexpr double kFallbackOffsetSec = 60.0; // duration unknown (spec-mandated fixed fallback)
+
+QString findFfmpeg()
+{
+#ifdef Q_OS_WIN
+    const QString exe = QStringLiteral("ffmpeg.exe");
+#else
+    const QString exe = QStringLiteral("ffmpeg");
+#endif
+    const QString appPath = QCoreApplication::applicationDirPath();
+    const QString local = QDir(appPath).filePath(exe);
+    if (QFileInfo::exists(local))
+        return local;
+    const QString tools = QDir(appPath).filePath(QStringLiteral("tools/") + exe);
+    if (QFileInfo::exists(tools))
+        return tools;
+    const QString pathHit = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    return pathHit;
 }
+
+} // namespace
 
 VaultThumbnailer::VaultThumbnailer(QString cacheDir, QObject* parent)
     : QObject(parent), m_cacheDir(std::move(cacheDir))
@@ -97,7 +117,7 @@ QString VaultThumbnailer::requestThumb(const QString& path, qint64 size, qint64 
 
 void VaultThumbnailer::startJob(const QString& key, const QString& sourcePath, double offsetSec)
 {
-    const QString ffmpeg = MpvItem::findFfmpeg();
+    const QString ffmpeg = findFfmpeg();
     if (ffmpeg.isEmpty()) {
         m_activeKeys.remove(key); // silent fallback: no thumb, same contract as SeekThumbnailer
         return;

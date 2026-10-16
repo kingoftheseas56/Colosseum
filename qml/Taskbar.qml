@@ -13,7 +13,6 @@ Item {
     // The expanded dock/fan is visual chrome, so arrows follow its geometry instead
     // of the incidental QML child order. Boundary keys remain available to the host.
     KeyboardSpatialNavigator { id: spatialNav; root: bar }
-    Keys.onPressed: function(event) { spatialNav.handle(event) }
 
     Theme { id: theme }
 
@@ -26,6 +25,7 @@ Item {
     // Permanent buttons: Colosseum and Vault.
     // 8 left + 48 home + 14 + 46 Vault + 14 right = 130.
     readonly property int closedWidth: 130
+    Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
     signal closeRequested(string id)

@@ -1,7 +1,9 @@
 #include "devtools/LanistaServer.h"
 
 #include "devtools/LanistaEventLog.h"
+#if !defined(Q_OS_ANDROID)
 #include "engine/VaultForensics.h"
+#endif
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -372,6 +374,7 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     addRead(QStringLiteral("log-mark"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdLogMark(p)); });
 
+#if !defined(Q_OS_ANDROID)
     // F1-Bridge (2026-08-13): one Read-gated call onto F1-Core's bounded Vault
     // projection (VaultForensics, composing VaultLibrary — F0's named safe
     // seam). Fallible on "no owner bound" (e.g. this harness's bare QML-scene
@@ -379,6 +382,7 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     // like the Task 3/9 reads.
     addRead(QStringLiteral("vault-forensics"),
             [this](const QJsonObject& p, Replier reply) { cmdVaultForensics(p, std::move(reply)); });
+#endif
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -2077,6 +2081,7 @@ QJsonObject LanistaServer::cmdLogMark(const QJsonObject& p) const
     return {{QStringLiteral("marked"), label}};
 }
 
+#if !defined(Q_OS_ANDROID)
 // ── F1-Bridge: vault-forensics ────────────────────────────────────────────
 // Invokes F1-Core (VaultForensics::queryMarshalled) on its owner thread and
 // hands its response map back UNCHANGED — no field renamed, dropped, or
@@ -2112,6 +2117,7 @@ void LanistaServer::cmdVaultForensics(const QJsonObject& p, Replier reply) const
     reply.reply(QJsonObject::fromVariantMap(result));
 }
 
+#endif
 // ── the combined reply ─────────────────────────────────────────────────────
 // Pixels of the instant the body describes. The state was read in THIS
 // event-loop turn and the grab is requested in it too, so the PNG and the JSON

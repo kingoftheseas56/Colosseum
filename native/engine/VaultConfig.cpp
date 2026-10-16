@@ -1,6 +1,7 @@
 #include "VaultConfig.h"
 
 #include "VaultStoreIo.h"
+#include "VaultLocation.h"
 
 #include <QDir>
 #include <QJsonArray>
@@ -14,11 +15,7 @@ VaultConfig::VaultConfig(QString vaultDir, QObject* parent)
 
 QString VaultConfig::norm(const QString& path)
 {
-    QString n = QDir::cleanPath(path);
-#ifdef Q_OS_WIN
-    n = n.toLower();
-#endif
-    return n;
+    return VaultLocation::normalize(path);
 }
 
 void VaultConfig::load()

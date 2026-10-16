@@ -64,8 +64,8 @@ Item {
         }
     }
 
-    PorticoCombinedAccountHistory { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom};controller:controller;visible:controller.accountTab==="history" }
-    PorticoCombinedAccountHighlights { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom};controller:controller;visible:controller.accountTab==="highlights" }
-    PorticoCombinedAccountStats { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom};controller:controller;visible:controller.accountTab==="stats" }
-    PorticoCombinedAccountApps { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom};controller:controller;visible:controller.accountTab==="apps" }
+    PorticoCombinedAccountHistory { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom} controller:controller;visible:controller.accountTab==="history" }
+    PorticoCombinedAccountHighlights { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom} controller:controller;visible:controller.accountTab==="highlights" }
+    PorticoCombinedAccountStats { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom} controller:controller;visible:controller.accountTab==="stats" }
+    PorticoCombinedAccountApps { anchors{left:parent.left;right:parent.right;top:head.bottom;bottom:parent.bottom} controller:controller;visible:controller.accountTab==="apps" }
 }

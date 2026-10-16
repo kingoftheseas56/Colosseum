@@ -6,7 +6,6 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
-import "../feria" as Feria
 import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Rectangle {
@@ -52,9 +51,18 @@ Rectangle {
     property string initial: "?"
     property string activeSection: "profile"
     property Item focusReturnItem: null
-    readonly property var railSections: feriaOnly ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : [
+    // No Feria section on Android: qml/feria/ is not shipped there, so neither the rail
+    // entry nor the feriaContent Loader may reference it (feriaOnly itself is unreachable).
+    readonly property bool feriaSectionAvailable: Qt.platform.os !== "android"
+    readonly property var railSections: feriaOnly ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : feriaSectionAvailable ? [
         { id: "profile", label: qsTr("Profile"), glyph: "◌" },
         { id: "feria", label: qsTr("Feria"), glyph: "▣" },
+        { id: "security", label: qsTr("Security"), glyph: "◇" },
+        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
+        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
+        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
+    ] : [
+        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
         { id: "security", label: qsTr("Security"), glyph: "◇" },
         { id: "devices", label: qsTr("Devices"), glyph: "▣" },
         { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
@@ -500,13 +508,20 @@ Rectangle {
                 active: root.visible && root.feriaController !== null
                     && root.activeSection === "feria"
                 visible: active
-                sourceComponent: Feria.PorticoCombinedParityAccountView {
-                    controller: root.feriaController
-                    embedded: true
-                    servicesOnly: true
+                // String source (desktop-only path) so the Android bundle, which ships no
+                // qml/feria/, never parses PorticoCombinedParityAccountView.qml.
+                source: "../feria/PorticoCombinedParityAccountView.qml"
+                onLoaded: {
+                    item.embedded = true
+                    item.servicesOnly = true
+                    root.configureFeriaContent()
                 }
-                onLoaded: root.configureFeriaContent()
                 onActiveChanged: if (!active) root.releaseFeriaContent()
+                Binding {
+                    target: feriaContent.item
+                    property: "controller"
+                    value: root.feriaController
+                }
             }
 
             AccountSecurityPage {

@@ -4,6 +4,7 @@
 // its scroll position underneath.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 
 Item {
     id: page
@@ -15,6 +16,11 @@ Item {
     property var installedFn: function(addon) { return false }
     property var busy: ({})
     property int revision: 0
+    readonly property bool phoneLayout: {
+        const w = page.Window.window
+        return !!(w && w.androidHost && w.width < 840)
+    }
+    readonly property real sideMargin: phoneLayout ? 16 : theme.margin
     signal addonActivated(var addon)
     signal backRequested()
 
@@ -46,14 +52,14 @@ Item {
 
     Theme { id: theme }
 
-    function takeKeyboardFocus() { if (page.searching) box.forceActiveFocus(); else grid.forceActiveFocus() }
+    function takeKeyboardFocus() { if (page.searching) box.forceActiveFocus(); else if (page.phoneLayout) phoneList.forceActiveFocus(); else grid.forceActiveFocus() }
 
     // Transparent: the Store hides its board while this is open, so the wallpaper shows through.
     MouseArea { anchors.fill: parent }
 
     BackAction {
         id: back
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
+        anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.top: parent.top; anchors.topMargin: 44
         label: "Store"
         labelSize: 15
@@ -62,8 +68,8 @@ Item {
 
     Column {
         id: head
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
-        anchors.right: parent.right; anchors.rightMargin: theme.margin
+        anchors.left: parent.left; anchors.leftMargin: page.sideMargin
+        anchors.right: parent.right; anchors.rightMargin: page.sideMargin
         anchors.top: back.bottom; anchors.topMargin: 22
         spacing: 6
         // Search box: the serif headline itself becomes the field.
@@ -71,11 +77,11 @@ Item {
             id: box
             objectName: "extensionsSearchField"
             visible: page.searching
-            width: Math.min(parent.width, 900)
+            width: page.phoneLayout ? parent.width : Math.min(parent.width, 900)
             placeholderText: "Search " + page.pool.length + " add-ons"
             color: theme.ink
             placeholderTextColor: Qt.rgba(1, 1, 1, 0.32)
-            font.family: theme.display; font.pixelSize: 40
+            font.family: theme.display; font.pixelSize: page.phoneLayout ? 26 : 40
             leftPadding: 0
             background: Rectangle {
                 y: parent.height - 1; width: parent.width; height: 1
@@ -83,16 +89,20 @@ Item {
             }
             onTextChanged: page.query = text
             Keys.onEscapePressed: page.backRequested()
-            Keys.onDownPressed: if (page.items.length) grid.forceActiveFocus()
-            Keys.onReturnPressed: if (page.items.length) grid.forceActiveFocus()
+            Keys.onDownPressed: if (page.items.length) (page.phoneLayout ? phoneList : grid).forceActiveFocus()
+            Keys.onReturnPressed: if (page.items.length) (page.phoneLayout ? phoneList : grid).forceActiveFocus()
         }
         Text {
             visible: !page.searching
+            width: page.phoneLayout ? parent.width : implicitWidth
+            wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
             text: page.row ? page.row.title : ""
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 40; font.weight: Font.DemiBold
+            font.family: theme.display; font.pixelSize: page.phoneLayout ? 28 : 40; font.weight: Font.DemiBold
         }
         Text {
+            width: page.phoneLayout ? parent.width : implicitWidth
+            wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
             text: page.searching
                   ? (page.query.trim().length ? page.items.length + (page.items.length === 1 ? " add-on" : " add-ons")
                                                  + " match." : "Names, what they do, or a category: anime, subtitles, debrid, Hindi…")
@@ -104,11 +114,12 @@ Item {
 
     GridView {
         id: grid
+        visible: !page.phoneLayout
         objectName: "extensionsSeeAllGrid"
         anchors.top: head.bottom; anchors.topMargin: 30
         anchors.bottom: parent.bottom
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
-        anchors.right: parent.right; anchors.rightMargin: theme.margin - 22
+        anchors.left: parent.left; anchors.leftMargin: page.sideMargin
+        anchors.right: parent.right; anchors.rightMargin: page.phoneLayout ? page.sideMargin : theme.margin - 22
         readonly property int cardWidth: width < 1100 ? 320 : 365
         cellWidth: Math.floor(width / Math.max(1, Math.floor(width / (cardWidth + 22))))
         cellHeight: Math.round(cardWidth * 220 / 365) + 79 + 34
@@ -137,11 +148,44 @@ Item {
         }
     }
     ScrollGlide { flick: grid }
+    ListView {
+        id: phoneList
+        objectName: "extensionsSeeAllList"
+        visible: page.phoneLayout
+        anchors.top: head.bottom; anchors.topMargin: 22
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left; anchors.leftMargin: page.sideMargin
+        anchors.right: parent.right; anchors.rightMargin: page.sideMargin
+        spacing: 18
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        model: page.phoneLayout ? page.items : []
+        focus: page.visible && page.phoneLayout
+        ScrollBar.vertical: HouseScrollBar { flick: phoneList }
+        Keys.onReturnPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
+        Keys.onEnterPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
+        Keys.onEscapePressed: page.backRequested()
+        delegate: ExtensionsStoreCard {
+            required property var modelData
+            required property int index
+            width: phoneList.width
+            phoneLayout: true
+            addon: modelData
+            installed: { page.revision; return page.installedFn(modelData) }
+            busy: page.busy[modelData.slug] === true
+            selected: phoneList.activeFocus && phoneList.currentIndex === index
+            onActivated: page.addonActivated(modelData)
+        }
+    }
+    ScrollGlide { flick: phoneList }
+
 
     Text {
         visible: page.searching && page.query.trim().length > 0 && page.items.length === 0
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
+        anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.top: head.bottom; anchors.topMargin: 40
+        width: page.phoneLayout ? parent.width - 2 * page.sideMargin : implicitWidth
+        wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
         text: "No add-on matches that. Try a site name, a language or a genre."
         color: theme.inkDim
         font.family: theme.ui; font.pixelSize: 15

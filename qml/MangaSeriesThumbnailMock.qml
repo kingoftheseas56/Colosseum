@@ -781,11 +781,9 @@ Item {
                 visible: false
                 coverFetchingEnabled: false
                 seriesId: page.seriesId
-                // the live chapter list is what a volume cover is derived FROM: the
-                // shelf asks Downloads.fetchThumb for the first page of each volume's
-                // first chapter, exactly as a chapter row gets its own thumbnail
-                chapters: page.chaptersModel
-                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
+                // Volume artwork is owned by the library service; this view no longer
+                // accepts a separate chapter-thumbnail model.
+                onReadVolumeRequested: (volumeId) => page._openVolume(volumeId)
                 // "Choose source" -> the full-screen picker. Merge the series identity
                 // (the library only knows the volume) and open the overlay below.
                 onSourcesRequested: (ctx) => page._openSources(ctx)
