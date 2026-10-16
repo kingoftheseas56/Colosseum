@@ -2781,6 +2781,13 @@ target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Netw
 # live in tests/CMakeLists.txt, never here. include(CTest) defines BUILD_TESTING
 # (default ON); OFF skips registration entirely and changes nothing else — the
 # harness targets above build either way, exactly as before this seam existed.
+# Vinyl's local adapter consumes the existing Vault identity. The plain Python
+# transport remains available for later connection but local playback never uses it.
+# Deferred VinylTorrentProvider sources remain in the repository, excluded here:
+# current StreamServer has no donor request-scoped manifest/stream/cancel contract.
+target_sources(colosseum PRIVATE
+    vinyl/VinylLocalSource.h vinyl/VinylLocalSource.cpp
+    vinyl/VinylProvider.h)
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"

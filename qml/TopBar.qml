@@ -278,6 +278,11 @@ Item {
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
             Pill { label: "Feria" }
+            Pill {
+                label: "Vinyl"
+                objectName: bar.visible && bar.lifecycleActive ? "worldPillVinyl" : ""
+                visible: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+            }
         }
     }
 

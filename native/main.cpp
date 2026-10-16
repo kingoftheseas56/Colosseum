@@ -138,6 +138,8 @@
 #include "feria/PorticoComposition.h"
 #include "feria/FeriaBrowserPolicy.h"
 #include "feria/FeriaAccountStore.h"
+#include "vinyl/VinylProvider.h"
+#include "vinyl/VinylLocalSource.h"
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -1801,6 +1803,20 @@ int main(int argc, char *argv[]) {
     // designed. Replaces the four raw store constructions this block used to
     // hold — the split-brain risk of two owners binding the same QML names is
     // closed by construction.
+    // Vinyl uses the existing canonical local identity and profile-owned stores.
+    // Register checkpoint callbacks before AccountRuntime installs store shutdown writers.
+    auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     vinylLocalSource, &VinylLocalSource::shuttingDown);
+    // Preserve the deferred external adapters without making local playback use them.
+    auto *vinylProvider = new VinylProvider(
+        QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
+            .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     vinylProvider, &VinylProvider::shuttingDown);
+    // VinylTorrentProvider is preserved as a deferred donor adapter only. It
+    // requires request-scoped StreamServer APIs absent from the current owner;
+    // do not replace that shared owner or expose a nonfunctional provider.
     auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
@@ -2000,6 +2016,22 @@ int main(int argc, char *argv[]) {
                      feriaAccount, bindFeriaProfile);
     engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
     FeriaBrowserPolicy::registerTypes();
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylProvider"), vinylProvider);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"),
+        qEnvironmentVariableIntValue("COLOSSEUM_VINYL_LIVE") == 1);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
+                     vinylLocalSource, &VinylLocalSource::checkpointRequested);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     vinylLocalSource, &VinylLocalSource::profileLeaving);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     vinylLocalSource, &VinylLocalSource::profileEntered);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
+                     vinylProvider, &VinylProvider::checkpointRequested);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     vinylProvider, &VinylProvider::profileLeaving);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     vinylProvider, &VinylProvider::profileEntered);
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;

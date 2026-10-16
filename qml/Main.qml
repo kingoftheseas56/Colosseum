@@ -41,6 +41,24 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    property var vinylWorld: null
+    property var pendingVinylResume: null
+    readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    function openVinylResume(entry, play) {
+        if (!vinylEnabled) return
+        pendingVinylResume = { entry: entry, play: play }
+        openWorld("Vinyl")
+        applyVinylResume()
+    }
+    function applyVinylResume() {
+        if (!vinylWorld || !pendingVinylResume) return
+        var pending = pendingVinylResume
+        pendingVinylResume = null
+        vinylWorld.session.snapshot()
+        vinylWorld.session.restore(pending.entry)
+        vinylWorld.page = pending.play ? "song" : "album"
+        if (pending.play) vinylWorld.session.paused = false
+    }
     property var feriaReturnSnapshot: null
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
@@ -875,7 +893,11 @@ Window {
         case "biblioGenreIndex": win.closeBiblioGenreIndex(); return
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
-        case "world": win.closeWorld(); return
+        case "world":
+            if (worldStack.current === "Vinyl" && win.vinylWorld
+                    && win.vinylWorld.goBack && win.vinylWorld.goBack()) return
+            win.closeWorld()
+            return
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
@@ -1032,6 +1054,7 @@ Window {
     // world with its covers INTACT instead of re-downloading them. Real mode pages route to their
     // own QML; unbuilt modes fall back to DemoWorld.qml.
     function worldSourceFor(medium) {
+        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylLiveWorld.qml"
         if (medium === "Tankoban") return "TankobanWorld.qml"
         if (medium === "Theatre") return "TheatreWorld.qml"
         if (medium === "Biblio") return "BiblioWorld.qml"
@@ -1064,6 +1087,7 @@ Window {
         return true
     }
     function openWorld(medium) {
+        if (medium === "Vinyl" && !vinylEnabled) return
         if (medium === "Feria") { win.openFeriaPage(); return }
         win.parkFeria(true)
         var found = false
@@ -1764,6 +1788,7 @@ Window {
     Connections {
         target: win
         function onPlayerOpenChanged() {
+            if (win.playerOpen && win.vinylWorld) win.vinylWorld.session.paused = true
             if (win.playerOpen || !win.pendingResolves.length)
                 return
             var p = win.pendingResolves.shift()
@@ -2589,6 +2614,7 @@ Window {
     //  resume (center play/read icon):
     function resumeContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, true); return }
         var r = entry.resume || ({})
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
@@ -2641,6 +2667,7 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, false); return }
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
         var title = entry.title || entry.caption || presentation.title || ""
@@ -3705,6 +3732,25 @@ Window {
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
+                    if (mode === "Vinyl") {
+                        win.vinylWorld = item
+                        item.shellDockRight = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0
+                        })
+                        item.shellDockBottomExtent = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.bottomGap + taskbar.closedSize : 0
+                        })
+                        item.minimizeClicked.connect(win.minimizeShell)
+                        item.fullscreenClicked.connect(win.toggleFullscreenShell)
+                        item.powerClicked.connect(function() { Qt.quit() })
+                        item.playbackRequested.connect(function() {
+                            audioSession.paused = true
+                            if (playerLayer.item && playerLayer.item.suspendForMinimize)
+                                playerLayer.item.suspendForMinimize()
+                        })
+                        win.applyVinylResume()
+                        return
+                    }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
@@ -4294,6 +4340,13 @@ Window {
     // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
     // and Audio tab both drive this session. ----
     AudiobookSession { id: audioSession }
+    Connections {
+        target: audioSession
+        function onPausedChanged() {
+            if (!audioSession.paused && win.vinylWorld)
+                win.vinylWorld.session.paused = true
+        }
+    }
 
     Loader {
         id: bookReaderLayer
