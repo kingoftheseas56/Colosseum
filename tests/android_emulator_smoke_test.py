@@ -32,8 +32,16 @@ if name == "aapt":
     print("launchable-activity: name='test.Activity'")
     sys.exit()
 s["calls"].append([s["time"], args]); save()
-t = s["time"]
-if args[:2] == ["shell", "getprop"]: print("x86_64")
+t = s["time"] - s.get("launch_time", 0)
+if args == ["shell", "getprop", "sys.boot_completed"]: print("0" if scenario == "device_not_booted" else "1")
+elif args == ["shell", "am", "get-current-user"]: print("0")
+elif args[:3] == ["shell", "am", "get-started-user-state"]: print("RUNNING_LOCKED" if scenario == "device_locked" else "RUNNING_UNLOCKED")
+elif args == ["shell", "am", "get-config"]:
+    if scenario == "device_observation_error": sys.exit(1)
+    if scenario != "device_missing_config":
+        value = t if scenario == "device_changing_config" else min(t, 6) if scenario == "device_settling" else 0
+        print("config: en-rUS-port-%s" % value)
+elif args[:2] == ["shell", "getprop"]: print("x86_64")
 elif args[:2] == ["shell", "ls"]:
     if scenario == "tombstone" and s.get("launched"): print("tombstone_01")
 elif args[:3] == ["shell", "am", "force-stop"]:
@@ -45,7 +53,7 @@ elif args and args[0] == "install":
     if scenario == "install_failure": print("INSTALL_FAILED"); sys.exit(1)
     print("Success")
 elif args[:3] == ["shell", "am", "start"]:
-    s["launched"] = True; save()
+    s["launched"] = True; s["launch_time"] = s["time"]; save()
     if scenario == "launch_exit_failure": print("Status: ok"); sys.exit(1)
     if scenario == "launch_error": print("Error: Activity class does not exist"); sys.exit()
     print("Status: ok")
@@ -95,7 +103,7 @@ elif args and args[0] == "logcat":
     ready = 76 if scenario == "delayed" else 2
     if scenario in ("never_ready", "stale_markers"): ready = 999
     if t >= ready:
-        if scenario == "late_observation": s["time"] = t + 10; save()
+        if scenario == "late_observation": s["time"] += 10; save()
         pid = 987 if scenario == "foreign_markers" else 123
         if scenario != "missing_main": log("[boot] Main.qml loaded", pid)
         if scenario.startswith("onboarding") and scenario != "onboarding_obscured":
@@ -127,7 +135,7 @@ class AndroidSmokeTest(unittest.TestCase):
             env = dict(os.environ, PATH=str(binary) + os.pathsep + os.environ["PATH"],
                        ADB=str(binary / "adb"), ANDROID_SDK_ROOT=str(root / "sdk"),
                        FIXTURE_ROOT=str(root), SCENARIO=scenario,
-                       SMOKE_READY_TIMEOUT=str(ready_timeout))
+                       SMOKE_READY_TIMEOUT=str(ready_timeout), SMOKE_DEVICE_TIMEOUT="24")
             if scenario == "onboarding_real_xml":
                 xml_path = Path(__file__).resolve().parent / "fixtures/android/onboarding-qt-ui.xml"
                 node = next(n for n in ET.parse(xml_path).iter("node")
@@ -148,12 +156,32 @@ class AndroidSmokeTest(unittest.TestCase):
         for name in ("logcat.txt", "logcat-crash.txt", "screenshot.png", "activities.txt"):
             self.assertIn(name, files)
 
+    def test_device_preflight_failures_never_launch(self):
+        for scenario in ("device_not_booted", "device_locked", "device_changing_config",
+                         "device_observation_error", "device_missing_config"):
+            with self.subTest(scenario=scenario):
+                result, state, files = self.run_smoke(scenario)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("DEVICE READINESS", result.stdout)
+                self.assertFalse(state.get("launched"))
+                self.assertLessEqual(state["time"], 24)
+                self.assertIn("logcat-events.txt", files)
+
+    def test_device_configuration_must_settle_before_launch(self):
+        result, state, files = self.run_smoke("device_settling")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(state["launch_time"], 16)
+        self.assertIn("configuration stable for 10 s", result.stdout)
+        for name in ("events-before-launch.txt", "device-config-before-launch.txt",
+                     "activity-before-launch.txt", "device-config-final.txt", "logcat-events.txt"):
+            self.assertIn(name, files)
+
     def test_real_qt_combined_accessibility_label(self):
         result, state, _ = self.run_smoke("onboarding_real_xml", alive=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         taps = [args for _, args in state["calls"] if args[:3] == ["shell", "input", "tap"]]
         self.assertEqual(len(taps), 1)
-        self.assertGreaterEqual(state["time"], 64)
+        self.assertGreaterEqual(state["time"] - state["launch_time"], 64)
 
     def test_combined_label_with_other_generated_type_number(self):
         result, _, _ = self.run_smoke("onboarding_combined_label")
@@ -163,8 +191,8 @@ class AndroidSmokeTest(unittest.TestCase):
         result, state, _ = self.run_smoke("onboarding", alive=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         taps = [(time, args) for time, args in state["calls"] if args[:3] == ["shell", "input", "tap"]]
-        self.assertEqual(taps, [(2, ["shell", "input", "tap", "150", "250"])])
-        self.assertGreaterEqual(state["time"], 64)
+        self.assertEqual(taps, [(state["launch_time"] + 2, ["shell", "input", "tap", "150", "250"])])
+        self.assertGreaterEqual(state["time"] - state["launch_time"], 64)
         self.assertIn("Selected visible Continue without account", result.stdout)
 
     def test_onboarding_without_unique_visible_valid_target_fails_closed(self):
@@ -191,14 +219,14 @@ class AndroidSmokeTest(unittest.TestCase):
     def test_ready_then_full_hold(self):
         result, state, files = self.run_smoke("ready", alive=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertGreaterEqual(state["time"], 62)
+        self.assertGreaterEqual(state["time"] - state["launch_time"], 62)
         self.assertIn("screenshot-ready.png", files)
         self.assertIn("Main.qml loaded and initial world reached", result.stdout)
 
     def test_cold_extraction_76_seconds_then_full_hold(self):
         result, state, _ = self.run_smoke("delayed", ready_timeout=180, alive=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertGreaterEqual(state["time"], 136)
+        self.assertGreaterEqual(state["time"] - state["launch_time"], 136)
         self.assertIn("after 76 s; holding 60 s", result.stdout)
 
     def test_alive_without_readiness_fails(self):

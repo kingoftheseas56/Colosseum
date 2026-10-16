@@ -14,7 +14,8 @@ ART="${2:-smoke-artifacts}"
 ALIVE="${3:-60}"
 ADB="${ADB:-adb}"
 READY_TIMEOUT="${SMOKE_READY_TIMEOUT:-180}"
-for duration in "$ALIVE" "$READY_TIMEOUT"; do
+DEVICE_TIMEOUT="${SMOKE_DEVICE_TIMEOUT:-120}"
+for duration in "$ALIVE" "$READY_TIMEOUT" "$DEVICE_TIMEOUT"; do
     if [[ ! "$duration" =~ ^[1-9][0-9]*$ ]]; then
         echo "Smoke durations must be positive integer seconds" >&2; exit 2
     fi
@@ -49,6 +50,58 @@ fail=$setup_fail
 if ! adb_cmd install -r -g "$APK" > "$ART/install.txt" 2>&1; then
     log "INSTALL FAILED"; cat "$ART/install.txt"; fail=1
 fi
+
+# sys.boot_completed alone precedes first-boot configuration/broadcast work.
+# Require an unlocked current user and ten continuously stable seconds before
+# launching. This is bounded device preparation, never permission to restart the app.
+if [[ $fail == 0 ]]; then
+    device_started=$(now)
+    stable_since=""
+    previous_config=""
+    while :; do
+        observed_at=$(now)
+        if (( observed_at - device_started >= DEVICE_TIMEOUT )); then
+            log "DEVICE READINESS TIMEOUT after ${DEVICE_TIMEOUT} s"; fail=1; break
+        fi
+        if ! boot=$(adb_cmd shell getprop sys.boot_completed) ||
+           ! user=$(adb_cmd shell am get-current-user); then
+            log "DEVICE READINESS OBSERVATION FAILED"; fail=1; break
+        fi
+        boot=${boot//$'\r'/}
+        user=${user//$'\r'/}
+        if [[ ! "$user" =~ ^[0-9]+$ ]] ||
+           ! user_state=$(adb_cmd shell am get-started-user-state "$user") ||
+           ! adb_cmd shell am get-config > "$ART/device-config-poll.txt" 2>&1; then
+            log "DEVICE READINESS OBSERVATION FAILED"; fail=1; break
+        fi
+        user_state=${user_state//$'\r'/}
+        config=$(sed -n 's/^config: //p' "$ART/device-config-poll.txt" | tr -d '\r')
+        if [[ -z "$config" ]]; then
+            log "DEVICE READINESS OBSERVATION FAILED: missing configuration"; fail=1; break
+        fi
+        observed_at=$(now)
+        printf '%s boot=%s user=%s state=%s config=%s\n' "$observed_at" "$boot" "$user" "$user_state" "$config" >> "$ART/device-readiness.txt"
+        if (( observed_at - device_started >= DEVICE_TIMEOUT )); then
+            log "DEVICE READINESS TIMEOUT after ${DEVICE_TIMEOUT} s"; fail=1; break
+        fi
+        if [[ "$boot" == 1 && "$user_state" == RUNNING_UNLOCKED ]]; then
+            if [[ "$user:$config" != "$previous_config" || -z "$stable_since" ]]; then
+                stable_since=$observed_at
+            elif (( observed_at - stable_since >= 10 )); then
+                log "Device booted, user unlocked, configuration stable for 10 s"
+                break
+            fi
+            previous_config="$user:$config"
+        else
+            stable_since=""
+            previous_config=""
+        fi
+        sleep 2
+    done
+fi
+adb_cmd shell am get-config > "$ART/device-config-before-launch.txt" 2>&1 || true
+adb_cmd shell dumpsys activity > "$ART/activity-before-launch.txt" 2>&1 || true
+adb_cmd logcat -d -b events -v threadtime > "$ART/events-before-launch.txt" 2>&1 || true
 
 if [[ $fail == 0 ]]; then
     if ! adb_cmd shell am start -W -n "$PKG/$ACTIVITY" > "$ART/am-start.txt" 2>&1; then
@@ -166,6 +219,9 @@ PY_UI
         sleep 2
     done
 fi
+adb_cmd shell am get-config > "$ART/device-config-final.txt" 2>&1 || true
+adb_cmd shell dumpsys activity > "$ART/activity-final.txt" 2>&1 || true
+adb_cmd logcat -d -b events -v threadtime > "$ART/logcat-events.txt" 2>&1 || true
 # Capture a final screenshot even when install/launch/readiness failed.
 adb_cmd exec-out screencap -p > "$ART/screenshot.png" || true
 
