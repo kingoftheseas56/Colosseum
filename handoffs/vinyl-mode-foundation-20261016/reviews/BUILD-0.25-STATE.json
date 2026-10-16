@@ -1,0 +1,50 @@
+{
+  "build": "0.25",
+  "decision": "ACCEPTED_SCOPED_LINUX_FUNCTIONAL_CHECKPOINT",
+  "source_commit": "5494bab39d4376abca1b87687d557e2d55e0af41",
+  "evidence_commit": "0031ba8a292436e471272f8cfddb71973b23ad6b",
+  "evidence_report": "https://github.com/kingoftheseas56/Dots-Colosseum/blob/0031ba8a292436e471272f8cfddb71973b23ad6b/deliveries/2026-10-16-vinyl-mode-foundation/delivery/BUILD-0.25.md",
+  "reviewed_at": "2026-10-16T19:08:43.716268+05:30",
+  "cloud_native_scope": [
+    "local input and Library -> Album -> Song -> Back",
+    "actual PCM decoding, progressing clock, pause, seek, resume",
+    "missing-file retry and malformed-WAV error",
+    "clean native process exit"
+  ],
+  "cloud_focused_ctest": {
+    "passed": 6,
+    "failed": 0
+  },
+  "historical_component_registry": {
+    "passed": 211,
+    "failed": 8,
+    "skipped": 6,
+    "classification": "three artwork-dependent component suites; original failures retained"
+  },
+  "separate_photo_overlay": {
+    "passed": 56,
+    "failed": 0,
+    "skipped": 1,
+    "test_hashes_verified_against_source": true,
+    "scope": "component-only, not native artist acceptance or original-image fidelity"
+  },
+  "windows_receiving": {
+    "test": "exact native VinylLocalSource + VaultIdentity harness",
+    "compiler": "MSVC 19.44.35227.0",
+    "Qt": "6.11.1",
+    "checks": 20,
+    "exit": 0,
+    "full_app_runtime": "NOT RUN"
+  },
+  "remaining_limits": [
+    "audible output not verified; cloud ao=null",
+    "full Windows app and historical native root cause unqualified",
+    "Library entry UI is temporary; approved Home/Discover/Library/Artist composition remains Build 0.5 work",
+    "full queue, durable profile/restart and cross-world journeys remain later gates",
+    "git diff --check reports one nonblocking donor whitespace line in tst_vinyl_world_visual.qml:46"
+  ],
+  "advance_allowed": "Build 0.5 only, continuing from accepted source commit",
+  "production_merge": false,
+  "release": false,
+  "acceptance_message_delivery": "NOT SENT; published receiving record is not proof of worker receipt"
+}
