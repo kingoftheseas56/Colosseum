@@ -170,6 +170,59 @@ Column {
     readonly property var mainKeys: {
         var out = []; for (var i = 0; i < mainRows.length; i++) out.push(mainRows[i].key); return out;
     }
+
+    // A keyed, disposable presentation mirror of mainRows (never a catalogue authority).
+    // A JavaScript-array Repeater recreates every delegate when ANY row changes. Apply
+    // only the affected model operation so other LazyPosterShelf instances keep their
+    // focus, horizontal scroll position, and viewport residency across live-facts pushes.
+    ListModel { id: mainPresentationModel; dynamicRoles: true }
+    property var _presentedKeys: []
+    property var _presentedSignatures: []
+    onMainRowsChanged: page._syncMainPresentation()
+    function _syncMainPresentation() {
+        var desired = page.mainRows || []
+        var keys = page._presentedKeys.slice()
+        var signatures = page._presentedSignatures.slice()
+        var wanted = Object.create(null)
+        for (var n = 0; n < desired.length; ++n) wanted[String(desired[n].key)] = true
+
+        // Remove only rows no longer present, backward so the existing indices survive.
+        for (var i = keys.length - 1; i >= 0; --i) {
+            if (wanted[keys[i]]) continue
+            mainPresentationModel.remove(i)
+            keys.splice(i, 1)
+            signatures.splice(i, 1)
+        }
+        for (var j = 0; j < desired.length; ++j) {
+            var row = desired[j], key = String(row.key)
+            // Page rows are plain data descriptors, with validated facts coming only
+            // from TheatreApi. The signature detects semantically identical new arrays.
+            var signature
+            try { signature = JSON.stringify(row) }
+            catch (error) { signature = null } // unsupported payload: update, never hide a change
+            var at = keys.indexOf(key, j)
+            if (at < 0) {
+                mainPresentationModel.insert(j, { rowKey: key, rowData: row })
+                keys.splice(j, 0, key)
+                signatures.splice(j, 0, signature)
+                continue
+            }
+            if (at !== j) {
+                mainPresentationModel.move(at, j, 1)
+                keys.splice(at, 1)
+                keys.splice(j, 0, key)
+                var moved = signatures.splice(at, 1)[0]
+                signatures.splice(j, 0, moved)
+            }
+            if (signature === null || signature === undefined || signatures[j] !== signature) {
+                mainPresentationModel.setProperty(j, "rowData", row)
+                signatures[j] = signature
+            }
+        }
+        page._presentedKeys = keys
+        page._presentedSignatures = signatures
+    }
+
     readonly property var rowIndexRows: {
         page.mainRows
         page.extensionRows
@@ -375,10 +428,10 @@ Column {
     // LazyPosterShelf only around the WorldPage viewport, so a long page's live rails plateau.
     Repeater {
         id: mainShelfRepeater
-        model: page.mainRows
+        model: mainPresentationModel
         delegate: Column {
             id: rowBlock
-            required property var modelData
+            required property var rowData
             required property int index
             width: page.width
             spacing: 8
@@ -388,22 +441,22 @@ Column {
 
             TheatreRowControls {
                 visible: page.editMode
-                rowKey: rowBlock.modelData.key
-                label: rowBlock.modelData.title
-                hidden: rowBlock.modelData.hidden === true
-                renamed: page.isRenamed(rowBlock.modelData.key)
+                rowKey: rowBlock.rowData.key
+                label: rowBlock.rowData.title
+                hidden: rowBlock.rowData.hidden === true
+                renamed: page.isRenamed(rowBlock.rowData.key)
                 canMoveUp: rowBlock.index > 0
                 canMoveDown: rowBlock.index < page.mainRows.length - 1
-                onMoveUpRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.modelData.key, -1)
-                onMoveDownRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.modelData.key, 1)
-                onToggleHiddenRequested: page._prefsStore.toggleHidden(page.pageKey, rowBlock.modelData.key)
-                onRenameRequested: (label) => page._prefsStore.rename(page.pageKey, rowBlock.modelData.key, label)
-                onResetNameRequested: page._prefsStore.rename(page.pageKey, rowBlock.modelData.key, "")
+                onMoveUpRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.rowData.key, -1)
+                onMoveDownRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.rowData.key, 1)
+                onToggleHiddenRequested: page._prefsStore.toggleHidden(page.pageKey, rowBlock.rowData.key)
+                onRenameRequested: (label) => page._prefsStore.rename(page.pageKey, rowBlock.rowData.key, label)
+                onResetNameRequested: page._prefsStore.rename(page.pageKey, rowBlock.rowData.key, "")
             }
             LazyPosterShelf {
                 id: rowShelf
                 width: page.width
-                row: rowBlock.modelData
+                row: rowBlock.rowData
                 visualProfile: page.visualProfile
                 // rowBlock.y is page-local; the shelf's own y is rowBlock-local, so pass the viewport
                 // in rowBlock-local coordinates. (No per-frame mapToItem — a single subtraction.)
@@ -417,7 +470,7 @@ Column {
             Item {
                 // Pending live rows occupy the same shelf footprint; no poster
                 // is shown until facts validate the candidate's eligibility.
-                height: rowBlock.modelData.pendingFacts === true && !rowShelf._hasItems
+                height: rowBlock.rowData.pendingFacts === true && !rowShelf._hasItems
                         ? (30 + rowShelf._m.headerGap + rowShelf._railListHeight) : 0
                 width: 1
                 visible: height > 0
