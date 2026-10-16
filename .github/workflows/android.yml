@@ -1,12 +1,8 @@
 name: android
 
-# First installable Android lane. Temporary push trigger for the A02 branch so
-# Dots can validate each tested batch. Remove this trigger after the A02 job.
+# First installable Android lane. Manual dispatch only; A02 CI gate passed.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - android/a02-platform-seams
 
 permissions:
   contents: read
