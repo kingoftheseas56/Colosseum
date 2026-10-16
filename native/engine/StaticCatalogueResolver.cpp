@@ -22,6 +22,7 @@
 #include <QStringDecoder>
 #include <QTimer>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <optional>
 #include <utility>
@@ -136,6 +137,14 @@ QString selection(const QString &dataset, const QString &method, const QJsonArra
 QString bucket(const QString &key) {
     return digest(key.toUtf8()).left(2);
 }
+// Verify SHA256(UTF8(tt)) with no digest-hex allocation per validated tuple.
+bool bucketMember(const QString &id, int expectedFirstByte) {
+    const auto utf8 = id.toUtf8();
+    std::array<uchar, 32> bytes{};
+    QCryptographicHash::hashInto(QSpan<uchar>(bytes.data(), bytes.size()),
+                                 QByteArrayView(utf8), QCryptographicHash::Sha256);
+    return int(bytes[0]) == expectedFirstByte;
+}
 QJsonArray array(const QJsonValue &v) {
     if (!v.isArray())
         throw QStringLiteral("STATIC_INVALID_SHARD");
@@ -158,13 +167,39 @@ int desc(const QJsonValue &a, const QJsonValue &b) {
 struct Need {
     QString path;
 };
+struct NeedBatch {
+    QStringList paths;
+    int selectedPrefixes = 0;
+};
 using Read = std::function<QJsonValue(const QString &)>;
+
+// One result encoder for the V1 and hash-bucket paths: preserve 100-ID chunks,
+// ordinal ordering, duplicate overwrites, unknown omission and JSON nulls.
+QJsonObject factsResult(const QJsonArray &ids, const QHash<QString, QJsonArray> &matched) {
+    QJsonObject result;
+    for (qsizetype i = 0; i < ids.size(); i += 100) {
+        QList<QPair<QString, QJsonArray>> found;
+        for (qsizetype n = i; n < std::min(i + 100, ids.size()); ++n) {
+            const auto id = text(ids.at(n));
+            if (matched.contains(id))
+                found.append({id, matched.value(id)});
+        }
+        std::stable_sort(found.begin(), found.end(), [](const auto &a, const auto &b) {
+            return a.second.at(4).toDouble() < b.second.at(4).toDouble();
+        });
+        for (const auto &item : found)
+            result[item.first] = QJsonObject{{"rating", item.second.at(1)},
+                                             {"votes", item.second.at(2)},
+                                             {"isAnime", item.second.at(3)}};
+    }
+    return result;
+}
 
 // Additive IMDb facts directory. Absence alone permits the legacy identity route;
 // an advertised but invalid directory or shard is an exact-query hard failure.
 std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJsonArray &ids,
                                            const Read &read, quint64 *validatedTuples,
-                                           QSet<QString> *validatedBlocks) {
+                                           QSet<QString> *validatedBlocks, bool bucketsReady) {
     if (!index.contains("facts"))
         return std::nullopt;
     const auto root = index.value("facts");
@@ -211,6 +246,111 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
     QSet<QString> wanted;
     for (const auto &v : ids)
         wanted.insert(text(v));  // Mirrors legacy byId's text coercion.
+    if (imdb.contains("hashBuckets")) {
+        const auto hashValue = imdb.value("hashBuckets");
+        if (!hashValue.isObject())
+            throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+        const auto declaration = hashValue.toObject();
+        if (declaration.value("version") != 1 ||
+            declaration.value("keyHash") != "sha256-utf8" ||
+            declaration.value("prefixChars") != 2 ||
+            !declaration.value("paths").isObject())
+            throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+        const auto paths = declaration.value("paths").toObject();
+        if (paths.size() != 256)
+            throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+        // Validate the entire advertised directory, not just requested prefixes.
+        // Do not access even an unselected path until this check has passed.
+        for (int n = 0; n < 256; ++n) {
+            const auto key = QString::number(n, 16).rightJustified(2, QLatin1Char('0'));
+            const auto value = paths.value(key);
+            if (!value.isString())  // Missing key, wrong type or extra key.
+                throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+            const auto path = value.toString();
+            if (!path.startsWith(prefix) ||
+                !leaf.match(path.mid(prefix.size())).hasMatch())
+                throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+        }
+        QHash<QString, QStringList> idsByPrefix;
+        for (const auto &id : wanted)
+            if (imdbTitleId(id))
+                idsByPrefix[bucket(id)].append(id);
+        auto requested = idsByPrefix.keys();
+        std::sort(requested.begin(), requested.end());  // Deterministic error order.
+        QStringList distinctPaths;
+        QSet<QString> seenPaths;
+        for (const auto &key : requested) {
+            const auto path = paths.value(key).toString();
+            if (!seenPaths.contains(path)) {
+                distinctPaths.append(path);
+                seenPaths.insert(path);
+            }
+        }
+        if (!bucketsReady && !distinctPaths.isEmpty())
+            throw NeedBatch{distinctPaths, int(requested.size())};
+
+        QHash<QString, QJsonArray> matched;
+        for (const auto &key : requested) {
+            const auto path = paths.value(key).toString();
+            const auto rows = array(read(path));
+            const int firstHashByte = key.toInt(nullptr, 16);
+            const auto validationKey = key + QLatin1Char('\n') + path;
+            if (!validatedBlocks || !validatedBlocks->contains(validationKey)) {
+                // Hash-prefix occupancy is independent of the aligned V1
+                // source block size. Existing file/job byte limits still bound it.
+                QString prior;
+                for (const auto &value : rows) {
+                    if (!value.isArray())
+                        throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+                    const auto tuple = value.toArray();
+                    if (tuple.size() != 5)
+                        throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+                    const auto name = tuple.at(0), rating = tuple.at(1),
+                               votes = tuple.at(2), anime = tuple.at(3),
+                               ordinal = tuple.at(4);
+                    if (!name.isString())
+                        throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+                    const auto id = name.toString();
+                    const double count = votes.toDouble(), order = ordinal.toDouble();
+                    if (!imdbTitleId(id) || !bucketMember(id, firstHashByte) ||
+                        (!prior.isEmpty() && prior >= id) ||
+                        !(rating.isNull() ||
+                          (rating.isDouble() && std::isfinite(rating.toDouble()))) ||
+                        !(votes.isNull() ||
+                          (votes.isDouble() && std::isfinite(count) &&
+                           count >= 0 && count <= 9007199254740991.0 &&
+                           std::trunc(count) == count)) ||
+                        !anime.isBool() || !ordinal.isDouble() ||
+                        !std::isfinite(order) || order < 0 || order > 9007199254740991.0 ||
+                        std::trunc(order) != order)
+                        throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+                    if (validatedTuples)
+                        ++*validatedTuples;
+                    prior = id;
+                }
+                if (validatedBlocks)
+                    validatedBlocks->insert(validationKey);
+            }
+            // Pre-group requested IDs once, rather than rehashing every ID
+            // for every selected shard while resolving a large cold query.
+            for (const auto &id : idsByPrefix.value(key)) {
+                qsizetype lo = 0, hi = rows.size();
+                while (lo < hi) {
+                    const auto mid = lo + (hi - lo) / 2;
+                    if (rows.at(mid).toArray().at(0).toString() < id)
+                        lo = mid + 1;
+                    else
+                        hi = mid;
+                }
+                if (lo < rows.size()) {
+                    const auto tuple = rows.at(lo).toArray();
+                    if (tuple.at(0).toString() == id)
+                        matched.insert(id, tuple);
+                }
+            }
+        }
+        return factsResult(ids, matched);
+    }
     // Bound semantic-validation progress to this exact job's hash-verified files.
     // A missing shard still suspends asynchronously, but an earlier validated
     // block is never scanned again; malformed earlier blocks fail before later I/O.
@@ -284,25 +424,7 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
             }
         }
     }
-    QJsonObject result;
-    // Preserve legacy 100-ID chunking, stable ordinal order, duplicate overwrite
-    // and unknown-ID omission without adding a second native API or cache.
-    for (qsizetype i = 0; i < ids.size(); i += 100) {
-        QList<QPair<QString, QJsonArray>> found;
-        for (qsizetype n = i; n < std::min(i + 100, ids.size()); ++n) {
-            const auto id = text(ids.at(n));
-            if (matched.contains(id))
-                found.append({id, matched.value(id)});
-        }
-        std::stable_sort(found.begin(), found.end(), [](const auto &a, const auto &b) {
-            return a.second.at(4).toDouble() < b.second.at(4).toDouble();
-        });
-        for (const auto &item : found)
-            result[item.first] = QJsonObject{{"rating", item.second.at(1)},
-                                             {"votes", item.second.at(2)},
-                                             {"isAnime", item.second.at(3)}};
-    }
-    return result;
+    return factsResult(ids, matched);
 }
 
 // Pure I01 resolver. A missing local file suspends this evaluation; it is resumed
@@ -310,12 +432,13 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
 std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
                                    const QString &method, const QJsonArray &args,
                                    const Read &read, quint64 *validatedTuples,
-                                   QSet<QString> *validatedBlocks) {
+                                   QSet<QString> *validatedBlocks, bool bucketsReady) {
     const auto at = [&](int n) {
         return n < args.size() ? args.at(n) : QJsonValue(QJsonValue::Undefined);
     };
     if (ds == "imdb" && method == "titleFacts") {
-        const auto compact = compactImdbFacts(index, at(0).toArray(), read, validatedTuples, validatedBlocks);
+        const auto compact = compactImdbFacts(index, at(0).toArray(), read, validatedTuples,
+                                            validatedBlocks, bucketsReady);
         if (compact)
             return compact;
     }
@@ -710,6 +833,17 @@ struct StaticCatalogueResolver::Impl {
         double evaluationMs = 0;
         quint64 validatedFactsTuples = 0;
         QSet<QString> validatedFactsBlocks;
+        QStringList bucketPaths;
+        QSet<QString> bucketPending;
+        QHash<QString, QString> bucketErrors;
+        int bucketCursor = 0;
+        int bucketSelectedPrefixes = 0;
+        int bucketUniquePaths = 0;
+        int bucketAdmissions = 0;
+        int bucketPeakPending = 0;
+        int bucketPrefetchWaves = 0;
+        quint64 bucketGeneration = 0;
+        bool bucketPrefetching = false, bucketPrefetched = false;
         bool refreshedMissing = false;
         QPointer<QTimer> deadline;
         QMetaObject::Connection destroyed;
@@ -1058,6 +1192,76 @@ struct StaticCatalogueResolver::Impl {
             {"diskIoMs", f.diskIoMs}, {"diskDecodeMs", f.diskDecodeMs},
             {"diskTouchMs", f.diskTouchMs}});
     }
+    void resetBuckets(const QSharedPointer<Job> &j) {
+        ++j->bucketGeneration;  // Fence every old callback, including disk timers.
+        j->bucketPaths.clear();
+        j->bucketPending.clear();
+        j->bucketErrors.clear();
+        j->bucketCursor = 0;
+        j->bucketSelectedPrefixes = 0;
+        j->bucketUniquePaths = 0;
+        j->bucketPrefetching = false;
+        j->bucketPrefetched = false;
+    }
+    void admitBuckets(quint64 id, quint64 generation) {
+        const auto j = jobs.value(id);
+        if (!j || !j->bucketPrefetching || j->bucketGeneration != generation)
+            return;
+        while (j->bucketPending.size() < 4 && j->bucketCursor < j->bucketPaths.size()) {
+            const auto path = j->bucketPaths.at(j->bucketCursor++);
+            if (j->files.contains(path) || j->bucketErrors.contains(path))
+                continue;
+            if (j->files.size() + j->bucketPending.size() >= filesCap) {
+                finish(id, Status::Failure, {}, "STATIC_QUERY_FILE_LIMIT");
+                return;
+            }
+            j->bucketPending.insert(path);
+            ++j->bucketAdmissions;
+            j->bucketPeakPending = std::max(j->bucketPeakPending, int(j->bucketPending.size()));
+            asset(path, path.mid(path.size() - 69, 64), -1,
+                  [this, id, generation, path](Loaded loaded, QString error) {
+                      const auto job = jobs.value(id);
+                      if (!job || job->bucketGeneration != generation || !job->bucketPrefetching)
+                          return;
+                      job->bucketPending.remove(path);
+                      if (job->index.value("revision") != index.value("revision")) {
+                          QTimer::singleShot(0, q, [this, id] { run(id); });
+                          return;
+                      }
+                      // A shared empty array is one asset for this job, but its
+                      // semantic validation remains independent per prefix.
+                      if (!job->files.contains(path) && !job->bucketErrors.contains(path)) {
+                          record(job, loaded);
+                          if (error.isEmpty() &&
+                              (job->bytes + loaded.bytes > jobCap ||
+                               workingBytes + loaded.bytes > allJobsCap))
+                              error = QStringLiteral("STATIC_QUERY_BYTE_LIMIT");
+                          if (error.isEmpty()) {
+                              job->bytes += loaded.bytes;
+                              workingBytes += loaded.bytes;
+                              job->files.insert(path, loaded);
+                          } else {
+                              job->bucketErrors.insert(path, error);
+                              // Paths were admitted in prefix order. Remaining
+                              // unadmitted paths are later than this failure:
+                              // let already-pending earlier files settle, but
+                              // do not spend reads on a query that cannot succeed.
+                              job->bucketCursor = job->bucketPaths.size();
+                          }
+                      }
+                      // Yield before refilling to let other jobs enter the
+                      // existing FIFO global four-transfer scheduler.
+                      QTimer::singleShot(0, q, [this, id, generation] {
+                          admitBuckets(id, generation);
+                      });
+                  }, id);
+        }
+        if (j->bucketCursor == j->bucketPaths.size() && j->bucketPending.isEmpty()) {
+            j->bucketPrefetching = false;
+            j->bucketPrefetched = true;
+            QTimer::singleShot(0, q, [this, id] { run(id); });
+        }
+    }
     void cancelIO(quint64 id) {
         const auto paths = assetOwners.keys();
         for (const auto &path : paths) {
@@ -1133,6 +1337,15 @@ struct StaticCatalogueResolver::Impl {
                        {"evaluationRuns", j->evaluationRuns},
                        {"evaluationMs", j->evaluationMs},
                        {"validatedFactsTuples", QVariant::fromValue(j->validatedFactsTuples)},
+                       {"factsMode", j->dataset == "imdb" && j->method == "titleFacts"
+                          ? (j->index.value("facts").toObject().value("imdb").toObject()
+                              .contains("hashBuckets") ? "hashBuckets-v1" : "aligned-v1")
+                          : "none"},
+                       {"bucketSelectedPrefixes", j->bucketSelectedPrefixes},
+                       {"bucketUniquePaths", j->bucketUniquePaths},
+                       {"bucketAdmissions", j->bucketAdmissions},
+                       {"bucketPeakPending", j->bucketPeakPending},
+                       {"bucketPrefetchWaves", j->bucketPrefetchWaves},
                        {"files", j->events},
                        {"outcome", status == Status::Prepared      ? "prepared"
                                    : status == Status::NotPrepared ? "worker"
@@ -1172,8 +1385,12 @@ struct StaticCatalogueResolver::Impl {
             j->bytes = 0;
             j->files.clear();
             j->validatedFactsBlocks.clear();
+            resetBuckets(j);
+            cancelIO(id);
             j->index = index;
         }
+        if (j->bucketPrefetching)
+            return;
         CatalogueTrace::Span evaluation("evaluate", traceJob(j));
         QElapsedTimer evalClock;
         evalClock.start();
@@ -1185,12 +1402,16 @@ struct StaticCatalogueResolver::Impl {
                 static const QRegularExpression leaf(QStringLiteral("^[a-f0-9]{64}\\.json$"));
                 if (!path.startsWith(prefix) || !leaf.match(path.mid(prefix.size())).hasMatch())
                     throw QStringLiteral("STATIC_INVALID_PATH");
+                // Prefetch errors are staged, never delivered out of prefix order.
+                if (j->bucketErrors.contains(path))
+                    throw j->bucketErrors.value(path);
                 if (j->files.contains(path))
                     return j->files.value(path).value;
                 throw Need{path};
             };
             const auto value = evaluate(j->index, j->dataset, j->method, j->args, read,
-                                        &j->validatedFactsTuples, &j->validatedFactsBlocks);
+                                        &j->validatedFactsTuples, &j->validatedFactsBlocks,
+                                        j->bucketPrefetched);
             j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             if (!value) {
                 evaluation.finish("not-prepared");
@@ -1204,6 +1425,23 @@ struct StaticCatalogueResolver::Impl {
                 throw QStringLiteral("STATIC_RESULT_TOO_LARGE");
             evaluation.finish("prepared");
             finish(id, Status::Prepared, *value);
+        } catch (const NeedBatch &batch) {
+            j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
+            evaluation.finish("needs-bucket-prefetch");
+            if (j->files.size() + batch.paths.size() > filesCap) {
+                finish(id, Status::Failure, {}, "STATIC_QUERY_FILE_LIMIT");
+                return;
+            }
+            j->bucketPaths = batch.paths;
+            j->bucketCursor = 0;
+            j->bucketPending.clear();
+            j->bucketErrors.clear();
+            j->bucketSelectedPrefixes = batch.selectedPrefixes;
+            j->bucketUniquePaths = batch.paths.size();
+            j->bucketPrefetching = true;
+            ++j->bucketPrefetchWaves;
+            const auto generation = ++j->bucketGeneration;
+            admitBuckets(id, generation);
         } catch (const Need &need) {
             j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             evaluation.finish("needs-file");
@@ -1247,6 +1485,14 @@ struct StaticCatalogueResolver::Impl {
         } catch (const QString &why) {
             j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             evaluation.finish("failure", {{"reason", why}});
+            if (j->bucketPrefetched && !j->refreshedMissing &&
+                (why == "STATIC_HTTP_404" || why == "STATIC_HTTP_410")) {
+                j->refreshedMissing = true;
+                checked = {};
+                resetBuckets(j);
+                ensure(id);
+                return;
+            }
             finish(id, Status::Failure, {}, why);
         }
     }
@@ -1275,6 +1521,8 @@ struct StaticCatalogueResolver::Impl {
                 j->bytes = 0;
                 j->files.clear();
                 j->validatedFactsBlocks.clear();
+                resetBuckets(j);
+                cancelIO(id);
             }
             j->index = index;
             if (unavailable) {

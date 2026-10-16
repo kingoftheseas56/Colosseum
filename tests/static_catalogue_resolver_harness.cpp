@@ -13,6 +13,7 @@
 #include <QNetworkAccessManager>
 #include <QProcess>
 #include <QSharedPointer>
+#include <QSet>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
@@ -101,6 +102,9 @@ int main(int argc, char **argv) {
     QString pub = hash("publication-one"), source(64, 'a'), leaf;
     int gets = 0, posts = 0;
     bool offline = false, holdLeaf = false, rotateMissing = false;
+    bool delayBuckets = false;
+    int liveBuckets = 0, peakBuckets = 0;
+    QSet<QString> delayedPaths;
     QList<QPointer<QTcpSocket>> held;
     QVariantList measured;
     auto publish = [&](const QString &label, const QString &landingFault = QString()) {
@@ -252,6 +256,120 @@ int main(int argc, char **argv) {
                   {"index", QJsonObject{{"path", path}, {"sha256", hash(indexRaw)},
                                         {"bytes", indexRaw.size()}}}});
     };
+    // Independently constructed additive publication: V1 aligned block remains
+    // present and valid, and each hash prefix selects its content-addressed rows.
+    auto publishBucketFacts = [&](const QString &label, const QString &fault = QString()) {
+        publish(label);
+        const QString prefix = "/catalogue/" + pub + "/";
+        QJsonArray rows, generic;
+        QHash<QString, QJsonArray> grouped;
+        const int rowCount = label == "bucket-chunk" ? 140 : 80;
+        for (int n = 1; n <= rowCount; ++n) {
+            const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+            const QJsonValue rating = n == 3 && fault == "nullable"
+                ? QJsonValue(QJsonValue::Null)
+                : QJsonValue(n == 1 && label.endsWith("-new") ? 9.7 : 8.4);
+            const QJsonValue votes = n == 3 && fault == "nullable"
+                ? QJsonValue(QJsonValue::Null) : QJsonValue(100 + n);
+            const bool anime = (n % 2) == 0;
+            const QJsonArray tuple{id, rating, votes, anime, n - 1};
+            rows.append(tuple);
+            grouped[hash(id.toUtf8()).left(2)].append(tuple);
+            generic.append(QJsonArray{id, QJsonValue(QJsonValue::Null), 0,
+                QJsonObject{{"identity", QJsonObject{{"title", id}, {"rating", rating},
+                    {"votes", votes}, {"isAnime", anime}}}, {"ordinal", n - 1}}});
+        }
+        const auto genericRaw = QJsonDocument(generic).toJson(QJsonDocument::Compact);
+        const auto genericPath = prefix + "shared/" + hash(genericRaw) + ".json";
+        files[genericPath] = genericRaw;
+        const auto factsRaw = QJsonDocument(rows).toJson(QJsonDocument::Compact);
+        const auto alignedPath = prefix + "shared/" + hash(factsRaw) + ".json";
+        files[alignedPath] = factsRaw;
+        const auto first = QStringLiteral("tt0000001");
+        const auto last = QStringLiteral("tt%1").arg(rowCount, 7, 10, QLatin1Char('0'));
+        const QJsonArray sourceRefs{QJsonObject{{"path", genericPath},
+                                                {"first", first}, {"last", last}}};
+        const QJsonArray factRefs{QJsonObject{{"path", alignedPath},
+                                              {"first", first}, {"last", last}}};
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        auto index = QJsonDocument::fromJson(
+            files.value(entry.value("index").toObject().value("path").toString())).object();
+        index["search"] = QJsonObject{{"imdb", QJsonObject{
+            {"keys", sourceRefs}, {"names", QJsonArray()}}}};
+        const QByteArray emptyRaw("[]");
+        const auto emptyPath = prefix + "shared/" + hash(emptyRaw) + ".json";
+        files[emptyPath] = emptyRaw;
+        QJsonObject mappings;
+        for (int n = 0; n < 256; ++n)
+            mappings[QString::number(n, 16).rightJustified(2, QLatin1Char('0'))] = emptyPath;
+        auto install = [&](const QString &key, const QByteArray &raw) {
+            const auto path = prefix + "shared/" + hash(raw) + ".json";
+            files[path] = raw;
+            mappings[key] = path;
+        };
+        auto keys = grouped.keys();
+        std::sort(keys.begin(), keys.end());
+        for (const auto &key : keys)
+            install(key, QJsonDocument(grouped.value(key)).toJson(QJsonDocument::Compact));
+        if (fault == "wrong-prefix")
+            mappings[keys.at(0)] = mappings.value(keys.at(1));
+        if (fault == "shared-nonempty")
+            mappings[keys.at(1)] = mappings.value(keys.at(0));
+        if (fault == "bad-votes" || fault == "bad-rating" ||
+            fault == "bad-ordinal" || fault == "duplicate-tuple" ||
+            fault == "bad-rows-type" || fault == "bad-json" || fault == "bad-utf8") {
+            auto changed = grouped.value(keys.first());
+            auto firstTuple = changed.first().toArray();
+            if (fault == "bad-votes") firstTuple[2] = QStringLiteral("invalid");
+            if (fault == "bad-rating") firstTuple[1] = QStringLiteral("invalid");
+            if (fault == "bad-ordinal") firstTuple[4] = -1;
+            if (fault == "bad-votes" || fault == "bad-rating" || fault == "bad-ordinal")
+                changed[0] = firstTuple;
+            if (fault == "duplicate-tuple") changed.append(changed.first());
+            const auto raw = fault == "bad-rows-type" ? QByteArray("{}")
+                : fault == "bad-json" ? QByteArray("[")
+                : fault == "bad-utf8" ? QByteArray(1, char(0xff))
+                : QJsonDocument(changed).toJson(QJsonDocument::Compact);
+            install(keys.first(), raw);
+        }
+        if (fault == "unsorted") {
+            for (const auto &key : keys) {
+                auto changed = grouped.value(key);
+                if (changed.size() < 2) continue;
+                const auto a = changed.at(0);
+                changed[0] = changed.at(1);
+                changed[1] = a;
+                install(key, QJsonDocument(changed).toJson(QJsonDocument::Compact));
+                break;
+            }
+        }
+        if (fault == "missing-file")
+            files.remove(mappings.value(keys.first()).toString());
+        if (fault == "hash-mismatch")
+            files[mappings.value(keys.first()).toString()] = "{}";
+        if (fault == "missing-key") mappings.remove("ff");
+        if (fault == "unsafe-unselected") mappings["ff"] = "/etc/passwd";
+        if (fault == "non-string-key") mappings["ff"] = QJsonArray();
+        QJsonObject hashDirectory{{"version", fault == "unsupported" ? 2 : 1},
+            {"keyHash", fault == "wrong-keyhash" ? "md5" : "sha256-utf8"},
+            {"prefixChars", fault == "wrong-width" ? 3 : 2},
+            {"paths", mappings}};
+        auto imdb = QJsonObject{{"version", 1}, {"blocks", factRefs},
+                                {"hashBuckets", hashDirectory}};
+        if (fault == "bad-v1-roster")
+            imdb["blocks"] = QJsonArray();
+        index["facts"] = QJsonObject{{"imdb", imdb}};
+        const auto indexRaw = json(index);
+        const auto indexPath = prefix + "index-" + hash(indexRaw) + ".json";
+        files[indexPath] = indexRaw;
+        files["/catalogue/current.json"] = json({
+            {"schemaVersion", 1}, {"revision", pub}, {"sourceRevision", source},
+            {"index", QJsonObject{{"path", indexPath}, {"sha256", hash(indexRaw)},
+                                   {"bytes", indexRaw.size()}}}});
+        delayedPaths.clear();
+        for (const auto &key : keys)
+            delayedPaths.insert(mappings.value(key).toString());
+    };
     publish("publication-one");
     QObject::connect(&server, &QTcpServer::newConnection, &app, [&] {
         while (server.hasPendingConnections()) {
@@ -312,10 +430,24 @@ int main(int argc, char **argv) {
                     status = 304;
                     body.clear();
                 }
-                s->write("HTTP/1.1 " + QByteArray::number(status) + " OK\r\nETag: " + etag +
-                         "\r\nContent-Type: application/json\r\nContent-Length: " +
-                         QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
-                s->disconnectFromHost();
+                auto respond = [s, status, etag, body] {
+                    if (s->state() != QAbstractSocket::ConnectedState)
+                        return;
+                    s->write("HTTP/1.1 " + QByteArray::number(status) + " OK\r\nETag: " + etag +
+                             "\r\nContent-Type: application/json\r\nContent-Length: " +
+                             QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+                    s->disconnectFromHost();
+                };
+                if (delayBuckets && delayedPaths.contains(path)) {
+                    ++liveBuckets;
+                    peakBuckets = std::max(peakBuckets, liveBuckets);
+                    QObject::connect(s, &QTcpSocket::disconnected, &app, [&] {
+                        --liveBuckets;
+                    });
+                    QTimer::singleShot(65, s, respond);
+                } else {
+                    respond();
+                }
             });
         }
     });
@@ -560,6 +692,283 @@ int main(int argc, char **argv) {
                 malformedFirst.error == "STATIC_INVALID_FACTS_TUPLE" &&
                 gets == invalidBefore + 3,
             "malformed first compact block fails before requesting missing later shard");
+
+    // Bucket-mode golden and negative fixture: the immutable V1 tests above
+    // remain serial and unchanged; these exercise only the additive facility.
+    QVariantList allBucketIds;
+    QJsonObject expectedBuckets;
+    QSet<QString> populatedPrefixes;
+    for (int n = 1; n <= 80; ++n) {
+        const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+        allBucketIds.append(id);
+        populatedPrefixes.insert(hash(id.toUtf8()).left(2));
+        expectedBuckets[id] = QJsonObject{{"rating", 8.4}, {"votes", 100 + n},
+                                           {"isAnime", (n % 2) == 0}};
+    }
+    const auto allBucketArgs = factArguments(allBucketIds);
+    publishBucketFacts("bucket-good");
+    const auto bucketCache = temp.filePath("facts-bucket-cache");
+    auto *bucketResolver = StaticCatalogueResolver::shared(&nam, origin, bucketCache, &app);
+    const int beforeBucket = gets;
+    const auto bucketCold = resolve(bucketResolver, "titleFacts", allBucketArgs);
+    require(bucketCold.status == StaticCatalogueResolver::Status::Prepared &&
+            bucketCold.result.toObject() == expectedBuckets &&
+            bucketCold.metrics.value("factsMode") == "hashBuckets-v1" &&
+            bucketCold.metrics.value("bucketSelectedPrefixes").toInt() ==
+                populatedPrefixes.size() &&
+            bucketCold.metrics.value("bucketUniquePaths").toInt() >= 30 &&
+            bucketCold.metrics.value("bucketPeakPending").toInt() >= 2 &&
+            bucketCold.metrics.value("bucketPeakPending").toInt() <= 4 &&
+            bucketCold.metrics.value("validatedFactsTuples").toULongLong() == 80 &&
+            gets > beforeBucket + 2,
+            "hash buckets select and validate exact tuples with bounded acquisition");
+    const int bucketGets = gets;
+    const auto bucketWarm = resolve(bucketResolver, "titleFacts", allBucketArgs);
+    require(bucketWarm.status == StaticCatalogueResolver::Status::Prepared &&
+            bucketWarm.result == bucketCold.result && gets == bucketGets &&
+            bucketWarm.metrics.value("networkFiles").toInt() == 0,
+            "bucket warm memory has identical JSON and zero network I/O");
+    QObject bucketDiskOwner;
+    auto *bucketDisk = StaticCatalogueResolver::shared(
+        nullptr, origin, bucketCache, &bucketDiskOwner);
+    const auto bucketOffline = resolve(bucketDisk, "titleFacts", allBucketArgs);
+    require(bucketOffline.status == StaticCatalogueResolver::Status::Prepared &&
+            bucketOffline.result == bucketCold.result && gets == bucketGets &&
+            bucketOffline.metrics.value("diskFiles").toInt() >=
+                bucketCold.metrics.value("bucketUniquePaths").toInt() &&
+            bucketOffline.metrics.value("networkFiles").toInt() == 0,
+            "fresh independent NAM=null owner verifies actual disk bucket files");
+    QVariantList emptyBucketIds;
+    QSet<QString> emptyPrefixes;
+    for (int n = 9000000; n < 9010000 && emptyBucketIds.size() < 12; ++n) {
+        const auto id = QStringLiteral("tt%1").arg(n);
+        const auto key = hash(id.toUtf8()).left(2);
+        if (populatedPrefixes.contains(key) || emptyPrefixes.contains(key)) continue;
+        emptyBucketIds.append(id);
+        emptyPrefixes.insert(key);
+    }
+    require(emptyBucketIds.size() == 12, "fixture has distinct unpopulated prefixes");
+    const auto emptyBucketResult = resolve(
+        bucketResolver, "titleFacts", factArguments(emptyBucketIds));
+    require(emptyBucketResult.status == StaticCatalogueResolver::Status::Prepared &&
+            emptyBucketResult.result.toObject().isEmpty() &&
+            emptyBucketResult.metrics.value("bucketSelectedPrefixes").toInt() == 12 &&
+            emptyBucketResult.metrics.value("bucketUniquePaths").toInt() == 1 &&
+            emptyBucketResult.metrics.value("bucketAdmissions").toInt() == 1,
+            "twelve empty prefixes reuse one verified asset and count it once");
+
+    publishBucketFacts("bucket-nullable", "nullable");
+    auto *nullableBucket = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-nullable"), &app);
+    const auto nullableBucketOut = resolve(nullableBucket, "titleFacts",
+        factArguments({QStringLiteral("tt0000003"), QStringLiteral("tt9999999"),
+                       QStringLiteral("tt0000003"), QStringLiteral("tt0000001")}));
+    require(nullableBucketOut.status == StaticCatalogueResolver::Status::Prepared &&
+            nullableBucketOut.result.toObject().size() == 2 &&
+            nullableBucketOut.result.toObject().value("tt0000003").toObject().value("rating").isNull() &&
+            nullableBucketOut.result.toObject().value("tt0000003").toObject().value("votes").isNull(),
+            "bucket null numbers, unknown keys and duplicated ordered keys preserve V1 output");
+
+    publishBucketFacts("bucket-chunk");
+    auto *chunkBucket = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-chunk"), &app);
+    QVariantList chunkIds;
+    QJsonObject expectedChunk;
+    for (int n = 1; n <= 140; ++n) {
+        const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+        chunkIds.append(id);
+        expectedChunk[id] = QJsonObject{{"rating", 8.4}, {"votes", n + 100},
+                                        {"isAnime", (n % 2) == 0}};
+    }
+    const auto chunkOut = resolve(chunkBucket, "titleFacts", factArguments(chunkIds));
+    require(chunkOut.status == StaticCatalogueResolver::Status::Prepared &&
+            chunkOut.result.toObject() == expectedChunk &&
+            chunkOut.metrics.value("bucketUniquePaths").toInt() > 80 &&
+            chunkOut.metrics.value("bucketPeakPending").toInt() <= 4,
+            "140-key hash query preserves cross-100 chunk semantics and bounded I/O");
+
+    // Hash buckets are bounded by bytes, not the aligned V1 block's 2048 rows.
+    // This complete publication keeps its V1 source/facts blocks <=2048 while
+    // 2100 valid source IDs happen to share one SHA prefix.
+    publishBucketFacts("bucket-dense-contract");
+    {
+        const QString prefix = "/catalogue/" + pub + "/";
+        const auto targetPrefix = hash(QByteArrayLiteral("tt0000001")).left(2);
+        QJsonArray denseRows, sourceRefs, factRefs;
+        for (int n = 1; denseRows.size() < 2100; ++n) {
+            const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+            if (hash(id.toUtf8()).left(2) == targetPrefix)
+                denseRows.append(QJsonArray{id, 8.4, 101, false, denseRows.size()});
+        }
+        auto put = [&](const QJsonArray &rows) {
+            const auto raw = QJsonDocument(rows).toJson(QJsonDocument::Compact);
+            const auto path = prefix + "shared/" + hash(raw) + ".json";
+            files[path] = raw;
+            return path;
+        };
+        for (qsizetype offset = 0; offset < denseRows.size(); offset += 2048) {
+            QJsonArray compact, generic;
+            const auto end = std::min(offset + 2048, denseRows.size());
+            for (auto n = offset; n < end; ++n) {
+                const auto tuple = denseRows.at(n).toArray();
+                compact.append(tuple);
+                generic.append(QJsonArray{tuple.at(0), QJsonValue(QJsonValue::Null), 0,
+                    QJsonObject{{"identity", QJsonObject{{"rating", 8.4}, {"votes", 101},
+                        {"isAnime", false}}}, {"ordinal", n}}});
+            }
+            const auto first = compact.first().toArray().at(0).toString();
+            const auto last = compact.last().toArray().at(0).toString();
+            sourceRefs.append(QJsonObject{{"path", put(generic)}, {"first", first}, {"last", last}});
+            factRefs.append(QJsonObject{{"path", put(compact)}, {"first", first}, {"last", last}});
+        }
+        const auto oldEntry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        auto index = QJsonDocument::fromJson(files.value(
+            oldEntry.value("index").toObject().value("path").toString())).object();
+        auto search = index.value("search").toObject();
+        auto imdbSearch = search.value("imdb").toObject();
+        imdbSearch["keys"] = sourceRefs;
+        search["imdb"] = imdbSearch;
+        index["search"] = search;
+        QJsonObject mappings;
+        const auto emptyPath = put(QJsonArray());
+        for (int n = 0; n < 256; ++n)
+            mappings[QString::number(n, 16).rightJustified(2, QLatin1Char('0'))] = emptyPath;
+        mappings[targetPrefix] = put(denseRows);
+        index["facts"] = QJsonObject{{"imdb", QJsonObject{{"version", 1}, {"blocks", factRefs},
+            {"hashBuckets", QJsonObject{{"version", 1}, {"keyHash", "sha256-utf8"},
+                {"prefixChars", 2}, {"paths", mappings}}}}}};
+        const auto indexRaw = json(index);
+        const auto indexPath = prefix + "index-" + hash(indexRaw) + ".json";
+        files[indexPath] = indexRaw;
+        files["/catalogue/current.json"] = json({{"schemaVersion", 1}, {"revision", pub},
+            {"sourceRevision", source}, {"index", QJsonObject{{"path", indexPath},
+                {"sha256", hash(indexRaw)}, {"bytes", indexRaw.size()}}}});
+        auto *dense = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("bucket-dense-contract"), &app);
+        const auto result = resolve(dense, "titleFacts", factArguments({QStringLiteral("tt0000001")}));
+        require(result.status == StaticCatalogueResolver::Status::Prepared &&
+                    result.result.toObject().size() == 1 &&
+                    result.metrics.value("validatedFactsTuples").toULongLong() == 2100,
+                "valid hash bucket may exceed V1 aligned block row count without weakening validation");
+    }
+
+    publishBucketFacts("bucket-failure-stops-prefetch");
+    {
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        const auto index = QJsonDocument::fromJson(files.value(
+            entry.value("index").toObject().value("path").toString())).object();
+        const auto mappings = index.value("facts").toObject().value("imdb").toObject()
+            .value("hashBuckets").toObject().value("paths").toObject();
+        for (const auto &key : populatedPrefixes)
+            files.remove(mappings.value(key).toString());
+        auto *missingBuckets = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("bucket-failure-stops-prefetch"), &app);
+        const int before = gets, beforeWorker = posts;
+        const auto failed = resolve(missingBuckets, "titleFacts", allBucketArgs);
+        std::cerr << "ROOT missing-bucket requests=" << (gets - before) << '\n';
+        require(failed.status == StaticCatalogueResolver::Status::Failure &&
+                    failed.error == "STATIC_HTTP_404" && posts == beforeWorker &&
+                    gets - before <= 12,
+                "failed bucket stops fresh admissions while preserving one metadata refresh and four pending loads");
+    }
+
+    for (const auto &fault : {QStringLiteral("bad-v1-roster"), QStringLiteral("unsupported"),
+                              QStringLiteral("missing-key"), QStringLiteral("wrong-keyhash"),
+                              QStringLiteral("wrong-width"), QStringLiteral("unsafe-unselected"),
+                              QStringLiteral("non-string-key"), QStringLiteral("wrong-prefix"),
+                              QStringLiteral("shared-nonempty"), QStringLiteral("bad-votes"),
+                              QStringLiteral("bad-rating"), QStringLiteral("bad-ordinal"),
+                              QStringLiteral("duplicate-tuple"), QStringLiteral("unsorted"),
+                              QStringLiteral("bad-rows-type"), QStringLiteral("bad-json"),
+                              QStringLiteral("bad-utf8"), QStringLiteral("missing-file"),
+                              QStringLiteral("hash-mismatch")}) {
+        publishBucketFacts("bucket-fault-" + fault, fault);
+        auto *bad = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("bucket-fault-" + fault), &app);
+        const int before = gets, beforeWorker = posts;
+        const auto result = resolve(bad, "titleFacts", allBucketArgs);
+        require(result.status == StaticCatalogueResolver::Status::Failure &&
+                posts == beforeWorker,
+                "advertised invalid bucket directory/body never falls back or succeeds");
+        if (fault == "unsafe-unselected" || fault == "missing-key" ||
+            fault == "non-string-key" || fault == "unsupported" ||
+            fault == "wrong-keyhash" || fault == "wrong-width" || fault == "bad-v1-roster")
+            require(result.error == "STATIC_INVALID_FACTS_DECLARATION" &&
+                    gets == before + 2,
+                    "malformed roster, even unrequested, fails before any unsafe asset I/O");
+        if (fault == "wrong-prefix" || fault == "shared-nonempty")
+            require(result.error == "STATIC_INVALID_FACTS_TUPLE",
+                    "same hash-verified nonempty body cannot pass two prefix contexts");
+        if (fault == "hash-mismatch")
+            require(result.error == "STATIC_HASH_MISMATCH",
+                    "bucket content hash is mandatory");
+        if (fault == "missing-file")
+            require(result.error == "STATIC_HTTP_404", "missing bucket never returns empty");
+    }
+
+    publishBucketFacts("bucket-concurrent");
+    delayBuckets = true;
+    liveBuckets = peakBuckets = 0;
+    auto *concurrent = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-concurrent"), &app);
+    QVariantList firstHalf, secondHalf;
+    for (int n = 0; n < allBucketIds.size(); ++n)
+        (n < 40 ? firstHalf : secondHalf).append(allBucketIds.at(n));
+    bool firstDone = false, secondDone = false;
+    StaticCatalogueResolver::Outcome firstOut, secondOut;
+    concurrent->resolve("imdb", "titleFacts", factArguments(firstHalf), &app,
+                        [&](auto out) { firstOut = out; firstDone = true; });
+    concurrent->resolve("imdb", "titleFacts", factArguments(secondHalf), &app,
+                        [&](auto out) { secondOut = out; secondDone = true; });
+    until([&] { return firstDone && secondDone; });
+    delayBuckets = false;
+    require(firstOut.status == StaticCatalogueResolver::Status::Prepared &&
+            secondOut.status == StaticCatalogueResolver::Status::Prepared &&
+            firstOut.result.toObject().size() == 40 &&
+            secondOut.result.toObject().size() == 40 &&
+            peakBuckets >= 2 && peakBuckets <= 4 &&
+            firstOut.metrics.value("bucketPeakPending").toInt() <= 4 &&
+            secondOut.metrics.value("bucketPeakPending").toInt() <= 4,
+            "real delayed loopback proves overlapping jobs share global four transfers");
+
+    publishBucketFacts("bucket-cancel");
+    delayBuckets = true;
+    liveBuckets = peakBuckets = 0;
+    auto *bucketCancelResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-cancel"), &app);
+    bool cancelledCallback = false;
+    const auto cancelId = bucketCancelResolver->resolve("imdb", "titleFacts", allBucketArgs, &app,
+        [&](auto) { cancelledCallback = true; });
+    until([&] { return liveBuckets >= 2; });
+    bucketCancelResolver->cancel(cancelId);
+    until([&] { return liveBuckets == 0; });
+    QCoreApplication::processEvents();
+    delayBuckets = false;
+    require(!cancelledCallback, "mid-prefetch cancellation suppresses callbacks");
+
+    publishBucketFacts("bucket-switch-old");
+    delayBuckets = true;
+    liveBuckets = peakBuckets = 0;
+    auto *switching = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-switch"), &app);
+    bool oldDone = false, newDone = false;
+    StaticCatalogueResolver::Outcome oldOut, newOut;
+    switching->resolve("imdb", "titleFacts", allBucketArgs, &app,
+        [&](auto out) { oldOut = out; oldDone = true; });
+    until([&] { return liveBuckets >= 2; });
+    publishBucketFacts("bucket-switch-new");
+    const auto latestPub = pub;
+    delayBuckets = false;
+    switching->refresh();
+    switching->resolve("imdb", "titleFacts", allBucketArgs, &app,
+        [&](auto out) { newOut = out; newDone = true; });
+    until([&] { return oldDone && newDone; });
+    require(oldOut.status == StaticCatalogueResolver::Status::Prepared &&
+            newOut.status == StaticCatalogueResolver::Status::Prepared &&
+            oldOut.publication == latestPub && newOut.publication == latestPub &&
+            oldOut.result.toObject().value("tt0000001").toObject().value("rating") == 9.7 &&
+            newOut.result.toObject().value("tt0000001").toObject().value("rating") == 9.7,
+            "source revision invalidates in-flight old buckets and fences callbacks");
 
     publish("publication-one");
     auto first = resolve(r);

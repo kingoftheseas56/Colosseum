@@ -13,12 +13,15 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSharedPointer>
+#include <QSet>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <iostream>
 #include <functional>
+#include <algorithm>
 
 int staticCatalogueProbe(const QString &publication, const QString &casesPath,
                          const QString &evidence) {
@@ -257,6 +260,74 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
                 {"metrics", QJsonObject::fromVariantMap(out.metrics)}, {"pass", true}});
         }
     }
+    // Report inspected directory selection alongside measured resolver events.
+    // Transfer counts below come from real loaded files, never the bucket model.
+    const auto imdbFacts = index.value("facts").toObject().value("imdb").toObject();
+    const auto hashed = imdbFacts.value("hashBuckets").toObject();
+    const auto hashPaths = hashed.value("paths").toObject();
+    auto addActualIO = [](QJsonObject row) {
+        const auto m = row.value("metrics").toObject();
+        row["actualIO"] = QJsonObject{
+            {"networkFiles", m.value("networkFiles")}, {"networkBytes", m.value("networkBytes")},
+            {"diskFiles", m.value("diskFiles")}, {"diskBytes", m.value("diskBytes")},
+            {"memoryFiles", m.value("memoryFiles")}, {"sharedFiles", m.value("sharedFiles")},
+            {"logicalFiles", m.value("logicalFiles")},
+            {"loopbackRequests", row.value("requestFiles")},
+            {"loopbackBytes", row.value("networkBytes")},
+            {"freshDistinctOfflineOwner", row.value("mode") == "offline-restart"}};
+        row["phaseCounters"] = QJsonObject{
+            {"evaluationRuns", m.value("evaluationRuns")}, {"evaluationMs", m.value("evaluationMs")},
+            {"validatedFactsTuples", m.value("validatedFactsTuples")},
+            {"bucketSelectedPrefixes", m.value("bucketSelectedPrefixes")},
+            {"bucketUniquePaths", m.value("bucketUniquePaths")},
+            {"bucketAdmissions", m.value("bucketAdmissions")},
+            {"bucketPeakPending", m.value("bucketPeakPending")},
+            {"bucketPrefetchWaves", m.value("bucketPrefetchWaves")}};
+        return row;
+    };
+    for (qsizetype n = 0; n < rows.size(); ++n) {
+        auto row = addActualIO(rows.at(n).toObject());
+        const auto spec = cases.at(n / 3).toObject();
+        if (spec.value("dataset") == "imdb" && spec.value("method") == "titleFacts") {
+            const auto argArray = spec.value("args").toArray();
+            const auto ids = argArray.isEmpty() ? QJsonArray() : argArray.at(0).toArray();
+            QSet<QString> selectedPrefixes, selectedPaths;
+            for (const auto &idValue : ids) {
+                if (!idValue.isString()) continue;
+                const auto id = idValue.toString();
+                if (!QRegularExpression(QStringLiteral("^tt[0-9]+$")).match(id).hasMatch())
+                    continue;
+                if (!hashed.isEmpty()) {
+                    const auto prefix = QString::fromLatin1(
+                        QCryptographicHash::hash(id.toUtf8(),
+                            QCryptographicHash::Sha256).toHex().left(2));
+                    selectedPrefixes.insert(prefix);
+                    selectedPaths.insert(hashPaths.value(prefix).toString());
+                } else {
+                    for (const auto &blockValue : imdbFacts.value("blocks").toArray()) {
+                        const auto block = blockValue.toObject();
+                        if (id >= block.value("first").toString() &&
+                            id <= block.value("last").toString())
+                            selectedPaths.insert(block.value("path").toString());
+                    }
+                }
+            }
+            auto keys = selectedPrefixes.values();
+            std::sort(keys.begin(), keys.end());
+            QJsonArray ordered;
+            for (const auto &key : keys) ordered.append(key);
+            row["directorySelection"] = QJsonObject{
+                {"mode", hashed.isEmpty() ? "aligned-v1" : "hashBuckets-v1"},
+                {"advertisedEntries", hashPaths.size()},
+                {"selectedPrefixes", ordered},
+                {"selectedPrefixCount", selectedPrefixes.size()},
+                {"uniquePaths", selectedPaths.size()}};
+        }
+        rows[n] = row;
+    }
+    for (qsizetype n = 0; n < routineRows.size(); ++n)
+        routineRows[n] = addActualIO(routineRows.at(n).toObject());
+
     QFileInfo largest;
     const auto artwork =
         QDir(QDir(publication).filePath("assets/content")).entryInfoList(QDir::Files);
