@@ -9,7 +9,7 @@ import {buildPublicCatalogue,retainArtwork} from '../projection/public_static.mj
 import {prebuiltCatalogue,selectionKey} from '../src/catalogue-prebuilt.ts';
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const sourceRevision='1'.repeat(64),prefix='/internal/prebuilt/'+sourceRevision+'/';
-function fixture(t){
+function fixture(t,{withImdb=false,imdbRows}={}){
  const root=mkdtempSync(join(tmpdir(),'colosseum-i05-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
  const source=join(root,'source'),content=join(root,'content'),output=join(root,'output');
  const entries=[],write=(base,path,raw)=>{const target=join(base,path);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,raw);};
@@ -17,8 +17,14 @@ function fixture(t){
  const records=put([{identity:{id:13,title:'One Piece'}}]);
  const names=put([['one piece',13,records,0,'one piece',1997,9,0]]);
  const keys=put([[13,records,0]]),rows=put([{id:1},{id:2}]);
+ const imdbSourceRows=imdbRows??[
+  ['tt0000001',null,0,{identity:{id:'tt0000001',title:'Alpha',rating:8.4,votes:100,isAnime:false},ordinal:2}],
+  ['tt0000002',null,0,{identity:{id:'tt0000002',title:'Anime',rating:9.1,votes:220,isAnime:true},ordinal:0}],
+  ['tt0000003',null,0,{identity:{id:'tt0000003',title:'Unknown rating',rating:null,votes:null,isAnime:false},ordinal:1}]
+ ];
+ const imdbKeys=withImdb?put(imdbSourceRows):null;
  const list=put({[selectionKey('imdb','titleCatalog',[{}])]:{parts:[rows],length:2,chunkSize:256,shape:'array',period:'stable'}});
- const manifest={version:1,revision:sourceRevision,lists:{},fixed:{},listBuckets:{[hash(selectionKey('imdb','titleCatalog',[{}])).slice(0,2)]:list},lookups:{},search:{manga:{names:[{path:names,first:'one piece',last:'one piece'}],keys:[{path:keys,first:13,last:13}]}}};
+ const manifest={version:1,revision:sourceRevision,lists:{},fixed:{},listBuckets:{[hash(selectionKey('imdb','titleCatalog',[{}])).slice(0,2)]:list},lookups:{},search:{manga:{names:[{path:names,first:'one piece',last:'one piece'}],keys:[{path:keys,first:13,last:13}]},...(withImdb?{imdb:{names:[],keys:[{path:imdbKeys,first:'tt0000001',last:'tt0000003'}]}}:{})}};
  const raw=JSON.stringify(manifest);write(source,prefix+'manifest.json',raw);entries.push({path:prefix+'manifest.json',bytes:Buffer.byteLength(raw)});
  write(source,'static-catalogue-report.json',JSON.stringify({revision:sourceRevision,date:'2026-10-15',year:'2026',files:entries.length,listSelections:1,source:{mal:{sha256:'2'.repeat(64)}},entries}));
  const document='\n'+JSON.stringify({schemaVersion:1,revision:'doc-1',data:{title:'Universe',image:'https://provider.example/cover.jpg'}},null,2)+'\n';
@@ -26,7 +32,7 @@ function fixture(t){
  const cm={schemaVersion:1,revision:'3'.repeat(64),documents:{'universe-test':{revision:'doc-1',sha256:hash(document)}},assets:{'assets/test.png':{path:artPath,sha256:hash(artwork),bytes:artwork.length}}};
  write(content,'internal/content/manifest.json',JSON.stringify(cm));write(content,'internal/content/documents/universe-test.json',document);
  write(content,'internal/content/rpc-bundle.json',JSON.stringify({apiVersion:1,revision:cm.revision,method:'bundle',result:{manifest:cm,documents:{'universe-test':document}}}));
- return{root,source,content,output,manifest,entries,records,artPath,write};
+ return{root,source,content,output,manifest,entries,records,artPath,write,imdbKeys,imdbSourceRows};
 }
 test('public graph is hash-addressed, preserves old Worker results and shares one payload tree',async t=>{
  const f=fixture(t),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
@@ -79,6 +85,55 @@ test('legacy compatibility refuses a shard from any other public generation',asy
  const assets={async fetch(req){return new Response(readFileSync(join(f.output,new URL(req.url).pathname)));}};
  await assert.rejects(prebuiltCatalogue(assets,sourceRevision,'comics','curatedReady',[]),/INVALID_PREBUILT_PATH/);
 });
+test('optional IMDb facts shards are versioned, hashed and leave generic title identity intact',t=>{
+ const f=fixture(t,{withImdb:true});
+ const report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const index=JSON.parse(readFileSync(join(f.output,report.index.path)));
+ assert.equal(index.facts.imdb.version,1);
+ assert.equal(index.facts.imdb.blocks.length,1);
+ assert.equal(report.factsImdbBlocks,1);
+ const ref=index.facts.imdb.blocks[0],raw=readFileSync(join(f.output,ref.path));
+ assert.equal(hash(raw),ref.path.match(/([a-f0-9]{64})\.json$/)[1]);
+ assert.equal(ref.first,'tt0000001');assert.equal(ref.last,'tt0000003');
+ assert.deepEqual(JSON.parse(raw),[
+  ['tt0000001',8.4,100,false,2],['tt0000002',9.1,220,true,0],
+  ['tt0000003',null,null,false,1]
+ ]);
+ const generic=JSON.parse(readFileSync(join(f.output,index.search.imdb.keys[0].path)));
+ assert.deepEqual(generic,f.imdbSourceRows,'titlePresentation and legacy lookups keep full identity records');
+ assert.ok(raw.length<Buffer.byteLength(JSON.stringify(generic)));
+ assert.ok(report.entries.some(e=>e.path===ref.path && e.bytes===raw.length),
+  'shared facts shard participates in file and byte accounting');
+ const entry=JSON.parse(readFileSync(join(f.output,'catalogue/current.json')));
+ assert.equal(hash(readFileSync(join(f.output,entry.index.path))),entry.index.sha256);
+});
+test('legacy publisher without IMDb key directory leaves optional facts absent',t=>{
+ const f=fixture(t);
+ const report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const index=JSON.parse(readFileSync(join(f.output,report.index.path)));
+ assert.ok(!Object.hasOwn(index,'facts'));assert.equal(report.factsImdbBlocks,0);
+});
+test('invalid compact input fails before publishing any usable current pointer',t=>{
+ const valid=[
+  ['tt0000001',null,0,{identity:{rating:8.4,votes:100,isAnime:false},ordinal:2}],
+  ['tt0000002',null,0,{identity:{rating:9.1,votes:220,isAnime:true},ordinal:0}],
+  ['tt0000003',null,0,{identity:{rating:null,votes:null,isAnime:false},ordinal:1}]
+ ];
+ const variants=[
+  {name:'duplicate-id',rows:[valid[0],[...valid[1].slice(0,0),valid[0][0],...valid[1].slice(1)],valid[2]]},
+  {name:'wrong-range',rows:[valid[1],valid[2]]},
+  {name:'negative-votes',rows:[valid[0],['tt0000002',null,0,{identity:{rating:9.1,votes:-1,isAnime:true},ordinal:0}],valid[2]]},
+  {name:'missing-votes',rows:[valid[0],['tt0000002',null,0,{identity:{rating:9.1,isAnime:true},ordinal:0}],valid[2]]},
+  {name:'bad-ordinal',rows:[valid[0],['tt0000002',null,0,{identity:{rating:9.1,votes:220,isAnime:true},ordinal:-1}],valid[2]]}
+ ];
+ for(const v of variants){
+  const f=fixture(t,{withImdb:true,imdbRows:v.rows});
+  assert.throws(()=>buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output}),
+   /SOURCE_INVALID_FACTS_/,v.name);
+  assert.throws(()=>readFileSync(join(f.output,'catalogue/current.json')),undefined,v.name);
+ }
+});
+
 test('actual static router bypasses Worker for public files, preserves cache/ETag and protects internal routes',async t=>{
  const cleanup=[],f=fixture({after:cb=>cleanup.push(cb)}),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8').replace(/^\s*\/\/.*$/gm,''));

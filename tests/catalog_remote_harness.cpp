@@ -31,7 +31,7 @@ int main(int argc,char** argv) {
  QCoreApplication app(argc,argv); QTemporaryDir temp; QNetworkAccessManager nam;
  QTcpServer server; require(server.listen(QHostAddress::LocalHost),"loopback fixture listens");
  int sessions=0,calls=0; bool rejectOnce=false,invalid=false,delayed=false,invalidResult=false,notModified=false;
- QString failArg,emptyArg,slowArg,holdArg;
+ QString failArg,emptyArg,slowArg,holdArg,selector;
  QPointer<QTcpSocket> heldSocket; QByteArray heldWire;
  QJsonArray lastArgs; QString lastMethod; QString sourceRevision(64, QLatin1Char('a')); QString fixtureEtag; QByteArray lastHeaders;
  QObject::connect(&server,&QTcpServer::newConnection,&app,[&]{
@@ -52,12 +52,16 @@ int main(int argc,char** argv) {
      response={{"token","guest"},{"expiresAt","2099-01-01T00:00:00Z"}};
     } else {
      ++calls; lastHeaders=header; if(notModified) status=304; lastMethod=QString::fromUtf8(path.mid(path.lastIndexOf('/')+1)); lastArgs=request.value("args").toArray();
-     QString selector=lastArgs.isEmpty() ? QString() : lastArgs.at(0).toString();
+     selector=lastArgs.isEmpty() ? QString() : lastArgs.at(0).toString();
      if(selector.isEmpty() && !lastArgs.isEmpty() && lastArgs.at(0).isObject()) {
       const auto qObj=lastArgs.at(0).toObject();
       selector=qObj.value("genre").toString();
       if(selector.isEmpty()) selector=qObj.value("tag").toString();
       if(selector.isEmpty()) selector=qObj.value("type").toString();
+     }
+     if(selector.isEmpty() && !lastArgs.isEmpty() && lastArgs.at(0).isArray()) {
+      const auto ids=lastArgs.at(0).toArray();
+      if(!ids.isEmpty()) selector=ids.at(0).toString();
      }
      if(lastMethod=="genreEntries" && lastArgs.size()>1) selector=lastArgs.at(1).toString();
      if (!failArg.isEmpty() && selector==failArg) status=503;
@@ -68,7 +72,15 @@ int main(int argc,char** argv) {
      if(lastMethod=="mangaById" || lastMethod=="series") result=QJsonObject{{"title","Detail"}};
      if(lastMethod=="animeCatalog" || lastMethod=="genreEntries")
       result=QJsonArray{QJsonObject{{"mal_id",44},{"title","Remote Anime"},{"type","TV"},{"year",2021},{"score",8.4},{"members",50000}}};
-     if (!emptyArg.isEmpty() && selector==emptyArg) result=QJsonArray{};
+     if(lastMethod=="titleFacts") {
+      QJsonObject facts;
+      const auto ids=lastArgs.isEmpty() ? QJsonArray{} : lastArgs.at(0).toArray();
+      for(const auto& id:ids) if(!id.toString().isEmpty())
+       facts.insert(id.toString(),QJsonObject{{"rating",7.5},{"votes",321},{"isAnime",false}});
+      result=facts;
+     }
+     if (!emptyArg.isEmpty() && selector==emptyArg)
+      result=lastMethod=="titleFacts" ? QJsonValue(QJsonObject{}) : QJsonValue(QJsonArray{});
      if(lastMethod=="discoverPageFiltered") {
       const bool comicsPage=path.startsWith("/v1/catalogue/comics/");
       const int pageOffset=lastArgs.at(3).toInt();
@@ -97,10 +109,11 @@ int main(int argc,char** argv) {
     const auto body=status==304 ? QByteArray() : QJsonDocument(response).toJson(QJsonDocument::Compact);
     const auto wire="HTTP/1.1 "+QByteArray::number(status)+" OK\r\n"+(fixtureEtag.isEmpty() ? QByteArray() : QByteArrayLiteral("ETag: ")+fixtureEtag.toLatin1()+"\r\n")+"Content-Type: application/json\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body;
     if(path!="/v1/guest/session" && !holdArg.isEmpty() && !lastArgs.isEmpty()
-       && lastArgs.at(0).toString()==holdArg) {
+       && (lastArgs.at(0).toString()==holdArg || selector==holdArg)) {
      heldSocket=socket; heldWire=wire; // Test releases this response explicitly.
     } else if(path!="/v1/guest/session"
-       && (delayed || (!slowArg.isEmpty() && !lastArgs.isEmpty() && lastArgs.at(0).toString()==slowArg)))
+       && (delayed || (!slowArg.isEmpty() && !lastArgs.isEmpty()
+           && (lastArgs.at(0).toString()==slowArg || selector==slowArg))))
      QTimer::singleShot(160,socket,[socket,wire]{socket->write(wire);socket->disconnectFromHost();});
     else {socket->write(wire);socket->disconnectFromHost();}
    });
@@ -787,6 +800,198 @@ int main(int argc,char** argv) {
           && theatreMal.genreEntries("anime","a01-anime-fail","members",13).size()==1,
           "MAL retryAnimeCatalog and retryGenreEntries recover exact failed queries");
  }
+ // ARCH-FACTS-NATIVE-009: exact-query state/retry for ImdbCatalog::titleFacts.
+ {
+  ImdbCatalog factsImdb(""); const QString factsCache=temp.filePath("facts-state.json");
+  factsImdb.configureRemote(&nam,endpoint,factsCache);
+  const QMetaObject* factsMeta=factsImdb.metaObject();
+  const int factsStateIdx=factsMeta->indexOfMethod("titleFactsState(QStringList)");
+  const int factsRetryIdx=factsMeta->indexOfMethod("retryTitleFacts(QStringList)");
+  require(factsStateIdx>=0 && factsRetryIdx>=0
+          && QByteArray(factsMeta->method(factsStateIdx).typeName())=="QVariantMap"
+          && QByteArray(factsMeta->method(factsRetryIdx).typeName())=="bool",
+          "IMDb titleFacts state/retry visible to QML metaobject");
+  if (qEnvironmentVariable("ARCH009_NEGATIVE_CONTROL")=="disconnect-forwarding") {
+   auto* factsRemote=factsImdb.findChild<CatalogRemote*>();
+   require(factsRemote && QObject::disconnect(factsRemote,&CatalogRemote::queryChanged,
+           &factsImdb,&ImdbCatalog::remoteQueryChanged),
+           "negative control disconnects native query forwarding");
+  }
+  QStringList factsNotices;
+  QObject::connect(&factsImdb,&ImdbCatalog::remoteQueryChanged,&app,[&](const QString& k){factsNotices.append(k);});
+  const QStringList coldIds{"tt0090091","tt0090092","tt0090091"};
+  const QStringList reorderedIds{"tt0090092","tt0090091","tt0090091"};
+  const QStringList singleIds{"tt0090091"};
+  const QStringList emptyIds{};
+  const auto factsCanonical=[&](const QStringList& ids) {
+      return factsImdb.remoteQueryKey(QStringLiteral("titleFacts"),QVariantList{QVariant::fromValue(ids)});
+  };
+  const int beforeFactsInspect=calls;
+  const auto missCold=factsImdb.titleFactsState(coldIds);
+  const auto missEmpty=factsImdb.titleFactsState(emptyIds);
+  require(missCold.value("source").toString()=="remote"
+          && missCold.value("status").toString()=="missing"
+          && missCold.value("key").toString()==factsCanonical(coldIds)
+          && missCold.value("key")!=factsCanonical(reorderedIds)
+          && missCold.value("key")!=factsCanonical(singleIds)
+          && missCold.value("key")!=missEmpty.value("key").toString()
+          && missEmpty.value("key").toString()==factsCanonical(emptyIds)
+          && !missCold.value("cached").toBool()
+          && !missCold.value("retryable").toBool()
+          && calls==beforeFactsInspect && factsNotices.isEmpty(),
+          "facts state inspection is nonfetching; ordered, repeated, and empty id vectors isolate exact keys");
+  const auto coldRead=factsImdb.titleFacts(coldIds);
+  require(coldRead.isEmpty() && !factsNotices.contains(missCold.value("key").toString()),
+          "facts cold fallback is an immediate empty map; enqueue notice deferred");
+  until([&]{return !factsImdb.remotePending();});
+  require(lastMethod=="titleFacts"
+          && lastArgs==QJsonArray::fromVariantList(QVariantList{QVariant::fromValue(coldIds)})
+          && factsImdb.titleFacts(coldIds).value("tt0090091").toMap().value("rating").toDouble()==7.5
+          && factsImdb.titleFacts(coldIds).value("tt0090092").toMap().value("votes").toInt()==321
+          && factsImdb.titleFactsState(coldIds).value("status").toString()=="success"
+          && factsImdb.titleFactsState(coldIds).value("cached").toBool()
+          && factsNotices.count(missCold.value("key").toString())==2
+          && factsImdb.titleFactsState(reorderedIds).value("status").toString()=="missing"
+          && factsImdb.titleFactsState(singleIds).value("status").toString()=="missing",
+          "facts read sends exact ordered duplicate ids with one enqueue plus one completion notice");
+  const QStringList emptyFactIds{"tt0090097"};
+  emptyArg="tt0090097";
+  require(factsImdb.titleFactsState(emptyFactIds).value("status").toString()=="missing",
+          "unseen empty-facts vector starts missing");
+  const auto emptyFactRead=factsImdb.titleFacts(emptyFactIds);
+  require(emptyFactRead.isEmpty(),"cold empty-facts fallback is empty");
+  until([&]{return !factsImdb.remotePending();});
+  require(factsImdb.titleFactsState(emptyFactIds).value("status").toString()=="success"
+          && factsImdb.titleFactsState(emptyFactIds).value("cached").toBool()
+          && factsImdb.titleFacts(emptyFactIds).isEmpty()
+          && !factsImdb.titleFactsState(emptyFactIds).value("retryable").toBool(),
+          "valid empty facts response is a cached success, not a fallback miss");
+  emptyArg.clear();
+  const QStringList slowFactIds{"tt0090111"};
+  const QStringList failFactIds{"tt0090222"};
+  slowArg="tt0090111"; failArg="tt0090222";
+  const QString slowFactsKey=factsImdb.titleFactsState(slowFactIds).value("key").toString();
+  const QString failFactsKey=factsImdb.titleFactsState(failFactIds).value("key").toString();
+  require(slowFactsKey!=failFactsKey,"facts peers form distinct exact keys");
+  const auto slowCold=factsImdb.titleFacts(slowFactIds);
+  const auto failCold=factsImdb.titleFacts(failFactIds);
+  require(slowCold.isEmpty() && failCold.isEmpty()
+          && !factsNotices.contains(slowFactsKey) && !factsNotices.contains(failFactsKey),
+          "delayed facts read and failing peer enqueue notices are deferred");
+  until([&]{return factsImdb.titleFactsState(failFactIds).value("status").toString()=="failure";});
+  require(factsImdb.titleFactsState(failFactIds).value("error").toString()=="HTTP_503"
+          && !factsImdb.titleFactsState(failFactIds).value("cached").toBool()
+          && factsImdb.titleFactsState(slowFactIds).value("pending").toBool()
+          && factsImdb.titleFactsState(slowFactIds).value("error").toString().isEmpty()
+          && factsNotices.contains(failFactsKey)
+          && factsImdb.titleFacts(slowFactIds).isEmpty(),
+          "failing facts peer neither completes nor relabels the delayed first read");
+  until([&]{return factsImdb.titleFactsState(slowFactIds).value("status").toString()=="success";});
+  require(!factsImdb.titleFacts(slowFactIds).value("tt0090111").toMap().value("isAnime").toBool()
+          && factsNotices.contains(slowFactsKey)
+          && factsImdb.titleFactsState(failFactIds).value("status").toString()=="failure",
+          "delayed facts peer settles on its own key without erasing the failed peer");
+  slowArg.clear(); failArg.clear();
+  persisted(factsImdb);
+  QFile factsDisk(factsCache);
+  require(factsDisk.open(QIODevice::ReadOnly),"facts cache on disk");
+  const auto factsDocument=QJsonDocument::fromJson(factsDisk.readAll()).object();factsDisk.close();
+  const auto factsEntries=factsDocument.value("entries").toObject();
+  require(factsEntries.contains(slowFactsKey),"facts exact key persisted in owner cache");
+  auto staledFactsEntries=factsEntries;
+  auto staledFactsEntry=staledFactsEntries.value(slowFactsKey).toObject();
+  staledFactsEntry.insert("fetchedAt","2020-01-01T00:00:00Z");
+  staledFactsEntries.insert(slowFactsKey,staledFactsEntry);
+  auto staleFactsDocument=factsDocument;
+  staleFactsDocument.insert("entries",staledFactsEntries);
+  const QByteArray staleFactsBytes=QJsonDocument(staleFactsDocument).toJson(QJsonDocument::Compact);
+  require(factsDisk.open(QIODevice::WriteOnly|QIODevice::Truncate)
+          && factsDisk.write(staleFactsBytes)==staleFactsBytes.size(),
+          "facts durable cache staled for revalidation");factsDisk.close();
+  factsImdb.configureRemote(&nam,endpoint,factsCache);
+  require(factsImdb.titleFactsState(slowFactIds).value("cached").toBool(),
+          "stale validated facts cache loads with the exact key");
+  failArg="tt0090500";
+  const QStringList peerFactIds{"tt0090500"};
+  factsImdb.titleFacts(peerFactIds);
+  until([&]{return factsImdb.titleFactsState(peerFactIds).value("status").toString()=="failure";});
+  failArg="tt0090111";
+  const auto staleFactsRead=factsImdb.titleFacts(slowFactIds);
+  require(staleFactsRead.value("tt0090111").toMap().value("votes").toInt()==321
+          && factsImdb.titleFactsState(slowFactIds).value("pending").toBool()
+          && factsImdb.titleFactsState(slowFactIds).value("cached").toBool()
+          && !factsImdb.titleFactsState(slowFactIds).value("waiting").toBool(),
+          "stale cached facts remain readable while the failed refresh runs");
+  until([&]{return factsImdb.titleFactsState(slowFactIds).value("status").toString()=="failure";});
+  const auto failedFactsRefresh=factsImdb.titleFactsState(slowFactIds);
+  require(failedFactsRefresh.value("cached").toBool()
+          && failedFactsRefresh.value("retryable").toBool()
+          && failedFactsRefresh.value("error").toString()=="HTTP_503"
+          && factsImdb.titleFacts(slowFactIds).value("tt0090111").toMap().value("votes").toInt()==321,
+          "failed facts refresh retains validated cache and exact query failure");
+  require(factsDisk.open(QIODevice::ReadOnly) && factsDisk.readAll()==staleFactsBytes,
+          "failed facts refresh never corrupts durable cache");factsDisk.close();
+  failArg.clear();
+  require(factsImdb.retryTitleFacts(slowFactIds)
+          && !factsImdb.retryTitleFacts(slowFactIds)
+          && !factsImdb.retryTitleFacts(reorderedIds),
+          "facts retry targets the exact failed vector, dedupes in flight, refuses unfailed keys");
+  const int factsBeforeRetry=calls;
+  require(factsImdb.titleFacts(slowFactIds).value("tt0090111").toMap().value("votes").toInt()==321,
+          "facts remain readable during explicit retry");
+  until([&]{return factsImdb.titleFactsState(slowFactIds).value("status").toString()=="success";});
+  require(calls==factsBeforeRetry+1 && lastMethod=="titleFacts"
+          && lastArgs==QJsonArray::fromVariantList(QVariantList{QVariant::fromValue(slowFactIds)})
+          && factsImdb.titleFactsState(slowFactIds).value("error").toString().isEmpty()
+          && factsImdb.titleFactsState(peerFactIds).value("status").toString()=="failure"
+          && !factsImdb.retryTitleFacts(slowFactIds),
+          "explicit facts retry recovers the exact failed vector, retaining the failed peer");
+  const int beforeFactsOffline=calls;
+  factsImdb.configureRemote(nullptr,endpoint,factsCache);
+  require(!factsImdb.remoteEnabled()
+          && !factsImdb.titleFactsState(coldIds).value("enabled").toBool()
+          && factsImdb.titleFactsState(coldIds).value("source").toString()=="remote"
+          && factsImdb.titleFactsState(coldIds).value("status").toString()=="success"
+          && factsImdb.titleFactsState(coldIds).value("cached").toBool()
+          && factsImdb.titleFacts(coldIds).value("tt0090092").toMap().value("votes").toInt()==321
+          && !factsImdb.retryTitleFacts(coldIds)
+          && calls==beforeFactsOffline,
+          "disabled facts source exposes durable cached result without fetch or retry");
+  factsImdb.configureRemote(&nam,endpoint,factsCache);
+  const QStringList warmupFactIds{"tt0090555"};
+  factsImdb.titleFacts(warmupFactIds);
+  until([&]{return factsImdb.titleFactsState(warmupFactIds).value("status").toString()=="success";});
+  failArg="tt0090500";
+  factsImdb.titleFacts(peerFactIds);
+  until([&]{return factsImdb.titleFactsState(peerFactIds).value("status").toString()=="failure";});
+  failArg.clear();
+  sourceRevision=QString(64,QLatin1Char('d'));
+  const QStringList revisionFactIds{"tt0090333"};
+  factsImdb.titleFacts(revisionFactIds);
+  until([&]{return !factsImdb.remotePending();});
+  require(factsImdb.titleFactsState(revisionFactIds).value("status").toString()=="success"
+          && factsImdb.titleFactsState(coldIds).value("status").toString()=="missing"
+          && factsImdb.titleFactsState(coldIds).value("error").toString().isEmpty()
+          && factsImdb.titleFactsState(peerFactIds).value("status").toString()=="missing",
+          "facts source revision change clears cached results and stale failures");
+  slowArg="tt0090444";
+  const QStringList cancelFactIds{"tt0090444"};
+  const int beforeFactsCancel=calls;
+  factsImdb.titleFacts(cancelFactIds);
+  until([&]{return calls>beforeFactsCancel;});
+  require(factsImdb.titleFactsState(cancelFactIds).value("pending").toBool(),
+          "facts request in flight on the old source generation");
+  factsImdb.configureRemote(nullptr,QUrl(),{});
+  require(factsImdb.titleFactsState(cancelFactIds).value("status").toString()=="missing"
+          && factsImdb.titleFactsState(cancelFactIds).value("error").toString().isEmpty(),
+          "facts reconfiguration clears query state");
+  QElapsedTimer factsDrain;factsDrain.start();
+  while(factsDrain.elapsed()<260) QCoreApplication::processEvents(QEventLoop::AllEvents,10);
+  require(factsImdb.titleFactsState(cancelFactIds).value("status").toString()=="missing"
+          && !factsImdb.titleFactsState(cancelFactIds).value("cached").toBool(),
+          "late facts reply from the cancelled generation cannot restore state");
+  slowArg.clear();
+ }
  const QString localImdbDb=temp.filePath("imdb-local-fixture.sqlite");
  {
   QSqlDatabase db=QSqlDatabase::addDatabase("QSQLITE","imdb-page-test-seed");
@@ -821,6 +1026,24 @@ int main(int argc,char** argv) {
           && !localImdb.retryTitleCatalog(qMovie,0,24)
           && !localImdb.remotePending() && calls==beforeLocalImdb,
           "ready SQLite IMDb answers titleCatalog synchronously with local state");
+  const auto localFactsState=localImdb.titleFactsState({"tt0133093"});
+  const auto localFactsRows=localImdb.titleFacts({"tt0133093"});
+  require(localFactsState.value("source").toString()=="local"
+          && localFactsState.value("status").toString()=="success"
+          && localFactsState.value("key").toString().isEmpty()
+          && !localFactsState.value("enabled").toBool()
+          && !localFactsState.value("pending").toBool()
+          && !localFactsState.value("waiting").toBool()
+          && !localFactsState.value("cached").toBool()
+          && localFactsState.value("error").toString().isEmpty()
+          && !localFactsState.value("retryable").toBool()
+          && localFactsRows.value("tt0133093").toMap().value("rating").toDouble()==8.7
+          && localFactsRows.value("tt0133093").toMap().value("votes").toInt()==2000000
+          && !localFactsRows.value("tt0133093").toMap().value("isAnime").toBool()
+          && localImdb.titleFacts({}).isEmpty()
+          && !localImdb.retryTitleFacts({"tt0133093"})
+          && !localImdb.remotePending() && calls==beforeLocalImdb,
+          "ready SQLite IMDb answers titleFacts synchronously with local-state precedence");
  }
  {
   ImdbCatalog searchImdb(""); MalCatalog searchMal(""); ComicsCatalog searchComics("");

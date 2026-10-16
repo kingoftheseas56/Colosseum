@@ -161,6 +161,67 @@ int main(int argc, char **argv) {
                   {"index",
                    QJsonObject{{"path", path}, {"sha256", hash(bytes)}, {"bytes", bytes.size()}}}});
     };
+    QString factsPath;
+    auto publishFacts = [&](const QString &label, const QString &fault = QString()) {
+        publish(label);
+        const QString prefix = "/catalogue/" + pub + "/";
+        const double changedRating = label == "facts-two" ? 9.7 : 8.4;
+        const bool nullable = fault.startsWith("nullable");
+        const auto identity = [&](const QString &id, QJsonValue rating, QJsonValue votes, bool anime,
+                                  int ordinal) {
+            return QJsonObject{{"identity", QJsonObject{{"title", id}, {"rating", rating},
+                                                       {"votes", votes}, {"isAnime", anime}}},
+                               {"ordinal", ordinal}};
+        };
+        const QJsonArray sourceRows{
+            QJsonArray{"tt0000001", QJsonValue(QJsonValue::Null), 0,
+                       identity("tt0000001", changedRating, 100, false, 2)},
+            QJsonArray{"tt0000002", QJsonValue(QJsonValue::Null), 0,
+                       identity("tt0000002", 9.1, 220, true, 0)},
+            QJsonArray{"tt0000003", QJsonValue(QJsonValue::Null), 0,
+                       identity("tt0000003", nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(7.5),
+                                nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(80), false, 1)}};
+        const auto genericRaw = QJsonDocument(sourceRows).toJson(QJsonDocument::Compact);
+        const QString genericPath = prefix + "shared/" + hash(genericRaw) + ".json";
+        files[genericPath] = genericRaw;
+        QJsonArray tuples{
+            QJsonArray{"tt0000001", changedRating, 100, false, 2},
+            QJsonArray{"tt0000002", 9.1, 220, true, 0},
+            QJsonArray{"tt0000003", nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(7.5),
+                       nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(80), false, 1}};
+        if (fault == "corrupt-tuple")
+            tuples[1] = QJsonArray{"tt0000002", 9.1, QStringLiteral("220"), true, 0};
+        const auto factsRaw = QJsonDocument(tuples).toJson(QJsonDocument::Compact);
+        factsPath = prefix + "shared/" + hash(factsRaw) + ".json";
+        files[factsPath] = factsRaw;
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        const auto oldIndexPath = entry.value("index").toObject().value("path").toString();
+        auto index = QJsonDocument::fromJson(files.value(oldIndexPath)).object();
+        index["search"] = QJsonObject{{"imdb",
+                           QJsonObject{{"keys", QJsonArray{QJsonObject{{"path", genericPath},
+                                                                      {"first", "tt0000001"},
+                                                                      {"last", "tt0000003"}}}},
+                                       {"names", QJsonArray()}}}};
+        if (fault != "absent" && fault != "nullable-legacy") {
+            QJsonObject block{{"path", factsPath}, {"first", "tt0000001"},
+                              {"last", "tt0000003"}};
+            if (fault == "bad-declaration")
+                block["first"] = "tt0000004";
+            index["facts"] = fault == "absent-field"
+                ? QJsonObject()
+                : QJsonObject{{"imdb",
+                              QJsonObject{{"version", fault == "bad-version" ? 2 : 1},
+                                          {"blocks", fault == "empty-directory" ? QJsonArray()
+                                                                        : QJsonArray{block}}}}};
+        }
+        const auto indexRaw = json(index);
+        const auto path = prefix + "index-" + hash(indexRaw) + ".json";
+        files[path] = indexRaw;
+        files["/catalogue/current.json"] =
+            json({{"schemaVersion", 1}, {"revision", pub}, {"sourceRevision", source},
+                  {"index", QJsonObject{{"path", path}, {"sha256", hash(indexRaw)},
+                                        {"bytes", indexRaw.size()}}}});
+    };
     publish("publication-one");
     QObject::connect(&server, &QTcpServer::newConnection, &app, [&] {
         while (server.hasPendingConnections()) {
@@ -338,6 +399,99 @@ int main(int argc, char **argv) {
         until([&] { return done; });
         return out;
     };
+    // Compact facts have their own publication and cache fixture; existing
+    // catalogue/landing regression paths below remain unchanged.
+    // Explicit QVariant wrapping avoids QList copy-initialization flattening the argument.
+    const auto factArguments = [](const QVariantList &ids) {
+        return QVariantList{QVariant::fromValue(ids)};
+    };
+    const auto factsArgs = factArguments({QStringLiteral("tt0000002"),
+                                         QStringLiteral("tt0000002a"),
+                                         QStringLiteral("tt0000001"),
+                                         QStringLiteral("tt0000002")});
+    const auto factsJsonArgs = QJsonArray::fromVariantList(factsArgs);
+    require(factsJsonArgs.size() == 1 && factsJsonArgs.first().isArray() &&
+                factsJsonArgs.first().toArray().size() == 4,
+            "fixture sends one actual nested ID-list API argument");
+    const QJsonObject expectedFacts{
+        {"tt0000001", QJsonObject{{"rating", 8.4}, {"votes", 100}, {"isAnime", false}}},
+        {"tt0000002", QJsonObject{{"rating", 9.1}, {"votes", 220}, {"isAnime", true}}}};
+    publishFacts("facts-one");
+    auto *facts = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("facts-cache"), &app);
+    const auto factsCold = resolve(facts, "titleFacts", factsArgs);
+    require(factsCold.status == StaticCatalogueResolver::Status::Prepared &&
+                factsCold.result.toObject() == expectedFacts,
+            "compact known/unknown/mixed/duplicate/ordered IDs preserve titleFacts JSON");
+    require(resolve(facts, "titleFacts", factArguments({})).status ==
+                StaticCatalogueResolver::Status::Prepared &&
+                resolve(facts, "titleFacts", factArguments({})).result.toObject().isEmpty(),
+            "compact valid empty selection is prepared empty");
+    const auto unknown = resolve(facts, "titleFacts",
+                                 factArguments({QStringLiteral("tt9999999")}));
+    require(unknown.status == StaticCatalogueResolver::Status::Prepared &&
+                unknown.result.toObject().isEmpty(),
+            "compact unknown-only IDs are prepared empty without unrelated shard downloads");
+    const int factsColdGets = gets;
+    require(resolve(facts, "titleFacts", factsArgs).result.toObject() == expectedFacts &&
+                gets == factsColdGets,
+            "compact facts warm query reuses verified shared files");
+    const auto title = resolve(facts, "titlePresentation", {QStringLiteral("tt0000001")});
+    require(title.status == StaticCatalogueResolver::Status::Prepared &&
+                title.result.toObject().value("title") == "tt0000001",
+            "compact facts do not divert full generic titlePresentation identities");
+    const int beforeFactsOffline = gets;
+    auto *factsOffline = StaticCatalogueResolver::shared(
+        nullptr, origin, temp.filePath("facts-cache"), &app);
+    const auto offlineFacts = resolve(factsOffline, "titleFacts", factsArgs);
+    require(offlineFacts.status == StaticCatalogueResolver::Status::Prepared &&
+                offlineFacts.result.toObject() == expectedFacts && gets == beforeFactsOffline,
+            "fresh offline resolver restores compact facts without HTTP");
+    publishFacts("facts-two");
+    facts->refresh();
+    const auto switchedFacts = resolve(facts, "titleFacts", factsArgs);
+    require(switchedFacts.status == StaticCatalogueResolver::Status::Prepared &&
+                switchedFacts.publication != factsCold.publication &&
+                switchedFacts.result.toObject().value("tt0000001").toObject().value("rating") == 9.7,
+            "compact facts revision switch drops old result for same IDs");
+    for (const auto &fault : {QStringLiteral("corrupt-tuple"), QStringLiteral("bad-version"),
+                              QStringLiteral("bad-declaration"), QStringLiteral("empty-directory"),
+                              QStringLiteral("hash"), QStringLiteral("missing")}) {
+        publishFacts("facts-fault-" + fault, fault);
+        if (fault == "hash") files[factsPath] = "{}";
+        if (fault == "missing") files.remove(factsPath);
+        auto *invalid = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("facts-invalid-" + fault), &app);
+        const int beforePosts = posts;
+        require(resolve(invalid, "titleFacts", factsArgs).status ==
+                    StaticCatalogueResolver::Status::Failure && posts == beforePosts,
+                "advertised invalid facts tuple/declaration/hash/missing shard fails hard");
+    }
+    publishFacts("facts-legacy", "absent");
+    auto *legacy = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("facts-legacy"), &app);
+    require(resolve(legacy, "titleFacts", factsArgs).status ==
+                StaticCatalogueResolver::Status::Prepared &&
+                resolve(legacy, "titleFacts", factsArgs).result.toObject() == expectedFacts,
+            "only absent optional facts directory falls back to generic identity lookup");
+    publishFacts("facts-absent-field", "absent-field");
+    auto *missingField = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("facts-absent-field"), &app);
+    require(resolve(missingField, "titleFacts", factsArgs).result.toObject() == expectedFacts,
+            "missing facts.imdb field alone retains the generic fallback");
+    for (const auto &mode : {QStringLiteral("nullable"), QStringLiteral("nullable-legacy")}) {
+        publishFacts("facts-" + mode, mode);
+        auto *nullableFacts = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("facts-" + mode), &app);
+        const auto nullableResult = resolve(nullableFacts, "titleFacts",
+                                           factArguments({QStringLiteral("tt0000003")}));
+        const QJsonObject expectedNulls{{"tt0000003", QJsonObject{
+            {"rating", QJsonValue(QJsonValue::Null)}, {"votes", QJsonValue(QJsonValue::Null)},
+            {"isAnime", false}}}};
+        require(nullableResult.status == StaticCatalogueResolver::Status::Prepared &&
+                    nullableResult.result.toObject() == expectedNulls,
+                "compact and legacy facts preserve null rating/votes, not numeric zero");
+    }
+    publish("publication-one");
     auto first = resolve(r);
     require(first.status == StaticCatalogueResolver::Status::Prepared &&
                 first.result.toArray().at(0).toObject().value("title") == "publication-one",

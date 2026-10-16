@@ -23,6 +23,18 @@ export function assertExpectedDeployment(rows,expectedVersion,expectedDeployment
  if(row.id!==expectedDeployment)throw Error('BASELINE_DEPLOYMENT_CHANGED');
  return{id:row.id,created_on:row.created_on,versions:row.versions};
 }
+// Local identities only: this does NOT attest hosted D1 contents/readiness.
+export function assertPublicationSource({configuredSource,publication,entry,legacyManifest}){
+ const hash=/^[a-f0-9]{64}$/;
+ if(!hash.test(configuredSource||'')||!hash.test(publication?.sourceRevision||'')||
+    !hash.test(publication?.revision||'')||configuredSource!==publication.sourceRevision)
+  throw Error('PUBLICATION_SOURCE_MISMATCH');
+ if(entry?.sourceRevision!==publication.sourceRevision||entry?.revision!==publication.revision)
+  throw Error('PUBLICATION_ENTRY_MISMATCH');
+ if(legacyManifest?.revision!==configuredSource||legacyManifest?.publicRevision!==publication.revision)
+  throw Error('LEGACY_PREPARED_MISMATCH');
+ return{sourceRevision:configuredSource,publicRevision:publication.revision};
+}
 export async function guardedDeploy({expectedVersion,expectedDeployment,listDeployments,deploy,validatePublication,execute=false}){
  // Expensive local verification happens FIRST, so the live read is immediately
  // before deployment. There is no auto-retry on an unexpected baseline.
@@ -48,6 +60,13 @@ async function main(){
    if(git(['rev-parse','HEAD'])!==values['expected-source']||git(['status','--porcelain']))throw Error('SOURCE_CHANGED_OR_DIRTY');
    const publication=JSON.parse(readFileSync(values['publication-report'],'utf8'));
    if(publication.revision!==values['expected-publication'])throw Error('PUBLICATION_REVISION_CHANGED');
+   // Validate before constructing the namespace path; never let a revision escape assets.
+   if(!/^[a-f0-9]{64}$/.test(publication.sourceRevision||''))throw Error('PUBLICATION_SOURCE_MISMATCH');
+   const entry=JSON.parse(readFileSync(join(values.assets,'catalogue/current.json'),'utf8'));
+   let legacyManifest;
+   try{legacyManifest=JSON.parse(readFileSync(join(values.assets,'internal/prebuilt',publication.sourceRevision,'manifest.json'),'utf8'));}
+   catch{throw Error('LEGACY_PREPARED_MISMATCH');}
+   assertPublicationSource({configuredSource:config.vars?.LIBRARY_REVISION,publication,entry,legacyManifest});
    if(resolve(values.evidence).startsWith(resolve(values.assets)+sep))throw Error('EVIDENCE_MUST_STAY_OUTSIDE_ASSETS');
    execFileSync(process.execPath,[join(cwd,'projection/verify_public_static.mjs'),values.assets,values['publication-report'],values.evidence+'.integrity.json',...values['previous-publication']],{cwd,stdio:['ignore','pipe','pipe']});
    if(git(['rev-parse','HEAD'])!==values['expected-source']||git(['status','--porcelain']))throw Error('SOURCE_CHANGED_DURING_VALIDATION');

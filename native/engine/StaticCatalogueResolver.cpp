@@ -148,6 +148,115 @@ struct Need {
 };
 using Read = std::function<QJsonValue(const QString &)>;
 
+// Additive IMDb facts directory. Absence alone permits the legacy identity route;
+// an advertised but invalid directory or shard is an exact-query hard failure.
+std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJsonArray &ids,
+                                           const Read &read) {
+    if (!index.contains("facts"))
+        return std::nullopt;
+    const auto root = index.value("facts");
+    if (!root.isObject())
+        throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+    const auto facts = root.toObject();
+    if (!facts.contains("imdb"))
+        return std::nullopt;
+    if (!facts.value("imdb").isObject())
+        throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+    const auto imdb = facts.value("imdb").toObject();
+    if (imdb.value("version") != 1 || !imdb.value("blocks").isArray())
+        throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+    const auto refs = imdb.value("blocks").toArray();
+    const auto sourceDirectory = index.value("search").toObject().value("imdb");
+    if (!sourceDirectory.isObject() ||
+        !sourceDirectory.toObject().value("keys").isArray())
+        throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+    const auto sourceRefs = sourceDirectory.toObject().value("keys").toArray();
+    if (refs.size() != sourceRefs.size() || refs.size() > filesCap)
+        throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+    const auto prefix = "/catalogue/" + index.value("revision").toString() + "/shared/";
+    static const QRegularExpression leaf(QStringLiteral("^[a-f0-9]{64}\\.json$"));
+    static const QRegularExpression titleId(QStringLiteral("^tt[0-9]+$"));
+    struct Block { QString path, first, last; };
+    QList<Block> blocks;
+    QString previousLast;
+    for (qsizetype blockNo = 0; blockNo < refs.size(); ++blockNo) {
+        const auto refValue = refs.at(blockNo);
+        if (!refValue.isObject() || !sourceRefs.at(blockNo).isObject())
+            throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+        const auto ref = refValue.toObject();
+        const auto path = ref.value("path").toString();
+        const auto first = ref.value("first").toString(), last = ref.value("last").toString();
+        const auto original = sourceRefs.at(blockNo).toObject();
+        if (original.value("first").toString() != first ||
+            original.value("last").toString() != last ||
+            !titleId.match(first).hasMatch() || !titleId.match(last).hasMatch() ||
+            first > last || (!previousLast.isEmpty() && previousLast >= first) ||
+            !path.startsWith(prefix) || !leaf.match(path.mid(prefix.size())).hasMatch())
+            throw QStringLiteral("STATIC_INVALID_FACTS_DECLARATION");
+        blocks.append({path, first, last});
+        previousLast = last;
+    }
+    QSet<QString> wanted;
+    for (const auto &v : ids)
+        wanted.insert(text(v));  // Mirrors legacy byId's text coercion.
+    QHash<QString, QJsonArray> matched;
+    for (const auto &block : blocks) {
+        bool needed = false;
+        for (const auto &id : wanted)
+            if (id >= block.first && id <= block.last) { needed = true; break; }
+        if (!needed)
+            continue;
+        const auto rows = array(read(block.path));
+        if (rows.isEmpty() || rows.size() > 2048)
+            throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+        QString prior;
+        for (const auto &value : rows) {
+            if (!value.isArray())
+                throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+            const auto tuple = value.toArray();
+            if (tuple.size() != 5 || !tuple.at(0).isString() ||
+                !titleId.match(tuple.at(0).toString()).hasMatch() ||
+                (!prior.isEmpty() && prior >= tuple.at(0).toString()) ||
+                tuple.at(0).toString() < block.first || tuple.at(0).toString() > block.last ||
+                !(tuple.at(1).isNull() ||
+                  (tuple.at(1).isDouble() && std::isfinite(tuple.at(1).toDouble()))) ||
+                !(tuple.at(2).isNull() ||
+                  (tuple.at(2).isDouble() && std::isfinite(tuple.at(2).toDouble()) &&
+                   tuple.at(2).toDouble() >= 0 &&
+                   tuple.at(2).toDouble() <= 9007199254740991.0 &&
+                   std::trunc(tuple.at(2).toDouble()) == tuple.at(2).toDouble())) ||
+                !tuple.at(3).isBool() || !tuple.at(4).isDouble() ||
+                !std::isfinite(tuple.at(4).toDouble()) || tuple.at(4).toDouble() < 0 || tuple.at(4).toDouble() > 9007199254740991.0 ||
+                std::trunc(tuple.at(4).toDouble()) != tuple.at(4).toDouble())
+                throw QStringLiteral("STATIC_INVALID_FACTS_TUPLE");
+            prior = tuple.at(0).toString();
+            if (wanted.contains(prior))
+                matched.insert(prior, tuple);
+        }
+        if (rows.first().toArray().at(0).toString() != block.first || prior != block.last)
+            throw QStringLiteral("STATIC_INVALID_FACTS_RANGE");
+    }
+    QJsonObject result;
+    // Preserve legacy 100-ID chunking, stable ordinal order, duplicate overwrite
+    // and unknown-ID omission without adding a second native API or cache.
+    for (qsizetype i = 0; i < ids.size(); i += 100) {
+        QList<QPair<QString, QJsonArray>> found;
+        for (qsizetype n = i; n < std::min(i + 100, ids.size()); ++n) {
+            const auto id = text(ids.at(n));
+            if (matched.contains(id))
+                found.append({id, matched.value(id)});
+        }
+        std::stable_sort(found.begin(), found.end(), [](const auto &a, const auto &b) {
+            return a.second.at(4).toDouble() < b.second.at(4).toDouble();
+        });
+        for (const auto &item : found)
+            result[item.first] = QJsonObject{{"rating", item.second.at(1)},
+                                             {"votes", item.second.at(2)},
+                                             {"isAnime", item.second.at(3)}};
+    }
+    return result;
+}
+
 // Pure I01 resolver. A missing local file suspends this evaluation; it is resumed
 // only after asynchronous verified loading. No nested event loops or GUI blocking.
 std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
@@ -156,6 +265,11 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
     const auto at = [&](int n) {
         return n < args.size() ? args.at(n) : QJsonValue(QJsonValue::Undefined);
     };
+    if (ds == "imdb" && method == "titleFacts") {
+        const auto compact = compactImdbFacts(index, at(0).toArray(), read);
+        if (compact)
+            return compact;
+    }
     if (ds == "content" && method == "bundle" && args.isEmpty()) {
         const auto path =
             index.value("content").toObject().value("bundle").toObject().value("path").toString();

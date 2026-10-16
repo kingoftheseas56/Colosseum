@@ -29,6 +29,22 @@ RemoteTitleCatalog remoteTitleCatalog(const QVariantMap& query, int offset, int 
             QVariantList{}};
 }
 
+// Same canonical triple for the facts read, its state inspection, and its
+// retry. The ordered id vector is hashed verbatim: order, duplicates, and the
+// empty vector each form their own exact key. No filtering or normalization.
+struct RemoteTitleFacts {
+    QString method;
+    QVariantList args;
+    QVariantMap empty;
+};
+
+RemoteTitleFacts remoteTitleFacts(const QStringList& ids)
+{
+    return {QStringLiteral("titleFacts"),
+            QVariantList{QVariant::fromValue(ids)},
+            QVariantMap{}};
+}
+
 } // namespace
 
 bool ImdbCatalog::openAt(const QString& dbPath)
@@ -331,7 +347,10 @@ QVariantList ImdbCatalog::search(const QString& text, int limit) const
 
 QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("titleFacts"), QVariantList{QVariant::fromValue(ids)}, QVariantMap{}).toMap();
+    if (!m_ok) {
+        const auto request = remoteTitleFacts(ids);
+        return m_remote->read(request.method, request.args, request.empty).toMap();
+    }
     QVariantMap out;
     if (!m_ok || ids.isEmpty()) return out;
     for (int start = 0; start < ids.size(); start += 100) {
@@ -350,6 +369,34 @@ QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
                 {QStringLiteral("isAnime"), q.value(3).toInt() != 0}});
     }
     return out;
+}
+
+QVariantMap ImdbCatalog::titleFactsState(const QStringList& ids) const
+{
+    if (m_ok) {
+        // Local SQLite is authoritative for this route. Do not make consumers
+        // wait for a remote query key that read() will never queue.
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("error"), QString()},
+                {QStringLiteral("retryable"), false}};
+    }
+    const auto request = remoteTitleFacts(ids);
+    auto state = m_remote->queryState(request.method, request.args, request.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool ImdbCatalog::retryTitleFacts(const QStringList& ids)
+{
+    if (m_ok) return false;
+    const auto request = remoteTitleFacts(ids);
+    return m_remote->retry(request.method, request.args, request.empty);
 }
 
 QVariantMap ImdbCatalog::titlePresentation(const QString& id) const

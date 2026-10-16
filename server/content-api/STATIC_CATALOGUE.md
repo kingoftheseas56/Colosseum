@@ -73,7 +73,12 @@ hashes apply to content documents and owned artwork; provider URLs stay URLs.
 
 `sourceRevision` identifies the frozen I01/LIBRARY data. `revision` identifies
 the entire public generation. It is SHA-256 of compact JSON, in this exact field
-order: `{contract:"i05-static-v1",sourceManifestSha256,contentManifestSha256,retainedArtworkSha256,date,year}`.
+order: `{contract:"i05-static-v1",sourceManifestSha256,contentManifestSha256,retainedArtworkSha256,date,year,ownedCoverMapSha256?,factsContract?}`.
+The optional owned-cover identity is unchanged. When the source includes IMDb
+key blocks, `factsContract:"imdb-v1"` is appended; this intentionally gives the
+additive facts publication a distinct immutable public revision, even with the
+same underlying catalogue source. A legacy source without IMDb keys retains
+its original public-revision derivation.
 The latter hashes refer to the exact source manifests, and date/year come from
 I01's report. New data, selection publication date or content generation changes
 the public identity. Index/shard hashes transitively bind all rewritten data.
@@ -101,6 +106,7 @@ last-good entry/index for offline use; a failed refresh must not replace it.
 | `fixed` | Selection-key to shared complete JSON result path |
 | `lookups` | Two lowercase hex digits to shared exact-lookup map path |
 | `search` | Family (`imdb`, `anime`, `manga`, `comics`) to `{names:Ref[],keys:Ref[]}` |
+| `facts.imdb` (optional) | Versioned IMDb facts-specific ID directory, described below |
 | `tankobanSourceHash` | Original Tankoban series manifest identity |
 | `content` | Public universe/tribute content references, described below |
 
@@ -134,6 +140,15 @@ index/parent reference, not by trying to infer it from their hashed filename:
 7. **ID block:** array of `[id,recordPath,recordIndex,inlineRecord?]`, ordered by
    ID. IMDb includes inline `{identity:{title,type,rating,votes,isAnime},ordinal}`
    to avoid fetching full record blocks for facts/presentation.
+   Legacy identity/search and `titlePresentation` keep these original files.
+7a. **Optional compact IMDb facts block:** array of exact five-element tuples
+   `[tt,rating,votes,isAnime,ordinal]`, where `tt` is an IMDb title ID, `rating`
+   is a finite JSON number or null, `votes` is a nonnegative safe integer or
+   null, `isAnime` is boolean, and `ordinal` is a nonnegative safe integer.
+   Rows must be strictly sorted by `tt`, with no duplicate ID; their first and
+   last IDs must equal the parent block's inclusive range endpoints. Blocks
+   reuse the existing IMDb sorted-key directory's boundaries (at most 2,048
+   rows/block), not a global facts dump or one shard per query.
 8. **Content manifest/document/bundle:** exact bytes from the existing content
    publisher, additionally content-addressed under the public shared tree.
    Manifest is `{schemaVersion:1,revision,documents,assets}`; a document is
@@ -202,12 +217,20 @@ Unspecified combinations are **not prepared**, and go to the existing Worker.
   text. Absent keys in a verified complete bucket yield `0` for genreCount,
   `false` for curatedHasDownloadable, `[]` for downloadsFor, `{}` for other
   Comics methods, and an empty ready Tankoban envelope with original sourceHash.
-* `mangaById`, `titlePresentation` and `titleFacts` use ID directories. A known
-  directory with no ID returns the existing empty result, not a network error.
-  Presentation is `{title,type}`. Facts accepts an array of IDs (non-array ->
-  empty object), preserves caller batches of 100, orders found rows in each
-  batch by source ordinal, and inserts `{rating,votes,isAnime}` by ID; repeated
-  IDs overwrite without moving their original object position.
+* `mangaById` and `titlePresentation` use the original ID directories.
+  Presentation is `{title,type}`. IMDb `titleFacts` selects `facts.imdb` when
+  present, falling back to the original IMDb ID directory **only if that
+  optional field is absent**. Its declaration is
+  `{version:1,blocks:[{path,first,last},...]}` with sorted, disjoint inclusive
+  IMDb `tt` ranges, pointing to same-publication SHA-256 shared JSON shards.
+  A malformed/unsupported declaration, invalid tuple/range, missing file or
+  SHA mismatch is a **failed exact query**, never a prepared empty or Worker
+  fallback. Facts accepts an array of IDs (non-array -> empty object), preserves
+  caller batches of 100 and stable source-ordinal ordering, inserts
+  `{rating,votes,isAnime}` by ID, omits unknown IDs, and overwrites duplicates.
+  A valid empty or unknown-only selection still produces `{}`. Files are loaded
+  only for blocks overlapping requested IDs and use existing shared memory,
+  disk, byte/file caps, QSaveFile, last-good, revision and cancellation machinery.
 * `content/bundle([])` is prepared by `index.content.bundle`, not a selection
   bucket. Validate its outer envelope, then return its `result` unchanged to
   SourceContentStore through CatalogRemote. Its source identity is the **content

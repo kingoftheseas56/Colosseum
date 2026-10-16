@@ -62,6 +62,11 @@ public:
     Q_INVOKABLE QVariantMap searchState(const QString& text, int limit = 20) const;
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
+    // Exact-query state for titleFacts. SQLite readiness is reported as
+    // source=local,status=success; no remote request is required in that mode.
+    Q_INVOKABLE QVariantMap titleFactsState(const QStringList& ids) const;
+    // Explicit retry only for the same failed remote query key. Never fetch in local mode.
+    Q_INVOKABLE bool retryTitleFacts(const QStringList& ids);
     // Small offline presentation lookup for sparse Continue video records.
     Q_INVOKABLE QVariantMap titlePresentation(const QString& id) const;
 

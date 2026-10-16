@@ -69,6 +69,10 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  if(listed.size!==report.files||!listed.has(oldManifestPath))throw Error('SOURCE_INVENTORY_MISMATCH');
  const manifestRaw=file(source,oldManifestPath),manifest=JSON.parse(manifestRaw);
  if(manifestRaw.length!==listed.get(oldManifestPath)||manifest.version!==1||manifest.revision!==report.revision)throw Error('SOURCE_MANIFEST_MISMATCH');
+ // Facts are an additive index facility: legacy publishers without IMDb key blocks remain valid.
+ const imdbKeys=manifest.search?.imdb?.keys;
+ if(manifest.search?.imdb!==undefined&&!Array.isArray(imdbKeys))throw Error('SOURCE_INVALID_FACTS_DECLARATION');
+ const publishFacts=Array.isArray(imdbKeys);
  const contentRaw=file(content,'internal/content/manifest.json'),cm=JSON.parse(contentRaw);
  if(cm.schemaVersion!==1||!hashPattern.test(cm.revision))throw Error('CONTENT_SCHEMA');
  const bundleRaw=file(content,'internal/content/rpc-bundle.json'),bundle=JSON.parse(bundleRaw),documents={};
@@ -93,7 +97,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  // Publication identity includes the exact source index, date policy and content.
  // LIBRARY's source revision remains unchanged for old authenticated clients.
  const retention=retainArtwork({previous,output});
- const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{})}));
+ const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{}),...(publishFacts?{factsContract:'imdb-v1'}:{})}));
  const publicPrefix='/catalogue/'+revision+'/',written=new Map(),converted=new Map(),loading=new Set();
  function write(path,raw){
   if(raw.length>maxFileBytes)throw Error('FREE_FILE_SIZE');
@@ -122,11 +126,47 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  const prepared=rewrite(manifest);
  // Verify and retain every declared source file, including any deduplicated leaf.
  for(const path of listed.keys())if(path!==oldManifestPath)convert(path);
+ let facts;
+ if(publishFacts){
+  const blocks=[];let priorLast='';
+  for(const ref of imdbKeys){
+   if(!ref||typeof ref!=='object'||typeof ref.path!=='string'||
+      typeof ref.first!=='string'||typeof ref.last!=='string'||
+      !/^tt[0-9]+$/.test(ref.first)||!/^tt[0-9]+$/.test(ref.last)||
+      ref.first>ref.last||(priorLast&&priorLast>=ref.first)||
+      !listed.has(ref.path))throw Error('SOURCE_INVALID_FACTS_DECLARATION');
+   // The generic shard has already passed convert()'s declared-byte and SHA checks.
+   const rows=JSON.parse(file(source,ref.path));
+   if(!Array.isArray(rows)||rows.length<1||rows.length>2048)throw Error('SOURCE_INVALID_FACTS_SHARD');
+   const compact=[];let previous='';
+   for(const row of rows){
+    if(!Array.isArray(row)||row.length<4||typeof row[0]!=='string'||
+       !/^tt[0-9]+$/.test(row[0])||(previous&&previous>=row[0])||
+       !row[3]||typeof row[3]!=='object'||Array.isArray(row[3])||
+       !row[3].identity||typeof row[3].identity!=='object'||
+       !Object.hasOwn(row[3],'ordinal'))throw Error('SOURCE_INVALID_FACTS_ROW');
+    const {identity,ordinal}=row[3];
+    if(!Object.hasOwn(identity,'rating')||!Object.hasOwn(identity,'votes')||
+       !Object.hasOwn(identity,'isAnime')||
+       !(identity.rating===null||(typeof identity.rating==='number'&&Number.isFinite(identity.rating)))||
+       !(identity.votes===null||(Number.isSafeInteger(identity.votes)&&identity.votes>=0))||
+       typeof identity.isAnime!=='boolean'||!Number.isSafeInteger(ordinal)||ordinal<0)
+     throw Error('SOURCE_INVALID_FACTS_VALUE');
+    compact.push([row[0],identity.rating,identity.votes,identity.isAnime,ordinal]);
+    previous=row[0];
+   }
+   if(compact[0][0]!==ref.first||previous!==ref.last)throw Error('SOURCE_INVALID_FACTS_RANGE');
+   blocks.push({path:put(compact),first:ref.first,last:ref.last});
+   priorLast=ref.last;
+  }
+  facts={imdb:{version:1,blocks}};
+ }
  const publicDocuments={};
  for(const [id,raw]of Object.entries(documents))publicDocuments[id]={...cm.documents[id],path:putRaw(Buffer.from(raw))};
  const contentManifestPath=putRaw(contentRaw),contentBundlePath=putRaw(bundleRaw);
  const index={...prepared,revision,schemaVersion:1,sourceRevision:report.revision,publicationDate:report.date,publicationYear:report.year,
   timePolicy:{comics:'publisher-year',malNewReleases:'not-before-no-future-titles',theatreRotation:'client-utc-day'},
+  ...(facts?{facts}:{}),
   content:{manifest:{path:contentManifestPath,sha256:contentManifestPath.slice(-69,-5)},bundle:{path:contentBundlePath,sha256:contentBundlePath.slice(-69,-5)},documents:publicDocuments}};
  const indexRaw=encode(index),indexPath=write(publicPrefix+'index-'+sha(indexRaw)+'.json',indexRaw);
  write(oldManifestPath,encode({...prepared,publicRevision:revision}));
@@ -141,7 +181,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  write('/catalogue/current.json',encode(entry));
  return{schemaVersion:1,revision,sourceRevision:report.revision,index:entry.index,sourceReportSha256:sha(reportBytes),sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),date:report.date,year:report.year,
   files:written.size,totalBytes:[...written.values()].reduce((a,b)=>a+b,0),largestFileBytes:Math.max(...written.values()),freeFileLimit:maxFiles,freeFileBytes:maxFileBytes,
-  artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,d1Writes:0,deployed:false,
+  artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,factsImdbBlocks:facts?.imdb.blocks.length??0,d1Writes:0,deployed:false,
   ...(ownedCovers?{ownedCovers:ownedCovers.report}:{}),
   entries:[...written].map(([path,bytes])=>({path,bytes}))};
 }
