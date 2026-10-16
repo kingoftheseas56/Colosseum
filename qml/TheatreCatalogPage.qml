@@ -180,6 +180,10 @@ Column {
     property var _presentedSignatures: []
     onMainRowsChanged: page._syncMainPresentation()
     function _syncMainPresentation() {
+        var traceSync = typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled
+        var traceStart = traceSync ? Date.now() : 0
+        var signatureMs = 0, insertMs = 0, updateMs = 0, moveMs = 0, removeMs = 0
+        var inserted = 0, updated = 0, moved = 0, removed = 0
         var desired = page.mainRows || []
         var keys = page._presentedKeys.slice()
         var signatures = page._presentedSignatures.slice()
@@ -189,7 +193,9 @@ Column {
         // Remove only rows no longer present, backward so the existing indices survive.
         for (var i = keys.length - 1; i >= 0; --i) {
             if (wanted[keys[i]]) continue
+            var removeStart = traceSync ? Date.now() : 0
             mainPresentationModel.remove(i)
+            if (traceSync) { removeMs += Date.now() - removeStart; removed++ }
             keys.splice(i, 1)
             signatures.splice(i, 1)
         }
@@ -198,29 +204,47 @@ Column {
             // Page rows are plain data descriptors, with validated facts coming only
             // from TheatreApi. The signature detects semantically identical new arrays.
             var signature
+            var signatureStart = traceSync ? Date.now() : 0
             try { signature = JSON.stringify(row) }
             catch (error) { signature = null } // unsupported payload: update, never hide a change
+            if (traceSync) signatureMs += Date.now() - signatureStart
             var at = keys.indexOf(key, j)
             if (at < 0) {
+                var insertStart = traceSync ? Date.now() : 0
                 mainPresentationModel.insert(j, { rowKey: key, rowData: row })
+                if (traceSync) { insertMs += Date.now() - insertStart; inserted++ }
                 keys.splice(j, 0, key)
                 signatures.splice(j, 0, signature)
                 continue
             }
             if (at !== j) {
+                var moveStart = traceSync ? Date.now() : 0
                 mainPresentationModel.move(at, j, 1)
+                if (traceSync) { moveMs += Date.now() - moveStart; moved++ }
                 keys.splice(at, 1)
                 keys.splice(j, 0, key)
                 var moved = signatures.splice(at, 1)[0]
                 signatures.splice(j, 0, moved)
             }
             if (signature === null || signature === undefined || signatures[j] !== signature) {
+                var updateStart = traceSync ? Date.now() : 0
                 mainPresentationModel.setProperty(j, "rowData", row)
+                if (traceSync) { updateMs += Date.now() - updateStart; updated++ }
                 signatures[j] = signature
             }
         }
         page._presentedKeys = keys
         page._presentedSignatures = signatures
+        if (traceSync) {
+            console.info("CATALOGUE_TRACE " + JSON.stringify({event: "qml_presentation_sync",
+                component: "TheatreCatalogPage", epochMs: Date.now(), tab: page.pageKey,
+                generation: page.generation, durationMs: Date.now() - traceStart,
+                signatureMs: signatureMs, insertMs: insertMs, updateMs: updateMs,
+                moveMs: moveMs, removeMs: removeMs, inserted: inserted, updated: updated,
+                moved: moved, removed: removed, shelves: desired.length,
+                viewportHeight: page.viewportHeight, viewportTop: page.viewportTop,
+                pageWidth: page.width, active: page.active}))
+        }
     }
 
     readonly property var rowIndexRows: {
