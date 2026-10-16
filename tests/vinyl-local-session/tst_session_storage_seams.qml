@@ -18,7 +18,8 @@ TestCase {
             property var recorded:null
             function items(world) {return entries;}
             function has(world,id) {return entries.some(e=>e.id===id);}
-            function add(world,entry) {singles++;return false;}
+            function add(world,entry) {singles++;if(fail) return false;entries=entries.filter(e=>e.id!==entry.id).concat([entry]);return true;}
+            function remove(world,id) {if(fail) return false;entries=entries.filter(e=>e.id!==id);return true;}
             function replaceItems(world,ids,added) {
                 batches++;if(fail) return false;
                 entries=entries.filter(e=>ids.indexOf(e.id)<0 && !added.some(a=>a.id===e.id)).concat(added);return true;
@@ -63,6 +64,29 @@ TestCase {
         session=c.createObject(test,{source:source,collectionStore:collection,progressStore:progress});verify(session!==null);
     }
     function cleanup() {session.destroy();wait(0);collection.destroy();progress.destroy();source.destroy();wait(0);}
+    function test_unsavedAlbumRetainsCatalogueAfterOwnerReconstruction() {
+        session.shownEdition=session.normalize(album("old"));session.refreshLibrary();verify(session.saved);
+        session.toggleSaved();verify(!session.saved);compare(collection.entries.length,1);
+        compare(collection.entries[0].payload.saved,false);
+        var durable=JSON.parse(JSON.stringify(collection.entries));
+        session.destroy();wait(0);collection.destroy();source.destroy();wait(0);
+        collection=storeFactory.createObject(test);collection.entries=durable;source=sourceFactory.createObject(test);
+        var c=Qt.createComponent("../../qml/vinyl/VinylLiveSession.qml");session=c.createObject(test,{source:source,collectionStore:collection,progressStore:progress});
+        compare(session.library.length,1);verify(source.projectedAlbum("old")!==null);
+        session.openAlbum("old");source.completed("browse",session.browseRequest,source.projectedAlbum("old"),"");
+        compare(session.shownAlbumId,"old");verify(!session.saved);compare(session.tracks.length,1);
+        session.toggleSaved();verify(session.saved);compare(collection.entries.length,1);
+    }
+    function test_failedUnsaveKeepsSavedFlagAndCatalogue() {
+        session.shownEdition=session.normalize(album("old"));session.refreshLibrary();collection.fail=true;
+        session.toggleSaved();verify(session.saved);compare(collection.entries.length,1);verify(session.browseError.length>0);
+    }
+    function test_manifestRefreshPreservesUnsavedMembershipFlag() {
+        session.shownEdition=session.normalize(album("old"));session.refreshLibrary();session.toggleSaved();
+        source.importResult={albums:[album("old","Updated")],replacedManifestPaths:["/album.vinyl.json"],errors:[]};
+        compare(session.importFiles(["/album.vinyl.json"]).imported,1);verify(!session.saved);
+        compare(collection.entries[0].payload.album.title,"Updated");compare(collection.entries[0].payload.saved,false);
+    }
     function test_failedBatchKeepsOldLibraryAndSource() {
         collection.fail=true;source.importResult={albums:[album("new")],replacedManifestPaths:["/album.vinyl.json"],errors:[]};
         var result=session.importFiles(["/album.vinyl.json"]);compare(result.imported,0);compare(collection.entries[0].id,"old");

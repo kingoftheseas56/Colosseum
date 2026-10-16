@@ -211,6 +211,7 @@ Flickable {
             releasePicker.closePopup(false);
             root.systemMenuOpen = false;
             mediaDialog.close();
+            savedPlaylistsDialog.close();
             playlistDialog.close();
             createDialog.close();
             searchDialog.close();
@@ -1154,6 +1155,18 @@ Flickable {
                 }
 
                 KeyboardAction {
+                    objectName: "vinylArtistSavedPlaylistsMenu"
+                    spaceActivates: true
+                    focusRadius: 8
+                    visible: !!root.artistData.liveMode
+                    enabled: root.artistData.playlists.length > 0
+                    width: parent.width; height: visible ? 36 : 0
+                    accessibleName: "Your playlists"
+                    onTriggered: { root.systemMenuOpen=false; root.dialogReturnItem=moreButton; savedPlaylistsDialog.open(); }
+                    Text { x:12; anchors.verticalCenter:parent.verticalCenter; text:"Your playlists"; color:theme.ink; font.family:theme.ui; font.pixelSize:13 }
+                }
+
+                KeyboardAction {
                     id: topOfPageAction
                     objectName: "vinylArtistTopOfPageAction"
                     width: parent.width
@@ -1790,6 +1803,7 @@ Flickable {
 
     Dialog {
         id: createDialog
+        objectName: "vinylArtistCreatePlaylistDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent.width - 48)
@@ -1802,16 +1816,25 @@ Flickable {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: {
             if (root.artistData.createPlaylist(playlistName.text)) {
-                var list = root.artistData.playlists[root.artistData.playlists.length - 1];
+                var list = root.artistData.liveMode ? root.artistData.playlists.find(function(p){return p.id === root.artistData.lastCreatedPlaylistId;}) : root.artistData.playlists[root.artistData.playlists.length - 1];
                 Qt.callLater(function() { playlistDialog.selection = list; playlistDialog.open(); });
+            } else if (root.artistData.liveMode) {
+                Qt.callLater(function() { createDialog.open(); });
             }
         }
         Column {
             width: parent.width; spacing: 14
             Label {
                 width: parent.width
-                text: "Start with the displayed songs. This prototype keeps playlists for this session."
+                text: root.artistData.liveMode ? "Start with the displayed songs. Playlists are saved to this profile." : "Start with the displayed songs. This prototype keeps playlists for this session."
                 wrapMode: Text.WordWrap
+            }
+            Label {
+                objectName: "vinylArtistPlaylistError"
+                width: parent.width
+                visible: !!root.artistData.liveMode && !!root.artistData.persistenceError
+                text: root.artistData.liveMode ? root.artistData.persistenceError : ""
+                color: theme.gold; wrapMode: Text.WordWrap
             }
             TextField {
                 id: playlistName
@@ -1820,17 +1843,45 @@ Flickable {
                 placeholderText: "Playlist name"; maximumLength: 80
             }
         }
-        onOpened: playlistName.forceActiveFocus()
+        onOpened: {
+            footer.standardButton(DialogButtonBox.Ok).objectName = "vinylArtistPlaylistConfirm";
+            footer.standardButton(DialogButtonBox.Cancel).objectName = "vinylArtistPlaylistCancel";
+            playlistName.forceActiveFocus();
+        }
+        onRejected: root.restoreDialogFocus()
+    }
+
+    Dialog {
+        id: savedPlaylistsDialog
+        objectName: "vinylArtistSavedPlaylistsDialog"
+        parent: Overlay.overlay; anchors.centerIn: parent
+        width: Math.min(520,parent.width-48); height: Math.min(500,parent.height-80)
+        title: "Your playlists"; modal:true; standardButtons:Dialog.Close
+        onRejected: root.restoreDialogFocus()
+        palette.window:"#17181d"; palette.windowText:theme.ink; palette.text:theme.ink
+        contentItem: ListView {
+            objectName:"vinylArtistSavedPlaylistsList"
+            clip:true; model:root.artistData.playlists
+            delegate: ItemDelegate {
+                required property var modelData
+                required property int index
+                objectName:"vinylArtistSavedPlaylist_"+index
+                width:ListView.view.width; text:modelData.name
+                onClicked:{savedPlaylistsDialog.close();playlistDialog.selection=modelData;playlistDialog.open();}
+            }
+        }
     }
 
     Dialog {
         id: playlistDialog
+        objectName: "vinylArtistPlaylistDialog"
         property var selection: ({name:"",songs:[]})
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(520, parent.width - 48)
         height: Math.min(500, parent.height - 80)
         title: selection.name
+        onRejected: root.restoreDialogFocus()
         modal: true
         palette.window: "#17181d"; palette.windowText: theme.ink
         palette.text: theme.ink; palette.base: "#22232a"
@@ -1838,13 +1889,15 @@ Flickable {
         palette.highlight: theme.gold; palette.highlightedText: "#06070b"
         standardButtons: Dialog.Close
         contentItem: ListView {
+            objectName:"vinylArtistPlaylistSongsList"
             clip: true; model: playlistDialog.selection.songs.length; spacing: 4
             delegate: ItemDelegate {
                 readonly property var modelData: playlistDialog.selection.songs[index]
                 required property int index
                 objectName: "vinylArtistPlaylistSong_" + index
                 width: ListView.view.width
-                text: modelData.track.title
+                text: modelData.track.title + (modelData.unavailable ? " · Unavailable" : "")
+                enabled: !modelData.unavailable
                 onClicked: { root.songRequested(modelData); playlistDialog.close(); }
             }
         }

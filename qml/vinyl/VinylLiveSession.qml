@@ -1,5 +1,6 @@
 import QtQuick
 import Colosseum.Player
+import Colosseum.Activity
 
 // UI adapter over the existing mpv and profile Progress/Collection owners.
 // Fixture presentation data never enters this path.
@@ -51,6 +52,65 @@ Item {
     property var source: typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null
     property var collectionStore: typeof Collection !== "undefined" ? Collection : null
     property var progressStore: typeof Progress !== "undefined" ? Progress : null
+    property var activitySink: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
+    property var activityPreferences: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
+    readonly property bool activityEnabled: profileActive && !shuttingDown && activitySink!==null
+        && (!activityPreferences || activityPreferences.keepActivityHistory!==false)
+    property bool activityActive: false
+    property var activityRecorder: activityTracker
+    ActivityPlaybackTracker {
+        id: activityTracker
+        objectName: "vinylActivityTracker"
+        sink: root.activityEnabled ? root.activitySink : null
+    }
+    function activityBegin() {
+        if(activityActive || !activityEnabled || !loaded || !player || playingIndex<0) return;
+        try {
+            if(!activitySink.newSessionId) return;
+            var row=queue[queueIndex];if(!row) return;
+            activityRecorder.begin({world:"vinyl",kind:"music",titleKey:row.albumId,
+                itemKey:JSON.stringify([row.albumId,row.editionId,row.discIndex,row.trackIndex,row.trackId]),
+                title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session"},activitySink.newSessionId());
+            activityActive=true;activityDiscontinuity(position);
+            activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));
+        } catch(failure) {activityActive=false;}
+    }
+    function activitySample(consuming) {
+        if(!activityActive || !activityEnabled || !player || !loaded) return;
+        try {activityRecorder.sample(Math.round(position*1000),Math.round(duration*1000),1000,
+            !seekPending && sourceState==="playing" && (consuming===undefined ? !paused : consuming));} catch(failure) {}
+    }
+    function activityDiscontinuity(seconds) {
+        if(!activityActive) return;
+        try {activityRecorder.discontinuity(Math.round(seconds*1000),Math.round(duration*1000),1000);} catch(failure) {}
+    }
+    function activityEnd(natural) {
+        if(!activityActive) return;
+        activitySample();
+        try {
+            if(natural) activityRecorder.naturalEof(Math.round(position*1000),Math.round(duration*1000));
+            activityRecorder.endSession(Math.round(position*1000),Math.round(duration*1000));
+        } catch(failure) {}
+        activityActive=false;
+    }
+    function scheduleActivityBegin() {
+        var sink=activitySink, scope=profileGeneration, generation=epoch;
+        Qt.callLater(function() {
+            if(root.activitySink===sink && root.profileGeneration===scope && root.epoch===generation)
+                root.activityBegin();
+        });
+    }
+    onActivityEnabledChanged: {if(!activityEnabled) activityEnd(false);else scheduleActivityBegin();}
+    // The native tracker discards the old sink's buffered identity on rebinding.
+    // Never flush an old logical session through a newly bound profile sink.
+    onActivitySinkChanged: {activityActive=false;scheduleActivityBegin();}
+    Connections {
+        target: root.activitySink
+        ignoreUnknownSignals: true
+        function onRetentionEnabledChanged(enabled) {root.activityActive=false;if(enabled) root.scheduleActivityBegin();}
+        function onResetCommitted(generation,atMs) {root.activityActive=false;root.scheduleActivityBegin();}
+        function onResetApplied(generation,atMs) {root.activityActive=false;root.scheduleActivityBegin();}
+    }
     property string sourceKind: ""
     property string fallbackReason: ""
     property bool audioAdvanced: false
@@ -59,6 +119,9 @@ Item {
     property int profileGeneration: 0
     property bool resetting: false
     property bool shuttingDown: false
+    property bool profileActive: true
+    readonly property string persistenceError: progressStore && progressStore.healthy === false
+        ? (progressStore.persistenceError || "Music progress could not be saved.") : ""
     property bool saved: false
     property var library: []
     readonly property bool hasLyrics: lyrics.length > 0
@@ -186,8 +249,12 @@ Item {
         var errors=(result.errors || []).slice();
         var albums=result.albums || [];
         var count=0, replaced=result.replacedManifestPaths || [], removeIds=[];
-        var entries=albums.map(album=>({id:album.id,type:"album",title:album.title,cover:album.cover || "",
-            artist:(album.artists || []).join(" · "),browseId:album.id,payload:{version:1,album:album}}));
+        var entries=albums.map(album=>{
+            var prior=library.find(entry=>entry.id===album.id);
+            return {id:album.id,type:"album",title:album.title,cover:album.cover || "",
+                artist:(album.artists || []).join(" · "),browseId:album.id,
+                payload:{version:1,album:album,saved:!prior || !prior.payload || prior.payload.saved!==false}};
+        });
         library.forEach(entry=>{var old=entry.payload && entry.payload.album;
             if(old && replaced.indexOf(old.manifestPath)>=0 && !albums.some(a=>a.id===old.id)) removeIds.push(entry.id);});
         if(entries.length || removeIds.length) {
@@ -223,13 +290,13 @@ Item {
         if (source) source.cancel("browse");
     }
     function search(query) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="search";
         browseRequest=source.request("browse","search",query);
     }
     function openAlbum(browseId) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
         browseRequest=source.request("browse","album",browseId);
@@ -238,14 +305,20 @@ Item {
         if (!collectionStore) {library=[];saved=false;return;}
         library=(plainData(collectionStore.items("Vinyl")) || []).filter(e => e.payload && e.payload.album && e.payload.album.origin === "local");
         refreshSource();
-        saved=shownAlbumId.length > 0 && collectionStore.has("Vinyl",shownAlbumId);
+        var selected=library.find(entry=>entry.id===shownAlbumId);
+        saved=!!selected && selected.payload.saved!==false;
     }
     function toggleSaved() {
-        if (!shownEditionId) return;
-        var ok=saved ? collectionStore.remove("Vinyl",shownAlbumId) : collectionStore.add("Vinyl",{
+        if (!shownEditionId || !collectionStore || shuttingDown || !profileActive) return;
+        var prior=library.find(entry=>entry.id===shownAlbumId);
+        var entry=prior ? Object.assign({},prior) : {
             id:shownAlbumId,type:"album",title:shownEdition.name,cover:shownEdition.cover,
             browseId:shownEdition.browseId,artist:shownEdition.artist,
-            payload:{version:1,album:shownEdition.sourceAlbum}});
+            payload:{version:1,album:shownEdition.sourceAlbum}};
+        // Imported metadata remains the local catalogue; saving is membership,
+        // not deletion of the only owned browse/source record.
+        entry.payload=Object.assign({},entry.payload,{saved:!saved});
+        var ok=collectionStore.add("Vinyl",entry);
         if (!ok) browseError="The album could not be saved. Try again.";
         refreshLibrary();
     }
@@ -259,6 +332,7 @@ Item {
     function cancelQueueRequest() {queueRequest=-1;pendingEnqueues=[];if(source) source.cancel("queue");}
     function playTrack(index) { startQueue(index,false); }
     function playAlbum(album,index,editionId) {
+        if(shuttingDown || !profileActive) return;
         if(!validAlbum(album)) return;
         var edition=editionId ? normalizeEditions(album).find(e=>e.id===editionId) : normalize(album);
         if(!edition) return;
@@ -268,6 +342,7 @@ Item {
     }
     function shuffleAlbum(album) {if(!validAlbum(album)) return;playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
     function playSongs(songs,shuffleOrder) {
+        if(shuttingDown || !profileActive) return;
         if(!Array.isArray(songs)) return;
         var rows=[], cache=new Map();
         songs.slice(0,10000).forEach(song=>{
@@ -292,6 +367,7 @@ Item {
     function togglePause() {if(playingIndex>=0) paused=!paused;}
     function shuffle() { startQueue(0,true); }
     function startQueue(index,shuffleOrder) {
+        if(shuttingDown || !profileActive) return;
         if (!Number.isInteger(index) || index<0 || index>=tracks.length) return;
         snapshot();cancelQueueRequest();var rows=editionRows(shownEdition);
         var selected=rows.findIndex(r=>r.discIndex===shownDisc && r.trackIndex===index);
@@ -300,18 +376,19 @@ Item {
         playQueue(queueIndex,true);
     }
     function enqueueTrack(index,playNext) {
+        if(shuttingDown || !profileActive) return;
         if(!Number.isInteger(index) || index<0 || index>=tracks.length) return;
         appendRows([rowFor(shownEdition,shownDisc,index)],playNext);
     }
     function enqueueAlbum(albumId,playNext) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         if(typeof albumId!=="string" || !albumId.length) return;
         if(pendingEnqueues.length>=128) {browseError="Please wait for the queued releases to finish loading.";return;}
         pendingEnqueues=pendingEnqueues.concat([{albumId:albumId,playNext:!!playNext,edition:albumId===shownAlbumId ? shownEdition : null}]);
         dispatchNextEnqueue();
     }
     function dispatchNextEnqueue() {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         if(queueRequest>=0) return;
         while(pendingEnqueues.length) {
             var job=pendingEnqueues[0];pendingEnqueues=pendingEnqueues.slice(1);
@@ -323,6 +400,7 @@ Item {
         }
     }
     function appendRows(rows,playNext) {
+        if(shuttingDown || !profileActive) return;
         rows=rows.slice(0,Math.max(0,10000-queue.length));
         if(!rows.length) {browseError="The queue is full (10,000 tracks).";return;}
         var copy=queue.slice();var at=playNext && queueIndex>=0 ? queueIndex+1 : copy.length;
@@ -330,12 +408,13 @@ Item {
         unshuffledIds=unshuffledIds.concat(rows.map(r=>r.queueId));snapshot();
     }
     function playQueue(index,skipSnapshot) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         if(!Number.isInteger(index) || index<0 || index>=queue.length) return;
         if(!skipSnapshot) snapshot();var row=queue[index];queueIndex=index;playingEdition=row.edition;
         playingDisc=row.discIndex;playingIndex=row.trackIndex;manualNoteLine=-1;videoShown=false;beginTrack(0);
     }
     function removeQueue(index) {
+        if(shuttingDown || !profileActive) return;
         if(!Number.isInteger(index) || index<0 || index>=queue.length) return;
         snapshot();var current=index===queueIndex, wasPaused=paused, copy=queue.slice();copy.splice(index,1);queue=copy;
         if(!copy.length) {clearQueue();return;}
@@ -344,18 +423,20 @@ Item {
         snapshot();
     }
     function moveQueue(from,to) {
+        if(shuttingDown || !profileActive) return;
         if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<0||from>=queue.length||to>=queue.length) return;
         var id=queueIndex>=0 ? queue[queueIndex].queueId : "", copy=queue.slice(), row=copy.splice(from,1)[0];
         copy.splice(to,0,row);queue=copy;queueIndex=copy.findIndex(r=>r.queueId===id);
         unshuffledIds=copy.map(r=>r.queueId);snapshot();
     }
     function clearQueue() {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         snapshot();resetting=true;retirePlayer();cancelQueueRequest();queue=[];queueIndex=-1;playingIndex=-1;playingDisc=0;
         playingEdition=emptyEdition;resumeSeconds=0;measuredDuration=0;paused=true;sourceState="idle";error="";
-        unshuffledIds=[];resetting=false;
+        unshuffledIds=[];resetting=false;snapshot();
     }
     function setShuffle(enabled) {
+        if(shuttingDown || !profileActive) return;
         enabled=!!enabled;if(shuffleEnabled===enabled) return;
         var copy=queue.slice(), id=queueIndex>=0 ? copy[queueIndex].queueId : "";
         if(enabled) {
@@ -367,14 +448,14 @@ Item {
     }
     function cycleRepeat() {repeatMode=repeatMode==="off" ? "all" : repeatMode==="all" ? "one" : "off";snapshot();}
     function retirePlayer() {
-        epoch++;
+        activityEnd(false);epoch++;
         var old=player; player=null; loaded=false; seekPending=false;
         if (old) {old.pause=true;old.destroy();}
         playRequest=-1;if (source) source.cancel("play");
         audioAdvanced=false;
     }
     function beginTrack(seconds) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         retirePlayer(); measuredDuration=0; resumeSeconds=Math.max(0,seconds); error="";
         sourceState="finding"; qualityLabel="Local audio";fallbackReason="";
         sourceKind=playingEdition.origin || "local";
@@ -388,11 +469,11 @@ Item {
         snapshot();
     }
     function playbackFailed(message) {
-        error=message;sourceState="error";paused=true;
+        activityEnd(false);error=message;sourceState="error";paused=true;
         if (player) player.pause=true;
     }
     function loadAudio(url,headers) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         player=audioComponent.createObject(root,{generation:epoch});
         player.loadFileWithHeaders(url,headers || {});player.pause=paused;
     }
@@ -406,7 +487,8 @@ Item {
         playQueue(index);
     }
     function handleNaturalEnd() {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
+        activityEnd(true);
         if(repeatMode==="one") {playQueue(queueIndex);return;}
         if(queueIndex+1<queue.length || repeatMode==="all") {next(1);return;}
         resumeSeconds=duration;loaded=false;sourceState="ended";paused=true;snapshot();
@@ -414,19 +496,24 @@ Item {
     function retry() { if (playingIndex>=0) beginTrack(position); }
     function seek(seconds) {
         if (!loaded || !player || sourceState!=="playing") return;
-        resumeSeconds=Math.max(0,Math.min(duration,seconds));seekPending=true;
+        activitySample();resumeSeconds=Math.max(0,Math.min(duration,seconds));activityDiscontinuity(resumeSeconds);seekPending=true;
         player.seekExact(resumeSeconds);
     }
     onPausedChanged: {
-        if (resetting || shuttingDown) return;
+        if (resetting || shuttingDown || !profileActive) return;
         if (!paused && sourceState!=="finding" && playingIndex>=0
                 && (!player || sourceState==="error" || sourceState==="ended"))
             beginTrack(sourceState==="ended" ? 0 : position);
+        if(activityActive) {
+            if(paused) activitySample(true);
+            activityDiscontinuity(position);
+            try {activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));} catch(failure) {}
+        }
         if (player) player.pause=paused;
         snapshot();
     }
     function snapshot() {
-        if (resetting || shuttingDown || !playingEditionId || playingIndex<0 || !progressStore) return;
+        if (resetting || shuttingDown || !profileActive || !progressStore) return;
         // Serialize each edition once: queue rows hold references, avoiding quadratic album copies.
         var editionTable=[], keys=new Map(), compact=[];
         queue.forEach(row=>{
@@ -434,22 +521,35 @@ Item {
             if(index===undefined) {index=editionTable.length;keys.set(row.edition,index);editionTable.push(row.edition);}
             compact.push({queueId:row.queueId,editionKey:index,discIndex:row.discIndex,trackIndex:row.trackIndex});
         });
-        progressStore.recordSilent({kind:"music",id:playingEditionId,title:playingTrack.title,
+        var resume={version:2,editionTable:editionTable,queue:compact,queueIndex:queueIndex,
+            unshuffledIds:unshuffledIds,shuffleEnabled:shuffleEnabled,repeatMode:repeatMode,
+            position:position,duration:duration,trackId:playingIndex>=0 ? playingTrack.id : "",completed:sourceState==="ended"};
+        if(playingEditionId && playingIndex>=0) progressStore.recordSilent({kind:"music",id:playingEditionId,title:playingTrack.title,
             caption:playingEdition.name,sub:playingTrack.artist,cover:playingEdition.cover,
-            progress:duration>0 ? position/duration : 0,
-            resume:{version:2,editionTable:editionTable,queue:compact,queueIndex:queueIndex,
-                unshuffledIds:unshuffledIds,shuffleEnabled:shuffleEnabled,repeatMode:repeatMode,
-                position:position,duration:duration,trackId:playingTrack.id,completed:sourceState==="ended"}});
+            progress:duration>0 ? position/duration : 0,resume:resume});
+        // One authoritative queue checkpoint, including an explicit empty queue.
+        // Per-edition Continue/history records must never resurrect a cleared session.
+        progressStore.recordSilent({kind:"music-session",id:"vinyl",resume:resume});
     }
     function restore(entry) {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         if (!progressStore) return;
-        var recent=plainData(entry ? [entry] : progressStore.recent("music",1)) || [];
+        var stored=!entry && progressStore.get ? plainData(progressStore.get("music-session","vinyl")) : null;
+        var singleton=stored && stored.kind==="music-session" && stored.id==="vinyl";
+        var recent=plainData(entry ? [entry] : singleton ? [stored] : progressStore.recent("music",1)) || [];
         if (!recent.length) return;
         var r=recent[0].resume;
-        if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || !r.queue.length || r.queue.length>10000) return;
+        if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || r.queue.length>10000) return;
         var qi=r.queueIndex, rows=r.queue;
-        if(!Number.isInteger(qi)||qi<0||qi>=rows.length||!isFinite(r.position)) return;
+        if(!Number.isInteger(qi)||qi< -1||qi>=rows.length||!Number.isFinite(r.position)) return;
+        if(!rows.length) {
+            if(!singleton || qi!==-1) return;
+            resetting=true;retirePlayer();queue=[];queueIndex=-1;playingEdition=emptyEdition;playingIndex=-1;
+            resumeSeconds=0;measuredDuration=0;paused=true;sourceState="idle";
+            shuffleEnabled=!!r.shuffleEnabled;repeatMode=["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off";
+            unshuffledIds=[];resetting=false;return;
+        }
+        if(qi===-1 && !singleton) return;
         if(r.version===2 && Array.isArray(r.editionTable)) {
             if(rows.some(row=>!row || !Number.isInteger(row.editionKey) || row.editionKey<0 || row.editionKey>=r.editionTable.length || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !r.editionTable[row.editionKey] || !Array.isArray(r.editionTable[row.editionKey].discs) || !Array.isArray(r.editionTable[row.editionKey].discs[row.discIndex]) || !r.editionTable[row.editionKey].discs[row.discIndex][row.trackIndex])) return;
             rows=rows.map(row=>{var full=rowFor(r.editionTable[row.editionKey],row.discIndex,row.trackIndex);full.queueId=row.queueId;return full;});
@@ -460,10 +560,10 @@ Item {
             if(!ts || rows.some(i=>!Number.isInteger(i)||i<0||i>=ts.length)) return;
             rows=rows.map(i=>rowFor(r.edition,0,i));
         }
-        if(rows.some(row=>!row || !row.edition || !row.edition.discs || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !(row.edition.discs[row.discIndex] || [])[row.trackIndex] || row.trackId!==row.edition.discs[row.discIndex][row.trackIndex].id) || rows[qi].trackId!==r.trackId) return;
+        if(rows.some(row=>!row || !row.edition || !row.edition.discs || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !(row.edition.discs[row.discIndex] || [])[row.trackIndex] || row.trackId!==row.edition.discs[row.discIndex][row.trackIndex].id) || (qi>=0 && rows[qi].trackId!==r.trackId)) return;
         var remapped=Object.create(null);
-        resetting=true;retirePlayer();queue=rows.map(row=>{var copy=Object.assign({},row);copy.queueId="queue:"+(++queueSerial);remapped[row.queueId]=copy.queueId;return copy;});queueIndex=qi;playingEdition=rows[qi].edition;shownEdition=playingEdition;
-        playingDisc=rows[qi].discIndex;shownDisc=playingDisc;playingIndex=rows[qi].trackIndex;
+        resetting=true;retirePlayer();queue=rows.map(row=>{var copy=Object.assign({},row);copy.queueId="queue:"+(++queueSerial);remapped[row.queueId]=copy.queueId;return copy;});queueIndex=qi;playingEdition=qi>=0 ? rows[qi].edition : emptyEdition;shownEdition=qi>=0 ? playingEdition : rows[0].edition;
+        playingDisc=qi>=0 ? rows[qi].discIndex : 0;shownDisc=playingDisc;playingIndex=qi>=0 ? rows[qi].trackIndex : -1;
         shuffleEnabled=!!r.shuffleEnabled;repeatMode=["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off";
         unshuffledIds=Array.isArray(r.unshuffledIds) ? r.unshuffledIds.map(id=>remapped[id]).filter(id=>!!id) : queue.map(row=>row.queueId);resumeSeconds=r.completed ? 0 : Math.max(0,r.position);
         measuredDuration=Math.max(0,Number(r.duration) || 0);
@@ -472,7 +572,7 @@ Item {
     function clearProfile() {
         if(shuttingDown) return;
         profileGeneration++;
-        snapshot();resetting=true;retirePlayer();cancelBrowse();cancelQueueRequest();
+        snapshot();activityEnd(false);profileActive=false;resetting=true;retirePlayer();cancelBrowse();cancelQueueRequest();
         shownDisc=0;playingDisc=0;shuffleEnabled=false;repeatMode="off";unshuffledIds=[];manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
         shownEdition=emptyEdition;playingEdition=emptyEdition;playingIndex=-1;queue=[];queueIndex=-1;
         results=[];library=[];saved=false;browsing=false;error="";browseError="";resumeSeconds=0;measuredDuration=0;
@@ -480,11 +580,18 @@ Item {
         sourceKind="";fallbackReason="";
         if (source && source.setAlbums) source.setAlbums([]);
     }
+    function suspendPlayback(reason) {
+        if(shuttingDown || !profileActive) return;
+        var savedPosition=position, savedDuration=duration;
+        snapshot();resetting=true;retirePlayer();cancelQueueRequest();
+        resumeSeconds=savedPosition;measuredDuration=savedDuration;
+        paused=true;sourceState=playingIndex>=0 ? "paused" : "idle";resetting=false;
+    }
     function shutdown() {
-        if(shuttingDown) return;
+        if(shuttingDown || !profileActive) return;
         // Checkpoint the live clock/queue once before closing the terminal fence.
         var finalPosition=position, finalDuration=duration;
-        snapshot();shuttingDown=true;resetting=true;
+        snapshot();activityEnd(false);shuttingDown=true;resetting=true;
         // Invalidate every lane before cancel/pause can deliver reentrant callbacks.
         browseRequest=-1;queueRequest=-1;playRequest=-1;pendingEnqueues=[];
         retirePlayer();cancelBrowse();cancelQueueRequest();
@@ -504,6 +611,7 @@ Item {
                 if (duration>0) root.measuredDuration=duration;
                 pause=root.paused;
                 if (root.resumeSeconds>0) {root.seekPending=true;seekExact(root.resumeSeconds);}
+                root.activityBegin();
             }
             onDurationChanged: {
                 if (current() && duration>0) root.measuredDuration=duration;
@@ -529,7 +637,7 @@ Item {
     Connections {
         target: root.source
         function onCompleted(lane,id,data,failure) {
-            if(root.shuttingDown || root.resetting) return;
+            if(root.shuttingDown || root.resetting || !root.profileActive) return;
             data=root.plainData(data);
             if (lane==="browse" && id>=0 && id===root.browseRequest) {
                 root.browseRequest=-1;root.browsing=false;root.browseError=failure;
@@ -552,11 +660,11 @@ Item {
             }
         }
         function onProfileLeaving() { root.clearProfile(); }
-        function onProfileEntered() { root.restore();root.refreshLibrary(); }
+        function onProfileEntered() { root.profileActive=true;root.restore();root.refreshLibrary(); }
         function onCheckpointRequested() { root.snapshot(); }
         function onShuttingDown() { root.shutdown(); }
     }
-    Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:root.snapshot()}
+    Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
     Timer {
         objectName:"vinylStartupTimer"
         interval:15000

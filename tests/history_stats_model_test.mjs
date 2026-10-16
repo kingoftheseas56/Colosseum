@@ -4,7 +4,7 @@ const root = process.argv[2] || '.';
 const modelPath = root + '/qml/HistoryStatsModel.js';
 let src = fs.readFileSync(modelPath, 'utf8').replace(/^\.pragma library\s*$/m, '');
 const mod = {};
-new Function('module', src + '\nmodule.monthKeys=monthKeys;module.aggregateStats=aggregateStats;module.historyRows=historyRows;module.highlightCards=highlightCards;')(mod);
+new Function('module', src + '\nmodule.worldName=worldName;module.monthKeys=monthKeys;module.aggregateStats=aggregateStats;module.historyRows=historyRows;module.highlightCards=highlightCards;')(mod);
 
 function fail(message) {
     console.error('FAIL ' + message);
@@ -107,5 +107,9 @@ const cards = mod.highlightCards({ highlights: [
 eq(cards.map(x => x.label), ['Most watched', 'Most read'], 'highlight roles retain product copy');
 eq(cards.map(x => x.value), ['1h 30m', '50 pages'], 'highlight values use their native metric');
 
+eq(mod.worldName('vinyl'), 'Vinyl', 'music world remains Vinyl');
+const music = mod.highlightCards({highlights:[{role:'music',world:'vinyl',title:'Synthetic track',listenSeconds:90,watchSeconds:0}]});
+eq(music[0].label,'Most listened','music uses listened highlight');
+eq(music[0].value,'1m','music uses listen duration');
 console.log('PASS history/highlights/stats model');
 process.exit(0);

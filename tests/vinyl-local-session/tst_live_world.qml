@@ -8,6 +8,13 @@ TestCase {
     property var world
     property var collection
     Component {id:storeFactory;QtObject {property var entries:[];function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}}}
+    QtObject { id:preferences
+        property bool vinylTasteAnswered:false
+        property var vinylTasteArtistIds:[]
+        property string vinylPersistenceError:""
+        signal vinylTasteChanged()
+        function setVinylTaste(answered,ids){vinylTasteAnswered=answered;vinylTasteArtistIds=ids;vinylTasteChanged();return true;}
+    }
     property var source
     Component {id:windowFactory;Window {width:1280;height:720;visible:true}}
     Component {id:sourceFactory;QtObject {
@@ -24,7 +31,7 @@ TestCase {
     function record(index,artistId) {return {id:"album-"+index,title:"Album "+("00"+index).slice(-3),origin:"local",artists:["Local Artist"],artistIds:[artistId || "artist-one"],year:2000+index%20,genre:index%2 ? "Folk" : "Jazz",tracks:[{id:"track-"+index,title:"Song "+index,artists:["Local Artist"],seconds:80,lyrics:[{text:"First supplied line"},{text:"Second supplied line"}],notes:{0:[{text:"Supplied note"}]},credits:[{role:"Performer",names:["Local Artist"]}]}]};}
     function seed(count) {var records=[];for(var i=0;i<count;i++)records.push({id:"album-"+i,payload:{album:record(i)}});collection.entries=records;world.session.refreshLibrary();wait(0);return records;}
     function item(name){return findChild(world,name)}
-    function init(){host=windowFactory.createObject(test);source=sourceFactory.createObject(test);var c=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");compare(c.status,Component.Ready,c.errorString());world=c.createObject(host.contentItem,{width:1280,height:720});world.session.source=source;collection=storeFactory.createObject(test);world.session.collectionStore=collection;wait(0);}
+    function init(){host=windowFactory.createObject(test);source=sourceFactory.createObject(test);var c=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");compare(c.status,Component.Ready,c.errorString());world=c.createObject(host.contentItem,{width:1280,height:720});world.session.source=source;preferences.setVinylTaste(false,[]);world.worldData.preferencesStore=preferences;collection=storeFactory.createObject(test);world.session.collectionStore=collection;wait(0);}
     function cleanup(){
         // Detach/destroy the item tree while its Window and injected owners still
         // exist; do not overlap the next case with deferred Window teardown.
@@ -37,6 +44,23 @@ TestCase {
         tryCompare(test, "host", null, 1000,
                    "Window must finish destruction before the next case");
         source.destroy();collection.destroy();wait(0);source=null;collection=null;
+    }
+    QtObject { id:history
+        property int revision:0
+        property var recent:[]
+        function list(scope){return recent;}
+        function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
+    }
+    function test_recentSearchMenuKeyboardAndProfileClosure(){
+        seed(2);history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
+        var input=item("vinylSearchInput");input.forceActiveFocus();keyClick(Qt.Key_Q);keyClick(Qt.Key_A);keyClick(Qt.Key_Return);wait(0);
+        compare(history.recent[0],"qa");var recent=item("vinylRecentSearches");verify(recent.visible);
+        host.width=1024;world.width=1024;wait(0);var point=recent.mapToItem(world,recent.width,recent.height);verify(point.x<=world.width,"Recent recall fits 1024 width");
+        mouseClick(recent);wait(0);var entry=item("vinylRecentSearch_0");verify(entry && entry.visible);compare(entry.text,"qa");
+        keyClick(Qt.Key_Escape);tryCompare(input,"activeFocus",true);
+        keyClick(Qt.Key_A,Qt.ControlModifier);keyClick(Qt.Key_Backspace);compare(world.worldData.query,"");
+        mouseClick(recent);wait(0);mouseClick(entry);tryCompare(input,"text","qa");
+        mouseClick(recent);wait(0);world.worldData.searchHistoryStore=null;wait(0);verify(!recent.visible);verify(!entry.visible);
     }
     function test_albumActionsHaveGeometryAndEnqueue_data(){
         return [{tag:"wide",w:1280,h:720},{tag:"narrow",w:1024,h:640}];

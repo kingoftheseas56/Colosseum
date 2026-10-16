@@ -1620,6 +1620,7 @@ foreach(vinyl_suite IN ITEMS
     vinyl_live_artist
     vinyl_note_picker
     vinyl_page_data
+    vinyl_personal_state
     vinyl_song_page
     vinyl_world_journeys
     vinyl_world_lists
@@ -4528,4 +4529,14 @@ if(COLOSSEUM_VINYL_TEST_NODE)
         COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_shell_back_test.mjs")
     set_tests_properties(colosseum.vinyl_shell_back PROPERTIES
         LABELS "unit;vinyl;shell" TIMEOUT 30)
+endif()
+
+# Shared search privacy scope contract; static Node assertions, no native UI claim.
+if(COLOSSEUM_VINYL_TEST_NODE)
+    add_test(NAME colosseum.vinyl_search_privacy
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_search_privacy_test.mjs"
+            "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    set_tests_properties(colosseum.vinyl_search_privacy PROPERTIES
+        LABELS "unit;vinyl;privacy" TIMEOUT 30)
 endif()

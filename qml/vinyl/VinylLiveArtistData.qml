@@ -17,10 +17,40 @@ QtObject {
     property url customBackdropUrl: ""
     property bool reducedMotion: false
     readonly property bool liveMode: true
-    readonly property bool saveEnabled: false
-    readonly property bool playlistEnabled: false
-    readonly property bool saved: false
-    readonly property var playlists: []
+    property var collectionStore: session && session.collectionStore ? session.collectionStore : null
+    onCollectionStoreChanged: { personalError=""; lastCreatedPlaylistId=""; }
+    readonly property string canonicalArtistId: artistId || artist.id || ""
+    readonly property bool saveEnabled: !!collectionStore && !!canonicalArtistId && collectionStore.healthy !== false
+    readonly property bool playlistEnabled: saveEnabled && songOrder.length > 0
+    property string personalError: ""
+    property string lastCreatedPlaylistId: ""
+    readonly property string persistenceError: personalError || (collectionStore ? collectionStore.persistenceError || "" : "")
+    readonly property bool saved: {
+        var revision = collectionStore ? collectionStore.revision : 0;
+        return !!collectionStore && !!canonicalArtistId && collectionStore.has("Vinyl", canonicalArtistId);
+    }
+    readonly property var playlists: {
+        var revision = collectionStore ? collectionStore.revision : 0;
+        if (!collectionStore || !canonicalArtistId || !collectionStore.vinylPlaylists) return [];
+        return JSON.parse(JSON.stringify(collectionStore.vinylPlaylists(canonicalArtistId))).map(function(entry) {
+            return {id:entry.id, name:entry.title, songs:((entry.payload || {}).occurrences || []).map(resolveOccurrence)};
+        });
+    }
+    function resolveOccurrence(ref) {
+        var album = albums.find(function(a) { return a.id === ref.albumId; });
+        var edition = album && (album.editions || [album]).find(function(e) { return e.id === ref.editionId; });
+        var tracks = edition ? (edition.tracks || []).slice().sort(function(a,b) { return (a.disc || 1)-(b.disc || 1); }) : [];
+        var track = tracks[ref.index];
+        // Never resolve a different occurrence merely because it shares an audio ID.
+        var discs = [], position = 0;
+        for (var i=0; i<=ref.index && i<tracks.length; ++i) {
+            var disc=tracks[i].disc || 1;
+            if(discs.indexOf(disc)<0){discs.push(disc);position=0;} else if(i>0) position++;
+        }
+        var available = track && track.id === ref.trackId && discs.length-1 === ref.discIndex && position === ref.trackIndex;
+        return {album:album || {id:ref.albumId}, track:available ? track : {id:ref.trackId,title:ref.title || "Unavailable track",available:false},
+            index:ref.index, editionId:ref.editionId, discIndex:ref.discIndex, trackIndex:ref.trackIndex, unavailable:!available};
+    }
     readonly property string error: session ? (session.error || session.browseError || "") : "Local audio is unavailable."
     readonly property var albums: ((session && session.library) || []).map(function(entry) {
         return entry.payload && entry.payload.album ? entry.payload.album : entry;
@@ -149,7 +179,7 @@ QtObject {
         var nextName = typeof value === "object" ? value.name || "" : String(value || "");
         var nextId = typeof value === "object" ? value.id || "" : "";
         if (name === nextName && artistId === nextId) return;
-        name = nextName; artistId = nextId;
+        name = nextName; artistId = nextId; personalError = ""; lastCreatedPlaylistId = "";
         filter = "all"; categoryFilter = "All"; newestFirst = true; allSongs = false;
         activeTab = "albums"; selectedWallpaper = "auto"; customBackdropUrl = "";
     }
@@ -166,6 +196,19 @@ QtObject {
     function shuffleDemoSong() {
         if (session && playable) session.playSongs(songOrder.filter(function(s) { return s.track.available !== false; }), true);
     }
-    function toggleSaved() { return false; }
-    function createPlaylist(title) { return false; }
+    function toggleSaved() {
+        if (!saveEnabled) return false;
+        var ok = collectionStore.setVinylArtistSaved({id:canonicalArtistId,name:name}, !saved);
+        personalError = ok ? "" : collectionStore.persistenceError || "Artist could not be saved.";
+        return ok;
+    }
+    function createPlaylist(title) {
+        if (!playlistEnabled) return false;
+        var refs = songOrder.map(function(s) { return {albumId:s.album.id,editionId:s.editionId,trackId:s.track.id,
+            discIndex:s.discIndex,trackIndex:s.trackIndex,index:s.index,title:s.track.title}; });
+        var id = collectionStore.createVinylPlaylist(title, canonicalArtistId, refs);
+        personalError = id ? "" : collectionStore.persistenceError || "Playlist could not be saved. Enter a name.";
+        lastCreatedPlaylistId = id || "";
+        return !!id;
+    }
 }

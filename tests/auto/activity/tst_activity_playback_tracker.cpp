@@ -158,6 +158,12 @@ class tst_activity_playback_tracker : public QObject {
     Q_OBJECT
 
 private slots:
+    void vinylMusicIsListenedAndCompletesOnlyAtEof();
+    void privacyFencesDiscardBufferedActivity_data();
+    void privacyFencesDiscardBufferedActivity();
+    void destroyedSinkIsSafe();
+    void failingSinkIsOptional();
+    void disabledRetentionCannotClaimCompletionOrReplay();
     void twentyMinutesNormalPlaybackTotalsTwelveHundredSeconds();
     void pauseAddsZero();
     void tenMinuteForwardSeekAddsZero();
@@ -767,6 +773,114 @@ void tst_activity_playback_tracker::identityChangeMidSessionResetsGateIndependen
     const QVariantMap projection = store.projectMonth(QStringLiteral("2026-08"));
     QCOMPARE(projection.value(QStringLiteral("watchSeconds")).toInt(), 0);
     QCOMPARE(store.earliestActivityMonth(), QString());
+}
+
+void tst_activity_playback_tracker::vinylMusicIsListenedAndCompletesOnlyAtEof() {
+    ActivityStore store;
+    QSignalSpy facts(&store, &ActivityStore::factCommitted);
+    QSignalSpy errors(&store, &ActivityStore::integrityError);
+    ActivityPlaybackTracker tracker;
+    FakeClock clock(localMs(2026, 8, 15, 10, 0, 0), 330);
+    wireClock(tracker, clock);
+    tracker.setSink(&store);
+    auto music = identity("vinyl", "music", "vinyl:album", "[album,edition,1,1,track]", "Track");
+    music["syncable"] = false;
+    tracker.begin(music, "music-session");
+    tracker.sample(0, 12000, 1000, true);
+    clock.advance(11000);
+    tracker.sample(11000, 12000, 1000, true);
+    QCOMPARE(errors.count(), 0);
+    QCOMPARE(store.projectMonth("2026-08").value("listenSeconds").toInt(), 11);
+    QCOMPARE(store.projectMonth("2026-08").value("watchSeconds").toInt(), 0);
+    QVERIFY(!tracker.localCompletionPersisted());
+    tracker.naturalEof(12000, 12000);
+    QVERIFY(tracker.localCompletionPersisted());
+    QCOMPARE(facts.last().at(0).toMap().value("kind").toString(), QString("music"));
+    const auto highlights = store.projectMonth("2026-08").value("highlights").toList();
+    QVERIFY(!highlights.isEmpty());
+    QCOMPARE(highlights.first().toMap().value("world").toString(), QString("vinyl"));
+    QCOMPARE(highlights.first().toMap().value("kind").toString(), QString("music"));
+    QCOMPARE(highlights.first().toMap().value("role").toString(), QString("music"));
+}
+
+void tst_activity_playback_tracker::privacyFencesDiscardBufferedActivity_data() {
+    QTest::addColumn<int>("fence");
+    QTest::newRow("sink-rebind") << 0;
+    QTest::newRow("retention-disable-enable") << 1;
+    QTest::newRow("scope-generation") << 2;
+    QTest::newRow("clear-history") << 3;
+    QTest::newRow("synced-reset") << 4;
+}
+void tst_activity_playback_tracker::privacyFencesDiscardBufferedActivity() {
+    QFETCH(int, fence);
+    ActivityStore first, second;
+    ActivityPlaybackTracker tracker;
+    FakeClock clock(localMs(2026, 8, 15, 10, 0, 0), 330);
+    wireClock(tracker, clock);
+    tracker.setSink(&first);
+    tracker.begin(identity("theatre", "movie", "old-profile", "old-item", "Old"), "old");
+    tracker.sample(0, 60000, 1000, true);
+    clock.advance(5000);
+    tracker.sample(5000, 60000, 1000, true);
+    tracker.discontinuity(5000, 60000, 1000);
+    if (fence == 0) tracker.setSink(&second);
+    if (fence == 1) { first.setRetentionEnabled(false); first.setRetentionEnabled(true); }
+    if (fence == 2) tracker.setLifecycleScopeGeneration(42);
+    if (fence == 3) QVERIFY(first.clearAll());
+    if (fence == 4) QVERIFY(first.applySyncedReset(1, localMs(2026, 8, 15, 10, 0, 5)));
+    tracker.sample(5000, 60000, 1000, true);
+    clock.advance(10000);
+    tracker.sample(15000, 60000, 1000, true);
+    tracker.naturalEof(60000, 60000);
+    tracker.endSession();
+    QCOMPARE(first.projectMonth("2026-08").value("watchSeconds").toInt(), 0);
+    QCOMPARE(second.projectMonth("2026-08").value("watchSeconds").toInt(), 0);
+    QVERIFY(!tracker.localCompletionPersisted());
+}
+void tst_activity_playback_tracker::destroyedSinkIsSafe() {
+    ActivityPlaybackTracker tracker;
+    auto store = std::make_unique<ActivityStore>();
+    tracker.setSink(store.get());
+    tracker.begin(identity("theatre", "movie", "a", "b", "C"), "s");
+    store.reset();
+    QVERIFY(tracker.sink() == nullptr);
+    tracker.naturalEof(10, 10);
+    tracker.endSession();
+}
+void tst_activity_playback_tracker::failingSinkIsOptional() {
+    ActivityStore store(QStringLiteral("/nonexistent/vinyl-test/activity.sqlite"));
+    QVERIFY(!store.healthy());
+    ActivityPlaybackTracker tracker;
+    tracker.setSink(&store);
+    tracker.begin(identity("vinyl", "music", "a", "b", "C"), "s");
+    tracker.naturalEof(10, 10);
+    QVERIFY(!tracker.localCompletionPersisted());
+    tracker.endSession();
+    tracker.setSink(nullptr);
+    tracker.begin(identity("vinyl", "music", "a", "b", "C"), "s2");
+    tracker.naturalEof(10, 10);
+    QVERIFY(!tracker.localCompletionPersisted());
+}
+
+void tst_activity_playback_tracker::disabledRetentionCannotClaimCompletionOrReplay() {
+    ActivityStore store;
+    store.setRetentionEnabled(false);
+    ActivityPlaybackTracker tracker;
+    FakeClock clock(localMs(2026, 8, 15, 10, 0, 0), 330);
+    wireClock(tracker, clock);
+    tracker.setSink(&store);
+    tracker.begin(identity("vinyl", "music", "album", "occurrence", "Track"), "disabled");
+    tracker.sample(0, 60000, 1000, true);
+    clock.advance(5000);
+    tracker.sample(5000, 60000, 1000, true);
+    tracker.naturalEof(60000, 60000);
+    QVERIFY(!tracker.localCompletionPersisted());
+    store.setRetentionEnabled(true);
+    clock.advance(10000);
+    tracker.sample(15000, 60000, 1000, true);
+    tracker.endSession();
+    QCOMPARE(store.projectMonth("2026-08").value("listenSeconds").toInt(), 0);
+    QCOMPARE(store.projectMonth("2026-08").value("completedCount").toInt(), 0);
 }
 
 QTEST_GUILESS_MAIN(tst_activity_playback_tracker)

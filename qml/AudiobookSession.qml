@@ -26,6 +26,8 @@ Item {
     property var book: ({})
     property var files: []                 // ordered local audio file paths
     property int currentIndex: 0
+    property bool audioHandoffPaused: false
+    signal playbackRequested()
     property bool ready: false
     readonly property bool multiFile: session.files.length > 1
     property var chapterModel: []
@@ -43,7 +45,7 @@ Item {
     property real pendingResumeSec: -1
 
     // ── the engine (audio only; the mpv surface is never shown — cover art is the remotes' job) ──
-    MpvItem { id: mpv; width: 1; height: 1; visible: false }
+    MpvItem { id: mpv; objectName: "vinylHandoffAudiobookPlayer"; width: 1; height: 1; visible: false }
 
     // --- Your Colosseum activity (Lane E, CPP-PORT-CONTRACT.md §9): mirrors PlayerPage.qml's
     // Lane A pattern beside this app-wide session. activePairKey is BiblioApi.pairKey(title,
@@ -152,6 +154,15 @@ Item {
     // read-along summon uses this — opening a paired book restores the exact last listening
     // spot, paused, waiting for you to press play (Hemanth 2026-07-15). Default false keeps
     // the full player + fresh opens playing, as before.
+    function requestAudioPlayback() {
+        session.audioHandoffPaused = false
+        session.playbackRequested()
+    }
+    function suspendForAudioHandoff() {
+        session.audioHandoffPaused = true
+        mpv.pause = true
+        session.recordProgress()
+    }
     function openFor(pk, b, startPaused) {
         if (!pk) return
         if (session.ready && session.activePairKey === pk) return
@@ -176,22 +187,35 @@ Item {
         if (idx < 0 || idx >= session.files.length) idx = 0
         session.currentIndex = idx
         session.pendingResumeSec = (pos > 0) ? pos : -1   // applied in onFileLoaded — a pre-load seek no-ops
+        if (startPaused !== true) session.requestAudioPlayback()
         mpv.loadFile(session.files[idx])
         mpv.pause = (startPaused === true)    // summon-on-open loads paused at last spot; else plays
     }
-    function playIndex(i) {
+    function playIndex(i, automatic) {
         if (i < 0 || i >= session.files.length) return
+        if (automatic === true && session.audioHandoffPaused) return
+        if (automatic !== true) session.requestAudioPlayback()
         session.pendingResumeSec = -1         // a deliberate jump cancels any in-flight resume seek
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
         mpv.loadFile(session.files[i])
         mpv.pause = false
     }
-    function togglePlay() { mpv.pause = !mpv.pause; session.recordProgress() }
+    function togglePlay() {
+        if (mpv.pause) session.requestAudioPlayback()
+        mpv.pause = !mpv.pause
+        session.recordProgress()
+    }
     // Deterministic play (read-along, Task 6): the ReadAlongController's audioSeekRequested
     // carries a `play` flag — a double-click-to-seek wants the narration PLAYING, not toggled
     // (togglePlay would pause an already-playing stream). Idempotent: a no-op if already playing.
-    function play() { if (mpv.pause) { mpv.pause = false; session.recordProgress() } }
+    function play() {
+        if (mpv.pause) {
+            session.requestAudioPlayback()
+            mpv.pause = false
+            session.recordProgress()
+        }
+    }
     function seekRel(delta) {
         var target = Math.max(0, Math.min(mpv.duration, mpv.position + delta))
         session.activityDiscontinuity(target)   // Activity (Lane E): explicit seek
@@ -237,6 +261,8 @@ Item {
     function setRate(r) { mpv.speed = r }
     // a real close ends the stream for good (minimize never calls this — remotes just drop away)
     function stop() {
+        session.audioHandoffPaused = true
+        mpv.pause = true
         if (session.ready) session.recordProgress()          // save the spot before the stream dies
         session.activityEndSession()   // Activity (Lane E): real close ends the session
         mpv.command(["stop"])
@@ -253,12 +279,15 @@ Item {
     Connections {
         target: mpv
         function onEndFile(reason) {
+            if (!session.ready || session.audioHandoffPaused) return
             if (reason === "eof" && session.multiFile && session.currentIndex + 1 < session.files.length)
-                session.playIndex(session.currentIndex + 1)   // intermediate EOF: discontinuity, same session
+                session.playIndex(session.currentIndex + 1, true)   // intermediate EOF: discontinuity, same session
             else if (reason === "eof")
                 session.activityNaturalEof()   // Activity (Lane E): final-file EOF completes once
         }
         function onFileLoaded() {
+            if (!session.ready) return
+            if (session.audioHandoffPaused) mpv.pause = true
             if (session.pendingResumeSec > 0) {
                 // apply the parked resume seek — and SKIP this heartbeat: mpv.position is
                 // still ~0 here (the seek lands async), so recording now would overwrite
@@ -274,7 +303,10 @@ Item {
                 session.activityDiscontinuity()   // Activity (Lane E): ordinary (re)load / abnormal-recovery reset
             }
         }
-        function onPauseChanged() { session.activityDiscontinuity() }   // Activity: pause/sleep-timer pause
+        function onPauseChanged() {
+            if (session.audioHandoffPaused && !mpv.pause) { mpv.pause = true; return }
+            session.activityDiscontinuity()
+        }   // Activity: pause/sleep-timer pause
         function onSpeedChanged() { session.activityDiscontinuity() }   // Activity: speed change
     }
 
@@ -287,7 +319,7 @@ Item {
         var idx = Number(st.fileIndex) || 0
         var pos = Number(st.position) || 0
         if (idx !== session.currentIndex && idx >= 0 && idx < session.files.length) {
-            session.playIndex(idx)                           // triggers a load (and clears stale pending)…
+            session.playIndexKeepState(idx)                  // restore keeps the paused/playing owner state
             if (pos > 0) session.pendingResumeSec = pos      // …so the seek rides its onFileLoaded
         } else if (pos > 0) {
             session.activityDiscontinuity(pos)   // Activity (Lane E): saved-resume seek

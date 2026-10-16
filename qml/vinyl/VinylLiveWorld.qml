@@ -119,7 +119,7 @@ Item {
         onPlaybackRequested: root.playbackRequested()
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})
         onQueueRequested: queuePanel.open()
-        onProfileGenerationChanged: {root.routeStack=[];world.listKey="";root.page="library";world.setTab("library");}
+        onProfileGenerationChanged: {recentSearchMenu.close();artistData.open({id:"",name:""});root.routeStack=[];world.listKey="";root.page="library";world.setTab("library");}
     }
     VinylLiveWorldData {id:worldData;session:session;onItemRequested: item => root.activateItem(item);onResumeRequested:root.showSong()}
     VinylLiveArtistData {id:artistData;session:session}
@@ -149,15 +149,40 @@ Item {
     Item {
         id:libraryHeader;objectName:"vinylLibraryHeader";x:theme.margin;y:navigation.y+navigation.height+22;width:parent.width-2*x;height:44;visible:root.worldVisible
         TextField {
-            id:query;objectName:"vinylSearchInput";width:Math.max(140,Math.min(600,parent.width-140));height:44
+            id:query;objectName:"vinylSearchInput";width:Math.max(140,Math.min(600,parent.width-(recentSearchButton.visible ? 360 : 140)));height:44
             text:worldData.query;onTextEdited:worldData.query=text
             color:theme.ink;placeholderTextColor:theme.inkDimmer;font.family:theme.ui;font.pixelSize:14;padding:14;selectByMouse:true
-            placeholderText:"Filter your local music";onAccepted:world.focusCurrent()
+            placeholderText:"Filter your local music";onAccepted:{worldData.rememberSearch();world.focusCurrent()}
             background:Glass {objectName:"vinylSearchGlass";backdrop:vinylBackdrop;radius:12;tint:0.06;scrim:0.18}
             FocusRing {anchors.fill:parent;shown:query.activeFocus;radius:12}
         }
-        VinylWorldButton {x:query.width+12;anchors.verticalCenter:parent.verticalCenter;objectName:"vinylSort";label:worldData.sortOrder==="title" ? "Sort: Title" : "Sort: Year";backdrop:vinylBackdrop;onTriggered:worldData.sortOrder=worldData.sortOrder==="title" ? "year" : "title"}
+        VinylWorldButton {id:sortButton;x:query.width+12;anchors.verticalCenter:parent.verticalCenter;objectName:"vinylSort";label:worldData.sortOrder==="title" ? "Sort: Title" : "Sort: Year";backdrop:vinylBackdrop;onTriggered:worldData.sortOrder=worldData.sortOrder==="title" ? "year" : "title"}
+        VinylWorldButton {
+            id:recentSearchButton; objectName:"vinylRecentSearches"
+            x:sortButton.x+sortButton.width+12; anchors.verticalCenter:parent.verticalCenter
+            visible:worldData.recentSearches.length>0
+            label:"Recent searches";backdrop:vinylBackdrop
+            onTriggered:recentSearchMenu.open()
+        }
+        Menu {
+            id:recentSearchMenu
+            x:Math.min(recentSearchButton.x,parent.width-width); y:query.height+6
+            onClosed: if(root.worldVisible) query.forceActiveFocus()
+            Instantiator {
+                model:worldData.recentSearches
+                delegate: MenuItem {
+                    required property string modelData
+                    required property int index
+                    objectName:"vinylRecentSearch_"+index
+                    text:modelData
+                    onTriggered:{worldData.query=modelData;worldData.rememberSearch();world.focusCurrent();}
+                }
+                onObjectAdded:(index,object)=>recentSearchMenu.insertItem(index,object)
+                onObjectRemoved:(index,object)=>recentSearchMenu.removeItem(object)
+            }
+        }
     }
+    Connections { target:worldData; function onSearchHistoryStoreChanged(){recentSearchMenu.close();} }
     Flickable {
         id:worldScroll;objectName:"vinylWorldScroll";x:theme.margin;y:libraryHeader.y+libraryHeader.height+14;width:parent.width-2*x;height:Math.max(0,root.contentBottom-y)
         visible:root.worldVisible;clip:true;contentWidth:width;contentHeight:world.implicitHeight;boundsBehavior:Flickable.StopAtBounds
@@ -195,7 +220,7 @@ Item {
     }
     Row {
         objectName:"vinylStatusRow";x:root.footerLeft;y:root.contentBottom+8;width:parent.width-x-theme.margin;spacing:12
-        Text {objectName:"vinylStatus";width:parent.width-(retry.visible ? retry.width+12 : 0);text:session.error || session.browseError || (root.importing ? "Opening local music…" : session.browsing ? "Opening release…" : root.importStatus);color:session.error || session.browseError ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
+        Text {objectName:"vinylStatus";width:parent.width-(retry.visible ? retry.width+12 : 0);text:session.persistenceError || artistData.persistenceError || worldData.persistenceError || session.error || session.browseError || (root.importing ? "Opening local music…" : session.browsing ? "Opening release…" : root.importStatus);color:session.error || session.browseError ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
         VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";backdrop:vinylBackdrop;visible:session.error!=="";onTriggered:session.retry()}
     }
     VinylCreditsPopup {id:creditsPopup;pageData:session;backdrop:vinylBackdrop;x:Math.max(0,root.width-width-theme.margin);y:Math.max(0,bar.y-height-12)}

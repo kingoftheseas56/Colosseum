@@ -587,6 +587,8 @@ private:
     }
 
     static QString appTitle(const QString &app) {
+        if (app == QStringLiteral("vinyl"))
+            return QStringLiteral("Vinyl");
         if (app == QStringLiteral("tankoban"))
             return QStringLiteral("Tankoban");
         if (app == QStringLiteral("theatre"))
@@ -597,6 +599,8 @@ private:
     }
 
     static QString appIcon(const QString &app) {
+        if (app == QStringLiteral("vinyl"))
+            return QStringLiteral("../assets/icons/music.svg");
         if (app == QStringLiteral("tankoban"))
             return QStringLiteral("../assets/icons/manga.svg");
         if (app == QStringLiteral("theatre"))

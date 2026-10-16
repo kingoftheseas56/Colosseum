@@ -16,6 +16,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QMetaObject>
+#include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
 #include <QtWebEngineQuick/QtWebEngineQuick>
@@ -140,6 +141,10 @@
 #include "feria/FeriaAccountStore.h"
 #include "vinyl/VinylProvider.h"
 #include "vinyl/VinylLocalSource.h"
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+#include "devtools/VinylTestProfileController.h"
+#include "account/ActivityStore.h"
+#endif
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -614,6 +619,17 @@ int main(int argc, char *argv[]) {
             + qEnvironmentVariable("COLOSSEUM_APPDATA_TAG"));
     }
 
+    const QString instanceAppData =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    // Refuse a misconfigured synthetic launch before constructing personal stores
+    // or installing the application log. The fixture must prepare its own root.
+    if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
+        && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
+        qCritical("Vinyl synthetic fixture launch containment check failed.");
+        return 2;
+    }
+#endif
     // Install the rolling log after final identity selection so test launches write only
     // inside their disposable AppData sibling. Real launches reconcile the legacy root
     // afterwards, which makes any migration warning durable instead of stderr-only.
@@ -623,8 +639,6 @@ int main(int argc, char *argv[]) {
     // duplicate launches from racing the account refresh-token rotation and local sync stores.
     // Tagged test sessions have a different application name/AppDataLocation and therefore a
     // separate lock by design.
-    const QString instanceAppData =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     ColosseumInstanceLock instanceLock(instanceAppData);
     if (!instanceLock.tryAcquire()) {
         if (instanceLock.wasBlockedByExistingInstance()) {
@@ -2119,6 +2133,104 @@ int main(int argc, char *argv[]) {
     auto *lanistaServer = &lanistaServerStorage;
     // F1-Bridge: hand the bridge the live forensic projection constructed above.
     lanistaServer->setVaultForensics(vaultForensics);
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    // Synthetic-only fixture: no account authentication or arbitrary profile
+    // identifier is exposed. Existing profile activation observers still run;
+    // use only fresh credential-free, extension-free synthetic profiles.
+    // The controller additionally
+    // requires the explicit launch gate and a marked, isolated temporary root.
+    const QPointer<ProfileStoreRuntime> vinylFixtureStores(accountRuntime->profileStores());
+    const QString vinylFixtureA = QStringLiteral("11111111-1111-4111-8111-111111111175");
+    const QString vinylFixtureB = QStringLiteral("11111111-1111-4111-8111-111111111176");
+    struct VinylFixtureWriteObservation {
+        quint64 generation = 0;
+        bool accepted = false;
+        bool pendingBeforeSwitch = false;
+        bool completed = false;
+        bool succeeded = false;
+        bool ownerRetired = false;
+    };
+    const auto vinylWriteObservation = std::make_shared<VinylFixtureWriteObservation>();
+    auto vinylFixture = std::make_shared<VinylTestProfileController>(
+        instanceAppData,
+        [vinylFixtureStores, vinylFixtureA, vinylFixtureB, vinylWriteObservation, instanceAppData](
+            const QString &alias, bool withPendingWrite) {
+            if (!vinylFixtureStores) return false;
+            const QString targetId = alias == QLatin1String("A") ? vinylFixtureA : vinylFixtureB;
+            if (withPendingWrite && vinylFixtureStores->activeProfile().profileId() == targetId)
+                return false; // A pending-switch witness may not be a same-profile no-op.
+            if (alias == QLatin1String("A") || alias == QLatin1String("B")) {
+                const auto targetPaths = ProfilePaths::account(targetId, instanceAppData);
+                if (!targetPaths || !QDir().mkpath(targetPaths->profileRoot())) return false;
+            }
+            if (withPendingWrite) {
+                auto *outgoingProgress = vinylFixtureStores->progressStore();
+                if (!outgoingProgress) return false;
+                const quint64 requestGeneration = ++vinylWriteObservation->generation;
+                vinylWriteObservation->accepted = false;
+                vinylWriteObservation->pendingBeforeSwitch = false;
+                vinylWriteObservation->completed = false;
+                vinylWriteObservation->succeeded = false;
+                vinylWriteObservation->ownerRetired = false;
+                QObject::connect(outgoingProgress, &QObject::destroyed,
+                    vinylFixtureStores.data(), [vinylWriteObservation, requestGeneration] {
+                        if (vinylWriteObservation->generation == requestGeneration)
+                            vinylWriteObservation->ownerRetired = true;
+                    });
+                vinylWriteObservation->accepted = outgoingProgress->requestDurableReceipt(
+                    [vinylWriteObservation, requestGeneration](bool committed, const QString &) {
+                        // Observe only this request, never the incoming profile/store.
+                        if (vinylWriteObservation->generation != requestGeneration) return;
+                        vinylWriteObservation->completed = true;
+                        vinylWriteObservation->succeeded = committed;
+                    });
+                vinylWriteObservation->pendingBeforeSwitch = vinylWriteObservation->accepted
+                    && !vinylWriteObservation->completed;
+                if (!vinylWriteObservation->accepted) return false;
+            }
+            QString error; // Never return store paths or detailed errors over this fixture.
+            if (alias == QLatin1String("local"))
+                return vinylFixtureStores->activateLocalOnlyProfile(&error);
+            if (alias == QLatin1String("A") || alias == QLatin1String("B"))
+            {
+                // Exercise the existing departure boundary explicitly: account A
+                // cannot activate B directly. This fixture performs A -> local -> B.
+                const auto &current = vinylFixtureStores->activeProfile();
+                if (current.kind() == ProfilePaths::Kind::Account
+                    && current.profileId() != targetId
+                    && !vinylFixtureStores->activateLocalOnlyProfile(&error)) return false;
+                return vinylFixtureStores->activateAccountProfile(targetId, &error);
+            }
+            return false;
+        },
+        [vinylFixtureStores, vinylFixtureA, vinylFixtureB, vinylWriteObservation] {
+            VinylTestProfileController::Status status;
+            if (!vinylFixtureStores) return status;
+            status.pendingWriteAccepted = vinylWriteObservation->accepted;
+            status.pendingBeforeSwitch = vinylWriteObservation->pendingBeforeSwitch;
+            status.pendingWriteCompleted = vinylWriteObservation->completed;
+            status.pendingWriteSucceeded = vinylWriteObservation->succeeded;
+            status.pendingOwnerRetired = vinylWriteObservation->ownerRetired;
+            const auto &profile = vinylFixtureStores->activeProfile();
+            if (profile.kind() == ProfilePaths::Kind::LocalOnly
+                || profile.kind() == ProfilePaths::Kind::LegacyLocal)
+                status.alias = QStringLiteral("local");
+            else if (profile.kind() == ProfilePaths::Kind::Account) {
+                if (profile.profileId() == vinylFixtureA) status.alias = QStringLiteral("A");
+                if (profile.profileId() == vinylFixtureB) status.alias = QStringLiteral("B");
+            }
+            status.collectionHealthy = vinylFixtureStores->collectionStore()
+                && vinylFixtureStores->collectionStore()->healthy();
+            status.progressHealthy = vinylFixtureStores->progressStore()
+                && vinylFixtureStores->progressStore()->healthy();
+            status.activityHealthy = vinylFixtureStores->activityStore()
+                && vinylFixtureStores->activityStore()->healthy();
+            return status;
+        });
+    lanistaServer->setVinylTestProfileHandler([vinylFixture](const QJsonObject &request) {
+        return vinylFixture->execute(request);
+    });
+#endif
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {

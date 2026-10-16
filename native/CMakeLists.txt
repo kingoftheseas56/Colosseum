@@ -11,6 +11,9 @@ endif()
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
+option(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    "Enable isolated synthetic Vinyl lifecycle fixtures; never production default" OFF)
+
 option(COLOSSEUM_RATINGS_REVIEWS_TESTING
     "Enable the isolated Arc 49 Ratings & Reviews joined fixture"
     OFF)
@@ -794,6 +797,10 @@ target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine 
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
+if(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=1)
+endif()
+
 if(COLOSSEUM_SIMKL_CLIENT_ID)
     string(STRIP "${COLOSSEUM_SIMKL_CLIENT_ID}" colosseum_simkl_client_id)
     if(NOT colosseum_simkl_client_id STREQUAL COLOSSEUM_SIMKL_CLIENT_ID
@@ -2792,4 +2799,39 @@ include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
+endif()
+
+# Bounded synthetic lifecycle fixture guards. No fixture command exists in the
+# production-default app unless COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES is enabled.
+if(BUILD_TESTING)
+    add_executable(vinyl_test_profile_controller_harness
+        ../tests/vinyl_test_profile_controller_harness.cpp
+        devtools/VinylTestProfileController.h)
+    target_include_directories(vinyl_test_profile_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_test_profile_controller_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_test_profile_controller
+             COMMAND vinyl_test_profile_controller_harness)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(vinyl_personal_state_harness
+        ../tests/vinyl_personal_state_harness.cpp CollectionStore.h)
+    target_include_directories(vinyl_personal_state_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_personal_state_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_personal_state COMMAND vinyl_personal_state_harness)
+    add_executable(vinyl_taste_preferences_harness
+        ../tests/vinyl_taste_preferences_harness.cpp SearchHistoryStore.h
+        account/ProfilePreferencesStore.cpp account/ProfilePreferencesStore.h
+        account/RatingsReviewsConversionMap.cpp account/RatingsReviewsConversionMap.h)
+    target_include_directories(vinyl_taste_preferences_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_taste_preferences_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_taste_preferences COMMAND vinyl_taste_preferences_harness)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(vinyl_session_store_harness
+        ../tests/vinyl_session_store_harness.cpp SessionStore.h)
+    target_include_directories(vinyl_session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
 endif()

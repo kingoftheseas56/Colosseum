@@ -2,12 +2,31 @@ import QtQuick
 import "VinylWorldLists.js" as Lists
 
 // Presentation only. Collection records and the music session remain authoritative.
-// Taste choices are explicitly session-only until the 0.75 persistence milestone.
+// Taste is owned by the active profile preferences.
 Item {
     id: root
     objectName: "vinylLiveWorldData"
     required property var session
     property string profile: "local"
+    property var preferencesStore: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
+    property var searchHistoryStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
+    property string personalError: ""
+    readonly property string persistenceError: personalError || (preferencesStore ? preferencesStore.vinylPersistenceError || "" : "")
+    readonly property var recentSearches: {
+        var revision = searchHistoryStore ? searchHistoryStore.revision : 0;
+        return searchHistoryStore ? JSON.parse(JSON.stringify(searchHistoryStore.list("Vinyl"))) : [];
+    }
+    function rememberSearch() { if(searchHistoryStore) searchHistoryStore.record("Vinyl",query); }
+    function loadTaste() {
+        personalError = "";
+        pickerAnswered = preferencesStore ? !!preferencesStore.vinylTasteAnswered : false;
+        picks = preferencesStore ? JSON.parse(JSON.stringify(preferencesStore.vinylTasteArtistIds || [])) : [];
+        pickerDraft = picks.slice(); pickerQuery = "";
+    }
+    onPreferencesStoreChanged: loadTaste()
+    Component.onCompleted: loadTaste()
+    Connections { target: root.preferencesStore; ignoreUnknownSignals:true; function onVinylTasteChanged() { root.loadTaste(); } }
+
     readonly property bool catalogueReachable: true
     readonly property var catalogue: ({albums: session.library.map(function(entry) {
         var a = entry.payload && entry.payload.album ? entry.payload.album : entry;
@@ -22,7 +41,7 @@ Item {
     property var picks: []
     property var pickerDraft: []
     property string pickerQuery: ""
-    readonly property string tasteNotice: "Taste choices apply to this session only."
+    readonly property string tasteNotice: "Taste choices are saved to this profile."
     readonly property string lensTitle: [lens.language,lens.decade,lens.genre,lens.country].filter(function(v){return !!v}).join(" · ") || "Local music"
     readonly property var albums: catalogue.albums.filter(function(a) {
         return Lists.matches(a,lens) && (!query.trim() || (a.title+" "+a.artists.join(" ")+" "+(a.tracks || []).map(function(t){return t.title}).join(" ")).toLowerCase().indexOf(query.trim().toLowerCase())>=0);
@@ -88,11 +107,19 @@ Item {
     function setPickerQuery(value) {pickerQuery=value;}
     function togglePickerArtist(id) {var next=pickerDraft.slice(),at=next.indexOf(id);if(at<0)next.push(id);else next.splice(at,1);pickerDraft=next;}
     function artistOptions(value) {return project(catalogue.albums,"artists").filter(function(a){return a.title.toLowerCase().indexOf(String(value||"").toLowerCase())>=0});}
-    function answerPicker(values) {var valid=artistOptions("").map(function(a){return a.id});picks=values.filter(function(v,i){return valid.indexOf(v)>=0 && values.indexOf(v)===i});pickerAnswered=true;}
+    function answerPicker(values) {
+        var valid=artistOptions("").map(function(a){return a.id});
+        var selected=values.filter(function(v,i){return valid.indexOf(v)>=0 && values.indexOf(v)===i});
+        if(!preferencesStore || !preferencesStore.setVinylTaste(true,selected)) {personalError="Taste choices could not be saved.";return false;}
+        loadTaste(); return true;
+    }
     function skipPicker() {answerPicker([]);}
-    function resetPicker() {pickerAnswered=false;picks=[];pickerDraft=[];pickerQuery="";}
+    function resetPicker() {
+        if(!preferencesStore || !preferencesStore.setVinylTaste(false,[])) {personalError="Taste choices could not be saved.";return false;}
+        loadTaste();return true;
+    }
     function activate(item) {itemRequested(item);}
     function openList(key,home) {listRequested(key,home);}
     function resume() {resumeRequested();}
-    Connections {target:root.session;function onProfileGenerationChanged(){root.resetPicker();root.query="";root.lens=({kind:"albums",genre:"",decade:"",country:"",language:""});}}
+    Connections {target:root.session;function onProfileGenerationChanged(){root.loadTaste();root.query="";root.lens=({kind:"albums",genre:"",decade:"",country:"",language:""});}}
 }

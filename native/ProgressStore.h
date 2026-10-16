@@ -760,6 +760,10 @@ public:
         QVariantList out;
         for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it) {
             const QVariantMap rec = it.value().toMap();
+            // Internal music queue checkpoint is not a consumed item/Continue tile.
+            // Explicit kind lookup remains available to its one session owner.
+            if (kind.isEmpty() && rec.value(QStringLiteral("kind")).toString() == QLatin1String("music-session"))
+                continue;
             if (!kind.isEmpty() && rec.value(QStringLiteral("kind")).toString() != kind)
                 continue;
             out.append(ProgressStoreDetail::withoutTrackerPrivateMetadata(rec));

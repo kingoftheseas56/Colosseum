@@ -58,11 +58,12 @@ TestCase {
     function test_shutdownSnapshotsOncePreservesResumeAndCancelsEveryLane() {
         load();session.player.position=27;session.openAlbum("pending");session.enqueueAlbum("pending");session.enqueueAlbum("later");
         var browse=session.browseRequest, queue=session.queueRequest, before=progress.writes;
+        // One checkpoint writes history plus the authoritative session record.
         source.replyOnCancel=true;source.shuttingDown();
-        compare(progress.writes,before+1);compare(progress.last.resume.position,27);compare(progress.last.resume.trackId,"one");compare(progress.last.resume.queue.length,2);
+        compare(progress.writes,before+2);compare(progress.last.resume.position,27);compare(progress.last.resume.trackId,"one");compare(progress.last.resume.queue.length,2);
         compare(session.browseRequest,-1);compare(session.queueRequest,-1);compare(session.playRequest,-1);compare(session.pendingEnqueues.length,0);
         verify(source.cancellations.indexOf("browse")>=0);verify(source.cancellations.indexOf("queue")>=0);verify(source.cancellations.indexOf("play")>=0);
         source.completed("browse",browse,album(),"");source.completed("queue",queue,album(),"");source.shuttingDown();source.checkpointRequested();
-        compare(progress.writes,before+1);compare(session.queue.length,2);compare(session.player,null);verify(session.paused);
+        compare(progress.writes,before+2);compare(session.queue.length,2);compare(session.player,null);verify(session.paused);
     }
 }
