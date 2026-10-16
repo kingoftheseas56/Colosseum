@@ -22,7 +22,7 @@ Flickable {
     // reserve the measured text/actions and the hero's 24px top/bottom padding.
     readonly property real coverSize: Math.max(72, Math.min(334, height * 0.5,
         height - 48 - albumTitle.implicitHeight - albumArtist.height
-        - albumFacts.implicitHeight - albumActionsRow.height - left.spacing * 4))
+        - albumFacts.implicitHeight - albumActionsRow.height - albumInfoColumn.spacing * 4))
     signal videoRequested(int track)
     signal songRequested(int track)
     property bool songNavigationEnabled: false
@@ -68,7 +68,7 @@ Flickable {
         width: root.usable
         height: Math.max(root.height, trackList.height + 30)
         Column {
-            id: left
+            id: albumInfoColumn
             y: Math.min(Math.max(24, root.contentY + 24), Math.max(24, hero.height - height - 20))
             width: root.usable * 0.4
             spacing: 14
@@ -143,7 +143,7 @@ Flickable {
                     delegate: KeyboardAction {
                         required property string modelData
                         objectName: "vinylAlbum" + modelData
-                        width: Math.min(76,(left.width-30)/4)
+                        width: Math.min(76,(albumInfoColumn.width-30)/4)
                         height: 36
                         accessibleName: modelData
                         enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : modelData === "Queue" ? root.trackCount>0 : root.saveEnabled

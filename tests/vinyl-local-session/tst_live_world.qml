@@ -38,6 +38,38 @@ TestCase {
                    "Window must finish destruction before the next case");
         source.destroy();collection.destroy();wait(0);source=null;collection=null;
     }
+    function test_albumActionsHaveGeometryAndEnqueue_data(){
+        return [{tag:"wide",w:1280,h:720},{tag:"narrow",w:1024,h:640}];
+    }
+    function test_albumActionsHaveGeometryAndEnqueue(data){
+        host.width=data.w;host.height=data.h;world.width=data.w;world.height=data.h;
+        seed(1);
+        var album=record(0);
+        world.session.shownEdition=world.session.normalize(album);
+        world.page="album";wait(0);
+        var page=item("vinylAlbumPage");
+        var names=["Play","Shuffle","Save","Queue"];
+        for(var i=0;i<names.length;i++){
+            var control=item("vinylAlbum"+names[i]);
+            verify(control!==null && control.visible && control.enabled);
+            verify(isFinite(control.width) && control.width>0,names[i]+" needs positive width");
+            verify(isFinite(control.height) && control.height>0,names[i]+" needs positive height");
+            var center=control.mapToItem(world,control.width/2,control.height/2);
+            verify(center.x>=0 && center.x<world.width && center.y>=0 && center.y<world.height,
+                   names[i]+" center must fit the viewport");
+        }
+        verify(isFinite(page.coverSize) && page.coverSize>=72,"Cover size must stay finite");
+        var cover=item("vinylAlbumCover");verify(cover.width>0 && cover.height>0);
+        // A real pointer activation must append, not just expose a callable API.
+        world.session.playAlbum(album,0);wait(0);
+        var edition=world.session.playingEditionId,disc=world.session.playingDisc;
+        var index=world.session.playingIndex,count=world.session.queue.length;
+        var queueControl=item("vinylAlbumQueue");
+        mouseClick(queueControl,queueControl.width/2,queueControl.height/2);wait(0);
+        compare(world.session.queue.length,count+1);
+        compare(world.session.playingEditionId,edition);
+        compare(world.session.playingDisc,disc);compare(world.session.playingIndex,index);
+    }
     function test_emptyDiscoverHasOneTabBarAndNoEmptyShelf(){
         seed(0);world.worldView.setTab("discover");wait(0);
         var flowing=item("vinylFlowTabs"),docked=item("vinylDockedTabs"),empty=item("vinylDiscoverEmpty"),discover=item("vinylDiscoverPage");
