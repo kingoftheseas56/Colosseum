@@ -1,5 +1,6 @@
 #include "CatalogRemote.h"
 #include "StaticCatalogueResolver.h"
+#include "CatalogueTrace.h"
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
@@ -86,6 +87,17 @@ QString CatalogRemote::key(const QString& method, const QVariantList& args) cons
     const QByteArray bytes = QJsonDocument(QJsonObject{{"method",method},{"args",QJsonArray::fromVariantList(args)}}).toJson(QJsonDocument::Compact);
     return QString::fromLatin1(QCryptographicHash::hash(bytes,QCryptographicHash::Sha256).toHex());
 }
+QVariantMap CatalogRemote::traceContext(const QString& id) const {
+    if (!CatalogueTrace::enabled()) return {};
+    const auto pending = m_pending.constFind(id);
+    const auto cached = m_cache.constFind(id);
+    return {{"component", "remote"}, {"remoteId", CatalogueTrace::ownerId(this)},
+        {"dataset", m_dataset}, {"queryKey", id},
+        {"method", pending != m_pending.cend() ? pending->method : cached != m_cache.cend() ? cached->method : QString()},
+        {"sourceGeneration", QVariant::fromValue(m_sourceGeneration)},
+        {"attempt", pending != m_pending.cend() ? QVariant::fromValue(pending->attempt) : QVariant()},
+        {"queryKeys", id.isEmpty() ? QVariant(m_pending.keys()) : QVariant()}};
+}
 void CatalogRemote::configure(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& path) {
     // Retire the old writer before switching its path/endpoint. Never let an old
     // snapshot overwrite a subsequently configured source's cache.
@@ -115,9 +127,11 @@ bool CatalogRemote::queue(const QString& id, const QString& method, const QVaria
     if (!bypassCooldown && failure!=m_failures.constEnd()
         && failure->when.secsTo(QDateTime::currentDateTimeUtc()) < 30) return false;
     m_pending.insert(id,Query{method,args,empty,false,false});
+    CatalogueTrace::event("enqueue", traceContext(id));
     const auto generation=m_generation;
     QTimer::singleShot(0,this,[this,id,generation]{
         if (generation==m_generation && m_pending.contains(id)) {
+            CatalogueTrace::event("dispatch", traceContext(id));
             // Notify after read() has returned: subscribers may re-enter the
             // cache or replace this source. Recheck ownership before dispatch.
             emit queryChanged(id);
@@ -129,11 +143,14 @@ bool CatalogRemote::queue(const QString& id, const QString& method, const QVaria
 }
 QVariant CatalogRemote::read(const QString& method, const QVariantList& args, const QVariant& empty, bool force) {
     const auto id=key(method,args);
+    CatalogueTrace::Span readTrace("query_read", CatalogueTrace::merge(traceContext(id), {{"method", method}}));
     const auto cached=m_cache.constFind(id);
     const bool valid=cached!=m_cache.constEnd() && shape(cached->result,empty)
         && (method != "landing" || validLanding(cached->result, m_dataset, args));
     const auto age=valid ? cached->fetched.secsTo(QDateTime::currentDateTimeUtc()) : -1;
     const auto value=valid ? cached->result : QJsonValue();
+    CatalogueTrace::event("cache_read", CatalogueTrace::merge(traceContext(id),
+        {{"method", method}, {"source", valid ? "query-cache" : "miss"}, {"force", force}}));
     if (valid && method == "landing") {
         // The bundle may outlive independently evicted child query entries.
         // Reuse its validated immutable values, without a network trip or
@@ -151,7 +168,9 @@ QVariant CatalogRemote::read(const QString& method, const QVariantList& args, co
     if(force&&m_static)m_static->refresh();
     const bool staticRefresh=m_static&&m_static->needsRefresh()&&!(m_dataset=="comics"&&method=="search");
     if (force || !valid || age<0 || age>=86400 || staticRefresh) queue(id,method,args,empty,false);
-    return valid ? value.toVariant() : empty;
+    const auto answer = valid ? value.toVariant() : empty;
+    readTrace.finish("success", {{"source", valid ? "query-cache" : "miss"}});
+    return answer;
 }
 QVariantMap CatalogRemote::queryState(const QString& method, const QVariantList& args, const QVariant& empty) const {
     const auto id=key(method,args);
@@ -195,6 +214,7 @@ void CatalogRemote::lease() {
     req.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
     req.setTransferTimeout(15000);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
+    CatalogueTrace::event("network_queued", CatalogueTrace::merge(traceContext(), {{"source", "guest-lease"}}));
     observe(m_nam->post(req,QByteArrayLiteral("{\"appId\":\"colosseum\",\"apiVersion\":1}")),{},true);
 }
 void CatalogRemote::adoptPublication(const QString& revision) {
@@ -207,6 +227,7 @@ void CatalogRemote::adoptPublication(const QString& revision) {
 }
 void CatalogRemote::tryStatic(const QString& id) {
     if(!m_pending.contains(id))return;
+    CatalogueTrace::event("route_dispatch", CatalogueTrace::merge(traceContext(id), {{"source", m_static ? "static" : "worker"}}));
     if(!m_static){m_pending[id].staticChecked=true;if(m_token.isEmpty())lease();else dispatch(id);return;}
     if(m_pending[id].staticJob)m_static->cancel(m_pending[id].staticJob);
     m_pending[id].staticChecked=false;m_pending[id].dispatched=false;const auto attempt=++m_pending[id].attempt;
@@ -231,6 +252,8 @@ void CatalogRemote::tryStatic(const QString& id) {
 }
 void CatalogRemote::complete(const QString& id,const QJsonValue& result,const QString& revision,const QString& etag) {
     if(!m_pending.contains(id))return;const auto query=m_pending.value(id);
+    const auto trace = traceContext(id);
+    CatalogueTrace::event("result_ready", trace);
     if(!validRevision(revision)||!shape(result,query.empty)){finishFailure(id,"INCOMPATIBLE_RESPONSE");return;}
     if(query.method=="landing"&&!validLanding(result,m_dataset,query.args)) {
         const auto obj=result.toObject();
@@ -255,10 +278,12 @@ void CatalogRemote::complete(const QString& id,const QJsonValue& result,const QS
         }
     }
     bound();save();++m_revision;
+    CatalogueTrace::Span delivery("result_delivery", CatalogueTrace::merge(trace, {{"status", "success"}}));
     const auto generation=m_generation;
     if(invalidated){emit sourceChanged();if(generation!=m_generation)return;}
     for(const auto& childKey:primed){emit queryChanged(childKey);if(generation!=m_generation)return;}
     emit queryChanged(id);emit changed();
+    delivery.finish();
 }
 void CatalogRemote::dispatch(const QString& id) {
     if(!enabled() || !m_pending.contains(id) || !m_pending[id].staticChecked || m_pending[id].dispatched) return;
@@ -273,10 +298,12 @@ void CatalogRemote::dispatch(const QString& id) {
     req.setTransferTimeout(15000);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
     const auto body=QJsonDocument(QJsonObject{{"args",QJsonArray::fromVariantList(query.args)}}).toJson(QJsonDocument::Compact);
+    CatalogueTrace::event("network_queued", CatalogueTrace::merge(traceContext(id), {{"source", "worker"}}));
     observe(m_nam->post(req,body),id,false);
 }
 void CatalogRemote::finishFailure(const QString& id,const QString& reason) {
     if (!m_pending.contains(id)) return;
+    CatalogueTrace::Span delivery("result_delivery", traceContext(id));
     const auto query=m_pending.take(id);
     m_failures.insert(id,Failure{QDateTime::currentDateTimeUtc(),reason});
     while (m_failures.size() > 512) {
@@ -287,8 +314,17 @@ void CatalogRemote::finishFailure(const QString& id,const QString& reason) {
     }
     emit queryChanged(id);
     emit failed(query.method,reason);
+    delivery.finish("failure", {{"reason", reason}});
 }
 void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session) {
+    const auto trace = CatalogueTrace::merge(traceContext(id), {{"source", session ? "guest-lease" : "worker"}});
+    CatalogueTrace::event("network_start", trace);
+    connect(reply, &QNetworkReply::socketStartedConnecting, this, [trace] {
+        CatalogueTrace::event("network_socket_connecting", trace);
+    });
+    connect(reply, &QNetworkReply::requestSent, this, [trace] {
+        CatalogueTrace::event("network_request_sent", trace);
+    });
     m_replies.append(reply);
     const auto generation=m_generation;
     const auto sourceGeneration=m_sourceGeneration;
@@ -296,13 +332,14 @@ void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session)
     reply->setReadBufferSize(cap+1);
     const auto bytes=QSharedPointer<QByteArray>::create();
     connect(reply,&QNetworkReply::readyRead,this,[reply,bytes,cap]{ bytes->append(reply->readAll()); if(bytes->size()>cap) reply->abort(); });
-    connect(reply,&QNetworkReply::finished,this,[this,reply,bytes,id,session,generation,sourceGeneration,cap]{
+    connect(reply,&QNetworkReply::finished,this,[this,reply,bytes,id,session,generation,sourceGeneration,cap,trace]{
         reply->deleteLater();
         if(generation!=m_generation) return;
         m_replies.removeAll(reply);
         if (!session && !m_pending.contains(id)) return; // Ignore late completed-query replies.
         bytes->append(reply->readAll());
         const int status=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        CatalogueTrace::event("network_bytes_done", CatalogueTrace::merge(trace, {{"httpStatus", status}, {"bytes", bytes->size()}}));
         auto fail=[&](const QString& reason){
             if(session) { m_leasing=false; const auto keys=m_pending.keys(); for(const auto& k:keys) if(m_pending[k].staticChecked&&!m_pending[k].dispatched) finishFailure(k,reason); }
             else finishFailure(id,reason);
@@ -328,7 +365,9 @@ void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session)
             emit queryChanged(id); emit changed(); return;
         }
         if(reply->error()!=QNetworkReply::NoError || status!=200 || bytes->size()>cap) { fail(bytes->size()>cap ? "RESPONSE_TOO_LARGE" : "HTTP_"+QString::number(status)); return; }
+        CatalogueTrace::Span parsing("json_parse", trace);
         QJsonParseError error; const auto doc=QJsonDocument::fromJson(*bytes,&error); const auto obj=doc.object();
+        parsing.finish(error.error==QJsonParseError::NoError && doc.isObject() ? "success" : "failure", {{"bytes", bytes->size()}});
         if(error.error!=QJsonParseError::NoError || !doc.isObject()) { fail("INVALID_RESPONSE"); return; }
         if(session) {
             m_leasing=false;
@@ -357,8 +396,13 @@ void CatalogRemote::bound(const QSet<QString>& protectedKeys) {
 }
 void CatalogRemote::load() {
     if(m_path.isEmpty()) return;
+    const auto trace = CatalogueTrace::merge(traceContext(), CatalogueTrace::file(m_path));
+    CatalogueTrace::Span diskRead("disk_read", trace);
     QFile file(m_path); if(!file.open(QIODevice::ReadOnly) || file.size()>cacheCap) return;
-    const auto obj=QJsonDocument::fromJson(file.readAll()).object();
+    const auto raw=file.readAll(); diskRead.finish("success", {{"bytes", raw.size()}});
+    CatalogueTrace::Span parsing("json_parse", trace);
+    const auto document=QJsonDocument::fromJson(raw);
+    const auto obj=document.object(); parsing.finish(document.isObject() ? "success" : "failure", {{"bytes", raw.size()}});
     if(obj.value("apiVersion")!=QJsonValue(1) || obj.value("dataset")!=QJsonValue(m_dataset) || obj.value("endpoint")!=QJsonValue(m_endpoint.toString())) return;
     m_sourceRevision=obj.value("revision").toString();
     const auto publication=obj.value("publication").toString();if(validRevision(publication))m_publication=publication;
@@ -377,6 +421,8 @@ void CatalogRemote::save() {
     if (m_path.isEmpty()) return;
     m_saveDirty = true;
     ++m_saveVersion;
+    if (CatalogueTrace::enabled()) CatalogueTrace::event("cache_persist_queued", CatalogueTrace::merge(traceContext(),
+        CatalogueTrace::merge(CatalogueTrace::file(m_path), {{"source", "query-cache"}, {"saveVersion", QVariant::fromValue(m_saveVersion)}, {"queryKeys", m_cache.keys()}})));
     m_saveTimer.start();
 }
 void CatalogRemote::flushSave(bool wait) {
@@ -386,7 +432,8 @@ void CatalogRemote::flushSave(bool wait) {
             m_saveTimer.start();
             return;
         }
-        const auto saved = m_saveTask.get();
+        CatalogueTrace::Span waitTrace("cache_persist_wait", traceContext());
+        const auto saved = m_saveTask.get(); waitTrace.finish();
         // Only prune the exact snapshot that was saved, never newer entries.
         if (saved.version == m_saveVersion)
             for (const auto& id : saved.evicted) m_cache.remove(id);
@@ -394,12 +441,17 @@ void CatalogRemote::flushSave(bool wait) {
     }
     if (!m_saveDirty || m_path.isEmpty()) return;
     m_saveDirty = false;
+    auto trace = traceContext();
+    if (CatalogueTrace::enabled()) trace = CatalogueTrace::merge(trace,
+        CatalogueTrace::merge(CatalogueTrace::file(m_path), {{"source", "query-cache"}, {"saveVersion", QVariant::fromValue(m_saveVersion)}, {"queryKeys", m_cache.keys()}}));
     // Implicitly shared value snapshot: serialization, cap enforcement and disk
     // I/O run off the GUI thread. The worker never captures this or a QObject.
     m_saveTask = std::async(std::launch::async,
         [cache = m_cache, path = m_path, dataset = m_dataset,
          endpoint = m_endpoint.toString(), revision = m_sourceRevision,
-         publication = m_publication, version = m_saveVersion]() mutable {
+         publication = m_publication, version = m_saveVersion, trace]() mutable {
+        CatalogueTrace::Span persist("cache_persist", trace);
+        CatalogueTrace::Span serialization("cache_serialize", trace);
         Saved saved; saved.version = version;
         QJsonObject entries;
         for (auto it = cache.cbegin(); it != cache.cend(); ++it)
@@ -417,12 +469,16 @@ void CatalogRemote::flushSave(bool wait) {
             saved.evicted.append(oldest.key()); entries.remove(oldest.key()); cache.erase(oldest);
             bytes = serialize();
         }
+        serialization.finish("success", {{"bytes", bytes.size()}});
         if (!QDir().mkpath(QFileInfo(path).absolutePath())) return saved;
+        CatalogueTrace::Span writing("disk_write", trace);
         QSaveFile file(path);
         if (file.open(QIODevice::WriteOnly)) {
             if (file.write(bytes) == bytes.size()) saved.success = file.commit();
             else file.cancelWriting();
         }
+        writing.finish(saved.success ? "success" : "failure", {{"bytes", bytes.size()}});
+        persist.finish(saved.success ? "success" : "failure", {{"bytes", bytes.size()}});
         return saved;
     });
     if (wait) flushSave(true);

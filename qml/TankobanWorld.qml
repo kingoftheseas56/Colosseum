@@ -96,6 +96,15 @@ WorldPage {
     property var comicCovers: []            // real covers → the mosaic's art pool
     property var comicRows: []              // populated when this lazy world is first created
     property var comicShelves: []           // catalogue shelf rows (browse-landing): [{label, rows}]
+    onComicShelvesChanged: {
+        if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled) {
+            var state = typeof ComicsCatalog !== "undefined" && typeof ComicsCatalog.landingState === "function"
+                ? ComicsCatalog.landingState("comics") : ({})
+            console.info("CATALOGUE_TRACE " + JSON.stringify({event:"qml_model_updated",epochMs:Date.now(),
+                component:"TankobanWorld",dataset:"comics",method:"landing",queryKey:state.key || "",
+                shelves:comicShelves.length,rows:comicShelves.reduce(function(n,s){return n+(s.rows||[]).length},0)}))
+        }
+    }
     property bool _catalogueInitialized: false
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [

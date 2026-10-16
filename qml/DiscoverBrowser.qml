@@ -125,6 +125,9 @@ Item {
     property int adapterRev: 0               // bump to force adapter-derived bindings to re-evaluate
 
     property var items: []
+    onItemsChanged: if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled)
+        console.info("CATALOGUE_TRACE " + JSON.stringify({event:"qml_model_updated",epochMs:Date.now(),
+            component:"DiscoverBrowser",world:automationPrefix,type:currentType,catalog:currentCatalogKey,generation:fetchGen,rows:items.length}))
     property bool loading: false
     property bool exhausted: false
     property string warning: ""

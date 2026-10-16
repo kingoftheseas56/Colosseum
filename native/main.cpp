@@ -2052,6 +2052,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("ScrollProbeEnabled"), scrollProbeEnabled);
     GuiStallProbeBridge guiStallProbe(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("GuiStallProbe"), &guiStallProbe);
+    engine.rootContext()->setContextProperty(QStringLiteral("CatalogueTraceEnabled"),
+        qEnvironmentVariableIntValue("COLOSSEUM_CATALOGUE_TRACE") == 1);
 
     // Startup qualification is opt-in and intentionally marks only coarse boundaries. Keeping
     // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback

@@ -1,4 +1,5 @@
 #include "StaticCatalogueResolver.h"
+#include "CatalogueTrace.h"
 #include <QCache>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -45,7 +46,8 @@ QByteArray json(const QJsonValue &v) {
     const auto b = QJsonDocument(QJsonArray{v}).toJson(QJsonDocument::Compact);
     return b.mid(1, b.size() - 2);
 }
-QJsonValue parse(const QByteArray &raw) {
+QJsonValue parse(const QByteArray &raw, const QVariantMap& trace = {}) {
+    CatalogueTrace::Span span("json_parse", CatalogueTrace::merge({{"component", "resolver"}}, trace));
     QStringDecoder decoder(QStringDecoder::Utf8);
     const auto text = decoder(raw);
     Q_UNUSED(text);
@@ -53,11 +55,14 @@ QJsonValue parse(const QByteArray &raw) {
         throw QStringLiteral("STATIC_INVALID_UTF8");
     QJsonParseError e;
     const auto doc = QJsonDocument::fromJson(raw, &e);
-    if (e.error == QJsonParseError::NoError)
+    if (e.error == QJsonParseError::NoError) {
+        span.finish("success", {{"bytes", raw.size()}});
         return doc.isObject() ? QJsonValue(doc.object()) : QJsonValue(doc.array());
+    }
     const auto scalar = QJsonDocument::fromJson("[" + raw + "]", &e);
     if (e.error != QJsonParseError::NoError || !scalar.isArray() || scalar.array().size() != 1)
         throw QStringLiteral("STATIC_INVALID_JSON");
+    span.finish("success", {{"bytes", raw.size()}});
     return scalar.array().at(0);
 }
 QString text(const QJsonValue &v) {
@@ -527,7 +532,7 @@ struct StaticCatalogueResolver::Impl {
     using AssetCallback = std::function<void(Loaded, QString)>;
     struct Job {
         quint64 id = 0;
-        QString dataset, method;
+        QString dataset, method, nativeKey;
         QJsonArray args;
         QPointer<QObject> context;
         Callback callback;
@@ -566,6 +571,28 @@ struct StaticCatalogueResolver::Impl {
     quint64 nextId = 0;
     qint64 workingBytes = 0;
     int active = 0;
+    QVariantMap traceJob(const QSharedPointer<Job>& job) const {
+        if (!CatalogueTrace::enabled()) return {};
+        QVariantMap fields{{"component", "resolver"}, {"resolverId", CatalogueTrace::ownerId(q)}};
+        if (job) fields = CatalogueTrace::merge(fields, {{"dataset", job->dataset}, {"method", job->method},
+            {"queryKey", job->nativeKey}, {"jobId", QVariant::fromValue(job->id)}});
+        return fields;
+    }
+    QVariantMap traceFile(const QString& path, quint64 owner = 0) const {
+        if (!CatalogueTrace::enabled()) return {};
+        auto ids = assetOwners.value(path);
+        if (owner) ids.insert(owner);
+        if (path == "/catalogue/current.json" || ids.remove(0)) ids.unite(entryWaiters);
+        QVariantMap fields = traceJob({});
+        QVariantList owners;
+        for (const auto id : ids) if (auto job = jobs.value(id)) {
+            const auto context = traceJob(job); owners.append(context);
+            if (owners.size() == 1) fields = context;
+        }
+        fields = CatalogueTrace::merge(fields, CatalogueTrace::file(path));
+        fields.insert("owners", owners); // Shared transfers retain every exact-query correlation.
+        return fields;
+    }
     Impl(StaticCatalogueResolver *owner, QNetworkAccessManager *n, QUrl u, QString root)
         : q(owner), nam(n), endpoint(std::move(u)) {
         if (!endpoint.isValid() || endpoint.host().isEmpty() || !endpoint.userInfo().isEmpty() ||
@@ -616,10 +643,10 @@ struct StaticCatalogueResolver::Impl {
         return true;
     }
     Loaded decode(const QString &path, const QByteArray &raw, const QString &expected, qint64 size,
-                  const QString &where, double ms) {
+                  const QString &where, double ms, quint64 owner = 0) {
         if (raw.size() > fileCap || (size >= 0 && raw.size() != size) || digest(raw) != expected)
             throw QStringLiteral("STATIC_HASH_MISMATCH");
-        return {path, where, parse(raw), raw.size(), ms};
+        return {path, where, parse(raw, CatalogueTrace::merge(traceFile(path, owner), {{"source", where}})), raw.size(), ms};
     }
     void loadLastGood() {
         if (directory.isEmpty())
@@ -627,10 +654,14 @@ struct StaticCatalogueResolver::Impl {
         QElapsedTimer clock;
         clock.start();
         QFile file(QDir(directory).filePath("last-good.json"));
+        const auto wrapperTrace = CatalogueTrace::merge(traceJob({}), CatalogueTrace::file(file.fileName()));
+        CatalogueTrace::Span wrapperRead("disk_read", CatalogueTrace::merge(wrapperTrace, {{"source", "disk"}}));
         if (QFileInfo(file).isSymLink() || !file.open(QIODevice::ReadOnly) || file.size() > 16384)
             return;
         try {
-            const auto wrapper = object(parse(file.readAll()));
+            const auto wrapperRaw = file.readAll();
+            wrapperRead.finish("success", {{"bytes", wrapperRaw.size()}});
+            const auto wrapper = object(parse(wrapperRaw, CatalogueTrace::merge(wrapperTrace, {{"source", "disk"}})));
             if (wrapper.value("endpoint") != endpoint.toString(QUrl::FullyEncoded))
                 return;
             const auto candidate = wrapper.value("entry").toObject();
@@ -638,11 +669,13 @@ struct StaticCatalogueResolver::Impl {
                 return;
             const auto ref = candidate.value("index").toObject();
             QFile data(pathFor(ref.value("sha256").toString()));
+            CatalogueTrace::Span indexRead("disk_read", CatalogueTrace::merge(traceFile(ref.value("path").toString()), {{"source", "disk"}}));
             if (QFileInfo(data).isSymLink() || !data.open(QIODevice::ReadOnly) ||
                 data.size() > fileCap)
                 return;
+            const auto indexRaw = data.readAll(); indexRead.finish("success", {{"bytes", indexRaw.size()}});
             auto loaded =
-                decode(ref.value("path").toString(), data.readAll(), ref.value("sha256").toString(),
+                decode(ref.value("path").toString(), indexRaw, ref.value("sha256").toString(),
                        qint64(ref.value("bytes").toDouble()), "disk", 0);
             if (!loaded.value.isObject() || !validIndex(loaded.value.toObject(), candidate))
                 return;
@@ -663,11 +696,14 @@ struct StaticCatalogueResolver::Impl {
         } catch (const QString &) {
         }
     }
-    void atomic(const QString &path, const QByteArray &raw) {
+    void atomic(const QString &path, const QByteArray &raw, const QVariantMap& context = {}) {
+        CatalogueTrace::Span trace("disk_write", context.isEmpty() ? CatalogueTrace::merge(traceJob({}), CatalogueTrace::file(path)) : context);
         QSaveFile out(path);
         out.setDirectWriteFallback(false);
-        if (out.open(QIODevice::WriteOnly) && out.write(raw) == raw.size())
-            out.commit();
+        if (out.open(QIODevice::WriteOnly) && out.write(raw) == raw.size()) {
+            const bool committed = out.commit();
+            trace.finish(committed ? "success" : "failure", {{"bytes", raw.size()}});
+        }
     }
     void prune() {
         auto files = QDir(directory).entryInfoList({"*.json"}, QDir::Files | QDir::NoSymLinks,
@@ -701,10 +737,12 @@ struct StaticCatalogueResolver::Impl {
             if (item.path != "/catalogue/current.json" && !loading.contains(item.path))
                 continue;
             if (!nam) {
+                CatalogueTrace::event("network_bytes_done", CatalogueTrace::merge(traceFile(item.path), {{"source", "offline"}, {"httpStatus", 0}, {"bytes", 0}, {"status", "STATIC_OFFLINE"}}));
                 item.callback(0, {}, QStringLiteral("STATIC_OFFLINE"), {}, 0);
                 continue;
             }
             ++active;
+            CatalogueTrace::event("network_start", CatalogueTrace::merge(traceFile(item.path), {{"source", "network"}, {"activeTransfers", active}}));
             QNetworkRequest request(endpoint.resolved(QUrl(item.path)));
             request.setRawHeader("Accept-Encoding", "identity");
             request.setRawHeader("User-Agent", "Colosseum/1.1.9 StaticCatalogue/1");
@@ -714,6 +752,12 @@ struct StaticCatalogueResolver::Impl {
             request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                                  QNetworkRequest::ManualRedirectPolicy);
             auto *reply = nam->get(request);
+            QObject::connect(reply, &QNetworkReply::socketStartedConnecting, q, [this, path=item.path] {
+                CatalogueTrace::event("network_socket_connecting", traceFile(path));
+            });
+            QObject::connect(reply, &QNetworkReply::requestSent, q, [this, path=item.path] {
+                CatalogueTrace::event("network_request_sent", traceFile(path));
+            });
             reply->setProperty("staticPath", item.path);
             replies.append(reply);
             reply->setReadBufferSize(item.cap + 1);
@@ -734,6 +778,8 @@ struct StaticCatalogueResolver::Impl {
                 --active;
                 const int status =
                     reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                CatalogueTrace::event("network_bytes_done", CatalogueTrace::merge(traceFile(item.path),
+                    {{"source", "network"}, {"httpStatus", status}, {"bytes", bytes->size()}, {"elapsedMs", clock->nsecsElapsed() / 1e6}}));
                 QString error;
                 if (bytes->size() > item.cap)
                     error = "STATIC_FILE_TOO_LARGE";
@@ -746,6 +792,7 @@ struct StaticCatalogueResolver::Impl {
         }
     }
     void network(Transfer t) {
+        CatalogueTrace::event("network_queued", CatalogueTrace::merge(traceFile(t.path), {{"queueDepth", transfers.size()}, {"activeTransfers", active}}));
         transfers.enqueue(std::move(t));
         pump();
     }
@@ -760,6 +807,7 @@ struct StaticCatalogueResolver::Impl {
         };
         callback = std::move(checked);
         if (auto *cached = memory.object(path)) {
+            CatalogueTrace::event("file_cache_hit", CatalogueTrace::merge(traceFile(path, owner), {{"source", "memory"}, {"bytes", cached->bytes}}));
             auto value = *cached;
             value.where = "memory";
             value.ms = 0;
@@ -770,10 +818,13 @@ struct StaticCatalogueResolver::Impl {
             QElapsedTimer t;
             t.start();
             QFile file(pathFor(expected));
+            CatalogueTrace::Span diskTrace("disk_read", CatalogueTrace::merge(traceFile(path, owner), {{"source", "disk"}}));
             if (!QFileInfo(file).isSymLink() && file.open(QIODevice::ReadOnly) &&
                 file.size() <= fileCap) {
                 try {
-                    auto value = decode(path, file.readAll(), expected, size, "disk", 0);
+                    const auto raw = file.readAll();
+                    diskTrace.finish("success", {{"bytes", raw.size()}});
+                    auto value = decode(path, raw, expected, size, "disk", 0, owner);
                     value.ms = t.nsecsElapsed() / 1e6;
                     file.setFileTime(QDateTime::currentDateTimeUtc(),
                                      QFileDevice::FileModificationTime);
@@ -788,6 +839,7 @@ struct StaticCatalogueResolver::Impl {
         }
         assetOwners[path].insert(owner);
         if (loading.contains(path)) {
+            CatalogueTrace::event("file_cache_hit", CatalogueTrace::merge(traceFile(path, owner), {{"source", "shared-inflight"}}));
             loading[path].append(std::move(callback));
             return;
         }
@@ -808,7 +860,7 @@ struct StaticCatalogueResolver::Impl {
                              value.ms += clock.nsecsElapsed() / 1e6;
                              memory.insert(path, new Loaded(value), int(value.bytes));
                              if (!directory.isEmpty() && QDir().mkpath(directory)) {
-                                 atomic(pathFor(expected), raw);
+                                 atomic(pathFor(expected), raw, traceFile(path));
                                  prune();
                              }
                          } catch (const QString &why) {
@@ -827,6 +879,7 @@ struct StaticCatalogueResolver::Impl {
                  }});
     }
     void record(const QSharedPointer<Job> &j, const Loaded &f) {
+        CatalogueTrace::event("file_use", CatalogueTrace::merge(traceJob(j), CatalogueTrace::merge(CatalogueTrace::file(f.path), {{"source", f.where}, {"bytes", f.bytes}})));
         j->events.append(QVariantMap{
             {"path", f.path}, {"source", f.where}, {"bytes", f.bytes}, {"readMs", f.ms}});
     }
@@ -914,14 +967,20 @@ struct StaticCatalogueResolver::Impl {
             << QString::fromUtf8(json(QJsonObject::fromVariantMap(summary)));
         if (j->context) {
             emit q->measured(j->dataset, j->method, out.metrics);
-            if (j->context)
+            if (j->context) {
+                const auto context = CatalogueTrace::merge(traceJob(j), {{"status", out.metrics.value("outcome")}, {"reason", out.error}, {"logicalFiles", j->events.size()}});
+                CatalogueTrace::event("result_delivery_begin", CatalogueTrace::merge(context,
+                    {{"status", out.metrics.value("outcome")}, {"logicalFiles", j->events.size()}, {"elapsedMs", j->clock.nsecsElapsed() / 1e6}}));
                 j->callback(std::move(out));
+                CatalogueTrace::event("result_delivery_end", context);
+            }
         }
     }
     void run(quint64 id) {
         const auto j = jobs.value(id);
         if (!j)
             return;
+        CatalogueTrace::event("resolver_evaluate", traceJob(j));
         if (!j->context) {
             finish(id, Status::Failure, {}, "STATIC_CANCELLED");
             return;
@@ -936,6 +995,7 @@ struct StaticCatalogueResolver::Impl {
             j->files.clear();
             j->index = index;
         }
+        CatalogueTrace::Span evaluation("evaluate", traceJob(j));
         try {
             const auto read = [&](const QString &path) -> QJsonValue {
                 const auto prefix =
@@ -949,13 +1009,19 @@ struct StaticCatalogueResolver::Impl {
             };
             const auto value = evaluate(j->index, j->dataset, j->method, j->args, read);
             if (!value) {
+                evaluation.finish("not-prepared");
                 finish(id, Status::NotPrepared);
                 return;
             }
-            if (json(*value).size() > 4 * 1024 * 1024)
+            CatalogueTrace::Span resultEncoding("result_encode", traceJob(j));
+            const auto resultBytes = json(*value).size();
+            resultEncoding.finish("success", {{"bytes", resultBytes}});
+            if (resultBytes > 4 * 1024 * 1024)
                 throw QStringLiteral("STATIC_RESULT_TOO_LARGE");
+            evaluation.finish("prepared");
             finish(id, Status::Prepared, *value);
         } catch (const Need &need) {
+            evaluation.finish("needs-file");
             if (j->files.size() >= filesCap) {
                 finish(id, Status::Failure, {}, "STATIC_QUERY_FILE_LIMIT");
                 return;
@@ -994,6 +1060,7 @@ struct StaticCatalogueResolver::Impl {
                 },
                 id);
         } catch (const QString &why) {
+            evaluation.finish("failure", {{"reason", why}});
             finish(id, Status::Failure, {}, why);
         }
     }
@@ -1078,7 +1145,7 @@ struct StaticCatalogueResolver::Impl {
                      }
                      QJsonObject candidate;
                      try {
-                         candidate = object(parse(raw));
+                         candidate = object(parse(raw, CatalogueTrace::merge(traceFile("/catalogue/current.json"), {{"source", "network"}})));
                          if (!validEntry(candidate))
                              throw QStringLiteral("STATIC_INVALID_ENTRY");
                      } catch (const QString &why) {
@@ -1143,10 +1210,12 @@ quint64 StaticCatalogueResolver::resolve(const QString &dataset, const QString &
     j->id = id;
     j->dataset = dataset;
     j->method = method;
+    j->nativeKey = CatalogueTrace::enabled() ? CatalogueTrace::queryKey(method, args) : QString();
     j->args = QJsonArray::fromVariantList(args);
     j->context = context;
     j->callback = std::move(cb);
     j->clock.start();
+    CatalogueTrace::event("enqueue", d->traceJob(j));
     if (d->jobs.size() >= queryCap) {
         d->rejected.insert(id);
         QPointer<QObject> guard = context;
@@ -1173,6 +1242,7 @@ quint64 StaticCatalogueResolver::resolve(const QString &dataset, const QString &
         const auto job = d->jobs.value(id);
         if (!job)
             return;
+        CatalogueTrace::event("dispatch", d->traceJob(job));
         if (d->endpoint.isEmpty()) {
             d->finish(id, Status::Failure, {}, "STATIC_INVALID_ORIGIN");
             return;

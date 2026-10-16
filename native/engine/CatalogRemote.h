@@ -49,6 +49,7 @@ private:
         quint64 staticJob = 0, attempt = 0; bool staticChecked = false; int restarts = 0; QString expectedSource; };
     struct Failure { QDateTime when; QString reason; };
     QString key(const QString&, const QVariantList&) const;
+    QVariantMap traceContext(const QString& id = {}) const;
     void dispatch(const QString&);
     void tryStatic(const QString&);
     void adoptPublication(const QString&);

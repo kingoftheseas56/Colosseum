@@ -37,6 +37,16 @@ Column {
     property var _loadCancel: null
 
     property var rawRows: []
+    onRawRowsChanged: {
+        if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled) {
+            var catalog=page.pageKey === "anime" ? page.malCatalog : page.imdbCatalog
+            var state=catalog && typeof catalog.landingState === "function" ? catalog.landingState(page.pageKey) : ({})
+            console.info("CATALOGUE_TRACE " + JSON.stringify({event:"qml_model_updated",epochMs:Date.now(),
+                component:"TheatreCatalogPage",dataset:page.pageKey === "anime" ? "mal" : "imdb",
+                method:"landing",queryKey:state.key || "",tab:page.pageKey,generation:page.generation,
+                shelves:rawRows.length,rows:rawRows.reduce(function(n,r){return n+(r.items||[]).length},0)}))
+        }
+    }
     property bool loading: false
     property string errorText: ""
     property int generation: 0

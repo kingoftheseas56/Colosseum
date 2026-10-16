@@ -19,6 +19,18 @@
 #include <QTimer>
 #include <iostream>
 #include <cstdlib>
+#include <mutex>
+static std::mutex traceMutex;
+static QList<QJsonObject> traceRows;
+static QtMessageHandler tracePreviousHandler = nullptr;
+static void captureCatalogueTrace(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+    if (message.startsWith("CATALOGUE_TRACE ")) {
+        std::lock_guard<std::mutex> lock(traceMutex);
+        traceRows.append(QJsonDocument::fromJson(message.mid(16).toUtf8()).object());
+    }
+    if (tracePreviousHandler) tracePreviousHandler(type, context, message);
+    else std::cerr << message.toStdString() << '\n';
+}
 static void require(bool v, const char *why) {
     if (!v) {
         std::cerr << "FAIL " << why << '\n';
@@ -331,6 +343,64 @@ int main(int argc, char **argv) {
                 first.result.toArray().at(0).toObject().value("title") == "publication-one",
             "prepared exact result");
     require(posts == 0, "prepared uses no guest or Worker POST");
+    {
+        const auto originalTrace = qgetenv("COLOSSEUM_CATALOGUE_TRACE");
+        qunsetenv("COLOSSEUM_CATALOGUE_TRACE");
+        traceRows.clear();
+        tracePreviousHandler = qInstallMessageHandler(captureCatalogueTrace);
+        require(resolve(r).status == StaticCatalogueResolver::Status::Prepared && traceRows.isEmpty(),
+                "catalogue timeline diagnostics are silent by default");
+        qputenv("COLOSSEUM_CATALOGUE_TRACE", "1");
+        auto* traced = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("trace"), &app);
+        require(resolve(traced).status == StaticCatalogueResolver::Status::Prepared,
+                "diagnostics preserve prepared result behavior");
+        {
+            CatalogRemote tracedRemote("imdb");
+            tracedRemote.configure(&nam, origin, temp.filePath("trace/remote.json"));
+            tracedRemote.read("titleCatalog", landingChildArgs, QVariantList());
+            until([&] { return !tracedRemote.pending() && !tracedRemote.cacheWritePending(); });
+            require(tracedRemote.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "success",
+                    "trace-enabled native query retains exact success");
+        }
+        qInstallMessageHandler(tracePreviousHandler);
+        if (originalTrace.isNull()) qunsetenv("COLOSSEUM_CATALOGUE_TRACE");
+        else qputenv("COLOSSEUM_CATALOGUE_TRACE", originalTrace);
+        const auto nativeKey = identity.queryKey("titleCatalog", landingChildArgs);
+        const auto leafHash = hash(files[leaf]);
+        const auto position = [&](const QString& name, const QString& component,
+                                  const QString& fileHash = QString()) {
+            for (qsizetype n = 0; n < traceRows.size(); ++n) {
+                const auto& row = traceRows[n];
+                if (row.value("event") == name && row.value("component") == component
+                    && (row.value("queryKey") == nativeKey || row.value("queryKeys").toArray().contains(nativeKey))
+                    && (fileHash.isEmpty() || row.value("fileHash") == fileHash)) return n;
+            }
+            return qsizetype(-1);
+        };
+        const auto ordered = [&](const QStringList& events, const QString& component,
+                                 const QString& fileHash = QString()) {
+            qsizetype previous = -1;
+            for (const auto& name : events) {
+                const auto current = position(name, component, fileHash);
+                require(current > previous, "diagnostic phase events exist in causal order");
+                previous = current;
+            }
+        };
+        ordered({"enqueue", "dispatch", "result_delivery_begin", "result_delivery_end"}, "resolver");
+        ordered({"network_queued", "network_start", "network_bytes_done", "json_parse_begin",
+                 "json_parse_end", "disk_write_begin", "disk_write_end"}, "resolver", leafHash);
+        ordered({"enqueue", "dispatch", "result_ready", "result_delivery_begin", "result_delivery_end"}, "remote");
+        ordered({"cache_persist_queued", "cache_persist_begin", "cache_serialize_begin",
+                 "cache_serialize_end", "disk_write_begin", "disk_write_end", "cache_persist_end"}, "remote");
+        for (const auto& row : traceRows) {
+            require(row.value("epochMs").toDouble() > 0 && row.value("monotonicMs").toDouble() > 0,
+                    "timeline carries epoch and monotonic clocks");
+            const auto raw = json(row);
+            require(!row.contains("args") && !raw.contains("127.0.0.1") && !raw.contains("Bearer ")
+                        && !raw.contains(temp.path().toUtf8()),
+                    "diagnostics redact arguments, endpoints, credentials and local cache paths");
+        }
+    }
     const int coldGets = gets;
     auto warm = resolve(r);
     require(warm.status == StaticCatalogueResolver::Status::Prepared && gets == coldGets,
