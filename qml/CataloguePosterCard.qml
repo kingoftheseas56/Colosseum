@@ -31,6 +31,10 @@ Item {
     // Biblio hook: when true, render `item.author` PERSISTENTLY under the title (not gated
     // by hover/focus at all) — the author is always-on identity, not reveal-only metadata.
     property bool showAuthorAtRest: false
+    // Only cards actually revealed once retain the loaded details across hover exits.
+    // Reset when the delegate becomes a skeleton so stale detail is never retained.
+    property bool _revealWasBuilt: false
+    onSkeletonChanged: if (card.skeleton) card._revealWasBuilt = false
     signal activated(var item)
 
     readonly property var _m: Metrics.profile(card.visualProfile)
@@ -127,95 +131,109 @@ Item {
         // ── hover reveal: a rounded scrim + metadata (and, classic only, the centered play ring) ──
         Item {
             id: reveal
+            objectName: card.objectName.length ? card.objectName + "_reveal_wrapper" : ""
             anchors.fill: parent
             visible: !card.skeleton
             opacity: card.revealActive ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: card._m.imageRevealDuration } }
 
-            // classic scrim — the current full-height gradient (unchanged look for Discover).
-            Rectangle {
-                visible: !card._gallery
+            Loader {
+                id: revealLoader
+                objectName: card.objectName.length ? card.objectName + "_reveal_loader" : ""
                 anchors.fill: parent
-                radius: card._m.posterRadius
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.55; color: Qt.rgba(6 / 255, 5 / 255, 12 / 255, 0.30) }
-                    GradientStop { position: 1.0; color: Qt.rgba(6 / 255, 5 / 255, 12 / 255, 0.92) }
-                }
-            }
-            // gallery scrim — bottom-only, letting the artwork dominate (mock 2026-08-02).
-            Rectangle {
-                visible: card._gallery
-                anchors.fill: parent
-                radius: card._m.posterRadius
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.54; color: "transparent" }
-                    GradientStop { position: 0.64; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.10) }
-                    GradientStop { position: 1.0; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.92) }
-                }
-            }
+                active: !card.skeleton && (card.revealActive || card._revealWasBuilt)
+                onLoaded: card._revealWasBuilt = true
+                sourceComponent: Component {
+                    Item {
+                        anchors.fill: parent
 
-            // classic centered play ring (gold outline + ▶). Gallery omits it entirely.
-            Rectangle {
-                visible: !card._gallery
-                anchors.centerIn: parent
-                width: 46; height: 46; radius: 23
-                color: Qt.rgba(8 / 255, 7 / 255, 14 / 255, 0.34)
-                border.width: 1.5; border.color: theme.gold
-                Text {
-                    anchors.centerIn: parent
-                    anchors.horizontalCenterOffset: 2
-                    text: "▶"; color: theme.gold; font.pixelSize: 16
-                }
-            }
+                        // classic scrim — the current full-height gradient (unchanged look for Discover).
+                        Rectangle {
+                            visible: !card._gallery
+                            anchors.fill: parent
+                            radius: card._m.posterRadius
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "transparent" }
+                                GradientStop { position: 0.55; color: Qt.rgba(6 / 255, 5 / 255, 12 / 255, 0.30) }
+                                GradientStop { position: 1.0; color: Qt.rgba(6 / 255, 5 / 255, 12 / 255, 0.92) }
+                            }
+                        }
+                        // gallery scrim — bottom-only, letting the artwork dominate (mock 2026-08-02).
+                        Rectangle {
+                            visible: card._gallery
+                            anchors.fill: parent
+                            radius: card._m.posterRadius
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "transparent" }
+                                GradientStop { position: 0.54; color: "transparent" }
+                                GradientStop { position: 0.64; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.10) }
+                                GradientStop { position: 1.0; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.92) }
+                            }
+                        }
 
-            // classic metadata — year + ★rating, bottom-left (unchanged look for Discover).
-            Row {
-                visible: !card._gallery
-                anchors.left: parent.left; anchors.leftMargin: 11
-                anchors.right: parent.right; anchors.rightMargin: 11
-                anchors.bottom: parent.bottom; anchors.bottomMargin: 11
-                spacing: 9
-                Text {
-                    visible: card.yearText.length > 0
-                    text: card.yearText
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                }
-                Text {
-                    visible: card.ratingValue.length > 0
-                    text: card.ratingText
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                }
-            }
+                        // classic centered play ring (gold outline + ▶). Gallery omits it entirely.
+                        Rectangle {
+                            visible: !card._gallery
+                            anchors.centerIn: parent
+                            width: 46; height: 46; radius: 23
+                            color: Qt.rgba(8 / 255, 7 / 255, 14 / 255, 0.34)
+                            border.width: 1.5; border.color: theme.gold
+                            Text {
+                                anchors.centerIn: parent
+                                anchors.horizontalCenterOffset: 2
+                                text: "▶"; color: theme.gold; font.pixelSize: 16
+                            }
+                        }
 
-            // gallery metadata — SVG star + rating bottom-left, source attribution bottom-right.
-            Item {
-                visible: card._gallery
-                anchors.left: parent.left; anchors.leftMargin: 11
-                anchors.right: parent.right; anchors.rightMargin: 11
-                anchors.bottom: parent.bottom; anchors.bottomMargin: 12
-                height: 14
-                Row {
-                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    spacing: 5
-                    visible: card.ratingValue.length > 0
-                    Image {
-                        source: "../assets/icons/rating-star.svg"
-                        width: 12; height: 12; sourceSize.width: 24; sourceSize.height: 24
-                        anchors.verticalCenter: parent.verticalCenter
+                        // classic metadata — year + ★rating, bottom-left (unchanged look for Discover).
+                        Row {
+                            visible: !card._gallery
+                            anchors.left: parent.left; anchors.leftMargin: 11
+                            anchors.right: parent.right; anchors.rightMargin: 11
+                            anchors.bottom: parent.bottom; anchors.bottomMargin: 11
+                            spacing: 9
+                            Text {
+                                visible: card.yearText.length > 0
+                                text: card.yearText
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            }
+                            Text {
+                                visible: card.ratingValue.length > 0
+                                text: card.ratingText
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            }
+                        }
+
+                        // gallery metadata — SVG star + rating bottom-left, source attribution bottom-right.
+                        Item {
+                            visible: card._gallery
+                            anchors.left: parent.left; anchors.leftMargin: 11
+                            anchors.right: parent.right; anchors.rightMargin: 11
+                            anchors.bottom: parent.bottom; anchors.bottomMargin: 12
+                            height: 14
+                            Row {
+                                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                spacing: 5
+                                visible: card.ratingValue.length > 0
+                                Image {
+                                    source: "../assets/icons/rating-star.svg"
+                                    width: 12; height: 12; sourceSize.width: 24; sourceSize.height: 24
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: card.ratingValue
+                                    color: theme.ink; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                            Text {
+                                visible: card.hoverSourceText.length > 0
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                text: card.hoverSourceText
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                            }
+                        }
                     }
-                    Text {
-                        text: card.ratingValue
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-                Text {
-                    visible: card.hoverSourceText.length > 0
-                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: card.hoverSourceText
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
                 }
             }
         }
