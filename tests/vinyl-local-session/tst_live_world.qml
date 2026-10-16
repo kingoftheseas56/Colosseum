@@ -51,6 +51,19 @@ TestCase {
         function list(scope){return recent;}
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
     }
+    function test_deviceAccountRelay_data(){return [{tag:"wide",width:1280},{tag:"narrow",width:1024}];}
+    function test_deviceAccountRelay(data){
+        host.width=data.width;world.width=data.width;wait(0);
+        verify(typeof world.accountClicked === "function", "Device button needs a shell account relay");
+        var count=0,right=0,bottom=0;
+        world.accountClicked.connect(function(x,y){count++;right=x;bottom=y;});
+        var button=item("colosseumTopbarAccountButton");
+        var input=item("colosseumTopbarAccountInput");
+        verify(button && input && input.visible);
+        var anchor=button.mapToItem(null,button.width,button.height);
+        mouseClick(input,input.width/2,input.height/2);wait(0);
+        compare(count,1);compare(right,anchor.x);compare(bottom,anchor.y);
+    }
     function test_recentSearchMenuKeyboardAndProfileClosure(){
         seed(2);history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
         var input=item("vinylSearchInput");input.forceActiveFocus();keyClick(Qt.Key_Q);keyClick(Qt.Key_A);keyClick(Qt.Key_Return);wait(0);

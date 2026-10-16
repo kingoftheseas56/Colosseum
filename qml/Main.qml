@@ -3810,6 +3810,9 @@ Window {
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
                     if (mode === "Vinyl") {
+                        item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                            accountFlyout.toggleAt(anchorRight, anchorBottom)
+                        })
                         win.vinylWorld = item
                         item.shellDockRight = Qt.binding(function() {
                             return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0

@@ -33,6 +33,7 @@ Item {
     signal fullscreenClicked()
     signal powerClicked()
     signal playbackRequested()
+    signal accountClicked(real anchorRight, real anchorBottom)
     function captureRoute() {
         return {page:page,focus:Window.window ? Window.window.activeFocusItem : null,
             worldY:worldScroll.contentY,albumY:album.contentY,artistY:artist.contentY,
@@ -135,6 +136,7 @@ Item {
         id:top;objectName:"vinylTopBar"
         anchors {left:parent.left;right:parent.right;top:parent.top;margins:theme.margin}
         backdrop:vinylBackdrop;activeMedium:"Vinyl";lifecycleActive:root.lifecycleActive
+        onAccountClicked:(anchorRight,anchorBottom)=>root.accountClicked(anchorRight,anchorBottom)
         onHomeRequested:root.homeRequested()
         onMediumSelected:medium=>root.mediumSelected(medium)
         onSearchClicked:{root.page="discover";world.setTab("discover");query.forceActiveFocus()}

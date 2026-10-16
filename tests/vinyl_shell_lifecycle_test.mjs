@@ -74,3 +74,16 @@ loadedRoot.audioHandoffPaused=true;loadedMpv.pause=false;
 vm.runInNewContext('(function(){'+pauseBody[1]+'\n})',{root:loadedRoot,mpv:loadedMpv})();
 assert.equal(loadedMpv.pause,true,'unsolicited native unpause cannot clear handoff');
 console.log('PASS actual Theatre fileLoaded and native-unpause fence bodies');
+
+// The Vinyl early-return branch must relay the same anchored flyout as other worlds.
+const vinylBranch=main.slice(main.indexOf('if (mode === "Vinyl") {'),main.indexOf('item.seriesRequested.connect(win.openSeries)'));
+const accountWire=vinylBranch.match(/item\.accountClicked\.connect\(function\(anchorRight, anchorBottom\) \{([\s\S]*?)\}\)/);
+assert.ok(accountWire, 'Vinyl account button reaches the shell flyout');
+assert.equal((vinylBranch.match(/item\.accountClicked\.connect/g)||[]).length,1);
+const anchors=[];
+vm.runInNewContext('(function(anchorRight,anchorBottom){'+accountWire[1]+'})',
+ {accountFlyout:{toggleAt:(x,y)=>anchors.push([x,y])}})(432,76);
+assert.deepEqual(anchors,[[432,76]]);
+assert.match(main,/onAccountClicked: \(anchorRight, anchorBottom\) => accountFlyout.toggleAt\(anchorRight, anchorBottom\)/);
+assert.match(main,/if \(item.accountClicked\) item.accountClicked.connect/);
+console.log('PASS single Vinyl account relay preserves coordinates and existing Home/generic routes');
