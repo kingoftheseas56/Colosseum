@@ -223,8 +223,8 @@ Column {
                 if (traceSync) { moveMs += Date.now() - moveStart; moved++ }
                 keys.splice(at, 1)
                 keys.splice(j, 0, key)
-                var moved = signatures.splice(at, 1)[0]
-                signatures.splice(j, 0, moved)
+                var movedSignature = signatures.splice(at, 1)[0]
+                signatures.splice(j, 0, movedSignature)
             }
             if (signature === null || signature === undefined || signatures[j] !== signature) {
                 var updateStart = traceSync ? Date.now() : 0
