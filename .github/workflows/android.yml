@@ -36,6 +36,7 @@ jobs:
 
       - name: Reader publication and message boundary
         run: |
+          python tests/test_android_cache_paths.py
           python tests/test_android_reader_session.py
           node tests/android_reader_boot_test.mjs
           python tests/test_android_openssl_packaging_contract.py
@@ -56,17 +57,30 @@ jobs:
             libegl1 libgl1 libxkbcommon0 libfontconfig1 libx11-6 libdbus-1-3 libglib2.0-0t64
           ccache --max-size=2G
 
+      - name: Normalize Android cache paths
+        id: android-paths
+        run: bash scripts/android/prepare_cache_paths.sh
+
       - name: Restore toolchain (Qt, SDK, NDK)
         id: toolchain-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
-            ${{ env.COLOSSEUM_ANDROID_TOOLCHAIN }}/Qt
-            ${{ env.COLOSSEUM_ANDROID_TOOLCHAIN }}/android-sdk
+            ${{ steps.android-paths.outputs.toolchain }}/Qt
+            ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
           key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
 
       - name: Install toolchain
         run: scripts/android/install_toolchain.sh
+
+      - name: Save installed toolchain
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ steps.android-paths.outputs.toolchain }}/Qt
+            ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
+          key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
 
       - name: Compile Android-selected QML before building APKs
         run: |
@@ -81,7 +95,7 @@ jobs:
         id: deps-cache
         uses: actions/cache/restore@v4
         with:
-          path: ${{ env.COLOSSEUM_ANDROID_DEPS }}
+          path: ${{ steps.android-paths.outputs.deps }}
           key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
 
       - name: Build OpenSSL / Boost / libtorrent (cache miss only)
@@ -94,7 +108,7 @@ jobs:
         if: steps.deps-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ${{ env.COLOSSEUM_ANDROID_DEPS }}
+          path: ${{ steps.android-paths.outputs.deps }}
           key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
 
       - name: Decode stable test signing key
