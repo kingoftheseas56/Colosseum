@@ -11,7 +11,6 @@ import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
 import "account"
-import "feria" as Feria
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
@@ -43,6 +42,10 @@ Window {
     property string currentSurface: "Home"
     readonly property alias televisionMode: phoneShell.televisionMode
     property var feriaReturnSnapshot: null
+    // Feria is desktop-only (its deck rides QtWebEngine, which Android does not ship).
+    // Every Feria surface below is a string-source Loader gated on this flag, so nothing
+    // under qml/feria/ is parsed on Android.
+    readonly property bool feriaAvailable: Qt.platform.os !== "android"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -1975,8 +1978,9 @@ Window {
         active: open && feriaLayer.open && feriaLayer.item !== null
         visible: active
         onActiveChanged: if (!active) open = false
-        sourceComponent: Feria.YourFeriaPage { controller: feriaLayer.item }
+        source: "feria/YourFeriaPage.qml"
         onLoaded: {
+            item.controller = feriaLayer.item
             item.backRequested.connect(win.closeYourFeriaPage)
             item.settingsRequested.connect(function() { feriaLayer.item.openApps() })
             item.takeKeyboardFocus()
@@ -4838,7 +4842,8 @@ Window {
                 win.refreshWallpaper()
             }
         }
-        active: open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0)
+        active: win.feriaAvailable
+                && (open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0))
         visible: open
         source: "feria/FeriaWorld.qml"
         Binding {
@@ -4846,6 +4851,13 @@ Window {
             property: "lifecycleActive"
             value: feriaLayer.open
             when: feriaLayer.item !== null
+        }
+        Binding {
+            target: feriaLayer.item
+            property: "browserDeck"
+            // A Binding, not an onLoaded assignment: the deck Loader may complete after
+            // this layer's item when a browser session restores at startup.
+            value: feriaSessionDeck.item
         }
         Binding {
             target: feriaLayer.item
@@ -4857,7 +4869,6 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.sharedAccount = true
-            item.browserDeck = feriaSessionDeck
             item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
                 var id = Sessions.openBrowser(descriptor, fresh, navigate)
                 if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
@@ -4899,24 +4910,47 @@ Window {
         function onProfileChanged() { win.feriaReturnSnapshot = null }
     }
 
-    Feria.FeriaSessionDeck {
+    // The deck is a string-source Loader so Android (no Feria, no QtWebEngine) never
+    // parses FeriaSessionDeck.qml. Shell-side faces below stay null-safe while inactive.
+    Loader {
         id: feriaSessionDeck
-        sessions: Sessions
-        accountStore: FeriaAccount
-        policy: FeriaBrowserPolicy
-        fullSizeSurface: feriaFullSizeSurface
+        objectName: "feriaSessionDeck"
+        active: win.feriaAvailable
+        source: "feria/FeriaSessionDeck.qml"
         z: 58.5
         readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
                                                         : Qt.rect(0, 160, win.width, win.height - 160)
         x: viewport.x; y: viewport.y; width: viewport.width; height: viewport.height
-        displayed: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
-            && feriaLayer.item.hostSessionId.length > 0
-        suppressed: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
-            || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
-        onMessage: function(id, text) {
-            if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+        // Forwarded faces for shell references (feriaConsentSurface geometry, session teardown).
+        readonly property var activeEntry: item ? item.activeEntry : null
+        readonly property var embeddedConsent: item ? item.embeddedConsent : false
+        readonly property var embeddedDiagnostic: item ? item.embeddedDiagnostic : ""
+        readonly property var entries: item ? item.entries : ({})
+        function closeTab(id) { if (item) item.closeTab(id) }
+        function restoreSession(id) { if (item) item.restoreSession(id) }
+        function navigateSession(id, url, position, locator, ctx) { if (item) item.navigateSession(id, url, position, locator, ctx) }
+        Binding {
+            target: feriaSessionDeck.item
+            property: "displayed"
+            value: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
+                && feriaLayer.item.hostSessionId.length > 0
         }
-        Component.onCompleted: attachConsentSurface(feriaConsentSurface)
+        Binding {
+            target: feriaSessionDeck.item
+            property: "suppressed"
+            value: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
+                || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
+        }
+        onLoaded: {
+            item.sessions = Sessions
+            item.accountStore = FeriaAccount
+            item.policy = FeriaBrowserPolicy
+            item.fullSizeSurface = feriaFullSizeSurface
+            item.message.connect(function(id, text) {
+                if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+            })
+            item.attachConsentSurface(feriaConsentSurface)
+        }
     }
 
     // Permanent hosts outlive the Feria Loader. Max moves the live page here;

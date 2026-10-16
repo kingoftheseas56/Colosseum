@@ -67,6 +67,9 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_QML_FILES CONFIGURE_DEPENDS
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^reader2/Paper[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
+# Feria is desktop-only forever: its deck rides QtWebEngine, which Android never ships.
+# Main.qml references it only through string-source Loaders gated off on Android.
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 foreach(_qml_rel IN LISTS COLOSSEUM_ANDROID_QML_FILES)
     get_filename_component(_qml_out_dir "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" DIRECTORY)
     file(MAKE_DIRECTORY "${_qml_out_dir}")
