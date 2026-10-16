@@ -1638,6 +1638,14 @@ foreach(vinyl_suite IN ITEMS
         TIMEOUT 120)
 endforeach()
 
+add_test(NAME colosseum.qml.account_flyout_local_privacy
+    COMMAND colosseum_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_account_flyout_local_privacy.qml")
+set_tests_properties(colosseum.qml.account_flyout_local_privacy PROPERTIES
+    LABELS "qml;privacy;vinyl;regression"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input
                  "${CMAKE_CURRENT_SOURCE_DIR}/qml/tracker_sync_center")
