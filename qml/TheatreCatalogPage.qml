@@ -31,6 +31,9 @@ Column {
     // TheatreWorld retains this page for fast tab switches, but catalogue transport should wait
     // until the world/tab is active.
     property bool active: true
+    // ListModel inserts instantiate delegates synchronously, before the outer Column
+    // commits their page-local y positions. Gate first rail residency until forceLayout().
+    property bool _constructingMainPresentation: false
     property bool _ready: false
     property bool _loadedOnce: false
     property bool _hasSettled: false
@@ -180,6 +183,7 @@ Column {
     property var _presentedSignatures: []
     onMainRowsChanged: page._syncMainPresentation()
     function _syncMainPresentation() {
+        page._constructingMainPresentation = true
         var traceSync = typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled
         var traceStart = traceSync ? Date.now() : 0
         var signatureMs = 0, insertMs = 0, updateMs = 0, moveMs = 0, removeMs = 0
@@ -235,6 +239,10 @@ Column {
         }
         page._presentedKeys = keys
         page._presentedSignatures = signatures
+        // Commit the owning Column positions before any first-load viewport decision.
+        // Releasing the gate constructs only genuinely nearby rails, included in sync timing.
+        page.forceLayout()
+        page._constructingMainPresentation = false
         if (traceSync) {
             console.info("CATALOGUE_TRACE " + JSON.stringify({event: "qml_presentation_sync",
                 component: "TheatreCatalogPage", epochMs: Date.now(), tab: page.pageKey,
@@ -486,6 +494,7 @@ Column {
                 // in rowBlock-local coordinates. (No per-frame mapToItem — a single subtraction.)
                 viewportTop: page.viewportTop - rowBlock.y
                 viewportHeight: page.viewportHeight
+                geometryReady: !page._constructingMainPresentation
                 editMode: page.editMode
                 onItemRequested: (item) => page.itemRequested(item)
                 onSeeAllRequested: (pin) => page.seeAllRequested(pin)
