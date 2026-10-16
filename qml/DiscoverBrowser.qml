@@ -125,9 +125,23 @@ Item {
     property int adapterRev: 0               // bump to force adapter-derived bindings to re-evaluate
 
     property var items: []
-    onItemsChanged: if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled)
-        console.info("CATALOGUE_TRACE " + JSON.stringify({event:"qml_model_updated",epochMs:Date.now(),
-            component:"DiscoverBrowser",world:automationPrefix,type:currentType,catalog:currentCatalogKey,generation:fetchGen,rows:items.length}))
+    // Only a successfully accepted page may claim a native query as its model cause.
+    // Resets, type restores, pin changes and rejected/failed callbacks have no owner.
+    // Tankoban's component name matches analyze_arms.py's pid-scoped QML allowlist.
+    function traceModel(eventName, nativeKey, elapsed, gen, state) {
+        if (typeof CatalogueTraceEnabled === "undefined" || !CatalogueTraceEnabled) return
+        if (!active || (gen !== undefined && gen !== fetchGen)) return
+        if (state && (state.type !== currentType || state.catalogKey !== currentCatalogKey)) return
+        console.info("CATALOGUE_TRACE " + JSON.stringify({
+            event:eventName, epochMs:Date.now(),
+            component:automationPrefix === "tankoban" ? "TankobanDiscoverBrowser" : "DiscoverBrowser",
+            world:automationPrefix, type:state ? state.type : currentType,
+            catalog:state ? state.catalogKey : currentCatalogKey,
+            generation:gen !== undefined ? gen : fetchGen,
+            queryKey:typeof nativeKey === "string" && nativeKey.length ? nativeKey : null,
+            rows:items.length, elapsedMs:elapsed
+        }))
+    }
     property bool loading: false
     property bool exhausted: false
     property string warning: ""
@@ -577,10 +591,16 @@ Item {
         loading = true
         var gen = ++fetchGen
         var st = pageState()
+        // Ephemeral, opt-in callback: time the adapter's actual normalization
+        // without exposing a diagnostic query identity as catalogue state.
+        if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled)
+            st._tracePhase = function(eventName, key, elapsed) {
+                browser.traceModel(eventName, key, elapsed, gen, st)
+            }
         var handle = adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
-            if (!browser.active || replyGen !== browser.fetchGen) return
+            if (!browser.active || replyGen !== gen || replyGen !== browser.fetchGen) return
             browser._pageCancel = null
-            browser.acceptPage(page)
+            browser.acceptPage(page, gen, st)
         })
         if (browser.loading && browser.active && browser.fetchGen === gen)
             browser._pageCancel = (typeof handle === "function") ? handle : null
@@ -594,7 +614,7 @@ Item {
         if (typeof handle === "function") handle()
     }
 
-    function acceptPage(page) {
+    function acceptPage(page, gen, st) {
         if (!page) { loading = false; exhausted = true; return }
         if (page.failed === true) {
             loading = false
@@ -603,6 +623,10 @@ Item {
             pageRetryable = page.retryable === true
             return
         }
+        var tracing = typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled
+        var key = typeof page._traceQueryKey === "string" ? page._traceQueryKey : null
+        var modelStarted = tracing ? Date.now() : 0
+        if (tracing) traceModel("qml_model_begin", key, 0, gen, st)
         pageFailed = false
         warning = page.warning || ""
         freshness = page.freshness || ""
@@ -618,6 +642,11 @@ Item {
         // Otherwise loading=false first drops the model to zero and reconstructs
         // every visible poster card when items is assigned immediately afterward.
         loading = false
+        if (tracing) {
+            var elapsed = Date.now() - modelStarted
+            traceModel("qml_model_end", key, elapsed, gen, st)
+            traceModel("qml_model_updated", key, elapsed, gen, st)
+        }
     }
 
 

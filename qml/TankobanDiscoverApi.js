@@ -407,14 +407,37 @@ function remotePage(deps, catalog, state, cursor, generation, done, axisFor, pai
     var filters = nativeFilters(state, axisFor);
     var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
     var explicit = deps.showExplicit;
-    function delivered(stale) {
+    function delivered(stale, outcome) {
+        // This is the exact native query identity from waitQuery's terminal snapshot.
+        // It is diagnostic-only page metadata, never a key derived from JS arguments,
+        // a cache entry, or a persistent catalogue field.
+        var nativeKey = outcome && outcome.state && outcome.state.source === "remote"
+                     && typeof outcome.state.key === "string" && outcome.state.key.length
+                     ? outcome.state.key : null;
+        var phase = typeof state._tracePhase === "function" ? state._tracePhase : null;
+        var started = phase ? Date.now() : 0;
+        var conversionClosed = false;
+        function closeConversion() {
+            if (!phase || conversionClosed) return;
+            conversionClosed = true;
+            phase("qml_conversion_end", nativeKey, Date.now() - started);
+        }
         var copy = {};
         for (var key in deps) copy[key] = deps[key];
         copy._semanticDelivered = true;
-        paint(copy, state, cursor, generation, function(gen, page) {
-            if (stale && page) page.warning = REMOTE_STALE_WARNING;
-            done(gen, page);
-        });
+        if (phase) phase("qml_conversion_begin", nativeKey, 0);
+        try {
+            paint(copy, state, cursor, generation, function(gen, page) {
+                if (stale && page) page.warning = REMOTE_STALE_WARNING;
+                if (page && nativeKey !== null && phase) page._traceQueryKey = nativeKey;
+                // Close conversion BEFORE done(), which may synchronously navigate,
+                // cancel or reenter a different generation in the shared shell.
+                closeConversion();
+                done(gen, page);
+            });
+        } finally {
+            closeConversion();
+        }
     }
     if (typeof catalog.discoverPageFilteredState !== "function") {
         return CatalogDelivery.wait(catalog, function() {
@@ -426,7 +449,7 @@ function remotePage(deps, catalog, state, cursor, generation, done, axisFor, pai
     }, function() {
         return catalog.discoverPageFilteredState(state.catalogKey, filters, explicit, offset, 24);
     }, function(outcome) {
-        if (outcome.hasData) { delivered(!outcome.ok); return; }
+        if (outcome.hasData) { delivered(!outcome.ok, outcome); return; }
         done(generation, { items: [], nextCursor: cursor, exhausted: false, freshness: "", warning: "",
                            failed: true, retryable: !!(outcome.state && outcome.state.retryable),
                            error: outcome.error || outcome.reason });
