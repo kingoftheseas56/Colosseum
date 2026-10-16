@@ -14,6 +14,7 @@ import QtQuick
 import "CatalogDelivery.js" as CatalogDelivery
 import "Catalog.js" as Catalog
 import "ComicsDb.js" as ComicsDb
+import "ComicsShelfDelivery.js" as ComicsShelves
 import "NextUp.js" as NextUp
 
 WorldPage {
@@ -116,55 +117,15 @@ WorldPage {
     // the world's first open.
     function initializeComicCatalogue() {
         if (tanko._catalogueInitialized) return
+        if (!tanko.prepareComicLanding()) return
         tanko._catalogueInitialized = true
         if (!tanko._comicEngineOk) tanko.wireComicEngine()
         var catalogOk = tanko._comicEngineOk
         tanko.comicRows = catalogOk ? ComicsDb.rankedSeries() : Catalog.topComics
         if (catalogOk) console.log("ComicsDb: engine live, " + tanko.comicRows.length + " series")
         else console.warn("ComicsDb: catalogue engine unavailable — using curated fallback")
-        // Catalogue shelf rows (browse-landing, ratified lineup): each row computes its
-        // model once from ComicsCatalog.shelf(kind, arg, 24); rows with no rows just don't
-        // render (Repeater below skips empty entries via a length check on the delegate).
-        if (typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)) {
-            var shelfSpecs = [
-                { label: "Most Stocked", kind: "stocked", arg: "" },
-                { label: "Marvel", kind: "publisher", arg: "Marvel" },
-                { label: "DC", kind: "publisher", arg: "DC" },
-                { label: "Image", kind: "publisher", arg: "Image" },
-                { label: "The 2020s", kind: "decade", arg: "2020" },
-                { label: "The 2010s", kind: "decade", arg: "2010" },
-                { label: "Deep Shelves", kind: "deep", arg: "" },
-                { label: "Fan-Made Shelf", kind: "fanmade", arg: "" }
-            ]
-            tanko.comicShelves = shelfSpecs.map(function(spec) {
-                var rows = ComicsCatalog.shelf(spec.kind, spec.arg, 24) || []
-                return {
-                    label: spec.label,
-                    kind: spec.kind,            // carried so the tab can build a Discover pin
-                    arg: spec.arg,              //   (publisher arg = stable key; stocked = own catalogue)
-                    rows: rows.map(function(r) {
-                        return { caption: r.title + (r.year ? " (" + r.year + ")" : ""),
-                                 cover: r.cover || "", gcdId: r.gcdId, title: r.title }
-                    })
-                }
-            })
-            var arc21 = [
-                {label:"Recently Available", catalogId:"recently-available", group:"", key:""},
-                {label:"Complete Runs", catalogId:"complete-runs", group:"", key:""},
-                {label:"Near Complete", catalogId:"near-complete", group:"", key:""},
-                {label:"Omnibuses", catalogId:"popular", group:"format", key:"omnibus"},
-                {label:"Deluxe Editions", catalogId:"popular", group:"format", key:"deluxe"},
-                {label:"Graphic Novels", catalogId:"popular", group:"format", key:"graphic novel"},
-                {label:"Community Collections", catalogId:"community-collections", group:"", key:""}
-            ].map(function(spec) {
-                var page=ComicsCatalog.discoverPage(spec.catalogId,spec.group,spec.key,false,0,24)||({})
-                return {label:spec.label,catalogId:spec.catalogId,filterGroup:spec.group,filterKey:spec.key,
-                    rows:(page.items||[]).map(function(r){return {caption:r.title+(r.year?" ("+r.year+")":""),cover:r.cover||"",locgId:"locg:"+r.locgId,title:r.title}})}
-            })
-            tanko.comicShelves = arc21.concat(tanko.comicShelves)
-        } else {
-            tanko.comicShelves = []
-        }
+        tanko.comicShelves = typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)
+            ? ComicsShelves.initial(ComicsCatalog) : []
         if (catalogOk) {
             var genres = ComicsDb.genreShelves(8)
             tanko.comicBoxes = genres.map(function(g, i) {
@@ -184,13 +145,47 @@ WorldPage {
     // The shelf queries wait one frame so the tab reacts to the click before they run.
     onActiveTabChanged: if (tanko.activeTab === "comics") comicCatalogueTimer.restart()
     Timer { id: comicCatalogueTimer; interval: 30; onTriggered: tanko.initializeComicCatalogue() }
+    function prepareComicLanding() {
+        if (typeof ComicsCatalog === "undefined" || !ComicsCatalog.remoteEnabled
+                || typeof ComicsCatalog.landingState !== "function") return true
+        var state = ComicsCatalog.landingState("comics")
+        if (state.source === "local") return true
+        if (state.status === "missing" || (state.status === "success" && state.cached)) {
+            ComicsCatalog.landing("comics") // also re-prime independently evicted children
+            state = ComicsCatalog.landingState("comics")
+        }
+        if (state.status === "pending") return false
+        return (state.status === "success" && state.cached) || state.error === "STATIC_NOT_PREPARED"
+    }
+    function updateComicGenres() {
+        var genres = ComicsDb.genreShelves(8)
+        tanko.comicBoxes = genres.map(function(g, i) {
+            var pal = tanko._genrePalette[i % tanko._genrePalette.length]
+            return {name:g.name,count:g.count,c1:pal[0],c2:pal[1]}
+        })
+        var covers = []
+        genres.forEach(function(g) { (g.covers || []).forEach(function(c) { if(c) covers.push(c) }) })
+        tanko.comicCovers = covers
+    }
+    function resetComicCatalogue() {
+        tanko._catalogueInitialized = false
+        tanko.wireComicEngine()
+        if (tanko.lifecycleActive && tanko.activeTab === "comics") comicCatalogueTimer.restart()
+    }
     Connections {
         target: typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
         ignoreUnknownSignals: true
-        function onRevisionChanged() {
-            tanko._catalogueInitialized = false;
-            tanko.wireComicEngine();
-            if (tanko.lifecycleActive && tanko.activeTab === "comics") comicCatalogueTimer.restart();
+        function onCatalogueSourceChanged() { tanko.resetComicCatalogue() }
+        function onReadyChanged() { tanko.resetComicCatalogue() }
+        function onRemoteQueryChanged(key) {
+            if (!tanko._catalogueInitialized) {
+                if (tanko.lifecycleActive && tanko.activeTab === "comics") comicCatalogueTimer.restart()
+                return
+            }
+            var catalog = ComicsCatalog
+            if (key === catalog.remoteQueryKey("curatedRanked", [])) tanko.comicRows = ComicsDb.rankedSeries()
+            else if (key === catalog.remoteQueryKey("curatedGenreShelves", [8])) tanko.updateComicGenres()
+            else tanko.comicShelves = ComicsShelves.update(catalog,key,tanko.comicShelves)
         }
     }
 

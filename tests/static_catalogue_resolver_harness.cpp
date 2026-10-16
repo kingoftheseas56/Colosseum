@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
@@ -40,6 +41,24 @@ static QString hash(const QByteArray &b) {
 int staticCatalogueProbe(const QString &, const QString &, const QString &);
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
+    if (argc == 5 && (QString::fromLocal8Bit(argv[1]) == "--offline-landing"
+                      || QString::fromLocal8Bit(argv[1]) == "--warm-landing")) {
+        QNetworkAccessManager warmNam;
+        const bool warm = QString::fromLocal8Bit(argv[1]) == "--warm-landing";
+        CatalogRemote remote("imdb");
+        remote.configure(warm ? &warmNam : nullptr, QUrl(QString::fromLocal8Bit(argv[2])),
+                         QString::fromLocal8Bit(argv[3]));
+        require(remote.available(), "offline landing owner is available from persisted cache");
+        const auto bundle = remote.read("landing", {"movies"}, QVariantMap()).toMap();
+        require(bundle.value("tab") == "movies" && !remote.pending(),
+                "offline restart restores valid landing without fetching");
+        const auto rows = remote.read("titleCatalog", {QVariantMap(), 0, 24}, QVariantList()).toList();
+        require(!rows.isEmpty() && rows.first().toMap().value("title") ==
+                    QString::fromLocal8Bit(argv[4]) && !remote.pending(),
+                "offline landing child cache is immediately available");
+        std::cout << "PASS separate-process landing offline restoration\n";
+        return 0;
+    }
     if (argc == 5 && QString::fromLocal8Bit(argv[1]) == "--offline") {
         auto *resolver = StaticCatalogueResolver::shared(
             nullptr, QUrl(QString::fromLocal8Bit(argv[2])), QString::fromLocal8Bit(argv[3]), &app);
@@ -72,13 +91,30 @@ int main(int argc, char **argv) {
     bool offline = false, holdLeaf = false, rotateMissing = false;
     QList<QPointer<QTcpSocket>> held;
     QVariantList measured;
-    auto publish = [&](const QString &label) {
+    auto publish = [&](const QString &label, const QString &landingFault = QString()) {
         pub = hash(label.toUtf8());
         const QString prefix = "/catalogue/" + pub + "/";
         const QByteArray raw =
             QJsonDocument(QJsonArray{QJsonObject{{"title", label}}}).toJson(QJsonDocument::Compact);
         leaf = prefix + "shared/" + hash(raw) + ".json";
         files[leaf] = raw;
+        QJsonObject child{{"method", "titleCatalog"},
+                          {"args", QJsonArray{QJsonObject(), 0, 24}},
+                          {"result", QJsonDocument::fromJson(raw).array()}};
+        if (landingFault == "shape") child["result"] = QJsonObject();
+        if (landingFault == "args") child["args"] = QJsonArray();
+        QJsonArray queries{child};
+        if (landingFault == "duplicate") queries.append(child);
+        const auto today = QDateTime::currentDateTimeUtc().date();
+        const auto landingRaw = json({{"version", 1}, {"dataset", "imdb"}, {"tab", "movies"},
+            {"validFrom", today.addDays(-2).toString(Qt::ISODate)},
+            {"validUntil", (landingFault == "date" ? today.addDays(-1) : today.addDays(1)).toString(Qt::ISODate)},
+            {"queries", queries}});
+        const auto landingPath = prefix + "shared/" + hash(landingRaw) + ".json";
+        files[landingPath] = landingRaw;
+        QJsonObject fixed{{"[\"imdb\",\"titleCatalog\",[{},0,24]]", leaf}};
+        if (landingFault != "absent")
+            fixed["[\"imdb\",\"landing\",[\"movies\"]]"] = landingPath;
         const QString tankKey = "[\"tankoban\",\"series\",[13]]";
         QJsonArray volumes;
         for (int n = 1; n <= 113; ++n)
@@ -102,7 +138,7 @@ int main(int argc, char **argv) {
                           {"lookups", QJsonObject{{hash(tankKey.toUtf8()).left(2), tankPath}}},
                           {"search", QJsonObject()},
                           {"tankobanSourceHash", source},
-                          {"fixed", QJsonObject{{"[\"imdb\",\"titleCatalog\",[{},0,24]]", leaf}}}};
+                          {"fixed", fixed}};
         const auto bytes = json(index);
         const auto path = prefix + "index-" + hash(bytes) + ".json";
         files[path] = bytes;
@@ -188,6 +224,96 @@ int main(int argc, char **argv) {
                          row["method"] = method;
                          measured.append(row);
                      });
+    // Dedicated cache roots keep these counts independent of the legacy leaf tests.
+    const QVariantList landingArgs{QStringLiteral("movies")};
+    const QVariantList landingChildArgs{QVariantMap(), 0, 24};
+    const auto landingCache = temp.filePath("landing/remote.json");
+    {
+        CatalogRemote landing("imdb");
+        landing.configure(&nam, origin, landingCache);
+        const int before = gets, beforePosts = posts;
+        landing.read("landing", landingArgs, QVariantMap());
+        until([&] { return !landing.pending(); });
+        const auto state = landing.queryState("landing", landingArgs, QVariantMap());
+        require(state.value("status") == "success" && state.value("cached").toBool(),
+                "native landing completes with typed success");
+        require(gets == before + 3 && posts == beforePosts,
+                "cold landing fetches entry, index and exactly one bundle leaf");
+        const auto childState = landing.queryState("titleCatalog", landingChildArgs, QVariantList());
+        require(childState.value("status") == "success" && childState.value("cached").toBool(),
+                "landing hydrates exact titleCatalog query cache");
+        const int primedGets = gets;
+        const auto rows = landing.read("titleCatalog", landingChildArgs, QVariantList()).toList();
+        require(!rows.isEmpty() && rows.first().toMap().value("title") == "publication-one"
+                    && !landing.pending() && gets == primedGets && posts == beforePosts,
+                "primed individual query needs no GET, guest lease or Worker POST");
+    } // Destructor flushes the complete cache before the separate-process restart.
+    QProcess landingRestart;
+    landingRestart.start(QCoreApplication::applicationFilePath(),
+        {"--offline-landing", origin.toString(QUrl::FullyEncoded), landingCache, "publication-one"});
+    require(landingRestart.waitForFinished(15000)
+                && landingRestart.exitStatus() == QProcess::NormalExit && landingRestart.exitCode() == 0
+                && landingRestart.readAllStandardOutput().contains("PASS separate-process landing offline restoration"),
+            "landing offline restart completes cleanly");
+    QProcess warmRestart;
+    warmRestart.start(QCoreApplication::applicationFilePath(),
+        {"--warm-landing", origin.toString(QUrl::FullyEncoded), landingCache, "publication-one"});
+    require(warmRestart.waitForFinished(15000) && warmRestart.exitStatus() == QProcess::NormalExit
+                && warmRestart.exitCode() == 0,
+            "warm separate process restores fresh validated landing without scheduling network");
+    // Model a bounded persisted cache where an older child was evicted but its
+    // newer landing remains. No 256 network requests are needed to construct it.
+    QFile cacheFile(landingCache);
+    require(cacheFile.open(QIODevice::ReadOnly), "saved landing cache opens");
+    auto cachedObject = QJsonDocument::fromJson(cacheFile.readAll()).object(); cacheFile.close();
+    auto cachedEntries = cachedObject.value("entries").toObject();
+    CatalogRemote identity("imdb");
+    cachedEntries.remove(identity.queryKey("titleCatalog", landingChildArgs));
+    auto olderLanding = cachedEntries.value(identity.queryKey("landing", landingArgs)).toObject();
+    olderLanding["fetchedAt"] = QDateTime::currentDateTimeUtc().addSecs(-60).toString(Qt::ISODate);
+    cachedEntries[identity.queryKey("landing", landingArgs)] = olderLanding;
+    for (int n = 0; n < 255; ++n) {
+        const QVariantList args{QVariantMap{{"genre", QString::number(n)}}, 0, 24};
+        cachedEntries[identity.queryKey("titleCatalog", args)] = QJsonObject{
+            {"method", "titleCatalog"}, {"result", QJsonArray()}, {"revision", source},
+            {"fetchedAt", QDateTime::currentDateTimeUtc().addSecs(-1).toString(Qt::ISODate)}, {"etag", ""}};
+    }
+    require(cachedEntries.size() == 256, "eviction fixture fills the 256-entry cache cap");
+    cachedObject["entries"] = cachedEntries;
+    const auto evictedCache = temp.filePath("landing/evicted.json");
+    QFile evictedFile(evictedCache);
+    require(evictedFile.open(QIODevice::WriteOnly), "evicted fixture opens");
+    evictedFile.write(json(cachedObject)); evictedFile.close();
+    {
+        CatalogRemote evicted("imdb"); evicted.configure(nullptr, origin, evictedCache);
+        require(evicted.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "missing",
+                "evicted child initially absent");
+        const int before = gets, beforePosts = posts;
+        evicted.read("landing", landingArgs, QVariantMap());
+        const auto rows = evicted.read("titleCatalog", landingChildArgs, QVariantList()).toList();
+        require(evicted.queryState("landing", landingArgs, QVariantMap()).value("cached").toBool(),
+                "priming retains the older landing working set under entry pressure");
+        require(!rows.isEmpty() && rows.first().toMap().value("title") == "publication-one"
+                    && !evicted.pending() && gets == before && posts == beforePosts,
+                "cached landing re-primes an independently evicted child without I/O");
+    }
+    for (const auto &fault : {QStringLiteral("date"), QStringLiteral("duplicate"),
+                              QStringLiteral("shape"), QStringLiteral("args"), QStringLiteral("absent")}) {
+        publish("landing-fault-" + fault, fault);
+        CatalogRemote rejected("imdb");
+        rejected.configure(&nam, origin, temp.filePath("landing-fault-" + fault + "/remote.json"));
+        const int beforePosts = posts;
+        rejected.read("landing", landingArgs, QVariantMap());
+        until([&] { return !rejected.pending(); });
+        const auto state = rejected.queryState("landing", landingArgs, QVariantMap());
+        require(state.value("status") == "failure" && !state.value("cached").toBool()
+                    && state.value("error") == ((fault=="duplicate"||fault=="shape"||fault=="args")?"INVALID_LANDING":"STATIC_NOT_PREPARED")
+                    && posts == beforePosts,
+                "invalid or absent landing fails without calling old Worker APIs");
+        require(rejected.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "missing",
+                "invalid date, duplicate child, bad result shape or absent bundle cannot prime children");
+    }
+    publish("publication-one");
     auto resolve = [&](StaticCatalogueResolver *owner, const QString &method = "titleCatalog",
                        const QVariantList &args = QVariantList{QVariantMap(), 0, 24}) {
         bool done = false;

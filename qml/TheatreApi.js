@@ -1021,13 +1021,50 @@ function loadCatalogPage(pageKey, options, push) {
     }
     options = options || {};
     push = push || function() {};
-    if (pageKey === "anime") return loadAnimePageDeep(options, push);
-    return loadMoviesShowsDeep(pageKey, options, push);
+    function load(deps, publish) {
+        if (pageKey === "anime") return loadAnimePageDeep(deps, publish);
+        return loadMoviesShowsDeep(pageKey, deps, publish);
+    }
+    var catalog = pageKey === "anime" ? options.malCatalog : options.imdbCatalog;
+    if (!catalog || !catalog.remoteEnabled || typeof catalog.landing !== "function"
+            || typeof catalog.landingState !== "function") return load(options, push);
+    if (catalog.landingState(pageKey).source === "local") return load(options, push);
+
+    var cancelled = false, childCancel = null;
+    var generation = options.generation || 0;
+    push({pageKey: pageKey, generation: generation, rows: [], loading: true, error: ""});
+    var landingCancel = CatalogDelivery.waitQuery(catalog,
+        function() { return catalog.landing(pageKey); },
+        function() { return catalog.landingState(pageKey); },
+        function(outcome) {
+            if (cancelled) return;
+            if (!outcome.hasData && outcome.error !== "STATIC_NOT_PREPARED") {
+                push({pageKey: pageKey, generation: generation, rows: [], loading: false,
+                      failed: true, retryable: !!(outcome.state && outcome.state.retryable),
+                      error: outcome.error || outcome.reason || "Catalogue request failed"});
+                return;
+            }
+            // Freeze the UTC recipe day after delivery so both initial and exact-key
+            // follow-up reads use the same six rotating recipes across midnight.
+            var deps = {};
+            for (var key in options) deps[key] = options[key];
+            deps.nowMs = options.nowMs || Date.now();
+            childCancel = load(deps, function(payload) {
+                if (cancelled) return;
+                if (outcome.hasData && !outcome.ok) payload.warning = REMOTE_STALE_WARNING;
+                push(payload);
+            });
+        });
+    return function() {
+        cancelled = true;
+        if (typeof landingCancel === "function") landingCancel();
+        if (typeof childCancel === "function") childCancel();
+    };
 }
 
-function findDef(pageKey, rowKey) {
+function findDef(pageKey, rowKey, nowMs) {
     var defs = Rules.defaultRows(pageKey);
-    if (pageKey === "movies") defs = defs.concat(Rules.dailyRows(Date.now(), 6));
+    if (pageKey === "movies") defs = defs.concat(Rules.dailyRows(nowMs || Date.now(), 6));
     for (var i = 0; i < defs.length; i++) if (defs[i].key === rowKey) return defs[i];
     return null;
 }
@@ -1231,7 +1268,7 @@ function fetchImdbCatalogPage(deps, pin, cursor, limit, generation, done) {
     var imdb = deps.imdbCatalog || null;
     var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
     var lim = limit || 40;
-    var def = findDef(pin.pageKey, pin.rowKey);
+    var def = findDef(pin.pageKey, pin.rowKey, deps.nowMs);
     if (!def) {
         done(generation, { generation: generation, items: [], nextCursor: null, hasMore: false,
                            exhausted: true, freshness: "bundled", warning: "", error: "unknown row: " + pin.rowKey });

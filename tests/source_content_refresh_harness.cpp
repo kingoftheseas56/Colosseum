@@ -1,4 +1,5 @@
 #include "engine/SourceContentStore.h"
+#include "engine/CatalogRemote.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -127,6 +128,7 @@ int main(int argc, char** argv) {
     until([&] { return owner.document("universes-roster").value("version").toInt() == 2; });
     require(owner.generation() == 2 && generationSignals == 2 && documentSignals == 20, "same owner refreshes all documents without application restart");
     require(owner.assetUrl("../assets/universes/test.png") != firstUrl, "published artwork change produces new immutable URL");
+    until([&] { const auto remote=owner.findChild<CatalogRemote*>(); return remote&&!remote->cacheWritePending(); });
     const auto validCache = read(cache);
     published = 3; malformed = true;
     owner.refresh();

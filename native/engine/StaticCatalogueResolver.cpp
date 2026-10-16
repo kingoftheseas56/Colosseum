@@ -651,6 +651,11 @@ struct StaticCatalogueResolver::Impl {
             bootstrap.append(loaded);
             entry = candidate;
             index = loaded.value.toObject();
+            const auto validatedAt = QDateTime::fromString(wrapper.value("validatedAt").toString(), Qt::ISODateWithMs);
+            const auto age = validatedAt.msecsTo(QDateTime::currentDateTimeUtc());
+            // Preserve the existing 60-second revalidation window across process
+            // restarts, but never trust a future or unvalidated timestamp.
+            if (validatedAt.isValid() && age >= 0 && age < 60000) checked = validatedAt;
             currentEtag = wrapper.value("etag").toString();
             if (currentEtag.size() > 1024 || currentEtag.contains('\r') ||
                 currentEtag.contains('\n'))
@@ -686,7 +691,8 @@ struct StaticCatalogueResolver::Impl {
         atomic(QDir(directory).filePath("last-good.json"),
                json(QJsonObject{{"endpoint", endpoint.toString(QUrl::FullyEncoded)},
                                 {"entry", entry},
-                                {"etag", currentEtag}}));
+                                {"etag", currentEtag},
+                                {"validatedAt", checked.toString(Qt::ISODateWithMs)}}));
         prune();
     }
     void pump() {
@@ -1035,7 +1041,8 @@ struct StaticCatalogueResolver::Impl {
         entryWaiters.insert(id);
         if (checking)
             return;
-        if (checked.isValid() && checked.secsTo(QDateTime::currentDateTimeUtc()) < 60) {
+        if (checked.isValid() && checked.msecsTo(QDateTime::currentDateTimeUtc()) >= 0
+            && checked.msecsTo(QDateTime::currentDateTimeUtc()) < 60000) {
             releaseWaiters();
             return;
         }
@@ -1055,6 +1062,7 @@ struct StaticCatalogueResolver::Impl {
                      if (status == 304 && error.isEmpty() && !index.isEmpty()) {
                          checking = false;
                          entryError.clear();
+                         saveLastGood();
                          releaseWaiters({current});
                          return;
                      }
@@ -1196,7 +1204,8 @@ void StaticCatalogueResolver::refresh() {
     d->checked = {};
 }
 bool StaticCatalogueResolver::needsRefresh() const {
-    return !d->checked.isValid() || d->checked.secsTo(QDateTime::currentDateTimeUtc()) >= 60;
+    const auto age = d->checked.msecsTo(QDateTime::currentDateTimeUtc());
+    return !d->checked.isValid() || age < 0 || age >= 60000;
 }
 bool StaticCatalogueResolver::hasLastGood() const {
     return !d->index.isEmpty();

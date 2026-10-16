@@ -4,6 +4,7 @@ import {join,dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {loadOwnedCovers} from './cover_publication.mjs';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const encode=value=>Buffer.from(JSON.stringify(value));
@@ -53,8 +54,9 @@ export function retainArtwork({previous,output,verifyOnly=false}){
  return{requiredFiles:inventory.length,copiedFiles,inventorySha256:sha(encode(inventory)),entries:inventory};
 }
 
-export function buildPublicCatalogue({source,content,output,previous,maxFiles=20000,maxFileBytes=25*1024*1024}){
+export function buildPublicCatalogue({source,content,output,previous,maxFiles=20000,maxFileBytes=25*1024*1024,ownedCoverManifest,ownedCoverRoot,requireOwnedLandingCovers=false}){
  if(existsSync(output))throw Error('OUTPUT_EXISTS');
+ const ownedCovers=loadOwnedCovers({manifest:ownedCoverManifest,root:ownedCoverRoot,requireOwnedLandingCovers});
  if(!previous||(Array.isArray(previous)&&!previous.length))throw Error('RETENTION_BASELINE_REQUIRED');
  const reportBytes=file(source,'static-catalogue-report.json'),report=JSON.parse(reportBytes);
  if(!hashPattern.test(report.revision)||!/^\d{4}-\d{2}-\d{2}$/.test(report.date)||!/^[0-9]{4}$/.test(report.year))throw Error('SOURCE_INVALID_REPORT');
@@ -91,7 +93,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  // Publication identity includes the exact source index, date policy and content.
  // LIBRARY's source revision remains unchanged for old authenticated clients.
  const retention=retainArtwork({previous,output});
- const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year}));
+ const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{})}));
  const publicPrefix='/catalogue/'+revision+'/',written=new Map(),converted=new Map(),loading=new Set();
  function write(path,raw){
   if(raw.length>maxFileBytes)throw Error('FREE_FILE_SIZE');
@@ -114,7 +116,8 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
   if(loading.has(path))throw Error('SOURCE_REFERENCE_CYCLE');loading.add(path);
   const raw=file(source,path);
   if(raw.length!==listed.get(path)||sha(raw)!==path.slice(-69,-5))throw Error('SOURCE_HASH_MISMATCH');
-  const result=put(rewrite(JSON.parse(raw)));converted.set(path,result);loading.delete(path);return result;
+  const parsed=JSON.parse(raw);
+  const result=put(rewrite(ownedCovers?ownedCovers.transform(parsed):parsed));converted.set(path,result);loading.delete(path);return result;
  }
  const prepared=rewrite(manifest);
  // Verify and retain every declared source file, including any deduplicated leaf.
@@ -139,13 +142,24 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  return{schemaVersion:1,revision,sourceRevision:report.revision,index:entry.index,sourceReportSha256:sha(reportBytes),sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),date:report.date,year:report.year,
   files:written.size,totalBytes:[...written.values()].reduce((a,b)=>a+b,0),largestFileBytes:Math.max(...written.values()),freeFileLimit:maxFiles,freeFileBytes:maxFileBytes,
   artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,d1Writes:0,deployed:false,
+  ...(ownedCovers?{ownedCovers:ownedCovers.report}:{}),
   entries:[...written].map(([path,bytes])=>({path,bytes}))};
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const [source,content,output,evidence,...previous]=process.argv.slice(2);
- if(!source||!content||!output||!evidence||!previous.length)throw Error('Usage: node projection/public_static.mjs I01-publication content-publication fresh-output report-outside-output.json previous-publication [other-previous-publications...]');
+ const positional=[],options={};
+ const args=process.argv.slice(2);
+ for(let i=0;i<args.length;i++){
+  if(args[i]==='--owned-cover-manifest'||args[i]==='--owned-cover-root'){
+   const key=args[i]==='--owned-cover-manifest'?'ownedCoverManifest':'ownedCoverRoot';
+   if(options[key]||!args[i+1]||args[i+1].startsWith('--'))throw Error('OWNED_COVERS_OPTION_VALUE');options[key]=args[++i];
+  }else if(args[i]==='--require-owned-landing-covers')options.requireOwnedLandingCovers=true;
+  else if(args[i].startsWith('--'))throw Error('UNKNOWN_OPTION: '+args[i]);
+  else positional.push(args[i]);
+ }
+ const [source,content,output,evidence,...previous]=positional;
+ if(!source||!content||!output||!evidence||!previous.length)throw Error('Usage: node projection/public_static.mjs I01-publication content-publication fresh-output report-outside-output.json previous-publication [other-previous-publications...] [--owned-cover-manifest manifest.json --owned-cover-root prepared] [--require-owned-landing-covers]');
  if(resolve(evidence).startsWith(resolve(output)))throw Error('REPORT_MUST_STAY_OUTSIDE_ASSETS');
- const result=buildPublicCatalogue({source,content,output,previous});writeFileSync(evidence,JSON.stringify(result,null,2));
- console.log(JSON.stringify({...result,entries:undefined,retention:{...result.retention,entries:undefined}}));
+ const result=buildPublicCatalogue({source,content,output,previous,...options});writeFileSync(evidence,JSON.stringify(result,null,2));
+ console.log(JSON.stringify({...result,entries:undefined,retention:{...result.retention,entries:undefined},...(result.ownedCovers?{ownedCovers:{...result.ownedCovers,inventory:undefined}}:{})}));
 }

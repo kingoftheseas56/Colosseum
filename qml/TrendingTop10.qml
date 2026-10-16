@@ -197,6 +197,7 @@ Column {
                             anchors.left: num.right; anchors.leftMargin: -32; anchors.bottom: parent.bottom
                             caption: rank.modelData.caption
                             cover: rank.modelData.cover !== undefined ? rank.modelData.cover : ""
+                            coverCandidates: rank.modelData.coverCandidates || []
                             c1: rank.modelData.c1 !== undefined ? rank.modelData.c1 : "#444"
                             c2: rank.modelData.c2 !== undefined ? rank.modelData.c2 : "#111"
                             keyboardEnabled: false

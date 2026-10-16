@@ -22,6 +22,11 @@
 #include <cstdlib>
 static void require(bool ok,const char* why) { if(!ok) { std::cerr<<"FAIL "<<why<<'\n'; std::exit(1); } }
 template<class F> void until(F predicate) { QElapsedTimer elapsed; elapsed.start(); while(!predicate() && elapsed.elapsed()<5000) QCoreApplication::processEvents(QEventLoop::AllEvents,10); require(predicate(),"request completed within timeout"); }
+static void persisted(QObject& owner) {
+ auto* remote=qobject_cast<CatalogRemote*>(&owner);
+ if(!remote)remote=owner.findChild<CatalogRemote*>();
+ require(remote,"cache persistence owner exists");until([&]{return !remote->cacheWritePending();});
+}
 int main(int argc,char** argv) {
  QCoreApplication app(argc,argv); QTemporaryDir temp; QNetworkAccessManager nam;
  QTcpServer server; require(server.listen(QHostAddress::LocalHost),"loopback fixture listens");
@@ -212,6 +217,7 @@ int main(int argc,char** argv) {
  const auto savedPage=mal.discoverPageFiltered("g03-refresh",refreshedFilter,true,96,24);
  require(savedPage.value("items").toList().size()==1,"MAL page to revalidate was cached");
  const QString refreshKey=pageState("g03-refresh",refreshedFilter,true,96).value("key").toString();
+ persisted(mal);
  QFile malDisk(malCache); require(malDisk.open(QIODevice::ReadOnly),"MAL fixture page cache readable");
  auto malDocument=QJsonDocument::fromJson(malDisk.readAll()).object(); malDisk.close();
  auto malEntries=malDocument.value("entries").toObject();
@@ -391,6 +397,7 @@ int main(int argc,char** argv) {
  comics.discoverPageFiltered("g04-refresh",comicsRefreshFacet,true,96,17);
  until([&]{return comicsState("g04-refresh",comicsRefreshFacet,true,96).value("status").toString()=="success";});
  const QString comicsRefreshKey=comicsState("g04-refresh",comicsRefreshFacet,true,96).value("key").toString();
+ persisted(comics);
  QFile comicsDisk(comicsCache); require(comicsDisk.open(QIODevice::ReadOnly),"Comics cache on disk");
  auto comicsDocument=QJsonDocument::fromJson(comicsDisk.readAll()).object();comicsDisk.close();
  auto comicsEntries=comicsDocument.value("entries").toObject();
@@ -459,6 +466,7 @@ int main(int argc,char** argv) {
  const QString validationCache=temp.filePath("validated.json");
  validated.configure(&nam,endpoint,validationCache);
  validated.read("titleCatalog",{query,0,24},QVariantList{}); until([&]{return !validated.pending();});
+ persisted(validated);
  QFile goodFile(validationCache); require(goodFile.open(QIODevice::ReadOnly),"validated cache stored");
  const auto originalCache=goodFile.readAll(); goodFile.close();
  invalidResult=true; validated.read("titleCatalog",{query,0,24},QVariantList{},true); until([&]{return !validated.pending();});
@@ -470,6 +478,7 @@ int main(int argc,char** argv) {
  validated.configure(&nam,endpoint,validationCache);
  require(!validated.read("titleCatalog",{query,0,24},QVariantList{}).toList().isEmpty() && validated.pending() && !validated.waiting(),"stale cache paints while revalidation runs");
  until([&]{return !validated.pending();});
+ persisted(validated);
  for(auto it=entries.begin();it!=entries.end();++it) {auto entry=it.value().toObject();entry.insert("result",QJsonArray{QJsonObject{{"title","Invalid"}}});it.value()=entry;}
  stale.insert("entries",entries);require(goodFile.open(QIODevice::WriteOnly|QIODevice::Truncate),"fixture corrupts deep payload");goodFile.write(QJsonDocument(stale).toJson());goodFile.close();
  validated.configure(nullptr,endpoint,validationCache);require(!validated.available(),"deep validator rejects poisoned disk cache before exposure");
@@ -479,6 +488,7 @@ int main(int argc,char** argv) {
  notModified=true;conditional.read("titleCatalog",{query,0,24},QVariantList{},true);until([&]{return !conditional.pending();});
  require(lastHeaders.contains("If-None-Match: \"stable-tag\""),"cached ETag sent conditionally");
  require(conditional.read("titleCatalog",{query,0,24},QVariantList{}).toList().size()==1,"304 preserves validated result");
+ persisted(conditional);
  QFile etagFile(etagCache);require(etagFile.open(QIODevice::ReadOnly),"304 durable cache readable");
  const auto savedEtag=QJsonDocument::fromJson(etagFile.readAll()).object().value("entries").toObject();etagFile.close();
  require(savedEtag.size()==1 && savedEtag.begin().value().toObject().value("etag").toString()==fixtureEtag,"304 persists healthy ETag cache");
@@ -528,6 +538,7 @@ int main(int argc,char** argv) {
 
  scoped.read("titleCatalog",{"f2-cache"},QVariantList{});
  until([&]{return !scoped.pending();});
+ persisted(scoped);
  QFile healthy(scopedCache);require(healthy.open(QIODevice::ReadOnly),"F2 cache on disk");
  const QByteArray healthyBytes=healthy.readAll();healthy.close();
  failArg="f2-cache";const int beforeFailure=calls;
@@ -834,5 +845,29 @@ int main(int argc,char** argv) {
           && searchComics.searchState("Batman",30).value("status")=="success",
           "native search state settles via the existing transport notification contract");
  }
- std::cout<<"PASS async semantic RPC: existing fixture plus F2a, MAL, Comics, and Theatre page projection, notifications, failure, retry, offline and SQLite paths\n";
+ {
+  CatalogRemote burst("imdb");const QString burstPath=temp.filePath("burst.json");
+  burst.configure(&nam,endpoint,burstPath);int writes=0;
+  QObject::connect(&burst,&CatalogRemote::cachePersisted,&app,[&](bool ok){require(ok,"atomic burst cache write succeeded");++writes;});
+  for(int i=0;i<8;i++)burst.read("search",{QString("burst-%1").arg(i)},QVariantList{});
+  until([&]{return !burst.pending();});
+  require(writes==0,"query completion never writes the cache inline");
+  persisted(burst);require(writes==1,"one disk write for a completion burst");
+  QFile disk(burstPath);require(disk.open(QIODevice::ReadOnly),"burst file readable");
+  const auto stored=QJsonDocument::fromJson(disk.readAll()).object();disk.close();
+  require(stored.value("entries").toObject().size()==8,"burst persists every completed key");
+  burst.configure(nullptr,endpoint,burstPath);
+  require(burst.read("search",{QString("burst-7")},QVariantList{}).toList().isEmpty()
+          &&burst.queryState("search",{QString("burst-7")},QVariantList{}).value("cached").toBool(),
+          "coalesced cache restores authoritative empty results offline");
+ }
+ {
+  const QString finalPath=temp.filePath("shutdown-flush.json");
+  {CatalogRemote last("imdb");last.configure(&nam,endpoint,finalPath);
+   last.read("search",{QString("shutdown")},QVariantList{});until([&]{return !last.pending();});}
+  QFile disk(finalPath);require(disk.open(QIODevice::ReadOnly),"shutdown flush writes dirty cache before destruction");
+  require(QJsonDocument::fromJson(disk.readAll()).object().value("entries").toObject().size()==1,
+          "shutdown flush preserves last completion without waiting for debounce");
+ }
+ std::cout<<"PASS async semantic RPC: existing fixture plus F2a, MAL, Comics, Theatre and coalesced background persistence\n";
 }

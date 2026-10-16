@@ -7,7 +7,10 @@
 #include <QUrl>
 #include <QVariant>
 #include <QVariantMap>
+#include <QTimer>
+#include <QSet>
 #include <functional>
+#include <future>
 class QNetworkAccessManager;
 class QNetworkReply;
 class StaticCatalogueResolver;
@@ -24,6 +27,7 @@ public:
     bool available() const;
     int revision() const { return m_revision; }
     QVariant read(const QString& method, const QVariantList& args, const QVariant& empty, bool force = false);
+    QString queryKey(const QString& method, const QVariantList& args) const { return key(method, args); }
     // Read-only snapshot for the exact method+args key used by read().
     // status: missing | pending | success | failure; cached is independent of status.
     QVariantMap queryState(const QString& method, const QVariantList& args, const QVariant& empty) const;
@@ -31,10 +35,14 @@ public:
     bool retry(const QString& method, const QVariantList& args, const QVariant& empty);
     bool pending() const { return !m_pending.isEmpty(); }
     bool waiting() const;
+    bool cacheWritePending() const { return m_saveDirty || m_saveTask.valid(); }
 signals:
     void changed();
     void failed(QString method, QString reason);
     void queryChanged(QString key);
+    // One notification per atomic disk attempt, after background work completes.
+    void cachePersisted(bool success);
+    void sourceChanged();
 private:
     struct Entry { QString method; QJsonValue result; QDateTime fetched; QString revision; QString etag; };
     struct Query { QString method; QVariantList args; QVariant empty; bool renewed = false; bool dispatched = false; QString conditionalEtag;
@@ -51,7 +59,8 @@ private:
     void finishFailure(const QString&, const QString&);
     void load();
     void save();
-    void bound();
+    void flushSave(bool wait = false);
+    void bound(const QSet<QString>& protectedKeys = {});
     std::function<bool(const QString&, const QJsonValue&)> m_validator;
     QString m_dataset, m_path, m_sourceRevision, m_publication;
     QPointer<StaticCatalogueResolver> m_static;
@@ -65,6 +74,11 @@ private:
     QList<QPointer<QNetworkReply>> m_replies;
     QByteArray m_token;
     bool m_leasing = false;
+    struct Saved { bool success = false; QStringList evicted; quint64 version = 0; };
+    QTimer m_saveTimer;
+    std::future<Saved> m_saveTask;
+    bool m_saveDirty = false;
+    quint64 m_saveVersion = 0;
     quint64 m_generation = 0;
     int m_revision = 0;
 };

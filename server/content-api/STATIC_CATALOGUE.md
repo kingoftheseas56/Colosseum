@@ -375,3 +375,37 @@ References checked 2026-10-15: [asset routing](https://developers.cloudflare.com
 [headers/ETags](https://developers.cloudflare.com/workers/static-assets/headers/),
 [billing](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/),
 [limits](https://developers.cloudflare.com/workers/platform/limits/).
+
+## Prepared tab landings (additive)
+
+The publisher adds fixed selections `selectionKey(dataset,"landing",[tab])` for
+`comics/comics`, `imdb/movies`, `imdb/shows` and `mal/anime`. Each bounded result is
+`{version:1,dataset,tab,validFrom:"YYYY-MM-DD",validUntil:"YYYY-MM-DD",queries:[{method,args,result}]}`.
+Dates are UTC; validUntil is exclusive. Comics expires next January 1. Theatre
+bundles expire next UTC day, and Movies contains precisely that day's six daily
+recipes. All queries retain exact original method/args, offset 0 and the owner's
+page size (Comics 24, Theatre 20); results come from the existing semantic SQL
+owner without mapping or truncation. Comics discoverPage calls use their native
+normalized discoverPageFiltered request identity. Requests shared by shelves are deduplicated.
+Legacy methods, prepared lists and their existing date policies remain intact.
+Each bundle contains one dataset and must fit the existing 4 MiB result cap.
+Clients prime exact query keys only after validating the complete bundle and its
+date window. An absent landing selection in an older publication is unprepared.
+Expired bundles must not prime query caches; clients use the existing individual
+query path. Failure/corruption of a present bundle is an error, never a successful
+empty result.
+
+Tankoban's Manga browse tab currently reads `Catalog.topManga` and
+`Catalog.genresManga` static QML arrays, so it has no catalogue-query landing to
+publish. Discover, Theatre live rows (Cinemeta/Jikan/Kitsu) and extension/account
+rows remain with their existing owners; no substitute catalogue rows are invented.
+This additive publisher change is local implementation, not deployment evidence.
+
+The native client distinguishes `STATIC_NOT_PREPARED` (missing/expired bundle)
+from `INVALID_LANDING` (present malformed query identities/shapes); only the
+former permits legacy fanout. Re-priming cached bundles protects that working
+set during count eviction without changing original freshness timestamps.
+Validated `current.json` checks retain the existing 60-second freshness window
+across restarts. Later warm starts revalidate; warm does not mean never checking
+for new publications. Cache serialization and atomic writes run in a coalesced
+background task; shutdown/source reconfiguration flush the last dirty snapshot.

@@ -9,6 +9,7 @@ import {comicsPreparedList,legacyRow} from '../src/catalogue-comics.ts';
 import {selectionKey} from '../src/catalogue-prebuilt.ts';
 import schema from '../src/source-schema.json' with {type:'json'};
 import {publicationSql} from './publication_sql.mjs';
+import {publishLandingCatalogues} from './landing_catalogue.mjs';
 const [artifact,output,qmlRoot]=process.argv.slice(2);
 if(!artifact||!output||!qmlRoot)throw Error('Usage: node projection/static_catalogue.mjs static-source.sqlite fresh-output qml-directory');
 const sourceReport=JSON.parse(readFileSync(join(dirname(artifact),'static-source-report.json'),'utf8'));
@@ -32,9 +33,10 @@ const manifest={version:1,revision,lists:{},fixed:{},search:{},lookups:{}};
 const lookupBuckets=new Map();
 function lookup(dataset,method,args,result){const key=selectionKey(dataset,method,args),bucket=sha(key).slice(0,2);if(!lookupBuckets.has(bucket))lookupBuckets.set(bucket,{});lookupBuckets.get(bucket)[key]=result;}
 const files=new Map(),today=new Date().toISOString().slice(0,10),year=String(new Date().getFullYear());
+const landingFixed=new Map();
 if(sqlite.prepare("SELECT COUNT(*) AS n FROM lib_mal_manga WHERE date(start_date)>date(?)").get(today).n)throw Error('Future-dated MAL titles require an admission-aware publication; do not silently fall back daily');
 function put(value){const raw=JSON.stringify(value),bytes=Buffer.byteLength(raw);if(bytes>4*1024*1024)throw Error('Shared file exceeds4MiB');const path=prefix+'shared/'+sha(raw)+'.json';if(!files.has(path)){files.set(path,bytes);const target=join(output,path);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,raw);}if(files.size+200>18000)throw Error('Free file budget/headroom exceeded');return path;}
-function fixed(dataset,method,args,result){manifest.fixed[selectionKey(dataset,method,args)]=put(result);}
+function fixed(dataset,method,args,result){const key=selectionKey(dataset,method,args);manifest.fixed[key]=put(result);landingFixed.set(key,result);}
 function list(dataset,method,args,items,shape='array',period='stable'){
  if(method==='discoverPageFiltered')args=[args[0],args[1].map(f=>({...f,key:f.key.replace(/[A-Z]/g,c=>c.toLowerCase())})),args[2]];
  let chunkSize=256;
@@ -88,6 +90,11 @@ for(const {locg_id:id,norm_title:norm}of sqlite.prepare('SELECT locg_id,norm_tit
  lookup('comics','curatedByNorm',[norm],await catalogueMethod(db,'comics','curatedByNorm',[norm]));
 }
 fixed('comics','curatedGenreShelves',[-1],await catalogueMethod(db,'comics','curatedGenreShelves',[-1]));
+// Reuse already computed fixed results; bounded paginated calls retain the SQL owner.
+await publishLandingCatalogues({date:today,qmlRoot,fixed,queryFn:async(dataset,method,args)=>{
+ const key=selectionKey(dataset,method,args);
+ return landingFixed.has(key)?landingFixed.get(key):catalogueMethod(db,dataset,method,args);
+}});
 // Tankoban shares these files; do not put ten thousand individual files in ASSETS.
 manifest.tankobanSourceHash=schema.tankoban__series.sourceHash;
 const volumeMap=new Map();

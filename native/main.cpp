@@ -1510,7 +1510,8 @@ int main(int argc, char *argv[]) {
     sourceContent->configure(updateNam, contentEndpoint, catalogVaultDir + QStringLiteral("/content_api_v1.json"),
                              QDir::current().filePath(QStringLiteral("assets/content-starter/bundle.json")));
     engine.rootContext()->setContextProperty(QStringLiteral("Content"), sourceContent);
-    QTimer::singleShot(0, sourceContent, [sourceContent] { sourceContent->refresh(); });
+    // configure() synchronizes the bundle through the shared freshness policy.
+    // A second forced boot refresh would revalidate even a just-checked cache.
     auto* contentRefreshTimer = new QTimer(sourceContent);
     contentRefreshTimer->setInterval(15 * 60 * 1000);
     QObject::connect(contentRefreshTimer, &QTimer::timeout, sourceContent, [&app, sourceContent] {

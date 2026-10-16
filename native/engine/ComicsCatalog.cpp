@@ -56,6 +56,7 @@ ComicsCatalog::ComicsCatalog(const QString& dbPath, QObject* parent) : QObject(p
     m_conn = QStringLiteral("comics_catalog_%1").arg(reinterpret_cast<quintptr>(this));
     m_remote = new CatalogRemote(QStringLiteral("comics"), this);
     connect(m_remote, &CatalogRemote::changed, this, &ComicsCatalog::revisionChanged);
+    connect(m_remote, &CatalogRemote::sourceChanged, this, &ComicsCatalog::catalogueSourceChanged);
     connect(m_remote, &CatalogRemote::failed, this, &ComicsCatalog::requestFailed);
     connect(m_remote, &CatalogRemote::queryChanged, this, &ComicsCatalog::remoteQueryChanged);
     m_ok = openAt(dbPath);

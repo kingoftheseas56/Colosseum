@@ -124,6 +124,7 @@ function rankedSeries() {
         for (var ri = 0; ri < rows.length; ri++) {
             var r = rows[ri];
             eout.push({ rank: r.rank, caption: r.title, title: r.title, cover: r.cover || "",
+                        coverCandidates: r.coverCandidates || [],
                         locgId: "locg:" + r.locgId, publisher: r.publisher || "",
                         year: r.year || 0, genres: r.genres ? r.genres.split(",") : [] });
         }

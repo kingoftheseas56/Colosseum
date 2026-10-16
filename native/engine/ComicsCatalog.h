@@ -29,6 +29,9 @@ public:
     bool remoteEnabled() const { return m_remote->enabled(); }
     int revision() const { return m_remote->revision(); }
     Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
+    Q_INVOKABLE QString remoteQueryKey(const QString& method, const QVariantList& args) const { return m_remote->queryKey(method, args); }
+    Q_INVOKABLE QVariantMap landing(const QString& tab) const { return m_ok ? QVariantMap{} : m_remote->read(QStringLiteral("landing"), {tab}, QVariantMap{}).toMap(); }
+    Q_INVOKABLE QVariantMap landingState(const QString& tab) const { auto state=m_remote->queryState(QStringLiteral("landing"), {tab}, QVariantMap{}); state.insert(QStringLiteral("source"),m_ok?QStringLiteral("local"):QStringLiteral("remote")); return state; }
     Q_INVOKABLE bool remoteWaiting() const { return m_remote->waiting(); }
     void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& cachePath = {}) {
         m_remote->configure(nam, endpoint, cachePath);
@@ -132,6 +135,7 @@ public:
 signals:
     void readyChanged();
     void revisionChanged();
+    void catalogueSourceChanged();
     void requestFailed(QString method, QString reason);
     // Subscribers must compare this key to discoverPageFilteredState(...).key.
     void remoteQueryChanged(QString key);

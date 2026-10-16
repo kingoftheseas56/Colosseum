@@ -144,6 +144,7 @@ function normalizeComic(row) {
         type: "comics",
         title: r.title || "",
         cover: r.cover || "",
+        coverCandidates: r.coverCandidates || [],
         year: r.year || 0,
         rating: 0,                          // house ranking is never a public rating (spec 5.1)
         format: r.format || "",

@@ -11,6 +11,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSaveFile>
+#include <QSet>
 #include <QRegularExpression>
 #include <QSharedPointer>
 #include <QTimer>
@@ -32,9 +33,52 @@ bool shape(const QJsonValue& result, const QVariant& empty) {
     if (empty.metaType().id() == QMetaType::Bool) return result.isBool();
     return result.isDouble() && result.toDouble() >= 0 && result.toDouble() == result.toInt(-1);
 }
+bool validLanding(const QJsonValue& value, const QString& dataset, const QVariantList& args) {
+    const auto obj = value.toObject();
+    const auto from = QDate::fromString(obj.value("validFrom").toString(), Qt::ISODate);
+    const auto until = QDate::fromString(obj.value("validUntil").toString(), Qt::ISODate);
+    const auto today = QDateTime::currentDateTimeUtc().date();
+    if (obj.value("version") != QJsonValue(1) || obj.value("dataset") != dataset
+        || args.size() != 1 || obj.value("tab") != args[0].toString()
+        || !from.isValid() || !until.isValid() || today < from || today >= until
+        || !obj.value("queries").isArray() || obj.value("queries").toArray().size() > 128) return false;
+    QSet<QString> seen;
+    for (const auto& item : obj.value("queries").toArray()) {
+        const auto q = item.toObject(); const auto method = q.value("method").toString();
+        const bool page = dataset == "comics" && method == "discoverPageFiltered";
+        const bool flag = dataset == "comics" && method == "curatedReady";
+        const bool array = (dataset == "comics" && QStringList{"shelf", "curatedRanked", "curatedGenreShelves"}.contains(method))
+            || (dataset == "imdb" && method == "titleCatalog") || (dataset == "mal" && method == "animeCatalog");
+        if ((!page && !flag && !array) || !q.value("args").isArray()
+            || (page && !q.value("result").isObject()) || (flag && !q.value("result").isBool())
+            || (array && !q.value("result").isArray())) return false;
+        const auto queryArgs=q.value("args").toArray();
+        const auto natural=[](const QJsonValue& v) { return v.isDouble()&&v.toDouble()>=0&&v.toDouble()==v.toInt(-1); };
+        if(flag && !queryArgs.isEmpty()) return false;
+        if(method=="curatedRanked" && !queryArgs.isEmpty()) return false;
+        if(method=="curatedGenreShelves" && (queryArgs.size()!=1||!natural(queryArgs[0]))) return false;
+        if(method=="shelf" && (queryArgs.size()!=3||!queryArgs[0].isString()||!queryArgs[1].isString()||!natural(queryArgs[2]))) return false;
+        if(method=="titleCatalog"||method=="animeCatalog")
+            if(queryArgs.size()!=3||!queryArgs[0].isObject()||!natural(queryArgs[1])||!natural(queryArgs[2])) return false;
+        if(page) {
+            const auto result=q.value("result").toObject();
+            if(queryArgs.size()!=5||!queryArgs[0].isString()||!queryArgs[1].isArray()||!queryArgs[2].isBool()
+                ||!natural(queryArgs[3])||!natural(queryArgs[4])||!result.value("items").isArray()
+                ||!result.value("exhausted").isBool()||!natural(result.value("nextOffset"))) return false;
+        }
+        const auto identity = QString::fromUtf8(QJsonDocument(QJsonObject{{"method",method},{"args",q.value("args")}}).toJson(QJsonDocument::Compact));
+        if (seen.contains(identity)) return false;
+        seen.insert(identity);
+    }
+    return !seen.isEmpty();
 }
-CatalogRemote::CatalogRemote(QString dataset, QObject* parent) : QObject(parent), m_dataset(std::move(dataset)) {}
-CatalogRemote::~CatalogRemote() { ++m_generation; if(m_static)for(const auto& query:std::as_const(m_pending))m_static->cancel(query.staticJob);for(const auto& reply : std::as_const(m_replies)) if(reply) reply->abort(); }
+}
+CatalogRemote::CatalogRemote(QString dataset, QObject* parent) : QObject(parent), m_dataset(std::move(dataset)) {
+    m_saveTimer.setSingleShot(true);
+    m_saveTimer.setInterval(100);
+    connect(&m_saveTimer, &QTimer::timeout, this, [this] { flushSave(); });
+}
+CatalogRemote::~CatalogRemote() { ++m_generation; if(m_static)for(const auto& query:std::as_const(m_pending))m_static->cancel(query.staticJob);for(const auto& reply : std::as_const(m_replies)) if(reply) reply->abort(); flushSave(true); }
 void CatalogRemote::setResultValidator(std::function<bool(const QString&, const QJsonValue&)> validator) { m_validator = std::move(validator); }
 bool CatalogRemote::enabled() const { return m_nam && !m_endpoint.isEmpty(); }
 bool CatalogRemote::available() const { return enabled()||!m_cache.isEmpty()||(m_static&&m_static->hasLastGood()); }
@@ -43,6 +87,9 @@ QString CatalogRemote::key(const QString& method, const QVariantList& args) cons
     return QString::fromLatin1(QCryptographicHash::hash(bytes,QCryptographicHash::Sha256).toHex());
 }
 void CatalogRemote::configure(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& path) {
+    // Retire the old writer before switching its path/endpoint. Never let an old
+    // snapshot overwrite a subsequently configured source's cache.
+    flushSave(true);
     ++m_generation;
     if(m_static)for(const auto& query:std::as_const(m_pending))m_static->cancel(query.staticJob);
     disconnect(m_staticConnection);m_static=nullptr;
@@ -59,7 +106,7 @@ void CatalogRemote::configure(QNetworkAccessManager* nam, const QUrl& endpoint, 
         m_staticConnection=connect(m_static,&StaticCatalogueResolver::publicationChanged,this,[this,generation](const QString& revision){if(generation==m_generation)adoptPublication(revision);});
         if(m_static->hasLastGood())adoptPublication(m_static->publication());
     }
-    ++m_revision; emit changed();
+    ++m_revision; emit sourceChanged(); emit changed();
 }
 bool CatalogRemote::queue(const QString& id, const QString& method, const QVariantList& args,
                           const QVariant& empty, bool bypassCooldown) {
@@ -83,17 +130,34 @@ bool CatalogRemote::queue(const QString& id, const QString& method, const QVaria
 QVariant CatalogRemote::read(const QString& method, const QVariantList& args, const QVariant& empty, bool force) {
     const auto id=key(method,args);
     const auto cached=m_cache.constFind(id);
-    const bool valid=cached!=m_cache.constEnd() && shape(cached->result,empty);
+    const bool valid=cached!=m_cache.constEnd() && shape(cached->result,empty)
+        && (method != "landing" || validLanding(cached->result, m_dataset, args));
     const auto age=valid ? cached->fetched.secsTo(QDateTime::currentDateTimeUtc()) : -1;
+    const auto value=valid ? cached->result : QJsonValue();
+    if (valid && method == "landing") {
+        // The bundle may outlive independently evicted child query entries.
+        // Reuse its validated immutable values, without a network trip or
+        // synchronous signals from inside read(). Never replace newer children.
+        const auto stamp=cached->fetched;
+        QSet<QString> workingSet{id};
+        for(const auto& item:value.toObject().value("queries").toArray()) {
+            const auto child=item.toObject(); const auto childMethod=child.value("method").toString();
+            const auto childKey=key(childMethod,child.value("args").toArray().toVariantList());
+            workingSet.insert(childKey);
+            if(!m_cache.contains(childKey))m_cache.insert(childKey,Entry{childMethod,child.value("result"),stamp,m_sourceRevision,{}});
+        }
+        bound(workingSet);
+    }
     if(force&&m_static)m_static->refresh();
     const bool staticRefresh=m_static&&m_static->needsRefresh()&&!(m_dataset=="comics"&&method=="search");
     if (force || !valid || age<0 || age>=86400 || staticRefresh) queue(id,method,args,empty,false);
-    return valid ? cached->result.toVariant() : empty;
+    return valid ? value.toVariant() : empty;
 }
 QVariantMap CatalogRemote::queryState(const QString& method, const QVariantList& args, const QVariant& empty) const {
     const auto id=key(method,args);
     const auto cached=m_cache.constFind(id);
-    const bool hasCache=cached!=m_cache.constEnd() && shape(cached->result,empty);
+    const bool hasCache=cached!=m_cache.constEnd() && shape(cached->result,empty)
+        && (method != "landing" || validLanding(cached->result, m_dataset, args));
     const bool inFlight=m_pending.contains(id);
     const auto failure=m_failures.constFind(id);
     const bool hasFailure=failure!=m_failures.constEnd();
@@ -137,6 +201,7 @@ void CatalogRemote::adoptPublication(const QString& revision) {
     if(!validRevision(revision)||m_publication==revision)return;
     const auto keys=m_cache.keys();m_cache.clear();m_failures.clear();m_sourceRevision.clear();m_publication=revision;++m_sourceGeneration;
     save();++m_revision;const auto generation=m_generation;
+    emit sourceChanged(); if(generation!=m_generation)return;
     for(const auto& id:keys){emit queryChanged(id);if(generation!=m_generation)return;}
     emit changed();
 }
@@ -156,6 +221,9 @@ void CatalogRemote::tryStatic(const QString& id) {
         if(generation!=m_generation||!m_pending.contains(id)||m_pending[id].attempt!=attempt)return;
         if(out.status==StaticCatalogueResolver::Status::Failure){finishFailure(id,out.error);return;}
         if(out.status==StaticCatalogueResolver::Status::Prepared){complete(id,out.result,out.sourceRevision);return;}
+        // New clients fall back to the existing per-query path when an older
+        // publication has no bundle. Never POST an unknown method to old Workers.
+        if(m_pending[id].method=="landing"){finishFailure(id,"STATIC_NOT_PREPARED");return;}
         m_pending[id].staticChecked=true;m_pending[id].expectedSource=m_dataset=="content"?QString():out.sourceRevision;
         if(!enabled()){finishFailure(id,"REMOTE_DISABLED");return;}
         if(m_token.isEmpty())lease();else dispatch(id);
@@ -164,11 +232,33 @@ void CatalogRemote::tryStatic(const QString& id) {
 void CatalogRemote::complete(const QString& id,const QJsonValue& result,const QString& revision,const QString& etag) {
     if(!m_pending.contains(id))return;const auto query=m_pending.value(id);
     if(!validRevision(revision)||!shape(result,query.empty)){finishFailure(id,"INCOMPATIBLE_RESPONSE");return;}
+    if(query.method=="landing"&&!validLanding(result,m_dataset,query.args)) {
+        const auto obj=result.toObject();
+        const auto from=QDate::fromString(obj.value("validFrom").toString(),Qt::ISODate);
+        const auto until=QDate::fromString(obj.value("validUntil").toString(),Qt::ISODate);
+        const auto today=QDateTime::currentDateTimeUtc().date();
+        const bool expired=from.isValid()&&until.isValid()&&from<until&&(today<from||today>=until);
+        finishFailure(id,expired?"STATIC_NOT_PREPARED":"INVALID_LANDING");return;
+    }
     if(m_validator&&!m_validator(query.method,result)){finishFailure(id,"INVALID_RESULT");return;}
-    if(!m_sourceRevision.isEmpty()&&m_sourceRevision!=revision){m_cache.clear();m_failures.clear();++m_sourceGeneration;}
+    const bool invalidated=!m_sourceRevision.isEmpty()&&m_sourceRevision!=revision;
+    if(invalidated){m_cache.clear();m_failures.clear();++m_sourceGeneration;}
     m_sourceRevision=revision;m_pending.remove(id);m_failures.remove(id);
     m_cache.insert(id,Entry{query.method,result,QDateTime::currentDateTimeUtc(),revision,validEtag(etag)?etag:QString()});
-    bound();save();++m_revision;emit queryChanged(id);emit changed();
+    QStringList primed;
+    if(query.method=="landing") {
+        for(const auto& item:result.toObject().value("queries").toArray()) {
+            const auto child=item.toObject(); const auto method=child.value("method").toString();
+            const auto childKey=key(method,child.value("args").toArray().toVariantList());
+            m_cache.insert(childKey,Entry{method,child.value("result"),QDateTime::currentDateTimeUtc(),revision,{}});
+            m_failures.remove(childKey);primed.append(childKey);
+        }
+    }
+    bound();save();++m_revision;
+    const auto generation=m_generation;
+    if(invalidated){emit sourceChanged();if(generation!=m_generation)return;}
+    for(const auto& childKey:primed){emit queryChanged(childKey);if(generation!=m_generation)return;}
+    emit queryChanged(id);emit changed();
 }
 void CatalogRemote::dispatch(const QString& id) {
     if(!enabled() || !m_pending.contains(id) || !m_pending[id].staticChecked || m_pending[id].dispatched) return;
@@ -256,9 +346,12 @@ void CatalogRemote::observe(QNetworkReply* reply,const QString& id,bool session)
         complete(id,obj.value("result"),revision,responseEtag);
     });
 }
-void CatalogRemote::bound() {
+void CatalogRemote::bound(const QSet<QString>& protectedKeys) {
     while(m_cache.size()>entryCap) {
-        auto oldest=m_cache.begin(); for(auto it=m_cache.begin();it!=m_cache.end();++it) if(it->fetched<oldest->fetched) oldest=it;
+        auto oldest=m_cache.end();
+        for(auto it=m_cache.begin();it!=m_cache.end();++it)
+            if(!protectedKeys.contains(it.key()) && (oldest==m_cache.end()||it->fetched<oldest->fetched)) oldest=it;
+        if(oldest==m_cache.end()) break;
         m_cache.erase(oldest);
     }
 }
@@ -281,11 +374,57 @@ void CatalogRemote::load() {
     }
 }
 void CatalogRemote::save() {
-    if(m_path.isEmpty()) return;
-    QJsonObject entries;
-    for(auto it=m_cache.cbegin();it!=m_cache.cend();++it) entries.insert(it.key(),QJsonObject{{"method",it->method},{"result",it->result},{"fetchedAt",it->fetched.toString(Qt::ISODate)},{"revision",it->revision},{"etag",it->etag}});
-    auto bytes=QJsonDocument(QJsonObject{{"apiVersion",1},{"dataset",m_dataset},{"endpoint",m_endpoint.toString()},{"revision",m_sourceRevision},{"publication",m_publication},{"entries",entries}}).toJson(QJsonDocument::Compact);
-    while(bytes.size()>cacheCap && !m_cache.isEmpty()) { auto oldest=m_cache.begin(); for(auto it=m_cache.begin();it!=m_cache.end();++it) if(it->fetched<oldest->fetched) oldest=it; entries.remove(oldest.key()); m_cache.erase(oldest); bytes=QJsonDocument(QJsonObject{{"apiVersion",1},{"dataset",m_dataset},{"endpoint",m_endpoint.toString()},{"revision",m_sourceRevision},{"publication",m_publication},{"entries",entries}}).toJson(QJsonDocument::Compact); }
-    if(!QDir().mkpath(QFileInfo(m_path).absolutePath())) return;
-    QSaveFile file(m_path); if(file.open(QIODevice::WriteOnly)) { if(file.write(bytes)==bytes.size()) file.commit(); else file.cancelWriting(); }
+    if (m_path.isEmpty()) return;
+    m_saveDirty = true;
+    ++m_saveVersion;
+    m_saveTimer.start();
+}
+void CatalogRemote::flushSave(bool wait) {
+    if (wait) m_saveTimer.stop();
+    if (m_saveTask.valid()) {
+        if (!wait && m_saveTask.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) {
+            m_saveTimer.start();
+            return;
+        }
+        const auto saved = m_saveTask.get();
+        // Only prune the exact snapshot that was saved, never newer entries.
+        if (saved.version == m_saveVersion)
+            for (const auto& id : saved.evicted) m_cache.remove(id);
+        emit cachePersisted(saved.success);
+    }
+    if (!m_saveDirty || m_path.isEmpty()) return;
+    m_saveDirty = false;
+    // Implicitly shared value snapshot: serialization, cap enforcement and disk
+    // I/O run off the GUI thread. The worker never captures this or a QObject.
+    m_saveTask = std::async(std::launch::async,
+        [cache = m_cache, path = m_path, dataset = m_dataset,
+         endpoint = m_endpoint.toString(), revision = m_sourceRevision,
+         publication = m_publication, version = m_saveVersion]() mutable {
+        Saved saved; saved.version = version;
+        QJsonObject entries;
+        for (auto it = cache.cbegin(); it != cache.cend(); ++it)
+            entries.insert(it.key(), QJsonObject{{"method", it->method}, {"result", it->result},
+                {"fetchedAt", it->fetched.toString(Qt::ISODate)}, {"revision", it->revision}, {"etag", it->etag}});
+        const auto serialize = [&] {
+            return QJsonDocument(QJsonObject{{"apiVersion", 1}, {"dataset", dataset}, {"endpoint", endpoint},
+                {"revision", revision}, {"publication", publication}, {"entries", entries}}).toJson(QJsonDocument::Compact);
+        };
+        auto bytes = serialize();
+        while (bytes.size() > cacheCap && !cache.isEmpty()) {
+            auto oldest = cache.begin();
+            for (auto it = cache.begin(); it != cache.end(); ++it)
+                if (it->fetched < oldest->fetched) oldest = it;
+            saved.evicted.append(oldest.key()); entries.remove(oldest.key()); cache.erase(oldest);
+            bytes = serialize();
+        }
+        if (!QDir().mkpath(QFileInfo(path).absolutePath())) return saved;
+        QSaveFile file(path);
+        if (file.open(QIODevice::WriteOnly)) {
+            if (file.write(bytes) == bytes.size()) saved.success = file.commit();
+            else file.cancelWriting();
+        }
+        return saved;
+    });
+    if (wait) flushSave(true);
+    else m_saveTimer.start();
 }
