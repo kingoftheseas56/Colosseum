@@ -108,6 +108,8 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
+# Cover-delivery's local QtTest fixture must not make the product require Qt Test.
+find_package(Qt6 QUIET COMPONENTS Test)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -507,6 +509,10 @@ add_executable(colosseum
     net/PosterTimingProbe.h
     net/BiblioImageDiag.cpp        # per-URL image diagnostics (Lanista biblio.imageDiag probe)
     net/BiblioImageDiag.h
+    net/CachingNam.cpp             # the QML image/XHR NAM owner (extracted from main.cpp for real harness tests)
+    net/CachingNam.h
+    net/CoverDelivery.cpp          # app-wide cover admission cap + durable Retry-After ledger
+    net/CoverDelivery.h
     third_party/miniz/miniz.c      # gunzip for the Jikan Accept-Encoding workaround (needs C, enabled below)
     engine/AppLog.cpp              # always-on rolling log -> <AppData>/logs/colosseum.log
     engine/AppLog.h
@@ -1519,6 +1525,29 @@ add_executable(poster_scoreboard_harness
 )
 target_include_directories(poster_scoreboard_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(poster_scoreboard_harness PRIVATE Qt6::Core)
+
+# Real CachingNam/CoverDelivery fixture: loopback-only, drives the actual
+# createRequest path (admission cap, FIFO queues, 429 ledger, redirect hops).
+if(TARGET Qt6::Test)
+add_executable(cover_delivery_harness
+    ../tests/cover_delivery_harness.cpp
+    net/CachingNam.cpp
+    net/CachingNam.h
+    net/CoverDelivery.cpp
+    net/CoverDelivery.h
+    net/Ipv4PinStore.cpp
+    net/Ipv4PinStore.h
+    net/PosterScoreboard.cpp
+    net/PosterScoreboard.h
+    net/PosterTimingProbe.cpp
+    net/PosterTimingProbe.h
+    net/BiblioImageDiag.cpp
+    net/BiblioImageDiag.h
+    third_party/miniz/miniz.c
+)
+target_include_directories(cover_delivery_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(cover_delivery_harness PRIVATE Qt6::Core Qt6::Network Qt6::Test Qt6::Qml Qt6::Quick)
+endif()
 
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
