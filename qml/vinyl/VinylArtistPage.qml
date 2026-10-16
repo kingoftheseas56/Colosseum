@@ -139,6 +139,10 @@ Flickable {
     }
 
     function showMedia(record, originItem) {
+        if (artistData.liveMode && record && record.playable && record.album) {
+            root.albumRequested(record.album);
+            return;
+        }
         dialogReturnItem = originItem || null;
         mediaDialog.selection = record;
         mediaDialog.open();
@@ -404,6 +408,14 @@ Flickable {
                     }
                 }
 
+                Text {
+                    objectName: "vinylArtistEmptyReleases"
+                    visible: root.artistData.liveMode && root.artistData.discographyCards.length === 0
+                    text: "No local releases match this artist and filter."
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    width: parent.width; wrapMode: Text.WordWrap
+                }
+
                 // Dense 6/5/4/2-column responsive album tile grid (.album-grid parity)
                 Grid {
                     id: discographyGrid
@@ -522,7 +534,7 @@ Flickable {
                         font.letterSpacing: 2.2
                     }
                     Text {
-                        text: "Official Videos"
+                        text: root.artistData.liveMode ? "Music Videos" : "Official Videos"
                         color: theme.ink
                         font.family: theme.display
                         font.pixelSize: Math.max(38, Math.min(55, root.width * 0.0315))
@@ -560,7 +572,7 @@ Flickable {
 
                 Text {
                     visible: root.artistData.media.videos.length === 0
-                    text: "No provider-qualified music videos in this artist snapshot."
+                    text: root.artistData.liveMode ? "No local music videos for this artist." : "No provider-qualified music videos in this artist snapshot."
                     color: theme.inkDim
                     font.family: theme.ui
                     font.pixelSize: 14
@@ -625,7 +637,7 @@ Flickable {
 
                 Text {
                     visible: root.artistData.liveCards.length === 0
-                    text: "No live performance recordings in this artist snapshot."
+                    text: root.artistData.liveMode ? "No local live recordings for this artist." : "No live performance recordings in this artist snapshot."
                     color: theme.inkDim
                     font.family: theme.ui
                     font.pixelSize: 14
@@ -1116,6 +1128,8 @@ Flickable {
 
                 KeyboardAction {
                     id: createPlaylistMenuAction
+                    enabled: root.artistData.playlistEnabled !== false
+                    opacity: enabled ? 1 : 0.4
                     objectName: "vinylArtistCreatePlaylistMenu"
                     width: parent.width
                     height: 36
@@ -1173,7 +1187,7 @@ Flickable {
     Rectangle {
         id: hudPlayer
         objectName: "vinylArtistHudPlayer"
-        visible: root.artistData.queuedSongIndex >= 0 && root.artistData.queuedSong !== null
+        visible: !root.artistData.liveMode && root.artistData.queuedSongIndex >= 0 && root.artistData.queuedSong !== null
         x: root.gutter
         y: root.contentY + root.height - height - 18
         width: root.bodyWidth
@@ -1704,7 +1718,7 @@ Flickable {
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 color: theme.inkDim
-                text: "This is a release in the artist collection. The album and song detail players belong to their own Vinyl rooms; this prototype does not invent an album track list."
+                text: root.artistData.liveMode ? "No playable local tracks are available for this release." : "This is a release in the artist collection. The album and song detail players belong to their own Vinyl rooms; this prototype does not invent an album track list."
             }
             KeyboardAction {
                 objectName: "vinylArtistReleaseReferenceLink"
@@ -1756,10 +1770,11 @@ Flickable {
             Label {
                 width: parent.width; textFormat: Text.PlainText; wrapMode: Text.WordWrap
                 color: theme.inkDim
-                text: "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
+                text: root.artistData.liveMode ? "No playable local file is available for this media." : "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
             }
             KeyboardAction {
                 objectName: "vinylArtistMediaSource"
+                visible: !root.artistData.liveMode && !!mediaDialog.selection.sourceUrl
                 width: parent.width; height: 40
                 accessibleName: "Open catalogue source in browser"
                 accessibleDescription: mediaDialog.selection.sourceUrl

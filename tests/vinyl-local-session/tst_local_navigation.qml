@@ -45,6 +45,23 @@ TestCase {
     function album(id) {
         return {id: id, browseId: id, origin: "local", title: id, artists: [], tracks: []};
     }
+    function test_suppliedEditionLabelsAreActuallyDisplayed() {
+        var record=album("same-album");record.title="Synthetic Disc Ordering";
+        record.tracks=[{id:"track",title:"Track",seconds:1,artists:[]}];
+        record.editions=[{id:"standard",title:"Standard",tracks:record.tracks},{id:"alternate",title:"Alternate",tracks:record.tracks}];
+        world.session.shownEdition=world.session.normalize(record);world.page="album";wait(0);
+        function containsText(item,text) {
+            if(item.text!==undefined && item.text===text) return true;
+            var children=item.children || [];
+            for(var i=0;i<children.length;++i) if(containsText(children[i],text)) return true;
+            return false;
+        }
+        var standard=findChild(world,"vinylEdition_standard"), alternate=findChild(world,"vinylEdition_alternate");
+        verify(standard!==null);verify(alternate!==null);
+        compare(standard.accessibleName,"Standard");compare(alternate.accessibleName,"Alternate");
+        verify(containsText(standard,"Standard"));verify(containsText(alternate,"Alternate"));
+        compare(world.session.shownEdition.name,"Synthetic Disc Ordering");
+    }
     function test_libraryReturnCancelsPendingAlbum() {
         world.page = "album";
         world.session.openAlbum("late");

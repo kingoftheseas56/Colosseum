@@ -47,6 +47,9 @@ public:
         qint64 size = 0;
         qint64 mtimeMs = 0;
     };
+    // Same observations and ambiguity policy as observeFile, with one persistence
+    // notification for the bounded batch. Does not approve identity ceremonies.
+    QList<QVariantMap> observeFiles(const QList<FileFacts>& files);
     struct ReconcileResult {
         // each: [oldId, newComputedId, oldPath, newPath]
         QList<QStringList> migrated;
@@ -92,5 +95,7 @@ private:
     QList<QStringList> m_pathAliases; // [oldPath, newPath]
     QHash<QString, QString> m_decisions; // relationship -> same-media/new-media/use-existing-state/separate-copy
     QHash<QString, QStringList> m_pending; // relationship -> [type, relationship, oldId, newId, oldPath, newPath]
+    bool m_deferPersist = false;
+    bool m_persistPending = false;
     QString m_dir;
 };

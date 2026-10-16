@@ -24,6 +24,7 @@
 #include <QMetaObject>
 #include <QObject>
 #include <QSettings>
+#include <QSet>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
@@ -212,6 +213,62 @@ public:
         next.remove(key);
         if (!save(next))
             return false;
+        m_map = next;
+        bump();
+        emit syncDirty();
+        return true;
+    }
+
+    // Publish one local import/refresh through this canonical owner. Validation
+    // precedes all mutation; one durable write commits the complete replacement.
+    Q_INVOKABLE bool replaceItems(const QString &world, const QStringList &removeIds,
+                                  const QVariantList &entries) {
+        constexpr qsizetype maxBatchItems = 4096;
+        if (world.trimmed().isEmpty() || !healthy()
+            || removeIds.size() > maxBatchItems || entries.size() > maxBatchItems)
+            return false;
+        QSet<QString> ids;
+        QVariantList validated;
+        validated.reserve(entries.size());
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        for (const QVariant &value : entries) {
+            if (value.metaType().id() != QMetaType::QVariantMap)
+                return false;
+            QVariantMap item = value.toMap();
+            const QString id = item.value(QStringLiteral("id")).toString();
+            if (id.trimmed().isEmpty() || ids.contains(id)
+                || item.value(QStringLiteral("type")).toString().trimmed().isEmpty())
+                return false;
+            ids.insert(id);
+            item.insert(QStringLiteral("world"), world);
+            if (!item.value(QStringLiteral("addedAt")).toLongLong())
+                item.insert(QStringLiteral("addedAt"), now);
+            validated.append(item);
+        }
+        for (const QString &id : removeIds)
+            if (id.trimmed().isEmpty())
+                return false;
+        QHash<QString, QVariant> next = m_map;
+        for (const QString &id : removeIds)
+            next.remove(mapKey(world, id));
+        for (const QVariant &value : validated) {
+            const QVariantMap item = value.toMap();
+            next.insert(mapKey(world, item.value(QStringLiteral("id")).toString()), item);
+        }
+        if (next == m_map)
+            return true;
+        // QSettings retains failed writes in memory. Restore its pending value,
+        // too, so a later destructor/sync cannot replay a rejected import.
+        const QString settingsKey = QStringLiteral("collection/entries");
+        const bool hadValue = m_settings->contains(settingsKey);
+        const QVariant previousValue = m_settings->value(settingsKey);
+        if (!save(next)) {
+            if (hadValue)
+                m_settings->setValue(settingsKey, previousValue);
+            else
+                m_settings->remove(settingsKey);
+            return false;
+        }
         m_map = next;
         bump();
         emit syncDirty();

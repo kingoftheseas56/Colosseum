@@ -55,9 +55,7 @@ Popup {
             flick: creditsScroll
         }
         contentHeight: content.height
-        ScrollBar.vertical: HouseScrollBar {
-            flick: parent
-        }
+
         Column {
             id: content
             width: Math.max(0, parent.width - 18)

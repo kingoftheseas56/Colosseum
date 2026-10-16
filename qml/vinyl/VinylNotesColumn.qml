@@ -7,7 +7,9 @@ Item {
     objectName: "vinylNotesColumn"
     required property var pageData
     readonly property int shownLineIndex: pageData.activeNoteLine
-    readonly property bool autoMode: pageData.autoNotes && pageData.manualNoteLine < 0
+    // Local supplied notes have no crowdsourced votes or reading-budget ranking.
+    readonly property bool localNotes: !!pageData.playingEdition && pageData.playingEdition.origin === "local"
+    readonly property bool autoMode: pageData.autoNotes && pageData.manualNoteLine < 0 && !localNotes
     readonly property var shownNotes: {
         var list = pageData.notes[shownLineIndex] || [];
         if (!autoMode)

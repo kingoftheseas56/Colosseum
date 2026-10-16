@@ -6,9 +6,15 @@ Item {
     required property var worldData
     required property Item backdrop
     required property Flickable pageFlick
-    readonly property int shelfCount: worldData.shelves.length
+    readonly property var populatedShelves: worldData.shelves.filter(function(row){return row.items && row.items.length>0})
+    readonly property int shelfCount: populatedShelves.length
     readonly property real cardSize: Math.floor((width - sidebar.contentLeft - 5*24) / 6)
-    implicitHeight: shelves.implicitHeight
+    implicitHeight: Math.max(80,shelves.implicitHeight)
+    Text {
+        objectName: "vinylDiscoverEmpty"
+        visible: root.shelfCount===0
+        x:0;width:parent.width-x;text:"No local music matches. Open files or change the filters.";color:theme.inkDim;font.family:theme.ui;font.pixelSize:16;wrapMode:Text.WordWrap
+    }
     Column {
         id: shelves
         x: sidebar.contentLeft
@@ -17,7 +23,7 @@ Item {
         spacing: 54
         Repeater {
             id: shelfRepeater
-            model: root.worldData.shelves
+            model: root.populatedShelves
             delegate: VinylShelf {
                 required property var modelData
                 objectName: "vinylShelf_" + modelData.key
@@ -42,6 +48,8 @@ Item {
     }
     RowIndexSidebar {
         id: sidebar
+        objectName: "vinylDiscoverRowIndex"
+        visible: root.shelfCount>0
         pageFlick: root.pageFlick
         flowHost: shelves
         backdrop: root.backdrop
@@ -51,7 +59,7 @@ Item {
             var result=[]
             shelfRepeater.count
             for(var i=0;i<shelfRepeater.count;i++) {
-                var target=shelfRepeater.itemAt(i), data=root.worldData.shelves[i]
+                var target=shelfRepeater.itemAt(i), data=root.populatedShelves[i]
                 if(target && data) result.push({key:data.key,title:data.title,target:target,iconSource:root.icon(data.icon)})
             }
             return result

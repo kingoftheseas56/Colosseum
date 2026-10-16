@@ -13,13 +13,14 @@ Item {
     Theme { id: theme }
     Text {
         id: heading
+        y: root.width<800 ? 62 : 0
         objectName: "vinylLensTitle"
         anchors.right: parent.right
         text: root.title
         color: theme.ink
         font.family: theme.display
         font.pixelSize: 44
-        width: parent.width * 0.67
+        width: root.width<800 ? parent.width : parent.width * 0.67
         horizontalAlignment: Text.AlignRight
         wrapMode: Text.WordWrap
         maximumLineCount: 2
@@ -41,8 +42,9 @@ Item {
             }
         }
     }
-    Rectangle { id: divider; y: Math.max(80,heading.height+18); width: parent.width; height: 1; color: theme.edge; opacity: 0.5 }
-    Row {
+    Rectangle { id: divider; y: Math.max(80,heading.y+heading.height+18); width: parent.width; height: 1; color: theme.edge; opacity: 0.5 }
+    Flow {
+        width: parent.width
         id: filterRow
         y: divider.y + 22
         spacing: 12
@@ -110,7 +112,6 @@ Item {
                     }
                 }
             }
-            ScrollBar.vertical: HouseScrollBar { flick: parent }
         }
     }
 }

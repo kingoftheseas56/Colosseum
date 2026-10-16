@@ -24,6 +24,9 @@ Flickable {
         height - 48 - albumTitle.implicitHeight - albumArtist.height
         - albumFacts.implicitHeight - albumActionsRow.height - left.spacing * 4))
     signal videoRequested(int track)
+    signal songRequested(int track)
+    property bool songNavigationEnabled: false
+    property bool queueActionsEnabled: false
     function focusPrimaryControl() {
         var play = albumActions.itemAt(0);
         if (play) play.forceActiveFocus();
@@ -136,20 +139,22 @@ Flickable {
                 spacing: 10
                 Repeater {
                     id: albumActions
-                    model: ["Play", "Shuffle", "Save"]
+                    model: root.queueActionsEnabled ? ["Play", "Shuffle", "Save", "Queue"] : ["Play", "Shuffle", "Save"]
                     delegate: KeyboardAction {
                         required property string modelData
                         objectName: "vinylAlbum" + modelData
-                        width: 76
+                        width: Math.min(76,(left.width-30)/4)
                         height: 36
                         accessibleName: modelData
-                        enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : root.saveEnabled
+                        enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : modelData === "Queue" ? root.trackCount>0 : root.saveEnabled
                         opacity: enabled ? 1 : 0.35
                         onTriggered: {
                             if (modelData === "Play")
                                 root.pageData.playTrack(0);
                             else if (modelData === "Shuffle")
                                 root.pageData.shuffle();
+                            else if(modelData === "Queue")
+                                root.pageData.enqueueAlbum(root.pageData.shownAlbumId,false);
                             else
                                 root.pageData.toggleSaved();
                         }
@@ -186,11 +191,11 @@ Flickable {
                         objectName: "vinylDisc_" + index
                         width: 75
                         height: 30
-                        accessibleName: "Disc " + (index + 1)
+                        accessibleName: "Disc " + ((root.pageData.shownEdition.discNumbers || [])[index] || index+1)
                         onTriggered: root.pageData.selectDisc(index)
                         Text {
                             anchors.centerIn: parent
-                            text: "Disc " + (parent.index + 1)
+                            text: "Disc " + ((root.pageData.shownEdition.discNumbers || [])[parent.index] || parent.index+1)
                             color: root.pageData.shownDisc === parent.index ? theme.gold : theme.inkDim
                             font.family: theme.ui
                             font.pixelSize: 13
@@ -204,7 +209,21 @@ Flickable {
                     required property int index
                     trackIndex: index
                     pageData: root.pageData
-                    width: trackList.width
+                    width: trackList.width - (root.songNavigationEnabled ? 105 : 0)
+                    KeyboardAction {
+                        objectName: "vinylSongDetails_" + index
+                        visible: root.songNavigationEnabled
+                        x: parent.width+8; width: 60; height: parent.height
+                        accessibleName: "Song details"
+                        onTriggered: root.songRequested(index)
+                        Text {anchors.centerIn: parent;text:"Details";color:theme.inkDim;font.family:theme.ui;font.pixelSize:11}
+                    }
+                    KeyboardAction {
+                        objectName:"vinylTrackQueue_"+index;visible:root.queueActionsEnabled
+                        x:parent.width+72;width:32;height:parent.height;accessibleName:"Add track to queue"
+                        onTriggered:root.pageData.enqueueTrack(index,false)
+                        Text {anchors.centerIn:parent;text:"+";color:theme.inkDim;font.family:theme.ui;font.pixelSize:18}
+                    }
                     height: root.height < 600 ? (artistLine ? 58 : 50) : (artistLine ? 62 : 57)
                 }
             }

@@ -211,6 +211,8 @@ Item {
 
     Connections {
         target: root.artistData
+        ignoreUnknownSignals: true
+        function onHeroPhotosChanged() { root.syncInitialBackdrop(); }
         function onNameChanged() { root.syncInitialBackdrop(); }
         function onOverrideHeroPhotosChanged() { root.syncInitialBackdrop(); }
         function onCustomBackdropUrlChanged() {
@@ -347,7 +349,7 @@ Item {
         Text {
             anchors.right: parent.right
             text: {
-                if (root.artistData.record.name === "Eminem")
+                if (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     return "DETROIT / MICHIGAN";
                 var facts = root.artistData.context.facts || [];
                 for (var i = 0; i < facts.length; ++i) {
@@ -385,7 +387,7 @@ Item {
         spacing: 14
 
         Text {
-            text: root.artistData.record.name === "Eminem"
+            text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                 ? "VINYL / THE ARTIST"
                 : ("VINYL / " + (root.sourcedContext ? root.artistData.context.roles.toUpperCase() : "THE ARTIST"))
             textFormat: Text.PlainText
@@ -415,7 +417,7 @@ Item {
             width: parent.width
             spacing: 10
             Text {
-                text: root.artistData.record.name === "Eminem"
+                text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "Hip-hop / Rap"
                     : (root.sourcedContext ? root.artistData.context.roles : "Catalogue artist")
                 textFormat: Text.PlainText
@@ -432,7 +434,7 @@ Item {
                 font.weight: Font.Bold
             }
             Text {
-                text: root.artistData.record.name === "Eminem"
+                text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "12 studio albums"
                     : (String(root.artistData.allDiscographyCards.length) + (root.artistData.allDiscographyCards.length === 1 ? " release" : " releases"))
                 textFormat: Text.PlainText
@@ -442,7 +444,7 @@ Item {
                 font.weight: Font.Medium
             }
             Text {
-                visible: root.artistData.record.name === "Eminem" || root.artistData.singlesRows.length > 0
+                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.artistData.singlesRows.length > 0
                 text: "·"
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -450,8 +452,8 @@ Item {
                 font.weight: Font.Bold
             }
             Text {
-                visible: root.artistData.record.name === "Eminem" || root.artistData.singlesRows.length > 0
-                text: root.artistData.record.name === "Eminem"
+                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.artistData.singlesRows.length > 0
+                text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "1996—present"
                     : (String(root.artistData.singlesRows.length) + (root.artistData.singlesRows.length === 1 ? " track" : " tracks"))
                 textFormat: Text.PlainText
@@ -475,7 +477,9 @@ Item {
                 focusRadius: 9
                 focusPrimary: true
                 spaceActivates: true
-                accessibleName: root.artistData.demoPlaying ? "Pause artist preview" : "Play artist"
+                enabled: root.artistData.playable !== false
+                opacity: enabled ? 1 : 0.4
+                accessibleName: root.artistData.demoPlaying ? "Pause artist" : "Play artist"
                 onTriggered: {
                     root.artistData.toggleDemoPlayback();
                     root.playArtistRequested();
@@ -515,6 +519,8 @@ Item {
                 height: 46
                 focusRadius: 9
                 spaceActivates: true
+                enabled: root.artistData.playable !== false
+                opacity: enabled ? 1 : 0.4
                 accessibleName: "Shuffle artist tracks"
                 onTriggered: {
                     root.artistData.shuffleDemoSong();
@@ -545,6 +551,9 @@ Item {
                 height: 46
                 focusRadius: 9
                 spaceActivates: true
+                enabled: root.artistData.saveEnabled !== false
+                opacity: enabled ? 1 : 0.4
+                accessibleDescription: enabled ? "" : "Artist saving is not available yet"
                 accessibleName: root.artistData.saved ? "Unsave artist" : "Save artist"
                 onTriggered: root.artistData.toggleSaved()
                 onActiveFocusChanged: if (activeFocus) root.itemFocused(save)

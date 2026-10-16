@@ -111,7 +111,7 @@ Item {
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
-            enabled: root.trackNavigationEnabled
+            enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
             width: 32
             height: 36
@@ -130,7 +130,7 @@ Item {
             width: 36
             height: 36
             accessibleName: root.busy ? "Waiting for source" : "Play or pause"
-            enabled: !root.busy
+            enabled: !root.busy && (root.pageData.playingIndex === undefined || root.pageData.playingIndex >= 0)
             onTriggered: root.pageData.paused = !root.pageData.paused
             Rectangle {
                 anchors.fill: parent
@@ -153,7 +153,7 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarNext"
-            enabled: root.trackNavigationEnabled
+            enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
             width: 32
             height: 36

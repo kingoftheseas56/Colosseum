@@ -2,11 +2,16 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 
-Item {
+Flickable {
     id: root
     objectName: "vinylLyricsColumn"
     required property var pageData
     clip: true
+    contentWidth: width
+    contentHeight: pageData.timedLyrics ? height : lines.height
+    interactive: !pageData.timedLyrics
+    boundsBehavior: Flickable.StopAtBounds
+    ScrollGlide { flick: root }
     Theme {
         id: theme
     }
@@ -27,13 +32,15 @@ Item {
                 required property int index
                 objectName: "vinylLyricLine_" + index
                 width: lines.width
-                height: 44
+                height: Math.max(44,lineText.implicitHeight+12)
                 readonly property bool hasDot: !!(root.pageData.notes[index] && root.pageData.notes[index].length)
                 opacity: {
+                    if(!root.pageData.timedLyrics) return 1;
                     var local = y + lines.y;
                     return Math.max(0, Math.min(1, local / Math.max(1, root.height * 0.14), (root.height - local) / Math.max(1, root.height * 0.18)));
                 }
                 Text {
+                    id:lineText
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - 18
                     text: line.modelData.text
@@ -79,6 +86,7 @@ Item {
                 }
                 Connections {
                     target: root.pageData
+                    ignoreUnknownSignals: true
                     function onPlayingIndexChanged() {
                         single.stop();
                     }

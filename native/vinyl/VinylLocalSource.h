@@ -22,9 +22,10 @@ signals:
     void checkpointRequested();
     void shuttingDown();
 private:
+    QVariantList importManifest(const QString &path, QString *error);
     QVariant read(const QString &operation, const QString &value, QString *error) const;
     VaultIdentity *m_identity;
-    QHash<QString, QVariantMap> m_albums, m_tracks;
+    QHash<QString, QVariantMap> m_albums, m_tracks, m_artists;
     QHash<QString, int> m_pending;
     int m_serial = 0;
 };

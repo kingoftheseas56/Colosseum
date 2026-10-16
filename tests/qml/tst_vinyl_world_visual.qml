@@ -43,7 +43,7 @@ TestCase {
             img.save(VinylCaptureDirectory+"/"+data.tag+"-"+name+".png")
         }
         host.worldScroll.contentY=world.contentTop
-        
+
         // The page is rendered with actual fixture textures; asynchronous image
         // readiness is verified through the public house art primitive below.
         tryVerify(function(){

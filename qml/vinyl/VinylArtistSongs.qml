@@ -144,7 +144,7 @@ Column {
                     readonly property var songPayload: isCompact ? row.modelData.song : row.modelData
                     readonly property var albumPayload: isCompact ? row.modelData.album : row.modelData.album
 
-                    width: parent.width
+                    width: parent ? parent.width : 0
                     height: isCompact ? 62 : 56
 
                     Rectangle {
@@ -164,8 +164,9 @@ Column {
                         focusRadius: 8
                         focusInset: -4
                         spaceActivates: true
+                        enabled: !root.artistData.liveMode || !row.isCompact || row.modelData.playable
                         accessibleName: row.isCompact
-                            ? (row.trackTitle + ", " + String(row.modelData.year || "") + "; queue demonstration track")
+                            ? (row.trackTitle + ", " + String(row.modelData.year || "") + (root.artistData.liveMode ? "; play local track" : "; queue demonstration track"))
                             : ("Play " + row.trackTitle)
                         onTriggered: {
                             if (row.isCompact) {

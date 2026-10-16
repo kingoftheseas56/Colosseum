@@ -7,7 +7,7 @@ KeyboardAction {
     readonly property string reason: item.reason || ""
     implicitHeight: art.height + 14 + copy.height + 8
     accessibleName: item.title + (reason ? ". " + reason : "")
-    onTriggered: worldData.activate(item)
+    onTriggered: if(worldData) worldData.activate(item)
     Theme { id: theme }
     RoundedPosterImage {
         id: art
@@ -15,7 +15,7 @@ KeyboardAction {
         width: root.width
         height: width / (root.item.aspect || 1)
         radius: root.item.round ? width / 2 : 13
-        sources: root.worldData.artwork(root.item.cover) ? [root.worldData.artwork(root.item.cover)] : []
+        sources: root.worldData && root.item && root.worldData.artwork(root.item.cover) ? [root.worldData.artwork(root.item.cover)] : []
         hovered: root.interactionActive
     }
     Column {

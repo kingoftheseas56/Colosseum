@@ -1617,6 +1617,7 @@ foreach(vinyl_suite IN ITEMS
     vinyl_discover_page
     vinyl_home_page
     vinyl_local_controls
+    vinyl_live_artist
     vinyl_note_picker
     vinyl_page_data
     vinyl_song_page
@@ -4494,6 +4495,24 @@ set_tests_properties(colosseum.vinyl_local_source PROPERTIES
     LABELS "unit;vinyl;local;identity" TIMEOUT 60)
 
 # Local session state machine uses its dedicated fake MpvItem module only.
+add_executable(vinyl_native_session_bridge
+    vinyl-native-session-bridge/runner.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_native_session_bridge PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_native_session_bridge PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_native_session_bridge PRIVATE Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest)
+add_test(NAME colosseum.qml.vinyl_native_session_bridge
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_native_session_bridge PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 60)
+
 add_test(NAME colosseum.qml.vinyl_local_session
     COMMAND colosseum_qml_tests
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session"

@@ -70,6 +70,7 @@ void VaultIdentity::load()
 
 void VaultIdentity::persist()
 {
+    if (m_deferPersist) { m_persistPending = true; return; }
     QJsonObject doc;
     doc.insert(QStringLiteral("version"), 1);
 
@@ -163,6 +164,22 @@ bool VaultIdentity::knows(const QString& id) const
 QString VaultIdentity::idForFile(const QString& path, qint64 size, qint64 mtimeMs)
 {
     return observeFile(path, size, mtimeMs).value(QStringLiteral("id")).toString();
+}
+
+QList<QVariantMap> VaultIdentity::observeFiles(const QList<FileFacts>& files)
+{
+    const bool alreadyDeferred = m_deferPersist;
+    m_deferPersist = true;
+    QList<QVariantMap> results;
+    results.reserve(files.size());
+    for (const auto& file : files)
+        results.append(observeFile(file.path, file.size, file.mtimeMs));
+    m_deferPersist = alreadyDeferred;
+    if (!alreadyDeferred && m_persistPending) {
+        m_persistPending = false;
+        persist();
+    }
+    return results;
 }
 
 QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 mtimeMs)

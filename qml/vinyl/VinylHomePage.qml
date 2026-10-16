@@ -1,4 +1,5 @@
 import QtQuick
+import ".."
 Item {
     id: root
     objectName: "vinylHomePage"
@@ -8,6 +9,11 @@ Item {
     readonly property var rowKeys: worldData.homeRows.map(function(r){return r.key})
     readonly property var coldShelfKeys: worldData.coldShelves.map(function(r){return r.key})
     implicitHeight: picker.visible ? picker.implicitHeight : shelves.implicitHeight
+    Theme {id:theme}
+    Text {
+        visible: root.worldData.pickerAnswered && !root.worldData.homeRows.some(function(row){return row.items.length>0}) && root.worldData.coldShelves.length===0
+        width:parent.width;text:"Your local music will appear here. Open audio files to get started.";color:theme.inkDim;font.family:theme.ui;font.pixelSize:16;wrapMode:Text.WordWrap
+    }
     VinylTastePicker {
         id: picker
         width: parent.width
@@ -31,7 +37,7 @@ Item {
                 home: true
                 cold: root.worldData.homeRows.length===0
                 width: shelves.width
-                cardSize: Math.floor((width-5*24)/6)
+                cardSize: Math.max(154,Math.floor((width-5*24)/6))
             }
         }
     }
