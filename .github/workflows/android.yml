@@ -52,7 +52,8 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build ccache binutils patch
+          sudo apt-get install -y --no-install-recommends ninja-build ccache binutils patch \
+            libegl1 libgl1 libxkbcommon0 libfontconfig1 libx11-6 libdbus-1-3 libglib2.0-0t64
           ccache --max-size=2G
 
       - name: Restore toolchain (Qt, SDK, NDK)
@@ -69,8 +70,12 @@ jobs:
 
       - name: Compile Android-selected QML before building APKs
         run: |
-          python tests/android_qml_preflight.py --qt-root "$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/gcc_64"
-          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software "$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/gcc_64/bin/qmltestrunner" -input tests/qml/tst_account_choice_accessibility.qml
+          set -o pipefail
+          QT_HOST="$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/gcc_64"
+          ldd "$QT_HOST/lib/libQt6Gui.so.6" "$QT_HOST/plugins/platforms/libqoffscreen.so" | tee qt-host-dependencies.log
+          if grep -q 'not found' qt-host-dependencies.log; then exit 1; fi
+          python tests/android_qml_preflight.py --qt-root "$QT_HOST" 2>&1 | tee qml-preflight.log
+          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software "$QT_HOST/bin/qmltestrunner" -input tests/qml/tst_account_choice_accessibility.qml 2>&1 | tee qml-accessibility.log
 
       - name: Restore dependency prefixes
         id: deps-cache
@@ -159,7 +164,10 @@ jobs:
         if: failure()
         with:
           name: android-build-logs
-          path: build-*.log
+          path: |
+            build-*.log
+            qt-host-dependencies.log
+            qml-*.log
 
   emulator-smoke:
     needs: build
