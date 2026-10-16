@@ -270,6 +270,9 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
         row["actualIO"] = QJsonObject{
             {"networkFiles", m.value("networkFiles")}, {"networkBytes", m.value("networkBytes")},
             {"diskFiles", m.value("diskFiles")}, {"diskBytes", m.value("diskBytes")},
+            {"workerDiskLoads", m.value("fileWorkerDiskLoads")},
+            {"workerNetworkLoads", m.value("fileWorkerNetworkLoads")},
+            {"workerThreadIds", m.value("fileWorkerThreadIds")},
             {"memoryFiles", m.value("memoryFiles")}, {"sharedFiles", m.value("sharedFiles")},
             {"logicalFiles", m.value("logicalFiles")},
             {"loopbackRequests", row.value("requestFiles")},
@@ -282,7 +285,9 @@ int staticCatalogueProbe(const QString &publication, const QString &casesPath,
             {"bucketUniquePaths", m.value("bucketUniquePaths")},
             {"bucketAdmissions", m.value("bucketAdmissions")},
             {"bucketPeakPending", m.value("bucketPeakPending")},
-            {"bucketPrefetchWaves", m.value("bucketPrefetchWaves")}};
+            {"bucketPrefetchWaves", m.value("bucketPrefetchWaves")},
+            {"fileWorkPeak", m.value("fileWorkPeak")},
+            {"combinedWorkPeak", m.value("combinedWorkPeak")}};
         return row;
     };
     for (qsizetype n = 0; n < rows.size(); ++n) {

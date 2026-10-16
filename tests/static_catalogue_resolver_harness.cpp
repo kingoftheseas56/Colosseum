@@ -18,16 +18,36 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QThread>
 #include <iostream>
 #include <cstdlib>
 #include <mutex>
+#include <condition_variable>
 static std::mutex traceMutex;
+static std::mutex parseGateMutex;
+static std::condition_variable parseGateCv;
+static QString parseGateHash;
+static bool parseGateArmed = false, parseGateEntered = false, parseGateReleased = true;
 static QList<QJsonObject> traceRows;
 static QtMessageHandler tracePreviousHandler = nullptr;
 static void captureCatalogueTrace(QtMsgType type, const QMessageLogContext& context, const QString& message) {
     if (message.startsWith("CATALOGUE_TRACE ")) {
-        std::lock_guard<std::mutex> lock(traceMutex);
-        traceRows.append(QJsonDocument::fromJson(message.mid(16).toUtf8()).object());
+        const auto row = QJsonDocument::fromJson(message.mid(16).toUtf8()).object();
+        {
+            std::lock_guard<std::mutex> lock(traceMutex);
+            traceRows.append(row);
+        }
+        // Deliberately park only the actual background parser at this real
+        // disk read. No sleeps, mocked decode, or GUI-thread waiting.
+        if (row.value("event") == "json_parse_begin" && row.value("source") == "disk") {
+            std::unique_lock<std::mutex> lock(parseGateMutex);
+            if (parseGateArmed && row.value("fileHash") == parseGateHash) {
+                parseGateArmed = false;
+                parseGateEntered = true;
+                parseGateCv.notify_all();
+                parseGateCv.wait(lock, [] { return parseGateReleased; });
+            }
+        }
     }
     if (tracePreviousHandler) tracePreviousHandler(type, context, message);
     else std::cerr << message.toStdString() << '\n';
@@ -995,7 +1015,123 @@ int main(int argc, char **argv) {
             require(tracedRemote.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "success",
                     "trace-enabled native query retains exact success");
         }
+        // Exercise a second, genuinely disk-backed owner using the real cached
+        // publication. The index bootstrap is intentionally synchronous; the
+        // shared leaf body's JSON parsing must not be.
+        QObject traceOfflineOwner;
+        auto *tracedDisk = StaticCatalogueResolver::shared(
+            nullptr, origin, temp.filePath("trace"), &traceOfflineOwner);
+        bool ownerEventProgressed = false;
+        QTimer::singleShot(0, &app, [&] { ownerEventProgressed = true; });
+        require(resolve(tracedDisk).status == StaticCatalogueResolver::Status::Prepared &&
+                    ownerEventProgressed,
+                "offline disk asset resolves while owner event loop progresses");
+        const auto gatedHash = hash(files[leaf]);
+        const auto armGate = [&] {
+            std::lock_guard<std::mutex> lock(parseGateMutex);
+            parseGateHash = gatedHash;
+            parseGateArmed = true;
+            parseGateEntered = false;
+            parseGateReleased = false;
+        };
+        const auto enteredGate = [&] {
+            std::lock_guard<std::mutex> lock(parseGateMutex);
+            return parseGateEntered;
+        };
+        const auto releaseGate = [&] {
+            {
+                std::lock_guard<std::mutex> lock(parseGateMutex);
+                parseGateReleased = true;
+            }
+            parseGateCv.notify_all();
+        };
+        const QVariantList fixtureArgs{QVariantMap(), 0, 24};
+        const int diskGetBaseline = gets;
+        {
+            QObject sharingOwner;
+            auto *sharing = StaticCatalogueResolver::shared(
+                nullptr, origin, temp.filePath("trace"), &sharingOwner);
+            armGate();
+            bool firstDone = false, secondDone = false;
+            StaticCatalogueResolver::Outcome a, b;
+            sharing->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                             [&](auto value) { a = value; firstDone = true; });
+            sharing->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                             [&](auto value) { b = value; secondDone = true; });
+            until(enteredGate);
+            require(!firstDone && !secondDone,
+                    "both shared callbacks stay pending during actual background decode");
+            bool ownerTick = false;
+            QTimer::singleShot(0, &app, [&] { ownerTick = true; });
+            until([&] { return ownerTick; });
+            releaseGate();
+            until([&] { return firstDone && secondDone; });
+            require(a.status == StaticCatalogueResolver::Status::Prepared &&
+                    b.status == StaticCatalogueResolver::Status::Prepared &&
+                    a.result == b.result && gets == diskGetBaseline &&
+                    a.metrics.value("diskFiles").toInt() > 0 &&
+                    b.metrics.value("sharedFiles").toInt() > 0 &&
+                    a.metrics.value("combinedWorkPeak").toInt() <= 4,
+                    "shared actual disk read coalesces with owner event loop responsive");
+        }
+        {
+            QObject cancellingOwner;
+            auto *cancelling = StaticCatalogueResolver::shared(
+                nullptr, origin, temp.filePath("trace"), &cancellingOwner);
+            armGate();
+            bool late = false, replacementDone = false;
+            StaticCatalogueResolver::Outcome replacement;
+            const auto oldId = cancelling->resolve(
+                "imdb", "titleCatalog", fixtureArgs, &app, [&](auto) { late = true; });
+            until(enteredGate);
+            cancelling->cancel(oldId);
+            cancelling->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                [&](auto value) { replacement = value; replacementDone = true; });
+            // The new generation must complete without waiting for the old
+            // parser, even though it reads the same hash-named disk path.
+            until([&] { return replacementDone; });
+            require(replacement.status == StaticCatalogueResolver::Status::Prepared &&
+                    !late && gets == diskGetBaseline,
+                    "cancelled disk load cannot hold or complete reused path generation");
+            releaseGate();
+            QCoreApplication::processEvents();
+            require(!late, "released superseded worker suppresses stale callback");
+        }
+        {
+            auto *destroyedOwner = new QObject;
+            auto *dying = StaticCatalogueResolver::shared(
+                nullptr, origin, temp.filePath("trace"), destroyedOwner);
+            armGate();
+            bool late = false;
+            dying->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                           [&](auto) { late = true; });
+            until(enteredGate);
+            delete destroyedOwner;
+            bool tick = false;
+            QTimer::singleShot(0, &app, [&] { tick = true; });
+            until([&] { return tick; });
+            releaseGate();
+            QCoreApplication::processEvents();
+            require(!late && gets == diskGetBaseline,
+                    "destroying owner while disk worker parses does not wait or deliver");
+        }
         qInstallMessageHandler(tracePreviousHandler);
+        const auto assetHash = hash(files[leaf]);
+        const auto mainThread = QString::number(quintptr(QThread::currentThreadId()), 16);
+        int diskWorkerParses = 0, networkWorkerParses = 0;
+        for (const auto &row : traceRows) {
+            if (row.value("event") != "json_parse_begin" ||
+                row.value("fileHash") != assetHash)
+                continue;
+            const auto source = row.value("source").toString();
+            if (source == "disk" || source == "network") {
+                require(row.value("threadId").toString() != mainThread,
+                        "actual asset JSON decoding must not run on the resolver owner thread");
+                (source == "disk" ? diskWorkerParses : networkWorkerParses)++;
+            }
+        }
+        require(diskWorkerParses > 0 && networkWorkerParses > 0,
+                "real disk and network asset JSON both execute off-thread");
         if (originalTrace.isNull()) qunsetenv("COLOSSEUM_CATALOGUE_TRACE");
         else qputenv("COLOSSEUM_CATALOGUE_TRACE", originalTrace);
         const auto nativeKey = identity.queryKey("titleCatalog", landingChildArgs);

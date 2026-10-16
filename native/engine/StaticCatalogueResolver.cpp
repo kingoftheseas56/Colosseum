@@ -7,6 +7,9 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
+#include <QPromise>
+#include <QThreadPool>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -815,8 +818,24 @@ struct StaticCatalogueResolver::Impl {
         qint64 bytes = 0;
         double ms = 0;
         double diskIoMs = 0, diskDecodeMs = 0, diskTouchMs = 0;
+        QString workerThreadId;  // Populated only by actual background file work.
     };
     using AssetCallback = std::function<void(Loaded, QString)>;
+    // File work is immutable once admitted. Only the resolver thread owns the
+    // queue, coalesced waiters, cache, generations and network transfer state.
+    struct FileWork {
+        QString path, expected, filename, source;
+        QByteArray raw;
+        QVariantMap trace;
+        quint64 generation = 0;
+        double networkMs = 0;
+    };
+    struct FileResult {
+        Loaded loaded;
+        QByteArray raw;
+        QString error;
+        bool diskMiss = false, diskInvalid = false;
+    };
     struct Job {
         quint64 id = 0;
         QString dataset, method, nativeKey;
@@ -852,6 +871,7 @@ struct StaticCatalogueResolver::Impl {
         QString path, etag;
         int cap = 0;
         std::function<void(int, QByteArray, QString, QString, double)> callback;
+        quint64 generation = 0;  // 0 is reserved for /catalogue/current.json.
     };
     StaticCatalogueResolver *q;
     QPointer<QNetworkAccessManager> nam;
@@ -864,6 +884,10 @@ struct StaticCatalogueResolver::Impl {
     QCache<QString, Loaded> memory{32 * 1024 * 1024};
     QHash<QString, QList<AssetCallback>> loading;
     QHash<QString, QSet<quint64>> assetOwners;
+    QHash<QString, quint64> fileGenerations;
+    QQueue<FileWork> fileQueue;
+    quint64 nextFileGeneration = 0;
+    int activeFileWork = 0, peakFileWork = 0, peakCombinedWork = 0;
     QSet<quint64> rejected;
     QList<Loaded> bootstrap;
     QQueue<Transfer> transfers;
@@ -1033,9 +1057,161 @@ struct StaticCatalogueResolver::Impl {
                                 {"validatedAt", checked.toString(Qt::ISODateWithMs)}}));
         prune();
     }
+    // This function is the entire background execution boundary: the input
+    // contains only immutable values, never Impl, QObject, job, queue or cache.
+    static FileResult processFile(FileWork work) {
+        FileResult out;
+        QElapsedTimer timer;
+        timer.start();
+        QByteArray raw;
+        double ioMs = 0;
+        std::optional<QFile> diskFile;
+        if (work.source == "disk") {
+            diskFile.emplace(work.filename);
+            CatalogueTrace::Span diskTrace("disk_read", work.trace);
+            if (QFileInfo(*diskFile).isSymLink() ||
+                !diskFile->open(QIODevice::ReadOnly) ||
+                diskFile->size() < 0 || diskFile->size() > fileCap) {
+                out.diskMiss = true;
+                diskTrace.finish("miss");
+                return out;
+            }
+            raw = diskFile->readAll();
+            ioMs = timer.nsecsElapsed() / 1e6;
+            diskTrace.finish("success", {{"bytes", raw.size()}});
+        } else {
+            raw = std::move(work.raw);
+        }
+        try {
+            if (raw.size() > fileCap || digest(raw) != work.expected)
+                throw QStringLiteral("STATIC_HASH_MISMATCH");
+            const auto value = parse(raw, work.trace);
+            const double decodedAtMs = timer.nsecsElapsed() / 1e6;
+            out.loaded = {work.path, work.source, value, raw.size(), 0};
+            out.loaded.workerThreadId =
+                QString::number(quintptr(QThread::currentThreadId()), 16);
+            if (work.source == "disk") {
+                diskFile->setFileTime(QDateTime::currentDateTimeUtc(),
+                                      QFileDevice::FileModificationTime);
+                out.loaded.ms = timer.nsecsElapsed() / 1e6;
+                out.loaded.diskIoMs = ioMs;
+                out.loaded.diskDecodeMs = decodedAtMs - ioMs;
+                out.loaded.diskTouchMs = out.loaded.ms - decodedAtMs;
+            } else {
+                out.loaded.ms = work.networkMs + timer.nsecsElapsed() / 1e6;
+                out.raw = std::move(raw);  // Persist only after owner accepts token.
+            }
+        } catch (const QString &error) {
+            out.error = error;
+            out.diskInvalid = work.source == "disk";
+        }
+        return out;
+    }
+    bool isLive(const QString &path, quint64 token) const {
+        return token != 0 && fileGenerations.value(path, 0) == token
+               && loading.contains(path);
+    }
+    void completeAsset(const QString &path, quint64 token, Loaded loaded, QString error) {
+        if (!isLive(path, token))
+            return;
+        const auto callbacks = loading.take(path);
+        fileGenerations.remove(path);
+        assetOwners.remove(path);
+        bool first = true;
+        for (const auto &callback : callbacks) {
+            auto row = loaded;
+            if (!first) row.where = "shared";
+            first = false;
+            callback(row, error);
+        }
+    }
+    void beginNetworkAsset(const QString &path, const QString &expected, quint64 token) {
+        if (!isLive(path, token))
+            return;
+        network({path, {}, int(fileCap),
+                 [this, path, expected, token](int status, QByteArray raw, QString error,
+                                              QString, double ms) {
+                     if (!isLive(path, token))
+                         return;
+                     Loaded empty{path, nam ? "network" : "offline", {}, raw.size(), ms};
+                     if (error.isEmpty() && status != 200)
+                         error = "STATIC_HTTP_" + QString::number(status);
+                     if (!error.isEmpty()) {
+                         completeAsset(path, token, empty, error);
+                         return;
+                     }
+                     FileWork work;
+                     work.path = path;
+                     work.expected = expected;
+                     work.source = "network";
+                     work.raw = std::move(raw);
+                     work.trace = CatalogueTrace::merge(traceFile(path), {{"source", "network"}});
+                     work.generation = token;
+                     work.networkMs = ms;
+                     fileQueue.enqueue(std::move(work));
+                     pump();
+                 }, token});
+    }
+    void startFileWork() {
+        // Count running/submitted work together with the original four network
+        // slots. Queued disk work is descriptors only; network payloads cannot
+        // accumulate because each completed download occupies its slot as a
+        // decode before another download is admitted.
+        while (active + activeFileWork < 4 && !fileQueue.isEmpty()) {
+            auto work = fileQueue.dequeue();
+            if (!isLive(work.path, work.generation))
+                continue;
+            const auto path = work.path, expected = work.expected;
+            const auto token = work.generation;
+            const auto source = work.source;
+            ++activeFileWork;
+            peakFileWork = std::max(peakFileWork, activeFileWork);
+            peakCombinedWork = std::max(peakCombinedWork, activeFileWork + active);
+            auto *watcher = new QFutureWatcher<FileResult>(q);
+            QObject::connect(watcher, &QFutureWatcher<FileResult>::finished, q,
+                             [this, watcher, path, expected, token, source] {
+                const auto output = watcher->result();
+                watcher->deleteLater();
+                --activeFileWork;
+                if (isLive(path, token)) {
+                    if (source == "disk" && (output.diskMiss || output.diskInvalid)) {
+                        if (output.diskInvalid)
+                            QFile::remove(pathFor(expected));
+                        beginNetworkAsset(path, expected, token);
+                    } else {
+                        if (output.error.isEmpty()) {
+                            memory.insert(path, new Loaded(output.loaded),
+                                          int(output.loaded.bytes));
+                            if (source == "network" && !directory.isEmpty() &&
+                                QDir().mkpath(directory)) {
+                                atomic(pathFor(expected), output.raw, traceFile(path));
+                                prune();
+                            }
+                        }
+                        completeAsset(path, token, output.loaded, output.error);
+                    }
+                }
+                pump();
+            });
+            // Future completion is observed by a QObject owned by the resolver.
+            // Destroying the resolver disconnects the watcher without waiting
+            // for the Qt global-pool worker or exposing its raw address to it.
+            auto promise = QSharedPointer<QPromise<FileResult>>::create();
+            watcher->setFuture(promise->future());
+            QThreadPool::globalInstance()->start(
+                [input = std::move(work), promise]() mutable {
+                    promise->start();
+                    promise->addResult(processFile(std::move(input)));
+                    promise->finish();
+                });
+        }
+    }
     void pump() {
-        while (active < 4 && !transfers.isEmpty()) {
+        startFileWork();
+        while (active + activeFileWork < 4 && !transfers.isEmpty()) {
             auto item = transfers.dequeue();
+            if (item.generation && !isLive(item.path, item.generation))
+                continue;
             if (item.path != "/catalogue/current.json" && !loading.contains(item.path))
                 continue;
             if (!nam) {
@@ -1044,6 +1220,7 @@ struct StaticCatalogueResolver::Impl {
                 continue;
             }
             ++active;
+            peakCombinedWork = std::max(peakCombinedWork, activeFileWork + active);
             CatalogueTrace::event("network_start", CatalogueTrace::merge(traceFile(item.path), {{"source", "network"}, {"activeTransfers", active}}));
             QNetworkRequest request(endpoint.resolved(QUrl(item.path)));
             request.setRawHeader("Accept-Encoding", "identity");
@@ -1100,8 +1277,7 @@ struct StaticCatalogueResolver::Impl {
     }
     void asset(const QString &path, const QString &expected, qint64 size, AssetCallback callback,
                quint64 owner = 0) {
-        // Each reference must validate its own length, including memory hits and
-        // shared in-flight loads whose first waiter may declare another length.
+        // Check each reference independently, even when requests coalesce.
         auto checked = [size, callback = std::move(callback)](Loaded value, QString error) {
             if (error.isEmpty() && size >= 0 && value.bytes != size)
                 error = QStringLiteral("STATIC_HASH_MISMATCH");
@@ -1109,88 +1285,44 @@ struct StaticCatalogueResolver::Impl {
         };
         callback = std::move(checked);
         if (auto *cached = memory.object(path)) {
-            CatalogueTrace::event("file_cache_hit", CatalogueTrace::merge(traceFile(path, owner), {{"source", "memory"}, {"bytes", cached->bytes}}));
+            CatalogueTrace::event("file_cache_hit", CatalogueTrace::merge(traceFile(path, owner),
+                {{"source", "memory"}, {"bytes", cached->bytes}}));
             auto value = *cached;
             value.where = "memory";
             value.ms = 0;
             QTimer::singleShot(0, q, [callback, value] { callback(value, {}); });
             return;
         }
-        if (!directory.isEmpty()) {
-            QElapsedTimer t;
-            t.start();
-            QFile file(pathFor(expected));
-            CatalogueTrace::Span diskTrace("disk_read", CatalogueTrace::merge(traceFile(path, owner), {{"source", "disk"}}));
-            if (!QFileInfo(file).isSymLink() && file.open(QIODevice::ReadOnly) &&
-                file.size() <= fileCap) {
-                try {
-                    const auto raw = file.readAll();
-                    const double ioMs = t.nsecsElapsed() / 1e6;
-                    diskTrace.finish("success", {{"bytes", raw.size()}});
-                    auto value = decode(path, raw, expected, size, "disk", 0, owner);
-                    const double decodeMs = t.nsecsElapsed() / 1e6 - ioMs;
-                    file.setFileTime(QDateTime::currentDateTimeUtc(),
-                                     QFileDevice::FileModificationTime);
-                    value.ms = t.nsecsElapsed() / 1e6;
-                    value.diskIoMs = ioMs;
-                    value.diskDecodeMs = decodeMs;
-                    value.diskTouchMs = value.ms - ioMs - decodeMs;
-                    memory.insert(path, new Loaded(value), int(value.bytes));
-                    QTimer::singleShot(0, q, [callback, value] { callback(value, {}); });
-                    return;
-                } catch (const QString &) {
-                    file.close();
-                    QFile::remove(pathFor(expected));
-                }
-            }
-        }
         assetOwners[path].insert(owner);
         if (loading.contains(path)) {
-            CatalogueTrace::event("file_cache_hit", CatalogueTrace::merge(traceFile(path, owner), {{"source", "shared-inflight"}}));
+            CatalogueTrace::event("file_cache_hit", CatalogueTrace::merge(traceFile(path, owner),
+                {{"source", "shared-inflight"}}));
             loading[path].append(std::move(callback));
             return;
         }
         loading[path].append(std::move(callback));
-        network({path,
-                 {},
-                 int(fileCap),
-                 [this, path, expected, size](int status, QByteArray raw, QString error, QString,
-                                              double ms) {
-                     Loaded value{path, nam ? "network" : "offline", {}, raw.size(), ms};
-                     if (error.isEmpty() && status != 200)
-                         error = "STATIC_HTTP_" + QString::number(status);
-                     if (error.isEmpty())
-                         try {
-                             QElapsedTimer clock;
-                             clock.start();
-                             value = decode(path, raw, expected, size, "network", ms);
-                             value.ms += clock.nsecsElapsed() / 1e6;
-                             memory.insert(path, new Loaded(value), int(value.bytes));
-                             if (!directory.isEmpty() && QDir().mkpath(directory)) {
-                                 atomic(pathFor(expected), raw, traceFile(path));
-                                 prune();
-                             }
-                         } catch (const QString &why) {
-                             error = why;
-                         }
-                     const auto callbacks = loading.take(path);
-                     assetOwners.remove(path);
-                     bool first = true;
-                     for (const auto &cb : callbacks) {
-                         auto row = value;
-                         if (!first)
-                             row.where = "shared";
-                         first = false;
-                         cb(row, error);
-                     }
-                 }});
+        const auto token = ++nextFileGeneration;
+        fileGenerations.insert(path, token);
+        if (directory.isEmpty()) {
+            beginNetworkAsset(path, expected, token);
+        } else {
+            FileWork work;
+            work.path = path;
+            work.expected = expected;
+            work.filename = pathFor(expected);
+            work.source = "disk";
+            work.trace = CatalogueTrace::merge(traceFile(path), {{"source", "disk"}});
+            work.generation = token;
+            fileQueue.enqueue(std::move(work));
+            pump();
+        }
     }
     void record(const QSharedPointer<Job> &j, const Loaded &f) {
         CatalogueTrace::event("file_use", CatalogueTrace::merge(traceJob(j), CatalogueTrace::merge(CatalogueTrace::file(f.path), {{"source", f.where}, {"bytes", f.bytes}})));
         j->events.append(QVariantMap{
             {"path", f.path}, {"source", f.where}, {"bytes", f.bytes}, {"readMs", f.ms},
             {"diskIoMs", f.diskIoMs}, {"diskDecodeMs", f.diskDecodeMs},
-            {"diskTouchMs", f.diskTouchMs}});
+            {"diskTouchMs", f.diskTouchMs}, {"workerThreadId", f.workerThreadId}});
     }
     void resetBuckets(const QSharedPointer<Job> &j) {
         ++j->bucketGeneration;  // Fence every old callback, including disk timers.
@@ -1269,12 +1401,22 @@ struct StaticCatalogueResolver::Impl {
             if (assetOwners[path].isEmpty()) {
                 assetOwners.remove(path);
                 loading.remove(path);
+                fileGenerations.remove(path);
                 const auto activeReplies = replies;
                 for (const auto &r : activeReplies)
                     if (r && r->property("staticPath") == path)
                         r->abort();
             }
         }
+        // Drop obsolete queued inputs immediately, particularly downloaded
+        // network byte arrays, rather than waiting for a pool slot to free.
+        for (auto it = fileQueue.begin(); it != fileQueue.end(); ) {
+            if (!isLive(it->path, it->generation))
+                it = fileQueue.erase(it);
+            else
+                ++it;
+        }
+        pump();
     }
     void finish(quint64 id, Status status, QJsonValue value = {}, QString error = {}) {
         const auto j = jobs.take(id);
@@ -1301,6 +1443,8 @@ struct StaticCatalogueResolver::Impl {
             out.sourceRevision = j->index.value("tankobanSourceHash").toString();
         qint64 networkBytes = 0, diskBytes = 0, maxBytes = 0;
         int networkFiles = 0, diskFiles = 0, memoryFiles = 0, sharedFiles = 0;
+        int networkWorkerLoads = 0, diskWorkerLoads = 0;
+        QSet<QString> workerThreadIds;
         double maxMs = 0, largestMs = 0;
         for (const auto &v : j->events) {
             const auto e = v.toMap();
@@ -1316,6 +1460,12 @@ struct StaticCatalogueResolver::Impl {
                 ++memoryFiles;
             else if (from == "shared")
                 ++sharedFiles;
+            const auto worker = e.value("workerThreadId").toString();
+            if (!worker.isEmpty() && (from == "disk" || from == "network")) {
+                workerThreadIds.insert(worker);
+                if (from == "disk") ++diskWorkerLoads;
+                else ++networkWorkerLoads;
+            }
             const double readMs = e.value("readMs").toDouble();
             if (n > maxBytes) {
                 maxBytes = n;
@@ -1333,6 +1483,12 @@ struct StaticCatalogueResolver::Impl {
                        {"largestFileBytes", maxBytes},
                        {"largestFileReadMs", largestMs},
                        {"slowestReadMs", maxMs},
+                       {"fileWorkerDiskLoads", diskWorkerLoads},
+                       {"fileWorkerNetworkLoads", networkWorkerLoads},
+                       {"fileWorkerThreadIds", workerThreadIds.values()},
+                       {"fileWorkPeak", peakFileWork},
+                       {"combinedWorkPeak", peakCombinedWork},
+                       {"ownerThreadId", QString::number(quintptr(QThread::currentThreadId()), 16)},
                        {"elapsedMs", j->clock.nsecsElapsed() / 1e6},
                        {"evaluationRuns", j->evaluationRuns},
                        {"evaluationMs", j->evaluationMs},
