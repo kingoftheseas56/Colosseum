@@ -32,7 +32,7 @@ FocusScope {
     readonly property real badgeHitDiameter: Math.max(44, root.badgeDiameter)
     readonly property bool fontsReady: atlasDisplayFont.status === FontLoader.Ready
             && atlasBodyFont.status === FontLoader.Ready
-    readonly property bool captureReady: root.fontsReady && mapPlate.status === Image.Ready
+    readonly property bool captureReady: root.fontsReady && mapPlate.status === Loader.Ready
 
     signal arcRequested(var arc)
     signal mediaRequested(var entry)
@@ -316,20 +316,25 @@ FocusScope {
             x: Math.max(0, (mapViewport.width - width) / 2)
             y: Math.max(0, (mapViewport.height - height) / 2)
 
-            Image {
+            // Keep native chart coordinates at 1680x960; scale only the drawing layer.
+            // The stage and all marker placements retain their existing geometry.
+            Loader {
                 id: mapPlate
                 objectName: "eastBlueAtlasPlate"
-                anchors.fill: parent
-                source: root.resolveContentAsset("../assets/universes/one-piece/east-blue/east-blue-atlas.png")
-                fillMode: Image.PreserveAspectFit
+                width: 1680
+                height: 960
                 asynchronous: true
-                smooth: true
-                mipmap: true
-                sourceSize: Qt.size(3360, 1920)
+                source: Qt.resolvedUrl("EastBlueChart.qml")
+                transform: Scale {
+                    origin.x: 0
+                    origin.y: 0
+                    xScale: root.fitScale * root.zoom
+                    yScale: root.fitScale * root.zoom
+                }
             }
             Rectangle {
-                anchors.fill: mapPlate
-                visible: mapPlate.status === Image.Error
+                anchors.fill: parent
+                visible: mapPlate.status !== Loader.Ready
                 color: "#e7d5aa"
                 border.color: "#80633e"
                 Text { anchors.centerIn: parent; text: "EAST BLUE ATLAS ART UNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.bold: true }

@@ -49,9 +49,11 @@ Item {
         }
 
         function test_generated_map_keeps_exact_aspect_and_locked_badges() {
-            var image = control("finalSeaMapImage")
-            tryCompare(image, "status", Image.Ready, 5000)
-            verify(String(image.source).endsWith("/final-sea/final-sea-map.png"))
+            var artwork = control("finalSeaMapArtwork")
+            compare(artwork.designWidth, 1672)
+            compare(artwork.designHeight, 941)
+            verify(artwork.visible)
+            verify(atlas.captureReady, "native artwork has presented a frame")
             fuzzyCompare(atlas.stageGeometry.width / atlas.stageGeometry.height, 1672 / 941, 0.00001)
             var centers = {egghead: [0.38215, 0.47510], elbaf: [0.86965, 0.37725]}
             for (var zoom of [1, 1.5, 2]) {
@@ -82,8 +84,8 @@ Item {
                 fuzzyCompare(origin.y, painted.y, 0.2)
                 fuzzyCompare(button.width, Math.max(44, row[3] * atlas.stageGeometry.width), 0.2)
                 fuzzyCompare(button.height, Math.max(44, row[4] * atlas.stageGeometry.height), 0.2)
-                verify(button.mapArtwork)
-                compare(button.contentItem.visible, false)
+                compare(button.mapArtwork, false)
+                compare(button.contentItem.visible, true)
             }
             // Zoom station: visible controls clamped right of the shell taskbar dock's
             // closed footprint (leftEdge<=80 + 130 wide).
@@ -167,15 +169,8 @@ Item {
                 atlas.width = size[0]; atlas.height = size[1]
                 atlas.setZoom(1)
                 wait(30)
-                var backing = control("finalSeaPaintedZoomCover")
-                var coverStart = backing.mapToItem(atlas, 0, 0)
-                var oldStart = atlas.mapPoint(0.0299, 0.8831)
-                var oldEnd = atlas.mapPoint(0.1615, 0.9415)
-                verify(coverStart.x <= oldStart.x && coverStart.y <= oldStart.y)
-                verify(coverStart.x + backing.width >= oldEnd.x
-                       && coverStart.y + backing.height >= oldEnd.y,
-                       "The original painted station must be covered")
-                compare(backing.opacity, 1)
+                compare(findChild(atlas, "finalSeaPaintedZoomCover"), null,
+                        "native artwork has no obsolete painted zoom station to mask")
                 for (var name of ["finalSeaZoomIn", "finalSeaZoomOut", "finalSeaZoomReset"]) {
                     wait(30) // settle the viewport's deferred zoom scroll before the next pointer event
                     var button = control(name)

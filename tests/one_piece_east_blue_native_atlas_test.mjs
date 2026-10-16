@@ -13,9 +13,9 @@ console.log('One Piece native East Blue atlas contract');
 const dataPath = 'qml/OnePieceEastBlueAtlasData.js';
 eq(fs.existsSync(dataPath), true, 'atlas data module exists');
 if (fs.existsSync(dataPath)) {
-    const source = fs.readFileSync(dataPath, 'utf8').replace(/^\.pragma library\s*$/m, '');
+    const source = fs.readFileSync(dataPath, 'utf8').replace(/^\.(?:pragma|import)[^\r\n]*$/gm, '');
     const module = {};
-    new Function('module', `${source}\nmodule.canonMarkers=canonMarkers;module.nonCanonEntries=nonCanonEntries;module.canonMarker=canonMarker;module.nonCanonEntry=nonCanonEntry;module.badgeSource=badgeSource;module.bannerSource=bannerSource;`)(module);
+    new Function('module', 'ContentApi', `${source}\nmodule.canonMarkers=canonMarkers;module.nonCanonEntries=nonCanonEntries;module.canonMarker=canonMarker;module.nonCanonEntry=nonCanonEntry;module.badgeSource=badgeSource;module.bannerSource=bannerSource;`)(module, { document: () => ({}), register: () => {}, resolveAssets: x => x });
     eq(module.canonMarkers.map(marker => marker.id),
        ['romance', 'orange', 'syrup', 'baratie', 'arlong', 'loguetown'],
        'canon marker order');
@@ -155,8 +155,8 @@ if (fs.existsSync(atlasPath)) {
     eq(source.includes('onTapped:'), false, 'badge pointer tap does not navigate');
     eq(source.includes('onClicked: root.arcRequested'), false, 'badge/index pointer action does not emit arcRequested');
     eq(source.includes('root.arcRequested(arc)'), true, 'only OPEN ARC emits selected arc');
-    eq(source.includes('source: "../assets/universes/one-piece/east-blue/east-blue-atlas.png"'), true,
-       'atlas uses the headless-safe raster plate');
+    eq(source.includes('source: Qt.resolvedUrl("EastBlueChart.qml")'), true,
+       'atlas loads the native QML vector plate');
     eq(source.includes('width: root.badgeDiameter'), true, 'badge art uses the scaled visible diameter');
     eq(source.includes('width: root.badgeHitDiameter'), true, 'badge hit target stays independently accessible');
     eq(/fitScale[\s\S]*?Math\.min\(mapViewport\.width\s*\/\s*1680/.test(source), true,

@@ -17,6 +17,7 @@ FocusScope {
     property bool reducedMotion: false
     property string displayFamily: "Georgia"
     property string bodyFamily: "Georgia"
+    // Retained for public-property compatibility; never used to fetch or draw a map.
     property url mapSource: root.resolveContentAsset("../assets/universes/one-piece/final-sea/final-sea-map.png")
     property real shellChromeInset: 172
     property real zoom: 1
@@ -35,11 +36,13 @@ FocusScope {
     readonly property var selectedArc: (root.universeContentGeneration, Story.arc)(selectedArcId)
     readonly property var selectedLocation: selectedArc ? (root.universeContentGeneration, Atlas.location)(selectedArc.locationId) : null
     readonly property bool transientOpen: previewVisible || indexVisible
-    readonly property bool captureReady: mapImage.status === Image.Ready
+    // True only after a Qt Quick frame containing the native chart is presented.
+    property bool _nativeArtworkFramePresented: false
+    readonly property bool captureReady: root._nativeArtworkFramePresented
     readonly property var stageGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, zoom)
     readonly property var controlGeometry: Geometry.stageGeometry(mapViewport.width, mapViewport.height, 1)
     readonly property real sealDiameter: 84 * root.stageGeometry.scale
-    // These seals cover marker artwork baked into the map; never relocate them.
+    // Atlas anchors are unchanged; native art contains no baked poster medallions.
     readonly property var badgePlacements: {
         var placements = {}
         for (var marker of root.markerEntries)
@@ -278,6 +281,19 @@ FocusScope {
         }
     }
 
+    // A constructed Item is not evidence of drawing. This signal is delivered
+    // after Qt Quick presents a window frame, with the native chart in its stage.
+    Connections {
+        target: root.Window.window
+        function onFrameSwapped() {
+            if (!root._nativeArtworkFramePresented && root.visible
+                    && root.width > 0 && root.height > 0
+                    && mapStage.visible && mapStage.width > 0 && mapStage.height > 0
+                    && mapArtwork.visible && mapArtwork.width > 0 && mapArtwork.height > 0)
+                root._nativeArtworkFramePresented = true
+        }
+    }
+
     Rectangle { anchors.fill: parent; color: "#151b18" }
 
     Flickable {
@@ -285,7 +301,7 @@ FocusScope {
         objectName: "finalSeaMapViewport"
         anchors.fill: parent
         anchors.margins: 14
-        // The painted Index sits at the image's upper right, below shell chrome.
+        // The real Index control sits over the native chart, below shell chrome.
         anchors.topMargin: 64
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -311,49 +327,18 @@ FocusScope {
             width: root.stageGeometry.width
             height: root.stageGeometry.height
 
-            Image {
-                id: mapImage
-                objectName: "finalSeaMapImage"
-                anchors.fill: parent
-                source: root.mapSource
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                smooth: true
-                mipmap: true
-            }
-
-            Rectangle {
-                objectName: "finalSeaPaintedZoomCover"
-                x: 0.0299 * parent.width - 3
-                y: 0.8831 * parent.height - 3
-                width: 0.1316 * parent.width + 6
-                height: 0.0584 * parent.height + 6
-                color: "#e2cc9b"
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                visible: mapImage.status !== Image.Ready
-                color: "#ddc69a"
-                border.color: "#8a683e"
-                Column {
-                    anchors.centerIn: parent
-                    spacing: 8
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: mapImage.status === Image.Error ? "CHART UNAVAILABLE" : "PREPARING FINAL SEA"
-                        color: "#63482b"
-                        font.family: root.displayFamily
-                        font.pixelSize: 20
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "The story index remains available."
-                        color: "#806646"
-                        font.family: root.bodyFamily
-                        font.pixelSize: 12
-                    }
-                }
+            // Native authored in fixed 1672x941 coordinates. Uniform scale only.
+            FinalSeaNativeArtwork {
+                id: mapArtwork
+                objectName: "finalSeaMapArtwork"
+                x: 0
+                y: 0
+                width: designWidth
+                height: designHeight
+                transformOrigin: Item.TopLeft
+                scale: root.stageGeometry.scale
+                displayFontFamily: root.displayFamily
+                labelFontFamily: root.bodyFamily
             }
 
             Repeater {
@@ -399,6 +384,26 @@ FocusScope {
                     onMoveRequested: function(id, direction) {
                         root.moveMarker(id, direction)
                     }
+                }
+            }
+
+            // Previously baked into the PNG beside the Elbaf seal.
+            // Keep it as presentation only, below the genuine marker overlay.
+            Rectangle {
+                objectName: "finalSeaOngoingLabel"
+                x: 0.89 * parent.width
+                y: 0.405 * parent.height
+                width: 0.088 * parent.width
+                height: 0.034 * parent.height
+                z: 2
+                color: "#e6d2a9"
+                border.color: "#8a683e"
+                Text {
+                    anchors.centerIn: parent
+                    text: "NOW · ONGOING"
+                    font.family: root.bodyFamily
+                    font.pixelSize: Math.max(8, 12 * root.stageGeometry.scale)
+                    color: "#63472b"
                 }
             }
         }
@@ -472,7 +477,7 @@ FocusScope {
         // the 44 px minimum the FinalSeaInkButton implicit size already promises.
         width: Math.max(44, 0.1441 * root.stageGeometry.width)
         height: Math.max(44, 0.0616 * root.stageGeometry.height)
-        mapArtwork: true
+        mapArtwork: false
         z: 20
         text: "TO NEW WORLD"
         fontFamily: root.bodyFamily
@@ -492,7 +497,7 @@ FocusScope {
         y: root.mapPoint(0.8439, 0.0372).y
         width: Math.max(44, 0.1340 * root.stageGeometry.width)
         height: Math.max(44, 0.0574 * root.stageGeometry.height)
-        mapArtwork: true
+        mapArtwork: false
         z: 30
         text: "INDEX"
         fontFamily: root.bodyFamily
