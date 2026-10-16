@@ -1,6 +1,6 @@
 # Build Vinyl as a functioning Colosseum mode
 
-**One Dots-owned implementation project.** Deliver the working mode end to end. These are completion checkpoints for one project, not separately dispatched parallel jobs. Choose the practical internal execution method; keep one accountable delivery and one assembled candidate.
+**One Dots-owned implementation project, delivered as four sequential reviewable builds: 0.25, 0.5, 0.75 and 1.0.** These labels name acceptance milestones, not measured percentages, production releases or Colosseum app versions. Keep one accountable delivery and one assembled candidate. Deliver each build for Codex receiving review and wait for acceptance before advancing; fix rejected criteria within that build.
 
 ## Objective and scope
 
@@ -9,6 +9,8 @@ Finish the provider-independent Vinyl mode inside the native Colosseum app, reus
 The deliberately deferred work is external catalogue access and external streaming discovery/resolution: YouTube/YouTube Music, Tankorent 2, MusicBrainz network access and other services. Implement clean replaceable adapters for those systems; do not make their network availability a dependency of the mode. Preserve existing provider implementations for later connection rather than deleting them.
 
 This is implementation and native-app qualification, not another audit, UI mockup, disconnected prototype, or test-only repair. Do not stop after making individual harnesses pass.
+
+Read `REUSE-MAP.md` alongside this job. It identifies current shared owners from Tankoban, Biblio and Theatre and adds the cross-world acceptance cases. Treat that as an initial implementation checkpoint inside this same project, not a separate audit assignment. Reuse the current app-base implementations; older donor copies must not downgrade shared components.
 
 ## Exact source basis and source precedence
 
@@ -30,50 +32,68 @@ The current app base owns unrelated app behavior. The artist donor owns the acce
 - A2 supplies `IArtistSource`, `ArtistReadAdapter`, `ArtistServiceBridge`, `SavedArtistAdapter`, `RecordingPlaybackPort` and a composed factory. Its in-memory defaults and command-recording sink are prototype adapters. Production persistence and playback must connect to the real owners.
 - A2 artist/recording interfaces rely heavily on MusicBrainz identifiers. Local content must have stable Colosseum-owned identity without requesting or fabricating a MusicBrainz ID. Preserve external identities as optional mappings. Inspect existing canonical identity ownership before extending it.
 
-## Checkpoint 1 — assemble the native mode and its contracts
+## Delivery gates for every build
 
-- [ ] Establish an isolated task branch, source manifest and reproducible native build/launch commands.
-- [ ] Make Vinyl reachable through the app's appropriate mode entry, respecting existing feature gating and unrelated worlds. A standalone `ArtistPreview` window is not the completion artifact.
-- [ ] Define one coherent ownership path from QML presentation through the native services/session to player and profile stores. Keep fixtures in test/dev injection, not runtime imports from `tests/fixtures`.
-- [ ] Expose capabilities and truthful states for unavailable optional content. A visible action must perform its advertised operation or communicate a concrete unavailable state; silent no-ops do not count as implemented.
+For EACH of 0.25, 0.5, 0.75 and 1.0, publish:
 
-## Checkpoint 2 — usable catalogue-independent input and browsing
+- Exact Git commit and delta from the last accepted build, plus a runnable native Linux app artifact with checksum and launch instructions. If a native build cannot be produced, report BLOCKED rather than silently substituting a QML preview.
+- A short acceptance checklist with actual PASS / FAIL / BLOCKED / NOT RUN, reproducible commands, native exit codes, test totals, representative app screenshots and known regressions.
+- A build-specific report and machine-readable state in the one Dots delivery index. The next build starts from the last accepted source pin. Do not overwrite prior receipts.
+- Codex receives/reviews the code and evidence, requests bounded corrections if needed and explicitly accepts the checkpoint before Dots advances. Windows/Preflight receiving evidence is recorded separately from Dots Linux evidence. Hemanth may review any build; manual testing by Hemanth is not a prerequisite for agent verification.
 
-- [ ] Support real local audio through the app's existing open/import/library route. Extend that route narrowly if required. A hardcoded developer-only fixture list is insufficient as the sole user input.
-- [ ] Use supplied/local metadata to populate albums, tracks and artists, including unknown fields and missing artwork. Keep browsed identity separate from playing identity.
-- [ ] Make Home, Discover/local browse, Library, lists/collections, Artist, Album and Song routes function against the same owned records. If a page needs online enrichment, retain the page and show its truthful offline/empty state.
-- [ ] Preserve selections, sort/filter, scroll and focus through forward/back routes and nested artist/album/song navigation. Cover empty, single-item, long and changing datasets.
+Each build must remain a working native mode. Test changed behavior and meaningful regressions at every gate; do not defer all testing to 1.0. No production merge or release at a milestone.
 
-## Checkpoint 3 — wire real playback to the existing player
+## Build 0.25 — the real playable vertical slice
 
-- [ ] Feed local playable sources into the existing native music-player path. Do not simulate progress with a timer or only emit a recorded play command.
-- [ ] Implement play/pause, seek, previous/next, end-of-track advancement, queue inspection and the existing queue mutation/shuffle/repeat controls the UI exposes. Specify and test boundary behavior rather than inventing extra controls.
-- [ ] Keep playback alive while browsing another album or page, and keep every playback surface synchronized with the same session.
-- [ ] Handle unreadable/missing files, unsupported media, decoder failure, cancellation, rapid track switches, retry, end of queue and shutdown without stale callbacks or a stuck spinner.
-- [ ] Test local files and, where useful, a controlled loopback source for delayed/failing transport. A real external torrent catalogue or public streaming source is not required. Existing deterministic tone generation in `tests/vinyl-live/music_seed.cpp` can supply test audio without a media download; do not make torrent setup a prerequisite for local playback.
+**Review outcome:** enter Vinyl in the native Colosseum app, open local audio, navigate Library -> Album -> Song, play/pause/seek through the existing player, return/back and exit cleanly.
 
-## Checkpoint 4 — durable user state
+- [ ] Create the isolated integration branch and source manifest from the exact inputs above. Record shared-owner use/extend/keep-specific decisions from `REUSE-MAP.md`, then implement; no separate audit assignment.
+- [ ] Assemble the native mode entry, minimal Library/Album/Song path and music-session owner. Preserve unrelated worlds and existing feature gating. A standalone ArtistPreview is not the build artifact.
+- [ ] Support usable local-file input through the app's open/import/library route, extending narrowly if necessary. A hardcoded developer fixture list is insufficient as the sole user input.
+- [ ] Connect real local playback, play/pause and seek, with truthful missing-file/decoder error states. Do not simulate time or only record a play command. Keep browsed identity distinct from playing identity.
+- [ ] Establish stable core identity and replaceable read/source-resolution contracts. Demonstrate a local adapter through the same consumer API intended for future catalogue/streaming adapters; no external account or catalogue lookup required.
+- [ ] Reconcile the source/test registry. The earlier snapshot had 18 Vinyl suites; the lifetime derivative has 19 physical files. Published donor 501bf8a3 has 17 tracked suites, including model-replacement coverage missing in the snapshot. Classify local diagnostics and restore meaningful regressions instead of blindly quoting 18/18.
+- [ ] Use isolated test/profile storage. Keep fixtures in tests/dev injection rather than production imports from tests/fixtures. Actions not implemented until a later build must be visibly unavailable, not misleading successful controls.
 
-- [ ] Connect saved albums/artists, library membership, listening history/progress, taste-picker state and existing user-created playlist actions to appropriate existing profile-owned storage.
-- [ ] Inspect `CollectionStore`, `ProgressStore`, profile preferences and the relevant personal-state contracts before adding any store. Extend the existing owner where practical; no parallel database just for convenience.
-- [ ] Prove persistence after a process restart, profile separation, failed-write behavior and profile departure during a pending request. A successful in-memory toggle is insufficient.
-- [ ] Restore the appropriate queue, item and position under established resume policy; do not autoplay unexpectedly on launch.
+**Gate evidence:** native-app launch and entry; actual player position/seek/pause state; local input -> Album -> Song -> Back; missing-file recovery; clean process exit; focused component/bridge checks. Clearly state audio-device/audibility limits.
 
-## Checkpoint 5 — finish the existing presentation and detail tools
+## Build 0.5 — all core pages and the complete queue connected
 
-- [ ] Connect multi-disc/edition choices and displayed metadata to the actual selected record. Complete current no-op adapter methods.
-- [ ] Make supplied/local lyrics, credits, notes and related detail panels work where data is present. Missing material remains missing; external lyric/metadata fetching is not part of this job. Do not invent a new authoring/synchronization product where the existing UI is read-only.
-- [ ] Preserve approved artist Albums / Singles / Videos / Live navigation, shared DiscoverPicker/BackAction, Backdrops behavior and Colosseum's shared Theme, focus and scrolling conventions. Biblio's collapsed source rail and its Filter popup are separate controls.
-- [ ] Preserve the current artist photo/backdrop design and wallpaper fallback. Do not replace it with an older mock or generic redesign. No visible scrollbars; full keyboard reachability and focus restoration; check 1280x720 plus narrow/resized windows.
-- [ ] Represent genuinely streaming-only Videos/Live actions as unavailable until a provider is connected, while making supplied/local playable media functional where the existing page supports it. Do not show a fake playback success.
+**Review outcome:** navigate the full existing Vinyl frontend against owned local records while one real music session keeps every playback surface synchronized.
 
-## Checkpoint 6 — prove the mode as a whole
+- [ ] Connect Home, Discover/local browse, Library, lists/collections, Artist, Album and Song to the same owned records. Online enrichment is optional and has truthful offline/empty states.
+- [ ] Preserve sort/filter, selections, scroll, focus and nested history across routes. Cover empty, single-item, long and refreshed datasets; keep playback alive while browsing elsewhere.
+- [ ] Complete previous/next, natural end-of-track advancement, queue inspection/mutation and the shuffle/repeat controls the existing UI exposes. Specify/test boundaries rather than adding speculative controls.
+- [ ] Wire multi-disc/edition choices and current metadata/detail tools. Supplied/local lyrics, notes and credits work when present; missing material remains missing. Complete current no-op adapter methods without inventing a new authoring/sync product.
+- [ ] Preserve accepted artist Albums / Singles / Videos / Live tabs, shared controls, artist backdrop rotation and wallpaper fallback. Streaming-only actions remain honestly unavailable; supplied/local playable media uses the real player where supported.
+- [ ] Apply appropriate shared shell, collection keyboard and scrolling behavior without replacing accepted destination information architecture. No visible scrollbars; full keyboard focus return; check 1280x720 and a narrow/resized window.
 
-- [ ] Reconcile the test registry before quoting a coverage fraction. The earlier local snapshot had 18 `tst_vinyl_*.qml` files; the lifetime derivative has 19. Published donor `501bf8a3` has 17 tracked Vinyl suites, including `tst_vinyl_artist_model_replacement.qml` missing in the local snapshot; local capture/model-lifetime diagnostics are extra. Classify tests and preserve meaningful regressions; do not silently omit the missing suite or count duplicate captures as extra product coverage.
-- [ ] Run the applicable component/native suites on the assembled candidate; diagnose failures without weakening assertions. Give per-suite commands, runner identity, exit code and pass/fail/skip totals. Baseline-dependent artwork failures and environment blocks need exact classification, not a blanket PASS.
-- [ ] Run the real native Colosseum app on Linux and exercise the acceptance journey below. Capture protocol/app state, process exits and representative rendered screens. Distinguish this from offscreen QML component tests.
-- [ ] Exercise repeated route changes, rapid open/back/close, pending-load teardown, page resize, profile changes and app shutdown under normal GC. Investigate reproducible native failures with owned-process diagnostics. Do not claim the historical intermittent crash cured solely because a repetition campaign passes.
-- [ ] Reuse existing components' regression suites and verify unrelated world entry still works after app/build wiring changes.
+**Gate evidence:** native walkthrough of every route; queue and playback-continuity journey; representative normal/empty/error/fallback states; relevant page, keyboard, queue and regression suites. This build is not yet accepted as restart/profile-complete.
+
+## Build 0.75 — durable state and full app lifecycle
+
+**Review outcome:** saved user state survives restart, profiles stay separate, and Vinyl behaves correctly alongside the rest of Colosseum.
+
+- [ ] Wire saved albums/artists, library membership, listening progress/history, taste-picker state and existing user playlist actions to appropriate existing profile-owned stores. Inspect CollectionStore, ProgressStore and personal-state contracts before extending ownership; no competing convenience database.
+- [ ] Prove persistence after process restart, queue/item/position restore under the established resume policy and no unexpected autoplay. A successful session-only toggle is insufficient.
+- [ ] Handle profile switch or departure during playback/pending work; demonstrate no cross-profile library, preference, queue or activity leakage.
+- [ ] Integrate existing search-history/activity preferences. Use the shared activity path for real consumption and correct pause/seek/EOF transitions; no fabricated listening time or separate activity database. An absent/failing optional activity sink must not break playback.
+- [ ] Integrate appropriate taskbar/open-session capture/restore. Test Vinyl -> Biblio/audiobook -> Theatre/player -> Vinyl under the existing audio-handoff policy, avoiding unintended competing playback and stale controls. Do not confuse shell session state with the authoritative music queue.
+- [ ] Surface failed durable writes and verify shutdown flushing. Apply shared background scheduling/cancellation if needed for import/metadata work rather than adding another global worker pool.
+
+**Gate evidence:** cold process restart; two isolated profiles; failed-write behavior; pending-operation/profile-switch recovery; cross-world audio/session handoff; activity opt-out checks; native clean exits plus focused persistence/lifecycle regressions.
+
+## Build 1.0 — Vinyl foundation acceptance and hardening
+
+**Review outcome:** all previous builds' acceptance criteria remain passing on one assembled candidate, with provider-independent behavior qualified and external adapter contracts ready.
+
+- [ ] Run the applicable reconciled QML/native registry on the final candidate, with exact per-suite commands, runner identity, exits and pass/fail/skip totals. Diagnose real failures without weakening assertions. Classify asset/environment-dependent limits rather than claiming a blanket pass.
+- [ ] Exercise missing/unreadable/unsupported media, decoder failure, cancellation, rapid track changes, retry, end-of-queue, offline optional content and resizing. A controlled loopback source may test delayed/failing transport without a public streaming service.
+- [ ] Exercise rapid open/back/close, pending-load teardown, profile changes and repeated app shutdown under normal GC. Capture owned-process diagnostics for reproducible native failures. A passing repetition campaign does not prove the historical intermittent 0xC0000409 root cause cured.
+- [ ] Run shared-component regressions and verify unrelated worlds still open and function after the app/build wiring changes.
+- [ ] Run the complete assembled-app acceptance journey below, retain source/artifact identity and produce the final reuse inventory, adapter contracts, known gaps and Windows receiving matrix.
+
+**Gate evidence:** full foundation acceptance matrix and reproducible native Linux candidate; separate Windows receiving qualification; honest audio-device and original-art limitations. If a required functional criterion is blocked, report an incomplete 1.0 candidate rather than quietly redefine completion.
 
 ### Required assembled-app acceptance journey
 
@@ -108,4 +128,4 @@ Publish one evolving delivery with: exact source pins; checkpoint status; change
 
 Do not download/rehost provider images with uncleared rights or access credentials to work around cloud internet restrictions. Use existing approved assets and honest fallbacks. Keep test seed data clearly separate from real user data. Preserve unrelated code and other workers' changes.
 
-Start by inspecting the pinned sources, assembling the one candidate and completing a local playback vertical slice. Continue through the remaining checkpoints. Report genuine dependency/build blockers with exact evidence; do not replace the requested mode with an unconnected harness and call the project complete.
+Start with Build 0.25 only: inspect the pinned sources, assemble the candidate and complete the real local playback vertical slice. Publish it for receiving review and stop at that gate. Continue to 0.5, 0.75 and 1.0 only after the preceding build is accepted. Report genuine dependency/build blockers with exact evidence; do not replace the requested mode with an unconnected harness and call the project complete.
