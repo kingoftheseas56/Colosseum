@@ -681,7 +681,7 @@ function cinemetaCatalogPaged(type, genre, skip, done) {
     if (skip) path += "/skip=" + skip;
     var urls = [ CINEMETA_CATALOGS + path + ".json", CINEMETA + path + ".json" ];
     return requestJsonWithFallback(urls, function(json) {
-        done(json && json.metas ? json.metas : []);
+        done(json && json.metas ? json.metas : [], !!(json && Array.isArray(json.metas)));
     });
 }
 
@@ -726,19 +726,292 @@ function imdbRowsFor(imdb, recipe, offset, limit) {
     return merged.slice(0, limit);
 }
 
-// drop live-row items the index disqualifies: anime always; shovelware on recent shelves.
-function filterLiveItems(imdb, items, dropLowVotes) {
-    if (!CatalogDelivery.available(imdb)) return items;
-    var ids = items.map(function(it) { return it.id; })
-                   .filter(function(id) { return String(id).indexOf("tt") === 0; });
-    var facts = imdb.titleFacts(ids) || {};
-    return items.filter(function(it) {
-        var f = facts[it.id];
-        if (!f) return true;                          // unknown to the index -> keep
-        if (f.isAnime) return false;                  // anime lives in the Anime tab
-        if (dropLowVotes && f.votes < Rules.THRESHOLDS.RECENT_VOTE_FLOOR) return false;
-        return true;
-    });
+
+// One active consumer, no persistent JS facts cache. The native catalogue owns
+// the canonical cache, exact ordered-ID query key, stale validation and retry.
+var LIVE_FACTS_BATCH = 20;
+function createLiveFactsDemand(imdb, mapped, options, changed) {
+    options = options || {};
+    var pageKey = options.pageKey === "shows" ? "shows" : "movies";
+    var now = options.nowMs || Date.now();
+    var recentKey = pageKey === "shows" ? "recently-premiered" : "recently-released";
+    var available = CatalogDelivery.available(imdb) && typeof imdb.titleFacts === "function";
+    var typed = available && imdb.remoteEnabled === true &&
+                typeof imdb.titleFactsState === "function";
+    var all = mapped || [];
+    var streams = { "top-10": all };
+    streams[recentKey] = Rules.rankItems({kind: "recent"}, all, now);
+    if (pageKey === "shows")
+        streams["currently-airing"] = all.filter(function(it) {
+            return String(it.status || "") === "Continuing";
+        });
+    var predicate = options.explicitFilter;
+    if (typeof predicate === "function") {
+        for (var k in streams)
+            streams[k] = streams[k].filter(function(it) {
+                return predicate(it, options.showExplicit === true);
+            });
+    }
+
+    // The ordered ID vector is the unit of native cache validation and retry.
+    // Never promote one failed shelf to a catalogue-wide "facts failed" flag.
+    var facts = {}, origins = {}, failed = {}, tracked = {};
+    var wanted = [], last = {}, inFlight = null;
+    var stopped = false, queued = false, sourceEnded = false, sourceError = "";
+    function vectorKey(ids) { return JSON.stringify(ids); }
+    function capFor(key) {
+        if (options.onlyRow === key) return options.limit || 40;
+        return key === "top-10" ? 10 : PREVIEW_ROW_CAP;
+    }
+    function startFor(key) {
+        return options.onlyRow === key ? (options.startIndex || 0) : 0;
+    }
+    function snapshot(key) {
+        var pool = streams[key] || [], accepted = [], cursor = startFor(key);
+        var lowVotes = key === recentKey;
+        for (; cursor < pool.length && accepted.length < capFor(key); cursor++) {
+            var it = pool[cursor], id = String(it.id || "");
+            if (!available || id.indexOf("tt") !== 0) { accepted.push(it); continue; }
+            if (!Object.prototype.hasOwnProperty.call(facts, id)) break;
+            var f = facts[id];
+            if (f && f.isAnime) continue;
+            if (f && lowVotes && Number(f.votes) < Rules.THRESHOLDS.RECENT_VOTE_FLOOR)
+                continue;
+            accepted.push(it);
+        }
+        var complete = accepted.length >= capFor(key) || cursor >= pool.length;
+        var ids = [], seen = {};
+        if (!complete) {
+            for (var i = cursor; i < pool.length && ids.length < LIVE_FACTS_BATCH; i++) {
+                var next = String(pool[i].id || "");
+                if (next.indexOf("tt") !== 0 || seen[next] ||
+                    Object.prototype.hasOwnProperty.call(facts, next)) continue;
+                seen[next] = true; ids.push(next);
+            }
+        }
+        var blocker = ids.length ? failed[vectorKey(ids)] : null;
+        var staleVector = null;
+        // A validated stale answer follows only consumers using those facts.
+        // Scanning the acquired prefix also covers facts rejected as anime/low-vote.
+        for (var si = startFor(key); si < cursor; si++) {
+            var staleId = String(pool[si].id || "");
+            var provenance = failed[origins[staleId]];
+            if (provenance && provenance.hasData) {
+                staleVector = provenance; break;
+            }
+        }
+        var relevant = blocker || staleVector;
+        return {items: accepted, complete: complete, nextIndex: cursor,
+                batch: ids, stale: !!staleVector,
+                error: sourceError || (blocker && !blocker.hasData ? blocker.error : ""),
+                retryable: !sourceEnded && !!(relevant && relevant.retryable),
+                failedKey: relevant ? relevant.key : ""};
+    }
+    function emit() {
+        if (stopped) return;
+        for (var i = 0; i < wanted.length; i++) {
+            var key = wanted[i], state = snapshot(key);
+            var signature = state.items.map(function(it) { return it.id; }).join("|") +
+                ":" + state.complete + ":" + state.nextIndex + ":" +
+                state.stale + ":" + state.error + ":" + state.retryable;
+            if (signature !== last[key]) {
+                last[key] = signature;
+                changed(key, state);
+            }
+        }
+    }
+    function schedule() {
+        if (stopped || sourceEnded || queued) return;
+        queued = true;
+        function invoke() { queued = false; pump(); }
+        if (typeof Qt !== "undefined" && Qt.callLater) Qt.callLater(invoke);
+        else if (typeof setTimeout === "function") setTimeout(invoke, 0);
+        else invoke();
+    }
+    function fetchBatch(ids) {
+        if (stopped || sourceEnded || inFlight || !ids.length) return;
+        var key = vectorKey(ids), token = {ids: ids.slice(), cancel: null};
+        inFlight = token;
+        function complete(result) {
+            if (stopped || inFlight !== token) return;
+            inFlight = null;
+            if (result && result.reason === "source-changed") {
+                // A source lost while subscribed is terminal for this owner.
+                // Never relabel old-source facts as a successful empty answer.
+                sourceEnded = true;
+                sourceError = result.error || "Page source changed";
+                facts = {}; origins = {}; failed = {}; tracked = {};
+                emit(); return;
+            }
+            var hasData = !!(result && result.hasData && result.value &&
+                             typeof result.value === "object");
+            if (hasData) {
+                for (var i = 0; i < ids.length; i++) {
+                    var id = ids[i];
+                    facts[id] = Object.prototype.hasOwnProperty.call(result.value, id)
+                        ? result.value[id] : null;
+                    origins[id] = key;
+                }
+                if (result.ok) delete failed[key];
+                else failed[key] = {key: key, ids: ids.slice(), hasData: true,
+                        error: result.error || result.reason || "",
+                        retryable: !!(result.state && result.state.retryable)};
+            } else {
+                failed[key] = {key: key, ids: ids.slice(), hasData: false,
+                        error: (result && (result.error || result.reason)) ||
+                               "Title facts unavailable",
+                        retryable: !!(result && result.state && result.state.retryable)};
+            }
+            if (typed && result && result.state && result.state.source === "remote")
+                tracked[key] = {ids: ids.slice(), key: result.state.key,
+                    status: result.state.status, cached: result.state.cached === true,
+                    sourceRevision: result.state.sourceRevision};
+            emit();
+            // A failed exact vector is skipped by pump; a disjoint shelf can run.
+            schedule();
+        }
+        if (typed) {
+            var cancel = CatalogDelivery.waitQuery(imdb,
+                function() { return imdb.titleFacts(ids) || {}; },
+                function() { return imdb.titleFactsState(ids); }, complete);
+            if (inFlight === token) token.cancel = cancel;
+        } else {
+            try {
+                complete({ok: true, hasData: true, value: imdb.titleFacts(ids) || {}});
+            } catch (e) {
+                complete({ok: false, hasData: false, error: String(e)});
+            }
+        }
+    }
+    function pump() {
+        if (stopped || sourceEnded || inFlight) return;
+        emit();
+        for (var i = 0; i < wanted.length; i++) {
+            var state = snapshot(wanted[i]);
+            if (!state.complete && state.batch.length &&
+                !failed[vectorKey(state.batch)]) {
+                fetchBatch(state.batch); return;
+            }
+        }
+    }
+    // ImdbCatalog.revisionChanged also fires for unrelated CatalogRemote::changed.
+    // Inspect NONFETCHING states of our settled native vectors before invalidating.
+    function onSourceRevision() {
+        if (stopped || sourceEnded || !typed) return;
+        var invalidated = false, sourceChanged = false, staleUpdated = false;
+        for (var key in tracked) {
+            var rec = tracked[key], state = null;
+            try { state = imdb.titleFactsState(rec.ids); } catch (e) { continue; }
+            if (!state || state.source !== "remote" || imdb.remoteEnabled !== true) {
+                sourceChanged = true; break;
+            }
+            if (inFlight && vectorKey(inFlight.ids) === key) continue;
+            // A new publication may already have replaced this exact successful
+            // cache key. Status/key/cached alone cannot identify the old source.
+            if (rec.sourceRevision && state.sourceRevision &&
+                rec.sourceRevision !== state.sourceRevision) {
+                invalidated = true;
+                continue;
+            }
+            if (state.key !== rec.key || state.cached !== rec.cached ||
+                (state.status !== rec.status &&
+                 !(state.status === "pending" && state.cached === true))) {
+                // A failed refresh of still-cached validated facts remains usable.
+                if (state.key === rec.key && state.cached === true &&
+                    state.status === "failure") {
+                    failed[key] = {key: key, ids: rec.ids.slice(), hasData: true,
+                        error: state.error || "", retryable: !!state.retryable};
+                    rec.status = "failure";
+                    staleUpdated = true;
+                } else {
+                    invalidated = true;
+                }
+            }
+        }
+        if (!sourceChanged && !invalidated) {
+            if (staleUpdated) emit(); // exact cached refresh failure is visible, never global
+            return;
+        }
+        if (inFlight && typeof inFlight.cancel === "function") inFlight.cancel();
+        inFlight = null;
+        facts = {}; origins = {}; failed = {}; tracked = {};
+        if (sourceChanged) {
+            sourceEnded = true;
+            sourceError = "Page source changed";
+        }
+        emit();
+        if (!sourceChanged) schedule(); // new publication, same remote source
+    }
+    if (typed) {
+        try {
+            if (imdb.revisionChanged) imdb.revisionChanged.connect(onSourceRevision);
+            if (imdb.readyChanged) imdb.readyChanged.connect(onSourceRevision);
+        } catch (e) {} // no native cache listener on reduced/legacy fixtures
+    }
+    return {
+        setVisible: function(keys) {
+            if (stopped) return;
+            var next = [], used = {};
+            for (var i = 0; i < (keys || []).length; i++) {
+                var key = keys[i];
+                if (streams[key] && !used[key]) { used[key] = true; next.push(key); }
+            }
+            // Viewport ownership changed: an offscreen waiter must not occupy
+            // the sole demand slot indefinitely. Cancellation only disconnects
+            // this consumer; it does not abort another native cache subscriber.
+            if (inFlight) {
+                var live = vectorKey(inFlight.ids), needed = false;
+                for (var j = 0; j < next.length; j++)
+                    if (vectorKey(snapshot(next[j]).batch) === live) needed = true;
+                if (!needed) {
+                    if (typeof inFlight.cancel === "function") inFlight.cancel();
+                    inFlight = null;
+                }
+            }
+            wanted = next;
+            pump();
+        },
+        snapshot: snapshot,
+        streamLength: function(key) { return (streams[key] || []).length; },
+        retry: function(consumerKey) {
+            if (stopped || sourceEnded ||
+                !imdb || typeof imdb.retryTitleFacts !== "function") return false;
+            var keys = consumerKey ? [consumerKey] : wanted, candidate = null;
+            for (var i = 0; i < keys.length; i++) {
+                var state = snapshot(keys[i]), entry = failed[state.failedKey];
+                if (entry && entry.retryable) { candidate = entry; break; }
+            }
+            if (!candidate || (inFlight && vectorKey(inFlight.ids) === candidate.key))
+                return false;
+            // An explicit retry can preempt an offscreen wait. Still only one
+            // bounded subscribed facts batch runs in this controller at a time.
+            if (inFlight) {
+                if (typeof inFlight.cancel === "function") inFlight.cancel();
+                inFlight = null;
+            }
+            if (!imdb.retryTitleFacts(candidate.ids.slice())) { schedule(); return false; }
+            if (!candidate.hasData) delete failed[candidate.key];
+            fetchBatch(candidate.ids);
+            return true;
+        },
+        failedIds: function(consumerKey) {
+            var keys = consumerKey ? [consumerKey] : wanted;
+            for (var i = 0; i < keys.length; i++) {
+                var state = snapshot(keys[i]), entry = failed[state.failedKey];
+                if (entry && !entry.hasData) return entry.ids.slice();
+            }
+            return [];
+        },
+        cancel: function() {
+            stopped = true;
+            if (inFlight && typeof inFlight.cancel === "function") inFlight.cancel();
+            inFlight = null; wanted = [];
+            if (typed) {
+                try { if (imdb.revisionChanged) imdb.revisionChanged.disconnect(onSourceRevision); } catch (e) {}
+                try { if (imdb.readyChanged) imdb.readyChanged.disconnect(onSourceRevision); } catch (e) {}
+            }
+        }
+    };
 }
 
 function rowFromDef(def, items) {
@@ -771,6 +1044,7 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     var rowData = {};          // key -> items
     var extMainRows = [], extExtensionRows = [];
     var liveDone = false, extDone = false;
+    var factsController = null, rowMemo = {};
     var cancelled = false;
     var cancels = [];
     var remoteIndex = imdb && imdb.remoteEnabled && typeof imdb.titleCatalogState === "function";
@@ -788,9 +1062,22 @@ function loadMoviesShowsDeep(pageKey, options, push) {
         var houseRows = [];
         for (var i = 0; i < defs.length; i++) {
             var def = defs[i];
-            var items = keep(rowData[def.key] || []);
+            var source = rowData[def.key] || [];
             var cap = def.recipe.kind === "top" ? (def.recipe.limit || 10) : PREVIEW_ROW_CAP;
-            if (items.length > 0) houseRows.push(rowFromDef(def, items.slice(0, cap)));
+            var live = Rules.indexQueriesFor(def.recipe).length === 0;
+            var pendingFacts = !!(live && factsController &&
+                                 !factsController.snapshot(def.key).complete);
+            if (!source.length && !pendingFacts) continue;
+            // Reuse unchanged index and live descriptors across coalesced facts pushes.
+            var prior = rowMemo[def.key], descriptor;
+            if (prior && prior.source === source && prior.pending === pendingFacts)
+                descriptor = prior.row;
+            else {
+                descriptor = rowFromDef(def, keep(source).slice(0, cap));
+                if (live) { descriptor.liveFacts = true; descriptor.pendingFacts = pendingFacts; }
+                rowMemo[def.key] = {source: source, pending: pendingFacts, row: descriptor};
+            }
+            houseRows.push(descriptor);
         }
         var merged = houseRows.concat(extMainRows);
         merged.sort(function(a, b) { return (a.placement || 0) - (b.placement || 0); });
@@ -846,22 +1133,41 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     var liveCancel = cinemetaCatalog(type, "", function(metas) {
         if (cancelled) return;
         var mapped = (metas || []).map(mapCinemeta);
-        var clean = filterLiveItems(imdb, mapped, false);
-        rowData["top-10"] = clean;
-        var recentKey = pageKey === "shows" ? "recently-premiered" : "recently-released";
-        rowData[recentKey] = Rules.rankItems({ kind: "recent" },
-                                             filterLiveItems(imdb, mapped, true), now);
-        if (pageKey === "shows")
-            rowData["currently-airing"] = clean.filter(function(it) {
-                return String(it.status || "") === "Continuing";
-            });
+        factsController = createLiveFactsDemand(imdb, mapped, {
+            pageKey: pageKey, nowMs: now, showExplicit: showExplicit,
+            explicitFilter: explicitFilter
+        }, function(key, state) {
+            if (cancelled) return;
+            var previous = rowData[key] || [];
+            var changedItems = previous.length !== state.items.length ||
+                previous.some(function(it, i) { return it.id !== state.items[i].id; });
+            var changedPending = rowMemo[key] &&
+                rowMemo[key].pending !== !state.complete;
+            if (changedItems) rowData[key] = state.items;
+            // A rejected intermediate facts batch changed no visual row. Do not
+            // reset the Repeater (or any unrelated index shelf) for that signal.
+            if (changedItems || changedPending) publishSoon();
+        });
         liveDone = true;
-        publish();
+        publish(); // index shelves never wait for the optional live-facts path
+        if (typeof options.onFactsController === "function")
+            options.onFactsController(factsController);
+        else {
+            // Older QML harnesses/callers have no viewport seam. A short result
+            // (one facts batch at most) can satisfy all live keys synchronously;
+            // larger unknown viewports only demand Top 10.
+            var initialKeys = mapped.length <= LIVE_FACTS_BATCH
+                ? (pageKey === "shows" ? ["top-10", "currently-airing", "recently-premiered"]
+                                      : ["top-10", "recently-released"])
+                : ["top-10"];
+            factsController.setVisible(initialKeys);
+        }
     });
     cancels.push(liveCancel);
     return function() {
         if (cancelled) return;
         cancelled = true;
+        if (factsController) factsController.cancel();
         for (var i = 0; i < cancels.length; i++)
             if (typeof cancels[i] === "function") cancels[i]();
     };
@@ -1217,7 +1523,15 @@ function retryRemotePage(deps, state, cursor, limit) {
 }
 
 function retryRowPage(pin, offset, limit, options) {
-    return retryRemotePage(options || {}, pin, offset || 0, limit || 40);
+    options = options || {};
+    var def = pin && findDef(pin.pageKey, pin.rowKey);
+    if (def && !Rules.indexQueriesFor(def.recipe).length) {
+        var ids = options.failedFactsIds || [];
+        var imdb = options.imdbCatalog;
+        return !!(ids.length && ids.length <= LIVE_FACTS_BATCH && imdb &&
+                  typeof imdb.retryTitleFacts === "function" && imdb.retryTitleFacts(ids));
+    }
+    return retryRemotePage(options, pin, offset || 0, limit || 40);
 }
 
 function fetchAnimeCatalogPage(deps, pin, cursor, limit, generation, done) {
@@ -1475,18 +1789,82 @@ function loadRowPage(pin, offset, limit, options, done) {
             done(res);
         });
     }
-    // live shelf (top-10 / recently-released / recently-premiered / currently-airing)
-    return cinemetaCatalogPaged(type, "", offset, function(metas) {
-        var mapped = (metas || []).map(mapCinemeta);
-        var clean = filterLiveItems(options.imdbCatalog || null, mapped,
-                                    def.recipe.kind === "recent");
-        if (def.recipe.kind === "recent") clean = Rules.rankItems({ kind: "recent" }, clean, now);
-        if (def.recipe.kind === "statusLive")
-            clean = clean.filter(function(it) { return String(it.status || "") === "Continuing"; });
-        if (explicitFilter) clean = clean.filter(function(it) { return explicitFilter(it, showExplicit); });
-        done({ generation: generation, items: clean.slice(0, limit),
-               hasMore: !!(metas && metas.length >= limit), error: "" });
-    });
+    // A See-all request can advance provider windows only while its visible grid
+    // is still short of its cap. Facts never trigger another provider acquisition.
+    // The continuation cursor tracks the source offset AND position inside the
+    // recipe-ranked window, not the number of accepted cards.
+    var sourceOffset = typeof offset === "object" ? (offset.sourceOffset || 0) : offset;
+    var startIndex = typeof offset === "object" ? (offset.index || 0) : 0;
+    var cancelled = false, finished = false, providerCancel = null, controller = null;
+    var collected = [], staleAny = false, windows = 0;
+    var MAX_VISIBLE_PROVIDER_WINDOWS = 4;
+    function finish(result) {
+        if (cancelled || finished) return;
+        finished = true;
+        done(result);
+    }
+    function readWindow(rawOffset, rawIndex) {
+        if (cancelled || finished) return;
+        providerCancel = cinemetaCatalogPaged(type, "", rawOffset, function(metas, valid) {
+            if (cancelled || finished) return;
+            if (!valid) {
+                finish({generation: generation, items: collected, hasMore: true,
+                        exhausted: false, nextCursor: offset, failed: true,
+                        retryable: false, error: "Live catalogue unavailable"});
+                return;
+            }
+            windows += 1;
+            var mapped = (metas || []).map(mapCinemeta);
+            controller = createLiveFactsDemand(options.imdbCatalog || null, mapped, {
+                pageKey: pin.pageKey, onlyRow: pin.rowKey,
+                limit: limit - collected.length, startIndex: rawIndex,
+                nowMs: now, showExplicit: showExplicit,
+                explicitFilter: explicitFilter
+            }, function(key, state) {
+                if (cancelled || finished || key !== pin.rowKey) return;
+                if (state.error) {
+                    finish({generation: generation, items: collected.concat(state.items),
+                            hasMore: true, exhausted: false, nextCursor: offset,
+                            failed: true, retryable: state.retryable,
+                            failedFactsIds: controller.failedIds(), error: state.error});
+                    return;
+                }
+                if (!state.complete) return;
+                collected = collected.concat(state.items);
+                staleAny = staleAny || state.stale;
+                var withinWindow = state.nextIndex < controller.streamLength(pin.rowKey);
+                var next = withinWindow
+                    ? {sourceOffset: rawOffset, index: state.nextIndex}
+                    : {sourceOffset: rawOffset + metas.length, index: 0};
+                if (collected.length < limit && !withinWindow && metas.length > 0 &&
+                    windows < MAX_VISIBLE_PROVIDER_WINDOWS) {
+                    controller.cancel(); controller = null;
+                    // An injected provider can finish synchronously. Advance on a
+                    // later turn so its previous cancel handle is never overwritten.
+                    if (typeof Qt !== "undefined" && Qt.callLater)
+                        Qt.callLater(function() { readWindow(next.sourceOffset, 0); });
+                    else if (typeof setTimeout === "function")
+                        setTimeout(function() { readWindow(next.sourceOffset, 0); }, 0);
+                    else
+                        readWindow(next.sourceOffset, 0);
+                    return;
+                }
+                // An unprobed nonempty provider window is not proof of exhaustion.
+                // A next-page read can confirm empty, without falsifying a zero page.
+                var more = withinWindow || metas.length > 0;
+                finish({generation: generation, items: collected,
+                        hasMore: more, exhausted: !more, nextCursor: more ? next : null,
+                        warning: staleAny ? REMOTE_STALE_WARNING : "", error: ""});
+            });
+            controller.setVisible([pin.rowKey]);
+        });
+    }
+    readWindow(sourceOffset, startIndex);
+    return function() {
+        cancelled = true;
+        if (controller) controller.cancel();
+        if (typeof providerCancel === "function") providerCancel();
+    };
 }
 
 function loadTheatre(done) {

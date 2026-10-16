@@ -35,9 +35,11 @@ Column {
     property bool _loadedOnce: false
     property bool _hasSettled: false
     property var _loadCancel: null
+    property var _factsController: null
 
     property var rawRows: []
     onRawRowsChanged: {
+        page._scheduleFactsDemand()
         if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled) {
             var catalog=page.pageKey === "anime" ? page.malCatalog : page.imdbCatalog
             var state=catalog && typeof catalog.landingState === "function" ? catalog.landingState(page.pageKey) : ({})
@@ -55,7 +57,37 @@ Column {
     // ── viewport seam for lazy shelf residency (TheatreWorld converts board coords → page-local) ──
     property real viewportTop: 0
     property real viewportHeight: 0
+    onViewportTopChanged: page._scheduleFactsDemand()
+    onViewportHeightChanged: page._scheduleFactsDemand()
     property string visualProfile: "classic"
+
+    Timer {
+        id: factsDemandTimer
+        interval: 0; repeat: false
+        onTriggered: page._updateFactsDemand()
+    }
+    function _scheduleFactsDemand() {
+        if (page.active && page._factsController) factsDemandTimer.restart()
+    }
+    function _updateFactsDemand() {
+        var controller = page._factsController
+        if (!controller || !page.active || page.pageKey === "anime") return
+        var keys = [], vh = page.viewportHeight
+        for (var i = 0; i < mainShelfRepeater.count; ++i) {
+            var d = mainShelfRepeater.itemAt(i), r = page.mainRows[i]
+            if (!d || !r || r.liveFacts !== true) continue
+            if (vh <= 0) { if (r.key === "top-10") keys.push(r.key); continue }
+            var top = d.y, bottom = top + d.height
+            // Match LazyPosterShelf's one-viewport activation and reserve the
+            // two-viewport margin for demand without waking far-away rows.
+            if (top <= page.viewportTop + 2 * vh &&
+                bottom >= page.viewportTop - vh) keys.push(r.key)
+        }
+        controller.setVisible(keys)
+    }
+    function retryFacts() {
+        return !!(page._factsController && page._factsController.retry())
+    }
 
     signal itemRequested(var item)
     signal genreRequested(string kind, string name)
@@ -207,8 +239,8 @@ Column {
     Connections {
         target: page.imdbCatalog
         ignoreUnknownSignals: true
-        function onRevisionChanged() { if (page.pageKey !== "anime") page.remoteCatalogChanged(); }
-        function onRequestFailed() { if (page.pageKey !== "anime") page.remoteCatalogChanged(); }
+        // Only a real owner readiness/source switch warrants a new generation.
+        function onReadyChanged() { if (page.pageKey !== "anime" && page.active) page.load(); }
     }
     Connections {
         target: page.malCatalog
@@ -224,6 +256,9 @@ Column {
     Component.onDestruction: page.cancelLoad()
     onActiveChanged: {
         if (!page.active) {
+            // The native cache persists, but this tab's ephemeral demand
+            // subscription is canceled and must be recreated on return.
+            if (page._factsController) page._hasSettled = false
             page.cancelLoad()
             page.generation += 1
             page.loading = false
@@ -234,10 +269,10 @@ Column {
 
     function _push(payload) {
         if (!payload || payload.generation !== page.generation) return;   // stale-generation fence
-        if (payload.loading !== true) {
+        if (payload.loading !== true)
             page._hasSettled = true;
-            page._loadCancel = null;
-        }
+        // Keep the cancellation handle after index settlement: active live
+        // facts may finish later, and page leave must still unsubscribe them.
         page.loading = payload.loading === true;
         page.rawRows = payload.rows || [];
         page.errorText = payload.error || "";
@@ -245,6 +280,7 @@ Column {
     function load() {
         if (!page.active) return
         page.cancelLoad()
+        page._factsController = null
         page._loadedOnce = true
         page._hasSettled = false
         page.generation += 1;
@@ -256,16 +292,26 @@ Column {
         var handle = loader(page.pageKey, { malCatalog: page.malCatalog, imdbCatalog: page.imdbCatalog,
                                             showExplicit: page.showExplicit,
                                             generation: gen, explicitFilter: page._explicitFilter,
-                                            nowMs: Date.now() }, page._push);
-        if (page.active && page.loading && page.generation === gen)
+                                            nowMs: Date.now(),
+                                            onFactsController: function(controller) {
+                                                if (!page.active || gen !== page.generation) {
+                                                    controller.cancel(); return;
+                                                }
+                                                page._factsController = controller;
+                                                page._scheduleFactsDemand();
+                                            } }, page._push);
+        if (page.active && page.generation === gen)
             page._loadCancel = (typeof handle === "function") ? handle : null;
         else if (typeof handle === "function")
             handle();
     }
     function cancelLoad() {
-        var handle = page._loadCancel;
-        page._loadCancel = null;
-        if (typeof handle === "function") handle();
+        factsDemandTimer.stop()
+        var handle = page._loadCancel
+        page._loadCancel = null
+        if (typeof handle === "function") handle()
+        if (page._factsController) page._factsController.cancel()
+        page._factsController = null
     }
     function isRenamed(key) {
         var _ = page.prefsRev;
@@ -366,7 +412,15 @@ Column {
                 editMode: page.editMode
                 onItemRequested: (item) => page.itemRequested(item)
                 onSeeAllRequested: (pin) => page.seeAllRequested(pin)
-                onRailLoadedChanged: page._liveRev += 1
+                onRailLoadedChanged: { page._liveRev += 1; page._scheduleFactsDemand() }
+            }
+            Item {
+                // Pending live rows occupy the same shelf footprint; no poster
+                // is shown until facts validate the candidate's eligibility.
+                height: rowBlock.modelData.pendingFacts === true && !rowShelf._hasItems
+                        ? (30 + rowShelf._m.headerGap + rowShelf._railListHeight) : 0
+                width: 1
+                visible: height > 0
             }
         }
     }

@@ -124,12 +124,18 @@ int main(int argc,char** argv) {
  ImdbCatalog imdb(""); imdb.configureRemote(&nam,endpoint,cache);
  require(!imdb.ready() && imdb.available(),"configured API does not pretend local DB ready");
  QVariantMap query{{"type","movie"}};
+ const auto initialSourceState=imdb.titleCatalogState(query,0,24);
+ require(initialSourceState.contains("sourceRevision")
+         && initialSourceState.value("sourceRevision").toString().isEmpty(),
+         "typed state exposes initial empty canonical source revision without fetching");
  require(imdb.titleCatalog(query,0,24).isEmpty(),"cold miss immediate empty");
  require(imdb.remotePending(),"cold miss queued async"); imdb.titleCatalog(query,0,24);
  until([&]{return !imdb.remotePending();});
  require(calls==1 && sessions==1,"deduplicated miss and one guest lease");
  require(imdb.titleCatalog(query,0,24).size()==1,"API row cached in native result shape");
  require(calls==1,"fresh cache no request");
+ require(imdb.titleCatalogState(query,0,24).value("sourceRevision").toString()==sourceRevision,
+         "typed state exposes the canonical revision of a successful cached query");
  imdb.search("  The Matrix (1999)  ",20); until([&]{return !imdb.remotePending();});
  require(lastArgs.at(0).toString()=="matrix","authoritative VaultKit normalized input");
  rejectOnce=true; imdb.titleCatalog(query,24,24); until([&]{return !imdb.remotePending();});
@@ -137,6 +143,8 @@ int main(int argc,char** argv) {
  sourceRevision=QString(64, QLatin1Char('b'));
  imdb.titleCatalog(query,30,24); until([&]{return !imdb.remotePending();});
  require(imdb.titleCatalog(query,0,24).isEmpty(),"new source revision invalidates old query cache");
+ require(imdb.titleCatalogState(query,30,24).value("sourceRevision").toString()==sourceRevision,
+         "typed state updates source revision even for a new success with unchanged result shape");
  until([&]{return !imdb.remotePending();}); require(imdb.titleCatalog(query,0,24).size()==1,"old query revalidated under new revision");
  int errors=0; QObject::connect(&imdb,&ImdbCatalog::requestFailed,&app,[&](QString,QString){++errors;});
  invalid=true; imdb.titleCatalog(query,48,24); until([&]{return !imdb.remotePending();});

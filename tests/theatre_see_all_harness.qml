@@ -15,14 +15,19 @@ Item {
     property var loaderCalls: []
     property var pendingJobs: []
     property bool autoRespond: true
+    property bool rawCursorOnNext: false
     property string mode: "ok"          // ok | error | missing
 
     function serve(job) {
+        var base = typeof job.offset === "object"
+                 ? (job.offset.sourceOffset || 0) + (job.offset.index || 0) : job.offset;
         var items = [];
         for (var i = 0; i < 40; i++)
-            items.push({ id: "tt" + (job.offset + i), type: "movie",
-                         title: "Title " + (job.offset + i), rating: "8." + (i % 10) });
-        job.done({ generation: job.gen, items: items, hasMore: job.offset < 400, error: "" });
+            items.push({ id: "tt" + (base + i), type: "movie",
+                         title: "Title " + (base + i), rating: "8." + (i % 10) });
+        job.done({ generation: job.gen, items: items, hasMore: base < 400, error: "",
+                   nextCursor: h.rawCursorOnNext
+                     ? ({sourceOffset: base + 40, index: 0}) : base + 40 });
     }
     function flush() {
         var p = h.pendingJobs; h.pendingJobs = [];
@@ -32,8 +37,38 @@ Item {
         h.loaderCalls.push({ offset: offset, limit: limit, gen: options.generation, key: pin ? pin.rowKey : "" });
         if (h.mode === "missing") { done({ generation: options.generation, items: [], hasMore: false, missing: true, extName: "Netflix" }); return; }
         if (h.mode === "error")   { done({ generation: options.generation, items: [], hasMore: false, error: "Network error" }); return; }
+        if (h.mode === "partial-first" || h.mode === "partial-next") {
+            var base = typeof offset === "object"
+                     ? (offset.sourceOffset || 0) + (offset.index || 0) : offset;
+            var prefix = [];
+            for (var j = 0; j < 20; j++)
+                prefix.push({id: "tt" + (base + j), type: "movie", title: "Title " + (base + j)});
+            done({generation: options.generation, items: prefix, hasMore: true,
+                  failed: true, retryable: true, error: "HTTP_503",
+                  failedFactsIds: ["tt" + (base + 20)]});
+            return;
+        }
         var job = { done: done, gen: options.generation, offset: offset, pin: pin };
         if (h.autoRespond) h.serve(job); else h.pendingJobs.push(job);
+    }
+
+    function findNamed(item, name) {
+        if (item.objectName === name) return item;
+        var children = item.children || [];
+        for (var i = 0; i < children.length; i++) {
+            var hit = findNamed(children[i], name);
+            if (hit) return hit;
+        }
+        return null;
+    }
+    function retryAction(item) {
+        if (item.accessibleName !== undefined && item.accessibleName === "Retry") return item;
+        var children = item.children || [];
+        for (var i = 0; i < children.length; i++) {
+            var action = retryAction(children[i]);
+            if (action) return action;
+        }
+        return null;
     }
 
     UI.TheatreSeeAllPage {
@@ -98,6 +133,57 @@ Item {
             ok(h.loaderCalls[h.loaderCalls.length - 1].offset === retryBefore,
                "retry repeats the SAME failed offset (" + retryBefore + ")");
             ok(page.items.length === 80 && page.errorText === "", "retry recovers and clears the error");
+
+            // ── actual Qt: first-page 20-card validated prefix must expose Retry ──
+            h.mode = "partial-first";
+            page.pin = ({ pageKey: "movies", sourceKind: "house", rowKey: "top-10", title: "Top" });
+            ok(page.items.length === 20 && page.errorText === "HTTP_503",
+               "partial first page displays 20 validated cards and exact error");
+            var firstRetry = h.retryAction(page);
+            ok(firstRetry !== null && firstRetry.visible && firstRetry.enabled && firstRetry.focusEnabled,
+               "partial first-page Retry visible and keyboard reachable");
+            var retryColumn = h.findNamed(page, "theatreSeeAllRetryColumn");
+            var posterWall = h.findNamed(page, "theatreSeeAllPosterWall");
+            ok(retryColumn && posterWall && posterWall.y >= retryColumn.y + retryColumn.height,
+               "partial retry occupies its own vertical region, never overlays poster cards");
+            h.mode = "ok";
+            h.rawCursorOnNext = true;
+            ok(firstRetry && firstRetry.activate(Qt.ShortcutFocusReason),
+               "semantic Retry activation accepted for 20-card prefix");
+            h.rawCursorOnNext = false;
+            ok(page.items.length === 40 && page.errorText === "",
+               "semantic retry completed and replaced partial prefix without duplicates");
+
+            // ── failed later page with raw/ranked cursor preserves both prefixes ──
+            h.mode = "partial-next";
+            var rawCursor = page.nextCursor;
+            ok(typeof rawCursor === "object" && rawCursor.sourceOffset === 40,
+               "first full page publishes native-shaped raw cursor");
+            page.requestMore();
+            ok(page.items.length === 60 && page.items[40].id === "tt40",
+               "later error preserves old 40 plus its 20 validated provisional cards");
+            ok(page.errorText === "HTTP_503", "later partial error blocks automatic load-more");
+            var laterRetry = h.retryAction(page);
+            ok(laterRetry && laterRetry.visible && laterRetry.enabled,
+               "later-page Retry remains keyboard reachable with 60 cards");
+            ok(retryColumn && posterWall && posterWall.y >= retryColumn.y + retryColumn.height,
+               "later-page Retry does not obscure the 60 validated cards");
+            var attempted = h.loaderCalls.length;
+            page.requestMore();
+            ok(h.loaderCalls.length === attempted, "error does not silently load another page");
+            page.retry(); // a second failed attempt must not duplicate provisional cards
+            ok(page.items.length === 60 && page.items[59].id === "tt59",
+               "repeated failure does not append provisional prefix twice");
+            h.mode = "ok";
+            ok(laterRetry && laterRetry.activate(Qt.ShortcutFocusReason),
+               "keyboard-semantic action retries same failed raw cursor");
+            var lastCall = h.loaderCalls[h.loaderCalls.length - 1];
+            ok(lastCall.offset && lastCall.offset.sourceOffset === rawCursor.sourceOffset
+               && lastCall.offset.index === rawCursor.index,
+               "retry retained exact raw/ranked cursor, not visible count");
+            var keys = {}; for (var ai = 0; ai < page.items.length; ai++) keys[page.items[ai].id] = true;
+            ok(page.items.length === 80 && Object.keys(keys).length === 80 && !page.errorText,
+               "later-page recovery replaces attempted prefix, no skipped or duplicate cards");
 
             // ── extension missing state names the provider ──
             h.mode = "missing";

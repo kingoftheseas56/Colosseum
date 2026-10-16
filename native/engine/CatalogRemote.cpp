@@ -184,6 +184,9 @@ QVariantMap CatalogRemote::queryState(const QString& method, const QVariantList&
         : hasFailure ? QStringLiteral("failure")
         : hasCache ? QStringLiteral("success") : QStringLiteral("missing");
     return {{QStringLiteral("key"),id},
+            // Source identity is independent of the legacy revision counter,
+            // which also advances for unrelated successful query completions.
+            {QStringLiteral("sourceRevision"),m_sourceRevision},
             // F2 consumers must keep waiting while cached immutable files are
             // assembled, including an offline owner without a network manager.
             {QStringLiteral("enabled"),enabled()||(m_static&&m_static->hasLastGood())},

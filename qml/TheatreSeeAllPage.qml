@@ -27,7 +27,11 @@ Item {
     property bool missing: false
     property string providerName: ""
     property int generation: 0
-    property int pendingOffset: -1
+    property var pendingOffset: -1
+    property var nextCursor: 0
+    property var _retryCursor: null
+    property int _retryBaseCount: -1
+    property var _failedFactsIds: []
     property var _semanticCancel: null
     function cancelPage() { if (typeof _semanticCancel === "function") _semanticCancel(); _semanticCancel = null; }
     Component.onDestruction: cancelPage()
@@ -50,6 +54,8 @@ Item {
         seeAll.items = []; seeAll.hasMore = true; seeAll.errorText = ""; seeAll.warning = "";
         seeAll.missing = false; seeAll.providerName = "";
         seeAll.loading = false; seeAll.loadingMore = false; seeAll.pendingOffset = -1;
+        seeAll.nextCursor = 0; seeAll._retryCursor = null; seeAll._retryBaseCount = -1;
+        seeAll._failedFactsIds = [];
         seeAll.generation += 1;
         if (seeAll.pin) seeAll.loadPage(0);
     }
@@ -57,7 +63,11 @@ Item {
     function loadPage(offset) {
         if (!seeAll.pin) return;
         if (seeAll.pendingOffset === offset) return;      // coalesce an identical in-flight offset
-        if (offset > 0 && !seeAll.hasMore) return;
+        if (offset !== 0 && !seeAll.hasMore && seeAll._retryCursor === null) return;
+        // The retry starts at the original raw/ranked cursor, not after a
+        // provisional validated prefix shown while the failed batch was pending.
+        var baseCount = seeAll._retryCursor !== null && seeAll._retryBaseCount >= 0
+                      ? seeAll._retryBaseCount : (offset === 0 ? 0 : seeAll.items.length);
         seeAll.pendingOffset = offset;
         if (offset === 0) seeAll.loading = true; else seeAll.loadingMore = true;
         var gen = seeAll.generation;
@@ -72,19 +82,35 @@ Item {
                 seeAll.missing = true; seeAll.providerName = res.extName || "";
                 seeAll.hasMore = false; return;
             }
-            if (res.error) { seeAll.errorText = res.error; return; }   // items kept -> retry repeats this offset
+            if (res.error) {
+                seeAll.errorText = res.error;
+                seeAll._retryCursor = offset;
+                seeAll._retryBaseCount = baseCount;
+                seeAll._failedFactsIds = res.failedFactsIds || [];
+                // A failed later page can also contain validated cards. On every
+                // retry replace only that attempted page, never append it twice.
+                if (res.items && res.items.length)
+                    seeAll.items = seeAll.items.slice(0, baseCount).concat(res.items);
+                return;
+            }
+            seeAll._retryCursor = null; seeAll._retryBaseCount = -1;
+            seeAll._failedFactsIds = [];
             seeAll.warning = res.warning || "";
-            seeAll.items = (offset === 0) ? (res.items || []) : seeAll.items.concat(res.items || []);
+            seeAll.items = (offset === 0) ? (res.items || [])
+                            : seeAll.items.slice(0, baseCount).concat(res.items || []);
             seeAll.hasMore = res.hasMore === true;
+            seeAll.nextCursor = res.nextCursor !== undefined ? res.nextCursor : seeAll.items.length;
         });
     }
     function requestMore() {
-        if (seeAll.hasMore && !seeAll.loadingMore && !seeAll.loading) seeAll.loadPage(seeAll.items.length);
+        if (seeAll.hasMore && !seeAll.loadingMore && !seeAll.loading && !seeAll.errorText)
+            seeAll.loadPage(seeAll.nextCursor);
     }
     function retry() {
-        var offset = seeAll.items.length;
+        var offset = seeAll._retryCursor !== null ? seeAll._retryCursor : seeAll.nextCursor;
         var opts = { generation: seeAll.generation, malCatalog: seeAll.malCatalog, imdbCatalog: seeAll.imdbCatalog,
-                     showExplicit: seeAll.showExplicit, explicitFilter: seeAll.explicitFilter };
+                     showExplicit: seeAll.showExplicit, explicitFilter: seeAll.explicitFilter,
+                     failedFactsIds: seeAll._failedFactsIds };
         if (!seeAll.pageLoader && typeof TheatreApi.retryRowPage === "function")
             TheatreApi.retryRowPage(seeAll.pin, offset, 40, opts);
         seeAll.errorText = "";
@@ -151,8 +177,12 @@ Item {
     // ── the poster wall ──
     CataloguePosterGrid {
         id: wall
+        objectName: "theatreSeeAllPosterWall"
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.top: header.bottom; anchors.bottom: parent.bottom
+        anchors.top: seeAll.errorText.length > 0 && seeAll.items.length > 0 && !seeAll.missing
+                     ? retryColumn.bottom : header.bottom
+        anchors.topMargin: seeAll.errorText.length > 0 && seeAll.items.length > 0 ? 8 : 0
+        anchors.bottom: parent.bottom
         anchors.leftMargin: 6; anchors.rightMargin: 6
         visualProfile: "gallery"
         visible: !seeAll.missing
@@ -167,8 +197,13 @@ Item {
 
     // ── retryable error state ──
     Column {
-        anchors.centerIn: parent
-        visible: seeAll.errorText.length > 0 && seeAll.items.length === 0 && !seeAll.missing
+        id: retryColumn
+        objectName: "theatreSeeAllRetryColumn"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: seeAll.items.length === 0 ? parent.verticalCenter : undefined
+        anchors.top: seeAll.items.length > 0 ? header.bottom : undefined
+        anchors.topMargin: seeAll.items.length > 0 ? 6 : 0
+        visible: seeAll.errorText.length > 0 && !seeAll.missing
         spacing: 12
         Text {
             text: seeAll.errorText
@@ -187,7 +222,8 @@ Item {
             MouseArea { id: retryMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: seeAll.retry() }
             KeyboardAction {
-                id: retryKeyboard; anchors.fill: parent; pointerEnabled: false
+                id: retryKeyboard; objectName: "theatreSeeAllRetryAction"
+                anchors.fill: parent; pointerEnabled: false
                 accessibleName: "Retry"; focusRadius: parent.radius; onTriggered: seeAll.retry()
             }
         }
