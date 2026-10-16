@@ -1,0 +1,135 @@
+diff --git a/qml/vinyl/VinylPagesPrototype.qml b/qml/vinyl/VinylPagesPrototype.qml
+index 27cb007..2545440 100644
+--- a/qml/vinyl/VinylPagesPrototype.qml
++++ b/qml/vinyl/VinylPagesPrototype.qml
+@@ -24,6 +24,19 @@
+     property string songReturnPage: "album"
+     property string albumReturnPage: "world"
+     property real worldReturnY: 0
++    // Keep deferred history restoration owned by this window, not a JS closure
++    // retaining the previous artist snapshot after the window is destroyed.
++    property real pendingArtistReturnY: 0
++    property real pendingWorldReturnY: 0
++    Timer {
++        id: restoreArtistHistoryScroll
++        interval: 0
++        repeat: false
++        onTriggered: {
++            artistPage.contentY = root.pendingArtistReturnY;
++            worldScroll.contentY = root.pendingWorldReturnY;
++        }
++    }
+     function openArtist(name) {
+         if (!name) return;
+         var names = name.split(" · ").map(function(n) { return n.trim(); }).filter(Boolean);
+@@ -65,10 +78,9 @@
+         songReturnPage = previous.songReturn;
+         worldReturnY = previous.worldReturn;
+         root.page = previous.page;
+-        Qt.callLater(function() {
+-            artistPage.contentY = previous.y;
+-            worldScroll.contentY = previous.worldY;
+-        });
++        pendingArtistReturnY = Number(previous.y) || 0;
++        pendingWorldReturnY = Number(previous.worldY) || 0;
++        restoreArtistHistoryScroll.restart();
+     }
+     function openArtistAlbum(record) {
+         if (!pageData.loadAlbum(record, artistData.artwork(record.cover))) return;
+diff --git a/tests/qml/tst_vinyl_artist_lifetime.qml b/tests/qml/tst_vinyl_artist_lifetime.qml
+new file mode 100644
+--- /dev/null
++++ b/tests/qml/tst_vinyl_artist_lifetime.qml
+@@ -0,0 +1,66 @@
++import QtQuick
++import QtTest
++
++TestCase {
++    name: "VinylArtistHistoryLifetime"
++    when: windowShown
++    property var host
++
++    function createArtist() {
++        var component = Qt.createComponent("../../qml/vinyl/ArtistPreview.qml");
++        verify(component.status === Component.Ready, component.errorString());
++        var view = component.createObject(null);
++        verify(view !== null);
++        view.pageData.frozen = true;
++        tryCompare(view, "ready", true);
++        view.artistData.reducedMotion = true;
++        return view;
++    }
++
++    function init() {
++        host = createArtist();
++        host.artistData.open("Eminem");
++    }
++
++    function cleanup() {
++        if (host) {
++            host.close();
++            host.destroy();
++            host = null;
++        }
++    }
++
++    function test_historyRestoresOnOwnedDeferredCallback() {
++        host.artistScroll.contentY = 220;
++        var expectedY = host.artistScroll.contentY;
++        host.openArtist("Michael Jackson");
++        compare(host.artistData.record.name, "Michael Jackson");
++        host.artistBack();
++        compare(host.artistData.record.name, "Eminem");
++        tryCompare(host.artistScroll, "contentY", expectedY);
++    }
++
++    function test_rapidBackDestroyDoesNotRunStaleHistoryCallback() {
++        host.openArtist("Joni Mitchell");
++        host.artistBack();
++        host.close();
++        host.destroy();
++        host = null;
++        wait(0);
++        verify(true);
++    }
++
++    function test_twelveConsecutiveHistoryTeardowns() {
++        for (var i = 0; i < 12; ++i) {
++            var instance = createArtist();
++            instance.artistData.open("Eminem");
++            instance.openArtist("Michael Jackson");
++            instance.artistBack();
++            instance.close();
++            instance.destroy();
++            instance = null;
++            wait(0);
++        }
++        verify(true);
++    }
++}
+diff --git a/tests/qml/tst_vinyl_artist_page.qml b/tests/qml/tst_vinyl_artist_page.qml
+index a3da3d8..c4e7435 100644
+--- a/tests/qml/tst_vinyl_artist_page.qml
++++ b/tests/qml/tst_vinyl_artist_page.qml
+@@ -33,7 +33,7 @@
+         tryCompare(host, "ready", true);
+     }
+     function cleanup() {
+-        if (host) { host.close(); host.destroy(); }
++        if (host) { host.close(); host.destroy(); host = null; }
+     }
+     function test_creditProjectionDoesNotMergeUnrelatedArtists() {
+         var source = {albums: [
+diff --git a/tests/qml/tst_vinyl_artist_repair.qml b/tests/qml/tst_vinyl_artist_repair.qml
+index d7bb433..f2400a5 100644
+--- a/tests/qml/tst_vinyl_artist_repair.qml
++++ b/tests/qml/tst_vinyl_artist_repair.qml
+@@ -20,7 +20,7 @@
+         host.artistData.open("Eminem");
+         host.artistScroll.heroItem.rotationIntervalMs = 600000;
+     }
+-    function cleanup() { if (host) { host.close(); host.destroy(); } }
++    function cleanup() { if (host) { host.close(); host.destroy(); host = null; } }
+     function test_catalogueAndActiveOnlyHud() {
+         compare(host.artistData.allDiscographyCards.length, 27);
+         compare(host.artistData.singlesRows.length, 43);
