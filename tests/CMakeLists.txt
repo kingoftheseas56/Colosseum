@@ -2648,6 +2648,8 @@ add_executable(tst_account_attachment_coordinator
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_account_attachment_coordinator PRIVATE
+    COLOSSEUM_ACCOUNT_RECEIPT_TESTING)
 target_include_directories(tst_account_attachment_coordinator PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_account_attachment_coordinator PRIVATE

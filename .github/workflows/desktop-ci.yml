@@ -1,14 +1,18 @@
 name: desktop-ci
 
 on:
+  # Temporary Phase 2 trigger; remove after the paired qualification run.
+  push:
+    branches: [android/a02-platform-seams]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Share a gate only on the integration branch: one workflow runs, one waits.
+  group: ${{ github.ref == 'refs/heads/android/a02-platform-seams' && format('android-phase2-{0}', github.ref) || format('desktop-ci-{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/android/a02-platform-seams' }}
 
 jobs:
   public-trust:

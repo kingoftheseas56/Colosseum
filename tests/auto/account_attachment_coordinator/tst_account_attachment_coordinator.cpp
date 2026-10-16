@@ -38,6 +38,30 @@
 #include <memory>
 
 namespace {
+// Cancel QSaveFile's commit after its real temporary-file write. This preserves
+// the existing receipt on every platform, including privileged Linux runners.
+class ScopedReceiptCommitFailure {
+public:
+    ScopedReceiptCommitFailure() {
+        AccountAttachmentReceipt::setCommitFailureInjectorForTesting(
+            [this](const AccountAttachmentReceiptData &data) {
+                if (!enabled || !data.sourceRetired
+                    || data.retirementPhase
+                        != AccountAttachmentReceipt::retirementPhaseSourceRetired())
+                    return false;
+                ++failureCount;
+                return true;
+            });
+    }
+    ScopedReceiptCommitFailure(const ScopedReceiptCommitFailure &) = delete;
+    ScopedReceiptCommitFailure &operator=(const ScopedReceiptCommitFailure &) = delete;
+    ~ScopedReceiptCommitFailure() {
+        AccountAttachmentReceipt::setCommitFailureInjectorForTesting({});
+    }
+    bool enabled = false;
+    int failureCount = 0;
+};
+
 constexpr auto kAccountA =
     "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 constexpr auto kDeviceA =
@@ -3227,31 +3251,13 @@ void tst_account_attachment_coordinator::
             return true;
         });
 
-    // Lock the receipt file the moment retirement starts. On Windows a
-    // read handle without FILE_SHARE_DELETE blocks the QSaveFile replace,
-    // so the retire write fails before any clear can remove the file.
-    std::unique_ptr<QFile> receiptLock;
+    ScopedReceiptCommitFailure receiptFailure;
     QObject::connect(
         &coordinator,
-        &AccountAttachmentCoordinator::
-            progress,
-        [&](AccountAttachmentCoordinator::
-                 State state) {
-            if (state
-                    == AccountAttachmentCoordinator::
-                        State::Retiring
-                && !receiptLock) {
-                receiptLock =
-                    std::make_unique<
-                        QFile>(
-                        profile
-                            .cloudAttachmentReceiptPath());
-                const bool lockHeld =
-                    receiptLock->open(
-                        QIODevice::
-                            ReadOnly);
-                Q_UNUSED(lockHeld)
-            }
+        &AccountAttachmentCoordinator::progress,
+        [&](AccountAttachmentCoordinator::State state) {
+            if (state == AccountAttachmentCoordinator::State::Retiring)
+                receiptFailure.enabled = true;
         });
 
     QString error;
@@ -3271,6 +3277,7 @@ void tst_account_attachment_coordinator::
     // The server committed and the flow reached retirement, but the
     // retire write failed closed: the receipt survives with the source
     // unretired, proving retirement precedes the clear.
+    QCOMPARE(receiptFailure.failureCount, 1);
     QVERIFY(
         !recording.succeeded);
     QCOMPARE(
@@ -3295,7 +3302,7 @@ void tst_account_attachment_coordinator::
     QVERIFY(
         !pending.data.sourceRetired);
 
-    receiptLock.reset();
+    receiptFailure.enabled = false;
 
     // The pending receipt resumes through the idempotent commit and
     // completes the retirement.
@@ -3347,7 +3354,7 @@ void tst_account_attachment_coordinator::
 
     bool sourcePresent = true;
     bool historicalActivityDigestObserved = false;
-    std::unique_ptr<QFile> receiptLock;
+    ScopedReceiptCommitFailure receiptFailure;
 
     {
         SyntheticAdapter adapter;
@@ -3373,16 +3380,9 @@ void tst_account_attachment_coordinator::
                     ? AccountAttachmentCoordinator::SourceState::Matching
                     : AccountAttachmentCoordinator::SourceState::Empty;
             },
-            [&](const AccountAttachmentReceiptData &, QString *error) {
+            [&](const AccountAttachmentReceiptData &, QString *) {
                 sourcePresent = false;
-                receiptLock = std::make_unique<QFile>(
-                    profile.cloudAttachmentReceiptPath());
-                if (!receiptLock->open(QIODevice::ReadOnly)) {
-                    if (error)
-                        *error = QStringLiteral(
-                            "The receipt lock could not be acquired after source clear.");
-                    return false;
-                }
+                receiptFailure.enabled = true;
                 return true;
             });
 
@@ -3396,6 +3396,7 @@ void tst_account_attachment_coordinator::
         run.engine.setNetworkEnabled(true);
         QTRY_COMPARE(recording.finishedCount, 1);
 
+        QCOMPARE(receiptFailure.failureCount, 1);
         QVERIFY(!recording.succeeded);
         QCOMPARE(
             recording.errorCode,
@@ -3413,7 +3414,7 @@ void tst_account_attachment_coordinator::
         QVERIFY(!pending.data.sourceRetired);
     }
 
-    receiptLock.reset();
+    receiptFailure.enabled = false;
 
     {
         SyntheticAdapter adapter;
