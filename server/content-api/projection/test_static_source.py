@@ -11,6 +11,31 @@ import static_source
 
 
 class StaticSourceTests(unittest.TestCase):
+    def test_comics_lookup_indexes_preserve_explicit_order_and_unrelated_tables(self):
+        with closing(sqlite3.connect(':memory:')) as db:
+            db.executescript('''CREATE TABLE den_comics_download(post_id INTEGER,series_id INTEGER,date TEXT);
+                CREATE TABLE lib_comics_curated_edition(id INTEGER,locg_id TEXT);
+                CREATE TABLE lib_comics_curated_source(id INTEGER,curated_edition_id INTEGER);
+                CREATE TABLE lib_comics_download_mirror(post_id INTEGER,url TEXT);
+                INSERT INTO den_comics_download VALUES(2,7,'2020'),(1,7,'2021'),(3,8,'2022');''')
+            query = 'SELECT * FROM den_comics_download WHERE series_id=? ORDER BY date DESC,post_id DESC'
+            expected = db.execute(query, (7,)).fetchall()
+            static_source.index_comics_lookups(db)
+            self.assertEqual(db.execute(query, (7,)).fetchall(), expected)
+            plan = ' '.join(str(row) for row in db.execute('EXPLAIN QUERY PLAN ' + query, (7,)))
+            self.assertIn('SEARCH', plan)
+            self.assertIn('series_id=?', plan)
+            self.assertNotIn('USE TEMP B-TREE', plan)
+            for table, column in [('lib_comics_curated_edition', 'locg_id'),
+                                  ('lib_comics_curated_source', 'curated_edition_id'),
+                                  ('lib_comics_download_mirror', 'post_id')]:
+                self.assertIn('SEARCH', str(db.execute('EXPLAIN QUERY PLAN SELECT * FROM ' + table + ' WHERE ' + column + '=?', (1,)).fetchall()))
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'").fetchone()[0], 4)
+        # A publication fixture containing only another dataset remains supported.
+        with closing(sqlite3.connect(':memory:')) as db:
+            static_source.index_comics_lookups(db)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM sqlite_master').fetchone()[0], 0)
+
     def fixture(self, root):
         source = root / 'source'
         source.mkdir()
