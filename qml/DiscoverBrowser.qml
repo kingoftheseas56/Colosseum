@@ -595,9 +595,9 @@ Item {
     }
 
     function acceptPage(page) {
-        loading = false
-        if (!page) { exhausted = true; return }
+        if (!page) { loading = false; exhausted = true; return }
         if (page.failed === true) {
+            loading = false
             // Keep the wall's rows, cursor and exhaustion; a failure is not an empty catalogue.
             pageFailed = true
             pageRetryable = page.retryable === true
@@ -614,6 +614,10 @@ Item {
         }
         cursor = (page.nextCursor !== undefined) ? page.nextCursor : null
         if (page.exhausted) exhausted = true
+        // Keep the skeleton cells alive until replacement rows have been inserted.
+        // Otherwise loading=false first drops the model to zero and reconstructs
+        // every visible poster card when items is assigned immediately afterward.
+        loading = false
     }
 
 
