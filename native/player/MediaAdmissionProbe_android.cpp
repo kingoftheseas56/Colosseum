@@ -28,7 +28,7 @@ MediaAdmissionProbe::Result MediaAdmissionProbe::probe(const QString &path, int 
     }
     const QJniObject source = QJniObject::fromString(path);
     const QJniObject payload = QJniObject::callStaticObjectMethod(
-        "org/colosseum/vault/VaultMediaProbe", "probe",
+        "org/colosseum/media/MediaAdmissionProbe", "probe",
         "(Landroid/content/Context;Ljava/lang/String;I)Ljava/lang/String;",
         context.object<jobject>(), source.object<jstring>(), jint(timeoutMs));
     if (!payload.isValid()) {

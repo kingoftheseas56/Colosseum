@@ -89,6 +89,7 @@
 #include "bootstrap/StartupLayout.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
+#if !defined(Q_OS_ANDROID)
 #include "engine/LocalLaunch.h"
 #include "engine/VaultPageStore.h"
 #include "engine/VaultIndex.h"
@@ -100,6 +101,7 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#endif
 #if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
 #endif
@@ -121,7 +123,9 @@
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
 #include "engine/ComicCoverProvider.h"
+#if !defined(Q_OS_ANDROID)
 #include "engine/VaultBookCoverProvider.h"
+#endif
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
@@ -1154,6 +1158,7 @@ int main(int argc, char *argv[]) {
     // have no loose page file for the library grid to point at. Engine takes
     // ownership via addImageProvider, same as the comicreader provider above.
     engine.addImageProvider(QStringLiteral("comiccover"), new Colosseum::ComicCoverProvider());
+#if !defined(Q_OS_ANDROID)
     // image://vaultbookcover/ (Vault Slice 17 foundation): stateless bounded EPUB cover decode.
     engine.addImageProvider(QStringLiteral("vaultbookcover"),
                             new Colosseum::VaultBookCoverProvider());
@@ -1402,6 +1407,7 @@ int main(int argc, char *argv[]) {
     // Enrich an already-indexed library once at boot too, so covers appear on a relaunch
     // without re-adding the folder (a fresh index published this run enriches via the signal).
     runVaultCoverEnrichment();
+#endif
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
@@ -1503,9 +1509,11 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+#if !defined(Q_OS_ANDROID)
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
                                                  imdbCatalog, &backendServices);
     vaultLibrary->setIdentifier(vaultIdentifier);
+#endif
 
     // CatalogVaultClient (Slice 1) only manages the names that did NOT resolve via a
     // dev-machine override above. On Hemanth's dev machine, all four data/*.db files are
@@ -1573,6 +1581,7 @@ int main(int argc, char *argv[]) {
     // network) when every catalog is dev-overridden, per the comment above.
     QTimer::singleShot(0, catalogVaultClient, [catalogVaultClient] { catalogVaultClient->checkAndFetch(); });
 
+#if !defined(Q_OS_ANDROID)
     // Agent Visibility Phase 2, Slice F1-Bridge: the live, app-owned Vault forensic
     // projection (F1-Core). Composes vaultLibrary only (F0's named safe seam,
     // docs/visibility/vault-forensic-owner-thread.md §10) — no second SQLite
@@ -1580,6 +1589,7 @@ int main(int argc, char *argv[]) {
     // so it shares vaultLibrary's GUI-thread lifetime; wired into LanistaServer below.
     VaultForensics vaultForensicsStorage(vaultLibrary, &app);
     auto *vaultForensics = &vaultForensicsStorage;
+#endif
 
     // BiblioCatalog Discover/Explore keyless daily refresh service (spec
     // 2026-08-01, plan 2026-08-03 Task 4): a writable per-user SQLite cache
@@ -1688,6 +1698,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("PlatformDownloads"), platformDownloads);
 
+#if !defined(Q_OS_ANDROID)
     // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from
     // Colosseum's own download backbones (videos + CBZ comics + CBZ tankoban
     // volumes + epub/pdf books) so the Vault shelves them as ONE quiet, pre-
@@ -1701,6 +1712,7 @@ int main(int argc, char *argv[]) {
     vaultLibrary->setDownloadsRoot(vaultDownloadsRoot, vaultDownloadsRootPath);
     // Heal stale derived Vault rows once per process after every download backbone is wired.
     QTimer::singleShot(0, vaultLibrary, [vaultLibrary]() { vaultLibrary->republishAtBoot(); });
+#endif
 
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
     // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
@@ -1786,7 +1798,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("ForegroundPriority"),
                                              foregroundPriority);
     QObject::connect(foregroundPriority, &work::ForegroundPriorityGovernor::pressureChanged,
-                     &app, [backgroundWork, biblioCatalog, vaultLibrary,
+                     &app, [backgroundWork, biblioCatalog,
+#if !defined(Q_OS_ANDROID)
+                            vaultLibrary,
+#endif
                             catalogVaultClient](int pressure) {
         work::Pressure nativePressure = work::Pressure::Normal;
         if (pressure >= work::ForegroundPriorityGovernor::Suspended)
@@ -1799,7 +1814,9 @@ int main(int argc, char *argv[]) {
         const bool immersive = pressure >= work::ForegroundPriorityGovernor::Suspended;
         biblioCatalog->setForegroundPriorityActive(foregroundBusy);
         biblioCatalog->setBackgroundWorkSuspended(immersive);
+#if !defined(Q_OS_ANDROID)
         vaultLibrary->setImmersive(foregroundBusy);
+#endif
         catalogVaultClient->setForegroundPressure(pressure);
     });
 
@@ -2077,6 +2094,9 @@ int main(int argc, char *argv[]) {
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
+#if defined(Q_OS_ANDROID)
+    qInfo("[boot] Main.qml loaded");
+#endif
 
     if (!hasQmlOverride) {
         QTimer::singleShot(0, pinStore, [pinStore, pinnedHosts] {
@@ -2176,8 +2196,10 @@ int main(int argc, char *argv[]) {
     // mutation commands gate on env INSIDE the server, per command.
     LanistaServer lanistaServerStorage(&engine, &app);
     auto *lanistaServer = &lanistaServerStorage;
+#if !defined(Q_OS_ANDROID)
     // F1-Bridge: hand the bridge the live forensic projection constructed above.
     lanistaServer->setVaultForensics(vaultForensics);
+#endif
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {

@@ -511,8 +511,6 @@ qt_add_executable(colosseum
     engine/ComicDownloader.h
     engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows
     engine/ComicCoverProvider.h
-    engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
-    engine/VaultBookCoverProvider.h
     engine/ComicCoverId.cpp        # id build/parse, Core-only (shared with ComicDownloader.cpp)
     engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
@@ -525,6 +523,7 @@ qt_add_executable(colosseum
     engine/TankobanCatalog.h
     engine/TankobanChapterMigration.cpp  # one-time WC-era chapter purge (catalogue-independence Slice 5)
     engine/TankobanChapterMigration.h
+    engine/MediaTitleNormalization.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
     engine/CatalogVaultClient.cpp  # data-vault adoption, Slice 1/2 (2026-08-22)
@@ -535,53 +534,6 @@ qt_add_executable(colosseum
     engine/LocalDownloadsProjection.h
     engine/ExtensionsStore.cpp
     engine/ExtensionsStore.h
-    # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
-    engine/VaultKit.cpp            # shared classifier / SxxExx grammar / walker (Slice 1)
-    engine/VaultKit.h
-    engine/VaultLocation.h          # content:// identity-safe path normalization (Android)
-    engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
-    engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
-    engine/VaultIdentity.h
-    engine/VaultRecent.cpp         # Open Media recent-files store (Slice 9)
-    engine/VaultRecent.h
-    engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8/9)
-    engine/LocalLaunch.h
-    engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
-    engine/VaultPageStore.h
-    engine/VaultIndex.cpp          # rebuildable scan product — the queryable index (Slice 3), app-wired for the read-model (Slice 10)
-    engine/VaultIndex.h
-    engine/VaultConfig.cpp         # user-intent store: roots + kind overrides (Slice 2), app-wired for scan/confirm (Slice 11)
-    engine/VaultConfig.h
-    engine/VaultScanner.cpp        # cancellable off-thread census + aggregate publish (Slice 4/11)
-    engine/VaultScanner.h
-    engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
-    engine/VaultLibrary.h
-    engine/VaultBrowseAway.cpp     # browse-projection away propagation + offline fallback (browse-face execution plan Slice 6)
-    engine/VaultBrowseAway.h
-    engine/VaultBrowseDetail.cpp   # the detail sheet's ONE projection: copies/companions/extras/evidence (browse-face execution plan Slice 7)
-    engine/VaultBrowseDetail.h
-    engine/VaultBrowseEmpty.cpp    # the grid's empty-cause classification: no-roots/empty-folder/all-away (browse-face execution plan Slice 9)
-    engine/VaultBrowseEmpty.h
-    engine/VaultIdentifier.cpp
-    engine/VaultIdentifier.h
-    engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)
-    engine/VaultWatcher.h
-    engine/VaultDownloadsRoot.cpp  # synthetic downloads root — derives FileRows from backbones (Slice 18)
-    engine/VaultDownloadsRoot.h
-    engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
-    engine/VaultEnricher.h
-    # ── Vault browse artwork (browse-artwork execution plan, Slices 1-3, 2026-08-13): the
-    # resolver ladder VaultLibrary now composes for browseAt()/items()/series() cover projection ──
-    engine/VaultCacheKey.h         # shared (path,size,mtimeMs) cache-key derivation (Slice 1)
-    engine/VaultThumbnailer.h
-    engine/VaultPosterFetcher.cpp  # canonical poster fetcher + cache, QNetworkAccessManager (Slice 2)
-    engine/VaultPosterFetcher.h
-    engine/VaultArtworkResolver.cpp # the fixed-priority ladder core VaultLibrary calls per row (Slice 3)
-    engine/VaultArtworkResolver.h
-    engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
-    engine/VaultBookStateMigrator.h
-    engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
-    engine/VaultForensics.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
@@ -806,6 +758,55 @@ if(NOT ANDROID)
         update/UpdateInstallBridge.cpp
         update/UpdateInstallBridge.h
         installed_chronicle.qrc
+        engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
+        engine/VaultBookCoverProvider.h
+        # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
+        engine/VaultKit.cpp            # shared classifier / SxxExx grammar / walker (Slice 1)
+        engine/VaultKit.h
+        engine/VaultLocation.h          # content:// identity-safe path normalization (Android)
+        engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
+        engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
+        engine/VaultIdentity.h
+        engine/VaultRecent.cpp         # Open Media recent-files store (Slice 9)
+        engine/VaultRecent.h
+        engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8/9)
+        engine/LocalLaunch.h
+        engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
+        engine/VaultPageStore.h
+        engine/VaultIndex.cpp          # rebuildable scan product — the queryable index (Slice 3), app-wired for the read-model (Slice 10)
+        engine/VaultIndex.h
+        engine/VaultConfig.cpp         # user-intent store: roots + kind overrides (Slice 2), app-wired for scan/confirm (Slice 11)
+        engine/VaultConfig.h
+        engine/VaultScanner.cpp        # cancellable off-thread census + aggregate publish (Slice 4/11)
+        engine/VaultScanner.h
+        engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
+        engine/VaultLibrary.h
+        engine/VaultBrowseAway.cpp     # browse-projection away propagation + offline fallback (browse-face execution plan Slice 6)
+        engine/VaultBrowseAway.h
+        engine/VaultBrowseDetail.cpp   # the detail sheet's ONE projection: copies/companions/extras/evidence (browse-face execution plan Slice 7)
+        engine/VaultBrowseDetail.h
+        engine/VaultBrowseEmpty.cpp    # the grid's empty-cause classification: no-roots/empty-folder/all-away (browse-face execution plan Slice 9)
+        engine/VaultBrowseEmpty.h
+        engine/VaultIdentifier.cpp
+        engine/VaultIdentifier.h
+        engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)
+        engine/VaultWatcher.h
+        engine/VaultDownloadsRoot.cpp  # synthetic downloads root — derives FileRows from backbones (Slice 18)
+        engine/VaultDownloadsRoot.h
+        engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
+        engine/VaultEnricher.h
+        # ── Vault browse artwork (browse-artwork execution plan, Slices 1-3, 2026-08-13): the
+        # resolver ladder VaultLibrary now composes for browseAt()/items()/series() cover projection ──
+        engine/VaultCacheKey.h         # shared (path,size,mtimeMs) cache-key derivation (Slice 1)
+        engine/VaultThumbnailer.h
+        engine/VaultPosterFetcher.cpp  # canonical poster fetcher + cache, QNetworkAccessManager (Slice 2)
+        engine/VaultPosterFetcher.h
+        engine/VaultArtworkResolver.cpp # the fixed-priority ladder core VaultLibrary calls per row (Slice 3)
+        engine/VaultArtworkResolver.h
+        engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
+        engine/VaultBookStateMigrator.h
+        engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
+        engine/VaultForensics.h
         engine/VaultThumbnailer.cpp
         player/MediaAdmissionProbe.cpp
         player/MediaAdmissionProbe.h

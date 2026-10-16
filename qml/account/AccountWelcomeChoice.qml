@@ -10,6 +10,11 @@ Control {
     property string detail: ""
     signal chosen()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: control.title
+    Accessible.description: control.detail
+    Accessible.onPressAction: if (control.enabled) control.chosen()
+
     implicitHeight: Math.max(76, implicitContentHeight + topPadding + bottomPadding)
     leftPadding: 18
     rightPadding: 18

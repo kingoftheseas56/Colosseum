@@ -335,6 +335,10 @@ Window {
                        homeReadingDeskLoader, homeVaultWidgetLoader]
         var sources = ["Bookshelf.qml", "TheatreStrip.qml",
                        "ReadingDesk.qml", "VaultHomeWidget.qml"]
+        if (win.androidHost) {
+            loaders.pop()
+            sources.pop()
+        }
         if (homeIntroWidgetCursor >= loaders.length) {
             homeIntroWidgetsLoaded = true
             return
@@ -348,7 +352,7 @@ Window {
     function homeIntroWidgetSettled(loader) {
         if (homeIntroPendingLoader !== loader) return
         homeIntroPendingLoader = null
-        if (homeIntroWidgetCursor >= 4) {
+        if (homeIntroWidgetCursor >= (win.androidHost ? 3 : 4)) {
             homeIntroWidgetsLoaded = true
             return
         }
@@ -1935,6 +1939,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        if (win.androidHost) return
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2911,7 +2916,7 @@ Window {
     // A loose local comic has no series page — open it in the standalone Vault reader host
     // (vaultComicLayer) as a taskbar comic session keyed to its content id.
     function openVaultComic(path, vaultId, title) {
-        if (!path) return
+        if (win.androidHost || !path) return
         Sessions.openOrSwitch({
             "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
             "target": { "vaultPath": path, "id": vaultId || ("vault-file:" + path), "title": title || "" }
@@ -3787,6 +3792,39 @@ Window {
         }
     }
 
+    // Android readiness is the presented initial world, not merely a live process
+    // or the native splash. Emit once after its real Loader has an item.
+    property bool androidWorldReadyReported: false
+    property bool androidLocalOnboardingReported: false
+    Timer {
+        interval: 100
+        repeat: true
+        running: win.androidHost && !win.androidWorldReadyReported
+        onTriggered: {
+            if (!win.visible || boot.visible) return
+            if (accountHost.visible) {
+                if (!win.androidLocalOnboardingReported
+                        && typeof AccountController !== "undefined" && AccountController
+                        && AccountController.mode === "signedOut"
+                        && AccountController.onboardingRequired) {
+                    win.androidLocalOnboardingReported = true
+                    console.info("[boot] local onboarding visible")
+                }
+                return
+            }
+            if (worldStack.current === "") return
+            for (var i = 0; i < worldRepeater.count; ++i) {
+                var loader = worldRepeater.itemAt(i)
+                if (loader && loader.mode === worldStack.current && loader.visible
+                        && loader.status === Loader.Ready && loader.item) {
+                    win.androidWorldReadyReported = true
+                    console.info("[boot] android world ready: " + loader.mode)
+                    return
+                }
+            }
+        }
+    }
+
     // ---- world pages: one keep-alive Loader PER visited mode, stacked over the home on the SAME
     //      wallpaper. worldStack.current picks which is visible; "" = home. Kept alive so covers
     //      don't re-fetch on return (the home's top bar + scroll hide while a world is up). ----
@@ -4524,7 +4562,7 @@ Window {
         property string archivePath: ""
         property string vaultId: ""
         property string title: "Comic"
-        source: "comicreader/VaultComicReader.qml"
+        source: win.androidHost ? "" : "comicreader/VaultComicReader.qml"
         onLoaded: {
             // archivePath opens the reader synchronously. Supply its progress key
             // first so the first load can restore the saved page.
@@ -4663,7 +4701,7 @@ Window {
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: "VaultPage.qml"
+        source: win.androidHost ? "" : "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
@@ -5381,7 +5419,7 @@ Window {
     }
 
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
-    VaultIdentityCeremonyDialog {
+    LocalIdentityDialog {
         id: identityCeremonyDialog
         anchors.centerIn: parent
         z: 960

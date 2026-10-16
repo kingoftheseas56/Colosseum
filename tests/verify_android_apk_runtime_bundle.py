@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import re
 import os
+import posixpath
 from pathlib import Path
 import subprocess
 import struct
@@ -19,6 +22,80 @@ REQUIRED_PREFIXES = (
     "assets/colosseum-runtime/assets/",
     "assets/colosseum-runtime/resources/",
 )
+
+
+RUNTIME_PREFIX = "assets/colosseum-runtime/"
+QML_PREFIX = RUNTIME_PREFIX + "qml/"
+
+
+def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
+    """Inspect every shipped source, including inactive components/selectors."""
+    failures = []
+    for name, data in sorted(files.items()):
+        if not name.startswith(QML_PREFIX):
+            continue
+        relative = name[len(QML_PREFIX):]
+        if (re.search(r"(^|/)(feria|player2|player2host)/", relative, re.I)
+                or re.search(r"(^|/)Vault[^/]*\.(qml|js)$", relative)
+                or relative in {"reader2/Paper.qml", "TrackerApprovalWebView.qml", "ExtensionsSetupSheet.qml"}):
+            failures.append(f"FORBIDDEN_QML_FILE {relative}")
+        if relative.endswith((".qml", ".js")) or relative.endswith("qmldir"):
+            text = data.decode("utf-8-sig")
+            if re.search(r"^\s*(?:\.import|import)\s+QtWebEngine\b", text, re.M):
+                failures.append(f"FORBIDDEN_WEBENGINE_IMPORT {relative}")
+            if re.search(r'^\s*(?:\.import|import)\s+[^\n]*["/](?:feria|player2|player2host)(?:/|")', text, re.M | re.I):
+                failures.append(f"FORBIDDEN_DESKTOP_IMPORT {relative}")
+            for imported in re.findall(r'^\s*(?:\.import|import)\s+["\']([^"\']+)["\']', text, re.M):
+                if ":" in imported:
+                    continue  # URL/module imports are resolved by Qt, not this tree.
+                target = posixpath.normpath(posixpath.join(posixpath.dirname(name), imported))
+                exists = target in files or any(path.startswith(target + "/") for path in files)
+                if not exists:
+                    failures.append(f"MISSING_RELATIVE_IMPORT {relative}: {imported}")
+            if re.search(r"newVinyl", text, re.I):
+                failures.append(f"FORBIDDEN_NEWVINYL_REFERENCE {relative}")
+    return failures
+
+
+def android_java_policy_failures(files: dict[str, bytes]) -> list[str]:
+    """DEX class names are UTF-8 descriptors, also for otherwise unused classes."""
+    failures = []
+    for name, data in sorted(files.items()):
+        if "org/colosseum/vault/" in name:
+            failures.append(f"FORBIDDEN_VAULT_JAVA_FILE {name}")
+        if name.endswith((".dex", ".class")) and (
+                b"org/colosseum/vault/" in data or b"org.colosseum.vault." in data):
+            failures.append(f"FORBIDDEN_VAULT_JAVA_REFERENCE {name}")
+    return failures
+
+
+def runtime_manifest_failures(files: dict[str, bytes]) -> list[str]:
+    """Require exact file membership and hashes, not just one-way existence."""
+    failures = []
+    runtime = {name[len(RUNTIME_PREFIX):]: data for name, data in files.items()
+               if name.startswith(RUNTIME_PREFIX) and not name.endswith("/")}
+    manifest = runtime.get("runtime-files.manifest", b"").decode("utf-8")
+    rows = [line[5:].split("\t") for line in manifest.splitlines() if line.startswith("file=")]
+    expected = {}
+    for row in rows:
+        if len(row) != 2 or row[0] in expected:
+            failures.append("INVALID_RUNTIME_MANIFEST_ENTRY " + repr(row))
+            continue
+        expected[row[0]] = row[1]
+    actual = {name: hashlib.sha256(data).hexdigest() for name, data in runtime.items()
+              if name != "runtime-files.manifest"}
+    for name in sorted(actual.keys() | expected.keys()):
+        if actual.get(name) != expected.get(name):
+            failures.append(f"RUNTIME_MANIFEST_MISMATCH {name}")
+    material = "".join(f"{name}\n{actual[name]}\n" for name in sorted(actual))
+    if f"bundleSha256={hashlib.sha256(material.encode()).hexdigest()}" not in manifest.splitlines():
+        failures.append("RUNTIME_BUNDLE_HASH_MISMATCH")
+    qml = {name[4:]: digest for name, digest in actual.items() if name.startswith("qml/")}
+    material = "".join(f"{name}\n{qml[name]}\n" for name in sorted(qml))
+    qml_manifest = runtime.get("qml-build.manifest", b"").decode("utf-8")
+    if f"qmlTreeSha256={hashlib.sha256(material.encode()).hexdigest()}" not in qml_manifest.splitlines():
+        failures.append("QML_TREE_HASH_MISMATCH")
+    return failures
 
 
 def verify_elf_version_dependencies(data: bytes) -> None:
@@ -96,6 +173,26 @@ def main() -> int:
 
     with zipfile.ZipFile(apk) as archive:
         entries = set(archive.namelist())
+        runtime_files = {name: archive.read(name) for name in sorted(entries)
+                         if name.startswith(RUNTIME_PREFIX) and not name.endswith("/")}
+        java_files = {name: archive.read(name) for name in sorted(entries)
+                      if name.endswith((".dex", ".class")) or "org/colosseum/vault/" in name}
+        policy_failures = android_java_policy_failures(java_files)
+        policy_failures.extend(qml_policy_failures(runtime_files))
+        policy_failures.extend(runtime_manifest_failures(runtime_files))
+        policy_failures.extend(f"FORBIDDEN_WEBENGINE_LIBRARY {name}" for name in sorted(entries)
+                               if name.endswith(".so") and "webengine" in name.lower())
+        for failure in policy_failures:
+            print(failure, file=sys.stderr)
+        shipped_qml = [name for name in runtime_files if name.startswith(QML_PREFIX)]
+        print(f"ANDROID_PACKAGED_QML_FILES {len(shipped_qml)}")
+        # Shared shell identifiers are reported honestly; they are not equivalent
+        # to importing a desktop implementation. Do not claim a zero-text grep.
+        references = [name[len(QML_PREFIX):] for name in shipped_qml
+                      if name.endswith((".qml", ".js"))
+                      and b"feria" in runtime_files[name].lower()]
+        if references:
+            print("ANDROID_SHARED_SHELL_DESKTOP_REFERENCES " + ",".join(references))
         missing_files = [name for name in REQUIRED_FILES if name not in entries]
         runtime_manifest = (
             archive.read("assets/colosseum-runtime/runtime-files.manifest").decode("utf-8")
@@ -152,7 +249,7 @@ def main() -> int:
         prefix for prefix in REQUIRED_PREFIXES if not any(name.startswith(prefix) for name in entries)
     ]
 
-    if missing_files or missing_prefixes or missing_manifest_entries or qml_failures or elf_failures:
+    if missing_files or missing_prefixes or missing_manifest_entries or qml_failures or elf_failures or policy_failures:
         for name in missing_files:
             print(f"MISSING_FILE {name}", file=sys.stderr)
         for prefix in missing_prefixes:

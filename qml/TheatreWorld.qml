@@ -10,7 +10,7 @@ import "AddonClient.js" as AddonClient
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "NextUp.js" as NextUp
 import "LibraryApi.js" as LibraryApi
-import "VaultApi.js" as VaultApi
+import "CatalogueRecents.js" as CatalogueRecents
 
 WorldPage {
     id: theatre
@@ -42,7 +42,7 @@ WorldPage {
     // rehydrates the same row when lifecycleActive becomes true; the activation handler also
     // refreshes it after the world has settled.
     property var continueRows: theatre.lifecycleActive
-                                 ? VaultApi.recentWithoutVault(Progress, "video", 12) : []
+                                 ? CatalogueRecents.recent(Progress, "video", 12) : []
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
@@ -58,7 +58,7 @@ WorldPage {
 
     onProgressRevisionChanged: {
         if (!theatre.lifecycleActive) return
-        continueRows = VaultApi.recentWithoutVault(Progress, "video", 12)
+        continueRows = CatalogueRecents.recent(Progress, "video", 12)
         recomputeNextUp()
     }
 
@@ -71,7 +71,7 @@ WorldPage {
     property var _nextUpPending: ({})   // show root -> true while a fetch is in flight
 
     function recomputeNextUp() {
-        var fin = NextUp.finishedShows(VaultApi.recentWithoutVault(Progress, "video", 48)).slice(0, 8)
+        var fin = NextUp.finishedShows(CatalogueRecents.recent(Progress, "video", 48)).slice(0, 8)
         var out = []
         for (var i = 0; i < fin.length; i++) {
             var rec = fin[i]
@@ -168,7 +168,7 @@ WorldPage {
         // Refresh the Library's new-episode + airing stamps for saved series (spec §4.5).
         // Cheap: skips fresh-stamped (<6h) series and does zero network on an empty shelf.
         LibraryApi.refreshStamps(Collection.items("theatre"), TheatreApi.loadMeta,
-            VaultApi.recentWithoutVault(Progress, "video", 0),
+            CatalogueRecents.recent(Progress, "video", 0),
             function(id) { return Progress.watchedMark(id) },
             function(id) { Progress.forget("video", id) },
             function(id, on) { Progress.setWatchedMark(id, on) },
@@ -178,7 +178,7 @@ WorldPage {
     Component.onCompleted: if (theatre.lifecycleActive) theatre.activateContent()
     onLifecycleActiveChanged: {
         if (!theatre.lifecycleActive) return
-        theatre.continueRows = VaultApi.recentWithoutVault(Progress, "video", 12)
+        theatre.continueRows = CatalogueRecents.recent(Progress, "video", 12)
         theatre.activateContent()
         theatre.recomputeNextUp()
     }

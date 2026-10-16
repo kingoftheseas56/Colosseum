@@ -3,16 +3,25 @@
 #
 # Usage: scripts/android/emulator_smoke.sh <apk> [artifact-dir] [alive-seconds]
 #
-# Installs the APK, launches its launcher activity, waits (default 60 s), then asserts the
-# process is still alive. Always captures logcat, a screenshot, and tombstones (when readable)
-# into artifact-dir. Fails on: install failure, process death, "FATAL EXCEPTION", a native
-# crash signature in logcat, or a new tombstone.
+# Installs and launches the APK, waits for Main.qml and the initial Android world to be ready,
+# then monitors that same process for alive-seconds (default 60 s). Cold extraction
+# has a separate bounded readiness window (SMOKE_READY_TIMEOUT, default 180 s).
+# Captures logcat, screenshots and readable tombstones, including on startup failure.
 set -uo pipefail
 
 APK="${1:?usage: emulator_smoke.sh <apk> [artifact-dir] [alive-seconds]}"
 ART="${2:-smoke-artifacts}"
 ALIVE="${3:-60}"
 ADB="${ADB:-adb}"
+READY_TIMEOUT="${SMOKE_READY_TIMEOUT:-180}"
+for duration in "$ALIVE" "$READY_TIMEOUT"; do
+    if [[ ! "$duration" =~ ^[1-9][0-9]*$ ]]; then
+        echo "Smoke durations must be positive integer seconds" >&2; exit 2
+    fi
+done
+# Bound every adb operation too: a disconnected device must not hang the job.
+adb_cmd() { timeout 120 "$ADB" "$@"; }
+now() { date +%s; }
 mkdir -p "$ART"
 log() { printf '[smoke] %s\n' "$*"; }
 
@@ -25,45 +34,139 @@ PKG="${PKG:-org.qtproject.example}"
 ACTIVITY="${ACTIVITY:-org.qtproject.qt.android.bindings.QtActivity}"
 log "package=$PKG activity=$ACTIVITY"
 
-"$ADB" wait-for-device
+adb_cmd wait-for-device
 # google_apis emulator images are debuggable; root makes /data/tombstones readable.
-"$ADB" root >/dev/null 2>&1 || true
-"$ADB" wait-for-device
-"$ADB" shell getprop ro.product.cpu.abilist | tee "$ART/device-abi.txt"
-"$ADB" shell ls /data/tombstones 2>/dev/null | sort > "$ART/tombstones-before.txt" || true
-"$ADB" logcat -c || true
+adb_cmd root >/dev/null 2>&1 || true
+adb_cmd wait-for-device
+adb_cmd shell getprop ro.product.cpu.abilist | tee "$ART/device-abi.txt"
+adb_cmd shell ls /data/tombstones 2>/dev/null | sort > "$ART/tombstones-before.txt" || true
+# A fresh launch and cleared logs prevent a previous run's ready marker passing.
+setup_fail=0
+adb_cmd shell am force-stop "$PKG" || setup_fail=1
+adb_cmd logcat -c || setup_fail=1
 
-fail=0
-if ! "$ADB" install -r -g "$APK" > "$ART/install.txt" 2>&1; then
+fail=$setup_fail
+if ! adb_cmd install -r -g "$APK" > "$ART/install.txt" 2>&1; then
     log "INSTALL FAILED"; cat "$ART/install.txt"; fail=1
 fi
 
 if [[ $fail == 0 ]]; then
-    "$ADB" shell am start -W -n "$PKG/$ACTIVITY" | tee "$ART/am-start.txt"
-    sleep 5
-    pid=$("$ADB" shell pidof "$PKG" | tr -d '\r')
-    log "pid after 5 s: ${pid:-<none>}"
-    # Screenshot while the UI is up (early), and again at the end of the alive window.
-    sleep 20
-    "$ADB" exec-out screencap -p > "$ART/screenshot-25s.png" || true
-    sleep $((ALIVE > 25 ? ALIVE - 25 : 0))
-    pid_end=$("$ADB" shell pidof "$PKG" | tr -d '\r')
-    "$ADB" exec-out screencap -p > "$ART/screenshot.png" || true
-    if [[ -z "$pid_end" ]]; then
-        log "PROCESS NOT ALIVE after ${ALIVE} s"; fail=1
-    else
-        log "alive after ${ALIVE} s (pid $pid_end)"
-        [[ -n "$pid" && "$pid" != "$pid_end" ]] && { log "PROCESS RESTARTED ($pid -> $pid_end)"; fail=1; }
+    if ! adb_cmd shell am start -W -n "$PKG/$ACTIVITY" > "$ART/am-start.txt" 2>&1; then
+        log "ACTIVITY LAUNCH FAILED"; fail=1
     fi
-fi
+    cat "$ART/am-start.txt"
+    if ! grep -qE '^Status: ok[[:space:]]*$' "$ART/am-start.txt" ||
+       grep -qiE '(^|[[:space:]])(Error:|Exception|Failure)' "$ART/am-start.txt"; then
+        log "ACTIVITY LAUNCH DID NOT SUCCEED"; fail=1
+    fi
 
-"$ADB" logcat -d -v threadtime > "$ART/logcat.txt" 2>&1 || true
-"$ADB" logcat -d -b crash -v threadtime > "$ART/logcat-crash.txt" 2>&1 || true
-"$ADB" shell dumpsys activity activities > "$ART/activities.txt" 2>&1 || true
-"$ADB" shell ls /data/tombstones 2>/dev/null | sort > "$ART/tombstones-after.txt" || true
+    pid=""
+    ready_at=""
+    launched_at=$(now)
+    next_ui_check=$launched_at
+    onboarding_tapped=0
+    while [[ $fail == 0 ]]; do
+        current_pid=$(adb_cmd shell pidof "$PKG" | tr -d '\r')
+        # pidof returns 1 until the process starts. Once observed it may never disappear
+        # or change; checking only the end would allow a crash/restart to pass.
+        if [[ -n "$current_pid" && ! "$current_pid" =~ ^[0-9]+$ ]]; then
+            log "AMBIGUOUS PROCESS: $current_pid"; fail=1; break
+        fi
+        if [[ -n "$pid" && "$current_pid" != "$pid" ]]; then
+            log "PROCESS DIED OR RESTARTED ($pid -> ${current_pid:-<none>})"; fail=1; break
+        fi
+        if [[ -n "$current_pid" && -z "$pid" ]]; then
+            pid=$current_pid
+            log "launch pid: $pid"
+        fi
+        if ! adb_cmd logcat -d -v threadtime > "$ART/logcat-poll.txt" 2>&1; then
+            log "COULD NOT READ LOGCAT"; fail=1; break
+        fi
+        if grep -qE 'FATAL EXCEPTION|Fatal signal [0-9]+|QQmlApplicationEngine failed to load component|No functional TLS backend|main\(\) returned -1' "$ART/logcat-poll.txt"; then
+            log "STARTUP OR RUNTIME FAILURE in logcat"; fail=1; break
+        fi
+        current_time=$(now)
+        if [[ -z "$ready_at" ]]; then
+            # threadtime fields: date time PID TID priority tag message. Only this
+            # fresh launch can satisfy readiness; unrelated Qt processes cannot.
+            awk -v pid="$pid" '$3 == pid { print }' "$ART/logcat-poll.txt" > "$ART/app-readiness.txt"
+            if (( current_time - launched_at > READY_TIMEOUT )); then
+                log "READINESS TIMEOUT after ${READY_TIMEOUT} s (pid ${pid:-<none>})"; fail=1; break
+            fi
+            if [[ -n "$pid" ]] &&
+               grep -Fq '[boot] Main.qml loaded' "$ART/app-readiness.txt" &&
+               grep -Fq '[boot] android world ready:' "$ART/app-readiness.txt"; then
+                ready_at=$current_time
+                log "Main.qml loaded and initial world reached after $((ready_at - launched_at)) s; holding ${ALIVE} s"
+                adb_cmd exec-out screencap -p > "$ART/screenshot-ready.png" || true
+            elif (( current_time - launched_at >= READY_TIMEOUT )); then
+                log "READINESS TIMEOUT after ${READY_TIMEOUT} s (pid ${pid:-<none>})"; fail=1; break
+            elif [[ $onboarding_tapped == 0 ]] && (( current_time >= next_ui_check )) &&
+                 grep -Fq '[boot] Main.qml loaded' "$ART/app-readiness.txt" &&
+                 grep -Fq '[boot] local onboarding visible' "$ART/app-readiness.txt"; then
+                next_ui_check=$((current_time + 5))
+                # Exercise the real first-run local-only choice. Never modify account
+                # settings or invoke the controller behind the UI. A fresh successful
+                # dump is required, so stale XML cannot authorize a tap.
+                if adb_cmd shell uiautomator dump /sdcard/colosseum-smoke-window.xml > "$ART/uiautomator.txt" 2>&1 &&
+                   adb_cmd shell cat /sdcard/colosseum-smoke-window.xml > "$ART/ui-window.xml" 2>/dev/null; then
+                    display_size=$(adb_cmd shell wm size)
+                    coordinates=$(python3 - "$ART/ui-window.xml" "$PKG" "$display_size" <<'PY_UI'
+import re
+import sys
+import xml.etree.ElementTree as ET
+try:
+    sizes = re.findall(r"(?:Physical|Override) size:\s*(\d+)x(\d+)", sys.argv[3])
+    width, height = map(int, sizes[-1])
+    choices = []
+    for node in ET.parse(sys.argv[1]).iter("node"):
+        a = node.attrib
+        if (a.get("package") != sys.argv[2] or a.get("enabled") != "true"
+                or a.get("visible-to-user", "true") != "true"
+                or a.get("clickable") != "true"
+                or "Continue without account" not in (a.get("text"), a.get("content-desc"))):
+            continue
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", a.get("bounds", ""))
+        if not match:
+            continue
+        x1, y1, x2, y2 = map(int, match.groups())
+        if 0 <= x1 < x2 <= width and 0 <= y1 < y2 <= height:
+            choices.append(((x1 + x2) // 2, (y1 + y2) // 2))
+    if len(choices) != 1:
+        sys.exit(1)
+    print(*choices[0])
+except (OSError, ET.ParseError, ValueError, IndexError):
+    sys.exit(1)
+PY_UI
+                    )
+                    if [[ "$coordinates" =~ ^[0-9]+\ [0-9]+$ ]]; then
+                        read -r tap_x tap_y <<< "$coordinates"
+                        if adb_cmd shell input tap "$tap_x" "$tap_y"; then
+                            onboarding_tapped=1
+                            log "Selected visible Continue without account; waiting for unobscured initial world"
+                        else
+                            log "ONBOARDING TAP FAILED"; fail=1; break
+                        fi
+                    fi
+                fi
+            fi
+        elif (( current_time - ready_at >= ALIVE )); then
+            log "initial world remained alive for ${ALIVE} s (pid $pid)"
+            break
+        fi
+        sleep 2
+    done
+fi
+# Capture a final screenshot even when install/launch/readiness failed.
+adb_cmd exec-out screencap -p > "$ART/screenshot.png" || true
+
+adb_cmd logcat -d -v threadtime > "$ART/logcat.txt" 2>&1 || { log "FINAL LOGCAT CAPTURE FAILED"; fail=1; }
+adb_cmd logcat -d -b crash -v threadtime > "$ART/logcat-crash.txt" 2>&1 || { log "CRASH LOGCAT CAPTURE FAILED"; fail=1; }
+adb_cmd shell dumpsys activity activities > "$ART/activities.txt" 2>&1 || true
+adb_cmd shell ls /data/tombstones 2>/dev/null | sort > "$ART/tombstones-after.txt" || true
 new_tombstones=$(comm -13 "$ART/tombstones-before.txt" "$ART/tombstones-after.txt" | grep -v '\.pb$' || true)
 for t in $new_tombstones; do
-    "$ADB" shell cat "/data/tombstones/$t" > "$ART/$t.txt" 2>/dev/null || true
+    adb_cmd shell cat "/data/tombstones/$t" > "$ART/$t.txt" 2>/dev/null || true
 done
 
 if grep -q "FATAL EXCEPTION" "$ART/logcat.txt"; then
@@ -87,5 +190,13 @@ fi
 grep -E "\[boot\]|qml: |QML|libcolosseum|E Qt|F Qt| W Qt|qt\.qml" "$ART/logcat.txt" | head -80 > "$ART/app-summary.txt" || true
 tail -40 "$ART/app-summary.txt"
 
+# Recheck after artifact collection as well, so slow screenshots/logcat cannot hide
+# a process exit between the last poll and the successful verdict.
+if [[ $fail == 0 ]]; then
+    final_pid=$(adb_cmd shell pidof "$PKG" | tr -d '\r')
+    if [[ "$final_pid" != "$pid" ]]; then
+        log "PROCESS DIED OR RESTARTED ($pid -> ${final_pid:-<none>})"; fail=1
+    fi
+fi
 if [[ $fail != 0 ]]; then log "SMOKE FAILED"; exit 1; fi
 log "SMOKE PASSED"

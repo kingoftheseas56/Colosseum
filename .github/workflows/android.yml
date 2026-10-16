@@ -39,6 +39,10 @@ jobs:
           python tests/test_android_reader_session.py
           node tests/android_reader_boot_test.mjs
           python tests/test_android_openssl_packaging_contract.py
+          python tests/test_android_runtime_bundle.py
+          python tests/test_android_vault_contract.py
+          python tests/test_android_vault_media_boundary.py
+          python tests/android_emulator_smoke_test.py
 
       - name: Free disk space
         run: |
@@ -62,6 +66,11 @@ jobs:
 
       - name: Install toolchain
         run: scripts/android/install_toolchain.sh
+
+      - name: Compile Android-selected QML before building APKs
+        run: |
+          python tests/android_qml_preflight.py --qt-root "$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/gcc_64"
+          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software "$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/gcc_64/bin/qmltestrunner" -input tests/qml/tst_account_choice_accessibility.qml
 
       - name: Restore dependency prefixes
         id: deps-cache
@@ -169,7 +178,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install, launch, and hold for 60 s on an API 34 x86_64 emulator
+      - name: Install, reach initial world, and hold for 60 s on an API 34 x86_64 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34

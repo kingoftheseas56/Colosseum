@@ -12,10 +12,6 @@ target_sources(colosseum PRIVATE
     platform/AndroidWindowModeAdapter.h
     platform/android/AndroidBootstrap.cpp
     platform/android/AndroidBootstrap.h
-    engine/VaultAndroidIndexAdapter.cpp
-    engine/VaultAndroidIndexAdapter.h
-    engine/VaultAndroidStorageBridge.cpp
-    engine/VaultAndroidStorageBridge.h
     reader2/AndroidEbookRenderer.cpp
     reader2/AndroidEbookRenderer.h
     player/androidmedia3state.cpp
@@ -27,7 +23,6 @@ target_sources(colosseum PRIVATE
     player/androidseekthumbnailer.h
     player/MediaAdmissionProbe_android.cpp
     player/MediaAdmissionProbe.h
-    engine/VaultThumbnailer_android.cpp
     player/streamserver_android.cpp
     player/streamserver.h
     player/livestore_android.cpp
@@ -53,6 +48,9 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_PACKAGE_FILES CONFIGURE_DEPENDS
     LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}"
     "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/*")
 list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^AndroidBootstrap[.](cpp|h)$")
+# Admission probing has a neutral Media3 owner; the desktop local-library
+# Java bridge is not part of Android's compiled/package source graph.
+list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/vault/")
 foreach(_package_rel IN LISTS COLOSSEUM_ANDROID_PACKAGE_FILES)
     get_filename_component(_package_out_dir
         "${COLOSSEUM_ANDROID_PACKAGE_DIR}/${_package_rel}" DIRECTORY)
@@ -67,14 +65,29 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_QML_FILES CONFIGURE_DEPENDS
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^reader2/Paper[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
-# Feria is desktop-only forever: its deck rides QtWebEngine, which Android never ships.
-# Main.qml references it only through string-source Loaders gated off on Android.
+# Desktop browser/player and local-library worlds are not APK runtime code.
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)Vault[^/]*[.](qml|js)$")
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)[.][^/]+")
+list(SORT COLOSSEUM_ANDROID_QML_FILES)
 foreach(_qml_rel IN LISTS COLOSSEUM_ANDROID_QML_FILES)
+    # Keep selector paths: their relative imports/assets depend on that location.
+    # Only a discovery placeholder is needed at an overridden base URL. Never
+    # ship its desktop implementation for androiddeployqt to scan/import.
+    get_filename_component(_qml_source_dir "${_qml_rel}" DIRECTORY)
+    get_filename_component(_qml_name "${_qml_rel}" NAME)
     get_filename_component(_qml_out_dir "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" DIRECTORY)
     file(MAKE_DIRECTORY "${_qml_out_dir}")
-    configure_file("${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_rel}"
-                   "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" COPYONLY)
+    if(NOT _qml_rel MATCHES "(^|/)[+]android/"
+       AND _qml_rel MATCHES "[.]qml$"
+       AND EXISTS "${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_source_dir}/+android/${_qml_name}")
+        file(WRITE "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}"
+            "// Android selector discovery placeholder; implementation is in +android.\nimport QtQuick\nItem {}\n")
+    else()
+        configure_file("${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_rel}"
+                       "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" COPYONLY)
+    endif()
 endforeach()
 
 # Preserve the sibling paths used by QML and native catalogue/extension owners.
