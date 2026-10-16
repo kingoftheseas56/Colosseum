@@ -6,6 +6,8 @@ No Android SDK, APK, device, network, or real sleeps are used.
 """
 import json
 import os
+import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import subprocess
 import tempfile
@@ -26,7 +28,7 @@ def log(message, pid=123): print("10-16 01:00:00.000 %s 123 I Qt : %s" % (pid, m
 if name == "date": print(s["time"]); sys.exit()
 if name == "sleep": s["time"] += int(args[0]); save(); sys.exit()
 if name == "aapt":
-    print("package: name='test.colosseum'")
+    print("package: name='%s'" % os.environ.get("FIXTURE_PACKAGE", "test.colosseum"))
     print("launchable-activity: name='test.Activity'")
     sys.exit()
 s["calls"].append([s["time"], args]); save()
@@ -51,21 +53,29 @@ elif args[:3] == ["shell", "uiautomator", "dump"]:
     if scenario == "onboarding_dump_failure": sys.exit(1)
     print("UI hierarchy dumped")
 elif args == ["shell", "wm", "size"]:
-    print("Physical size: 1080x1920")
+    print("Physical size: " + ("320x640" if scenario == "onboarding_real_xml" else "1080x1920"))
 elif args == ["shell", "cat", "/sdcard/colosseum-smoke-window.xml"]:
+    if scenario == "onboarding_real_xml":
+        print(pathlib.Path(os.environ["REAL_UI_FIXTURE"]).read_text()); sys.exit()
     package = "foreign.app" if scenario == "onboarding_foreign" else "test.colosseum"
     bounds = "[100,200][200,300]"
     if scenario == "onboarding_bad_bounds": bounds = "[100,200][2000,3000]"
     if scenario == "onboarding_missing_bounds": bounds = ""
     label = "Sign in" if scenario == "onboarding_missing_label" else "Continue without account"
+    if scenario in ("onboarding_combined_label", "onboarding_wrong_id"): label += ", Keep everything local on this device."
+    if scenario == "onboarding_label_prefix": label += " later"
+    resource_id = "QGuiApplication.Main_QMLTYPE_999.accountWelcomeContinueLocal"
+    if scenario == "onboarding_wrong_id": resource_id += "Other"
+    if scenario == "onboarding_missing_id": resource_id = ""
+    widget_class = "android.widget.TextView" if scenario == "onboarding_wrong_class" else "android.widget.Button"
     visible = "false" if scenario == "onboarding_hidden" else "true"
     enabled = "false" if scenario == "onboarding_disabled" else "true"
-    node = ('<node package="%s" class="android.widget.Button" content-desc="%s" '
+    node = ('<node package="%s" class="%s" resource-id="%s" content-desc="%s" '
             'bounds="%s" enabled="%s" visible-to-user="%s" clickable="true" />') % (
-                package, label, bounds, enabled, visible)
+                package, widget_class, resource_id, label, bounds, enabled, visible)
     print("<hierarchy>" + node * (2 if scenario == "onboarding_duplicate" else 1) + "</hierarchy>")
 elif args[:3] == ["shell", "input", "tap"]:
-    if args[3:] != ["150", "250"]: sys.exit(4)
+    if args[3:] != os.environ.get("EXPECTED_TAP", "150 250").split(): sys.exit(4)
     s["tapped"] = True; save()
 elif args[:2] == ["shell", "pidof"]:
     if scenario == "no_pid" or (scenario == "delayed" and t < 20): sys.exit(1)
@@ -118,6 +128,13 @@ class AndroidSmokeTest(unittest.TestCase):
                        ADB=str(binary / "adb"), ANDROID_SDK_ROOT=str(root / "sdk"),
                        FIXTURE_ROOT=str(root), SCENARIO=scenario,
                        SMOKE_READY_TIMEOUT=str(ready_timeout))
+            if scenario == "onboarding_real_xml":
+                xml_path = Path(__file__).resolve().parent / "fixtures/android/onboarding-qt-ui.xml"
+                node = next(n for n in ET.parse(xml_path).iter("node")
+                            if n.get("resource-id", "").endswith(".accountWelcomeContinueLocal"))
+                x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds")))
+                env.update(REAL_UI_FIXTURE=str(xml_path), FIXTURE_PACKAGE=node.get("package"),
+                           EXPECTED_TAP=f"{(x1+x2)//2} {(y1+y2)//2}")
             result = subprocess.run(["bash", str(SCRIPT), "fixture.apk", str(artifact), str(alive)],
                                     env=env, text=True, capture_output=True, timeout=40)
             state = json.loads((root / "state.json").read_text())
@@ -131,6 +148,17 @@ class AndroidSmokeTest(unittest.TestCase):
         for name in ("logcat.txt", "logcat-crash.txt", "screenshot.png", "activities.txt"):
             self.assertIn(name, files)
 
+    def test_real_qt_combined_accessibility_label(self):
+        result, state, _ = self.run_smoke("onboarding_real_xml", alive=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        taps = [args for _, args in state["calls"] if args[:3] == ["shell", "input", "tap"]]
+        self.assertEqual(len(taps), 1)
+        self.assertGreaterEqual(state["time"], 64)
+
+    def test_combined_label_with_other_generated_type_number(self):
+        result, _, _ = self.run_smoke("onboarding_combined_label")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_real_onboarding_choice_then_full_hold(self):
         result, state, _ = self.run_smoke("onboarding", alive=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -142,7 +170,9 @@ class AndroidSmokeTest(unittest.TestCase):
     def test_onboarding_without_unique_visible_valid_target_fails_closed(self):
         for scenario in ("onboarding_foreign", "onboarding_bad_bounds", "onboarding_missing_bounds",
                          "onboarding_missing_label", "onboarding_hidden", "onboarding_disabled",
-                         "onboarding_duplicate", "onboarding_dump_failure", "onboarding_obscured"):
+                         "onboarding_duplicate", "onboarding_dump_failure", "onboarding_obscured",
+                         "onboarding_wrong_id", "onboarding_missing_id", "onboarding_wrong_class",
+                         "onboarding_label_prefix"):
             with self.subTest(scenario=scenario):
                 result, state, _ = self.run_smoke(scenario)
                 self.assertNotEqual(result.returncode, 0, result.stdout)

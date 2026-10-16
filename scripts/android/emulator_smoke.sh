@@ -121,10 +121,19 @@ try:
     choices = []
     for node in ET.parse(sys.argv[1]).iter("node"):
         a = node.attrib
-        if (a.get("package") != sys.argv[2] or a.get("enabled") != "true"
+        # Qt appends the accessible description to the name with ", ". The
+        # generated QML type number varies, but objectName is a stable identity.
+        title = "Continue without account"
+        labels = (a.get("text", ""), a.get("content-desc", ""))
+        title_matches = any(label == title or
+                            (label.startswith(title + ", ") and len(label) > len(title) + 2)
+                            for label in labels)
+        if (a.get("resource-id", "").rsplit(".", 1)[-1] != "accountWelcomeContinueLocal"
+                or a.get("class") != "android.widget.Button"
+                or a.get("package") != sys.argv[2] or a.get("enabled") != "true"
                 or a.get("visible-to-user", "true") != "true"
                 or a.get("clickable") != "true"
-                or "Continue without account" not in (a.get("text"), a.get("content-desc"))):
+                or not title_matches):
             continue
         match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", a.get("bounds", ""))
         if not match:
