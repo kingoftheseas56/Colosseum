@@ -3,11 +3,11 @@
 native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 # PinProxyFactory ownership transfers to Qt in setApplicationProxyFactory.
-native/main.cpp|717|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
+native/main.cpp|711|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
 # QFutureWatcher has vaultIndex parent and finished -> deleteLater.
-native/main.cpp|1126|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/main.cpp|1048|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 # PosterTimingProbe has stack-scoped backendServices parent, including early return.
-native/main.cpp|1914|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'posterTiming'
+native/main.cpp|769|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'posterTiming'
 # Snapshot watcher has BiblioCatalog parent and finished -> deleteLater.
 native/engine/BiblioCatalog.cpp|1182|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'snapshotWatcher'
 # Index-write watcher has MangaDownloader parent and finished -> deleteLater.
