@@ -28,9 +28,9 @@ QString fileError(const QString &path) {
     return {};
 }
 }
-VinylLocalSource::VinylLocalSource(VaultIdentity *identity, QObject *parent)
-    : QObject(parent), m_identity(identity) {
-    connect(this, &VinylLocalSource::profileLeaving, this, [this] { cancelAll(); m_albums.clear(); m_tracks.clear(); m_artists.clear(); });
+VinylLocalSource::VinylLocalSource(VaultIdentity *identity, QObject *parent, int resolutionDelayMs)
+    : QObject(parent), m_identity(identity), m_resolutionDelayMs(std::clamp(resolutionDelayMs,0,2000)) {
+    connect(this, &VinylLocalSource::profileLeaving, this, [this] { cancelAll(); ++m_revision; m_albums.clear(); m_tracks.clear(); m_artists.clear(); });
     connect(this, &VinylLocalSource::shuttingDown, this, &VinylLocalSource::cancelAll);
 }
 QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
@@ -293,6 +293,7 @@ QVariantList VinylLocalSource::importManifest(const QString &path, QString *erro
     return result;
 }
 void VinylLocalSource::setAlbums(const QVariantList &entries) {
+    const auto previousAlbums = m_albums;
     m_albums.clear(); m_tracks.clear(); m_artists.clear();
     for (const auto &value : entries) {
         const auto entry = value.toMap();
@@ -330,15 +331,48 @@ void VinylLocalSource::setAlbums(const QVariantList &entries) {
         }
         album.insert("artistIds",artistIds); m_albums.insert(id,album);
     }
+    if (m_albums != previousAlbums) ++m_revision;
 }
-int VinylLocalSource::request(const QString &lane,const QString &operation,const QString &value) {
+int VinylLocalSource::request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &page) {
     if ((lane != "browse" && lane != "play" && lane != "queue") || (!QStringList{"search","album","resolve","artists","artist"}.contains(operation))) return -1;
     const int id = ++m_serial; m_pending.insert(lane,id);
     // Queued even when local, so callers assign ID before completion arrives.
-    QTimer::singleShot(0,this,[this,lane,operation,value,id] {
+    QTimer::singleShot(operation=="resolve" ? m_resolutionDelayMs : 0,this,[this,lane,operation,value,id,page] {
         if (m_pending.value(lane,-1) != id) return;
         m_pending.remove(lane);
-        QString error; const auto data = read(operation,value,&error);
+        QString error;
+        if (!page.isEmpty()) {
+            auto invalid = [&] { emit completed(lane,id,QVariant(),QStringLiteral("Invalid local catalogue page request.")); };
+            auto integer = [](const QVariant &v, int minimum, int maximum, int *out) {
+                if (v.typeId()!=QMetaType::Int && v.typeId()!=QMetaType::UInt
+                    && v.typeId()!=QMetaType::LongLong && v.typeId()!=QMetaType::ULongLong
+                    && v.typeId()!=QMetaType::Double) return false;
+                bool ok=false; const double n=v.toDouble(&ok);
+                if (!ok || !std::isfinite(n) || std::floor(n)!=n || n<minimum || n>maximum) return false;
+                *out=int(n); return true;
+            };
+            int offset=0,size=0;
+            if (operation!="search" || lane!="browse"
+                || !integer(page.value("offset"),0,1000000,&offset)
+                || !integer(page.value("pageSize"),1,200,&size)) {invalid();return;}
+            for (auto it=page.begin();it!=page.end();++it)
+                if (it.key()!="offset" && it.key()!="pageSize" && it.key()!="revision") {invalid();return;}
+            const QString revision=QString::number(m_revision);
+            if ((page.contains("revision") && page.value("revision").typeId()!=QMetaType::QString)
+                || (offset>0 && page.value("revision").toString().isEmpty())) {invalid();return;}
+            if (!page.value("revision").toString().isEmpty() && page.value("revision").toString()!=revision) {
+                emit completed(lane,id,QVariant(),QStringLiteral("The local catalogue changed. Retry the search."));return;
+            }
+            const auto records=read(operation,value,&error).toList();
+            if (offset>records.size()) {invalid();return;}
+            const auto items=records.mid(offset,size);
+            const int next=offset+items.size();
+            const bool complete=next>=records.size();
+            emit completed(lane,id,QVariantMap{{"items",items},{"revision",revision},
+                {"nextOffset",complete ? -1 : next},{"complete",complete},{"origin","local"}},error);
+            return;
+        }
+        const auto data = read(operation,value,&error);
         emit completed(lane,id,data,error);
     });
     return id;
@@ -362,8 +396,9 @@ QVariant VinylLocalSource::read(const QString &operation,const QString &value,QS
         QVariantList results; auto ids = m_albums.keys(); std::sort(ids.begin(),ids.end());
         for (const auto &id : ids) {
             const auto album = m_albums.value(id);
-            if (value.trimmed().isEmpty() || album.value("title").toString().contains(value,Qt::CaseInsensitive)
-                || album.value("artists").toStringList().join(' ').contains(value,Qt::CaseInsensitive)) results.append(album);
+            QStringList text{album.value("title").toString(),album.value("artists").toStringList().join(' ')};
+            for (const auto &track : album.value("tracks").toList()) text.append(track.toMap().value("title").toString());
+            if (text.join(' ').contains(value.trimmed(),Qt::CaseInsensitive)) results.append(album);
         }
         return results;
     }

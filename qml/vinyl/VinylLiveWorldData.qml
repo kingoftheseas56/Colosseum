@@ -36,6 +36,12 @@ Item {
     }), people:{}, profiles:{}, homeRegion:[]})
     property var lens: ({kind:"albums",genre:"",decade:"",country:"",language:""})
     property string query: ""
+    function refreshSearch() {
+        if(!session.pagedSearchSupported) return;
+        if(query.trim()) session.search(query);
+        else if(session.browseOperation==="search") session.cancelBrowse();
+    }
+    onQueryChanged: refreshSearch()
     property string sortOrder: "title"
     property bool pickerAnswered: false
     property var picks: []
@@ -44,7 +50,11 @@ Item {
     readonly property string tasteNotice: "Taste choices are saved to this profile."
     readonly property string lensTitle: [lens.language,lens.decade,lens.genre,lens.country].filter(function(v){return !!v}).join(" · ") || "Local music"
     readonly property var albums: catalogue.albums.filter(function(a) {
-        return Lists.matches(a,lens) && (!query.trim() || (a.title+" "+a.artists.join(" ")+" "+(a.tracks || []).map(function(t){return t.title}).join(" ")).toLowerCase().indexOf(query.trim().toLowerCase())>=0);
+        // Keep the existing local view while a replacement page chain loads; never
+        // expose a partial page as a complete result or alter lens/sort semantics.
+        var complete=session.pagedSearchSupported && session.searchComplete && session.searchQuery===query.trim();
+        var included=!complete || session.results.some(function(record){return record.id===a.id;});
+        return included && Lists.matches(a,lens) && (!query.trim() || (a.title+" "+a.artists.join(" ")+" "+(a.tracks || []).map(function(t){return t.title}).join(" ")).toLowerCase().indexOf(query.trim().toLowerCase())>=0);
     }).sort(function(a,b) {
         return sortOrder === "year" ? (Number(b.year)||0)-(Number(a.year)||0) || String(a.title).localeCompare(String(b.title)) : String(a.title).localeCompare(String(b.title));
     })
@@ -121,5 +131,5 @@ Item {
     function activate(item) {itemRequested(item);}
     function openList(key,home) {listRequested(key,home);}
     function resume() {resumeRequested();}
-    Connections {target:root.session;function onProfileGenerationChanged(){root.loadTaste();root.query="";root.lens=({kind:"albums",genre:"",decade:"",country:"",language:""});}}
+    Connections {target:root.session;function onLibraryChanged(){root.refreshSearch();}function onProfileGenerationChanged(){root.loadTaste();root.query="";root.lens=({kind:"albums",genre:"",decade:"",country:"",language:""});}}
 }

@@ -38,4 +38,12 @@ TestCase {
         verify(!session.validAlbum({id:"bad",tracks:{0:{id:"t"},length:1}}));
         verify(!session.validAlbum({id:"bad",tracks:[{id:"t",artists:{0:"Artist",length:1}}]}));
     }
+    function test_pagedNativeSearchUsesConsumerEnvelope() {
+        var records=[];
+        for(var i=0;i<70;i++) records.push(Object.assign({},rawAlbum,{id:"page-"+i,title:"Paged "+i}));
+        session.library=records;session.search("");tryCompare(session,"browsing",false);
+        compare(session.browseError,"");verify(session.searchComplete);compare(session.results.length,70);
+        verify(session.searchRevision.length>0);verify(session.searchOffset>0);
+    }
+
 }

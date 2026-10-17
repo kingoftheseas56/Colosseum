@@ -12,6 +12,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QElapsedTimer>
+#include <QEventLoop>
+#include <QTimer>
+#include <memory>
 
 int main(int argc, char **argv) {
     QCoreApplication app(argc,argv);
@@ -158,6 +161,74 @@ int main(int argc, char **argv) {
         qInfo()<<"SMOKE imported releases"<<smokeResult.value("albums").toList().size()<<"errors"<<smokeResult.value("errors");
         check(smokeResult.value("errors").toStringList().isEmpty(),"supplied runtime catalogue imports");
     }
+    // Paged local read contract over the same request/completed consumer API.
+    QVariantList pageRecords;
+    for(int i=0;i<5;++i) {
+        auto record=album;record.insert("id",QStringLiteral("page-%1").arg(i));
+        record.insert("title",QStringLiteral("Page album %1").arg(i));
+        record.insert("tracks",QVariantList{QVariantMap{{"id",QStringLiteral("recording-%1").arg(i)},
+            {"title",QStringLiteral("Needle song")},{"localPath",path}}});
+        pageRecords.append(record);
+    }
+    source.setAlbums(pageRecords);
+    check(source.cataloguePageVersion()==1,"explicit paged read capability");
+    auto pageRead=[&](const QVariantMap &options, const QString &query=QString()) {
+        source.request("browse","search",query,options);QCoreApplication::processEvents();return data.toMap();
+    };
+    auto first=pageRead({{"pageSize",2},{"offset",0}},"needle song");
+    check(error.isEmpty() && first.value("items").toList().size()==2 && first.value("nextOffset").toInt()==2,"first bounded page includes track title search");
+    const auto revision=first.value("revision").toString();
+    source.setAlbums(pageRecords); // Identical reprojection must not invalidate continuation.
+    auto second=pageRead({{"pageSize",2},{"offset",2},{"revision",revision}},"needle song");
+    check(error.isEmpty() && second.value("revision")==revision && second.value("nextOffset").toInt()==4,"stable projection revision");
+    auto last=pageRead({{"pageSize",2},{"offset",4},{"revision",revision}},"needle song");
+    check(error.isEmpty() && last.value("items").toList().size()==1 && last.value("complete").toBool()
+        && last.value("nextOffset").toInt()==-1,"last page terminal cursor");
+    auto emptyPage=pageRead({{"pageSize",2},{"offset",0}},"no such album");
+    check(error.isEmpty() && emptyPage.value("items").toList().isEmpty() && emptyPage.value("complete").toBool(),"empty search terminal page");
+    pageRead({{"pageSize",201},{"offset",0}});check(!error.isEmpty(),"oversized page rejected");
+    pageRead({{"pageSize",2},{"offset",1.5}});check(!error.isEmpty(),"fractional cursor rejected");
+    pageRead({{"pageSize",2},{"offset",2}});check(!error.isEmpty(),"continuation needs revision");
+    pageRead({{"pageSize",2},{"offset",99},{"revision",revision}});check(!error.isEmpty(),"cursor beyond result rejected");
+    auto changed=pageRecords[0].toMap();changed.insert("title","Updated");pageRecords[0]=changed;source.setAlbums(pageRecords);
+    pageRead({{"pageSize",2},{"offset",2},{"revision",revision}});check(error.contains("changed"),"changed snapshot rejects continuation");
+    auto beforeCancelled=completions;
+    source.request("browse","search","",{{"pageSize",2},{"offset",0}});source.cancel("browse");QCoreApplication::processEvents();
+    check(completions==beforeCancelled,"paged cancellation suppresses completion");
+    source.request("browse","search","",{{"pageSize",2},{"offset",0}});emit source.profileLeaving();QCoreApplication::processEvents();
+    check(completions==beforeCancelled,"profile departure cancels pending page");
+    source.setAlbums(pageRecords);pageRead({{"pageSize",2},{"offset",2},{"revision",revision}});
+    check(error.contains("changed"),"profile round trip cannot revive old cursor");
+
+    // Real Qt timer seam; production construction remains zero-delay.
+    auto pump=[](int ms) {QEventLoop loop;QTimer::singleShot(ms,&loop,&QEventLoop::quit);loop.exec();};
+    int delayedCompletions=0;
+    VinylLocalSource delayed(&identity,nullptr,25);
+    QObject::connect(&delayed,&VinylLocalSource::completed,&app,[&](const QString &,int,const QVariant &,const QString &) {++delayedCompletions;});
+    delayed.request("play","resolve","missing");QCoreApplication::processEvents();
+    check(delayedCompletions==0,"controlled resolver remains pending before timer");
+    delayed.cancel("play");pump(60);check(delayedCompletions==0,"delayed resolver cancellation suppresses callback");
+    delayed.request("play","resolve","missing");emit delayed.profileLeaving();pump(60);
+    check(delayedCompletions==0,"profile departure fences actual delayed timer");
+    delayed.request("browse","search","");QCoreApplication::processEvents();
+    check(delayedCompletions==1,"resolution delay does not delay catalogue reads");
+    delayed.request("play","resolve","missing");pump(60);check(delayedCompletions==2,"controlled delayed resolver eventually completes");
+    int destroyedCompletions=0;
+    auto destroyed=std::make_unique<VinylLocalSource>(&identity,nullptr,25);
+    QObject::connect(destroyed.get(),&VinylLocalSource::completed,&app,[&](const QString &,int,const QVariant &,const QString &) {++destroyedCompletions;});
+    destroyed->request("play","resolve","missing");destroyed.reset();pump(60);
+    check(destroyedCompletions==0,"source destruction cancels timer context");
+    int negativeCompletions=0;
+    VinylLocalSource negative(&identity,nullptr,-1);
+    QObject::connect(&negative,&VinylLocalSource::completed,&app,[&](const QString &,int,const QVariant &,const QString &) {++negativeCompletions;});
+    negative.request("play","resolve","missing");QCoreApplication::processEvents();
+    check(negativeCompletions==1,"negative resolution delay clamps to zero");
+    int cappedCompletions=0;
+    VinylLocalSource capped(&identity,nullptr,10000);
+    QObject::connect(&capped,&VinylLocalSource::completed,&app,[&](const QString &,int,const QVariant &,const QString &) {++cappedCompletions;});
+    capped.request("play","resolve","missing");pump(60);check(cappedCompletions==0,"positive capped delay remains pending");
+    pump(2200);check(cappedCompletions==1,"resolution delay above maximum clamps to two seconds");
+
     if (app.arguments().contains("--benchmark")) {
         QTemporaryDir large; QDir().mkpath(large.path()+"/registry");
         VaultIdentity largeIdentity(large.path()+"/registry"); VinylLocalSource largeSource(&largeIdentity);

@@ -266,6 +266,7 @@ Flickable {
             width: root.width
             viewportHeight: root.height
             horizontalGutter: root.gutter
+            contentTopInset: artistTitleBar.height
             fullBleed: true
             skinLayerAReady: internalArtistSkin.artistLayerAReady
             skinLayerBReady: internalArtistSkin.artistLayerBReady

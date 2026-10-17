@@ -219,15 +219,31 @@ Item {
         dim: false
         margins: 8
         width: Math.min(Math.max(picker.width, 280), parent ? parent.width - 16 : 280)
-        height: Math.min(380, list.contentHeight + 12, parent ? parent.height - 16 : 380)
+        // Delegate heights are fixed. ListView.contentHeight is estimated while
+        // delegates are being created, which can move a bottom-anchored popup
+        // across its trigger after opening or refreshing the options.
+        readonly property real desiredHeight: {
+            var total = 12
+            for (var i = 0; i < picker.options.length; ++i)
+                total += picker.options[i].header !== undefined ? 27 : 38
+            return Math.min(380, total)
+        }
+        property real anchorRoomHeight: 380
+        height: Math.min(desiredHeight, anchorRoomHeight)
+        onDesiredHeightChanged: if (picker.open) positionAtPill()
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         function positionAtPill() {
             if (!parent) return
             var point = pill.mapToItem(parent, 0, 0)
             x = Math.max(8, Math.min(point.x, parent.width - width - 8))
             var below = point.y + pill.height + 6
-            y = below + height <= parent.height - 8 ? below
-                : Math.max(8, point.y - height - 6)
+            var roomBelow = Math.max(0, parent.height - 8 - below)
+            var roomAbove = Math.max(0, point.y - 6 - 8)
+            var placeBelow = desiredHeight <= roomBelow
+                || (desiredHeight > roomAbove && roomBelow >= roomAbove)
+            anchorRoomHeight = placeBelow ? roomBelow : roomAbove
+            var fittedHeight = Math.min(desiredHeight, anchorRoomHeight)
+            y = placeBelow ? below : Math.max(8, point.y - fittedHeight - 6)
         }
         onClosed: {
             // An external host setting open=false must not steal its newly assigned focus.

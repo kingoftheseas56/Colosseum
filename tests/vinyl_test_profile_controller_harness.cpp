@@ -37,10 +37,17 @@ int main(int argc, char **argv) {
     }
 
     qunsetenv("COLOSSEUM_VINYL_TEST_FIXTURES");
+    qputenv("COLOSSEUM_VINYL_TEST_DELAY_RESOLVE", "1");
+    check(c.resolutionDelayMs() == 0, "resolution-delay-requires-contained-fixture");
     check(!c.execute({{"action", "activate-a"}})["success"].toBool() && callbacks == 0,
           "launch-gate-absent-refuses-before-callback");
     qputenv("COLOSSEUM_VINYL_TEST_FIXTURES", "1");
     check(c.enabled(), "owned-root-both-gates-enable");
+    check(c.resolutionDelayMs() == 2000, "resolution-delay-fixed-two-seconds");
+    qputenv("COLOSSEUM_VINYL_TEST_DELAY_RESOLVE", "200000");
+    check(c.resolutionDelayMs() == 0, "arbitrary-resolution-delay-refused");
+    qunsetenv("COLOSSEUM_VINYL_TEST_DELAY_RESOLVE");
+    check(c.resolutionDelayMs() == 0, "resolution-delay-default-off");
     qunsetenv("COLOSSEUM_APPDATA_TAG");
     check(!c.enabled(), "untagged-settings-refused");
     qputenv("COLOSSEUM_APPDATA_TAG", "normal-profile");

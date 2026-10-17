@@ -297,4 +297,63 @@ TestCase {
         }
     }
 
+    function test_bottomAnchorModelGrowthStaysAboveAndScrollable() {
+        picker.options = [{key:"first", text:"First"}];
+        picker.currentKey = "first";
+        openWith();
+        var rows = [{header:"Options"}];
+        for (var i = 0; i < 30; ++i) rows.push({key:"row" + i, text:"Row " + i});
+        picker.options = rows;
+        var pop = named("testPickerPopup");
+        var l = list();
+        tryVerify(function() { return l.contentHeight > l.height; });
+        waitForRendering(host.contentItem);
+        var triggerTop = picker.mapToItem(host.contentItem, 0, 0).y;
+        var bounds = l.mapToItem(host.contentItem, 0, 0);
+        verify(bounds.y >= 8, "Long popup stays below window margin");
+        verify(bounds.y + l.height <= triggerTop - 6,
+               "Bottom-anchored popup must remain above its trigger after model growth");
+        keyClick(Qt.Key_End);
+        compare(l.currentIndex, rows.length - 1);
+        tryVerify(function() { return l.contentY > 0; });
+        waitForRendering(host.contentItem);
+        var option = named("testPickerOption_" + (rows.length - 1));
+        verify(option !== null);
+        var point = option.mapToItem(l, 0, 0);
+        verify(point.y >= -1 && point.y + option.height <= l.height + 1,
+               "Last option is fully reachable");
+        mouseClick(option, option.width / 2, option.height / 2);
+        compare(chosen.length, 1); compare(chosen[0], "row29");
+        tryCompare(action(), "activeFocus", true);
+    }
+
+    function test_longPopupInitialPlacementAndWheel_data() {
+        return [{tag:"top", triggerY:15}, {tag:"middle", triggerY:210},
+                {tag:"bottom", triggerY:390}];
+    }
+    function test_longPopupInitialPlacementAndWheel(data) {
+        picker.y = host.flick.contentY + data.triggerY;
+        var rows = [];
+        for (var i = 0; i < 30; ++i) rows.push({key:"row" + i, text:"Row " + i});
+        picker.options = rows;
+        picker.currentKey = "row0";
+        openWith();
+        var l = list();
+        waitForRendering(host.contentItem);
+        var bounds = l.mapToItem(host.contentItem, 0, 0);
+        var trigger = picker.mapToItem(host.contentItem, 0, 0);
+        verify(bounds.x >= 8 && bounds.y >= 8);
+        verify(bounds.x + l.width <= host.width - 8 && bounds.y + l.height <= host.height - 8);
+        verify(bounds.y + l.height <= trigger.y - 6 || bounds.y >= trigger.y + picker.height + 6,
+               "Popup must not cover its trigger when the list is taller than either available side");
+        var before = l.contentY;
+        mouseWheel(l, l.width / 2, l.height / 2, 0, -240);
+        tryVerify(function() { return l.contentY > before; });
+        keyClick(Qt.Key_End);
+        compare(l.currentIndex, rows.length - 1);
+        keyClick(Qt.Key_Return);
+        compare(chosen.length, 1); compare(chosen[0], "row29");
+        tryCompare(action(), "activeFocus", true);
+    }
+
 }

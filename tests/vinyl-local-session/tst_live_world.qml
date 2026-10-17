@@ -19,6 +19,7 @@ TestCase {
     Component {id:windowFactory;Window {width:1280;height:720;visible:true}}
     Component {id:sourceFactory;QtObject {
         property int serial:0
+        property int cataloguePageVersion:0
         signal completed(string lane,int requestId,var data,string error)
         signal profileLeaving()
         signal profileEntered()
@@ -206,4 +207,20 @@ TestCase {
         world.width=900;host.width=900;wait(0);verify(item("vinylCompactLyrics").visible);verify(item("vinylCompactLyrics").width>0);
         var notesOnly=record(1);delete notesOnly.tracks[0].lyrics;world.showBrowseSong(notesOnly,0);song.pageData.lyricsShown=true;wait(0);verify(song.pageData.hasNotes);verify(item("vinylCompactLyrics").visible);
     }
+    function test_pagedSearchRetainsTrackTextLensAndSort() {
+        seed(3);source.cataloguePageVersion=1;
+        world.worldData.query="Song";verify(world.session.browsing);
+        // Existing local filtering remains usable while the complete snapshot loads.
+        compare(world.worldData.albums.length,3);
+        source.completed("browse",world.session.browseRequest,{items:[record(2),record(0)],revision:"r1",nextOffset:-1,complete:true},"");
+        verify(world.session.searchComplete);compare(world.worldData.albums.length,2);
+        compare(world.worldData.albums[0].id,"album-0");
+        world.worldData.sortOrder="year";compare(world.worldData.albums[0].id,"album-2");
+        world.worldData.setLens("genre","Folk");compare(world.worldData.albums.length,0);
+        world.worldData.setLens("genre","");world.worldData.query="Song 1";
+        var pending=world.session.browseRequest;world.worldData.query="";
+        source.completed("browse",pending,{items:[record(1)],revision:"r1",nextOffset:-1,complete:true},"");
+        verify(!world.session.searchComplete);compare(world.worldData.albums.length,3);
+    }
+
 }

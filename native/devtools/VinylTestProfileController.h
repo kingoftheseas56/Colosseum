@@ -73,6 +73,12 @@ public:
         return file.open(QIODevice::ReadOnly) && file.readAll() == markerContents;
     }
 
+    // Fixed launch-only scheduling delay; no command or persistent setting.
+    int resolutionDelayMs() const {
+        return qEnvironmentVariable("COLOSSEUM_VINYL_TEST_DELAY_RESOLVE") == "1"
+            && enabled() ? 2000 : 0;
+    }
+
     QJsonObject execute(const QJsonObject &payload) {
         if (!enabled()) return failure("fixture-disabled");
         if (payload.size() != 1 || !payload.value("action").isString())

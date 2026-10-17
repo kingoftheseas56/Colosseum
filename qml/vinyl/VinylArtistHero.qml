@@ -6,6 +6,7 @@ Item {
     required property var artistData
     property real viewportHeight: 720
     property real horizontalGutter: 54
+    property real contentTopInset: 0
     property bool fullBleed: true
     property int rotationIntervalMs: 12000
     property int crossfadeDurationMs: 1350
@@ -61,7 +62,10 @@ Item {
         || (activeVisualLayer === 1 && heroImgB.status === Image.Ready)
 
 
-    implicitHeight: Math.max(500, Math.min(760, Math.round(viewportHeight * 0.66)))
+    // Keep the approved composition when it fits; wrapped names/facts must not
+    // push the identity underneath the destination Back/header overlay.
+    implicitHeight: Math.max(500, Math.min(760, Math.round(viewportHeight * 0.66)),
+                             contentTopInset + 12 + identity.implicitHeight + identity.anchors.bottomMargin)
     height: implicitHeight
     clip: true
 

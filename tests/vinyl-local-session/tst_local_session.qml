@@ -10,6 +10,7 @@ TestCase {
         id: sourceFactory
         QtObject {
             property int serial: 0
+            property int cataloguePageVersion: 0
             property int cancellations: 0
             property var calls: []
             property var records: []
@@ -18,8 +19,8 @@ TestCase {
             signal profileEntered()
             signal checkpointRequested()
             signal shuttingDown()
-            function request(lane, operation, value) {
-                calls=calls.concat([{lane:lane,operation:operation,value:value}]); return ++serial;
+            function request(lane, operation, value, options) {
+                calls=calls.concat([{lane:lane,operation:operation,value:value,options:options}]); return ++serial;
             }
             function cancel(lane) { cancellations++; }
             function setAlbums(entries) { records=entries; }
@@ -120,4 +121,47 @@ TestCase {
         start("A");verify(!session.hasLyrics);verify(!session.hasNotes);verify(!session.hasVideo);
         compare(session.playingCredits.length,0);verify(!session.sectionVisible("lyrics"));
     }
+    function page(items,next,revision) {return {items:items,nextOffset:next,revision:revision,complete:next===-1,origin:"local"};}
+    function test_pagedSearchPublishesOnlyCompleteSnapshot() {
+        transport.cataloguePageVersion=1;session.search("Album");
+        compare(transport.calls[0].options.offset,0);
+        transport.completed("browse",session.browseRequest,page([album("A")],1,"r1"),"");
+        verify(session.browsing);compare(session.results.length,0);
+        tryCompare(transport,"serial",2);compare(transport.calls[1].options.revision,"r1");
+        transport.completed("browse",session.browseRequest,page([album("B")],-1,"r1"),"");
+        verify(!session.browsing);verify(session.searchComplete);compare(session.results.length,2);
+        compare(session.results[0].id,"A");compare(session.results[1].id,"B");
+    }
+    function test_pagedSearchSupersededAndProfileRepliesCannotPublish() {
+        transport.cataloguePageVersion=1;session.search("old");var old=session.browseRequest;
+        session.search("new");var current=session.browseRequest;
+        transport.completed("browse",old,page([album("A")],-1,"r1"),"");compare(session.results.length,0);
+        transport.completed("browse",current,page([album("B")],1,"r1"),"");
+        session.openAlbum("C");var route=session.browseRequest;wait(0);
+        compare(session.browseRequest,route);compare(transport.calls[transport.calls.length-1].operation,"album");
+        transport.completed("browse",route,album("C"),"");compare(session.shownAlbumId,"C");
+        session.search("pending");var pending=session.browseRequest;transport.profileLeaving();
+        transport.completed("browse",pending,page([album("A")],-1,"r1"),"");
+        compare(session.results.length,0);verify(!session.searchComplete);compare(session.player,null);
+    }
+    function test_pagedSearchRejectsChangedRevisionAndCanRetry() {
+        transport.cataloguePageVersion=1;session.search("");
+        transport.completed("browse",session.browseRequest,page([album("A")],1,"r1"),"");
+        tryCompare(transport,"serial",2);
+        transport.completed("browse",session.browseRequest,page([album("B")],-1,"r2"),"");
+        verify(session.browseError.length>0);verify(!session.searchComplete);compare(session.results.length,0);
+        session.search("");transport.completed("browse",session.browseRequest,page([], -1,"r2"),"");
+        verify(session.searchComplete);compare(session.browseError,"");compare(session.results.length,0);
+    }
+    function test_pagedSearchRejectsNonAdvancingDuplicateAndFailure_data() {
+        return [{tag:"no-progress",kind:0},{tag:"duplicate",kind:1},{tag:"failure",kind:2}];
+    }
+    function test_pagedSearchRejectsNonAdvancingDuplicateAndFailure(data) {
+        transport.cataloguePageVersion=1;session.search("");
+        transport.completed("browse",session.browseRequest,page([album("A")],1,"r1"),"");tryCompare(transport,"serial",2);
+        var response=data.kind===0 ? page([],1,"r1") : page([album("A")],-1,"r1");
+        transport.completed("browse",session.browseRequest,response,data.kind===2 ? "Controlled failure" : "");
+        verify(session.browseError.length>0);verify(!session.searchComplete);verify(!session.browsing);compare(session.results.length,0);
+    }
+
 }

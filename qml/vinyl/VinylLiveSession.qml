@@ -45,6 +45,13 @@ Item {
     property string browseError: ""
     property bool browsing: false
     property var results: []
+    readonly property bool pagedSearchSupported: !!source && source.cataloguePageVersion === 1
+    property string searchQuery: ""
+    property bool searchComplete: false
+    property int searchGeneration: 0
+    property string searchRevision: ""
+    property int searchOffset: 0
+    property var searchBuffer: []
     property int browseRequest: -1
     property string browseOperation: ""
     property string browseValue: ""
@@ -287,16 +294,48 @@ Item {
     function cancelBrowse() {
         // Invalidate first: a replaceable adapter may complete synchronously during cancellation.
         browseRequest=-1;browsing=false;browseOperation="";
+        searchGeneration++;searchComplete=false;searchBuffer=[];searchRevision="";searchOffset=0;
         if (source) source.cancel("browse");
     }
     function search(query) {
         if(shuttingDown || !profileActive) return;
+        cancelBrowse();searchQuery=String(query || "").trim();results=[];
         if (!source) {browseError="Local audio is unavailable.";return;}
-        refreshSource();browseError=""; browsing=true; browseOperation="search";
-        browseRequest=source.request("browse","search",query);
+        refreshSource();browseError="";browsing=true;browseOperation="search";
+        requestSearchPage();
+    }
+    function requestSearchPage() {
+        if(pagedSearchSupported)
+            browseRequest=source.request("browse","search",searchQuery,
+                {pageSize:64,offset:searchOffset,revision:searchRevision});
+        else browseRequest=source.request("browse","search",searchQuery);
+        if(browseRequest<0) {browsing=false;browseError="The local search could not be requested.";}
+    }
+    function acceptSearchPage(data) {
+        var valid=data && Array.isArray(data.items) && data.items.length<=64
+            && typeof data.revision==="string" && data.revision.length>0
+            && (!searchRevision || searchRevision===data.revision)
+            && typeof data.complete==="boolean" && Number.isInteger(data.nextOffset)
+            && (data.complete ? data.nextOffset===-1 : data.items.length>0 && data.nextOffset===searchOffset+data.items.length);
+        var seen=new Set(searchBuffer.map(a=>a.id));
+        if(valid) for(var i=0;i<data.items.length;i++) {
+            var a=data.items[i];
+            if(!validAlbum(a) || seen.has(a.id)) {valid=false;break;}
+            seen.add(a.id);
+        }
+        if(!valid) {browsing=false;searchBuffer=[];browseError="The local catalogue page is invalid or changed. Retry the search.";return;}
+        searchRevision=data.revision;searchBuffer=searchBuffer.concat(data.items);
+        if(data.complete) {results=searchBuffer;searchBuffer=[];searchComplete=true;browsing=false;return;}
+        searchOffset=data.nextOffset;
+        var generation=searchGeneration, owner=source;
+        Qt.callLater(function() {
+            if(root.searchGeneration===generation && root.source===owner && root.profileActive
+                && !root.shuttingDown && root.browseOperation==="search") root.requestSearchPage();
+        });
     }
     function openAlbum(browseId) {
         if(shuttingDown || !profileActive) return;
+        cancelBrowse();
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
         browseRequest=source.request("browse","album",browseId);
@@ -640,10 +679,15 @@ Item {
             if(root.shuttingDown || root.resetting || !root.profileActive) return;
             data=root.plainData(data);
             if (lane==="browse" && id>=0 && id===root.browseRequest) {
-                root.browseRequest=-1;root.browsing=false;root.browseError=failure;
-                if (failure) return;
-                if (root.browseOperation==="search") root.results=Array.isArray(data) ? data : [];
-                else if(root.validAlbum(data) && (data.id===root.browseValue || data.browseId===root.browseValue)) {root.shownEdition=root.normalize(data);root.shownDisc=0;root.refreshLibrary();root.editionSelected();root.albumOpened();}
+                root.browseRequest=-1;root.browseError=failure;
+                if (failure) {root.browsing=false;root.searchBuffer=[];return;}
+                if (root.browseOperation==="search") {
+                    if(root.pagedSearchSupported) root.acceptSearchPage(data);
+                    else {root.results=Array.isArray(data) ? data : [];root.searchComplete=true;root.browsing=false;}
+                    return;
+                }
+                root.browsing=false;
+                if(root.validAlbum(data) && (data.id===root.browseValue || data.browseId===root.browseValue)) {root.shownEdition=root.normalize(data);root.shownDisc=0;root.refreshLibrary();root.editionSelected();root.albumOpened();}
                 else root.browseError="The local album record is invalid.";
             } else if(lane==="queue" && id>=0 && id===root.queueRequest) {
                 root.queueRequest=-1;

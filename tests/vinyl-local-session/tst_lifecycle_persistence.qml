@@ -82,4 +82,43 @@ TestCase {
     function test_suspendPreservesClockAndRestoresWithoutAutoplay() {play();var old=session.player;session.suspendPlayback("other-world");compare(session.position,23);verify(old.pause);compare(session.player,null);restart();compare(session.position,23);compare(session.queueIndex,0);verify(session.paused);compare(session.player,null);}
     function test_departedProfileRejectsNewWorkAndLateReplies() {play();source.profileLeaving();var serial=source.serial;session.playAlbum(album(),0);session.openAlbum("late");session.enqueueAlbum("late");compare(source.serial,serial);compare(session.queue.length,0);compare(session.player,null);source.profileEntered();session.playAlbum(album(),0);verify(source.serial>serial);}
     function test_failedCheckpointIsVisibleAndLastGoodSurvives() {play();session.snapshot();progress.healthy=false;progress.persistenceError="Synthetic write failure";session.player.position=41;session.snapshot();compare(session.persistenceError,"Synthetic write failure");restart();compare(session.position,23);verify(session.paused);}
+    // Component-only: fake resolver/player/store, not native media or disk isolation proof.
+    function test_allPendingLanesRejectRepliesAcrossProfileRoundTrip() {
+        play();session.playAlbum(album(),1);
+        session.openAlbum("synthetic-album");session.enqueueAlbum("synthetic-album");
+        var pending={browse:session.browseRequest,queue:session.queueRequest,play:session.playRequest};
+        verify(pending.browse>=0);verify(pending.queue>=0);verify(pending.play>=0);
+        source.profileLeaving();var first=progress.entries;
+        progress.entries={};source.profileEntered();
+        var secondBefore=JSON.stringify(progress.entries), serial=source.serial;
+        function deliverStale() {
+            source.completed("browse",pending.browse,album(),"");
+            source.completed("queue",pending.queue,album(),"");
+            source.completed("play",pending.play,{trackId:"two",url:"file:///late.wav"},"");
+            source.completed("browse",pending.browse,null,"late browse failure");
+            source.completed("queue",pending.queue,null,"late queue failure");
+            source.completed("play",pending.play,null,"late play failure");
+        }
+        deliverStale();wait(0);
+        compare(session.queue.length,0);compare(session.player,null);verify(session.paused);
+        compare(session.shownAlbumId,"");compare(session.browseError,"");compare(session.error,"");
+        compare(JSON.stringify(progress.entries),secondBefore);compare(source.serial,serial);
+        source.profileLeaving();progress.entries=first;source.profileEntered();
+        var restored=JSON.stringify(progress.entries), queue=JSON.stringify(session.queue);
+        deliverStale();wait(0);
+        compare(session.playingTrack.id,"two");compare(JSON.stringify(session.queue),queue);
+        compare(JSON.stringify(progress.entries),restored);compare(session.player,null);verify(session.paused);
+        compare(source.serial,serial);
+    }
+    function test_musicCheckpointAndClearPreserveOtherMediaRecords() {
+        var video={kind:"video",id:"theatre-sentinel",resume:{position:17,duration:91}};
+        var book={kind:"book",id:"biblio-sentinel",resume:{position:29,duration:183}};
+        progress.recordSilent(video);progress.recordSilent(book);
+        play();session.snapshot();session.clearQueue();restart();
+        compare(JSON.stringify(progress.get("video","theatre-sentinel")),JSON.stringify(video));
+        compare(JSON.stringify(progress.get("book","biblio-sentinel")),JSON.stringify(book));
+        compare(session.queue.length,0);compare(session.player,null);verify(session.paused);
+        compare(progress.get("music-session","vinyl").resume.queue.length,0);
+    }
+
 }

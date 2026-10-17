@@ -1819,7 +1819,11 @@ int main(int argc, char *argv[]) {
     // closed by construction.
     // Vinyl uses the existing canonical local identity and profile-owned stores.
     // Register checkpoint callbacks before AccountRuntime installs store shutdown writers.
-    auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices);
+    int vinylResolutionDelayMs = 0;
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    vinylResolutionDelayMs = VinylTestProfileController(instanceAppData, {}, {}).resolutionDelayMs();
+#endif
+    auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices, vinylResolutionDelayMs);
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylLocalSource, &VinylLocalSource::shuttingDown);
     // Preserve the deferred external adapters without making local playback use them.

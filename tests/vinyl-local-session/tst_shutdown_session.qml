@@ -66,4 +66,28 @@ TestCase {
         source.completed("browse",browse,album(),"");source.completed("queue",queue,album(),"");source.shuttingDown();source.checkpointRequested();
         compare(progress.writes,before+2);compare(session.queue.length,2);compare(session.player,null);verify(session.paused);
     }
+    function test_rapidPendingOpenCancelSuspendThenShutdown() {
+        // Exercise stale asynchronous callbacks before deferred fake-player destruction.
+        // Normal GC; this is not a native crash-reproduction or audible playback test.
+        for(var i=0;i<12;i++) {
+            session.playAlbum(album(),0);var playId=session.playRequest;
+            session.openAlbum("album");var browseId=session.browseRequest;
+            session.enqueueAlbum("album");var queueId=session.queueRequest;
+            session.cancelBrowse();session.suspendPlayback("route-test");
+            var serial=source.serial, count=session.queue.length;
+            source.completed("play",playId,{trackId:"one",url:"file:///stale.wav"},"");
+            source.completed("browse",browseId,album(),"");source.completed("queue",queueId,album(),"");
+            compare(session.player,null);verify(session.paused);compare(session.queue.length,count);
+            compare(session.browseRequest,-1);compare(session.queueRequest,-1);compare(source.serial,serial);
+            wait(0);
+        }
+        session.playAlbum(album(),0);load();var old=session.player;
+        source.shuttingDown();var finalWrites=progress.writes, finalSerial=source.serial;
+        old.fileLoaded();old.endFile("eof");old.playbackError("late","late");
+        source.checkpointRequested();source.shuttingDown();
+        compare(progress.writes,finalWrites);compare(source.serial,finalSerial);
+        compare(session.player,null);verify(old.pause);verify(session.paused);
+        wait(0);compare(findChild(session,"vinylMpvPlayer"),null);
+    }
+
 }
