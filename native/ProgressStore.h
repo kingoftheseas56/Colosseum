@@ -294,11 +294,9 @@ public:
     }
 
     ~ProgressStore() {
-        // aboutToQuit usually flushed + stopped the writer thread first. If it did not (e.g. a
-        // test with no app event loop, or an early tear-down), flush once more so destruction
-        // implies a persisted disk (deterministic for tests that reload over the same INI), then
-        // stop the thread. BlockingQueuedConnection inside flush() would deadlock against a
-        // stopped thread, so flush() guards on isRunning(); the stop is separate and unconditional.
+        // QML engine teardown can record a final resume point after aboutToQuit. Keep the
+        // writer alive until this owner is destroyed, drain those final writes, then join it.
+        // flush() also covers tests/early teardown with no application event loop.
         flush();
         if (m_writerThread.isRunning()) {
             m_writerThread.quit();
@@ -309,7 +307,7 @@ public:
     // Synchronously drain every queued write so the on-disk state reflects the current in-memory
     // map. Used by shutdown (aboutToQuit), the destructor, and any caller that needs read-your-
     // writes consistency against a fresh store over the same persistence location (e.g. tests).
-    // No-op when the writer is absent or the thread is already stopped (post-shutdown teardown).
+    // No-op when the writer is absent or the thread is already stopped.
     void flush() {
         if (!m_writer || !m_writerThread.isRunning())
             return;
@@ -1920,14 +1918,10 @@ private:
                 Qt::QueuedConnection);
         if (qApp) {
             connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
-                // Drain every queued write (and post the latest map first) so the final resume
-                // point lands on disk, then stop the worker thread. flush() is a no-op if the
-                // thread is already stopped, so this composes safely with the destructor's flush().
+                // Checkpoint now, but do not stop/delete the writer: the QML engine may
+                // record again during teardown after the main event loop has returned.
+                // The store destructor owns the final flush and thread shutdown.
                 flush();
-                if (m_writerThread.isRunning()) {
-                    m_writerThread.quit();
-                    m_writerThread.wait();
-                }
             });
         }
         m_writerThread.start();
