@@ -1213,11 +1213,18 @@ Item {
     function detectStubStream() {
         if (!root.fileReady || root.starting || root.errored || mpv.pause)
             return false
+        // The short-source heuristic belongs to the candidate/fallback ladder only.
+        // Local/direct admissions have no candidate; their empty key would be ":0".
+        if (root.mediaLocalPath.length || root.currentStreamIndex < 0
+                || root.currentStreamIndex >= root.streamCandidates.length)
+            return false
+        var c = root.currentStreamCandidate()
+        if (!String(c.infoHash || "").trim().length && !root.directStreamUrl(c).trim().length)
+            return false
         if (root.subStreamId.indexOf("iptv:") === 0 || root.mediaId.indexOf("iptv:") === 0)
             return false
         if (!(mpv.duration > 0 && mpv.duration < root.stubDurationThresholdSec))
             return false
-        var c = root.currentStreamCandidate()
         var key = root.streamCandidateKey(c)
         if (!key.length || root.stubCheckedKey === key)
             return false
