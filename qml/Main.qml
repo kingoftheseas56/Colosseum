@@ -39,6 +39,57 @@ Window {
     color: "#05060a"
     title: "Colosseum"
 
+    property bool applicationQuitPending: false
+    property bool applicationQuitReady: false
+    property string applicationQuitError: ""
+
+    function completeApplicationQuit() {
+        if (!applicationQuitPending || applicationQuitReady) return
+        applicationQuitReady = true
+        console.info("[quit] Feria drained")
+        Qt.callLater(function() { Qt.quit() })
+    }
+    function failApplicationQuit(reason) {
+        if (!applicationQuitPending) return
+        applicationQuitPending = false
+        applicationQuitError = reason
+        console.warn("[quit] Waiting for Feria: " + reason)
+    }
+    function requestApplicationQuit() {
+        if (applicationQuitPending) return
+        applicationQuitPending = true
+        applicationQuitError = ""
+        // Android never loads the browser deck. Do not instantiate it just to quit.
+        if (!feriaAvailable || !feriaSessionDeck.item) {
+            completeApplicationQuit()
+            return
+        }
+        // Keep the event loop alive until Feria retires its views, then profiles.
+        console.info("[quit] Closing Feria sessions")
+        feriaSessionDeck.item.startQuiescence(true)
+    }
+    onClosing: function(event) {
+        if (applicationQuitReady) return
+        event.accepted = false
+        win.requestApplicationQuit()
+    }
+
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: quitErrorText.implicitHeight + 24
+        z: 1000
+        color: "#321e25"
+        visible: win.applicationQuitError.length > 0
+        Text {
+            id: quitErrorText
+            anchors.centerIn: parent
+            width: parent.width - 32
+            wrapMode: Text.WordWrap
+            color: "#fff2ee"
+            text: "A browser is still closing. Close the dependent page, then try quitting again."
+        }
+    }
+
     property string currentSurface: "Home"
     readonly property alias televisionMode: phoneShell.televisionMode
     property var feriaReturnSnapshot: null
@@ -223,7 +274,7 @@ Window {
         scope: "application"
         sequences: ["Ctrl+Q"]
         icon: "power.svg"
-        onTriggered: Qt.quit()
+        onTriggered: win.requestApplicationQuit()
     }
     KeyboardCommand {
         id: escapeCommand
@@ -3330,7 +3381,7 @@ Window {
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
-        onPowerClicked: Qt.quit()
+        onPowerClicked: win.requestApplicationQuit()
         // Update glyph (home only, takes the retired search slot). Toggle mirrors
         // the taskbar launcher: open when closed, close when already front.
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
@@ -3982,7 +4033,7 @@ Window {
                     if (item.libraryRemovalRequested) item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
                     if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
-                    item.powerClicked.connect(function() { Qt.quit() })
+                    item.powerClicked.connect(function() { win.requestApplicationQuit() })
                     if (item.accountClicked) item.accountClicked.connect(function(anchorRight, anchorBottom) {
                         accountFlyout.toggleAt(anchorRight, anchorBottom)
                     })
@@ -4030,7 +4081,7 @@ Window {
             item.backRequested.connect(win.closeGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.seriesRequested.connect(win.openSeries)
             item.exploreRequested.connect(function() { win.closeGenre(); win.openGenreIndex() })
@@ -4052,7 +4103,7 @@ Window {
             item.backRequested.connect(win.closeGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(win.openGenre)
         }
@@ -4073,7 +4124,7 @@ Window {
             item.backRequested.connect(win.closeBiblioGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(win.openBiblioGenre)
         }
@@ -4094,7 +4145,7 @@ Window {
             item.backRequested.connect(win.closeBiblioGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.bookRequested.connect(win.openBook)
             if (item.exploreRequested) item.exploreRequested.connect(function() {
@@ -4120,7 +4171,7 @@ Window {
             item.backRequested.connect(win.closeTheatreGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.itemRequested.connect(win.openTheatreSeries)
             item.exploreRequested.connect(function() {
@@ -4144,7 +4195,7 @@ Window {
             item.backRequested.connect(win.closeTheatreGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(function(name) {
                 win.openTheatreGenre(theatreGenreIndexLayer.mediaKind, name)
@@ -4188,7 +4239,7 @@ Window {
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
@@ -4249,7 +4300,7 @@ Window {
             item.backRequested.connect(win.closeWestern)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
@@ -4277,7 +4328,7 @@ Window {
             item.backRequested.connect(win.closeComicSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
@@ -4322,7 +4373,7 @@ Window {
             item.backRequested.connect(win.closeContinueSeeAll)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.resumeRequested.connect(win.resumeContinue)     // same sinks the rows use
             item.detailRequested.connect(win.detailContinue)
@@ -4346,7 +4397,7 @@ Window {
             item.backRequested.connect(win.closeLocgPublisher)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.seriesRequested.connect(win.openComicSeries)   // tile → LOCG series list (over this grid)
         }
     }
@@ -4364,7 +4415,7 @@ Window {
             item.backRequested.connect(win.closeComicArchiveBoard)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.boxRequested.connect(win.openComicArchive)    // box → existing archive index
         }
     }
@@ -4391,7 +4442,7 @@ Window {
             item.backRequested.connect(win.closeComicArchive)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.westernPicked.connect(win.openWestern)
             item.allReleasesRequested.connect(win.openWestern)
         }
@@ -4412,7 +4463,7 @@ Window {
             item.backRequested.connect(win.closeTheatreSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.playRequested.connect(win.openMovieSession)
             item.playLocalRequested.connect(win.openLocalVideoSession)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
@@ -4511,7 +4562,7 @@ Window {
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readRequested.connect(win.openBookSession)
             // (listenRequested retired — the reader carries audiobook playback now)
         }
@@ -4598,7 +4649,7 @@ Window {
             item.itemRequested.connect(win.routeWorldSearchItem)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
         }
     }
 
@@ -4617,7 +4668,7 @@ Window {
             item.bookRequested.connect(win.openBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
         }
     }
 
@@ -4672,7 +4723,7 @@ Window {
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.openRequested.connect(win.routeDownloadItem)
             item.redownloadRequested.connect(function(downloadItem) {
@@ -4711,7 +4762,7 @@ Window {
             item.viewWorldRequested.connect(win.openVaultIdentity)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
         }
     }
 
@@ -4780,7 +4831,7 @@ Window {
                 item.backRequested.connect(win.closeUniverse)
                 item.minimizeRequested.connect(win.minimizeShell)
                 item.fullscreenRequested.connect(win.toggleFullscreenShell)
-                item.closeRequested.connect(function() { Qt.quit() })
+                item.closeRequested.connect(function() { win.requestApplicationQuit() })
                 if (accountHost.visible) accountHost.focusReturnItem = item
                 item.watchRequested.connect(win.openTheatreSeries)
                 if (item.bookRequested) item.bookRequested.connect(win.openBook)
@@ -4805,7 +4856,7 @@ Window {
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             // If a dev/startup route loads a universe behind account onboarding, remember
             // that universe as the surface onboarding must return focus to when it closes.
             // Normal user navigation never opens a universe through the onboarding cover.
@@ -4860,7 +4911,7 @@ Window {
             item.backRequested.connect(win.closeOnePieceArc)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.watchRequested.connect(win.openTheatreSeries)
             item.seriesRequested.connect(win.routeUniverseSeries)
             item.onePaceRequested.connect(win.openOnePaceArc)
@@ -4936,7 +4987,7 @@ Window {
             item.homeRequested.connect(win.closeFeriaPage)
             item.fullscreenClicked.connect(win.toggleFullscreenShell)
             item.minimizeClicked.connect(win.minimizeShell)
-            item.powerClicked.connect(function() { Qt.quit() })
+            item.powerClicked.connect(function() { win.requestApplicationQuit() })
             item.accountClicked.connect(function(anchorRight, anchorBottom) {
                 accountFlyout.toggleAt(anchorRight, anchorBottom)
             })
@@ -4991,6 +5042,14 @@ Window {
         }
     }
 
+    // Connect to the lazy deck before a request starts quiescence (it may finish
+    // synchronously when there are no browser sessions).
+    Connections {
+        target: feriaSessionDeck.item
+        function onQuiesced() { win.completeApplicationQuit() }
+        function onQuiescenceFailed(reason) { win.failApplicationQuit(reason) }
+    }
+
     // Permanent hosts outlive the Feria Loader. Max moves the live page here;
     // the embedded world's geometry and anchors remain its saved restore point.
     Item {
@@ -5032,7 +5091,7 @@ Window {
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             if (item.takeKeyboardFocus)
                 Qt.callLater(item.takeKeyboardFocus)
@@ -5105,7 +5164,7 @@ Window {
             item.backRequested.connect(win.closeUpdatePage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             if (item.takeKeyboardFocus)
                 Qt.callLater(item.takeKeyboardFocus)
         }
@@ -5488,7 +5547,7 @@ Window {
             item.closeRequested.connect(win.closeWallpaperSearch)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.quitRequested.connect(function() { Qt.quit() })
+            item.quitRequested.connect(function() { win.requestApplicationQuit() })
             item.applyRequested.connect(function(scope, world, pick) {
                 if (scope === "all") win.setWallpaperEverywhere(pick)
                 else win.setWallpaperPick(world, pick)
