@@ -1038,7 +1038,8 @@ int main(int argc, char **argv) {
             const QString recordsPath = prefix + "shared/" + hash(recordsRaw) + ".json";
             files[recordsPath] = recordsRaw;
             const auto keysRaw =
-                QJsonDocument(QJsonArray{QJsonArray{13, recordsPath, 0}}).toJson(QJsonDocument::Compact);
+                QJsonDocument(QJsonArray{QJsonValue(QJsonArray{13, recordsPath, 0})})
+                    .toJson(QJsonDocument::Compact);
             const QString keysPath = prefix + "shared/" + hash(keysRaw) + ".json";
             files[keysPath] = keysRaw;
             index["search"] = QJsonObject{
