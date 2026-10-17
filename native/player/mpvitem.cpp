@@ -11,7 +11,6 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
-#include <QSemaphore>
 #include <QThread>
 #include <QUuid>
 #include <QStandardPaths>
@@ -162,18 +161,14 @@ MpvItem::~MpvItem()
         QMutexLocker lock(&m_decodeEvents->lifetime);
         m_decodeEvents->target = nullptr;
     }
-    // Keep the normal worker barrier, without posting an unbounded blocking
-    // connection to a stopped event loop (or blocking our own thread). A worker
-    // exiting between the check and the post cannot strand this bounded wait.
-    // The acknowledgement captures no item; timeout is safe because of the lock
-    // above. MpvAbstractItem still owns the final worker quit/join.
-    if (m_decodeWorker && m_decodeWorker != QThread::currentThread()
-        && m_decodeWorker->isRunning() && m_decodeController) {
-        const auto retired = std::make_shared<QSemaphore>();
-        QMetaObject::invokeMethod(m_decodeController, [retired] { retired->release(); },
-                                  Qt::QueuedConnection);
-        retired->tryAcquire(1, 2000);
-    }
+    // MpvQt 1.2.0 MpvAbstractItem::~MpvAbstractItem quits and joins the
+    // worker AFTER this derived destructor. Its QThread is a child of this item
+    // and therefore still alive here, even if finished already deleted the
+    // controller. Never dereference/post to that cross-thread controller here.
+    // The shared state survives in PlaybackEvents; callbacks after retirement
+    // see null, and the lock above has joined any callback already using us.
+    Q_ASSERT(QThread::currentThread() == thread());
+    Q_ASSERT(m_decodeWorker && m_decodeWorker != QThread::currentThread());
     // App quitting mid-encode: our parented QProcess would otherwise be killed mid-write,
     // leaving a truncated .gif posing as a saved clip and an orphaned %TEMP% frames dir.
     if (m_gifEncoding && m_gifEncodeProc) {
@@ -190,7 +185,6 @@ MpvItem::~MpvItem()
 void MpvItem::setupConnections()
 {
     auto *controller = mpvController();
-    m_decodeController = controller;
     m_decodeWorker = controller->thread();
     const auto state = m_decodeEvents;
     state->target = this;
@@ -231,6 +225,7 @@ void MpvItem::refreshDecodedDimensions()
 
 void MpvItem::handlePlaybackEvent(const mpv_event &event)
 {
+    Q_ASSERT(QThread::currentThread() == m_decodeWorker);
     auto &state = *m_decodeEvents;
     const auto generation = state.generation;
     if (event.event_id == MPV_EVENT_START_FILE) {
@@ -278,11 +273,16 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
         }, Qt::QueuedConnection);
         return;
     }
-    // FILE_LOADED and VIDEO_RECONFIG have no native entry-id payload. libmpv's
-    // ordered per-client stream places them between that file's START/END_FILE.
-    // Preserve the old stream id across the load boundary; accept neither until
-    // the requested entry's START_FILE has actually arrived. URL equality is
-    // deliberately irrelevant (including A -> B -> A).
+    // Untagged-event invariant, verified against linked mpv 7b8915bc1:
+    // loadfile.c:1766/1999/2073/2136/2239-2259 serializes START, LOADED,
+    // video-chain teardown and END before playing the next entry. video.c:
+    // 86/135/171/1047/1184 and command.c:8321 notify on that serialized core;
+    // command.c:8151-8159 broadcasts synchronously. client.c:716-748 appends
+    // under the client lock; :921-942 pops FIFO. No old producer posts a delayed
+    // LOADED/RECONFIG after the next START. Teardown/idle RECONFIG can occur
+    // outside START/END and is rejected here. This is per-client, not across
+    // MpvQt's property client. See native_queue_entry_order's backlog assertions.
+    // URL equality is deliberately irrelevant, including A -> B -> A.
     if (!state.started || state.streamEntry != state.expectedEntry)
         return;
     if (event.event_id == MPV_EVENT_FILE_LOADED) {

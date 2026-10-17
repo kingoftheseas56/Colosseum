@@ -9,7 +9,6 @@
 
 #include <QElapsedTimer>
 #include <QMutex>
-#include <QPointer>
 #include <MpvAbstractItem>
 #include <QTimer>
 #include <QStringList>
@@ -291,7 +290,6 @@ private:
         bool reconfigured{false};
     };
     std::shared_ptr<DecodeEvents> m_decodeEvents{std::make_shared<DecodeEvents>()};
-    QPointer<MpvController> m_decodeController;
     QThread *m_decodeWorker{nullptr}; // owned by MpvAbstractItem, outlives derived destructor
     void setDecodedDimensions(int width, int height);
     int m_decodedWidth{0};

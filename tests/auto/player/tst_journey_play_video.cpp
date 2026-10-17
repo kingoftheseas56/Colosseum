@@ -50,6 +50,8 @@
 #include <QProcess>
 #include <QSignalSpy>
 #include <QSemaphore>
+#include <QScopeGuard>
+#include <QThread>
 #include <MpvController>
 #include <QString>
 #include <QUrl>
@@ -141,6 +143,8 @@ private slots:
     void late_native_replacement();
     void dynamic_dimensions_are_coherent();
     void playlist_redirect_retains_request();
+    void native_queue_entry_order();
+    void teardown_during_worker_exit();
     void teardown_data();
     void teardown();
 };
@@ -567,6 +571,125 @@ void tst_journey_play_video::dynamic_dimensions_are_coherent()
     QVERIFY2(mixed.isEmpty(), qPrintable(mixed.join(QLatin1Char(','))));
 }
 
+// Assertion-level native queue seam: deliberately leave an independent client
+// undrained across A -> B -> A (same A URL, distinct native IDs), then consume
+// its backlog on the controller callback seam. The source proof in mpvitem.cpp
+// rules out producer-late old untagged events; this tests real queue delivery,
+// not a fabricated old event relabelled with the current playlist property.
+void tst_journey_play_video::native_queue_entry_order()
+{
+    struct InspectablePlayer : MpvItem { using MpvItem::mpvController; };
+    QQuickWindow window;
+    auto *item = new InspectablePlayer;
+    item->setParent(window.contentItem());
+    item->setParentItem(window.contentItem());
+    item->setSize(QSizeF(320, 240));
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto *controller = item->mpvController();
+    mpv_handle *client = nullptr;
+    QMetaObject::invokeMethod(controller, [&] {
+        client = mpv_create_client(controller->mpv(), "entry-order-test");
+    }, Qt::BlockingQueuedConnection);
+    QVERIFY(client);
+    const auto clientGuard = qScopeGuard([&] { mpv_destroy(client); });
+    item->setPause(true);
+    QSignalSpy loaded(item, &MpvItem::fileLoaded);
+    QList<qint64> requested;
+    for (const auto &file : {QStringLiteral("tiny.mp4"),
+                             QStringLiteral("tiny-audio.m4a"), QStringLiteral("tiny.mp4")}) {
+        const auto count = loaded.size();
+        item->loadFile(fixtureDir() + file);
+        QTRY_COMPARE_WITH_TIMEOUT(loaded.size(), count + 1, 5000);
+        QMetaObject::invokeMethod(controller, [&] {
+            requested.append(item->m_decodeEvents->expectedEntry);
+        }, Qt::BlockingQueuedConnection);
+    }
+    QVERIFY(requested[0] != requested[1] && requested[1] != requested[2]
+            && requested[0] != requested[2]);
+    QList<qint64> starts, loads, ends;
+    bool valid = true;
+    int reconfigs = 0;
+    QMetaObject::invokeMethod(controller, [&] {
+        qint64 active = -1;
+        bool seenLoad = false;
+        for (;;) {
+            const auto *event = mpv_wait_event(client, 0);
+            if (event->event_id == MPV_EVENT_NONE)
+                break;
+            if (event->event_id == MPV_EVENT_START_FILE) {
+                valid &= active == -1;
+                active = static_cast<mpv_event_start_file *>(event->data)->playlist_entry_id;
+                starts.append(active);
+                seenLoad = false;
+            } else if (event->event_id == MPV_EVENT_FILE_LOADED) {
+                valid &= active >= 0 && !seenLoad;
+                loads.append(active);
+                seenLoad = true;
+            } else if (event->event_id == MPV_EVENT_END_FILE) {
+                const auto id = static_cast<mpv_event_end_file *>(event->data)->playlist_entry_id;
+                valid &= active == id;
+                ends.append(id);
+                active = -1;
+            } else if (event->event_id == MPV_EVENT_VIDEO_RECONFIG) {
+                ++reconfigs; // Includes teardown/idle notifications, which need not have an active entry.
+            } else if (event->event_id == MPV_EVENT_QUEUE_OVERFLOW) {
+                valid = false;
+            }
+        }
+    }, Qt::BlockingQueuedConnection);
+    QVERIFY(valid);
+    QCOMPARE(starts, requested);
+    QCOMPARE(loads, requested);
+    QCOMPARE(ends, requested.mid(0, 2));
+    QVERIFY(reconfigs > 0);
+    QTRY_COMPARE_WITH_TIMEOUT(item->decodedWidth(), 64, 5000);
+}
+
+void tst_journey_play_video::teardown_during_worker_exit()
+{
+    struct InspectablePlayer : MpvItem { using MpvItem::mpvController; };
+    for (int attempt = 0; attempt < 16; ++attempt) {
+        auto *item = new InspectablePlayer;
+        auto *controller = item->mpvController();
+        auto *worker = controller->thread();
+        const auto state = item->m_decodeEvents;
+        QSemaphore parked, resume;
+        QMetaObject::invokeMethod(controller, [&] {
+            parked.release();
+            resume.acquire();
+        }, Qt::QueuedConnection);
+        const auto unblock = qScopeGuard([&] { resume.release(); });
+        QVERIFY(parked.tryAcquire(1, 5000));
+        bool sawRetirement = false;
+        // The worker is alive at derived-destructor entry. Finish it only AFTER
+        // target retirement, while deletion is still in progress (base join).
+        std::unique_ptr<QThread> finisher(QThread::create([&] {
+            QElapsedTimer timeout;
+            timeout.start();
+            while (timeout.elapsed() < 5000) {
+                {
+                    QMutexLocker lock(&state->lifetime);
+                    if (!state->target) {
+                        sawRetirement = true;
+                        break;
+                    }
+                }
+                QThread::yieldCurrentThread();
+            }
+            worker->quit();
+            resume.release();
+        }));
+        finisher->start();
+        QElapsedTimer elapsed;
+        elapsed.start();
+        delete item;
+        QVERIFY(finisher->wait(5000));
+        QVERIFY(sawRetirement);
+        QVERIFY2(elapsed.elapsed() < 3000, "worker-exit race stranded deletion");
+    }
+}
+
 void tst_journey_play_video::teardown_data()
 {
     QTest::addColumn<bool>("stopWorker");
@@ -603,7 +726,7 @@ void tst_journey_play_video::teardown()
         auto *worker = item->mpvController()->thread();
         worker->quit();
         QVERIFY(worker->wait(5000));
-        QVERIFY(item->m_decodeController.isNull());
+        QVERIFY(!worker->isRunning());
     }
     QElapsedTimer elapsed;
     elapsed.start();
