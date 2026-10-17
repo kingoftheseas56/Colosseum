@@ -55,7 +55,7 @@ function _copyArray(values) {
 }
 
 function artForArc(arc) {
-    var content = ContentApi.document("tribute-one-piece-paradise");
+    var content = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-paradise") : {};
     var key = typeof arc === "string" ? arc : (arc && arc.id);
     if (content.artByArc && content.artByArc[key]) return ContentApi.resolveAssets(content.artByArc[key]);
     if (!arc || typeof arc.id !== "string") return null;

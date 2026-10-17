@@ -156,6 +156,8 @@ const syncVendorParams = () => {
 // Build a parsed "book" object from a File. Same branches as the fork's getView().
 const makeBook = async file => {
   let book
+  if (window.bridge?.epubOnly && !(await isZip(file)))
+    throw new Error('Only EPUB books are supported on Android')
   if (!file.size) throw new Error('File not found')
   else if (await isZip(file)) {
     const loader = await makeZipLoader(file)
@@ -672,6 +674,26 @@ const attachSelection = (view, doc, index, gen) => {
     }
     if (!hasText) emit('toggleChrome', {})
   })
+
+  // Touch hosts (Android) opt in through the bridge: a single tap is the reader gesture.
+  // Outer quarters turn the page, the middle toggles the chrome. Desktop keeps its QML edge
+  // zones and the double-click above; a tap on a link or with a live selection is left alone.
+  if (window.bridge?.touchTaps) {
+    doc.addEventListener('click', e => {
+      if (e.defaultPrevented) return
+      const t = e.target
+      if (t && t.closest && t.closest('a[href]')) return
+      const sel = doc.getSelection && doc.getSelection()
+      if (sel && !sel.isCollapsed) return
+      const frame = doc.defaultView && doc.defaultView.frameElement
+      const left = frame ? frame.getBoundingClientRect().left : 0
+      const x = e.clientX + left
+      const width = window.innerWidth || 1
+      if (x < width * 0.25) currentView?.renderer?.prev()
+      else if (x > width * 0.75) currentView?.renderer?.next()
+      else emit('toggleChrome', {})
+    })
+  }
 }
 
 const wireView = (view, gen) => {
@@ -1010,6 +1032,11 @@ const paperOpen = async (path, cfi, gen) => {
     flatToc = []
     try { readAlong?.invalidate() } catch (e) {}   // a previous book's paint/caches can't cross over
 
+    let file
+    if (typeof window.bridge?.filesReadBlob === 'function') {
+      file = await window.bridge.filesReadBlob(path)
+      if (superseded()) return
+    } else {
     if (!window.bridge || typeof window.bridge.filesRead !== 'function')
       throw new Error('bridge.filesRead is not available')
     // Timeout guard: the native callback normally fires within a few ms, but if the
@@ -1040,9 +1067,10 @@ const paperOpen = async (path, cfi, gen) => {
     if (superseded()) return                      // a newer open replaced us during filesRead
     if (!b64) throw new Error('no book bytes for ' + path)
 
-    syncVendorParams()                            // satisfy epub.js Loader's URL 'style' read
     const name = String(path).split(/[\\/]/).pop() || String(path)
-    const file = base64ToFile(b64, name)
+    file = base64ToFile(b64, name)
+    }
+    syncVendorParams()                            // satisfy epub.js Loader's URL 'style' read
     const book = await makeBook(file)
     if (superseded()) return                      // a newer open replaced us during makeBook (big-PDF parse)
 

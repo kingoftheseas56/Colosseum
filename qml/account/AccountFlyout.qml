@@ -309,7 +309,7 @@ Item {
                 Repeater {
                     id: navRepeater
                     model: [
-                        { label: qsTr("Account ›"), section: "colosseum" },
+                        { label: qsTr("Account ›"), section: "profile" },
                         { label: qsTr("Devices ›"), section: "devices" }
                     ]
                     Item {

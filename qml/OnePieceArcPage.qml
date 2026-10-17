@@ -119,7 +119,7 @@ Item {
         if (root.arc && root.arc.heroSource) return String(root.arc.heroSource)
         var id = root.arc && root.arc.id ? String(root.arc.id) : "romance"
         root.universeContentGeneration
-        return UniverseContent.asset("../assets/universes/one-piece/east-blue-markers/" + id + ".png")
+        return typeof UniverseContent !== "undefined" ? UniverseContent.asset("../assets/universes/one-piece/east-blue-markers/" + id + ".png") : "../assets/universes/one-piece/east-blue-markers/" + id + ".png"
     }
 
     Item {

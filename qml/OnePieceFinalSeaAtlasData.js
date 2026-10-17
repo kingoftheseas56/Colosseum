@@ -133,6 +133,7 @@ function markerForLocation(id) {
 
 // Bundled values above are the offline starter snapshot.
 function syncContent() {
+    if (typeof ContentApi === "undefined") return;
     var data = ContentApi.document("tribute-one-piece-final-sea").atlas;
     if (!data || !Object.keys(data).length) return;
     data = ContentApi.resolveAssets(data);
@@ -145,4 +146,4 @@ function syncContent() {
     if (data.internalVoyage !== undefined && (Array.isArray(internalVoyage) ? Array.isArray(data.internalVoyage) : typeof data.internalVoyage === typeof internalVoyage)) internalVoyage = data.internalVoyage;
     if (data.routeLegs !== undefined && (Array.isArray(routeLegs) ? Array.isArray(data.routeLegs) : typeof data.routeLegs === typeof routeLegs)) routeLegs = data.routeLegs;
 }
-ContentApi.register(syncContent);
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

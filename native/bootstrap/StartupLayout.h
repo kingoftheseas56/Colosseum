@@ -13,6 +13,11 @@ struct StartupLayout {
 
 QString qmlTreeFingerprint(const QString& qmlRoot, QString* error = nullptr);
 
+std::optional<QString> materializeRuntimeBundle(const QString& sourceRoot,
+                                                const QString& cacheRoot,
+                                                QString* error = nullptr);
+
 std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
                                                   const QString& applicationDirPath,
-                                                  QString* error = nullptr);
+                                                  QString* error = nullptr,
+                                                  const QString& manifestPathOverride = {});

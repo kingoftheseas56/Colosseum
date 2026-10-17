@@ -15,12 +15,6 @@ bool pendingTargetMatches(const QString &prefix, const QString &target);
 
 }
 
-struct StoredStremioCredential {
-    QString profileId;
-    QString accountId;
-    QByteArray authKey;
-};
-
 class WindowsAccountCredentialStore final : public AccountCredentialStore {
 public:
     bool isAvailable() const override;
@@ -44,9 +38,9 @@ public:
 
     std::optional<StoredStremioCredential> loadStremio(
         const QString &profileId,
-        const QString &accountId) const;
-    bool saveStremio(const StoredStremioCredential &credential);
-    bool clearStremio(const QString &profileId);
+        const QString &accountId) const override;
+    bool saveStremio(const StoredStremioCredential &credential) override;
+    bool clearStremio(const QString &profileId) override;
 
 private:
     static QByteArray encodeCredential(const StoredAccountCredential &credential);

@@ -10,9 +10,32 @@
 #include <QUrl>
 #include <QtConcurrent>
 
+#ifdef Q_OS_ANDROID
+#include <QCoreApplication>
+#include <QJniObject>
+#endif
+
+namespace {
+QString sourceFileName(const QString& path)
+{
+#ifdef Q_OS_ANDROID
+    if (path.startsWith(QLatin1String("content://"))) {
+        const auto context = QNativeInterface::QAndroidApplication::context();
+        const auto source = QJniObject::fromString(path);
+        const auto name = QJniObject::callStaticObjectMethod(
+            "org/colosseum/vault/DocumentMetadata", "displayName",
+            "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
+            context.object<jobject>(), source.object<jstring>());
+        return name.isValid() ? name.toString() : QString();
+    }
+#endif
+    return QFileInfo(path).fileName();
+}
+}
+
 LocalLaunch::Family LocalLaunch::classify(const QString& path)
 {
-    switch (VaultKit::kindForFile(path)) {
+    switch (VaultKit::kindForFile(sourceFileName(path))) {
     case VaultKit::MediaKind::Comic: return Family::Comic;
     case VaultKit::MediaKind::Book:  return Family::Book;
     case VaultKit::MediaKind::Video: return Family::Video;
@@ -46,7 +69,7 @@ QString LocalLaunch::rejectName(Reject r)
 
 bool LocalLaunch::validateComic(const QString& path)
 {
-    const QString ext = QFileInfo(path).suffix().toLower();
+    const QString ext = QFileInfo(sourceFileName(path)).suffix().toLower();
     // VaultPageStore and the current comic reader can enumerate CBZ pages only. A CBR is still
     // classified as comic by VaultKit for shelving, but launch must fail closed until a real CBR
     // backend exists. Extension-only admission creates a session that cannot render a single page.
@@ -92,8 +115,12 @@ bool LocalLaunch::validateBook(const QString& path)
     //
     // Only DJVU is fail-closed here; the QML picker (qml/BiblioApi.js) mirrors this so a LibGen/
     // torrent pick never lands a file the reader provably cannot open.
-    const QString ext = QFileInfo(path).suffix().toLower();
+    const QString ext = QFileInfo(sourceFileName(path)).suffix().toLower();
+#ifdef Q_OS_ANDROID
+    return ext == QLatin1String("epub");
+#else
     return ext != QLatin1String("djvu");
+#endif
 }
 
 LocalLaunch::Route LocalLaunch::route(const QString& path)
@@ -109,7 +136,7 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
     r.family = classify(path);
     switch (r.family) {
     case Family::Comic: {
-        const QString ext = fi.suffix().toLower();
+        const QString ext = QFileInfo(sourceFileName(path)).suffix().toLower();
         r.accepted = validateComic(path);
         if (r.accepted) {
             r.reject = Reject::None;
@@ -122,7 +149,7 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
         break;
     }
     case Family::Book: {
-        const QString ext = fi.suffix().toLower();
+        const QString ext = QFileInfo(sourceFileName(path)).suffix().toLower();
         r.accepted = validateBook(path);
         if (r.accepted) {
             r.reject = Reject::None;
@@ -162,11 +189,12 @@ QString toLocalPath(const QString& s)
 // (Preflight §8). Strip the extension, turn separators into spaces, collapse.
 QString cleanFileTitle(const QString& path)
 {
-    QString t = QFileInfo(path).completeBaseName();
+    const QString name = sourceFileName(path);
+    QString t = QFileInfo(name).completeBaseName();
     t.replace(QLatin1Char('_'), QLatin1Char(' '));
     t.replace(QLatin1Char('.'), QLatin1Char(' '));
     t = t.simplified();
-    return t.isEmpty() ? QFileInfo(path).fileName() : t;
+    return t.isEmpty() ? name : t;
 }
 } // namespace
 

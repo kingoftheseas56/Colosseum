@@ -48,6 +48,7 @@ Item {
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
+    readonly property bool phoneNarrow: win.androidHost && win.width < 840
 
     // Harbor's empty-state "Try a genre": chips open an inline, popularity-ranked browse grid in place.
     readonly property var genres: WorldSearch.genresFor(searchMode)
@@ -57,6 +58,44 @@ Item {
     property bool surprising: false
 
     Theme { id: theme }
+
+    // One tappable, full-width row per hit on a phone; desktop cover grids stay unchanged.
+    component PhoneSearchResult: Rectangle {
+        id: phoneRow
+        property var entry: ({})
+        property bool keyboardSelected: false
+        signal activated()
+        height: Math.max(116, phoneDetails.implicitHeight + 24)
+        radius: 12
+        color: theme.glassTint
+        border.width: keyboardSelected ? 2 : 1
+        border.color: keyboardSelected ? theme.gold : theme.edge
+        Row {
+            anchors.fill: parent; anchors.margins: 12; spacing: 14
+            Rectangle {
+                width: 66; height: 92; radius: 7; clip: true; color: "#14131a"
+                Image { anchors.fill: parent; source: phoneRow.entry.cover || ""
+                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+            }
+            Column {
+                id: phoneDetails
+                width: Math.max(0, parent.width - 80); spacing: 7
+                Text {
+                    width: parent.width; text: phoneRow.entry.title || ""
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 16
+                    wrapMode: Text.Wrap
+                }
+                Text {
+                    width: parent.width; text: phoneRow.entry.subtitle || ""
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                }
+            }
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+            onClicked: phoneRow.activated() }
+    }
+
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => { if (!event.accepted) searchScrollKeys.handle(event) }
     Keys.onReleased: (event) => searchScrollKeys.handleRelease(event)
@@ -211,8 +250,9 @@ Item {
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
-        x: theme.margin
-        anchors.verticalCenter: field.verticalCenter
+        x: surf.phoneNarrow ? 16 : theme.margin
+        y: surf.phoneNarrow ? 14 : undefined
+        anchors.verticalCenter: surf.phoneNarrow ? undefined : field.verticalCenter
         onTriggered: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
     }
     Rectangle {
@@ -221,13 +261,16 @@ Item {
         // anchored to the same right margin, and their vertical bands overlapped by 12px, so the
         // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
         // chrome row's own width so it can never drift apart again.
-        x: searchBack.x + searchBack.width + 20; y: 44
-        width: surf.width - x - theme.margin - winChrome.width - 24; height: 72; radius: 16
+        x: surf.phoneNarrow ? 16 : searchBack.x + searchBack.width + 20
+        y: surf.phoneNarrow ? 72 : 44
+        width: surf.phoneNarrow ? Math.max(0, surf.width - 32)
+                                : surf.width - x - theme.margin - winChrome.width - 24
+        height: surf.phoneNarrow ? 56 : 72; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
         Canvas {
-            id: glass; width: 21; height: 21
-            x: 22; anchors.verticalCenter: parent.verticalCenter
+            id: glass; width: surf.phoneNarrow ? 19 : 21; height: width
+            x: surf.phoneNarrow ? 15 : 22; anchors.verticalCenter: parent.verticalCenter
             onPaint: {
                 var ctx = getContext("2d"); ctx.reset()
                 ctx.strokeStyle = "#9a99a5"; ctx.lineWidth = 1.7; ctx.lineCap = "round"
@@ -238,36 +281,39 @@ Item {
         TextInput {
             id: queryInput
             objectName: "searchSurfaceInput"
-            anchors.left: glass.right; anchors.leftMargin: 15
-            anchors.right: rightCluster.left; anchors.rightMargin: 14
+            anchors.left: glass.right; anchors.leftMargin: surf.phoneNarrow ? 10 : 15
+            anchors.right: rightCluster.left; anchors.rightMargin: surf.phoneNarrow ? 4 : 14
             anchors.verticalCenter: parent.verticalCenter
-            color: theme.ink; font.family: theme.display; font.pixelSize: 22
+            color: theme.ink; font.family: theme.display; font.pixelSize: surf.phoneNarrow ? 18 : 22
             clip: true; focus: true; selectByMouse: true
             onTextChanged: { surf.cancelSearch(); debounce.restart() }
             Keys.onEscapePressed: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
         }
         Text {
             visible: queryInput.text.length === 0
-            anchors.left: glass.right; anchors.leftMargin: 15
+            anchors.left: queryInput.left
+            width: queryInput.width; clip: true
             anchors.verticalCenter: parent.verticalCenter
-            text: surf.placeholder; color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 22
+            text: surf.placeholder; color: theme.inkDimmer; font.family: theme.display
+            font.pixelSize: surf.phoneNarrow ? 18 : 22
         }
         Row {
             id: rightCluster
-            anchors.right: parent.right; anchors.rightMargin: 16
-            anchors.verticalCenter: parent.verticalCenter; spacing: 12
+            anchors.right: parent.right; anchors.rightMargin: surf.phoneNarrow ? 6 : 16
+            anchors.verticalCenter: parent.verticalCenter; spacing: surf.phoneNarrow ? 0 : 12
             Rectangle {
                 visible: queryInput.text.length > 0
-                width: 26; height: 26; radius: 13
+                width: surf.phoneNarrow ? 44 : 26; height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
-                Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
+                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {
+                visible: !surf.phoneNarrow
                 width: escTxt.width + 16; height: 24; radius: 6
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.width: 1; border.color: theme.edge
@@ -289,9 +335,9 @@ Item {
     // hairline workaround: match the proven painter, don't patch a broken one.
     Flickable {
         id: scroll
-        anchors.top: field.bottom; anchors.topMargin: 30
-        anchors.left: parent.left; anchors.leftMargin: theme.margin
-        anchors.right: parent.right; anchors.rightMargin: theme.margin
+        anchors.top: field.bottom; anchors.topMargin: surf.phoneNarrow ? 20 : 30
+        anchors.left: parent.left; anchors.leftMargin: surf.phoneNarrow ? 16 : theme.margin
+        anchors.right: parent.right; anchors.rightMargin: surf.phoneNarrow ? 16 : theme.margin
         anchors.bottom: parent.bottom; anchors.bottomMargin: 8
         clip: true
         contentWidth: width
@@ -341,7 +387,8 @@ Item {
                     Grid {
                         id: browseGrid
                         visible: surf.browseItems.length > 0
-                        width: parent.width; columns: 6; columnSpacing: 22; rowSpacing: 26
+                        width: parent.width; columns: surf.phoneNarrow ? 1 : 6
+                        columnSpacing: surf.phoneNarrow ? 0 : 22; rowSpacing: surf.phoneNarrow ? 12 : 26
                         property real cellW: (width - columnSpacing * (columns - 1)) / columns
                         property int currentIndex: surf.browseItems.length > 0 ? 0 : -1
                         focusPolicy: surf.browseItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -359,8 +406,14 @@ Item {
                                 required property var modelData
                                 required property int index
                                 readonly property bool keyboardSelected: browseGrid.activeFocus && browseGrid.currentIndex === index
-                                width: browseGrid.cellW; spacing: 9
+                                width: browseGrid.cellW; spacing: surf.phoneNarrow ? 0 : 9
+                                PhoneSearchResult {
+                                    visible: surf.phoneNarrow; width: parent.width
+                                    entry: browseCard.modelData; keyboardSelected: browseCard.keyboardSelected
+                                    onActivated: surf.openItem(browseCard.modelData.data)
+                                }
                                 Rectangle {
+                                    visible: !surf.phoneNarrow
                                     width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
                                     border.width: browseCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                     Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
@@ -370,10 +423,10 @@ Item {
                                     MouseArea { id: bcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: surf.openItem(modelData.data) }
                                 }
-                                Text { width: parent.width; text: modelData.title ? modelData.title : ""
+                                Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.title ? modelData.title : ""
                                     color: theme.ink; font.family: theme.ui; font.pixelSize: 13
                                     elide: Text.ElideRight; maximumLineCount: 1 }
-                                Text { width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
+                                Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
                                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                     elide: Text.ElideRight; maximumLineCount: 1 }
                             }
@@ -426,18 +479,21 @@ Item {
                                 required property var modelData
                                 required property int index
                                 readonly property bool keyboardSelected: recentFlow.activeFocus && recentFlow.currentIndex === index
-                                height: 40; radius: 999; width: rcRow.width + 30
+                                height: surf.phoneNarrow ? Math.max(48, rcLabel.implicitHeight + 16) : 40
+                                radius: 999; width: surf.phoneNarrow ? recentFlow.width : rcRow.width + 30
                                 color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                                 border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: surf.fillAndSearch(modelData) }
                                 Row { id: rcRow; anchors.centerIn: parent; spacing: 8
-                                    Text { text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                    Text { id: rcLabel; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                        width: surf.phoneNarrow ? Math.max(0, recentFlow.width - 72) : implicitWidth
+                                        wrapMode: surf.phoneNarrow ? Text.Wrap : Text.NoWrap
                                         anchors.verticalCenter: parent.verticalCenter }
-                                    Rectangle { width: 20; height: 20; radius: 10
+                                    Rectangle { width: surf.phoneNarrow ? 44 : 20; height: width; radius: height / 2
                                         anchors.verticalCenter: parent.verticalCenter
                                         color: xMa.containsMouse ? Qt.rgba(1,1,1,0.18) : "transparent"
-                                        Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
+                                        Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
                                         MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             onClicked: surf.removeRecent(modelData) } }
                                 }
@@ -469,7 +525,7 @@ Item {
                                 required property var modelData
                                 required property int index
                                 readonly property bool keyboardSelected: genreFlow.activeFocus && genreFlow.currentIndex === index
-                                height: 44; radius: 999; width: gLbl.width + 36
+                                height: 44; radius: 999; width: surf.phoneNarrow ? genreFlow.width : gLbl.width + 36
                                 color: gMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                                 border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 Text { id: gLbl; anchors.centerIn: parent; text: modelData
@@ -484,10 +540,13 @@ Item {
 
                     // SURPRISE ME — random genre → random top title → opens it
                     Item {
-                        width: parent.width; height: 24
+                        width: parent.width; height: surf.phoneNarrow ? 44 : 24
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
-                            Text { text: "✦"; color: surMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 14
+                            Text { visible: Qt.platform.os !== "android"; text: "✦"; color: surMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                            Image { visible: Qt.platform.os === "android"; source: "../assets/icons/star.svg"; width: 14; height: 14
+                                fillMode: Image.PreserveAspectFit; opacity: surMa.containsMouse ? 1.0 : 0.65
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: surf.surprising ? "Picking…" : "Surprise me"
                                 color: surMa.containsMouse ? theme.ink : theme.inkDim
@@ -521,7 +580,7 @@ Item {
                     objectName: (topCard.m && topCard.m.title)
                                 ? ("searchResult_" + String(topCard.m.data && topCard.m.data.id ? topCard.m.data.id : topCard.m.title))
                                 : ""
-                    visible: surf.results.length > 0
+                    visible: surf.results.length > 0 && !surf.phoneNarrow
                     property var m: surf.results.length > 0 ? surf.results[0] : ({})
                     width: parent.width; height: 210; radius: 18
                     color: theme.glassTint; border.width: 1; border.color: theme.edge
@@ -577,6 +636,53 @@ Item {
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Open top match"; focusRadius: 18
                         onTriggered: if (topCard.m) surf.openItem(topCard.m.data) }
                 }
+                Rectangle {
+                    id: phoneTopCard
+                    visible: surf.phoneNarrow && surf.results.length > 0
+                    width: parent.width
+                    height: phoneTopContents.implicitHeight + 28
+                    radius: 16; color: theme.glassTint
+                    border.width: 1; border.color: theme.edge
+                    Column {
+                        id: phoneTopContents
+                        x: 14; y: 14; width: parent.width - 28; spacing: 14
+                        Item {
+                            width: parent.width
+                            height: Math.max(126, phoneTopDetails.implicitHeight)
+                            Row {
+                                anchors.fill: parent; spacing: 14
+                                Rectangle {
+                                    width: 84; height: 126; radius: 8; clip: true; color: "#14131a"
+                                    Image { anchors.fill: parent; source: topCard.m.cover || ""
+                                        fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                }
+                                Column {
+                                id: phoneTopDetails
+                                width: Math.max(0, parent.width - 98); spacing: 8
+                                Text { width: parent.width; text: topCard.m.title || ""
+                                    color: theme.ink; font.family: theme.display; font.pixelSize: 23
+                                    wrapMode: Text.Wrap }
+                                Text { width: parent.width
+                                    text: (topCard.m.meta || topCard.m.subtitle || "").toUpperCase()
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                    wrapMode: Text.Wrap }
+                                Text { visible: text.length > 0; width: parent.width
+                                    text: topCard.m.synopsis || ""; color: theme.inkDim
+                                    font.family: theme.ui; font.pixelSize: 13
+                                    wrapMode: Text.Wrap; lineHeight: 1.3 }
+                            }
+                            }
+                            MouseArea { anchors.fill: parent; onClicked: surf.openTop() }
+                        }
+                        Rectangle {
+                            width: parent.width; height: 48; radius: 12; color: theme.gold
+                            Text { anchors.centerIn: parent; text: surf.primaryLabel + "  ›"
+                                color: "#241a05"; font.family: theme.ui; font.pixelSize: 15
+                                font.weight: Font.DemiBold }
+                            MouseArea { anchors.fill: parent; onClicked: surf.openTop() }
+                        }
+                    }
+                }
                 Item { visible: surf.results.length > 0; width: 1; height: 38 }
 
                 // grouped sections (Movies / Series / Manga) — capped at one row until "See more"
@@ -602,7 +708,8 @@ Item {
                         Item { width: 1; height: 16 }
                         Grid {
                             id: secGrid
-                            width: parent.width; columns: 6; columnSpacing: 22; rowSpacing: 26
+                            width: parent.width; columns: surf.phoneNarrow ? 1 : 6
+                            columnSpacing: surf.phoneNarrow ? 0 : 22; rowSpacing: surf.phoneNarrow ? 12 : 26
                             property real cellW: (width - columnSpacing * (columns - 1)) / columns
                             readonly property var visibleItems: section.expanded ? section.modelData.items : section.modelData.items.slice(0, secGrid.columns)
                             property int currentIndex: visibleItems.length > 0 ? 0 : -1
@@ -625,8 +732,14 @@ Item {
                                     objectName: modelData && modelData.title
                                                 ? ("searchResult_" + String(modelData.data && modelData.data.id ? modelData.data.id : modelData.title))
                                                 : ""
-                                    width: secGrid.cellW; spacing: 9
+                                    width: secGrid.cellW; spacing: surf.phoneNarrow ? 0 : 9
+                                    PhoneSearchResult {
+                                        visible: surf.phoneNarrow; width: parent.width
+                                        entry: resultCard.modelData; keyboardSelected: resultCard.keyboardSelected
+                                        onActivated: surf.openItem(resultCard.modelData.data)
+                                    }
                                     Rectangle {
+                                        visible: !surf.phoneNarrow
                                         width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
                                         border.width: resultCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                         Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
@@ -636,10 +749,10 @@ Item {
                                         MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             onClicked: surf.openItem(modelData.data) }
                                     }
-                                    Text { width: parent.width; text: modelData.title ? modelData.title : ""
+                                    Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.title ? modelData.title : ""
                                         color: theme.ink; font.family: theme.ui; font.pixelSize: 13
                                         elide: Text.ElideRight; maximumLineCount: 1 }
-                                    Text { width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
+                                    Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                         elide: Text.ElideRight; maximumLineCount: 1 }
                                 }
@@ -650,7 +763,7 @@ Item {
                         Rectangle {
                             id: seeMorePill
                             visible: modelData.items.length > secGrid.columns
-                            height: 34; radius: 17
+                            height: surf.phoneNarrow ? 44 : 34; radius: height / 2
                             width: seeMoreRow.implicitWidth + 30
                             color: seeMoreMa.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: seeMoreMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
@@ -686,6 +799,7 @@ Item {
                 Text {
                     visible: surf.searchError.length > 0 && !surf.searching
                     text: surf.searchError
+                    width: parent.width; wrapMode: Text.Wrap
                     color: theme.inkDimmer; font.family: theme.display
                     font.pixelSize: 18; topPadding: 30
                 }
@@ -708,6 +822,7 @@ Item {
     Row {
         id: winChrome
         z: 30
+        visible: Qt.platform.os !== "android" && !surf.phoneNarrow
         anchors.right: parent.right
         anchors.rightMargin: theme.margin
         y: 34

@@ -14,6 +14,52 @@
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
 
+if(WIN32)
+    add_subdirectory(feria_host_probe)
+endif()
+
+add_executable(feria_account_store_test feria_account_store_test.cpp)
+target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)
+add_executable(feria_media_contract_test feria_media_contract_test.cpp)
+target_link_libraries(feria_media_contract_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_media_contract_test COMMAND feria_media_contract_test)
+find_package(Qt6 QUIET COMPONENTS QuickTest)
+if(TARGET Qt6::QuickTest)
+    add_executable(feria_resume_qml_test feria_resume_qml_test.cpp)
+    set_target_properties(feria_resume_qml_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(feria_resume_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml)
+    add_test(NAME colosseum.feria_resume_qml_test COMMAND feria_resume_qml_test
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/feria_resume_probe")
+    # Explicit reviewer target: real engines, not an ordinary headless unit gate.
+    add_executable(feria_wrapper_qml_test feria_resume_qml_test.cpp)
+    set_target_properties(feria_wrapper_qml_test PROPERTIES AUTOMOC ON)
+    target_compile_definitions(feria_wrapper_qml_test PRIVATE FERIA_WRAPPER_RUNTIME)
+    target_link_libraries(feria_wrapper_qml_test PRIVATE feria_discovery Qt6::QuickTest Qt6::Qml Qt6::WebEngineQuick)
+    # Real retained WebEngine pages: run explicitly in a graphical desktop.
+    # This is not a mocked/headless CTest pass or an additional X11 CI gate.
+    add_executable(feria_session_runtime_test feria_session_runtime_test.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+    set_target_properties(feria_session_runtime_test PROPERTIES AUTOMOC ON)
+    target_include_directories(feria_session_runtime_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(feria_session_runtime_test PRIVATE feria_discovery
+        Qt6::QuickTest Qt6::WebEngineQuick Qt6::Network)
+endif()
+
+add_executable(feria_availability_test feria_availability_test.cpp)
+target_link_libraries(feria_availability_test PRIVATE feria_discovery Qt6::Core)
+add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
+
+find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
+if(COLOSSEUM_FERIA_TEST_NODE)
+    foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
+        add_test(NAME colosseum.${test_name}_test
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
+    endforeach()
+    add_test(NAME colosseum.feria_app_mode_test
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
+endif()
+
 # One place to grow the pilot set. Each entry: target name + labels.
 function(colosseum_register_harness target)
     add_test(NAME "colosseum.${target}" COMMAND ${target})
@@ -33,6 +79,7 @@ colosseum_register_harness(background_work_coordinator_harness unit)
 colosseum_register_harness(foreground_priority_governor_harness unit;responsiveness)
 colosseum_register_harness(background_activity_registry_harness unit)
 colosseum_register_harness(background_work_composition_harness unit;composition)
+colosseum_register_harness(platform_services_harness unit;platform)
 colosseum_register_harness(progress_store_harness        unit)
 colosseum_register_harness(collection_store_harness      unit)
 colosseum_register_harness(cbz_archive_harness           unit)
@@ -132,6 +179,14 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 # per-case reporting, data rows, selectable by function/tag.
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
+
+add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+target_include_directories(feria_session_ownership_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+target_link_libraries(feria_session_ownership_test PRIVATE feria_discovery Qt6::Test)
+add_test(NAME colosseum.feria_session_ownership_test COMMAND feria_session_ownership_test)
+set_tests_properties(colosseum.feria_session_ownership_test PROPERTIES
+    LABELS "unit;feria;session;profile" TIMEOUT 60)
 
 # Slice-3 pilot: windowstatepolicy/windowmodestore contracts. Same production
 # units and link set as the legacy window_state_policy_harness, which stays
@@ -453,6 +508,42 @@ set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Android phone immersive-navigation contract: the browsing tab bar follows the existing
+# player/book/comic immersive authority instead of becoming a second full-canvas owner.
+add_test(NAME colosseum.phone_immersive_nav_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_immersive_nav.ps1")
+set_tests_properties(colosseum.phone_immersive_nav_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android phone keyboard-avoidance contract: QtActivity resizes above the IME and the narrow
+# browsing tab bar stands down while the software keyboard owns the reduced viewport.
+add_test(NAME colosseum.phone_keyboard_avoidance_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_keyboard_avoidance.ps1")
+set_tests_properties(colosseum.phone_keyboard_avoidance_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android wide-navigation contract: narrow screens keep the bottom bar while landscape
+# tablets/open foldables use the same registry and routes from a left rail.
+add_test(NAME colosseum.wide_android_navigation_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_wide_android_navigation.ps1")
+set_tests_properties(colosseum.wide_android_navigation_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android symbol fallback contract: one coverage-qualified application font is registered
+# only on Android, while existing QML symbol use sites remain platform-neutral.
+add_test(NAME colosseum.android_symbol_fallback_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_android_symbol_fallback.ps1")
+set_tests_properties(colosseum.android_symbol_fallback_contract PROPERTIES
+    LABELS "unit;android;fonts;windows"
+    TIMEOUT 120)
+
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
 add_test(NAME colosseum.search_cancellation_contract
@@ -630,6 +721,36 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
 # volumes + epub/pdf books). Backbone calls go through QMetaObject::invokeMethod
 # (the same path QML uses), so the test drives the real derivation with QObject
 # fakes. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
+# Android Vault provider snapshot -> shared index contract. Pure Qt/SQLite; no Android SDK needed.
+add_executable(tst_vault_android_index_adapter
+    auto/vault/tst_vault_android_index_adapter.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLocation.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_android_index_adapter PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_android_index_adapter PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_android_index_adapter PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_android_index_adapter POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE_DIR:tst_vault_android_index_adapter>")
+add_test(NAME colosseum.qttest.vault_android_index_adapter
+         COMMAND tst_vault_android_index_adapter)
+set_tests_properties(colosseum.qttest.vault_android_index_adapter PROPERTIES
+    LABELS "unit;qttest;android;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 add_executable(tst_vault_downloads_root
     auto/vault/tst_vault_downloads_root.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
@@ -996,7 +1117,7 @@ add_executable(tst_vault_mal_match
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
 target_include_directories(tst_vault_mal_match PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_mal_match PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_mal_match POST_BUILD
@@ -1052,7 +1173,7 @@ add_executable(tst_vault_identifier
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h")
 target_include_directories(tst_vault_identifier PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_identifier PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_identifier POST_BUILD
@@ -1885,6 +2006,13 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_sources(account_first_light PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp")
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
@@ -2819,6 +2947,8 @@ add_executable(tst_account_attachment_coordinator
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_account_attachment_coordinator PRIVATE
+    COLOSSEUM_ACCOUNT_RECEIPT_TESTING)
 target_include_directories(tst_account_attachment_coordinator PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_account_attachment_coordinator PRIVATE
@@ -4659,6 +4789,11 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
 
+foreach(_account_runtime_target IN ITEMS account_first_light tst_account_attachment_runtime)
+    target_sources(${_account_runtime_target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp")
+endforeach()
+
 foreach(_tracker_profile_target IN ITEMS
         account_first_light
         reader2_profile_runtime_harness
@@ -4673,5 +4808,30 @@ endforeach()
 # Edition-only target (does not exist in standard builds): same tracker
 # delivery closure so the real ProfileStoreRuntime link-completes.
 if(COLOSSEUM_NO_ACCOUNT_EDITION)
+    target_sources(tst_no_account_runtime PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp")
     colosseum_add_tracker_delivery_runtime_sources(tst_no_account_runtime)
 endif()
+
+# B1 merged-tree transport ownership: master has additional focused catalogue
+# targets in this directory. Match the native graph's transport dependencies
+# without adding them to tests that do not compile a catalogue implementation.
+get_property(_test_catalogue_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_test_catalogue_target IN LISTS _test_catalogue_targets)
+    get_target_property(_test_catalogue_sources ${_test_catalogue_target} SOURCES)
+    if("${_test_catalogue_sources}" MATCHES "engine/(MalCatalog|ImdbCatalog|ComicsCatalog)\\.cpp"
+       AND NOT "${_test_catalogue_sources}" MATCHES "engine/CatalogRemote\\.cpp")
+        target_sources(${_test_catalogue_target} PRIVATE
+            "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+            "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h")
+        list(APPEND _test_catalogue_sources "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp")
+    endif()
+    if("${_test_catalogue_sources}" MATCHES "engine/(CatalogRemote|TankobanCatalog)\\.cpp")
+        if(NOT "${_test_catalogue_sources}" MATCHES "engine/StaticCatalogueResolver\\.cpp")
+            target_sources(${_test_catalogue_target} PRIVATE
+                "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+                "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h")
+        endif()
+        target_link_libraries(${_test_catalogue_target} PRIVATE Qt6::Network)
+    endif()
+endforeach()

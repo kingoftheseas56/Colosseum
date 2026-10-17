@@ -1,7 +1,7 @@
 // MalCatalog.cpp — see header. [Agent 0 (Claude), shell]
 #include "MalCatalog.h"
 
-#include "VaultKit.h"
+#include "MediaTitleNormalization.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -415,14 +415,14 @@ QVariantList MalCatalog::animeCatalog(const QVariantMap& query, int offset, int 
 QVariantList MalCatalog::matchByTitle(const QString& title, int year,
                                       const QString& medium) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{VaultKit::normalizedTitle(title), year, medium}, QVariantList{}).toList();
+    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{MediaTitleNormalization::normalizedTitle(title), year, medium}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
     if (!medium.isEmpty() && !validMedium(medium))
         return out;
 
-    const QString norm = VaultKit::normalizedTitle(title);
+    const QString norm = MediaTitleNormalization::normalizedTitle(title);
     if (norm.isEmpty())
         return out;
 
@@ -526,21 +526,21 @@ QVariantMap MalCatalog::searchState(const QString& text, int limit, const QStrin
     if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
         {"status", "success"}, {"pending", false}, {"waiting", false},
         {"cached", false}, {"error", QString()}, {"retryable", false}};
-    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit, medium}, QVariantList{});
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{MediaTitleNormalization::normalizedTitle(text), limit, medium}, QVariantList{});
     state.insert(QStringLiteral("source"), QStringLiteral("remote"));
     return state;
 }
 
 QVariantList MalCatalog::search(const QString& text, int limit, const QString& medium) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit, medium}, QVariantList{}).toList();
+    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{MediaTitleNormalization::normalizedTitle(text), limit, medium}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
     if (!medium.isEmpty() && !validMedium(medium))
         return out;
 
-    const QString norm = VaultKit::normalizedTitle(text);
+    const QString norm = MediaTitleNormalization::normalizedTitle(text);
     if (norm.isEmpty())
         return out;
     const QStringList tables = medium.isEmpty()

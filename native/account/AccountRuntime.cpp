@@ -6,6 +6,7 @@
 #include "engine/ExtensionsStore.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfileAdoption.h"
+#include "AccountCredentialStoreFactory.h"
 #include "ProfilePreferencesStore.h"
 #include "RatingsReviewsStore.h"
 #include "ProgressStore.h"
@@ -619,6 +620,7 @@ AccountRuntime::AccountRuntime(
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
+      m_credentialStore(createAccountCredentialStore()),
       m_stremioCredentials(credentials.stremio.load && credentials.stremio.save
                               && credentials.stremio.clear
           ? credentials.stremio
@@ -626,7 +628,7 @@ AccountRuntime::AccountRuntime(
           StremioCredentialAdoptionCallbacks{
               [this](const QString &profileId, const QString &accountId)
                   -> std::optional<QByteArray> {
-                  const auto credential = m_credentialStore.loadStremio(
+                  const auto credential = m_credentialStore->loadStremio(
                       profileId, accountId);
                   return credential.has_value()
                       ? std::optional<QByteArray>(credential->authKey)
@@ -635,13 +637,14 @@ AccountRuntime::AccountRuntime(
               [this](const QString &profileId,
                      const QString &accountId,
                      const QByteArray &authKey) {
-                  return m_credentialStore.saveStremio(
+                  return m_credentialStore->saveStremio(
                       StoredStremioCredential{profileId, accountId, authKey});
               },
               [this](const QString &profileId) {
-                  return m_credentialStore.clearStremio(profileId);
+                  return m_credentialStore->clearStremio(profileId);
               }}),
-      m_recoveryKeyPresenter(&m_sensitiveClipboard),
+      m_sensitiveClipboard(createAccountSensitiveClipboard()),
+      m_recoveryKeyPresenter(m_sensitiveClipboard.get()),
       m_profileCoordinator(
           &m_profileStores,
           QString(),
@@ -661,13 +664,13 @@ AccountRuntime::AccountRuntime(
       m_stremioSync(stremioOptions),
       m_controller(
           &m_client,
-          credentials.accountStore ? credentials.accountStore : &m_credentialStore,
+          credentials.accountStore ? credentials.accountStore : m_credentialStore.get(),
           &m_deviceIdentity,
           &m_bootstrapStore,
           &m_recoveryKeyPresenter),
       m_lifecycleCoordinator(
           &m_client,
-          credentials.accountStore ? credentials.accountStore : &m_credentialStore,
+          credentials.accountStore ? credentials.accountStore : m_credentialStore.get(),
           &m_controller) {
     setObjectName(QStringLiteral("accountRuntime"));
     m_controller.setProfileCoordinator(

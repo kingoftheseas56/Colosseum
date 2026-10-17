@@ -39,12 +39,28 @@ Item {
     property int  topRevealPx: 48            // top reveal zone (back pill)
     property int  bottomRevealPx: 72         // BOTTOM_HUD_HEIGHT reveal zone
 
+    // ---- touch (phone / tablet): Mihon's gesture set, on top of the click zones ----
+    // A swipe turns a paged page, a finger drags and flings the strip, a pinch or a centre double-tap
+    // zooms a paged layout. Off on desktop, where a mouse drag has never turned a page.
+    property bool touchMode: Qt.platform.os === "android"
+    property bool stripFlinging: false       // mirrored from the strip: a fling is in flight
+    property real swipeMinPx: 48             // a shorter horizontal travel is a wobble, not a swipe
+    property real flingMinVelocity: 150      // px/s; slower than this the finger simply let go
+    property int  doubleTapZoom: 200
+    // A fingertip wobbles further than a mouse, so a tap needs the platform's drag distance.
+    readonly property real cancelPx: touchMode ? Math.max(dragCancelPx, Application.styleHints.startDragDistance)
+                                               : dragCancelPx
+
     // ================= semantic actions (the shell / Task 12 wire these) =================
     signal next()
     signal previous()
     signal scrollBy(real screens)            // strip page-scroll, in viewport-heights (+ forward)
     signal zoomBy(int delta)                 // double-page zoom, +/- percent
     signal panBy(real dx, real dy)           // double-page pan (magnified)
+    signal zoomTo(int percent)               // touch: absolute paged zoom (pinch / double-tap)
+    signal dragScroll(real dy)               // touch: the strip follows the finger, px (+ forward)
+    signal flingScroll(real velocity)        // touch: finger velocity at release, px/s (+ down the screen)
+    signal holdScroll()                      // touch: a new press stops a fling in flight
     signal toggleChrome()
     signal toggleFullscreen()
     signal openSettings()
@@ -193,26 +209,65 @@ Item {
     property real _lastY: 0
     property bool _pressed: false
     property bool _clickCancelled: false
+    property real _velocityY: 0              // touch: smoothed finger velocity, px/s
+    property real _moveTime: 0               // touch: ms timestamp of the last move sample
 
     function pressAt(x, y) {
         _pressed = true
         _pressX = x; _pressY = y
         _lastX = x; _lastY = y
         _clickCancelled = false
+        _velocityY = 0
+        _moveTime = Date.now()
+        // A finger landing on a flinging strip stops it, and that press is not also a tap.
+        if (touchMode && mode === "long_strip" && stripFlinging) { holdScroll(); _clickCancelled = true }
     }
     // returns true if it panned (magnified drag)
     function moveTo(x, y) {
         if (!_pressed) return false
         var drift = Math.abs(x - _pressX) + Math.abs(y - _pressY)
-        if (drift > dragCancelPx) _clickCancelled = true
+        var wasCancelled = _clickCancelled
+        if (drift > cancelPx) _clickCancelled = true
         if (mode === "double_page" && zoomPercent > 100) {
             panBy(_lastX - x, _lastY - y)   // drag content with the pointer
             _lastX = x; _lastY = y
             return true
         }
+        if (touchMode && _clickCancelled) return touchMove(x, y, !wasCancelled)
         return false
     }
-    function releaseAt(x, w) {
+    // Touch drag past the tap threshold. The strip follows the finger; a paged page at base zoom
+    // pans vertically when it is taller than the screen (the surface clamps, so one that fits does
+    // not move) and leaves the horizontal travel for releaseAt to read as a swipe.
+    function touchMove(x, y, justStarted) {
+        var now = Date.now()
+        var dy = _lastY - y
+        var dt = now - _moveTime
+        if (dt > 0) _velocityY = _velocityY * 0.4 + ((y - _lastY) / dt * 1000) * 0.6
+        _moveTime = now
+        _lastX = x; _lastY = y
+        if (justStarted) return true         // the threshold travel itself is not scrolled: no jump
+        if (mode === "long_strip") dragScroll(dy)
+        else panBy(0, dy)
+        return true
+    }
+    // The release of a touch drag: fling the strip, or turn a paged page on a horizontal swipe. The
+    // page under the finger follows it, so a swipe toward the left brings in the page on the right —
+    // the same page the RIGHT click zone turns to, in either reading order.
+    function touchRelease(x, y) {
+        if (mode === "long_strip") {
+            var v = (Date.now() - _moveTime > 100) ? 0 : _velocityY   // a finger that rested does not fling
+            if (Math.abs(v) < flingMinVelocity) return ""
+            flingScroll(v)
+            return "flingScroll"
+        }
+        if (zoomPercent > 100) return ""     // magnified: the drag was a pan
+        var dx = x - _pressX
+        var dy = (y === undefined ? _lastY : y) - _pressY
+        if (Math.abs(dx) < swipeMinPx || Math.abs(dx) < 1.5 * Math.abs(dy)) return ""
+        return navByZone(dx < 0 ? "right" : "left")
+    }
+    function releaseAt(x, w, y) {
         // A double-click's TRAILING release arrives with NO matching press: Qt delivers a double
         // click as Press, Release, DblClick, Release — the 2nd press is a DblClick, so pressAt never
         // ran for it and `_pressed` is already false here. Discard that stray release. Without this
@@ -223,7 +278,7 @@ Item {
         var cancelled = _clickCancelled
         _pressed = false
         _clickCancelled = false
-        if (cancelled) return ""            // a drag never turns a page / toggles
+        if (cancelled) return touchMode ? touchRelease(x, y) : ""   // a MOUSE drag never turns a page / toggles
         if (mode === "double_page") {
             var zone = zoneForX(x, w)
             if (zone === "left" || zone === "right") return navByZone(zone)
@@ -242,7 +297,10 @@ Item {
     // single-click timer is always stopped so a pending center single-click can't fire alongside it.
     function doubleClick(x, w) {
         singleClickTimer.stop()
-        if (zoneForX(x, w) === "mid") toggleFullscreen()
+        if (zoneForX(x, w) !== "mid") return
+        // A phone has no fullscreen to toggle; a centre double-tap zooms a paged page in and back.
+        if (!touchMode) toggleFullscreen()
+        else if (mode === "double_page") zoomTo(zoomPercent > 100 ? 100 : doubleTapZoom)
     }
     function _commitSingleClick() { toggleChrome() }
 
@@ -289,11 +347,22 @@ Item {
         }
         onReleased: function (m) {
             if (m.button === Qt.RightButton) return
-            input.releaseAt(m.x, input.width)
+            input.releaseAt(m.x, input.width, m.y)
         }
         onDoubleClicked: function (m) {
             if (m.button === Qt.LeftButton) input.doubleClick(m.x, input.width)
         }
+        // The pinch below takes the first finger over; that press is neither a tap nor a drag.
+        onCanceled: { input._pressed = false; input._clickCancelled = false }
+    }
+
+    // Pinch zooms a paged layout (the strip has no zoom of its own; its width is a setting).
+    PinchHandler {
+        enabled: input.touchMode && input.mode === "double_page" && !input.modalOpen
+        target: null
+        property int startZoom: 100
+        onActiveChanged: if (active) { startZoom = input.zoomPercent; singleClickTimer.stop() }
+        onActiveScaleChanged: if (active) input.zoomTo(Math.round(startZoom * activeScale))
     }
 
     // Ctrl+wheel zoom / magnified pan — double mode only; strip wheels fall through to the surface.

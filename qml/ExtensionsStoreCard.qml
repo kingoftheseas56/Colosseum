@@ -15,20 +15,21 @@ Item {
     property bool installed: false
     property bool busy: false
     property bool selected: false            // keyboard focus from the row
+    property bool phoneLayout: false
     signal activated()
 
     readonly property bool lit: card.selected || action.hovered
     readonly property real h: StoreApi.hue(card.addon.name || "")
 
     width: 365
-    height: art.height + 12 + 24 + 3 + 40
+    height: phoneLayout ? mobileInstall.y + mobileInstall.height + 12 : art.height + 12 + 24 + 3 + 40
 
     Theme { id: theme }
 
     Rectangle {
         id: art
         width: parent.width
-        height: Math.round(parent.width * 220 / 365)
+        height: card.phoneLayout ? 140 : Math.round(parent.width * 220 / 365)
         radius: 23
         clip: true
         border.width: 1
@@ -75,7 +76,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: card.lit ? -4.5 : 0
-            width: 112; height: 112
+            width: card.phoneLayout ? 82 : 112; height: width
             radius: 26
             scale: card.lit ? 1.045 : 1
             color: Qt.rgba(24 / 255, 25 / 255, 31 / 255, 0.92)
@@ -105,7 +106,7 @@ Item {
 
         // Quiet state badge — only when there is something to say.
         Rectangle {
-            visible: card.installed || card.busy
+            visible: !card.phoneLayout && (card.installed || card.busy)
             anchors.right: parent.right; anchors.top: parent.top
             anchors.margins: 14
             width: badgeText.implicitWidth + 22; height: 26
@@ -130,23 +131,53 @@ Item {
         text: card.addon.title || card.addon.name || ""
         color: theme.ink
         font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
-        elide: Text.ElideRight
+        wrapMode: card.phoneLayout ? Text.WordWrap : Text.NoWrap
+        elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
     }
     Text {
+        id: description
         anchors.top: title.bottom; anchors.topMargin: 3
         width: parent.width
-        height: 40
+        height: card.phoneLayout ? implicitHeight : 40
         text: card.addon.description || ""
         color: "#aaa69e"
         font.family: theme.ui; font.pixelSize: 14
         wrapMode: Text.WordWrap
-        maximumLineCount: 2
-        elide: Text.ElideRight
+        maximumLineCount: card.phoneLayout ? 100 : 2
+        elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
+    }
+
+    Rectangle {
+        id: mobileInstall
+        visible: card.phoneLayout
+        z: 2
+        anchors.top: description.bottom
+        anchors.topMargin: 12
+        anchors.right: parent.right
+        width: 130; height: 38; radius: 8
+        color: card.installed ? "#45403a" : "#e9c46a"
+        Text {
+            anchors.centerIn: parent
+            text: card.busy ? "Adding…" : card.installed
+                  ? (card.addon.configurable ? "Set up" : "Installed")
+                  : (card.addon.configurable ? "Set up" : "Install")
+            color: card.installed ? "#ffffff" : "#171717"
+            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            accessibleName: (card.addon.title || card.addon.name || "") + ", "
+                            + (card.installed ? "installed" : "install")
+            enabled: !card.busy && (!card.installed || card.addon.configurable)
+            focusRadius: 8
+            onTriggered: card.activated()
+        }
     }
 
     KeyboardAction {
         id: action
         anchors.fill: parent
+        z: 0
         accessibleName: (card.addon.title || card.addon.name || "")
                         + (card.installed ? ", installed" : card.addon.setupRequired ? ", set up" : ", install")
         focusEnabled: false                    // the row owns keyboard focus

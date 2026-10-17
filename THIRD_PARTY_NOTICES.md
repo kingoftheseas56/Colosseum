@@ -14,6 +14,7 @@ This file is a practical inventory, not legal advice and not yet a complete bina
 | libtorrent-rasterbar | BSD-3-Clause. |
 | Boost | Boost Software License 1.0. |
 | OpenSSL | Governed by the license terms of the exact OpenSSL version distributed. |
+| AndroidX Media3 1.11.0 (media3-exoplayer, media3-exoplayer-hls, media3-exoplayer-dash) | Apache-2.0. Preserve the upstream license and notices for the exact Media3 artifacts shipped in Android builds. |
 | Vendored Foliate renderer | Derived from the MIT-licensed foliate-js project. The vendored package metadata currently also declares ISC; preserve all upstream notices and verify the provenance of local modifications before distribution. |
 | PDF.js | Apache-2.0. |
 | Lucide icons | ISC; portions inherited from Feather remain under MIT. The vendored Lucide license file must remain with distributions. |

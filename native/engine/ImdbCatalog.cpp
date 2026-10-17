@@ -1,7 +1,7 @@
 // ImdbCatalog.cpp — see header.
 #include "ImdbCatalog.h"
 
-#include "VaultKit.h"
+#include "MediaTitleNormalization.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -245,12 +245,12 @@ QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int
 
 QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{VaultKit::normalizedTitle(title), year}, QVariantList{}).toList();
+    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{MediaTitleNormalization::normalizedTitle(title), year}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
 
-    const QString norm = VaultKit::normalizedTitle(title);
+    const QString norm = MediaTitleNormalization::normalizedTitle(title);
     if (norm.isEmpty())
         return out;
 
@@ -295,18 +295,18 @@ QVariantMap ImdbCatalog::searchState(const QString& text, int limit) const
     if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
         {"status", "success"}, {"pending", false}, {"waiting", false},
         {"cached", false}, {"error", QString()}, {"retryable", false}};
-    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit}, QVariantList{});
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{MediaTitleNormalization::normalizedTitle(text), limit}, QVariantList{});
     state.insert(QStringLiteral("source"), QStringLiteral("remote"));
     return state;
 }
 
 QVariantList ImdbCatalog::search(const QString& text, int limit) const
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{VaultKit::normalizedTitle(text), limit}, QVariantList{}).toList();
+    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{MediaTitleNormalization::normalizedTitle(text), limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
-    const QString norm = VaultKit::normalizedTitle(text);
+    const QString norm = MediaTitleNormalization::normalizedTitle(text);
     if (norm.isEmpty())
         return out;
 

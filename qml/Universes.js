@@ -1202,7 +1202,8 @@ var PRIMARY = {
 
 function markFor(name) {
     var m = MARKS[name];
-    return m ? { logo: /^https:\/\//.test(m[0]) ? m[0] : ContentApi.asset("../assets/universes/marks/" + m[0]), shape: m[1] } : { logo: "", shape: "" };
+    var rawLogo = m ? ("../assets/universes/marks/" + m[0]) : "";
+    return m ? { logo: /^https:\/\//.test(m[0]) ? m[0] : (typeof ContentApi !== "undefined" ? ContentApi.asset(rawLogo) : rawLogo), shape: m[1] } : { logo: "", shape: "" };
 }
 
 function worldRoster(installed) {
@@ -1216,7 +1217,7 @@ function worldRoster(installed) {
         var cfg = configFor(shelf[i].name);
         var mark = markFor(shelf[i].name);
         var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
-                      banner: cfg.galleryBanner || ContentApi.asset(shelf[i].banner || "") || cfg.wallpaper || cfg.banner || "",
+                      banner: cfg.galleryBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(shelf[i].banner || "") : (shelf[i].banner || "")) || cfg.wallpaper || cfg.banner || "",
                       logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
                       primary: PRIMARY[shelf[i].name] || null,
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
@@ -1302,7 +1303,7 @@ function tributes(installed) {
             var cfg = configFor(u.name);
             return { extensionId: u.extensionId, name: u.name, at: at,
                      standard: !!(cfg.shelves || cfg.manga || cfg.sagaGrid),
-                     banner: cfg.tributeBanner || ContentApi.asset(u.banner || "") || cfg.banner || "", blurb: cfg.blurb || "" };
+                     banner: cfg.tributeBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(u.banner || "") : (u.banner || "")) || cfg.banner || "", blurb: cfg.blurb || "" };
         })
         .sort(function(x, y) { return rank(x.name) - rank(y.name) || x.at - y.at; });
 }
@@ -1691,6 +1692,7 @@ var shelfOverlays = {
 
 // Bundled values above are the offline starter snapshot.
 function syncContent() {
+    if (typeof ContentApi === "undefined") return;
     var data = ContentApi.document("universes-roster");
     if (!data || !Object.keys(data).length) return;
     data = ContentApi.resolveAssets(data);
@@ -1703,4 +1705,4 @@ function syncContent() {
     if (data.TRIBUTE_ORDER !== undefined && (Array.isArray(TRIBUTE_ORDER) ? Array.isArray(data.TRIBUTE_ORDER) : typeof data.TRIBUTE_ORDER === typeof TRIBUTE_ORDER)) TRIBUTE_ORDER = data.TRIBUTE_ORDER;
     if (data.shelfOverlays !== undefined && (Array.isArray(shelfOverlays) ? Array.isArray(data.shelfOverlays) : typeof data.shelfOverlays === typeof shelfOverlays)) shelfOverlays = data.shelfOverlays;
 }
-ContentApi.register(syncContent);
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

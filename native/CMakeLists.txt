@@ -107,10 +107,15 @@ else()
     message(STATUS "Compiler cache: disabled by COLOSSEUM_NO_COMPILER_CACHE=ON")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
-# Cover-delivery's local QtTest fixture must not make the product require Qt Test.
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
+if(NOT ANDROID)
+    # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.
+    find_package(Qt6 REQUIRED COMPONENTS WebEngineQuick WebChannel)
+endif()
+# Cover-delivery fixture does not add Qt Test to the product requirements.
 find_package(Qt6 QUIET COMPONENTS Test)
 
+if(NOT ANDROID)
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
 # Toolchain-aware: MSVC (Qt WebEngine path, homeward-foundry) consumes the msvc
@@ -168,11 +173,20 @@ endforeach()
 # Colosseum adaptation (justified): missing libtorrent is FATAL here, not a
 # soft-disable — Colosseum has no stub lane; the engine is a commissioned organ
 # (spec 2026-07-13) and a silent stub would violate source-honesty doctrine.
+endif()
+
 add_library(colosseum_libtorrent INTERFACE)
 find_package(LibtorrentRasterbar CONFIG QUIET)
-find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
+if(ANDROID)
+    # Boost 1.90's system library is header-only; b2 need not install a component package.
+    find_package(Boost CONFIG QUIET COMPONENTS filesystem OPTIONAL_COMPONENTS system)
+else()
+    find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
+endif()
 find_package(OpenSSL QUIET)
-if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
+# libtorrent may already have loaded OpenSSL's config package. Its exported targets
+# remain authoritative if a later FindOpenSSL module reports a different FOUND flag.
+if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto)
     message(STATUS "libtorrent + Boost + OpenSSL found via find_package")
     target_link_libraries(colosseum_libtorrent INTERFACE
         LibtorrentRasterbar::torrent-rasterbar Boost::filesystem
@@ -227,6 +241,11 @@ elseif(WIN32)
     else()
         message(FATAL_ERROR "libtorrent NOT found (find_package or C:/tools/libtorrent-2.0-msvc) — the tankorent engine requires it. See TB2 CMakeLists TANKORENT_DOWNLOAD_FLOW_FIX comment.")
     endif()
+elseif(ANDROID)
+    message(FATAL_ERROR
+        "libtorrent + Boost + OpenSSL NOT found for Android. Provide Android-ABI CMake packages "
+        "through CMAKE_PREFIX_PATH; Colosseum keeps TorrentEngine and the Aqueduct-ready core in the Android build. "
+        "Found: libtorrent=${LibtorrentRasterbar_FOUND}, Boost=${Boost_FOUND}, OpenSSL=${OpenSSL_FOUND}.")
 else()
     # Linux: no C:/tools fallback exists off Windows. apt's libtorrent-rasterbar-dev/
     # libboost-all-dev/libssl-dev should satisfy find_package above; a failure here is a
@@ -234,6 +253,7 @@ else()
     message(FATAL_ERROR "libtorrent + Boost + OpenSSL NOT found via find_package on this platform — install libtorrent-rasterbar-dev, libboost-all-dev and libssl-dev (see guides/WSL-FIRST-BUILD.md).")
 endif()
 
+if(NOT ANDROID)
 add_library(colosseum_update_crypto INTERFACE)
 if(TARGET OpenSSL::Crypto)
     target_link_libraries(colosseum_update_crypto INTERFACE OpenSSL::Crypto)
@@ -246,7 +266,9 @@ else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
 endif()
 
-add_executable(colosseum
+endif()
+
+qt_add_executable(colosseum
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h
     engine/TankoyomiNetworkPolicy.cpp
@@ -262,6 +284,7 @@ add_executable(colosseum
     account/AccountController.cpp
     account/AccountLifecycleCoordinator.cpp
     account/AccountDeviceIdentity.cpp
+    account/AccountCredentialStoreFactory.cpp
     account/AccountHttpTransport.cpp
     account/AccountRecoveryKeyPresenter.cpp
     account/AccountRuntime.cpp
@@ -314,7 +337,6 @@ add_executable(colosseum
     account/SyncStateStore.cpp
     account/TankobanReaderPreferencesCodec.cpp
     account/TankobanReaderPreferencesSyncAdapter.cpp
-    account/WindowsAccountCredentialStore.cpp
     trackers/TrackerTypes.cpp
     trackers/TrackerConnectionStore.cpp
     trackers/TrackerConnectionService.cpp
@@ -357,13 +379,13 @@ add_executable(colosseum
     stremio/StremioSync.cpp
     account/AccountAttachmentReceipt.h
     account/AccountAttachmentCoordinator.h
-    account/WindowsAccountSensitiveClipboard.cpp
     account/AccountBootstrapStore.h
     account/AccountClient.h
     account/AccountController.h
     account/AccountLifecycleCoordinator.h
     account/AccountCredentialStore.h
     account/AccountDeviceIdentity.h
+    account/AccountCredentialStoreFactory.h
     account/AccountHttpTransport.h
     account/AccountOneTimeSecretSink.h
     account/AccountProfileCoordinator.h
@@ -417,7 +439,6 @@ add_executable(colosseum
     account/TankobanReaderPreferencesCodec.h
     account/TankobanReaderPreferencesOwner.h
     account/TankobanReaderPreferencesSyncAdapter.h
-    account/WindowsAccountCredentialStore.h
     trackers/TrackerTypes.h
     trackers/TrackerConnectionStore.h
     trackers/TrackerConnectionService.h
@@ -456,29 +477,7 @@ add_executable(colosseum
     stremio/StremioTheatreImporter.h
     stremio/StremioState.h
     stremio/StremioSync.h
-    account/WindowsAccountSensitiveClipboard.h
-    update/UpdateVersion.cpp
-    update/UpdateVersion.h
-    update/UpdateManifest.cpp
-    update/UpdateManifest.h
-    update/UpdateTrust.cpp
-    update/UpdateTrust.h
-    update/UpdatePublicKey.h
-    update/UpdateTestPublicKey.h
-    update/InstalledChronicle.cpp
-    update/InstalledChronicle.h
-    update/UpdateCache.cpp
-    update/UpdateCache.h
-    update/UpdateDownload.cpp
-    update/UpdateDownload.h
-    update/UpdateReleaseClient.cpp
-    update/UpdateReleaseClient.h
-    update/UpdateService.cpp
-    update/UpdateService.h
-    update/UpdateInstallBridge.cpp
-    update/UpdateInstallBridge.h
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
-    installed_chronicle.qrc  # bundled installed-release chronicle (signed manifest + artwork)
     ClipboardHelper.h
     GuiStallProbe.h           # Q_OBJECT QML-facing diagnostic context bridge
     FrameTimingProbe.h        # opt-in frameSwapped interval capture
@@ -494,6 +493,13 @@ add_executable(colosseum
     work/ForegroundPriorityGovernor.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
+    platform/PlatformKind.cpp
+    platform/PlatformKind.h
+    platform/PlatformRuntime.cpp
+    platform/PlatformRuntime.h
+    platform/BackgroundDownloadBridge.cpp
+    platform/BackgroundDownloadBridge.h
+    platform/BackgroundDownloadPolicy.h
     bootstrap/AppDataMigration.cpp
     bootstrap/AppDataMigration.h
     bootstrap/StartupLayout.cpp
@@ -549,8 +555,6 @@ add_executable(colosseum
     engine/ComicDownloader.h
     engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows
     engine/ComicCoverProvider.h
-    engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
-    engine/VaultBookCoverProvider.h
     engine/ComicCoverId.cpp        # id build/parse, Core-only (shared with ComicDownloader.cpp)
     engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
@@ -563,12 +567,15 @@ add_executable(colosseum
     engine/TankobanCatalog.h
     engine/TankobanChapterMigration.cpp  # one-time WC-era chapter purge (catalogue-independence Slice 5)
     engine/TankobanChapterMigration.h
+    engine/MediaTitleNormalization.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
     engine/SourceContentStore.cpp
     engine/SourceContentStore.h
     engine/CatalogRemote.cpp
     engine/CatalogRemote.h
+    engine/StaticCatalogueResolver.cpp
+    engine/StaticCatalogueResolver.h
     engine/CatalogVaultClient.cpp  # data-vault adoption, Slice 1/2 (2026-08-22)
     engine/CatalogVaultClient.h
     engine/LocalDownloads.cpp
@@ -577,55 +584,6 @@ add_executable(colosseum
     engine/LocalDownloadsProjection.h
     engine/ExtensionsStore.cpp
     engine/ExtensionsStore.h
-    # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
-    engine/VaultKit.cpp            # shared classifier / SxxExx grammar / walker (Slice 1)
-    engine/VaultKit.h
-    engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
-    engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
-    engine/VaultIdentity.h
-    engine/VaultRecent.cpp         # Open Media recent-files store (Slice 9)
-    engine/VaultRecent.h
-    engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8/9)
-    engine/LocalLaunch.h
-    engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
-    engine/VaultPageStore.h
-    engine/VaultIndex.cpp          # rebuildable scan product — the queryable index (Slice 3), app-wired for the read-model (Slice 10)
-    engine/VaultIndex.h
-    engine/VaultConfig.cpp         # user-intent store: roots + kind overrides (Slice 2), app-wired for scan/confirm (Slice 11)
-    engine/VaultConfig.h
-    engine/VaultScanner.cpp        # cancellable off-thread census + aggregate publish (Slice 4/11)
-    engine/VaultScanner.h
-    engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
-    engine/VaultLibrary.h
-    engine/VaultBrowseAway.cpp     # browse-projection away propagation + offline fallback (browse-face execution plan Slice 6)
-    engine/VaultBrowseAway.h
-    engine/VaultBrowseDetail.cpp   # the detail sheet's ONE projection: copies/companions/extras/evidence (browse-face execution plan Slice 7)
-    engine/VaultBrowseDetail.h
-    engine/VaultBrowseEmpty.cpp    # the grid's empty-cause classification: no-roots/empty-folder/all-away (browse-face execution plan Slice 9)
-    engine/VaultBrowseEmpty.h
-    engine/VaultIdentifier.cpp
-    engine/VaultIdentifier.h
-    engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)
-    engine/VaultWatcher.h
-    engine/VaultDownloadsRoot.cpp  # synthetic downloads root — derives FileRows from backbones (Slice 18)
-    engine/VaultDownloadsRoot.h
-    engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
-    engine/VaultEnricher.h
-    # ── Vault browse artwork (browse-artwork execution plan, Slices 1-3, 2026-08-13): the
-    # resolver ladder VaultLibrary now composes for browseAt()/items()/series() cover projection ──
-    engine/VaultCacheKey.h         # shared (path,size,mtimeMs) cache-key derivation (Slice 1)
-    engine/VaultThumbnailer.cpp    # persistent frame-grab producer, ffmpeg off-thread (Slice 1)
-    engine/VaultThumbnailer.h
-    engine/VaultPosterFetcher.cpp  # canonical poster fetcher + cache, QNetworkAccessManager (Slice 2)
-    engine/VaultPosterFetcher.h
-    engine/VaultArtworkResolver.cpp # the fixed-priority ladder core VaultLibrary calls per row (Slice 3)
-    engine/VaultArtworkResolver.h
-    engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
-    engine/VaultBookStateMigrator.h
-    engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
-    engine/VaultForensics.h
-    player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
-    player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
@@ -643,19 +601,8 @@ add_executable(colosseum
     player/caststore.h
     player/downloadstore.cpp
     player/downloadstore.h
-    player/livestore.cpp
-    player/livestore.h
-    player/mpvitem.cpp
-    player/mpvitem.h
-    player/seekthumbnailer.cpp
-    player/seekthumbnailer.h
-    player/mpvproperties.h
-    player/powerstore.cpp
-    player/powerstore.h
     player/roomstore.cpp
     player/roomstore.h
-    player/streamserver.cpp
-    player/streamserver.h
     player/windowmodestore.cpp
     player/windowmodestore.h
     player/windowstatepolicy.cpp
@@ -832,14 +779,115 @@ add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
+
+if(NOT ANDROID)
+    # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
+    target_sources(colosseum PRIVATE
+        account/WindowsAccountCredentialStore.cpp
+        account/WindowsAccountSensitiveClipboard.cpp
+        account/WindowsAccountCredentialStore.h
+        account/WindowsAccountSensitiveClipboard.h
+        update/UpdateVersion.cpp
+        update/UpdateVersion.h
+        update/UpdateManifest.cpp
+        update/UpdateManifest.h
+        update/UpdateTrust.cpp
+        update/UpdateTrust.h
+        update/UpdatePublicKey.h
+        update/UpdateTestPublicKey.h
+        update/InstalledChronicle.cpp
+        update/InstalledChronicle.h
+        update/UpdateCache.cpp
+        update/UpdateCache.h
+        update/UpdateDownload.cpp
+        update/UpdateDownload.h
+        update/UpdateReleaseClient.cpp
+        update/UpdateReleaseClient.h
+        update/UpdateService.cpp
+        update/UpdateService.h
+        update/UpdateInstallBridge.cpp
+        update/UpdateInstallBridge.h
+        installed_chronicle.qrc
+        engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
+        engine/VaultBookCoverProvider.h
+        # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
+        engine/VaultKit.cpp            # shared classifier / SxxExx grammar / walker (Slice 1)
+        engine/VaultKit.h
+        engine/VaultLocation.h          # content:// identity-safe path normalization (Android)
+        engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
+        engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
+        engine/VaultIdentity.h
+        engine/VaultRecent.cpp         # Open Media recent-files store (Slice 9)
+        engine/VaultRecent.h
+        engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8/9)
+        engine/LocalLaunch.h
+        engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
+        engine/VaultPageStore.h
+        engine/VaultIndex.cpp          # rebuildable scan product — the queryable index (Slice 3), app-wired for the read-model (Slice 10)
+        engine/VaultIndex.h
+        engine/VaultConfig.cpp         # user-intent store: roots + kind overrides (Slice 2), app-wired for scan/confirm (Slice 11)
+        engine/VaultConfig.h
+        engine/VaultScanner.cpp        # cancellable off-thread census + aggregate publish (Slice 4/11)
+        engine/VaultScanner.h
+        engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
+        engine/VaultLibrary.h
+        engine/VaultBrowseAway.cpp     # browse-projection away propagation + offline fallback (browse-face execution plan Slice 6)
+        engine/VaultBrowseAway.h
+        engine/VaultBrowseDetail.cpp   # the detail sheet's ONE projection: copies/companions/extras/evidence (browse-face execution plan Slice 7)
+        engine/VaultBrowseDetail.h
+        engine/VaultBrowseEmpty.cpp    # the grid's empty-cause classification: no-roots/empty-folder/all-away (browse-face execution plan Slice 9)
+        engine/VaultBrowseEmpty.h
+        engine/VaultIdentifier.cpp
+        engine/VaultIdentifier.h
+        engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)
+        engine/VaultWatcher.h
+        engine/VaultDownloadsRoot.cpp  # synthetic downloads root — derives FileRows from backbones (Slice 18)
+        engine/VaultDownloadsRoot.h
+        engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
+        engine/VaultEnricher.h
+        # ── Vault browse artwork (browse-artwork execution plan, Slices 1-3, 2026-08-13): the
+        # resolver ladder VaultLibrary now composes for browseAt()/items()/series() cover projection ──
+        engine/VaultCacheKey.h         # shared (path,size,mtimeMs) cache-key derivation (Slice 1)
+        engine/VaultThumbnailer.h
+        engine/VaultPosterFetcher.cpp  # canonical poster fetcher + cache, QNetworkAccessManager (Slice 2)
+        engine/VaultPosterFetcher.h
+        engine/VaultArtworkResolver.cpp # the fixed-priority ladder core VaultLibrary calls per row (Slice 3)
+        engine/VaultArtworkResolver.h
+        engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
+        engine/VaultBookStateMigrator.h
+        engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
+        engine/VaultForensics.h
+        engine/VaultThumbnailer.cpp
+        player/MediaAdmissionProbe.cpp
+        player/MediaAdmissionProbe.h
+        player/livestore.cpp
+        player/livestore.h
+        player/mpvitem.cpp
+        player/mpvitem.h
+        player/seekthumbnailer.cpp
+        player/seekthumbnailer.h
+        player/mpvproperties.h
+        player/powerstore.cpp
+        player/powerstore.h
+        player/streamserver.cpp
+        player/streamserver.h
+    )
+endif()
+
+if(ANDROID)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/android.cmake")
+endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
 qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
-target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
-    ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
+target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
+if(NOT ANDROID)
+    # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API only on desktop.
+    target_include_directories(colosseum PRIVATE ${Libmpv_INCLUDE_DIRS})
+endif()
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 if(COLOSSEUM_SIMKL_CLIENT_ID)
@@ -941,11 +989,31 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE colosseum_update_crypto
-    Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
-    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
-    ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+target_link_libraries(colosseum PRIVATE
+    Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
+    Qt6::WebSockets colosseum_libtorrent
+)
+if(NOT ANDROID)
+    # Desktop-only links: the Android Qt kit ships no WebEngine/MpvQt. MediaAdmissionProbe
+    # links libmpv directly, not via MpvQt (Slice 8); Feria (Portico/WebEngineQuick) is
+    # desktop-only too, so its target and WebView2 loader stay off the Android graph.
+    target_link_libraries(colosseum PRIVATE colosseum_update_crypto MpvQt::MpvQt
+        Qt6::WebEngineQuick Qt6::WebChannel
+        ${Libmpv_LIBRARIES})
 
+    if(WIN32)
+        find_package(unofficial-webview2 CONFIG QUIET)
+    endif()
+    add_subdirectory(feria)
+    target_link_libraries(colosseum PRIVATE feria_discovery)
+    if(TARGET unofficial::webview2::webview2)
+        add_custom_command(TARGET colosseum POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:unofficial::webview2::webview2>"
+                "$<TARGET_FILE_DIR:colosseum>/WebView2Loader.dll"
+            VERBATIM)
+    endif()
+endif()
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.
@@ -974,6 +1042,34 @@ if(WIN32)
 endif()
 
 
+if(NOT ANDROID)
+# Desktop-only harness and Player 2 estate: none of this is configured for Android.
+add_executable(platform_services_harness
+    ../tests/platform_services_harness.cpp
+    account/AccountCredentialStoreFactory.cpp
+    account/AccountCredentialStoreFactory.h
+    account/AndroidAccountCredentialStore.cpp
+    account/AndroidAccountCredentialStore.h
+    account/AndroidJniSecureStorageBackend.cpp
+    account/AndroidJniSecureStorageBackend.h
+    account/AndroidSecureStorageBackend.h
+    account/AccountDeviceIdentity.cpp
+    account/AccountDeviceIdentity.h
+    platform/AndroidWindowModeAdapter.cpp
+    platform/AndroidWindowModeAdapter.h
+    platform/PlatformKind.cpp
+    platform/PlatformKind.h
+    platform/PlatformRuntime.cpp
+    platform/PlatformRuntime.h
+    platform/BackgroundDownloadPolicy.h)
+target_include_directories(platform_services_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(platform_services_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+if(WIN32)
+    target_sources(platform_services_harness PRIVATE
+        account/WindowsAccountCredentialStore.cpp
+        account/WindowsAccountCredentialStore.h)
+    target_link_libraries(platform_services_harness PRIVATE advapi32)
+endif()
 add_executable(tankoyomi_script_provider_transport_harness
     engine/TankoyomiNetworkPolicy.cpp
     engine/TankoyomiNetworkPolicy.h
@@ -1358,6 +1454,9 @@ add_executable(reader2_profile_runtime_harness
     SearchHistoryStore.h
     AudioPairingStore.h
 )
+target_sources(reader2_profile_runtime_harness PRIVATE
+    account/RatingsReviewsStore.cpp
+    account/RatingsReviewsStore.h)
 target_include_directories(reader2_profile_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_sources(reader2_profile_runtime_harness PRIVATE
     account/RatingsReviewsStore.cpp
@@ -2205,6 +2304,7 @@ target_link_libraries(manga_volume_index_harness PRIVATE Qt6::Core Qt6::Concurre
 
 add_executable(cbz_archive_harness
     ../tests/cbz_archive_harness.cpp
+    ../tests/cbz_archive_fixture.qrc
     engine/CbzArchive.cpp
     engine/CbzArchive.h
     third_party/miniz/miniz.c
@@ -2858,17 +2958,6 @@ add_executable(biblio_catalog_service_harness
 target_include_directories(biblio_catalog_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 
-# ── CTest registration seam (test ledger, migration slice 2 — 2026-08-06) ────
-# One standard discovery layer over the EXISTING harness estate; registrations
-# live in tests/CMakeLists.txt, never here. include(CTest) defines BUILD_TESTING
-# (default ON); OFF skips registration entirely and changes nothing else — the
-# harness targets above build either way, exactly as before this seam existed.
-include(CTest)
-if(BUILD_TESTING)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
-                     "${CMAKE_CURRENT_BINARY_DIR}/tests")
-endif()
-
 # Versioned universe/tribute data over the existing bounded semantic transport.
 add_executable(source_content_store_harness
     ../tests/source_content_store_harness.cpp
@@ -2921,8 +3010,22 @@ add_test(NAME colosseum.static_catalogue_resolver_harness COMMAND static_catalog
 get_property(_catalogue_owner_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 foreach(_catalogue_target IN LISTS _catalogue_owner_targets)
     get_target_property(_catalogue_sources ${_catalogue_target} SOURCES)
-    if("${_catalogue_sources}" MATCHES "engine/(CatalogRemote|TankobanCatalog)\\.cpp")
+    if("${_catalogue_sources}" MATCHES "engine/(CatalogRemote|TankobanCatalog)\\.cpp"
+       AND NOT "${_catalogue_sources}" MATCHES "engine/StaticCatalogueResolver\\.cpp")
         target_sources(${_catalogue_target} PRIVATE
             engine/StaticCatalogueResolver.cpp engine/StaticCatalogueResolver.h)
     endif()
 endforeach()
+
+# ── CTest registration seam (test ledger, migration slice 2 — 2026-08-06) ────
+# One standard discovery layer over the EXISTING harness estate; registrations
+# live in tests/CMakeLists.txt, never here. include(CTest) defines BUILD_TESTING
+# (default ON); OFF skips registration entirely and changes nothing else — the
+# harness targets above build either way, exactly as before this seam existed.
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
+                     "${CMAKE_CURRENT_BINARY_DIR}/tests")
+endif()
+
+endif() # NOT ANDROID: desktop harness/test estate

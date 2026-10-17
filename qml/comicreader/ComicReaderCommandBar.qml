@@ -26,6 +26,10 @@ import "../"   // Theme (lives in qml/, the parent of qml/comicreader/)
 
 Item {
     id: bar
+
+    // Android phone width: the six commands show as icons only (their names stay as accessible
+    // labels). Named, the row is wider than a phone and ran off the left edge.
+    readonly property bool compact: Qt.platform.os === "android" && width < 600
     objectName: "readerCommandBar"
 
     // ---- shell facts, bound in by the HUD (never written back) ----
@@ -156,9 +160,9 @@ Item {
     Row {
         id: row
         anchors.right: parent.right
-        anchors.rightMargin: 26
+        anchors.rightMargin: bar.compact ? 8 : 26
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 26
+        spacing: bar.compact ? 8 : 26
         // Font metrics arrive after the first layout pass, so the row's own width settles a beat
         // after construction — and every command's x settles with it. Re-publishing here is what
         // makes the anchors right on the FIRST open rather than only after something else moved.
@@ -172,7 +176,8 @@ Item {
                 required property string modelData
                 readonly property bool on: bar.activeFor(modelData)
                 // width/height come from the content: a command is its icon and its name, nothing else.
-                width: cmdRow.implicitWidth
+                // phone: icon only in a 44px slot; six named commands are wider than the screen
+                width: bar.compact ? 44 : cmdRow.implicitWidth
                 height: 30
                 // settle this command's own content so the anchor seam can measure it in the same
                 // beat a label changed, rather than a polish pass later
@@ -181,6 +186,7 @@ Item {
                 Row {
                     id: cmdRow
                     anchors.verticalCenter: parent.verticalCenter
+                    anchors.horizontalCenter: bar.compact ? parent.horizontalCenter : undefined
                     spacing: 9
 
                     ComicReaderIcon {
@@ -193,6 +199,7 @@ Item {
                         ink: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
                     }
                     Text {
+                        visible: !bar.compact
                         anchors.verticalCenter: parent.verticalCenter
                         text: bar.labelFor(cmd.modelData)
                         color: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
@@ -208,8 +215,8 @@ Item {
                     // a comfortable target without drawing a box for it
                     anchors.topMargin: -8
                     anchors.bottomMargin: -8
-                    anchors.leftMargin: -8
-                    anchors.rightMargin: -8
+                    anchors.leftMargin: bar.compact ? 0 : -8
+                    anchors.rightMargin: bar.compact ? 0 : -8
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     keyboardLabel: bar.labelFor(cmd.modelData)

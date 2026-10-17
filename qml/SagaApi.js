@@ -605,7 +605,7 @@ function loadShelves(name, push) {
                shelves: shelves, catalogueNotice: catalogueNotice || "",
                detailRevision: ++_detailRevision });
     }
-    if (name === "Star Wars") {
+    if (name === "Star Wars" && typeof UniverseExt !== "undefined" && UniverseExt && typeof UniverseExt.load === "function") {
         UniverseExt.load("com.colosseum.universe.starwars", function(payload) {
             var specs = starWarsSpecsFromPayload(payload);
             if (specs.length === 5) {

@@ -33,7 +33,8 @@ FocusScope {
     // deriving it here is what makes positions/marks survive the swap (zero migration).
     // Reader2Bridge.bookKey mirrors that derivation byte-for-byte (both delegate to
     // BookStores::keyFor, the single shared formula).
-    property string bookId: bookPath === "" ? "" : Reader2Bridge.bookKey(bookPath)
+    property string bookId: bookPath === "" ? ""
+        : L.durableBookKey(Reader2Bridge.bookKey(bookPath), bookMeta, Qt.platform.os)
     signal closed()
     // Minimize (2026-07-18, Hemanth: "books should minimize too"): the embedder parks the
     // book as a taskbar session instead of closing it. Same flush-first discipline as goBack.
@@ -971,10 +972,13 @@ FocusScope {
     function goMinimize() { shell.flushProgressSave(); shell.minimized() }
     Component.onDestruction: shell.flushProgressSave()
 
-    Paper {
+    ReaderPaper {
         id: paper
         anchors.fill: parent
         readerDebug: shell.readerDebug
+        // Android: the WebView is a native view above the whole QML scene, so a full-screen
+        // sheet (contents, appearance, search, failed-open) can only show with it hidden.
+        covered: Qt.platform.os === "android" && (chrome.anyPanelOpen || shell.openErrorShown)
         onGlueUpChanged: if (glueUp && shell.bookPath !== "" && !shell.personalStateSealed)
                               shell.openAtResume(shell.bookPath)
         onPaperEvent: (name, p) => {
@@ -1092,6 +1096,8 @@ FocusScope {
                 shell.searchCapped = !!p.capped
                 shell.searchLastQuery = (p.query !== undefined && p.query !== null) ? String(p.query) : ""
             } else if (name === "error") {
+                if (p.code === "renderer_lost" && Number(p.gen) === shell.currentGen)
+                    shell.bookReady = false
                 // Part B3 through L.errorDisposition (v2, QML-issued gens): only the error of
                 // the open we ISSUED may act — pre-ready it's a failed open (surface), post-
                 // ready it's operational (trace). Any other stamped gen is a superseded open's
@@ -1388,6 +1394,10 @@ FocusScope {
     // Failed-open surface (Part B3). A quiet centered message over the dead (black) paper when
     // the glue emits 'error' before the book became 'ready'. Declared top-most (last visible
     // item) so it covers the page; "Go back" (or Esc, when it holds focus) returns to the shelf.
+    ReaderOverlay {
+        anchors.fill: parent
+        overlayActive: shell.openErrorShown
+        nativeWindow: false
     Rectangle {
         id: openErrorView
         anchors.fill: parent
@@ -1448,6 +1458,8 @@ FocusScope {
                 }
             }
         }
+    }
+
     }
 
     // Dictionary result from the native seam (Wiktionary REST). Parse the JSON to entries;

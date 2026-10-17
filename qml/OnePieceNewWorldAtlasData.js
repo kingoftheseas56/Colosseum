@@ -85,6 +85,7 @@ function markerForLocation(id) {
 
 // Bundled values above are the offline starter snapshot.
 function syncContent() {
+    if (typeof ContentApi === "undefined") return;
     var data = ContentApi.document("tribute-one-piece-new-world").atlas;
     if (!data || !Object.keys(data).length) return;
     data = ContentApi.resolveAssets(data);
@@ -97,4 +98,4 @@ function syncContent() {
     if (data.secondaryVoyage !== undefined && (Array.isArray(secondaryVoyage) ? Array.isArray(data.secondaryVoyage) : typeof data.secondaryVoyage === typeof secondaryVoyage)) secondaryVoyage = data.secondaryVoyage;
     if (data.routeLegs !== undefined && (Array.isArray(routeLegs) ? Array.isArray(data.routeLegs) : typeof data.routeLegs === typeof routeLegs)) routeLegs = data.routeLegs;
 }
-ContentApi.register(syncContent);
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

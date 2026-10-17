@@ -151,6 +151,7 @@ function arcsForLocation(id) {
 
 // Bundled values above are the offline starter snapshot.
 function syncContent() {
+    if (typeof ContentApi === "undefined") return;
     var data = ContentApi.document("tribute-one-piece-new-world").story;
     if (!data || !Object.keys(data).length) return;
     data = ContentApi.resolveAssets(data);
@@ -160,4 +161,4 @@ function syncContent() {
     if (data.arcs !== undefined && (Array.isArray(arcs) ? Array.isArray(data.arcs) : typeof data.arcs === typeof arcs)) arcs = data.arcs;
     if (data.worldContext !== undefined && (Array.isArray(worldContext) ? Array.isArray(data.worldContext) : typeof data.worldContext === typeof worldContext)) worldContext = data.worldContext;
 }
-ContentApi.register(syncContent);
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

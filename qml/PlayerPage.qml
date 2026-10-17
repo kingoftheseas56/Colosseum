@@ -11,6 +11,7 @@ import Colosseum.Activity
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "AddonClient.js" as AddonClient
+import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "SkipSegments.js" as SkipSegments
 import "TrackLanguage.js" as TrackLanguage
 import "PlayerTrackPrefs.js" as PlayerTrackPrefs
@@ -137,9 +138,17 @@ Item {
     property bool autoSkipRecap: playerSettings.autoSkipRecap
     property bool autoSkipCredits: playerSettings.autoSkipCredits
 
-    // Loudness normalization — a live global mpv audio filter, applied on change + at load.
+    function supportsPlayerCapability(name) {
+        var caps = mpv && mpv.capabilities ? mpv.capabilities : ({})
+        return caps[name] === true
+    }
+
+    // Loudness normalization is backend-optional; desktop mpv supports it, Android need not.
     property string loudnessMode: playerSettings.loudnessMode
-    onLoudnessModeChanged: mpv.setAudioNormalization(root.loudnessMode)
+    onLoudnessModeChanged: {
+        if (root.supportsPlayerCapability("loudnessNormalization"))
+            mpv.setAudioNormalization(root.loudnessMode)
+    }
     function loudnessLabel() {
         return root.loudnessMode === "full" ? "Full (EBU R128)"
              : root.loudnessMode === "light" ? "Light"
@@ -383,6 +392,7 @@ Item {
         }
     }
     property string currentPlaybackUrl: ""
+    property var activeDirectHeaders: ({})
     property bool liveGuideOpen: false
     property var liveGuideFocusReturnItem: null
     onLiveGuideOpenChanged: {
@@ -801,9 +811,9 @@ Item {
                                             ? "OFF" : langChip(root.selectedSubtitleRow(), "ON")
 
     function applySavedTrackDelays(pref) {
-        if (pref && typeof pref.audioDelay === "number")
+        if (root.supportsPlayerCapability("audioDelay") && pref && typeof pref.audioDelay === "number")
             mpv.audioDelay = root.round2(pref.audioDelay)
-        if (pref && typeof pref.subDelay === "number")
+        if (root.supportsPlayerCapability("subtitleDelay") && pref && typeof pref.subDelay === "number")
             mpv.subDelay = root.round2(pref.subDelay)
     }
 
@@ -912,16 +922,22 @@ Item {
     }
 
     function adjustAudioDelay(delta) {
+        if (!root.supportsPlayerCapability("audioDelay"))
+            return
         mpv.audioDelay = root.round2(mpv.audioDelay + delta)
         root.saveTrackPreference({ "audioDelay": mpv.audioDelay })
     }
 
     function adjustSubtitleDelay(delta) {
+        if (!root.supportsPlayerCapability("subtitleDelay"))
+            return
         mpv.subDelay = root.round2(mpv.subDelay + delta)
         root.saveTrackPreference({ "subDelay": mpv.subDelay })
     }
 
     function resetSubtitleDelay() {
+        if (!root.supportsPlayerCapability("subtitleDelay"))
+            return
         mpv.subDelay = 0
         root.saveTrackPreference({ "subDelay": 0 })
     }
@@ -1081,17 +1097,27 @@ Item {
         return routed.indexOf("url:") === 0 ? routed.substring(4) : ""
     }
 
+    function clearActiveDirectHeaders() {
+        root.activeDirectHeaders = ({})
+    }
+
+    function reloadActiveDirectSource() {
+        if (!root.currentPlaybackUrl.length)
+            return false
+        mpv.loadSource(root.currentPlaybackUrl, root.activeDirectHeaders)
+        return true
+    }
+
     function loadDirectStreamUrl(url, headers) {
-        var directUrl = String(url || "")
+        var directUrl = DirectSourcePolicy.admitProviderUrl(url)
         if (!directUrl.length)
             return false
-        var requestHeaders = (headers && typeof headers === "object" && !Array.isArray(headers))
-                           ? headers : ({})
+        var requestHeaders = DirectSourcePolicy.copyHeaders(headers)
         root.currentPlaybackUrl = directUrl
-        if (Object.keys(requestHeaders).length)
-            mpv.loadFileWithHeaders(directUrl, requestHeaders)
-        else
-            mpv.loadFile(directUrl)
+        root.activeDirectHeaders = requestHeaders
+        // Always pass the generation's map, including {}. The neutral backend uses an
+        // empty map to clear a previous source's Referer/Cookie/Auth state.
+        mpv.loadSource(directUrl, requestHeaders)
         return true
     }
 
@@ -1100,10 +1126,20 @@ Item {
         var rows = candidates || []
         for (var i = 0; i < rows.length; i++) {
             var c = rows[i] || ({})
-            if (!c.infoHash || !String(c.infoHash).length)
+            var routed = String(c.infoHash || "")
+            if (!routed.length)
                 continue
+            var isDirect = String(c.streamKind || "") === "Direct"
+                        || routed.indexOf("url:") === 0
+                        || (c.url && String(c.url).length)
+            var admittedUrl = ""
+            if (isDirect) {
+                admittedUrl = DirectSourcePolicy.admitProviderUrl(root.directStreamUrl(c))
+                if (!admittedUrl.length)
+                    continue
+            }
             out.push({
-                "infoHash": String(c.infoHash),
+                "infoHash": routed,
                 "fileIdx": c.fileIdx !== undefined ? Number(c.fileIdx) : 0,
                 "title": c.release || c.title || title || "Stream",
                 "quality": c.qualityLine || c.quality || "",
@@ -1113,28 +1149,31 @@ Item {
                 // Watch Party may inspect this provenance locally; transportUrl never enters the row.
                 "addonId": c.addonId || "",
                 "addonName": c.addonName || "",
-                "streamKind": c.streamKind || "",
-                "url": c.url || "",
-                // HTTP hosts that gate on a Referer/Origin ride their required headers this far;
-                // the play path installs them via mpv.loadFileWithHeaders. Must survive this
-                // reshape or the header channel is dead in the app. (House HTTP, slice 1.)
-                "headers": (c.headers && typeof c.headers === "object" && !Array.isArray(c.headers)) ? c.headers : ({})
+                "streamKind": isDirect ? "Direct" : (c.streamKind || ""),
+                "url": isDirect ? admittedUrl : (c.url || ""),
+                "headers": isDirect ? DirectSourcePolicy.copyHeaders(c.headers) : ({})
             })
         }
         if (!out.length && infoHash && String(infoHash).length) {
-            out.push({
-                "infoHash": String(infoHash),
-                "fileIdx": fileIdx || 0,
-                "title": title || "Stream",
-                "quality": "",
-                "seeders": -1,
-                "sourceName": "Torrentio",
-                "addonId": "",
-                "addonName": "",
-                "streamKind": String(infoHash).indexOf("url:") === 0 ? "Direct" : "Torrent",
-                "url": "",
-                "headers": ({})
-            })
+            var fallbackHash = String(infoHash)
+            var fallbackDirect = fallbackHash.indexOf("url:") === 0
+            var fallbackUrl = fallbackDirect
+                            ? DirectSourcePolicy.admitProviderUrl(fallbackHash.substring(4)) : ""
+            if (!fallbackDirect || fallbackUrl.length) {
+                out.push({
+                    "infoHash": fallbackHash,
+                    "fileIdx": fileIdx || 0,
+                    "title": title || "Stream",
+                    "quality": "",
+                    "seeders": -1,
+                    "sourceName": "Torrentio",
+                    "addonId": "",
+                    "addonName": "",
+                    "streamKind": fallbackDirect ? "Direct" : "Torrent",
+                    "url": fallbackUrl,
+                    "headers": ({})
+                })
+            }
         }
         return out
     }
@@ -1436,12 +1475,14 @@ Item {
         }
         root.mediaTransport = "Torrent stream"
         root.updateMediaSubtitle()
+        root.clearActiveDirectHeaders()
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
+        root.clearActiveDirectHeaders()
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -1657,10 +1698,12 @@ Item {
         streamWatchdog.restart()
         var c = root.currentStreamCandidate()
         var directUrl = root.directStreamUrl(c)
-        if (directUrl.length)
-            root.loadDirectStreamUrl(directUrl, c.headers)
-        else
-            mpv.loadFile(root.currentPlaybackUrl)
+        if (directUrl.length || (!root.streamCandidates.length && !root.mediaResumeHash.length))
+            root.reloadActiveDirectSource()
+        else {
+            root.clearActiveDirectHeaders()
+            mpv.loadSource(root.currentPlaybackUrl)
+        }
     }
 
     function handlePlaybackFailure(reason) {
@@ -1688,7 +1731,7 @@ Item {
                 root.statusMsg = "Reconnecting stream..."
                 root.resetRecoveryWatch()
                 streamWatchdog.restart()
-                mpv.loadFile(root.currentPlaybackUrl)
+                root.reloadActiveDirectSource()
                 return
             }
             root.errored = true
@@ -1976,13 +2019,12 @@ Item {
     // same one) forces a fresh device connection. Cheap (~100ms, same track, paused), so run
     // it on every un-minimize rather than trying to detect a dead device mpv won't report.
     function healAudio() {
-        if (!root.fileReady)
+        if (!root.fileReady || !root.supportsPlayerCapability("audioOutputRefresh"))
             return
         var aid = mpv.audioTrack
         if (!aid || aid === "no")
             return
-        mpv.command(["set", "aid", "no"])
-        mpv.command(["set", "aid", aid])
+        mpv.refreshAudioOutput()
     }
 
     function downloadTooltip() {
@@ -2059,6 +2101,8 @@ Item {
     }
 
     function captureFrameGrab() {
+        if (!root.supportsPlayerCapability("frameCapture"))
+            return
         try {
             var path = mpv.captureFrame(root.mediaTitle || mpv.mediaTitle || "Video",
                                         root.mediaSubtitle || root.fmtTime(mpv.position))
@@ -2089,7 +2133,7 @@ Item {
         root.wakeChrome()
     }
     function startGifRecording() {
-        if (root.gifState !== "idle")
+        if (!root.supportsPlayerCapability("gifCapture") || root.gifState !== "idle")
             return
         if (!mpv.startGifRecording()) {
             root.showGifToast(false, "")
@@ -2454,7 +2498,8 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(url)
+        root.clearActiveDirectHeaders()
+        mpv.loadSource(url)
     }
 
     // Downloaded-file playback with STREAM-GRADE identity (spec 2026-07-06 downloaded-video
@@ -2507,9 +2552,10 @@ Item {
     function playLocalFile(target) {
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
-        root.arrivingStreamUrl = String(t.arrivingUrl || "")
-        root.arrivingStreamHeaders = (t.headers && typeof t.headers === "object" && !Array.isArray(t.headers))
-                                    ? t.headers : ({})
+        var arrivingUrl = DirectSourcePolicy.admitProviderUrl(t.arrivingUrl)
+        root.arrivingStreamUrl = arrivingUrl
+        root.arrivingStreamHeaders = arrivingUrl.length ? DirectSourcePolicy.copyHeaders(t.headers) : ({})
+        root.clearActiveDirectHeaders()
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2562,7 +2608,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(root.mediaLocalPath)
+        mpv.loadSource(root.mediaLocalPath)
         root.maybeHydrateContext()
     }
 
@@ -2573,8 +2619,10 @@ Item {
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
         var t = target || ({})
+        var remoteUrl = String(t.streamUrl || "")
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
+        root.clearActiveDirectHeaders()
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2606,7 +2654,7 @@ Item {
         root.updateMediaSubtitle()
         root.mediaResumeHash = ""
         root.mediaResumeFileIdx = 0
-        root.currentPlaybackUrl = String(t.streamUrl || "")
+        root.currentPlaybackUrl = ""
         root.subStreamType = t.kind === "episode" ? "series" : "movie"
         root.subStreamId = (t.id && String(t.id).length) ? String(t.id) : ""
         root.fetchSubtitles()
@@ -2622,7 +2670,14 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        root.loadDirectStreamUrl(root.currentPlaybackUrl, t.headers)
+        if (!root.loadDirectStreamUrl(remoteUrl, t.headers)) {
+            root.errored = true
+            root.starting = false
+            root.fileReady = false
+            root.statusMsg = "This provider source is not allowed."
+            root.wakeChrome()
+            return
+        }
         root.maybeHydrateContext()
     }
 
@@ -2722,7 +2777,8 @@ Item {
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
         root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
-        mpv.command(["stop"])
+        root.clearActiveDirectHeaders()
+        mpv.stopPlayback()
         root.starting = false
         root.errored = false
         root.statusMsg = ""
@@ -3212,6 +3268,8 @@ Item {
         hideTimer.restart()
     }
     function applyFill(index) {
+        if (!root.supportsPlayerCapability("videoTransform"))
+            return
         root.fillModeIndex = root.clamp(index, 0, root.fillModes.length - 1)
         var mode = root.fillModes[root.fillModeIndex]
         mpv.panscan = mode.panscan
@@ -3265,8 +3323,14 @@ Item {
         case "escape": root.requestEscape(); return
         case "seekBack": root.requestUserSeekStep(-root.seekBackSeconds); return
         case "seekForward": root.requestUserSeekStep(root.seekForwardSeconds); return
-        case "frameBack": if (mpv.pause) mpv.frameBackStep(); else root.requestUserSeekStep(-30); return
-        case "frameForward": if (mpv.pause) mpv.frameStep(); else root.requestUserSeekStep(30); return
+        case "frameBack":
+            if (mpv.pause && root.supportsPlayerCapability("frameStepping")) mpv.frameBackStep()
+            else root.requestUserSeekStep(-30)
+            return
+        case "frameForward":
+            if (mpv.pause && root.supportsPlayerCapability("frameStepping")) mpv.frameStep()
+            else root.requestUserSeekStep(30)
+            return
         case "seekStart": root.requestUserSeekTo(0); return
         case "seekEnd": if (mpv.duration > 0) root.requestUserSeekTo(mpv.duration - 0.5); return
         case "seekPercent":
@@ -3278,16 +3342,24 @@ Item {
         case "volumeDown": root.adjustVolume(event.modifiers & Qt.ShiftModifier ? -1 : -5); return
         case "speedDown": mpv.speed = root.clamp(root.round2(mpv.speed - 0.25), 0.25, 3); return
         case "speedUp": mpv.speed = root.clamp(root.round2(mpv.speed + 0.25), 0.25, 3); return
-        case "subtitleDelayDown": mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
-        case "subtitleDelayUp": mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
+        case "subtitleDelayDown":
+            if (root.supportsPlayerCapability("subtitleDelay"))
+                mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1))
+            return
+        case "subtitleDelayUp":
+            if (root.supportsPlayerCapability("subtitleDelay"))
+                mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1))
+            return
         case "cycleSubtitle": root.cycleSubtitle(); return
         case "abLoopA": root.setAbLoopA(); return
         case "abLoopB": root.setAbLoopB(); return
         case "abLoopClear": root.clearAbLoop(); return
         case "stats":
-            root.statsOverlayOpen = !root.statsOverlayOpen
-            if (root.statsOverlayOpen)
-                root.refreshPlaybackStats()
+            if (root.supportsPlayerCapability("playbackStats")) {
+                root.statsOverlayOpen = !root.statsOverlayOpen
+                if (root.statsOverlayOpen)
+                    root.refreshPlaybackStats()
+            }
             return
         case "browser": {
             var wasOpen = root.browserOpen
@@ -3386,7 +3458,8 @@ Item {
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
-        mpv.setAudioNormalization(root.loudnessMode)   // apply the persisted mode at startup
+        if (root.supportsPlayerCapability("loudnessNormalization"))
+            mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
         root.sendTraktPlayback(false)
@@ -3500,7 +3573,7 @@ Item {
     // mpvProperty can return an unavailable/error-wrapped QVariant that stringifies to
     // "QVariant(ErrorReturn, ...)" — never let that leak into the UI. Clean to "" instead.
     function mpvClean(key) {
-        var v = mpv.mpvProperty(key)
+        var v = mpv.playbackStat(key)
         if (v === undefined || v === null) return ""
         var s = String(v)
         if (!s.length || s.indexOf("QVariant") >= 0 || s.indexOf("ErrorReturn") >= 0) return ""
@@ -3512,13 +3585,13 @@ Item {
         var out = []
         var h = Number(root.mpvClean("height"))
         if (h > 0) out.push(h + "p")
-        var vc = root.mpvClean("video-codec").split(" ")[0]
+        var vc = root.mpvClean("videoCodec").split(" ")[0]
         if (vc.length) out.push(vc.toUpperCase())
-        var ac = root.mpvClean("audio-codec").split(" ")[0]
+        var ac = root.mpvClean("audioCodec").split(" ")[0]
         if (ac.length) out.push(ac.toUpperCase())
-        var ch = Number(root.mpvClean("audio-params/channel-count"))
+        var ch = Number(root.mpvClean("audioChannelCount"))
         if (ch > 0) out.push(root.channelLabel(ch))
-        var transfer = root.mpvClean("video-params/transfer").toLowerCase()
+        var transfer = root.mpvClean("videoTransfer").toLowerCase()
         if (transfer.indexOf("pq") >= 0 || transfer.indexOf("smpte2084") >= 0) out.push("HDR")
         else if (transfer.indexOf("hlg") >= 0) out.push("HLG")
         return out.join("  ·  ")
@@ -3575,11 +3648,24 @@ Item {
             root.hoverThumbUrl = imageUrl
         }
     }
-    MpvItem {
+    PlayerItem {
         id: mpv
         objectName: "playerMpv"
         anchors.fill: parent
         z: 0
+        Connections {
+            target: PlatformRuntime
+            enabled: PlatformRuntime.android
+            function onApplicationStateChanged() {
+                mpv.setHostLifecycleState(PlatformRuntime.applicationState)
+            }
+            function onSurfaceAvailableChanged() {
+                if (PlatformRuntime.surfaceAvailable)
+                    mpv.restoreVideoSurface()
+                else
+                    mpv.releaseVideoSurface()
+            }
+        }
         Component.onCompleted: {
             // mpv's own --profile=fast, applied option-by-option (the named profile isn't
             // guaranteed across libmpv versions). Rationale: on this machine one integrated GPU
@@ -3588,14 +3674,7 @@ Item {
             // putting the frame on screen. Upstream reports this exact preset curing stutter on
             // low-spec hardware (mpv#9417 family). Costs some scaling finesse — Hemanth's eyes
             // are the gate; revert this one block to restore mpv's quality defaults.
-            mpv.setProperty("scale", "bilinear")
-            mpv.setProperty("cscale", "bilinear")
-            mpv.setProperty("dscale", "bilinear")
-            mpv.setProperty("dither", "no")
-            mpv.setProperty("correct-downscaling", "no")
-            mpv.setProperty("linear-downscaling", "no")
-            mpv.setProperty("sigmoid-upscaling", "no")
-            mpv.setProperty("hdr-compute-peak", "no")
+            mpv.applyPlaybackProfile()
         }
         onCurrentUrlChanged: {
             seekThumbs.reset()          // new file = new frames; stale thumbs must not survive
@@ -3740,6 +3819,41 @@ Item {
         }
     }
 
+    Column {
+        id: media3SubtitleOverlay
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.controlsShown ? 118 : 52
+        width: Math.min(parent.width * 0.86, 1180)
+        z: 24
+        spacing: 4
+        visible: root.supportsPlayerCapability("subtitleCueOverlay")
+                 && mpv.subtitleCues && mpv.subtitleCues.length > 0
+
+        Repeater {
+            model: root.supportsPlayerCapability("subtitleCueOverlay") ? mpv.subtitleCues : []
+            delegate: Item {
+                id: media3CueDelegate
+                required property var modelData
+                width: media3SubtitleOverlay.width
+                height: cueText.implicitHeight + 8
+                Text {
+                    id: cueText
+                    anchors.centerIn: parent
+                    width: parent.width
+                    text: String(media3CueDelegate.modelData && media3CueDelegate.modelData.text || "")
+                    color: "white"
+                    font.pixelSize: Math.max(18, Math.min(28, root.height * 0.032))
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    style: Text.Outline
+                    styleColor: "#E0000000"
+                }
+            }
+        }
+    }
+
     Connections {
         target: typeof WatchPartySync !== "undefined" ? WatchPartySync : null
 
@@ -3808,6 +3922,7 @@ Item {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
             root.statusMsg = "Buffering..."
+            root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
             streamWatchdog.restart()
             root.streamStatsSeen = false
@@ -3815,7 +3930,7 @@ Item {
             root.streamStatsSpeedBps = 0
             root.streamStatsDownloaded = 0
             Stream.watchStats(infoHash, fileIdx)
-            mpv.loadFile(url)
+            mpv.loadSource(url)
         }
         function onStreamStats(infoHash, fileIdx, stats) {
             if (!root.starting)
@@ -4128,6 +4243,7 @@ Item {
 
             Row {
                 id: titleBarVerbs
+                visible: Qt.platform.os !== "android"
                 anchors.right: parent.right
                 anchors.rightMargin: tight ? 12 : 20
                 anchors.top: parent.top
@@ -4408,10 +4524,10 @@ Item {
 
                 Repeater {
                     model: [
-                        { "label": "Screenshot", "kind": "screenshot", "when": true },
-                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": true },
-                        { "label": "Playback stats", "kind": "stats", "when": true },
-                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": true },
+                        { "label": "Screenshot", "kind": "screenshot", "when": root.supportsPlayerCapability("frameCapture") },
+                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": root.supportsPlayerCapability("gifCapture") },
+                        { "label": "Playback stats", "kind": "stats", "when": root.supportsPlayerCapability("playbackStats") },
+                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": root.supportsPlayerCapability("loudnessNormalization") },
                         { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
@@ -4420,12 +4536,12 @@ Item {
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
                         { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
                         { "label": "Speed", "kind": "speed", "when": root.barTiny },
-                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug },
+                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
                         // The two rows Player 2's menu carried and this one never did. Both features
                         // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
                         // they were simply never offered anywhere in this menu.
                         { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
-                          "kind": "pip", "when": true },
+                          "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
                         { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
                     ]
                     delegate: Rectangle {
@@ -5875,6 +5991,7 @@ Item {
                     // in the bottom-right transport (approved 2026-07-19). Keeps the F11 toggle.
                     RoundButton {
                         id: bottomFullscreenButton
+                        visible: Qt.platform.os !== "android"
                         anchors.verticalCenter: parent.verticalCenter
                         size: 40
                         icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"

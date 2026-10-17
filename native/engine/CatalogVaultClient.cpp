@@ -16,6 +16,9 @@
 namespace {
 
 constexpr auto kUserAgent = "Colosseum/CatalogVault";
+// A transfer that stops moving (the app backgrounded on a phone, a dropped link) used to sit
+// with fetching==true forever. No bytes for this long ends it as an ordinary failure.
+constexpr int kTransferTimeoutMs = 30000;
 
 const QStringList& knownAssets()
 {
@@ -301,6 +304,7 @@ void CatalogVaultClient::fetchManifest()
     request.setRawHeader("User-Agent", kUserAgent);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(kTransferTimeoutMs);
     QNetworkReply* reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply] { onManifestReply(reply); });
 }
@@ -435,6 +439,7 @@ void CatalogVaultClient::startNetworkDownload(int queueIndex)
     request.setRawHeader("User-Agent", kUserAgent);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(kTransferTimeoutMs);
     QNetworkReply* reply = m_nam->get(request);
     m_downloadReply = reply;
 

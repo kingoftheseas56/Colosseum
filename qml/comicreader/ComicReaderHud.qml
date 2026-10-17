@@ -387,6 +387,7 @@ Item {
 
             Row {
                 id: verbs
+                visible: Qt.platform.os !== "android"
                 anchors.right: parent.right
                 anchors.rightMargin: 10
                 anchors.verticalCenter: parent.verticalCenter

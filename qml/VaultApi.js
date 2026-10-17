@@ -1,4 +1,5 @@
 .pragma library
+.import "CatalogueRecents.js" as CatalogueRecents
 
 // VaultApi — the pure derivation the Vault surfaces share (Slice 14): join the rebuildable index
 // rows against the live Progress store, and (VaultApi.continueRail, added with the rail) derive the
@@ -184,17 +185,5 @@ function continueRail(progress, limit, admissionById) {
 // §9 catalogue isolation: strip vault: rows from a catalogue recents read BEFORE the hard cap, so a
 // run of local items can never shrink a catalogue rail below its intended length.
 function recentWithoutVault(progress, kind, limit) {
-    if (!progress) return []
-
-    var all = progress.recent(kind || "", 0)
-    var cap = _positiveLimit(limit)
-    var out = []
-
-    for (var i = 0; i < all.length; i++) {
-        var e = all[i]
-        if (isVault(e && e.id)) continue
-        out.push(e)
-        if (cap > 0 && out.length >= cap) break
-    }
-    return out
+    return CatalogueRecents.recent(progress, kind, limit)
 }

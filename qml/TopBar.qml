@@ -17,11 +17,11 @@ Item {
         root: bar
         onBoundaryRequested: (key, fromItem) => bar.boundaryArrowRequested(key, fromItem)
     }
-    Keys.onPressed: function(event) { spatialNav.handle(event) }
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
-    readonly property bool compactChrome: width < 1000
+    property bool compactBrowserChrome: false
+    readonly property bool compactChrome: compactBrowserChrome || width < 1000
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -32,6 +32,10 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
+    // Retained as a no-op hook for shared callers (WorldPage, ExtensionsStorePage);
+    // QQmlFileSelector selects qml/+android/TopBar.qml on Android.
+    property bool androidHost: false
+    property bool wallpaperEnabled: true
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
@@ -48,6 +52,7 @@ Item {
     // without the property (harness fakes) keep the button for back-compat.
     readonly property bool accountEntryAvailable: accountController
         && accountController.accountFeaturesAvailable !== false
+    Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal mediumSelected(string medium)
     signal homeRequested()
@@ -297,7 +302,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.width < 1200 ? 10 : 20
+        spacing: (bar.compactChrome || bar.width < 1200) ? 10 : 20
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
@@ -506,6 +511,7 @@ Item {
         // the top bar with a harness-only presentation.
         SysIcon {
             objectName: "topBarWallpaperButton"
+            visible: bar.wallpaperEnabled
             source: "../assets/icons/settings.svg"
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()

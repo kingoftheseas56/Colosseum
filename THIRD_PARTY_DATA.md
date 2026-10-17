@@ -130,3 +130,19 @@ embedded, and redistributed with the software; they may not be sold on their own
 the reserved names must not be used to promote derivative fonts. Colosseum bundles the
 unmodified font files as a runtime asset and claims no affiliation with or endorsement
 by the Literata project.
+
+---
+
+# Third-party bundled font — Android symbol fallback
+
+Android bundles the unmodified **GNU Unifont 17.0.05** OpenType font as
+`assets/fonts/Unifont-17.0.05.otf`. Colosseum registers it only on Android as an
+application fallback for Unicode Common-script symbols; existing QML use sites and desktop
+font selection are unchanged.
+
+Source: GNU Unifont 17.0.05 from the official Unifoundry distribution.
+
+The compiled font is dual-licensed by upstream under the SIL Open Font License 1.1 and
+GPLv2-or-later with the GNU font embedding exception. Colosseum redistributes the unmodified
+font under the OFL 1.1; the full OFL text is beside it at
+`assets/fonts/Unifont-17.0.05-OFL.txt`.

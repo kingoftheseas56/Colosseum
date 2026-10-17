@@ -143,6 +143,7 @@ function arcsForLocation(id) {
 
 // Bundled values above are the offline starter snapshot.
 function syncContent() {
+    if (typeof ContentApi === "undefined") return;
     var data = ContentApi.document("tribute-one-piece-final-sea").story;
     if (!data || !Object.keys(data).length) return;
     data = ContentApi.resolveAssets(data);
@@ -151,4 +152,4 @@ function syncContent() {
     if (data.providerSelectors !== undefined && (Array.isArray(providerSelectors) ? Array.isArray(data.providerSelectors) : typeof data.providerSelectors === typeof providerSelectors)) providerSelectors = data.providerSelectors;
     if (data.arcs !== undefined && (Array.isArray(arcs) ? Array.isArray(data.arcs) : typeof data.arcs === typeof arcs)) arcs = data.arcs;
 }
-ContentApi.register(syncContent);
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

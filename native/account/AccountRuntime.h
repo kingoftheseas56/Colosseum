@@ -24,8 +24,8 @@
 #include "SyncEngine.h"
 #include "SyncAdapterRegistry.h"
 #include "ProfileStoreRuntime.h"
-#include "WindowsAccountCredentialStore.h"
-#include "WindowsAccountSensitiveClipboard.h"
+#include "AccountCredentialStore.h"
+#include "AccountSensitiveClipboard.h"
 #include "stremio/StremioSync.h"
 #include "stremio/StremioTheatreImporter.h"
 
@@ -62,6 +62,8 @@ public:
     explicit AccountRuntime(
         const StremioSyncOptions &stremioOptions,
         QObject *parent = nullptr);
+    // Platform seam: the credential store is chosen per platform (Windows
+    // Credential Manager on desktop, Android Keystore-backed storage on Android).
     AccountRuntime(
         const StremioSyncOptions &stremioOptions,
         const AccountRuntimeCredentialOptions &credentials,
@@ -140,11 +142,11 @@ private:
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
-    WindowsAccountCredentialStore m_credentialStore;
+    std::unique_ptr<AccountCredentialStore> m_credentialStore;
     StremioCredentialAdoptionCallbacks m_stremioCredentials;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;
-    WindowsAccountSensitiveClipboard m_sensitiveClipboard;
+    std::unique_ptr<AccountSensitiveClipboard> m_sensitiveClipboard;
     AccountRecoveryKeyPresenter m_recoveryKeyPresenter;
     ProfileStoreRuntime m_profileStores;
     RatingsReviewsDelivery m_ratingsReviewsDelivery;

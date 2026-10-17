@@ -15,7 +15,9 @@
 import QtQuick
 import "Reader2Logic.js" as L
 
-Item {
+ReaderOverlay {
+    overlayActive: shown
+    nativeWindow: false
     id: dictCard
     objectName: "reader2DictCard"
 

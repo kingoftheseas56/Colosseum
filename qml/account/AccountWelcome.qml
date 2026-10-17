@@ -3,77 +3,109 @@
 import QtQuick
 import ".."
 
-AccountPageFrame {
-    id: root
+Item {
+    id: welcome
     objectName: "accountWelcome"
 
     property var controller: null
+    property Item backdrop: null
 
-    // No-account edition: sign-in and registration entry points are hidden;
-    // the page still renders so a local-storage failure (mode "error") has a
-    // visible, retryable surface instead of a silently hidden one.
+    readonly property bool narrowPhone: {
+        const win = welcome.Window.window
+        return win && win.androidHost && win.width < 840
+    }
+
     readonly property bool accountEntryAvailable:
-        !root.controller
-        || root.controller.accountFeaturesAvailable !== false
-
-    eyebrow: "COLOSSEUM · WELCOME"
-    headline: "Welcome to Colosseum."
-    detail: "Use Colosseum completely locally, or sign in to carry your Collection, progress, reader setup, preferences, and other personal choices between devices."
-    panelWidth: 560
+        !welcome.controller || welcome.controller.accountFeaturesAvailable !== false
 
     signal signInRequested()
     signal createAccountRequested()
 
-    AccountPanelHeader {
-        kicker: "START"
-        title: "How do you want to begin?"
-        copy: "An account is optional. You can change your mind later."
+    Loader {
+        anchors.fill: parent
+        active: !welcome.narrowPhone
+        sourceComponent: desktopPage
     }
 
-    Item { width: 1; height: 26 }
-
-    AccountChoice {
-        objectName: "accountWelcomeContinueLocal"
-        width: parent.width
-        title: "Continue without account"
-        detail: "Keep everything local on this device."
-        onChosen: if (root.controller) root.controller.continueWithoutAccount()
+    Loader {
+        anchors.fill: parent
+        active: welcome.narrowPhone
+        sourceComponent: phonePage
     }
 
-    Item { width: 1; height: 10 }
-
-    AccountChoice {
-        objectName: "accountWelcomeSignIn"
-        width: parent.width
-        visible: root.accountEntryAvailable
-        title: "Sign in"
-        detail: "Bring your Colosseum back on this device."
-        onChosen: root.signInRequested()
+    Component {
+        id: phonePage
+        AccountWelcomePhone {
+            controller: welcome.controller
+            backdrop: welcome.backdrop
+            onSignInRequested: welcome.signInRequested()
+            onCreateAccountRequested: welcome.createAccountRequested()
+        }
     }
 
-    Item { width: 1; height: 10 }
+    Component {
+        id: desktopPage
+        AccountPageFrame {
+            id: desktopFrame
+            objectName: "accountWelcomeDesktopFrame"
+            backdrop: welcome.backdrop
+            eyebrow: "COLOSSEUM · WELCOME"
+            headline: "Welcome to Colosseum."
+            detail: "Use Colosseum completely locally, or sign in to carry your Collection, progress, reader setup, preferences, and other personal choices between devices."
+            panelWidth: 560
 
-    AccountChoice {
-        objectName: "accountWelcomeCreateAccount"
-        width: parent.width
-        visible: root.accountEntryAvailable
-        title: "Create account"
-        detail: "Start syncing your personal Colosseum."
-        onChosen: root.createAccountRequested()
-    }
+            AccountPanelHeader {
+                kicker: "START"
+                title: "How do you want to begin?"
+                copy: "An account is optional. You can change your mind later."
+            }
 
-    Item { width: 1; height: 20 }
+            Item { width: 1; height: 26 }
 
-    Text {
-        width: parent.width
-        text: root.accountEntryAvailable
-            ? "Accounts are optional. Sign in later whenever you want sync."
-            : "Colosseum runs completely locally on this device."
-        color: theme.inkDimmer
-        font.family: theme.ui
-        font.pixelSize: 11
-        wrapMode: Text.WordWrap
+            AccountChoice {
+                objectName: "accountWelcomeContinueLocal"
+                width: parent.width
+                title: "Continue without account"
+                detail: "Keep everything local on this device."
+                onChosen: if (welcome.controller) welcome.controller.continueWithoutAccount()
+            }
 
-        Theme { id: theme }
+            Item { width: 1; height: 10 }
+
+            AccountChoice {
+                objectName: "accountWelcomeSignIn"
+                visible: welcome.accountEntryAvailable
+                width: parent.width
+                title: "Sign in"
+                detail: "Bring your Colosseum back on this device."
+                onChosen: welcome.signInRequested()
+            }
+
+            Item { width: 1; height: 10 }
+
+            AccountChoice {
+                objectName: "accountWelcomeCreateAccount"
+                visible: welcome.accountEntryAvailable
+                width: parent.width
+                title: "Create account"
+                detail: "Start syncing your personal Colosseum."
+                onChosen: welcome.createAccountRequested()
+            }
+
+            Item { width: 1; height: 20 }
+
+            Text {
+                width: parent.width
+                text: welcome.accountEntryAvailable
+                    ? "Accounts are optional. Sign in later whenever you want sync."
+                    : "Colosseum runs completely locally on this device."
+                color: theme.inkDimmer
+                font.family: theme.ui
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+
+                Theme { id: theme }
+            }
+        }
     }
 }

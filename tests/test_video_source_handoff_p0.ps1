@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $main = Get-Content (Join-Path $root "qml/Main.qml") -Raw
 $theatre = Get-Content (Join-Path $root "qml/TheatreSeries.qml") -Raw
@@ -15,8 +15,8 @@ function Assert-Matches($text, $pattern, $message) {
 # Continuity guard: the existing arriving URL + part-file handoff is valid and must stay valid.
 Assert-Matches $main 'function\s+routeArrivingPlay\(job\)[\s\S]*?"streamUrl"\s*:\s*job\.url[\s\S]*?"partPath"\s*:\s*part' `
     "routeArrivingPlay must carry streamUrl plus partPath into the session."
-Assert-Matches $main 'function\s+activateSession\(rec\)[\s\S]*?t\.arrivingUrl\s*=\s*t\.streamUrl[\s\S]*?playLocalFile\(t\)' `
-    "activateSession must synthesize arrivingUrl when starting from a growing part file."
+Assert-Matches $main 'function\s+activateMovieSession\(rec\)[\s\S]*?t\.arrivingUrl\s*=\s*t\.streamUrl[\s\S]*?playLocalFile\(t\)' `
+    "activateMovieSession must synthesize arrivingUrl when starting from a growing part file."
 
 # F0008-1: resolver must admit Direct rows without sending url: pseudo-hashes to Stream.
 Assert-Matches $storeH 'Q_INVOKABLE\s+void\s+feedSource\(' `
@@ -38,6 +38,12 @@ Assert-Matches $player 'function\s+switchArrivingToStream\(\)[\s\S]*?var\s+heade
     "Frontier fallback must preserve source request headers."
 Assert-Matches $player 'function\s+playRemoteUrl\(target\)[\s\S]*?loadDirectStreamUrl\([^,]+,\s*t\.headers\)' `
     "Arriving remote playback must use the header-aware direct URL loader."
+Assert-Matches $player 'function\s+retryCurrentStream\(\)[\s\S]*?loadDirectStreamUrl\(directUrl,\s*c\.headers\)' `
+    "Ordinary Direct candidate retry must preserve the candidate request headers."
+Assert-Matches $player 'function\s+tickWakeReconnect\(\)[\s\S]*?reloadActiveDirectSource\(\)' `
+    "Wake reconnect must reuse the active Direct source header generation."
+Assert-Matches $player 'function\s+handlePlaybackFailure\(reason\)[\s\S]*?!root\.streamCandidates\.length[\s\S]*?root\.streamRetryCount\s*<\s*1[\s\S]*?reloadActiveDirectSource\(\)' `
+    "Arriving no-candidate failure retry must reuse the active Direct source header generation."
 Assert-Matches $player 'function\s+startVideoDownload\(\)[\s\S]*?sourceHeaders[\s\S]*?"headers"\s*:\s*sourceHeaders' `
     "Player 1 manual download must preserve the current Direct source headers."
 Assert-Matches $player2Host 'function\s+requestDownload\([^)]*\)[\s\S]*?_currentCandidate\(\)[\s\S]*?"headers"\s*:\s*sourceHeaders' `

@@ -73,6 +73,9 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
     QVERIFY(window);
     window->show();
     window->requestActivate();
+    // The window content item is sized on exposure. A positive contentHeight
+    // alone also holds for a zero-sized viewport and cannot prove layout readiness.
+    QVERIFY(QTest::qWaitForWindowExposed(window));
     auto *accountPage = window->findChild<QQuickItem *>(QStringLiteral("accountPageFrame"));
     QVERIFY(accountPage);
     auto *accountScroll = window->findChild<QQuickItem *>(QStringLiteral("accountPageFrameScrollRegion"));
@@ -81,6 +84,7 @@ void tst_keyboard_key_events::realQmlOwnerReceivesPressRepeatRelease()
     QVERIFY(accountActionA);
     auto *accountActionB = window->findChild<QQuickItem *>(QStringLiteral("accountActionB"));
     QVERIFY(accountActionB);
+    QTRY_VERIFY_WITH_TIMEOUT(accountScroll->width() > 0 && accountScroll->height() > 0, 2000);
     QTRY_VERIFY_WITH_TIMEOUT(accountScroll->property("contentHeight").toReal()
                                  > accountScroll->property("height").toReal(),
                              2000);
