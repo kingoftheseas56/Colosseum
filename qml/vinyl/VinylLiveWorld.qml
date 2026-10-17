@@ -189,7 +189,16 @@ Item {
         id:worldScroll;objectName:"vinylWorldScroll";x:theme.margin;y:libraryHeader.y+libraryHeader.height+14;width:parent.width-2*x;height:Math.max(0,root.contentBottom-y)
         visible:root.worldVisible;clip:true;contentWidth:width;contentHeight:world.implicitHeight;boundsBehavior:Flickable.StopAtBounds
         ScrollGlide {flick:worldScroll}
-        VinylWorld {id:world;width:parent.width;worldData:worldData;backdrop:vinylBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library";onCurrentTabChanged:if(root.worldVisible)root.page=currentTab}
+        // Keep scrolled content out of the sticky tab strip without changing
+        // the page's content coordinates or its keyboard/scroll restoration.
+        Item {
+            id:worldViewport
+            y:worldScroll.contentY+(dockedTabs.visible ? world.dockedInset : 0)
+            width:worldScroll.width
+            height:Math.max(0,worldScroll.height-(dockedTabs.visible ? world.dockedInset : 0))
+            clip:true
+            VinylWorld {id:world;y:-worldViewport.y;width:parent.width;worldData:worldData;backdrop:vinylBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library";onCurrentTabChanged:if(root.worldVisible)root.page=currentTab}
+        }
     }
     WorldTabBar {
         id:dockedTabs

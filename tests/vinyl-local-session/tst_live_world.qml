@@ -52,6 +52,62 @@ TestCase {
         function list(scope){return recent;}
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
     }
+    Component { id:clipProbeFactory; Rectangle { width:8; height:8; color:"#ff00ff"; z:1000 } }
+    function test_dockedTabsClipScrollingTaste_data() {
+        return [{tag:"narrow",width:1024},{tag:"wide",width:1280}];
+    }
+    function test_dockedTabsClipScrollingTaste(data) {
+        host.width=data.width;world.width=data.width;
+        seed(1);world.worldView.setTab("home");wait(0);
+        var search=item("vinylPickerSearch"),tabs=item("vinylDockedTabs");
+        var probe=clipProbeFactory.createObject(search,{x:4,y:4});
+        var searchY=search.mapToItem(world.worldView,0,0).y;
+        // Scroll the actual search field into the sticky strip, left of the pills.
+        world.worldScroll.contentY=searchY-10;
+        waitForRendering(world);verify(tabs.visible);
+        var point=probe.mapToItem(world,4,4);
+        var shot=grabImage(world);
+        verify(!Qt.colorEqual(shot.pixel(point.x,point.y),"#ff00ff"),
+               "Scrolling taste content must not paint inside the sticky tab viewport");
+        // The same content must paint and remain interactive below that strip.
+        world.worldScroll.contentY=searchY-world.worldView.dockedInset-10;
+        waitForRendering(world);
+        point=probe.mapToItem(world,4,4);shot=grabImage(world);
+        compare(shot.pixel(point.x,point.y),"#ff00ff");
+        probe.destroy();
+        world.worldView.syncPickerPlacement();wait(0);
+        mouseClick(search,search.width/2,search.height/2);
+        tryCompare(search,"activeFocus",true);
+        keyClick(Qt.Key_A);compare(world.worldData.pickerQuery,"a");
+        var done=item("vinylPickerDone");
+        var bottom=done.mapToItem(world,0,done.height);
+        verify(bottom.y<=world.worldScroll.y+world.worldScroll.height);
+        mouseClick(done);verify(world.worldData.pickerAnswered);
+    }
+    function test_worldTabInitialContentBelowStickyStrip_data() {
+        return [{tag:"narrow",width:1024},{tag:"wide",width:1280}];
+    }
+    function test_worldTabInitialContentBelowStickyStrip(data) {
+        host.width=data.width;world.width=data.width;seed(8);
+        var cases=[{tab:"home",name:"vinylPickerQuestion"},
+                   {tab:"discover",name:"vinylLensTitle"},
+                   {tab:"library",name:"vinylListCard_0"}];
+        for(var i=0;i<cases.length;i++) {
+            // Exercise a fresh tab entry, rather than the saved startup carousel offset.
+            world.worldView.tabOffsets={};
+            world.worldView.setTab(cases[i].tab);wait(0);
+            var target=item(cases[i].name);verify(target && target.visible);
+            var top=target.mapToItem(world,0,0).y;
+            var inset=item("vinylDockedTabs").visible ? world.worldView.dockedInset : 0;
+            verify(top>=world.worldScroll.y+inset-1,cases[i].tab+" initial content clears sticky tabs");
+            verify(top+8<world.worldScroll.y+world.worldScroll.height,cases[i].tab+" initial content is above the fold");
+            var probe=clipProbeFactory.createObject(target,{x:4,y:4});
+            waitForRendering(world);
+            var point=probe.mapToItem(world,4,4);
+            compare(grabImage(world).pixel(point.x,point.y),"#ff00ff");
+            probe.destroy();
+        }
+    }
     function test_deviceAccountRelay_data(){return [{tag:"wide",width:1280},{tag:"narrow",width:1024}];}
     function test_deviceAccountRelay(data){
         host.width=data.width;world.width=data.width;wait(0);
