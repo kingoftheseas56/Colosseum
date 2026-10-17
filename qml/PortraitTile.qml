@@ -56,13 +56,15 @@ Item {
         Behavior on color { ColorAnimation { duration: 220 } }
     }
 
-    // ── the in-tile content (gradient tint + remote cover + caption + progress) rendered ONLY
-    //    through the single rounded MultiEffect mask, so the corners are genuinely cropped. The old
-    //    rectangular clip let cover art paint over the border; this never can. ──
+    // ── the in-tile content (gradient tint + remote cover + caption + progress).
+    //    Preserve the genuine rounded MultiEffect crop on GPU renderers. The Qt software
+    //    renderer cannot paint shader effects, so draw these children directly there;
+    //    only that fallback has rectangular artwork corners (the rounded frame remains).
+    readonly property bool softwareRendering: tile.GraphicsInfo.api === GraphicsInfo.Software
     Item {
         id: content
         anchors.fill: parent
-        layer.enabled: true
+        layer.enabled: !tile.softwareRendering
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: maskShape
