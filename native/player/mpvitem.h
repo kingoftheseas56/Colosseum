@@ -269,6 +269,7 @@ private:
     double m_duration{0.0};
     QString m_formattedDuration;
     QUrl m_currentUrl;
+    bool m_decodeFileLoaded{false};
     int m_decodedWidth{0};
     int m_decodedHeight{0};
     QVariantList m_trackList;

@@ -34,6 +34,7 @@ Popup {
         dialog.close()
     }
     onOpened: Qt.callLater(function() {
+        if (!dialog.opened) return
         const first = dialog.copyCeremony ? existingKey : sameKey
         first.forceActiveFocus(Qt.TabFocusReason)
     })
@@ -47,6 +48,7 @@ Popup {
     VaultTheme { id: theme }
 
     contentItem: Column {
+        Keys.onEscapePressed: event => {event.accepted=true;dialog.cancelRequested();}
         anchors.fill: parent
         anchors.margins: 24
         spacing: 10
@@ -94,7 +96,7 @@ Popup {
                     enabled: sameMediaButtonRect.visible
                     accessibleName: "Use the same media state"
                     KeyNavigation.tab: newKey
-                    KeyNavigation.backtab: newKey
+                    KeyNavigation.backtab: cancelKey
                     onTriggered: dialog.choose("same-media")
                 }
             }
@@ -112,7 +114,7 @@ Popup {
                     pointerEnabled: false
                     enabled: newMediaButtonRect.visible
                     accessibleName: "Start new media state"
-                    KeyNavigation.tab: sameKey
+                    KeyNavigation.tab: cancelKey
                     KeyNavigation.backtab: sameKey
                     onTriggered: dialog.choose("new-media")
                 }
@@ -132,7 +134,7 @@ Popup {
                     enabled: useExistingStateRect.visible
                     accessibleName: "Use existing progress state"
                     KeyNavigation.tab: separateKey
-                    KeyNavigation.backtab: separateKey
+                    KeyNavigation.backtab: cancelKey
                     onTriggered: dialog.choose("use-existing-state")
                 }
             }
@@ -150,9 +152,24 @@ Popup {
                     pointerEnabled: false
                     enabled: separateCopyRect.visible
                     accessibleName: "Use separate copy state"
-                    KeyNavigation.tab: existingKey
+                    KeyNavigation.tab: cancelKey
                     KeyNavigation.backtab: existingKey
                     onTriggered: dialog.choose("separate-copy")
+                }
+            }
+            Rectangle {
+                id: cancelButtonRect
+                objectName: "vaultCancelIdentity"
+                width: cancelText.implicitWidth + 24; height: 38; radius: 9
+                color: Qt.rgba(1, 1, 1, 0.08); border.width: 1; border.color: theme.edge
+                Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: theme.ink; font.pixelSize: 12 }
+                KeyboardAction {
+                    id: cancelKey
+                    anchors.fill: parent
+                    accessibleName: "Cancel identity decision"
+                    KeyNavigation.tab: dialog.copyCeremony ? existingKey : sameKey
+                    KeyNavigation.backtab: dialog.copyCeremony ? separateKey : newKey
+                    onTriggered: dialog.cancelRequested()
                 }
             }
         }
