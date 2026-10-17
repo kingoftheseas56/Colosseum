@@ -43,7 +43,7 @@ Item {
     property real pendingResumeSec: -1
 
     // ── the engine (audio only; the mpv surface is never shown — cover art is the remotes' job) ──
-    MpvItem { id: mpv; width: 1; height: 1; visible: false }
+    PlayerItem { id: mpv; width: 1; height: 1; visible: false }
 
     // --- Your Colosseum activity (Lane E, CPP-PORT-CONTRACT.md §9): mirrors PlayerPage.qml's
     // Lane A pattern beside this app-wide session. activePairKey is BiblioApi.pairKey(title,
@@ -176,7 +176,7 @@ Item {
         if (idx < 0 || idx >= session.files.length) idx = 0
         session.currentIndex = idx
         session.pendingResumeSec = (pos > 0) ? pos : -1   // applied in onFileLoaded — a pre-load seek no-ops
-        mpv.loadFile(session.files[idx])
+        mpv.loadSource(session.files[idx])
         mpv.pause = (startPaused === true)    // summon-on-open loads paused at last spot; else plays
     }
     function playIndex(i) {
@@ -184,7 +184,7 @@ Item {
         session.pendingResumeSec = -1         // a deliberate jump cancels any in-flight resume seek
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
-        mpv.loadFile(session.files[i])
+        mpv.loadSource(session.files[i])
         mpv.pause = false
     }
     function togglePlay() { mpv.pause = !mpv.pause; session.recordProgress() }
@@ -222,7 +222,7 @@ Item {
         session.pendingResumeSec = -1
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
-        mpv.loadFile(session.files[i])
+        mpv.loadSource(session.files[i])
         mpv.pause = wasPaused
     }
     function goToChapterKeepState(index) {
@@ -239,7 +239,7 @@ Item {
     function stop() {
         if (session.ready) session.recordProgress()          // save the spot before the stream dies
         session.activityEndSession()   // Activity (Lane E): real close ends the session
-        mpv.command(["stop"])
+        mpv.stopPlayback()
         session.pendingResumeSec = -1
         session.ready = false
         session.activePairKey = ""

@@ -6,6 +6,8 @@ import QtQuick
 Column {
     id: castRow
     property var people: []
+    readonly property bool phoneNarrow: !!(castRow.Window.window && castRow.Window.window.androidHost
+                                            && castRow.Window.window.width < 840)
     property bool expanded: false
     visible: people.length > 0
     spacing: 16
@@ -30,7 +32,7 @@ Column {
     }
     Flow {
         width: parent.width
-        spacing: 28
+        spacing: castRow.phoneNarrow ? 16 : 28
         Repeater {
             model: castRow.expanded ? castRow.people : castRow.people.slice(0, 8)
             Column {
@@ -61,12 +63,16 @@ Column {
                 }
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
-                    text: faceCol.modelData.name || ""; elide: Text.ElideRight
+                    text: faceCol.modelData.name || ""
+                    wrapMode: castRow.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                    elide: castRow.phoneNarrow ? Text.ElideNone : Text.ElideRight
                     color: theme.ink; font.family: theme.ui; font.pixelSize: 12
                 }
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
-                    text: faceCol.modelData.role || ""; elide: Text.ElideRight
+                    text: faceCol.modelData.role || ""
+                    wrapMode: castRow.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                    elide: castRow.phoneNarrow ? Text.ElideNone : Text.ElideRight
                     visible: (faceCol.modelData.role || "") !== ""
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
                 }

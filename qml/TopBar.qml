@@ -17,7 +17,6 @@ Item {
         root: bar
         onBoundaryRequested: (key, fromItem) => bar.boundaryArrowRequested(key, fromItem)
     }
-    Keys.onPressed: function(event) { spatialNav.handle(event) }
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
@@ -33,6 +32,9 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
+    // Retained as a no-op hook for shared callers (WorldPage, ExtensionsStorePage);
+    // QQmlFileSelector selects qml/+android/TopBar.qml on Android.
+    property bool androidHost: false
     property bool wallpaperEnabled: true
     property string clock: "8:29"
     property string ampm: "PM"
@@ -44,6 +46,7 @@ Item {
             || accountController.mode === "offline")
     readonly property bool localDevice: accountController
         && accountController.mode === "localOnly"
+    Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal mediumSelected(string medium)
     signal homeRequested()

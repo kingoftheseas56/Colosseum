@@ -755,6 +755,26 @@ Item {
         if (!scrollDrain.running) scrollDrain.running = true
     }
 
+    // ================= touch drag + fling (phone / tablet) =================
+    // The strip follows the finger 1:1, then Flickable's own fling carries it: that deceleration is
+    // the one every touch list in Qt has, and the wheel drain (38% a frame) is far too abrupt to
+    // pass for it. `interactive` stays false — an interactive Flickable takes the press itself, and
+    // the click zones beneath the pages would go dead.
+    readonly property bool flinging: list.flicking
+    function touchDragBy(dy) {
+        if (wheelLocked || dy === 0) return
+        scrollDrain.running = false          // a finger outranks a glide still in flight
+        _pendingWheelPx = 0
+        list.cancelFlick()
+        _userInteracted = true
+        manualNavigation()
+        var maxY = Math.max(0, list.contentHeight - list.height)
+        list.contentY = Math.max(0, Math.min(maxY, list.contentY + dy))
+    }
+    // velocity: the finger's at release, px/s, + = moving down the screen (content toward the top).
+    function touchFling(velocity) { if (!wheelLocked) list.flick(0, velocity) }
+    function touchHold() { list.cancelFlick() }
+
     // Drain 38% of the remaining backlog per frame — but scaled by how much time ACTUALLY passed, so
     // the same glide feels identical at 60Hz, 120Hz or through a frame hitch. A fixed 38%-per-tick
     // silently becomes a different curve on every other refresh rate.

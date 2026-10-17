@@ -11,7 +11,6 @@ import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
 import "account"
-import "feria" as Feria
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
@@ -41,7 +40,12 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    readonly property alias televisionMode: phoneShell.televisionMode
     property var feriaReturnSnapshot: null
+    // Feria is desktop-only (its deck rides QtWebEngine, which Android does not ship).
+    // Every Feria surface below is a string-source Loader gated on this flag, so nothing
+    // under qml/feria/ is parsed on Android.
+    readonly property bool feriaAvailable: Qt.platform.os !== "android"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -61,6 +65,7 @@ Window {
     readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    property alias androidHost: phoneShell.androidHost
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -230,7 +235,6 @@ Window {
         icon: "back.svg"
         onTriggered: win.handleEscape()
     }
-
     function setGuiStallContext(operation, surface) {
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext(operation, surface)
@@ -256,6 +260,12 @@ Window {
         interval: 2500
         repeat: false
         onTriggered: {
+            if (win.androidHost && worldStack.current !== "" && !win.immersiveSurfaceOpen) {
+                // Android always stands in a world: do the post-frame work, skip the Home board.
+                auxiliaryFontsReady = true
+                postFrameStartupWork.start()
+                return
+            }
             if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
                 startupIdleWorkArmed = false
                 win.armStartupIdleWork()
@@ -325,6 +335,10 @@ Window {
                        homeReadingDeskLoader, homeVaultWidgetLoader]
         var sources = ["Bookshelf.qml", "TheatreStrip.qml",
                        "ReadingDesk.qml", "VaultHomeWidget.qml"]
+        if (win.androidHost) {
+            loaders.pop()
+            sources.pop()
+        }
         if (homeIntroWidgetCursor >= loaders.length) {
             homeIntroWidgetsLoaded = true
             return
@@ -338,7 +352,7 @@ Window {
     function homeIntroWidgetSettled(loader) {
         if (homeIntroPendingLoader !== loader) return
         homeIntroPendingLoader = null
-        if (homeIntroWidgetCursor >= 4) {
+        if (homeIntroWidgetCursor >= (win.androidHost ? 3 : 4)) {
             homeIntroWidgetsLoaded = true
             return
         }
@@ -566,7 +580,9 @@ Window {
                     + "  (booted=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
-        if (typeof WindowMode !== "undefined")
+        if (phoneShell.initializeWindow(typeof WindowMode !== "undefined" ? WindowMode : null))
+            ;
+        else if (typeof WindowMode !== "undefined")
             WindowMode.initializeShell(win)
         else
             win.showFullScreen()
@@ -732,6 +748,7 @@ Window {
             feriaActive: feriaLayer.open,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
+            profileActive: phoneShell.profileActive,
             bookActive: bookLayer.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
@@ -855,6 +872,7 @@ Window {
             return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
+        case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
@@ -898,6 +916,8 @@ Window {
         anchors.fill: parent
         z: 100000
         TapHandler {
+            // acceptedButtons filters mouse buttons only; touch would otherwise trigger Back.
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             acceptedButtons: Qt.BackButton
             onTapped: escapeCommand.invoke("mouseBack")
         }
@@ -1031,11 +1051,18 @@ Window {
     // Home or between modes just toggles visibility. So returning to a mode shows the already-loaded
     // world with its covers INTACT instead of re-downloading them. Real mode pages route to their
     // own QML; unbuilt modes fall back to DemoWorld.qml.
+    // This ordered registry is also the Android shell's world-tab source. Registering a future
+    // world here therefore adds its tab without a second navigation list.
+    readonly property var worldDefinitions: [
+        { name: "Theatre",  source: "TheatreWorld.qml",  icon: "../assets/icons/projector-theatre.svg" },
+        { name: "Tankoban", source: "TankobanWorld.qml", icon: "../assets/icons/comic-book.svg" },
+        { name: "Biblio",   source: "BiblioWorld.qml",   icon: "../assets/icons/book-library.svg" },
+        { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
+    ]
     function worldSourceFor(medium) {
-        if (medium === "Tankoban") return "TankobanWorld.qml"
-        if (medium === "Theatre") return "TheatreWorld.qml"
-        if (medium === "Biblio") return "BiblioWorld.qml"
-        if (medium === "Universes") return "UniversesWorld.qml"
+        for (var i = 0; i < win.worldDefinitions.length; ++i)
+            if (win.worldDefinitions[i].name === medium)
+                return win.worldDefinitions[i].source
         return "DemoWorld.qml"
     }
     function parkFeria(preserveSnapshot) {
@@ -1072,6 +1099,7 @@ Window {
         if (!found) openModes.append({ mode: medium })   // first visit → create its keep-alive Loader
         worldStack.current = medium
         currentSurface = medium
+        phoneShell.recordWorldOpened(medium)
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
     }
@@ -1098,6 +1126,7 @@ Window {
         }
     }
     function closeWorld() {
+        if (win.androidHost) return
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
@@ -1633,6 +1662,33 @@ Window {
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
 
+    // Full-window pages opened from browsing own the canvas while they are active. Downloads is
+    // deliberately excluded because it is the Profile destination and keeps shell navigation.
+    readonly property bool fullWindowPageOpen:
+        theatreSeriesLayer.active
+        || bookLayer.active
+        || seriesLayer.active
+        || westernLayer.active
+        || comicSeriesLayer.active
+        || locgPublisherLayer.active
+        || comicIndexLayer.active
+        || comicBoardLayer.active
+        || genreLayer.active
+        || genreIndexLayer.active
+        || biblioGenreLayer.active
+        || biblioGenreIndexLayer.active
+        || theatreGenreLayer.active
+        || theatreGenreIndexLayer.active
+        || searchLayer.active
+        || worldSearchLayer.active
+        || universeLayer.active
+        || universeHallLayer.active
+        || onePieceArcLayer.active
+        || vaultLayer.active
+        || continueSeeAllLayer.active
+
+    readonly property alias wideWorldNavigationLeftInset: phoneShell.wideWorldNavigationLeftInset
+
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
     //      engine URL. Deferred while the player streams (one engine, playback wins). ----
@@ -1883,6 +1939,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        if (win.androidHost) return
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -1926,8 +1983,9 @@ Window {
         active: open && feriaLayer.open && feriaLayer.item !== null
         visible: active
         onActiveChanged: if (!active) open = false
-        sourceComponent: Feria.YourFeriaPage { controller: feriaLayer.item }
+        source: "feria/YourFeriaPage.qml"
         onLoaded: {
+            item.controller = feriaLayer.item
             item.backRequested.connect(win.closeYourFeriaPage)
             item.settingsRequested.connect(function() { feriaLayer.item.openApps() })
             item.takeKeyboardFocus()
@@ -2858,7 +2916,7 @@ Window {
     // A loose local comic has no series page — open it in the standalone Vault reader host
     // (vaultComicLayer) as a taskbar comic session keyed to its content id.
     function openVaultComic(path, vaultId, title) {
-        if (!path) return
+        if (win.androidHost || !path) return
         Sessions.openOrSwitch({
             "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
             "target": { "vaultPath": path, "id": vaultId || ("vault-file:" + path), "title": title || "" }
@@ -3265,7 +3323,8 @@ Window {
         visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
-        x: theme.margin; y: 30
+        androidHost: win.androidHost
+        x: theme.margin; y: 18
         width: win.width - theme.margin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
@@ -3295,9 +3354,10 @@ Window {
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
     // as the drag surface (no titlebar added) and self-disables in fullscreen. See WindowBehavior.qml.
     WindowBehavior {
+        visible: !win.androidHost
         shell: win
         dragSurface: topbar
-        controller: WindowMode
+        controller: win.androidHost ? null : WindowMode
     }
 
     // Kept as a Component so Progress.recent() and the ContinueTile delegates are not evaluated
@@ -3319,6 +3379,26 @@ Window {
                         .concat(a.filter(function(e) { return e.watched === true }))
             })())
             property bool hasResumeItems: contItems.length > 0
+            property int currentIndex: contItems.length > 0 ? 0 : -1
+            onContItemsChanged: currentIndex = contItems.length > 0
+                                                ? Math.max(0, Math.min(currentIndex, contItems.length - 1)) : -1
+            function ensureCurrentVisible() {
+                var item = contRepeater.itemAt(currentIndex)
+                if (!item) return
+                var maxX = Math.max(0, contFlick.contentWidth - contFlick.width)
+                if (item.x < contFlick.contentX)
+                    contFlick.contentX = Math.max(0, item.x)
+                else if (item.x + item.width > contFlick.contentX + contFlick.width)
+                    contFlick.contentX = Math.min(maxX, item.x + item.width - contFlick.width)
+            }
+            function navigate(delta) {
+                if (contItems.length === 0) return false
+                var next = Math.max(0, Math.min(contItems.length - 1, currentIndex + delta))
+                if (next === currentIndex) return false
+                currentIndex = next
+                ensureCurrentVisible()
+                return true
+            }
             visible: hasResumeItems
             // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
             WidgetHeader {
@@ -3333,17 +3413,35 @@ Window {
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: win.televisionMode && contCol.hasResumeItems
+                Accessible.role: Accessible.List
+                Accessible.name: "Continue"
+                Keys.onPressed: (event) => {
+                    if (!win.televisionMode) return
+                    if (event.key === Qt.Key_Left) event.accepted = contCol.navigate(-1)
+                    else if (event.key === Qt.Key_Right) event.accepted = contCol.navigate(1)
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                             || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
+                        if (contCol.currentIndex >= 0 && contCol.currentIndex < contCol.contItems.length)
+                            win.resumeContinue(contCol.contItems[contCol.currentIndex])
+                        event.accepted = true
+                    }
+                }
                 Row {
                     id: contRow
                     spacing: 18
                     Repeater {
+                        id: contRepeater
                         model: contCol.contItems
                         delegate: ContinueTile {
                             required property var modelData
+                            required property int index
                             variant: "home"
                             entry: modelData
                             backdrop: wall
                             track: page.contentY + contFlick.contentX
+                            focusManagedByCollection: true
+                            keyboardFocused: contFlick.activeFocus && index === contCol.currentIndex
                             onResumeRequested: win.resumeContinue(modelData)
                             onDetailRequested: win.detailContinue(modelData)
                             onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
@@ -3361,8 +3459,9 @@ Window {
         z: 0
         visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: win.height - 96
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
+        y: topbar.y + topbar.height + 10
+        height: win.height - y
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
         clip: true
@@ -3377,18 +3476,59 @@ Window {
                     homeTopSpatialNav.moveFrom(fromItem, key)
             }
         }
-        Keys.onPressed: function(event) { homePageSpatialNav.handle(event) }
         Keys.onReleased: function(event) { homePageSpatialNav.handleRelease(event) }
         // the HOME page never had the eased wheel — the one surface scrolled most was the
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
         ScrollGlide { id: homeGlide; flick: page }
 
+        function isInsidePage(item) {
+            var p = item
+            while (p) {
+                if (p === page) return true
+                p = p.parent
+            }
+            return false
+        }
+        function revealFocusedItem(item) {
+            if (!item || !page.isInsidePage(item)) return
+            var point = item.mapToItem(page, 0, 0)
+            if (point.y < 18)
+                page.contentY = Math.max(0, page.contentY + point.y - 18)
+            else if (point.y + item.height > page.height - 18)
+                page.contentY = Math.min(Math.max(0, page.contentHeight - page.height),
+                                         page.contentY + point.y + item.height - page.height + 18)
+        }
+        function moveVerticalFocus(forward) {
+            var from = win.activeFocusItem
+            if (!from || !page.isInsidePage(from)) return false
+            var target = from.nextItemInFocusChain(forward)
+            var guard = 0
+            while (target && target !== from && guard++ < 96) {
+                if (target.visible && target.enabled && target.activeFocusOnTab) {
+                    target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                    page.revealFocusedItem(target)
+                    return true
+                }
+                target = target.nextItemInFocusChain(forward)
+            }
+            return false
+        }
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: (event) => {
+            if (win.televisionMode && event.key === Qt.Key_Up)
+                event.accepted = page.moveVerticalFocus(false)
+            else if (win.televisionMode && event.key === Qt.Key_Down)
+                event.accepted = page.moveVerticalFocus(true)
+            else
+                homePageSpatialNav.handle(event)
+        }
+
         Column {
             id: contentCol
             x: theme.margin
-            width: win.width - theme.margin * 2
+            width: page.width - theme.margin * 2
             topPadding: 10
-            spacing: 30
+            spacing: 32
 
             // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
             //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
@@ -3400,7 +3540,7 @@ Window {
                 id: hero
                 backdrop: wall
                 track: page.contentY
-                width: parent.width; height: 340; radius: 20
+                width: parent.width; height: 360; radius: 20
                 tint: 0.06
 
                 SwipeView {
@@ -3441,7 +3581,9 @@ Window {
 
                             // content over the scrim (chips row retired — ratified 2026-07-12)
                             Column {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
+                                anchors.left: parent.left; anchors.bottom: parent.bottom
+                                anchors.margins: 44
+                                width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                 spacing: 12
                                 Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
                                 Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
@@ -3486,6 +3628,15 @@ Window {
                                             onClicked: win.openUniverse(slide.modelData.extensionId,
                                                                         slide.modelData.name)
                                         }
+                                        KeyboardAction {
+                                            anchors.fill: parent
+                                            pointerEnabled: false
+                                            focusEnabled: win.televisionMode && slide.visible
+                                            accessibleName: "Explore " + slide.modelData.name
+                                            focusRadius: 12
+                                            onTriggered: win.openUniverse(slide.modelData.extensionId,
+                                                                          slide.modelData.name)
+                                        }
                                     }
                                 }
                             }
@@ -3508,6 +3659,7 @@ Window {
                 // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
                 // — quiet, top-right, gold on hover
                 Item {
+                    id: hallDoor
                     z: 5
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
                     width: hallRow.implicitWidth + 8; height: 28
@@ -3537,6 +3689,14 @@ Window {
                         id: hallMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: win.openWorld("Universes")
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        focusEnabled: win.televisionMode
+                        accessibleName: "Hall of Worlds"
+                        focusRadius: 8
+                        onTriggered: win.openUniverseHall()
                     }
                 }
             }
@@ -3632,6 +3792,39 @@ Window {
         }
     }
 
+    // Android readiness is the presented initial world, not merely a live process
+    // or the native splash. Emit once after its real Loader has an item.
+    property bool androidWorldReadyReported: false
+    property bool androidLocalOnboardingReported: false
+    Timer {
+        interval: 100
+        repeat: true
+        running: win.androidHost && !win.androidWorldReadyReported
+        onTriggered: {
+            if (!win.visible || boot.visible) return
+            if (accountHost.visible) {
+                if (!win.androidLocalOnboardingReported
+                        && typeof AccountController !== "undefined" && AccountController
+                        && AccountController.mode === "signedOut"
+                        && AccountController.onboardingRequired) {
+                    win.androidLocalOnboardingReported = true
+                    console.info("[boot] local onboarding visible")
+                }
+                return
+            }
+            if (worldStack.current === "") return
+            for (var i = 0; i < worldRepeater.count; ++i) {
+                var loader = worldRepeater.itemAt(i)
+                if (loader && loader.mode === worldStack.current && loader.visible
+                        && loader.status === Loader.Ready && loader.item) {
+                    win.androidWorldReadyReported = true
+                    console.info("[boot] android world ready: " + loader.mode)
+                    return
+                }
+            }
+        }
+    }
+
     // ---- world pages: one keep-alive Loader PER visited mode, stacked over the home on the SAME
     //      wallpaper. worldStack.current picks which is visible; "" = home. Kept alive so covers
     //      don't re-fetch on return (the home's top bar + scroll hide while a world is up). ----
@@ -3675,14 +3868,24 @@ Window {
     Item {
         id: worldStack
         anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
         Repeater {
             id: worldRepeater
             model: openModes
             delegate: Loader {
+                id: worldLoader
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
+                // Android builds a world page for several seconds on first entry. Say so
+                // instead of leaving a bare wallpaper; desktop is unchanged.
+                Text {
+                    anchors.centerIn: parent
+                    visible: Qt.platform.os === "android" && worldLoader.status !== Loader.Ready
+                    text: qsTr("Loading %1…").arg(worldLoader.mode)
+                    color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
+                }
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
                 active: false
@@ -3701,6 +3904,7 @@ Window {
                         item.lifecycleActive = Qt.binding(function() {
                             return worldStack.current === mode && !win.immersiveSurfaceOpen
                         })
+                    phoneShell.attachHostedItem(item)
                     item.medium = mode
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
@@ -3785,6 +3989,30 @@ Window {
                 }
             }
         }
+    }
+
+    PhoneShellHost {
+        id: phoneShell
+        window: win
+        worldStack: worldStack
+        topbar: topbar
+        page: page
+        contentCol: contentCol
+        hero: hero
+        hallDoor: hallDoor
+        homeBookshelfLoader: homeBookshelfLoader
+        homeTheatreStripLoader: homeTheatreStripLoader
+        homeReadingDeskLoader: homeReadingDeskLoader
+        homeVaultWidgetLoader: homeVaultWidgetLoader
+        downloadsLayer: downloadsLayer
+        extensionsLayer: extensionsLayer
+        historyStatsLayer: historyStatsLayer
+        syncCenterLayer: syncCenterLayer
+        stremioPanel: stremioPanel
+        accountFlyout: accountFlyout
+        wall: wall
+        escapeCommand: escapeCommand
+        fullWindowPageOpen: win.fullWindowPageOpen
     }
 
     Loader {
@@ -4334,8 +4562,10 @@ Window {
         property string archivePath: ""
         property string vaultId: ""
         property string title: "Comic"
-        source: "comicreader/VaultComicReader.qml"
+        source: win.androidHost ? "" : "comicreader/VaultComicReader.qml"
         onLoaded: {
+            // archivePath opens the reader synchronously. Supply its progress key
+            // first so the first load can restore the saved page.
             item.vaultId = vaultComicLayer.vaultId
             item.title = vaultComicLayer.title
             item.archivePath = vaultComicLayer.archivePath
@@ -4425,6 +4655,7 @@ Window {
         id: downloadsLayer
         objectName: "downloadsLayer"
         anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         z: 56     // taskbar full-page: ABOVE every browsing/detail page (universe 52, series/book 53)
                   // so clicking Downloads always lands on top — below only the immersive surfaces
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
@@ -4436,6 +4667,7 @@ Window {
         asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
+            phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4469,7 +4701,7 @@ Window {
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: "VaultPage.qml"
+        source: win.androidHost ? "" : "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
@@ -4648,7 +4880,8 @@ Window {
                 win.refreshWallpaper()
             }
         }
-        active: open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0)
+        active: win.feriaAvailable
+                && (open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0))
         visible: open
         source: "feria/FeriaWorld.qml"
         Binding {
@@ -4656,6 +4889,13 @@ Window {
             property: "lifecycleActive"
             value: feriaLayer.open
             when: feriaLayer.item !== null
+        }
+        Binding {
+            target: feriaLayer.item
+            property: "browserDeck"
+            // A Binding, not an onLoaded assignment: the deck Loader may complete after
+            // this layer's item when a browser session restores at startup.
+            value: feriaSessionDeck.item
         }
         Binding {
             target: feriaLayer.item
@@ -4667,7 +4907,6 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.sharedAccount = true
-            item.browserDeck = feriaSessionDeck
             item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
                 var id = Sessions.openBrowser(descriptor, fresh, navigate)
                 if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
@@ -4709,24 +4948,47 @@ Window {
         function onProfileChanged() { win.feriaReturnSnapshot = null }
     }
 
-    Feria.FeriaSessionDeck {
+    // The deck is a string-source Loader so Android (no Feria, no QtWebEngine) never
+    // parses FeriaSessionDeck.qml. Shell-side faces below stay null-safe while inactive.
+    Loader {
         id: feriaSessionDeck
-        sessions: Sessions
-        accountStore: FeriaAccount
-        policy: FeriaBrowserPolicy
-        fullSizeSurface: feriaFullSizeSurface
+        objectName: "feriaSessionDeck"
+        active: win.feriaAvailable
+        source: "feria/FeriaSessionDeck.qml"
         z: 58.5
         readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
                                                         : Qt.rect(0, 160, win.width, win.height - 160)
         x: viewport.x; y: viewport.y; width: viewport.width; height: viewport.height
-        displayed: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
-            && feriaLayer.item.hostSessionId.length > 0
-        suppressed: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
-            || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
-        onMessage: function(id, text) {
-            if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+        // Forwarded faces for shell references (feriaConsentSurface geometry, session teardown).
+        readonly property var activeEntry: item ? item.activeEntry : null
+        readonly property var embeddedConsent: item ? item.embeddedConsent : false
+        readonly property var embeddedDiagnostic: item ? item.embeddedDiagnostic : ""
+        readonly property var entries: item ? item.entries : ({})
+        function closeTab(id) { if (item) item.closeTab(id) }
+        function restoreSession(id) { if (item) item.restoreSession(id) }
+        function navigateSession(id, url, position, locator, ctx) { if (item) item.navigateSession(id, url, position, locator, ctx) }
+        Binding {
+            target: feriaSessionDeck.item
+            property: "displayed"
+            value: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
+                && feriaLayer.item.hostSessionId.length > 0
         }
-        Component.onCompleted: attachConsentSurface(feriaConsentSurface)
+        Binding {
+            target: feriaSessionDeck.item
+            property: "suppressed"
+            value: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
+                || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
+        }
+        onLoaded: {
+            item.sessions = Sessions
+            item.accountStore = FeriaAccount
+            item.policy = FeriaBrowserPolicy
+            item.fullSizeSurface = feriaFullSizeSurface
+            item.message.connect(function(id, text) {
+                if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+            })
+            item.attachConsentSurface(feriaConsentSurface)
+        }
     }
 
     // Permanent hosts outlive the Feria Loader. Max moves the live page here;
@@ -4885,6 +5147,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
+            && !win.androidHost
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
@@ -4954,13 +5217,7 @@ Window {
         id: openMediaDialog
         title: "Open Media"
         fileMode: FileDialog.OpenFiles
-        nameFilters: [
-            "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
-            "Comics (*.cbz *.cbr)",
-            "Books (*.epub)",
-            "Video (*.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
-            "All files (*)"
-        ]
+        nameFilters: phoneShell.openMediaNameFilters
         onAccepted: {
             var arr = []
             for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
@@ -5162,7 +5419,7 @@ Window {
     }
 
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
-    VaultIdentityCeremonyDialog {
+    LocalIdentityDialog {
         id: identityCeremonyDialog
         anchors.centerIn: parent
         z: 960
@@ -5257,7 +5514,7 @@ Window {
         objectName: "bootSplash"
         anchors.fill: parent
         z: 1000
-        onFinished: bootFade.start()
+        onFinished: { phoneShell.enterAndroidStartWorld(); bootFade.start() }
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }
@@ -5267,12 +5524,12 @@ Window {
             if (boot.visible)
                 return
             win.armStartupIdleWork()
-            // The splash can make the shell's dead-focus recovery park focus on the
-            // invisible keyboard ignition item after onboarding has already seeded its
-            // first action. Hand focus back to the topmost startup surface once it is
-            // actually revealed so Enter/Space work immediately on cold launch.
+            // Onboarding is the topmost startup surface and must retain first focus. Otherwise
+            // Android TV enters through TopBar; desktop dead-focus recovery keeps Arc 41 ignition.
             if (accountHost.visible)
                 accountHost.focusFirstInside()
+            else if (win.televisionMode)
+                Qt.callLater(function() { topbar.focusFirst() })
             else if (win.keyboardFocusDead)
                 keyboardIgnition.forceActiveFocus()
         }

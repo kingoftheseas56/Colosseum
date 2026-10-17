@@ -10,6 +10,13 @@
 // [Agent 2 (Claude), biblio]
 .pragma library
 
+// A provider URI is an access location, not the durable identity of an Android
+// Vault book. Preserve desktop and non-Vault keys exactly as before.
+function durableBookKey(pathKey, metadata, platform) {
+    var id = metadata ? String(metadata.id || "") : ""
+    return platform === "android" && id.indexOf("vault:") === 0 ? id : pathKey
+}
+
 // Derive a book format ("epub"/"mobi"/"pdf"/...) from a path or file:// URL.
 function formatFromPath(p) {
     var s = String(p || "")

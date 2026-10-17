@@ -21,7 +21,7 @@
 import QtQuick
 import "Catalog.js" as Catalog
 import "BiblioApi.js" as BiblioApi
-import "VaultApi.js" as VaultApi
+import "CatalogueRecents.js" as CatalogueRecents
 
 WorldPage {
     id: biblio
@@ -124,7 +124,7 @@ WorldPage {
         // Do not hydrate the Progress-backed row while this retained world is hidden. The live
         // binding re-evaluates on activation and keeps the existing Continue signal wiring.
         items: biblio.lifecycleActive
-               ? (Progress.revision, VaultApi.recentWithoutVault(Progress, "book", 12)) : []
+               ? (Progress.revision, CatalogueRecents.recent(Progress, "book", 12)) : []
         onResumeRequested: (item) => biblio.continueResumeRequested(item)
         onDetailRequested: (item) => biblio.continueDetailRequested(item)
         onSeeAllRequested: biblio.continueSeeAllRequested()

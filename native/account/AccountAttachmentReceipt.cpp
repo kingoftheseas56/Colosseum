@@ -17,6 +17,10 @@
 #include <utility>
 
 namespace {
+#ifdef COLOSSEUM_ACCOUNT_RECEIPT_TESTING
+thread_local AccountAttachmentReceipt::CommitFailureInjector commitFailureInjector;
+#endif
+
 constexpr int kReceiptVersion = 1;
 constexpr qsizetype kManifestLimit = 100;
 constexpr qsizetype kManifestBytesLimit = 256 * 1024;
@@ -49,6 +53,13 @@ QByteArray normalizedItemHash(
         : item.canonicalPayloadHash;
 }
 }
+
+#ifdef COLOSSEUM_ACCOUNT_RECEIPT_TESTING
+void AccountAttachmentReceipt::setCommitFailureInjectorForTesting(
+    CommitFailureInjector injector) {
+    commitFailureInjector = std::move(injector);
+}
+#endif
 
 QString AccountAttachmentReceipt::sourceKindLegacyLocal() {
     return QStringLiteral("legacy_local");
@@ -390,6 +401,10 @@ bool AccountAttachmentReceipt::writeAtomic(const QString &path,
                         QStringLiteral("Could not open the cloud attachment receipt for writing."));
     if (file.write(payload) != payload.size())
         return setError(error, QStringLiteral("Could not write the cloud attachment receipt."));
+#ifdef COLOSSEUM_ACCOUNT_RECEIPT_TESTING
+    if (commitFailureInjector && commitFailureInjector(data))
+        file.cancelWriting();
+#endif
     if (!file.commit())
         return setError(error, QStringLiteral("Could not commit the cloud attachment receipt."));
     return true;

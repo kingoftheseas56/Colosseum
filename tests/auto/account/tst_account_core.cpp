@@ -457,6 +457,10 @@ void tst_account_core::adoptionCommitRequiresRollbackBackup() {
              qPrintable(error));
     QCOMPARE(adoption->snapshot().legacyBackupSemanticDigest,
              QStringLiteral("semantic-v1"));
+    QVERIFY(!adoption->commit(&error));
+    QVERIFY(adoption->state() == ProfileAdoption::State::LegacyQuarantined);
+    QVERIFY2(adoption->markRatingsReviewsPrivateHandoffVerified(&error),
+             qPrintable(error));
     QVERIFY2(adoption->commit(&error), qPrintable(error));
     QVERIFY(adoption->state() == ProfileAdoption::State::Committed);
 

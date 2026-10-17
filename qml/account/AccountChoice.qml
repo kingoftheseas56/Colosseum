@@ -11,6 +11,11 @@ Control {
     property string detail: ""
     signal chosen()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: control.title
+    Accessible.description: control.detail
+    Accessible.onPressAction: if (control.enabled) control.chosen()
+
     implicitHeight: 76
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus

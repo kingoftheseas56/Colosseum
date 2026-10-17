@@ -2,148 +2,156 @@
   "schema": 1,
   "source_repository": "kingoftheseas56/Colosseum",
   "source_branch": "master",
-  "source_commit": "4d2a795d294cf6b9b6af9328b99b29f409a47f14",
+  "source_commit": "4dc515c558c9a2fb63095f53b3337797ba5546b4",
   "policy_sha256": "8516cedff2101c0f0ed9e99cedc500cc2a9761e4934787ef0ed25dd428f8ea13",
-  "original_files": 4151,
-  "original_bytes": 248381903,
-  "retained_files": 4018,
-  "retained_bytes": 65895057,
+  "original_files": 4296,
+  "original_bytes": 254655000,
+  "retained_files": 4162,
+  "retained_bytes": 72159933,
   "original_top_level": {
     ".clang-tidy": {
-      "bytes": 557,
-      "files": 1
+      "files": 1,
+      "bytes": 557
+    },
+    ".coderabbit.yaml": {
+      "files": 1,
+      "bytes": 4332
     },
     ".gitattributes": {
-      "bytes": 589,
-      "files": 1
+      "files": 1,
+      "bytes": 589
     },
     ".github": {
-      "bytes": 76497,
-      "files": 12
+      "files": 13,
+      "bytes": 86164
     },
     ".gitignore": {
-      "bytes": 2973,
-      "files": 1
+      "files": 1,
+      "bytes": 2973
     },
     ".mcp.json": {
-      "bytes": 145,
-      "files": 1
+      "files": 1,
+      "bytes": 145
     },
     "AGENTS.md": {
-      "bytes": 5205,
-      "files": 1
+      "files": 1,
+      "bytes": 5205
     },
     "CODE_OF_CONDUCT.md": {
-      "bytes": 2098,
-      "files": 1
+      "files": 1,
+      "bytes": 2098
     },
     "CONTRIBUTING.md": {
-      "bytes": 3312,
-      "files": 1
+      "files": 1,
+      "bytes": 3312
     },
     "LICENSE": {
-      "bytes": 1072,
-      "files": 1
+      "files": 1,
+      "bytes": 1072
     },
     "MEMORY.md": {
-      "bytes": 4254,
-      "files": 1
+      "files": 1,
+      "bytes": 4254
+    },
+    "MERGE-RESOLUTIONS.md": {
+      "files": 1,
+      "bytes": 5212
     },
     "README.md": {
-      "bytes": 19837,
-      "files": 1
+      "files": 1,
+      "bytes": 19837
     },
     "SECURITY.md": {
-      "bytes": 2148,
-      "files": 1
+      "files": 1,
+      "bytes": 2148
     },
     "SUPPORT.md": {
-      "bytes": 2648,
-      "files": 1
+      "files": 1,
+      "bytes": 2648
     },
     "THIRD_PARTY_DATA.md": {
-      "bytes": 6462,
-      "files": 1
+      "files": 1,
+      "bytes": 7149
     },
     "THIRD_PARTY_NOTICES.md": {
-      "bytes": 8758,
-      "files": 1
+      "files": 1,
+      "bytes": 8963
     },
     "assets": {
-      "bytes": 168693714,
-      "files": 331
+      "files": 333,
+      "bytes": 174019592
     },
     "data": {
-      "bytes": 257,
-      "files": 1
+      "files": 1,
+      "bytes": 257
     },
     "dev.bat": {
-      "bytes": 688,
-      "files": 1
+      "files": 1,
+      "bytes": 688
     },
     "docs": {
-      "bytes": 19263895,
-      "files": 107
+      "files": 110,
+      "bytes": 19307485
     },
     "extensions": {
-      "bytes": 56018,
-      "files": 12
+      "files": 12,
+      "bytes": 56018
     },
     "launch.bat": {
-      "bytes": 3868,
-      "files": 1
+      "files": 1,
+      "bytes": 3868
     },
     "native": {
-      "bytes": 8139025,
-      "files": 710
+      "files": 763,
+      "bytes": 8411657
     },
     "packaging": {
-      "bytes": 12507,
-      "files": 6
+      "files": 6,
+      "bytes": 12507
     },
     "patches": {
-      "bytes": 3072,
-      "files": 3
+      "files": 3,
+      "bytes": 3072
     },
     "player2.bat": {
-      "bytes": 523,
-      "files": 1
+      "files": 1,
+      "bytes": 523
     },
     "qml": {
-      "bytes": 9719161,
-      "files": 587
+      "files": 606,
+      "bytes": 10051170
     },
     "release": {
-      "bytes": 7686399,
-      "files": 13
+      "files": 13,
+      "bytes": 7686399
     },
     "resources": {
-      "bytes": 5384320,
-      "files": 127
+      "files": 129,
+      "bytes": 5388308
     },
     "scripts": {
-      "bytes": 772482,
-      "files": 48
+      "files": 57,
+      "bytes": 817504
     },
     "server": {
-      "bytes": 1366277,
-      "files": 179
+      "files": 179,
+      "bytes": 1366277
     },
     "tests": {
-      "bytes": 26103090,
-      "files": 1912
+      "files": 1962,
+      "bytes": 26324998
     },
     "tools": {
-      "bytes": 912023,
-      "files": 72
+      "files": 76,
+      "bytes": 919990
     },
     "web": {
-      "bytes": 80319,
-      "files": 11
+      "files": 11,
+      "bytes": 80319
     },
     "worlds": {
-      "bytes": 47710,
-      "files": 3
+      "files": 3,
+      "bytes": 47710
     }
   },
   "retained": [
@@ -153,6 +161,13 @@
       "git_blob": "35bf899661a2134e92d03aea167d978f33ecdfc2",
       "mode": "100644",
       "sha256": "27a2d90a9a2a0ad60388cf60bf9ae14ea2a1bd84eb2aedd6f35bac5d0a3c138a"
+    },
+    {
+      "path": ".coderabbit.yaml",
+      "bytes": 4332,
+      "git_blob": "c5ea786f55a9ead53fc25fd881deaba9c5e14ecd",
+      "mode": "100644",
+      "sha256": "91b31e998c294f7fd9b7bea64274c706f57f4194b07a32341dc5ab7530d6bf92"
     },
     {
       "path": ".gitattributes",
@@ -184,10 +199,10 @@
     },
     {
       "path": ".github/clang-tidy-allowlist.txt",
-      "bytes": 599,
-      "git_blob": "9d7036dcf05ff2671c3319fd822713edc5447dfa",
+      "bytes": 2045,
+      "git_blob": "895091ffb14c20744a0d36af8db7894844e0799c",
       "mode": "100644",
-      "sha256": "6e170edf6dda90a7b430786717555ff162072560ed8dd7cf65cb554a9f5bf2be"
+      "sha256": "f0e1661505e3849c5bc527178590ab7f4507e6459dd7978f66cbfeda5b283a4c"
     },
     {
       "path": ".github/codeql/codeql-config.yml",
@@ -239,6 +254,13 @@
       "sha256": "03a23ada909962a0ed2e71095ea022b251ca7fbc0942f3d0b31ac553557af6a9"
     },
     {
+      "path": "MERGE-RESOLUTIONS.md",
+      "bytes": 5212,
+      "git_blob": "b504b6cd8d3501ec2ebd41c40ba1e06f53e084ce",
+      "mode": "100644",
+      "sha256": "fa9d90f550005f69e310fcf884623b240aa73c5850e66258917362834d2302ef"
+    },
+    {
       "path": "README.md",
       "bytes": 19837,
       "git_blob": "5d0c05f05485c04db46f49344eacdda0f8fdf7a6",
@@ -261,17 +283,17 @@
     },
     {
       "path": "THIRD_PARTY_DATA.md",
-      "bytes": 6462,
-      "git_blob": "b6209a62b2267793b35a0e9c400dcb5e14cee0da",
+      "bytes": 7149,
+      "git_blob": "042b0cd3467f8c173af8f4f5f52b668b5dad1b04",
       "mode": "100644",
-      "sha256": "1d022fd56f44e773f4c8255a1efe322e08c17f566d86542dd03d82d71d2b8de9"
+      "sha256": "7d097bc97c8af6e6b5c19d303b52b07298a58719d2738e87e72a17647d266e5a"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "bytes": 8758,
-      "git_blob": "cc992ad9c558f14245ac3ce20a5941a221101fc7",
+      "bytes": 8963,
+      "git_blob": "6f9c61566d6d321c61d380d1a52af48df1544d7d",
       "mode": "100644",
-      "sha256": "258b7c55c9cf871e6b078c96f14543fd7dc8bf37e61b2d699e0170ed6702493a"
+      "sha256": "ed58f869a17eacfbbea966b58477d342ab9eaadab5fda13788c489af131721ac"
     },
     {
       "path": "assets/addon-logos/aiolists.png",
@@ -776,6 +798,20 @@
       "git_blob": "53c05f8b5daa9bc4c8d597a95c1c7a2e9526b054",
       "mode": "100644",
       "sha256": "0b1652d8384fcd5038dc19317ab0e0c4f4b7317e6a9729d8ef38fba375b01921"
+    },
+    {
+      "path": "assets/fonts/Unifont-17.0.05-OFL.txt",
+      "bytes": 4250,
+      "git_blob": "94339e0f429ab551b4a52b3209e1788429e4fa7c",
+      "mode": "100644",
+      "sha256": "b7e8b9d8656d5216a61f48c7e62704b8aec50e8af8ca410b28fb04ea32e0f220"
+    },
+    {
+      "path": "assets/fonts/Unifont-17.0.05.otf",
+      "bytes": 5321628,
+      "git_blob": "75b025185cea3c5e24ac243b50c49143cb4cd522",
+      "mode": "100644",
+      "sha256": "85701ab9b1e251ee16f4df00b13f22eac311d72b7dab427a7d975fe7f5064702"
     },
     {
       "path": "assets/icons/book-library.svg",
@@ -1822,10 +1858,10 @@
     },
     {
       "path": "docs/README.md",
-      "bytes": 3014,
-      "git_blob": "6dbac9d97bf57b5849dc852352e292dcb3fec27b",
+      "bytes": 3068,
+      "git_blob": "ee6d23154592f26366351e8c7f57bb5bb2afcae7",
       "mode": "100644",
-      "sha256": "d2b89d0429b120216ce8dfebd5aa7a0078161d7d6646ada8045ac48c8d66a375"
+      "sha256": "9cfe34eb5014d91e550b564eeba9079d565f2d1eb48689fbc45a93932d0eff34"
     },
     {
       "path": "docs/UNIVERSE_PAGE_LAW.md",
@@ -1868,6 +1904,27 @@
       "git_blob": "eb58e0567e46f39fc4df3e4a15ca215e9047e22b",
       "mode": "100644",
       "sha256": "162ded9d27281fd763df783e1745fbc64fb93b3109d07fef743790d554385abb"
+    },
+    {
+      "path": "docs/build/ANDROID-INSTALLABLE-HANDOFF.md",
+      "bytes": 10399,
+      "git_blob": "73bcd066589cbb8a25710678cca8f84d05fb7645",
+      "mode": "100644",
+      "sha256": "e91264994ab44af74786a06e022c25e85c4abc173da41caae2f992fc32bc1681"
+    },
+    {
+      "path": "docs/build/ANDROID-REVIEW-HANDOFF-2026-10-02.md",
+      "bytes": 13900,
+      "git_blob": "537f2bdf6e59b3751d3edfa9a84c401795b70a15",
+      "mode": "100644",
+      "sha256": "4da3b249910300c3342243f08814191b0cdbeda3dea2c29efa53c8f814e06b20"
+    },
+    {
+      "path": "docs/build/android.md",
+      "bytes": 10476,
+      "git_blob": "70bd39d98890175f0cdd8c2e8e8213bb05faffa4",
+      "mode": "100644",
+      "sha256": "884cb5a68edd5c12ba22c87b0ab28cec9d80f8faedc60fc041a31ca2f776fa4e"
     },
     {
       "path": "docs/build/linux.md",
@@ -1948,10 +2005,10 @@
     },
     {
       "path": "docs/keyboard/arc41-action-census.json",
-      "bytes": 283346,
-      "git_blob": "6cb1148ffaaff4bfdf863190f15e8fd714e235ab",
+      "bytes": 287856,
+      "git_blob": "8ac5feefd81543dc68baaeceac8b27ede15c6db0",
       "mode": "100644",
-      "sha256": "1b1d876de0a88e5dd79fd9495324589cbf054766caf6cc3acaa5d7816324581a"
+      "sha256": "36912fe2a5522415eb6148070d814641dbda79a63148f33651b195f536d3abb4"
     },
     {
       "path": "docs/keyboard/arc41-independent-audit.md",
@@ -1976,10 +2033,10 @@
     },
     {
       "path": "docs/keyboard/arc41-scroll-census.json",
-      "bytes": 42194,
-      "git_blob": "23a183df831f8202e441493541b039e7fc0ef6fd",
+      "bytes": 46445,
+      "git_blob": "0963fb1ea60bd0d8de08b0846559aaedd2b11827",
       "mode": "100644",
-      "sha256": "1f9d31513504a324076e713afc2544b4d164df9484c1135b8771e741ee0094c7"
+      "sha256": "cb1e96ae4284ae96c4ce664edd18dc65c537cc84478f570cdb4bc07bbd3ec09f"
     },
     {
       "path": "docs/lanista-coverage/accepted-state.json",
@@ -2613,10 +2670,10 @@
     },
     {
       "path": "native/CMakeLists.txt",
-      "bytes": 129861,
-      "git_blob": "a591014e1a060f970d1ffb659b721eb56bf8e67a",
+      "bytes": 133590,
+      "git_blob": "6da423764b7c9016af7cad7a96955f83c0a28512",
       "mode": "100644",
-      "sha256": "49028379882da78602c04ad2f0533d1c0c578cc698220e0bf8b53c6af2ff5729"
+      "sha256": "8bd64f25ebe45c58ad897a513efd243622265e43393e0f1810b9d025963b16ed"
     },
     {
       "path": "native/ClipboardHelper.h",
@@ -2697,17 +2754,17 @@
     },
     {
       "path": "native/account/AccountAttachmentReceipt.cpp",
-      "bytes": 20933,
-      "git_blob": "1a66a002d938ad51ffcb7d12b15ff71e466e54f0",
+      "bytes": 21411,
+      "git_blob": "4f151e9b502e70166339c61c7b8db795ca9e4d0a",
       "mode": "100644",
-      "sha256": "2a4e3d24a1df06776eaa22aee48d0786cdbefade4b9d8b93c467719cc51723e8"
+      "sha256": "aa4ee4713ee3e8bd062d145c4bd66622dc05294d2232bf4a3f54ac5ae4e68105"
     },
     {
       "path": "native/account/AccountAttachmentReceipt.h",
-      "bytes": 4205,
-      "git_blob": "4e26f02afe2869eecaa9eb299dcac4017f7a432c",
+      "bytes": 4588,
+      "git_blob": "6214b8fb827af9f2a6bccae671fabb1768708ad4",
       "mode": "100644",
-      "sha256": "e4b8bc17d2907130cb08431c353bdf8cff6cc6de817a9fd8e183941aa792890a"
+      "sha256": "e809bc7b06e51f7b490333e84dcce30390837408fcfb32288c502b14c7819fde"
     },
     {
       "path": "native/account/AccountBootstrapStore.cpp",
@@ -2753,17 +2810,31 @@
     },
     {
       "path": "native/account/AccountCredentialStore.h",
-      "bytes": 1169,
-      "git_blob": "536f0b0fdeaf7fb0aa3daee93133726f8bee5b17",
+      "bytes": 1835,
+      "git_blob": "d862116c8df119b81ed38d05a468100fa422d39d",
       "mode": "100644",
-      "sha256": "ccdbd021005f42f6e627f05b1d48a9fbe2eb6baf2e484c7e354430d9a43d8f05"
+      "sha256": "5d0e0d2d1dcfb2ff49e85ed7240a5e76bea5058cc00b46547d2f572763705d3b"
+    },
+    {
+      "path": "native/account/AccountCredentialStoreFactory.cpp",
+      "bytes": 3018,
+      "git_blob": "08f5ed018da6a05389dbbdfd3a913f4a253cbe87",
+      "mode": "100644",
+      "sha256": "b7f1ceb2998338c445fd2d2fee096a2af32b9a19ab7da241ff246602acb56d25"
+    },
+    {
+      "path": "native/account/AccountCredentialStoreFactory.h",
+      "bytes": 537,
+      "git_blob": "07128a643244da7e76ec73304854772e8b4f9f1e",
+      "mode": "100644",
+      "sha256": "9bbc0b4071b38439913eb564cbf6685c6ce5b9a2ca0745ab80e5256966bef02a"
     },
     {
       "path": "native/account/AccountDeviceIdentity.cpp",
-      "bytes": 1598,
-      "git_blob": "da43ecbfcb705f436fb693391fc331aa0e14b780",
+      "bytes": 1959,
+      "git_blob": "2edbd7a76407fd9dd827234aaeafc624bb0513ad",
       "mode": "100644",
-      "sha256": "d541f9f5a13097c518f566847d84121a542a61bcc2b431c26d58becfffa88631"
+      "sha256": "83322dda413511b0784be0a248cc8a6cc6124b09c7cfa1a63b30a241e14e9f73"
     },
     {
       "path": "native/account/AccountDeviceIdentity.h",
@@ -2816,10 +2887,10 @@
     },
     {
       "path": "native/account/AccountRecoveryKeyPresenter.cpp",
-      "bytes": 3863,
-      "git_blob": "525e10c3db9c5841920c72b8809e4f5eaeadf4e7",
+      "bytes": 3859,
+      "git_blob": "4d56ef7dd4e54d0b35a1ceb72a525a517e4e39bb",
       "mode": "100644",
-      "sha256": "e5d582082a30b335f389719b05db910c77d19e46e823fef96bcac62878f191f9"
+      "sha256": "70af41bd807498b18e636fcbefaafd42e9382a72433b0cb58f8cfe157a2a4719"
     },
     {
       "path": "native/account/AccountRecoveryKeyPresenter.h",
@@ -2830,17 +2901,17 @@
     },
     {
       "path": "native/account/AccountRuntime.cpp",
-      "bytes": 107476,
-      "git_blob": "0da9751a23394b3da97551a7a9c48a18f56c7cc4",
+      "bytes": 107657,
+      "git_blob": "cd80c777efe94a612e6d2a98c08c77726f2609d9",
       "mode": "100644",
-      "sha256": "e9cf18750a75ead8df48a856c869bfbc1b689a58900a10fccb7ce415cadbdf40"
+      "sha256": "09bfd899300443eda61b6b6fd36f21b6b6219b69e07e2489122f91671937715e"
     },
     {
       "path": "native/account/AccountRuntime.h",
-      "bytes": 7866,
-      "git_blob": "af24b19239253c43a3db493aa84cdee230bcab05",
+      "bytes": 8030,
+      "git_blob": "8aba2f5cba05768fb5ff3800020ea990b2376e3b",
       "mode": "100644",
-      "sha256": "dd30853add9c38825483cfe61a25a3c62f516eca5768092c5d780d6b9b88852f"
+      "sha256": "18547a0378a9099cc6bd0229d0177060280934556fd7068504231fd4c012cfed"
     },
     {
       "path": "native/account/AccountRuntimeDownloads.cpp",
@@ -2932,6 +3003,48 @@
       "git_blob": "2f8ebf84247e2fb78cfe1092becd39c9826e3716",
       "mode": "100644",
       "sha256": "9da5b59d72864989d4c532f7338202f1b42797c715022aef9937b9b40a9eac7e"
+    },
+    {
+      "path": "native/account/AndroidAccountCredentialStore.cpp",
+      "bytes": 4717,
+      "git_blob": "8e028ac435f6d41a441f21f4ceb9a700eb1a00fa",
+      "mode": "100644",
+      "sha256": "358529589628154a4639a1c33988639885aaf91bf0e26d4d4113d60edc4dc768"
+    },
+    {
+      "path": "native/account/AndroidAccountCredentialStore.h",
+      "bytes": 1389,
+      "git_blob": "e7b10d7b7dad4bef4a8531941d32593b11db0006",
+      "mode": "100644",
+      "sha256": "98e1780b1f22f5f5e1a0054befbad816b2208cce6196a2c62fedba15c2800a45"
+    },
+    {
+      "path": "native/account/AndroidAccountSensitiveClipboard.h",
+      "bytes": 442,
+      "git_blob": "12222241210e040b6ff1797a29febe629eec243b",
+      "mode": "100644",
+      "sha256": "99759c9d3f41491c58d31df015ee87ca6d371d5752a770957b263d2d647fb91a"
+    },
+    {
+      "path": "native/account/AndroidJniSecureStorageBackend.cpp",
+      "bytes": 3496,
+      "git_blob": "85b30c1f75dc48816aae8ef36478379a5a763c1d",
+      "mode": "100644",
+      "sha256": "c7d2e04620ad0a8742921f3ef7aad050cf2eb584d98d3176366b8da4e6917b41"
+    },
+    {
+      "path": "native/account/AndroidJniSecureStorageBackend.h",
+      "bytes": 435,
+      "git_blob": "0a9ee63c8d92bcc9253383c6b10c50fa133c30c6",
+      "mode": "100644",
+      "sha256": "3a95d1ffb3792b54b692983e2bd51348f886626737e496b24741d577a418255d"
+    },
+    {
+      "path": "native/account/AndroidSecureStorageBackend.h",
+      "bytes": 506,
+      "git_blob": "26cf42485c805ee82f52b4667dac3897fce8ed37",
+      "mode": "100644",
+      "sha256": "ebdb0aa1c80d3ba7250cd2fa3964184f9ee901357bc34a24f72d81c97a4f730c"
     },
     {
       "path": "native/account/CollectionSyncAdapter.cpp",
@@ -3201,10 +3314,10 @@
     },
     {
       "path": "native/account/RatingsReviewsDelivery.cpp",
-      "bytes": 47983,
-      "git_blob": "264e4e2199317c301b1ccf7bd87479addd5134c8",
+      "bytes": 48079,
+      "git_blob": "21172b03b17aca51df05f7ace248792259f51ac3",
       "mode": "100644",
-      "sha256": "5361ef26000bde1c6c03dbf3404e8b3ff354896f3e58826362173ec0d21d4027"
+      "sha256": "dc71d6e7a960173af3978beb99688cd338adecc056da7835d510503e6d4ad346"
     },
     {
       "path": "native/account/RatingsReviewsDelivery.h",
@@ -3495,10 +3608,10 @@
     },
     {
       "path": "native/account/WindowsAccountCredentialStore.h",
-      "bytes": 2828,
-      "git_blob": "4019f06deea287ba6fd12b596378afbfc43aad94",
+      "bytes": 2748,
+      "git_blob": "8568a97ab6892bc42665a66f9fa2914f745b2d3c",
       "mode": "100644",
-      "sha256": "5aca5299c1081014ccec49c1e3c13653b0827c734874b146306cd04890d4fbfe"
+      "sha256": "6d8ef2f482d62c33cc461086ffc70c73c637840a7ccdc0a986a0587c92cf4b9a"
     },
     {
       "path": "native/account/WindowsAccountSensitiveClipboard.cpp",
@@ -3621,17 +3734,17 @@
     },
     {
       "path": "native/bootstrap/StartupLayout.cpp",
-      "bytes": 6533,
-      "git_blob": "ddedd33d2601a806cc88e56a2caf62523e115699",
+      "bytes": 12764,
+      "git_blob": "c007fda698aa56eb8d40adf5630d172a5360e341",
       "mode": "100644",
-      "sha256": "3aa17cd4bf9a5210c380c2536b03aa59ac233bf49e36b64921cbf6a1114613f7"
+      "sha256": "505907eb6df4fbf64eae84df792c1b5dbb3261e11e113f7a3af7eaaf81a8c2f0"
     },
     {
       "path": "native/bootstrap/StartupLayout.h",
-      "bytes": 503,
-      "git_blob": "9c92f2e2aa11c78e0678dc0afd36fcdf98a67479",
+      "bytes": 820,
+      "git_blob": "47581c2ac5346d5c2cd6fd716332a4c27bd0c904",
       "mode": "100644",
-      "sha256": "339482e337ef054d035fcc035ed53e5d9f1288333cb934dc5b44aece74d5ef85"
+      "sha256": "3e24b22ae64e11d6cd7b020d1d8f7a53457ffaa6a75c9f308fc1e771a440c743"
     },
     {
       "path": "native/bootstrap/write_qml_build_manifest.cmake",
@@ -3639,6 +3752,13 @@
       "git_blob": "cd9c680872432bf21a6a5a399925021c0696763e",
       "mode": "100644",
       "sha256": "c061f7c89951a32fab88155d4b00cd8d1a54b9300f9c9032b840ef713b93a8b7"
+    },
+    {
+      "path": "native/bootstrap/write_runtime_bundle_manifest.cmake",
+      "bytes": 1253,
+      "git_blob": "b82d28b08f72a9b1c2f11245fcd23de7e480ca8b",
+      "mode": "100644",
+      "sha256": "3f46cf03b8e32f246b1691f211f186bab6fe803f4d5f129d12e62a3ae8ec521f"
     },
     {
       "path": "native/build-msvc.bat",
@@ -3653,6 +3773,13 @@
       "git_blob": "3fd5e40bd2a44012615c2bc4fa3658bde93c5817",
       "mode": "100644",
       "sha256": "12328aa2fe71b734da84589ece2b48d5e6d922abb83388ce3d269aa780e19fd1"
+    },
+    {
+      "path": "native/cmake/android.cmake",
+      "bytes": 9759,
+      "git_blob": "6cea8b1ef7da3f5cca6bd999b305a22280da6e75",
+      "mode": "100644",
+      "sha256": "3253fe9fe31f88b1c853063b21f3a869de38f25dbbf9e5a60801bc40b9afc820"
     },
     {
       "path": "native/comicreader/ComicReaderCore.cpp",
@@ -3831,17 +3958,17 @@
     },
     {
       "path": "native/devtools/LanistaServer.cpp",
-      "bytes": 105201,
-      "git_blob": "6210daa05edd13bc6454689fba4d50ae901eaff0",
+      "bytes": 105303,
+      "git_blob": "0f501ba3cbd80d9ec0d02f4be5e48ebae23acec4",
       "mode": "100644",
-      "sha256": "932d18b97ad91e4c16fff068cc6c5ba39c5db05de1b86e7be6598f09441f44be"
+      "sha256": "a5709cd235ed38703450d562b6a9d0544762cf0361579444d3e0103a6f0971b7"
     },
     {
       "path": "native/devtools/LanistaServer.h",
-      "bytes": 19226,
-      "git_blob": "490518875ad1c93b94dfbe7ce172a817d9b283fe",
+      "bytes": 19362,
+      "git_blob": "34a5c898859aa5e017d255b88be320354bbbcb45",
       "mode": "100644",
-      "sha256": "1560366837125ab13c6e9d6b14d73d0c9434a2990ec8a38f3593182caa5ab3dd"
+      "sha256": "193a963d95cf7beda707a52bbdcae9cdcf30c96daeb10a9be9cfa2112c651ecd"
     },
     {
       "path": "native/engine/AppLog.cpp",
@@ -3985,10 +4112,10 @@
     },
     {
       "path": "native/engine/CatalogVaultClient.cpp",
-      "bytes": 17899,
-      "git_blob": "ee4833b165c2f673d581882fb7df793e8f38e1c7",
+      "bytes": 18226,
+      "git_blob": "806b91a070d1efb3637c906621cfb12434de0d9c",
       "mode": "100644",
-      "sha256": "ff50576a994a0e2293c78fe8922065ff4d18772b355e844b3e388337b4ed1d2a"
+      "sha256": "208eadefcc8594b15c702326f3da940ad097a35459bc768ce28d067e543a0711"
     },
     {
       "path": "native/engine/CatalogVaultClient.h",
@@ -3999,10 +4126,10 @@
     },
     {
       "path": "native/engine/CbzArchive.cpp",
-      "bytes": 14528,
-      "git_blob": "36f2907b63305ad918dfa108f7f9e22dae17f419",
+      "bytes": 15372,
+      "git_blob": "e1b997ddc9e87cdece31d5ab6aef638f00663de5",
       "mode": "100644",
-      "sha256": "5dcd941f2e836692131d6f3522df303dec7c00e29117bb0f065cb771661a2416"
+      "sha256": "5398669a8396e51f5f33667800428e315ee69ec1f6c2e0add2d5d490b3e95fbc"
     },
     {
       "path": "native/engine/CbzArchive.h",
@@ -4167,10 +4294,10 @@
     },
     {
       "path": "native/engine/ImdbCatalog.cpp",
-      "bytes": 13231,
-      "git_blob": "5c0c6d28e3a7033933c08df62ee7a9b6014a94a6",
+      "bytes": 13276,
+      "git_blob": "35f2911ae7f03511255499517c3168f839352cb8",
       "mode": "100644",
-      "sha256": "39a521d4c7a2359e93c2018f39f0d540656381ee3eacfab284b070042542373a"
+      "sha256": "45baf7854688e74608b66d5489e96c9eee8e62766b9b43ff648690eab06be03d"
     },
     {
       "path": "native/engine/ImdbCatalog.h",
@@ -4209,10 +4336,10 @@
     },
     {
       "path": "native/engine/LocalLaunch.cpp",
-      "bytes": 17416,
-      "git_blob": "b84ed2341046b6134b8185052877a4f1d05670cf",
+      "bytes": 18362,
+      "git_blob": "522538eb8e9801e916e64d6d1c777f6625218c33",
       "mode": "100644",
-      "sha256": "3a2840b285bf7c7a1bb241c49ecf4e3436cfbfc1918707c6a95d421b2d8a90cc"
+      "sha256": "01fc7b805fa3cdb6c7eb579953b4a0b1233672439e3f19f6908796178fbd52a9"
     },
     {
       "path": "native/engine/LocalLaunch.h",
@@ -4223,10 +4350,10 @@
     },
     {
       "path": "native/engine/MalCatalog.cpp",
-      "bytes": 31772,
-      "git_blob": "d1c98f23bef8c3918ef688e51f37c68f246a03b1",
+      "bytes": 31817,
+      "git_blob": "6adbfb16e06d43eccae979e554bb9ada7bc6bbb1",
       "mode": "100644",
-      "sha256": "d71eaf5a1815832462c24e3ff6b5da1f4a1d1c71aeeb68f912e230abf09830a8"
+      "sha256": "2cbee0dd9e12d594f0373640d6dfb7d480ccbca7bb3d8eaf7f4e39e1bf6db573"
     },
     {
       "path": "native/engine/MalCatalog.h",
@@ -4390,6 +4517,13 @@
       "sha256": "7343ae08f11fdec13aebce6b7aa56ae89accfa55a1b54e7399e21a18f1e7d206"
     },
     {
+      "path": "native/engine/MediaTitleNormalization.h",
+      "bytes": 7577,
+      "git_blob": "f0521efb4a87f5bf66f182b43d16593dcebc052c",
+      "mode": "100644",
+      "sha256": "71fe39ca69fd856d3592f14db650be99545afd6cdfe1cd5a2216756be7ad2de5"
+    },
+    {
       "path": "native/engine/RatingsReviewsProviderReadProjection.cpp",
       "bytes": 13084,
       "git_blob": "2d83d2a5a502715ae7af87fe200253cada9b87c8",
@@ -4530,6 +4664,34 @@
       "sha256": "3953ec3bedde9cb19bea1742f6b7f137abd0cb64ac0a27473590f20473cfc750"
     },
     {
+      "path": "native/engine/VaultAndroidIndexAdapter.cpp",
+      "bytes": 7238,
+      "git_blob": "bc10bebc81cd72e10f9cfeccd91797fd23ea9dd7",
+      "mode": "100644",
+      "sha256": "c6f48b983c65c7a2056b15028eb9d5db7e560e338f870400b01e2ad607784e88"
+    },
+    {
+      "path": "native/engine/VaultAndroidIndexAdapter.h",
+      "bytes": 1827,
+      "git_blob": "7a1c994ae7b45c48eae9b05dd308ee6180ff46f8",
+      "mode": "100644",
+      "sha256": "1313448bc579cbeac405d7935290e352f8e3ff8eeed75a6261d8ac59d282f5e3"
+    },
+    {
+      "path": "native/engine/VaultAndroidStorageBridge.cpp",
+      "bytes": 3091,
+      "git_blob": "12801d73409751beffebc955e5f5328faa6669d1",
+      "mode": "100644",
+      "sha256": "db27cd758c46ee52032cb3a0015213398a4427f8f1ecbcabe16e89bf78561564"
+    },
+    {
+      "path": "native/engine/VaultAndroidStorageBridge.h",
+      "bytes": 608,
+      "git_blob": "c27c75722c13feaf0f9f2009a51eff8046a78f06",
+      "mode": "100644",
+      "sha256": "c51e247146de190705fd4e7469e2e2397120e76deed60f825366eb6b810b8734"
+    },
+    {
       "path": "native/engine/VaultArtworkResolver.cpp",
       "bytes": 4134,
       "git_blob": "41dabcf425e1192f32f04ceeaee74763fcf4c7ce",
@@ -4573,17 +4735,17 @@
     },
     {
       "path": "native/engine/VaultBrowseAway.cpp",
-      "bytes": 6204,
-      "git_blob": "d8b0c1ff85df0f7ee6830c9d514d9737228a5f80",
+      "bytes": 16366,
+      "git_blob": "4059f20465c73b727779792414470fd63ae16649",
       "mode": "100644",
-      "sha256": "b9467757e2256734564e55974e464403f0ca91879e8d6aa4460c04ed603ee506"
+      "sha256": "30d7d49e448a029956b61ef61f660f54c7128588e23552f9eacc15b61436df49"
     },
     {
       "path": "native/engine/VaultBrowseAway.h",
-      "bytes": 2843,
-      "git_blob": "e991623a2c02c9f7a4ea967c576540f515f3190e",
+      "bytes": 3279,
+      "git_blob": "3357205bd0ac334d164c4cf137bcb820f446357c",
       "mode": "100644",
-      "sha256": "f7ac1eedec40598560162a664c154ad469725005c5d32ed8e912c294a0fde766"
+      "sha256": "9c4c70278417f16dc0021401eabbe3ee7b27bb8f8edd7659f784ee5186a8a55e"
     },
     {
       "path": "native/engine/VaultBrowseDetail.cpp",
@@ -4622,10 +4784,10 @@
     },
     {
       "path": "native/engine/VaultConfig.cpp",
-      "bytes": 8808,
-      "git_blob": "afd1a7790494844313e7cd95761c6b2da9dcd9f0",
+      "bytes": 8781,
+      "git_blob": "44e88e55d277523b42c2b54f18af2491023bb2f5",
       "mode": "100644",
-      "sha256": "650920638daefc2076635deee6eaacc5defbdaff0b2b0f1dc3217c1e8a8e92db"
+      "sha256": "6b635676158ee1acf4210c73b12c0e8de7ade78d4f5260538d37b43e43986f72"
     },
     {
       "path": "native/engine/VaultConfig.h",
@@ -4650,10 +4812,10 @@
     },
     {
       "path": "native/engine/VaultEnricher.cpp",
-      "bytes": 25863,
-      "git_blob": "33f030d510dade2de74e9b13e994ccb925c837d6",
+      "bytes": 25906,
+      "git_blob": "d533e764aa366c5d5ca0bd8344a3ff4884c5e59f",
       "mode": "100644",
-      "sha256": "49a37007df9d9cdc788d082f4950d15d5c1181e39b4745175e66f825d3f6c7fb"
+      "sha256": "46f0f8791c09dc0e63ad9d3eed595b86e7a0ba8e59332693ca8ad8a21d750232"
     },
     {
       "path": "native/engine/VaultEnricher.h",
@@ -4692,10 +4854,10 @@
     },
     {
       "path": "native/engine/VaultIdentity.cpp",
-      "bytes": 18119,
-      "git_blob": "0ecef460a3c39fab223a46c699da005764e29373",
+      "bytes": 18092,
+      "git_blob": "a9208eeef01585779319e90c8abd35ead4339668",
       "mode": "100644",
-      "sha256": "8f645223a691798599b3f8d9a586b35ed290ccd89b41e365aa1b2c3c59879379"
+      "sha256": "00d8afdb9cfd1e29ab0ae464a024c06661ca3facc327118340171f8b6590ba6e"
     },
     {
       "path": "native/engine/VaultIdentity.h",
@@ -4720,10 +4882,10 @@
     },
     {
       "path": "native/engine/VaultKit.cpp",
-      "bytes": 48893,
-      "git_blob": "12718079346df1a17b084c5e04267688844c0294",
+      "bytes": 41876,
+      "git_blob": "ee800f4ae1f0b995cd9054d17e21dda6e9adfbb3",
       "mode": "100644",
-      "sha256": "95c483fa2eb768ac7db25bbdfcad4ea0bae03b0d352cbad0ae2aac967aaafdb0"
+      "sha256": "614b027957285b0164fa4f5737eb891ffd3ee465142bde8ea4d1f329a6f1ca1e"
     },
     {
       "path": "native/engine/VaultKit.h",
@@ -4734,10 +4896,10 @@
     },
     {
       "path": "native/engine/VaultLibrary.cpp",
-      "bytes": 83812,
-      "git_blob": "7f63c87bb414b96f11682f5e3acb8ee61c31c8f3",
+      "bytes": 84165,
+      "git_blob": "9a29c345eeadbf1866bd126417d7f4c09990d7be",
       "mode": "100644",
-      "sha256": "b84e809eac595a627b34f353775148ab6b471d717803e47cf8428d83603544da"
+      "sha256": "e5e9aa4d3c06262b972beef2ed53452449fdcae3682a61cecf6a9041c855a06d"
     },
     {
       "path": "native/engine/VaultLibrary.h",
@@ -4745,6 +4907,13 @@
       "git_blob": "0cbab8a51107758a5cc13da191223b904cc52ae7",
       "mode": "100644",
       "sha256": "4154316b95846952a15c3b7f62c17383eea1afcb52281d5a0f654219ce55ea9e"
+    },
+    {
+      "path": "native/engine/VaultLocation.h",
+      "bytes": 769,
+      "git_blob": "49b247ed14a5b746050c7def08de91a6d6b81ad1",
+      "mode": "100644",
+      "sha256": "12d356ed06009cae89f93eddac252313b0fcb79e0f7a008cf843426f77508b48"
     },
     {
       "path": "native/engine/VaultPageStore.cpp",
@@ -4811,17 +4980,24 @@
     },
     {
       "path": "native/engine/VaultThumbnailer.cpp",
-      "bytes": 6858,
-      "git_blob": "42cf6556bd9a4858f89d149607ce6019a72b7fa7",
+      "bytes": 7471,
+      "git_blob": "850fe6bbbfaa986c733e3f0ef0c2189b231d65fd",
       "mode": "100644",
-      "sha256": "358e3a65bf9e07e0bde9d13fb06ac55e4bd46b220f42d969d977495a01921014"
+      "sha256": "d82afdaa70d8cc32fdc4432cbf8f00b81ba7c50ce99e4397058a84ab7cda6a94"
     },
     {
       "path": "native/engine/VaultThumbnailer.h",
-      "bytes": 3938,
-      "git_blob": "eaf0191c6cb246c8b41aaad73fa653e724276420",
+      "bytes": 3985,
+      "git_blob": "b401810bbb010772492df5323e61435a6220593f",
       "mode": "100644",
-      "sha256": "a93572fc3f7f42a838f9effa75f332d02159f8805bafeb89631c5468048ed6e3"
+      "sha256": "ac0d90a3c20ba8ebd50eac52b29edbc14c9fa55e793f9131f1f90873d9379689"
+    },
+    {
+      "path": "native/engine/VaultThumbnailer_android.cpp",
+      "bytes": 4825,
+      "git_blob": "d903b61e46227a573b863500ae9bcc95e4dee9f1",
+      "mode": "100644",
+      "sha256": "ccf15fe98df50232d80c6d1fed2bf790f51e144646b29b2865aacbc6e4caec01"
     },
     {
       "path": "native/engine/VaultWatcher.cpp",
@@ -5210,10 +5386,10 @@
     },
     {
       "path": "native/main.cpp",
-      "bytes": 122516,
-      "git_blob": "1b1a01be3edb51154390453593c9cce6b8cdea0b",
+      "bytes": 126551,
+      "git_blob": "57d4be950178e53667530799490b6598025cefa9",
       "mode": "100644",
-      "sha256": "98984718bc4f2d1a3b86bbb8007700db6063d8b3f0c567228f818cfabf40e0d0"
+      "sha256": "48b7e362e9925d8e2374271e920f3560a6476e02e8017be54ba64d8461b058bd"
     },
     {
       "path": "native/models/ModelManifest.cpp",
@@ -5307,6 +5483,167 @@
       "sha256": "55dd2bf3f4edf3829237cd5317f7e9f8f7906bac74d427a5aab520910a8fe675"
     },
     {
+      "path": "native/platform/AndroidGraphicsWorkarounds.h",
+      "bytes": 2203,
+      "git_blob": "e2e66b9ffb0dd7de22d7e876439b4c420536b4fa",
+      "mode": "100644",
+      "sha256": "c69155b3de282664c5484f6eca744661001ed96a50278b70ed96b90b7b5946ce"
+    },
+    {
+      "path": "native/platform/AndroidWindowModeAdapter.cpp",
+      "bytes": 1051,
+      "git_blob": "03c7e046552bd8f12a72e4892e41abda2cde3463",
+      "mode": "100644",
+      "sha256": "83e7e54f0acb8301b35b8d1db1111d7946a1b30260ed06fe1e4898749e26d8f2"
+    },
+    {
+      "path": "native/platform/AndroidWindowModeAdapter.h",
+      "bytes": 1468,
+      "git_blob": "55842b40bf8620bff9e49de5b79ad77625de7a18",
+      "mode": "100644",
+      "sha256": "ccc9ee98b681beac295274a415e9f97ed9d1dcdd789abc61ea3d29e84cc97fe0"
+    },
+    {
+      "path": "native/platform/BackgroundDownloadBridge.cpp",
+      "bytes": 1551,
+      "git_blob": "3ec54329caa2a9c4f2266e39a57aa15f729fa9b5",
+      "mode": "100644",
+      "sha256": "3db5aa1e951284f18f569ce2366735f25a8e91a74dce4073641484539a75dfa0"
+    },
+    {
+      "path": "native/platform/BackgroundDownloadBridge.h",
+      "bytes": 983,
+      "git_blob": "e69680c7a3efdcac305fd03d69cc85173550402b",
+      "mode": "100644",
+      "sha256": "2ea1b27d6e47b68e00833cb6b6246d899b0ab54e62d923f34b381eb93571e51e"
+    },
+    {
+      "path": "native/platform/BackgroundDownloadPolicy.h",
+      "bytes": 760,
+      "git_blob": "edec6170534fe270fdfff3a5eb83be544933c1e2",
+      "mode": "100644",
+      "sha256": "ec65f77054a64c62844cdba8e55685e9b7a9c1795f1cb8356744074af6463382"
+    },
+    {
+      "path": "native/platform/PlatformKind.cpp",
+      "bytes": 384,
+      "git_blob": "e74d261c6b5ef89137e64a278e89bbce3fe51e8a",
+      "mode": "100644",
+      "sha256": "bb6dddbcd5f9ba79e74d2cd01345c849b7c22a9fb9a20b7fc9002165e8296d00"
+    },
+    {
+      "path": "native/platform/PlatformKind.h",
+      "bytes": 1519,
+      "git_blob": "d5f636519c5ac1e3bff83797dab267799f72df8f",
+      "mode": "100644",
+      "sha256": "8ac44119b0c64bfe7106ba75b502825a0e17967d169d4793166b3444aec937bf"
+    },
+    {
+      "path": "native/platform/PlatformRuntime.cpp",
+      "bytes": 6496,
+      "git_blob": "aec90aeab4c2538dd4f6e73331720ea7f028b8d6",
+      "mode": "100644",
+      "sha256": "ae25246c3f6fb6c6eed20d087b5a8e29650dd3a3a700dc34fced9fffd28106cd"
+    },
+    {
+      "path": "native/platform/PlatformRuntime.h",
+      "bytes": 2789,
+      "git_blob": "5eeb2e93659d8fbb6934ed2c0e946edd79ee01d6",
+      "mode": "100644",
+      "sha256": "8ed5284d4fe474a69fee1b83f71749cb0c93530bc6b57dcb14d9ef48bc3e1317"
+    },
+    {
+      "path": "native/platform/android/AndroidBootstrap.cpp",
+      "bytes": 4698,
+      "git_blob": "3f22996551e375a867a2ebcd1e30852e831c6766",
+      "mode": "100644",
+      "sha256": "992a3e448c4e4628107ca95f2cd8951a8c462aa9a206447d1f3133ff4a0fe252"
+    },
+    {
+      "path": "native/platform/android/AndroidBootstrap.h",
+      "bytes": 570,
+      "git_blob": "75ef4e2032b33ad9efff247c6e3070d40e3d6b5e",
+      "mode": "100644",
+      "sha256": "78aabe2ca6b939f8774f8c74dfd2fe20774a631f2696146b283d730018af69e7"
+    },
+    {
+      "path": "native/platform/android/AndroidManifest.xml",
+      "bytes": 2378,
+      "git_blob": "2c57b908f6a019f17dd6735573445b9cca945f2d",
+      "mode": "100644",
+      "sha256": "0ff451bb60f49260fe7999f2d2223bd1e36803ff185959861621a3d51b3ed599"
+    },
+    {
+      "path": "native/platform/android/build.gradle",
+      "bytes": 2811,
+      "git_blob": "420a2a5ebf97020aff7e0f2f661a8a6a4b5f2895",
+      "mode": "100644",
+      "sha256": "3de0c5cb6c4974dc37fad414eb8162177f8a8a393d154e1ba12984cbd3211856"
+    },
+    {
+      "path": "native/platform/android/res/xml/network_security_config.xml",
+      "bytes": 281,
+      "git_blob": "033a2fc4ee21636b3475cdf5b31de82161547bd6",
+      "mode": "100644",
+      "sha256": "355040bde7e74f93c4ab0adbf8208ac331ae84f6448beb494a977217672f8a13"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/media/MediaAdmissionProbe.java",
+      "bytes": 4161,
+      "git_blob": "5d5b02af34f9d8f55f423c01522a247f2ef7bc4e",
+      "mode": "100644",
+      "sha256": "7ef97829f34419b29d26ae83e59294776e4fe1f855df2c852eeb71652b568e42"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/platform/SecureCredentialStore.java",
+      "bytes": 5446,
+      "git_blob": "5ebfc65d23a33c99f0eef41322d8c45d04b37cf4",
+      "mode": "100644",
+      "sha256": "3a5457c45a7bd61ef934bbe0defc41e0ee4e009d36443f14f6ae48e9e02f1a1f"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/player/Media3PlayerHost.java",
+      "bytes": 32220,
+      "git_blob": "d77f63c3a3d4a3849b2894e15fcbc8af42c04843",
+      "mode": "100644",
+      "sha256": "6682ee11c11833f2dc1236aedfc40364d29feab2127ce9d687a6c59bf2685389"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/player/Media3SurfaceBridge.java",
+      "bytes": 2654,
+      "git_blob": "fca92736b0a4930adfc7f7c10823cd174bd4a50f",
+      "mode": "100644",
+      "sha256": "86b9ae17198bf260eb124a83e132bb212c086f501d5456c9855ee439f1aa3504"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/reader/AndroidEbookHost.java",
+      "bytes": 11183,
+      "git_blob": "b0b8f452386f4e6054722120be5f622d31235655",
+      "mode": "100644",
+      "sha256": "3e4f6fd3123a8204758bc0f5702d9e87fda5fd8c319ee8468ed051aaaeaebfdc"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/reader/ReaderPublicationSession.java",
+      "bytes": 3296,
+      "git_blob": "e895ea1cf2fb5c09bebfcbd8b091419f7a22187d",
+      "mode": "100644",
+      "sha256": "194db9ac7c57231f15f010b8725b3eb9110be3879683530c68a9ecccc07474ea"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/vault/DocumentMetadata.java",
+      "bytes": 925,
+      "git_blob": "fd1a926df32628bf3334becb326808fce9dc9b3e",
+      "mode": "100644",
+      "sha256": "b5666baaa19483a58fa6676223e4fb1fbd9c1dc2b0d0fdfb77fc04ed00cdc817"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/vault/VaultMediaProbe.java",
+      "bytes": 6014,
+      "git_blob": "0fd2dfc3c011403017390d3ca1200c8f5962ede3",
+      "mode": "100644",
+      "sha256": "a7874bcb4bc8518187055b8e7a7ecf875bd6bf7035e8e80996b1012a46e397b4"
+    },
+    {
       "path": "native/player/MediaAdmissionProbe.cpp",
       "bytes": 5812,
       "git_blob": "e0cd3f74f73bfd8195307a445e6e0e618498cfbb",
@@ -5319,6 +5656,62 @@
       "git_blob": "d0ac15ce732d1847f2e672969891f46a61f3e5ac",
       "mode": "100644",
       "sha256": "a06936307cef5b1e11a2f3f830a63567386dee1441e1ee4a757b13c45dcf1655"
+    },
+    {
+      "path": "native/player/MediaAdmissionProbe_android.cpp",
+      "bytes": 2100,
+      "git_blob": "25b10b59d872415236cd9bd07dda9a622c424c1b",
+      "mode": "100644",
+      "sha256": "6462004d85f79dad6017fc000e33fb81c8264fd032d515ef3b5f1c1cbf96ede9"
+    },
+    {
+      "path": "native/player/androidmedia3item.cpp",
+      "bytes": 33995,
+      "git_blob": "4bf650de65eb1c94e2917c23d6e3235172e0fcb2",
+      "mode": "100644",
+      "sha256": "9afa0a091264eb3d3a22e17e0bf72d3cd6c6c0996da169c24a813d5cc8324e5c"
+    },
+    {
+      "path": "native/player/androidmedia3item.h",
+      "bytes": 8707,
+      "git_blob": "82e583cfc797baa72edde15a4330d47e4bb1b81c",
+      "mode": "100644",
+      "sha256": "930ae30b59a853e1d795f6ec5019028443c6e1e32dfa42779854b82ec1f9c035"
+    },
+    {
+      "path": "native/player/androidmedia3state.cpp",
+      "bytes": 14940,
+      "git_blob": "a69000579968932b90e0bf68f21d00b40d9368d0",
+      "mode": "100644",
+      "sha256": "d229a77a59611b27d731ba44ccd1c2dbb47f33a996332b1a939af73631b0cfa2"
+    },
+    {
+      "path": "native/player/androidmedia3state.h",
+      "bytes": 4656,
+      "git_blob": "a7caeb2cf1453dcbd82c4b9d6df9a24f1c467757",
+      "mode": "100644",
+      "sha256": "7fc5fc1a32dd04e57b511bcdf0d3de1f80fab2fc0f2a7ca3791044a4fe13e3f6"
+    },
+    {
+      "path": "native/player/androidmedia3videonode.cpp",
+      "bytes": 14248,
+      "git_blob": "e2985d154aec828b8e2051a6709abf9e0797409f",
+      "mode": "100644",
+      "sha256": "a71573a8812ece8880e477af67c9452894659c8f8a562b21a4e0598d776aa5c6"
+    },
+    {
+      "path": "native/player/androidmedia3videonode.h",
+      "bytes": 2370,
+      "git_blob": "8972c2216bda760d648cd195eb1729405b3c299c",
+      "mode": "100644",
+      "sha256": "101d2a23e7ee7c0639b3fc35497a407904ac8d9e19c44f8f88755d62fd5f8f21"
+    },
+    {
+      "path": "native/player/androidseekthumbnailer.h",
+      "bytes": 635,
+      "git_blob": "b4ac01e4d04a838278bfc9f94434def59a36ab96",
+      "mode": "100644",
+      "sha256": "29cd60065c77bb6e7eae8df78e8cfcf8ac06bc7cd20ee7c97e601ffe36c0c9a7"
     },
     {
       "path": "native/player/caststore.cpp",
@@ -5370,18 +5763,25 @@
       "sha256": "8c3a13631bd788a12dea87b51e9830698a78d02455b5c5e43ac9f67f2505e57c"
     },
     {
-      "path": "native/player/mpvitem.cpp",
-      "bytes": 36026,
-      "git_blob": "df11eca03c7afe5a3b2f0af81360900f22946607",
+      "path": "native/player/livestore_android.cpp",
+      "bytes": 1448,
+      "git_blob": "d41081841de10289d3a363cb2184b97a21d45700",
       "mode": "100644",
-      "sha256": "31ba0fd23a5880f6df85d927e6a09f825ebea731d3c8029640a12a90ad97c4a3"
+      "sha256": "55114d781ef5dcdc83f3cfa994ee3680635f204e5032a9aba3d2514e47385bc7"
+    },
+    {
+      "path": "native/player/mpvitem.cpp",
+      "bytes": 39753,
+      "git_blob": "a4faba1fd0eb3065a529c3e39469597c8e67d7ed",
+      "mode": "100644",
+      "sha256": "e3f2a32b5f7dad9721b7726eae67d6c9cf4d6b088e7ab439d555d5587d68fbc5"
     },
     {
       "path": "native/player/mpvitem.h",
-      "bytes": 12196,
-      "git_blob": "933768857165dfbee91fa264d815605b9d5cc8af",
+      "bytes": 13098,
+      "git_blob": "4c192d9447ca5512bc5bde0f74e2c1a785c5f02a",
       "mode": "100644",
-      "sha256": "febeb782c9d1bb12166c5fabf82e7426cbfffa82070d1f08a5f545c9b0c856ad"
+      "sha256": "f7e703b3132f50a4cb6ca4e2d114d164e46233276281679cf4e0bf69a9e8b332"
     },
     {
       "path": "native/player/mpvproperties.h",
@@ -5391,11 +5791,18 @@
       "sha256": "17b3d6211dff086d17a9cb50cd4a7c41a6bbfd9a094c7e3792b3980bef130f84"
     },
     {
-      "path": "native/player/powerstore.cpp",
-      "bytes": 2035,
-      "git_blob": "445f5a2f9d7f8fac70835897875846c040dfb083",
+      "path": "native/player/playerbackendcontract.h",
+      "bytes": 1025,
+      "git_blob": "7ca51000be8eeb7bf0cf0c999aebcf675cc70997",
       "mode": "100644",
-      "sha256": "88198dcf043338ec4a8efb73e90990a429e17ff0cf62964ff5aa8f289b94d861"
+      "sha256": "6e9ee2f2f89bdb6faf25380a5259f44acfd6983cb2fb9fda57c90502128c6557"
+    },
+    {
+      "path": "native/player/powerstore.cpp",
+      "bytes": 3141,
+      "git_blob": "99945a4ae0cdd716cddaf733f3197ecfb0edaa4d",
+      "mode": "100644",
+      "sha256": "a4021eaaeeae34628ba908c2dc780f9624446327a95fbd12e01aa43d6a8b504d"
     },
     {
       "path": "native/player/powerstore.h",
@@ -5445,6 +5852,13 @@
       "git_blob": "e58d65b5958f0fe77ea833d399d12182eb22a785",
       "mode": "100644",
       "sha256": "95d29d7226e5f3079c78813799448aa219649ac71131535fea7c6226d0ccc4d6"
+    },
+    {
+      "path": "native/player/streamserver_android.cpp",
+      "bytes": 1182,
+      "git_blob": "450d18768f4605e1ad1fea2771aa43b86b601815",
+      "mode": "100644",
+      "sha256": "bf8c16d64cb82df638ef2ebe344831c40bea8115b174878e9335837a7dc4b143"
     },
     {
       "path": "native/player/windowmodestore.cpp",
@@ -6014,6 +6428,20 @@
       "sha256": "883a47e542b5d026a181e12dded995183a2dc933a3c928eb5c90779174a691ab"
     },
     {
+      "path": "native/reader2/AndroidEbookRenderer.cpp",
+      "bytes": 8244,
+      "git_blob": "39c099112ee2ed36b34b17c61b955a84ccef8b01",
+      "mode": "100644",
+      "sha256": "bbc6e2f141e2076a49d4dc225d8db47ae16ca8c195914d1f4762a549800ae142"
+    },
+    {
+      "path": "native/reader2/AndroidEbookRenderer.h",
+      "bytes": 2075,
+      "git_blob": "c21644570ac2c5eb4c9288c0994bf85b94491e7d",
+      "mode": "100644",
+      "sha256": "6da20db0272fd44e5586df59d8ca4fb5f6372c8039a17b4bf4bbe535ac82c99a"
+    },
+    {
       "path": "native/reader2/Reader2Bridge.cpp",
       "bytes": 20695,
       "git_blob": "11189bf4aa7b8c55e5d3fd282966573365fe9a5c",
@@ -6029,10 +6457,10 @@
     },
     {
       "path": "native/reader2/reader2_harness_main.cpp",
-      "bytes": 4927,
-      "git_blob": "10ef8c41d731f3248413d3d9c440f72e2c758b69",
+      "bytes": 4997,
+      "git_blob": "0cc7161311f0e263624d972768365e20c9990ef5",
       "mode": "100644",
-      "sha256": "6af0e45527d84ab6ef09f2536fdae0703baeb1bfff8c5a2d3127dce4a3b80d4d"
+      "sha256": "d2fd3d58416997eab3a1a8a2b03a4df168abc254a4fcf59d143c8f90f672fdca"
     },
     {
       "path": "native/stremio/StremioCodec.cpp",
@@ -7548,10 +7976,10 @@
     },
     {
       "path": "native/work/BackgroundWorkCoordinator.cpp",
-      "bytes": 7753,
-      "git_blob": "4d24027032b62f6f9a4a91c75ebb3fd797598754",
+      "bytes": 8042,
+      "git_blob": "96b656561bb57ebf2818a5f85d46ff6f30ccf058",
       "mode": "100644",
-      "sha256": "4711ca0269d2788f3db6d3ed6f14f7ff8917cabd1a7135b8c541d6e5b3593fbd"
+      "sha256": "4215db1968e5360d81edcd9ec243d9deae5912ffba77599ed09c3520ba621ac8"
     },
     {
       "path": "native/work/BackgroundWorkCoordinator.h",
@@ -7645,6 +8073,41 @@
       "sha256": "240bc57b7020344eb72be4fb04869e22710d91216311f2705fb871440259aa8e"
     },
     {
+      "path": "qml/+android/ExtensionsHouseHero.qml",
+      "bytes": 18258,
+      "git_blob": "5a9fde90f902c7d13a773186da6573b299dd1184",
+      "mode": "100644",
+      "sha256": "ebba85964e040085c66f3852cd07fb2471564a53f4a566978e1f1d03b4af5689"
+    },
+    {
+      "path": "qml/+android/LocalIdentityDialog.qml",
+      "bytes": 384,
+      "git_blob": "913b36cf6e4486cb29e55385974cf6f0b0118a8e",
+      "mode": "100644",
+      "sha256": "9a96de1fb3ef33ddf7b24329bb6cacac163a26699b68b9e3bbeef8a23195ff39"
+    },
+    {
+      "path": "qml/+android/Taskbar.qml",
+      "bytes": 1004,
+      "git_blob": "ddfd0c82c5685e8631c4c1449cd83bf2b6c2bf1d",
+      "mode": "100644",
+      "sha256": "acb5e6f90f3150b1468059ae4e699a43fe2db2a9bc8b8dc3b010aa92434fc607"
+    },
+    {
+      "path": "qml/+android/TopBar.qml",
+      "bytes": 26904,
+      "git_blob": "8a276c47073c83b1fe97cfd74ae7f01f7b30d2e1",
+      "mode": "100644",
+      "sha256": "ead7d40d838d01a24898aa49e6cda3b61d874911bfdcae1b8ae1af71153cb1e3"
+    },
+    {
+      "path": "qml/+android/VaultPage.qml",
+      "bytes": 124215,
+      "git_blob": "7bf40997c1b544051ce5109b05b2c328de6eb5d7",
+      "mode": "100644",
+      "sha256": "5c641a83b57c21b325d5f6632a9d6f6ab3d944633e6805dced317897cdfe559a"
+    },
+    {
       "path": "qml/AbTransportButton.qml",
       "bytes": 988,
       "git_blob": "e42d9c04d9c82260dec57abe9c2688e607d77584",
@@ -7671,6 +8134,13 @@
       "git_blob": "83e0a2ac28c09b309f651edff2a6133a243313b3",
       "mode": "100644",
       "sha256": "2e24d5fd9806f19e578e86230f3b4fbf1ee34e2977f6721a849b9f9d872521ee"
+    },
+    {
+      "path": "qml/AdaptiveLayout.qml",
+      "bytes": 1634,
+      "git_blob": "e72305393d94390984e866efcf20afc27483cce5",
+      "mode": "100644",
+      "sha256": "fb0b4fadca0ee74f98ec376be6d0bb060f435b858c2311b2285c00025cad9aaf"
     },
     {
       "path": "qml/AddonClient.js",
@@ -7709,10 +8179,10 @@
     },
     {
       "path": "qml/AudiobookSession.qml",
-      "bytes": 18208,
-      "git_blob": "1f97f373330b6c635dd113b9d28377ac9bfb8e40",
+      "bytes": 18214,
+      "git_blob": "63b1fe7083b6bf8561a4b0cc1cb85991735d9bef",
       "mode": "100644",
-      "sha256": "119b41446ef48fa4b26bf51924747ed4dc5fc2513b7d31d308a38aa27ccf7c4c"
+      "sha256": "797b809b3f6adb830403d707f796ed79fb9e125df74baaa8c57a53b37b54b44f"
     },
     {
       "path": "qml/BackAction.qml",
@@ -7828,24 +8298,24 @@
     },
     {
       "path": "qml/BiblioSearch.qml",
-      "bytes": 40549,
-      "git_blob": "7e0b70fac4f1e34fed07e6549190c3883e8b664f",
+      "bytes": 47954,
+      "git_blob": "3c4bb9c4f2ed5cb568c7bc1372fef1976158714c",
       "mode": "100644",
-      "sha256": "b3cf89e646e494340c08a95efa06c392da75d6935d77a2439d62c1aa369c37c0"
+      "sha256": "96f69e425a7d85f147a584b551194c1112cb65b44f0395c4806aba2291753c2a"
     },
     {
       "path": "qml/BiblioWorld.qml",
-      "bytes": 13541,
-      "git_blob": "8a29ec290c121a534fe2d56eb46306e470c23e36",
+      "bytes": 13553,
+      "git_blob": "8710552cda42ae87839130127ab7cdcd3c34cf6a",
       "mode": "100644",
-      "sha256": "2e92315a5656d6fd269aa6323616767c55169c9658a97eb3ba09f6cf0eb61ae3"
+      "sha256": "4f6db7d81e2e1450854c69e8ece555e459c8dad0d485b127752f9cafb87180ad"
     },
     {
       "path": "qml/Bookshelf.qml",
-      "bytes": 9034,
-      "git_blob": "edf461f3469bdef23507b855b6c8cbbd4f8d19f5",
+      "bytes": 9557,
+      "git_blob": "65705fb2f8abd3ba44a65506460a49c06433481d",
       "mode": "100644",
-      "sha256": "460ac98c11866e4dec0e8b261f12c33ceac6801445bc221f4710c25f0038ecaf"
+      "sha256": "6551636a623461421df3feff5bd5ad7629ac36b55dfd099224559f67b378e2a9"
     },
     {
       "path": "qml/BootSplash.qml",
@@ -7877,17 +8347,17 @@
     },
     {
       "path": "qml/CarouselSlide.qml",
-      "bytes": 7858,
-      "git_blob": "60e6d0ebaed9d7183ea8c2fe953aa37303c3fbf8",
+      "bytes": 9093,
+      "git_blob": "6b51d68b88372eafbbcfada7b19576338c68a4c6",
       "mode": "100644",
-      "sha256": "a3656cfebac5181ac446529cbab9b4a701df4b993d3c7aa5a6141bfd43c81aef"
+      "sha256": "ac0db43c913060c4ddef9fa2b230ab878c85dd247d3fde8d1d4e3fc283ad1ae4"
     },
     {
       "path": "qml/CastRow.qml",
-      "bytes": 4347,
-      "git_blob": "3a9f91430c249aa2e352dfd6843345d6b21e9d99",
+      "bytes": 4874,
+      "git_blob": "442e928ba49471bb0ae424f93425f461b06b8e39",
       "mode": "100644",
-      "sha256": "fb5cd76d4d3b124b6a75755fdfd82ef80e58ffe281f246fbfd739ca3fc9c2703"
+      "sha256": "044cac6a0268fd4e42f8c737631248dcc0cb0a48f3cac5dbb5ba6eff31ca67fb"
     },
     {
       "path": "qml/Catalog.js",
@@ -7898,17 +8368,24 @@
     },
     {
       "path": "qml/CataloguePosterCard.qml",
-      "bytes": 14232,
-      "git_blob": "acf157c0702c5b4973e120f4cb6eb78aec6a10f1",
+      "bytes": 14395,
+      "git_blob": "96b103d576cde25b663355ad7e04d09be86544f9",
       "mode": "100644",
-      "sha256": "63770d3438c86548551c58b0076393af8a265ddcfbde62d4300dd3db5e314842"
+      "sha256": "2e75c1aa71b31bd83a8e614ed15cfcf5c1c836e6903e6665397522707833b272"
     },
     {
       "path": "qml/CataloguePosterGrid.qml",
-      "bytes": 4995,
-      "git_blob": "a15ac312d62b38006dfd50bb4d0297e56f8e5cfc",
+      "bytes": 5045,
+      "git_blob": "c9395769806b9a22e4eaae9475ece184c6749330",
       "mode": "100644",
-      "sha256": "d0d999ee5d2e51770b3f6d1427a831eeebefe91ba39f3ef3332f055106a40226"
+      "sha256": "4abf04c8246616a06c0803cf10f0b9b6a3c370a16d08cf1e00970357cb641d12"
+    },
+    {
+      "path": "qml/CatalogueRecents.js",
+      "bytes": 625,
+      "git_blob": "efc7ed412162aa7fc6e96982c26af1b8b600d812",
+      "mode": "100644",
+      "sha256": "4061c32ad219f6b968531078f0114cd3f64246738899dbd3bf1f708446fcfac6"
     },
     {
       "path": "qml/CatalogueVisualMetrics.js",
@@ -8038,10 +8515,10 @@
     },
     {
       "path": "qml/ContinueRow.qml",
-      "bytes": 7731,
-      "git_blob": "49b4183cb58a05f2ff4b9d78f211b8ef42851e3b",
+      "bytes": 10128,
+      "git_blob": "30b78770ef3f8ccfc744526757711960e59b82fb",
       "mode": "100644",
-      "sha256": "e5e24ac6005c45591d097720bbf792fec768945b7aa60290bfa71bc05eda9bbd"
+      "sha256": "019347ffcefb93f04f034874a71ebc2416a21215af4f9cc1f7ba107941ff656a"
     },
     {
       "path": "qml/ContinueSeeAll.js",
@@ -8059,10 +8536,10 @@
     },
     {
       "path": "qml/ContinueTile.qml",
-      "bytes": 21536,
-      "git_blob": "ade2580e721361fe1a5077f20b4bf03c0af5ae8c",
+      "bytes": 22283,
+      "git_blob": "d9644460dfce2b2b6b96e20ec77cd09395844269",
       "mode": "100644",
-      "sha256": "053b9ee77f45ed3bcb5075cacc1c7dfdbb3360dd8b357db630d451d77f04ff4a"
+      "sha256": "f9e082ebaae60c6c62e29f834767d31d1862ddc0f1a65996e06e400274bbf369"
     },
     {
       "path": "qml/ContinueVideoPresentation.js",
@@ -8177,6 +8654,13 @@
       "sha256": "d2b77b12381a46fe0483c22aaca587265092584bb23e3817d4fdf43b1bc51171"
     },
     {
+      "path": "qml/DirectSourcePolicy.js",
+      "bytes": 3566,
+      "git_blob": "c9febd78fa227f1bbc6cbc0a6c07afdbdbba8535",
+      "mode": "100644",
+      "sha256": "02d72fc181bcccd8c20b3813a61ee30ed4769b0608a4acf972cd2b2d53a33066"
+    },
+    {
       "path": "qml/DiscoverApi.js",
       "bytes": 13747,
       "git_blob": "5fd826190df00609743f75fc6760ae11a23c9e32",
@@ -8185,10 +8669,10 @@
     },
     {
       "path": "qml/DiscoverBrowser.qml",
-      "bytes": 60887,
-      "git_blob": "93c2ddcb916307149e372f31aea13dc0d8650a7d",
+      "bytes": 62267,
+      "git_blob": "f5263f53602de8838be0ca796322b81b48dd55cd",
       "mode": "100644",
-      "sha256": "fdd2ea6a9301b899d52bb2a8b5a263ef6353488ee4636e97ecd09c7720b2900a"
+      "sha256": "791a12f00db4430b7198d6e8757c25ac728057ea777a81bb017c355adc8909f7"
     },
     {
       "path": "qml/DiscoverPage.qml",
@@ -8213,10 +8697,10 @@
     },
     {
       "path": "qml/DownloadsPage.qml",
-      "bytes": 110630,
-      "git_blob": "4e38bdabd7766cdf1c05c0b2e5bcc9b98d99965a",
+      "bytes": 111579,
+      "git_blob": "d834f698dc6deeb4c00a7c52564c2caf7a9aa433",
       "mode": "100644",
-      "sha256": "3c7e4184718580984f32ce6f1400803a64dbdf3c0fa06b70fff1e37b3c218c0a"
+      "sha256": "00923c064f999863cc3c368bc14d1608561c4e8603c9e82fce09fb1c583a79a2"
     },
     {
       "path": "qml/EpisodeBrowser.js",
@@ -8262,10 +8746,10 @@
     },
     {
       "path": "qml/ExtensionsSeeAllPage.qml",
-      "bytes": 6748,
-      "git_blob": "c65a636666119685ee4b93a1d6ba63d2661d4a85",
+      "bytes": 9082,
+      "git_blob": "8dd4d06637f77f906da772c12f76ddf645c12e57",
       "mode": "100644",
-      "sha256": "6353884ebc68c92f7d42454cc3cd56e5fc94a6f59a1113e04adb14646a50ef06"
+      "sha256": "0ba2b318f659b1d5f18b06d865b3a4af4664f04f3a18448361bb6e0ddbc83d97"
     },
     {
       "path": "qml/ExtensionsSetupSheet.qml",
@@ -8273,6 +8757,13 @@
       "git_blob": "d116f2a702706b775ef71089dabbe49aec998440",
       "mode": "100644",
       "sha256": "ef7427a1575a30c6927c16bad073c6fee35984c89921385c802545420b001d22"
+    },
+    {
+      "path": "qml/ExtensionsSetupSheetAndroid.qml",
+      "bytes": 7693,
+      "git_blob": "430a8b4e6961571ce21706164f0c28879510e74c",
+      "mode": "100644",
+      "sha256": "9473f7723438ab35c0da22abedf6a4078edd286be6065087ba81f842338a93c7"
     },
     {
       "path": "qml/ExtensionsStoreApi.js",
@@ -8283,31 +8774,31 @@
     },
     {
       "path": "qml/ExtensionsStoreCard.qml",
-      "bytes": 6135,
-      "git_blob": "046054b21c91d177f06d1770faadbcb5b13f6403",
+      "bytes": 7609,
+      "git_blob": "222560ebb03f1926a48a8ed6bb19f6c738ea534d",
       "mode": "100644",
-      "sha256": "7678ca839c1dc169a9994e8d66fc47fc8980085cefb7920bbe7192f6dd8a94e1"
+      "sha256": "92ea8cb7e4b72b5719f7db40215b3af680fafafab738aa3aeb160ab8fff75ae1"
     },
     {
       "path": "qml/ExtensionsStorePage.qml",
-      "bytes": 10518,
-      "git_blob": "f2079256e531395dab507a69bc153c86013661f0",
+      "bytes": 11780,
+      "git_blob": "06508d61271af55fcfb2dfb75264748739173712",
       "mode": "100644",
-      "sha256": "e463c9fbd98fd4c792ec0a1d963a1a8ddf0683b9f1e3819a9d1f3bcfbbf66d9b"
+      "sha256": "0656b1ae5c6ad9dbcea1e707d7c5c94347f667a4eaec7b097b6032a0f247f905"
     },
     {
       "path": "qml/ExtensionsStoreRail.qml",
-      "bytes": 5429,
-      "git_blob": "3a786065c9c67a9b38465fd66f7e2a365c2a947b",
+      "bytes": 7166,
+      "git_blob": "d406643aca6d6302ebe64e723debcd877a4df18d",
       "mode": "100644",
-      "sha256": "2fa3152f0b5cdd83bba4c5de793a6f5a9fb39f76cb7fd73088499fc8fddd052e"
+      "sha256": "4a699fc573dc387d729bdf277e75b069b388258b396ca6a90c6f8c178b2f0c23"
     },
     {
       "path": "qml/FeaturedCarousel.qml",
-      "bytes": 5153,
-      "git_blob": "0892908b03e9f18771bb5a59875b3d552b6e997c",
+      "bytes": 6526,
+      "git_blob": "7148b62e7d52618c33fa94a35c3f89b224d8c82a",
       "mode": "100644",
-      "sha256": "9a2f33b3a017873f670a837934b80af5553a9652f104d27cdb7a29f4c20b60fb"
+      "sha256": "98292abe77d950c658a804786d656bccb9ff87608cd0270878c0d293e7bef8bb"
     },
     {
       "path": "qml/FinalSeaChart.qml",
@@ -8430,17 +8921,17 @@
     },
     {
       "path": "qml/KeyboardAction.qml",
-      "bytes": 4456,
-      "git_blob": "57776087abc6e899b50c459a0c232d851821032d",
+      "bytes": 4722,
+      "git_blob": "9d64489b70ff3999e91289f60d938eca64eb2168",
       "mode": "100644",
-      "sha256": "4c10f13292a0d2bd2cf6f4d8bb6402a31c75281789f573548e9fd35a1aa7e5fb"
+      "sha256": "b82e80cd493d01796b3ece34b4ff73ea51bad6d6003769ecb0b8f3763cece2b0"
     },
     {
       "path": "qml/KeyboardCollectionController.qml",
-      "bytes": 14675,
-      "git_blob": "a9c0abd75c7e30b3751abfe31e9ad05bebf80a20",
+      "bytes": 14706,
+      "git_blob": "b80342785a3add1cb43710e3a935ad0b7cabdd80",
       "mode": "100644",
-      "sha256": "0eb560d4f5f11cd7448340e26296c11ad05b47b72c0fb38c7eced61da8b5ee27"
+      "sha256": "51a0846bd8d00e6dcbfea183ecbc67acf04b15d04a5c6d6628c32312ecf00034"
     },
     {
       "path": "qml/KeyboardCommand.qml",
@@ -8520,6 +9011,13 @@
       "sha256": "58af2f6ad7e77ea6f6d127dab5c911c44da18ac45b3574bb097f7fe2c6bf1ec5"
     },
     {
+      "path": "qml/LocalIdentityDialog.qml",
+      "bytes": 129,
+      "git_blob": "4545877b2cfd9fdfd20e1352b47f7ca53871a4c1",
+      "mode": "100644",
+      "sha256": "4cee7699baecb46e0f775132018b02542073f745e596ecdf1322403c2684a5cc"
+    },
+    {
       "path": "qml/LocgApi.js",
       "bytes": 14231,
       "git_blob": "5708ae8acc9d3e35243ca7009fb781fc9f2561c1",
@@ -8549,10 +9047,10 @@
     },
     {
       "path": "qml/Main.qml",
-      "bytes": 274900,
-      "git_blob": "fb911c5eaf7cb1292cf30404dabed96c24bb5f24",
+      "bytes": 287913,
+      "git_blob": "e7ca77a11bc62665dd21176cb58ce4ab09312d2b",
       "mode": "100644",
-      "sha256": "4974168bba8c6f44afb5000156d98c589aabc0b2003f59b9728dd6c9fefda472"
+      "sha256": "b3884c179b55f3d443844517732bbff60b97776f9d4ef4e05eba26169d18cecc"
     },
     {
       "path": "qml/MangaCatalogPage.qml",
@@ -8570,10 +9068,10 @@
     },
     {
       "path": "qml/MangaChapterSeriesView.qml",
-      "bytes": 23400,
-      "git_blob": "13b1d538a44e1a59845704cc0d2fc5346f54b89c",
+      "bytes": 27728,
+      "git_blob": "d4e097f89cb45dcbdf2c2dae7043fbd54a41810c",
       "mode": "100644",
-      "sha256": "8264f45e1efc1b89b94dacbabd5978c0b3021d491c0d80a0384a25343d15dd7d"
+      "sha256": "631e1e206dfab14549aa7bea771d3e3f50b01991bcde3d2e92b44a541921583c"
     },
     {
       "path": "qml/MangaReader.qml",
@@ -8598,24 +9096,24 @@
     },
     {
       "path": "qml/MangaSeries.qml",
-      "bytes": 57207,
-      "git_blob": "1fc9b88cbc92c284e5fd88cddfb5286f6b4a69d6",
+      "bytes": 57253,
+      "git_blob": "07c08ea52171e3e68eb71a657f5932d56df6bbf1",
       "mode": "100644",
-      "sha256": "5a212617a25e34a991b6bfae4f7a64240d30fefd7f256c0ac76bda72ae4a062d"
+      "sha256": "26484d6e3a4be69f0c1ff4d9b918e31a56ec8146a317b75cd1c7976b421519aa"
     },
     {
       "path": "qml/MangaSeriesSharedHeader.qml",
-      "bytes": 14778,
-      "git_blob": "020c16c8da4eef7a32ea966f301a2fedc1e558c3",
+      "bytes": 18638,
+      "git_blob": "dedff099c736e75799c5f920a443047856a74600",
       "mode": "100644",
-      "sha256": "6d8f0fbbc293c273ce2e9c0a8f0a32177fa8829aa2d60d1f5c540b4c50254125"
+      "sha256": "2322881a643f1624295f97365fa55fd4407ceabc069e37100b6baa2d75a7599b"
     },
     {
       "path": "qml/MangaSeriesThumbnailMock.qml",
-      "bytes": 65106,
-      "git_blob": "921e8bac199de11f981d4d7a12e44b27fbfb6dde",
+      "bytes": 64957,
+      "git_blob": "f1f20e1cba870b06f2b3ec160c2d5ef5d1e23628",
       "mode": "100644",
-      "sha256": "735281b1b63300e9f68feaf5e956b30315625f81f2d547c03f4494e107b33581"
+      "sha256": "563a1b6a0c1bab5106a50639ea168a9b35f3913d7c53ae4fe21447fd3186c7c2"
     },
     {
       "path": "qml/MangaTankobanLibrary.qml",
@@ -8654,10 +9152,10 @@
     },
     {
       "path": "qml/MoreLikeThisRow.qml",
-      "bytes": 2900,
-      "git_blob": "a549cf4d3f0ef1b8af05f783420d87e66a10d9b9",
+      "bytes": 3296,
+      "git_blob": "440d3d5e16b46beaabff1534c781c8ede4f0cd8a",
       "mode": "100644",
-      "sha256": "282600c47bc84e56a48ab56c349a8fe9d3e6b0d48de295473dc1cfec0d6eb350"
+      "sha256": "df6499c4fe17e70670f885efe26ce6e9e47ff2356c8d58e3a6824e79b7de6917"
     },
     {
       "path": "qml/NewWorldChart.qml",
@@ -8947,6 +9445,27 @@
       "sha256": "b8b1f7022e77c9058a30f28b8a8979103e3244b64eee45ec95611e013ed715bc"
     },
     {
+      "path": "qml/PhoneProfilePage.qml",
+      "bytes": 4652,
+      "git_blob": "c14cd938d0b66d1d805ce3656a4b1038ac088191",
+      "mode": "100644",
+      "sha256": "f77897fa385358cfdd6ae966056e3fb2335a76680a3b4fad798f841cc28ddb9b"
+    },
+    {
+      "path": "qml/PhoneShellHost.qml",
+      "bytes": 12612,
+      "git_blob": "829364050009f925c71a922720924d396a8364c7",
+      "mode": "100644",
+      "sha256": "819b9f84eb9911ea647d7ebf2018677bfda3fafb7bafa32fd9457b073df02f30"
+    },
+    {
+      "path": "qml/PhoneWorldTabBar.qml",
+      "bytes": 3992,
+      "git_blob": "33d2488de71e0f1d828fad4ff3504aadf036f1d4",
+      "mode": "100644",
+      "sha256": "784354a3e9986118900a56e71702246bee8df053adbb59cdd51fd7bbb9aaac01"
+    },
+    {
       "path": "qml/Player2ActivityHelpers.js",
       "bytes": 1609,
       "git_blob": "0fdf68cd35ea4aac16f69e44828d893985ae4270",
@@ -8983,10 +9502,10 @@
     },
     {
       "path": "qml/PlayerPage.qml",
-      "bytes": 311451,
-      "git_blob": "077c5528aef5b7e40ecbe4ca38ffe2aada992f8a",
+      "bytes": 316214,
+      "git_blob": "27d1d49082022dc64fe5ada77357e221409556b9",
       "mode": "100644",
-      "sha256": "20bf8972f2a54c9499496949c73a764e93510c4acf4952408f816698a422ceeb"
+      "sha256": "eb94317c6ff991626130a78452e37ece4a1cd3a9e311d8fa3d2c4153a73d6bc0"
     },
     {
       "path": "qml/PlayerSeekIcon.qml",
@@ -9011,10 +9530,10 @@
     },
     {
       "path": "qml/PosterRail.qml",
-      "bytes": 8883,
-      "git_blob": "117597398a9adb736073d6c6a662a6dad077e4f4",
+      "bytes": 8914,
+      "git_blob": "5ad019a8a7f893f7016acd12715d40d9f90632e6",
       "mode": "100644",
-      "sha256": "f7a79a84b9d2c82a668c93d5f30e36f0317d75ca4e0f8709d9ae28b58f307a4e"
+      "sha256": "b3d018f41745be63f05b31216790db7ac2f4d3321c2f4e380b08f52e2156e5b0"
     },
     {
       "path": "qml/PosterSourcePolicy.js",
@@ -9053,10 +9572,10 @@
     },
     {
       "path": "qml/ReadingDesk.qml",
-      "bytes": 11548,
-      "git_blob": "33f076a63dc95b7f29b1292955ad80c615ef2aae",
+      "bytes": 15373,
+      "git_blob": "121a54833cf764ee7fca08c3e8919656cfdbd0cd",
       "mode": "100644",
-      "sha256": "3004e173d6c68c695bcd24feec483ceccb3cd850919f91b751f546c3c436e244"
+      "sha256": "06826265eee8fadf572d552afcb379099d15fc8b613c79dcb950357a59d23998"
     },
     {
       "path": "qml/RoundedPosterImage.qml",
@@ -9102,10 +9621,10 @@
     },
     {
       "path": "qml/SearchSurface.qml",
-      "bytes": 43794,
-      "git_blob": "667af2ed3be4c7168aac39464f666292225ce624",
+      "bytes": 51355,
+      "git_blob": "60c22d877b750fdde7ee54938351e299ea9179c6",
       "mode": "100644",
-      "sha256": "995d2e9df239a274c43a7b746238edff03b3ec04b25109a5577571f2ab29dfe4"
+      "sha256": "821292cc0ad55087b6f649ec9d393725ffac55c30ca6e67a08d00590231ac991"
     },
     {
       "path": "qml/SeeMorePill.qml",
@@ -9116,10 +9635,10 @@
     },
     {
       "path": "qml/ShellBackPolicy.js",
-      "bytes": 3719,
-      "git_blob": "c32b416f0496fd41adadffb3e289b1bec0f9f44c",
+      "bytes": 3856,
+      "git_blob": "328975822b9664632df801d08b8fd8e5a59cd2d8",
       "mode": "100644",
-      "sha256": "24a07776c74dcff6182175f4356dbb4147fc9aebb75df23771c1f61ca12078f7"
+      "sha256": "ee16dd6c8ccf6309b2906fc57465e924fce4b482f24b44041780544a7575d9a6"
     },
     {
       "path": "qml/ShelvesUniversePage.qml",
@@ -9151,10 +9670,10 @@
     },
     {
       "path": "qml/SourcesSheet.qml",
-      "bytes": 46675,
-      "git_blob": "cf488db7a9b34f4cbf5375835b0aa9a66f8e4f03",
+      "bytes": 58902,
+      "git_blob": "64f89d66069c5ce21550ed707456ce847b4d1753",
       "mode": "100644",
-      "sha256": "5575682c4d3621479ea52d1130073fb9f9d7478a544124ccae47412b84ead788"
+      "sha256": "869a118325213674395e858c62d6a6d4bf4a96967daf6f9861e919e0e7ac4227"
     },
     {
       "path": "qml/StarWarsGalaxySystem.qml",
@@ -9291,10 +9810,10 @@
     },
     {
       "path": "qml/Taskbar.qml",
-      "bytes": 33840,
-      "git_blob": "445858b848eeceb80c7c4fea96b69e29e4355782",
+      "bytes": 33831,
+      "git_blob": "f8d24a253c3735f7cdd1fce009a111ac5d78360c",
       "mode": "100644",
-      "sha256": "e21060b13826fc0e20c00aa24dc9d48fa49a534e501aea2013a420fb08fa8b2b"
+      "sha256": "13c3c8ab6e1b1382fb0432cf5c68283a7113ee5b2886cf01952d0e6799f4d64e"
     },
     {
       "path": "qml/TheatreApi.js",
@@ -9410,38 +9929,38 @@
     },
     {
       "path": "qml/TheatreSeries.qml",
-      "bytes": 120043,
-      "git_blob": "85091c6a12c92a74310877a3592b5f64189fee44",
+      "bytes": 125772,
+      "git_blob": "125bd4eb864a7f25b001c503039859329583a46f",
       "mode": "100644",
-      "sha256": "c3df092f66f5531a5b03ea2e16eda54bda561eda3131d9a311036969ffe4e772"
+      "sha256": "88ad1cfe6e368e14143b2c3c180e8c4ec5dbdb2d4012d6c74bc51331bed9a4b1"
     },
     {
       "path": "qml/TheatreSeriesView.qml",
-      "bytes": 112425,
-      "git_blob": "55943f35e3215ab7b228a14ca3a9c702034551e6",
+      "bytes": 116629,
+      "git_blob": "276ffc9e39981606fa1c184ccf48470650aef09e",
       "mode": "100644",
-      "sha256": "e41b498a106db3f218f541e0fe89242dc139b681dfa75fd11b963cd6d8c378bf"
+      "sha256": "67a136553aa499735b38bd6a9174ee9c8f6e120107c20b45e18b82742c655ff5"
     },
     {
       "path": "qml/TheatreStrip.qml",
-      "bytes": 9166,
-      "git_blob": "5abba32a7ff614316c0ecd8db3b3e4eb7b0ca817",
+      "bytes": 9470,
+      "git_blob": "e8f49d06c81331450587d39e21fc2088a4c544f8",
       "mode": "100644",
-      "sha256": "ac33ef2cea143c31692fd884f56e14f32cf3f7d705f0ceb4228ea24b06af9577"
+      "sha256": "cc99a38b0755a0b5834a38bd8ee8969307f9d761d8d965d60778066070652969"
     },
     {
       "path": "qml/TheatreTabBar.qml",
-      "bytes": 7132,
-      "git_blob": "c060038c9a0e91a37e792e8501dd4888ef413e0a",
+      "bytes": 8368,
+      "git_blob": "6bc347ac58d5866353415b7ba6d7f9a66e7542cf",
       "mode": "100644",
-      "sha256": "3bf40f6e5d10db0453df8498d92d3f0cdaed306c0cd15abef763b90b0b3a561b"
+      "sha256": "fa12ba309dd4c7eaa8008e37623e9b8d3c01678fd8eb8c166893d6d5b1b088b7"
     },
     {
       "path": "qml/TheatreWorld.qml",
-      "bytes": 15824,
-      "git_blob": "588667a0221870b3eb020e2676283f6f4630411c",
+      "bytes": 15820,
+      "git_blob": "e1b769ed73f1c064aa53ad2e4a835059cd94fc9f",
       "mode": "100644",
-      "sha256": "dd67b40249ed0845ed060dd36b9e706a30b959cb6903824f8ea4e68e4b18fe78"
+      "sha256": "0d5255ef460ad85777f5e32365bf4eca55895a33d82995f7570d6b86b75d61e1"
     },
     {
       "path": "qml/Theme.qml",
@@ -9459,10 +9978,10 @@
     },
     {
       "path": "qml/TopBar.qml",
-      "bytes": 23902,
-      "git_blob": "b911c150e49ca0b5a7bcfb971bf2ffb5ddfdf1d6",
+      "bytes": 24083,
+      "git_blob": "b5b5a686f7279f4a48a54dfc631494bbe263b295",
       "mode": "100644",
-      "sha256": "96a23850cf91e1fb6379e0f124385c0dd448c135dd8d6bc97902c58b7b6b89c1"
+      "sha256": "47de23df7a00b04baeabc677e6e893347bc0433c1110e129b6be5920f59b1984"
     },
     {
       "path": "qml/Torrentio.js",
@@ -9487,10 +10006,10 @@
     },
     {
       "path": "qml/TrackerSyncCenterPage.qml",
-      "bytes": 242359,
-      "git_blob": "01668bdced90509f0be0a8c7d538aff56c186d5d",
+      "bytes": 242391,
+      "git_blob": "e3cda6a0315442c3ebae113a5690ed06d993ffc4",
       "mode": "100644",
-      "sha256": "9feed6026f8d6575aba4ae4b53e6f839b0a4d50fce29ccb8a93c83b52c2d2337"
+      "sha256": "7be109f955892ec44c8abfba4675b4b76d142c37808192bf8ffd02ff5caa3875"
     },
     {
       "path": "qml/TrendingTop10.qml",
@@ -9585,10 +10104,10 @@
     },
     {
       "path": "qml/VaultApi.js",
-      "bytes": 9535,
-      "git_blob": "8a6b4d813cd8a9631e28e8e4c7b8b46043de5562",
+      "bytes": 9318,
+      "git_blob": "1db0d004d7f51f9fe034df175f975f704274d2b9",
       "mode": "100644",
-      "sha256": "54041995db512bb08b20ddf891c831678b8e74e9b0d96d70fdf80ea37b3cd49c"
+      "sha256": "211f68ced48b979cf5b9501e24793ddde51b71a04dcf1e14f87b79c933e433f5"
     },
     {
       "path": "qml/VaultBrowseCrumb.qml",
@@ -9641,10 +10160,10 @@
     },
     {
       "path": "qml/VaultHomeWidget.qml",
-      "bytes": 15579,
-      "git_blob": "b161637798062c8580c3ae0183136b8eaf02530f",
+      "bytes": 16014,
+      "git_blob": "1f2ab79075a5afa4572726150ac4d03855d9290e",
       "mode": "100644",
-      "sha256": "b14e0f73ada6dba17990c880adea97412ea503b3df6b01edca152e98e67ccf75"
+      "sha256": "48627d0b8bcf572f80cf0492727545ff2678415624f6562c8d483e72018cc139"
     },
     {
       "path": "qml/VaultIdentifyDialog.qml",
@@ -9731,6 +10250,13 @@
       "sha256": "1330adc5064e7e79107166992ce27621ecc0001c01782d84b4d176067d70f4a6"
     },
     {
+      "path": "qml/WideWorldRail.qml",
+      "bytes": 3838,
+      "git_blob": "450370d02d93dd9dfaceb8b3b99204f1f2a590ba",
+      "mode": "100644",
+      "sha256": "c9a66df82b681806647d8bd288f5442fdafd6d6bdfd72c2134cfcba51eb9df93"
+    },
+    {
       "path": "qml/WidgetHeader.qml",
       "bytes": 3309,
       "git_blob": "23d67500d5dfd264189d92e33f7ab427dabf8a05",
@@ -9746,10 +10272,10 @@
     },
     {
       "path": "qml/WorldPage.qml",
-      "bytes": 15032,
-      "git_blob": "ae540cc13eff9c4115b30df58529171fba4f86c3",
+      "bytes": 17831,
+      "git_blob": "4608437a52be284f0b1e071f2f760354edae6d4c",
       "mode": "100644",
-      "sha256": "66649d0d35735aac66c3ac5f74a7f309931128ef4d6a932183ab4c39fbb43f63"
+      "sha256": "95a82f818b94fec33909dde6e5034fd23b71f9da07a93ba01f0e3dcce8c6b34a"
     },
     {
       "path": "qml/WorldSearch.js",
@@ -9760,10 +10286,10 @@
     },
     {
       "path": "qml/WorldTabBar.qml",
-      "bytes": 7055,
-      "git_blob": "2f1592377e646e231a931f842fd495ca7b03e142",
+      "bytes": 7419,
+      "git_blob": "c7128912d60df5fc16f8390047f9a0876670768d",
       "mode": "100644",
-      "sha256": "ad54cf174c997ff2b7ebbf7a02ac24895ca30509815c3d7f0baa675569eeb458"
+      "sha256": "f5c27368efd062404c653f2876c2eaaa236e586855ef02ff5e7dad53a0cc7ecd"
     },
     {
       "path": "qml/_backcheck.qml",
@@ -9844,17 +10370,17 @@
     },
     {
       "path": "qml/account/AccountCenter.qml",
-      "bytes": 23908,
-      "git_blob": "75266c3ec861e116007eeff2fcd83605f1b7463d",
+      "bytes": 24844,
+      "git_blob": "edd0789560fa7bedbf049a25fdd6a1a31da7d60b",
       "mode": "100644",
-      "sha256": "75727be795f55ff56aa34a46f583c897d451427b62aea7c81a0d6817278331e4"
+      "sha256": "1263b59ff6df63eff2f2708689243049ab03d49ef8bf2726906ff028ce9daa9f"
     },
     {
       "path": "qml/account/AccountChoice.qml",
-      "bytes": 1645,
-      "git_blob": "35b8b0d100f942cb9bfed411e1013beb7b77a777",
+      "bytes": 1831,
+      "git_blob": "5e3882c0a397f97c6c4088f7a7fc3eb3290757d7",
       "mode": "100644",
-      "sha256": "a8f2dcf2cccc38edfd88511963fc5b13ed4241e5b27a80ae24f6f9c3f62fbc52"
+      "sha256": "3d4c69a6b89d6a58bcce6ccd7d4c5a4b4b0d30bfcc786dc6484654ff4abb4420"
     },
     {
       "path": "qml/account/AccountCreate.qml",
@@ -10005,10 +10531,24 @@
     },
     {
       "path": "qml/account/AccountWelcome.qml",
-      "bytes": 1879,
-      "git_blob": "e63f0c7848b4dac898563311229deb8acf54bca5",
+      "bytes": 3149,
+      "git_blob": "e371f6d93c71e1833753601d70a2c04b5fcb4c3d",
       "mode": "100644",
-      "sha256": "4f8659074803359424af4250ec7a5b71149dcc915168851b58a07db490306b46"
+      "sha256": "158f3e7b2aa246eb0675669c889d8c8e0d5601c554df537f4ba785bcd4be3b0b"
+    },
+    {
+      "path": "qml/account/AccountWelcomeChoice.qml",
+      "bytes": 1668,
+      "git_blob": "f1eabf855629bbd128ef09cee7e099a7bef7cb86",
+      "mode": "100644",
+      "sha256": "9f6efb58b60156391a4a6368d87d6f29d9b4d9050e0bc452533cf983bbad4e76"
+    },
+    {
+      "path": "qml/account/AccountWelcomePhone.qml",
+      "bytes": 6687,
+      "git_blob": "aede0f6243bb033808ac1375de92434c79920fc3",
+      "mode": "100644",
+      "sha256": "96aedda690291bce713ad64bcb4f6516f33bc96ca09899cb4d9ad7cc9d8b978e"
     },
     {
       "path": "qml/account/AccountYourColosseumPage.qml",
@@ -10019,10 +10559,10 @@
     },
     {
       "path": "qml/comicreader/ComicReaderCommandBar.qml",
-      "bytes": 11518,
-      "git_blob": "e35f6e7c7c917e5895310091ae42ce697b988e50",
+      "bytes": 12105,
+      "git_blob": "b7c672268ad4aa4236fdfd7f3ab3fa3e3c751ab5",
       "mode": "100644",
-      "sha256": "410632c47ff0fbf6ab4be255ad362608e0c65f9ef83c90f133c870e0db660710"
+      "sha256": "55d5194adee4fea285328796dd3c90694d12ce0a91320e32a6a8dd226ad858e6"
     },
     {
       "path": "qml/comicreader/ComicReaderDoubleSurface.qml",
@@ -10033,10 +10573,10 @@
     },
     {
       "path": "qml/comicreader/ComicReaderHud.qml",
-      "bytes": 41995,
-      "git_blob": "4d6ea3b6ee89c06c4ba957bc6b113734a52831b6",
+      "bytes": 42049,
+      "git_blob": "7233ed2617cef31c3c31d0e0894157dc586c729f",
       "mode": "100644",
-      "sha256": "e04699b52f75c6b0ea9cf4d774b55da9a96ea695a540cbe8e5dbe0633b83e48e"
+      "sha256": "0778b8ef4f3461167d6ad97a0b054893d6b8be7f539a3f86bb6674126f85fd1f"
     },
     {
       "path": "qml/comicreader/ComicReaderIcon.qml",
@@ -10061,10 +10601,10 @@
     },
     {
       "path": "qml/comicreader/ComicReaderInput.qml",
-      "bytes": 17180,
-      "git_blob": "cae2699225d4e711adde4229554b66273c6a3d23",
+      "bytes": 21601,
+      "git_blob": "59b6f71a3d25b59f08c5d4fa43210c1a929cdf28",
       "mode": "100644",
-      "sha256": "a91717d37775362924852fda5b9de4c54d69a36cf44b02f214ee3a3433117f18"
+      "sha256": "efc413b6d6f68c3a5bbcfdc83293941609414427a627ce9bb14cf56248c5077f"
     },
     {
       "path": "qml/comicreader/ComicReaderKeyboardArea.qml",
@@ -10110,10 +10650,10 @@
     },
     {
       "path": "qml/comicreader/ComicReaderShell.qml",
-      "bytes": 142967,
-      "git_blob": "28ecf7fa434676fc9579ecb863317994c5ce861a",
+      "bytes": 143758,
+      "git_blob": "4282f36de21a005db4c20006d4d59b6c695c76a9",
       "mode": "100644",
-      "sha256": "c51faa6306f694357d52648dcec9489e3a081e6418957cef1dc7915fff7cefde"
+      "sha256": "77c9de81f66dee6c9b411aaa6ec5fd3965c869244e5cf6ef52c8e71cd922a573"
     },
     {
       "path": "qml/comicreader/ComicReaderSingleSurface.qml",
@@ -10131,10 +10671,10 @@
     },
     {
       "path": "qml/comicreader/ComicReaderStripSurface.qml",
-      "bytes": 61503,
-      "git_blob": "42afcad5b75620e0a72049b73193f2d16a80d68a",
+      "bytes": 62642,
+      "git_blob": "55c39cde01ad2c1e9f75af91ba5f7f926efa963a",
       "mode": "100644",
-      "sha256": "dee552ec2189b54ce5faa2cdedeb5f66928822b67363434cd0078698ac4b414e"
+      "sha256": "ca7b4091c776ab9097d802ff05a6d70b382afa7db9758826d59a373c7c3344e7"
     },
     {
       "path": "qml/comicreader/ComicReaderSyncedResumeBridge.qml",
@@ -10383,17 +10923,17 @@
     },
     {
       "path": "qml/feria/PorticoAccountHighlights.qml",
-      "bytes": 1522,
-      "git_blob": "7f7d8074fbdc3f1a6ddb1c7cace9b847f8feeee1",
+      "bytes": 1555,
+      "git_blob": "363d25adc4a7081f928786955ca7228d6d61f0ba",
       "mode": "100644",
-      "sha256": "6b1e1a0007326b97a9b625803fc6a112d9dbb035aab6b2153a8bdc39c9373add"
+      "sha256": "5f4ebbb84f7755ab307faddfe01acfc57bce71ab0bca5a2f6568b68621f4f82d"
     },
     {
       "path": "qml/feria/PorticoAccountHistory.qml",
       "bytes": 5128,
-      "git_blob": "804e0a8a89a619e4d559c0f2c52227e877d08522",
+      "git_blob": "20d69e61998d40634d813bd4e4f6c94dface1189",
       "mode": "100644",
-      "sha256": "3765b508173293c17b94deb73fe86e4d24c98ff35660c2abcb8dbb6f1c21b5a0"
+      "sha256": "79f0e4cdbb1b1005e1ef68838c33be38675174a330174d36b8afbb84b4b81559"
     },
     {
       "path": "qml/feria/PorticoAccountHistorySlice.qml",
@@ -10426,9 +10966,9 @@
     {
       "path": "qml/feria/PorticoAccountView.qml",
       "bytes": 3401,
-      "git_blob": "be3c99aa15b3588d59583c2942d48a680da95a58",
+      "git_blob": "b40aee04fbb32209a255a4f8a5e1e4323ec04a31",
       "mode": "100644",
-      "sha256": "4d93f58e8ec00c5176f1ae5acc7140777e5b3d7fec610eb7835339dc040d6dba"
+      "sha256": "841eb1687740ef0f53eb7d10cb3f76e7c364a34d4b0f781bc75dcc5844518a43"
     },
     {
       "path": "qml/feria/PorticoAppTile.qml",
@@ -10496,9 +11036,9 @@
     {
       "path": "qml/feria/PorticoCombinedAccountHistory.qml",
       "bytes": 5178,
-      "git_blob": "1877e93d5a82d23e6e3b6b5232be2cf999af638f",
+      "git_blob": "19b0aa5247d7f9510ded22db7f99e939991d4e4e",
       "mode": "100644",
-      "sha256": "ca16a33205ba9d668cc639161aa881376a7fa58a3d28a31590513d5a8081bfce"
+      "sha256": "85f73396a6ae3b57edf5e0dd466bcf0d69f4ecba1c66b425d7f22aad66635cac"
     },
     {
       "path": "qml/feria/PorticoCombinedAccountStats.qml",
@@ -10510,9 +11050,9 @@
     {
       "path": "qml/feria/PorticoCombinedAccountView.qml",
       "bytes": 3441,
-      "git_blob": "58555ddf4fb5b9c47680729ada33084a4ca16020",
+      "git_blob": "9374867a3d1f13a983cd4474f923381d61eb5558",
       "mode": "100644",
-      "sha256": "4d0c5afe5264f7de347baeb57f352823795f4cf73084dbedd3ee84570b8ce856"
+      "sha256": "79c3d518e5a0e8d72a2be993df8b492465210881595b948d38f39198a4d2a2c8"
     },
     {
       "path": "qml/feria/PorticoCombinedAppTile.qml",
@@ -11502,11 +12042,18 @@
       "sha256": "285526c764b33521e2d02682482f0609e91764f66d3e9bb6988e44e9ad03f7e7"
     },
     {
-      "path": "qml/reader2/AppearancePanel.qml",
-      "bytes": 48775,
-      "git_blob": "27ae3be711534449c3427def48e5b96165990f46",
+      "path": "qml/reader2/AndroidPaper.qml",
+      "bytes": 5489,
+      "git_blob": "92a709f0b99316e8a327aa6b243aeb1f4766c5f6",
       "mode": "100644",
-      "sha256": "dafc4691bfe6d95f1031aee6c6718a6582978621a54784db87f4a17d589dbc44"
+      "sha256": "bb28ec9f2e15fc4b10ed2ead29ba3f494ff96e8a68a9222170534a5157172d83"
+    },
+    {
+      "path": "qml/reader2/AppearancePanel.qml",
+      "bytes": 48832,
+      "git_blob": "880534669a4fd54b2e4327b05e508b94d25a690d",
+      "mode": "100644",
+      "sha256": "e8e9892b9b6609685a565ee8dbe14c8d98de596e2ced86925ae40dc4ef970048"
     },
     {
       "path": "qml/reader2/AudioGlyph.qml",
@@ -11517,24 +12064,24 @@
     },
     {
       "path": "qml/reader2/BottomRail.qml",
-      "bytes": 7787,
-      "git_blob": "4e255d65975b03de09f5553eae2a2e385beaffd6",
+      "bytes": 7942,
+      "git_blob": "307e98e383cf81cf4964dc96adae55b2ee54b6d2",
       "mode": "100644",
-      "sha256": "f978e510d828d49c8ff078dc1152d537d8ae59333b2ea864bfb2162422d2a98c"
+      "sha256": "b6370c1d52d2b661b272f2b07919b5492f932623ce6998b40b9d17395eb09b3c"
     },
     {
       "path": "qml/reader2/DictCard.qml",
-      "bytes": 8641,
-      "git_blob": "e4e0dd6abb8204d4bad7f53b36fa2fec663bb7a0",
+      "bytes": 8699,
+      "git_blob": "7785ab75a4158aede7e32fe62b453579bff92ebc",
       "mode": "100644",
-      "sha256": "bb246bba6b774726c8e29f68ef2391ae5daceea4297e15574fd153f6b7f3c2a4"
+      "sha256": "f64235e6836018b1ac0595b381c3dcd9ef822350d5169671114d6b8a55d49252"
     },
     {
       "path": "qml/reader2/FootnoteCard.qml",
-      "bytes": 3866,
-      "git_blob": "a036311810119e9db41b9beb67112f94950efb6f",
+      "bytes": 3924,
+      "git_blob": "652faaf2e120d5463cac0a9df3c5077006747cf7",
       "mode": "100644",
-      "sha256": "1a4465d1cbab04b9a129d34b51603d8f0606930243804cc8e2b88aa706e16557"
+      "sha256": "68ea28c1fa67f3faa1ca02de9deca4921ef054d6cfb97997d4fe66287f2f5688"
     },
     {
       "path": "qml/reader2/Harness.qml",
@@ -11552,10 +12099,10 @@
     },
     {
       "path": "qml/reader2/LeftPanel.qml",
-      "bytes": 67797,
-      "git_blob": "111d3a38ad6bb49bfda0ec46f7f1975d50dfd9ce",
+      "bytes": 67854,
+      "git_blob": "0e0dffba0b2acf65a00b07c00782003df6833433",
       "mode": "100644",
-      "sha256": "85e7f3399039e85a27546c3e8d066ef9aa4493d40298c912c4ce0a7a3d6acc8c"
+      "sha256": "e520c278c0334ccf51b031687279be10e4e7e002b7fcfda4a9a6f325c252b826"
     },
     {
       "path": "qml/reader2/Paper.qml",
@@ -11566,17 +12113,17 @@
     },
     {
       "path": "qml/reader2/Reader2Logic.js",
-      "bytes": 60889,
-      "git_blob": "0d1fe0e06f8bed7a82f9eda4086f1a6977140761",
+      "bytes": 61231,
+      "git_blob": "323ea1b972b63b55e76b0d8c4b0afad9547b04a1",
       "mode": "100644",
-      "sha256": "8f50e4c36c13cb83770e451e8f1d8a956d05564dfc37e110a2b6fd871b5f27b9"
+      "sha256": "f3c66111071bad39881889e40339a83115dced8d36fa59af2551e6a3c4e87519"
     },
     {
       "path": "qml/reader2/ReaderChrome.qml",
-      "bytes": 45230,
-      "git_blob": "d3aa7e00396890c29b9be72464404a921561c2e9",
+      "bytes": 47605,
+      "git_blob": "b4f5dfac0808a6099d29c63397a2cb85a957b0cc",
       "mode": "100644",
-      "sha256": "eb87cdb69aa5d2ec9696eeec57f1037838abf551e11d0dd1b3cc82e383097118"
+      "sha256": "b69c4cb0a5750356147a92714c95f401967869430a9c1a8598a83c72fa78dfc6"
     },
     {
       "path": "qml/reader2/ReaderKeyboardArea.qml",
@@ -11600,11 +12147,25 @@
       "sha256": "0847b0d8186b76e53071dde89fa0186306e9dfd9007cbcbf778e77c2e7c8f362"
     },
     {
-      "path": "qml/reader2/ReaderShell.qml",
-      "bytes": 88537,
-      "git_blob": "a4519d009f8f5a2a6b0241fd994c0ea261472574",
+      "path": "qml/reader2/ReaderOverlay.qml",
+      "bytes": 2178,
+      "git_blob": "a7a781b18139f4a8e0e7ef05830c9362fcc3b799",
       "mode": "100644",
-      "sha256": "01aa41f0cd9924afd416e9f9cc93f265b2406afc5c6c0878bbe7339f4c76c75e"
+      "sha256": "800d4fbd2f79d7db10d307e29bbcb6e8a8c6de0e13df640ce10d06baa6bf0fee"
+    },
+    {
+      "path": "qml/reader2/ReaderPaper.qml",
+      "bytes": 2371,
+      "git_blob": "66e5ad4fbcfb3c4055ed9cc6f6fd71bf000a5942",
+      "mode": "100644",
+      "sha256": "3acda2944eb0f8b09ef20539791b3b14bbf00b253403c6c2ee9ab639e9956921"
+    },
+    {
+      "path": "qml/reader2/ReaderShell.qml",
+      "bytes": 89132,
+      "git_blob": "5722711f054ed640ba8f54861804a6a798b15c04",
+      "mode": "100644",
+      "sha256": "f176bfa90e92ef1cbec16aa126499eef2d9ea237bd9c00b2606399f809745fb0"
     },
     {
       "path": "qml/reader2/RulerOverlay.qml",
@@ -11615,17 +12176,17 @@
     },
     {
       "path": "qml/reader2/SearchSheet.qml",
-      "bytes": 12550,
-      "git_blob": "0ce6c06055631a530ff7573d651f49b4cac267bf",
+      "bytes": 12607,
+      "git_blob": "0eeac9d88cb7b326f77e64d37966538a6230894e",
       "mode": "100644",
-      "sha256": "9ad152d00677a537d5f01b326a971959a22372f114a0fa8137a6a7f7bcf893da"
+      "sha256": "dd881537ae1d698dcfa78c119d34ed8940edff703caaad383292d6fc26bc8e7d"
     },
     {
       "path": "qml/reader2/SelectionMenu.qml",
-      "bytes": 13550,
-      "git_blob": "ec61a5fb1f2615900846526a7c1a2bb4aca5dc6d",
+      "bytes": 13608,
+      "git_blob": "c989b945c1e372b2efc536d5454152909ce45410",
       "mode": "100644",
-      "sha256": "e3c465af9875d8d929f323415b049283cf7d5b0d087f939259da50d06483cdb2"
+      "sha256": "9e1058205bb5e97f5f59d8ec5b0caab34c0a801609214658c9f06df5fa72bad8"
     },
     {
       "path": "qml/reader2/Theme.qml",
@@ -11636,17 +12197,17 @@
     },
     {
       "path": "qml/reader2/TopBar.qml",
-      "bytes": 8833,
-      "git_blob": "04584baf8a6abeae7ae02b383613e5676c8d11a6",
+      "bytes": 10655,
+      "git_blob": "9e07207888e8684bafbb6b0b50a579d135f60a3b",
       "mode": "100644",
-      "sha256": "4b08c264e8794fb79a03fd7141334136ba1aff3dbfe1fa1ebf60ad0f2d86adbb"
+      "sha256": "840dc1a6951435d114c6433838a938340c540da02fec3b862213329a580eda2c"
     },
     {
       "path": "qml/reader2/qmldir",
-      "bytes": 977,
-      "git_blob": "37ef27b67983329be5b02f9936902e907e5f9f41",
+      "bytes": 1073,
+      "git_blob": "fc333d5c7688cb441e646291b1a9600301177c76",
       "mode": "100644",
-      "sha256": "4ab1ceba7bfe186a1c46e06b0e69b0a882f3c9de08700b3165c9ef8e7bbc5009"
+      "sha256": "528e11b356d40520918b17e2992f8a79fed6d851b9d1bb2b4afd3cbf93755f80"
     },
     {
       "path": "qml/shaders/roundedposter.frag",
@@ -11831,6 +12392,20 @@
       "sha256": "2e2572db82ec3ef4bf9e55e38022c970ad38af1275b53930062f8e502f9a01bf"
     },
     {
+      "path": "resources/reader2/android_boot.js",
+      "bytes": 2064,
+      "git_blob": "023354d6bb2b6bcb440ebe4e3b6b88dca6108ff3",
+      "mode": "100644",
+      "sha256": "7ad5c3248e18eec4db6871600e4eebc4759cedc4f6680f4b8dbbc175620c044c"
+    },
+    {
+      "path": "resources/reader2/android_paper.html",
+      "bytes": 533,
+      "git_blob": "6335829a8730dd4d18529cdeb79cec12ee51accc",
+      "mode": "100644",
+      "sha256": "82ecf21f3d80c7fc91daddf3877d4d88c56b20d2a9c3f3c372d4634cba083470"
+    },
+    {
       "path": "resources/reader2/bridge_boot.js",
       "bytes": 1137,
       "git_blob": "bed29d2d44644ed33eb4c51a5668138889db1723",
@@ -11860,10 +12435,10 @@
     },
     {
       "path": "resources/reader2/paper_glue.js",
-      "bytes": 70241,
-      "git_blob": "a5d31271e350e41423cde8cb1e2d92a01c27e48a",
+      "bytes": 71482,
+      "git_blob": "aaab5447262fbb3ef504fa34b86d95a892962348",
       "mode": "100644",
-      "sha256": "4b3cef0781aefcb1fa809e5554cba9e6ea6e7b11976009c94d08a04fea18954b"
+      "sha256": "61bbe9beef74601cb94166a0b8285b0cec4fd9985dd5ba5a34f9a5aef7f98441"
     },
     {
       "path": "resources/reader2/paper_text.js",
@@ -12028,10 +12603,10 @@
     },
     {
       "path": "resources/reader2/vendor/foliate-anx/src/fixed-layout.js",
-      "bytes": 11016,
-      "git_blob": "66be9896663bc8b62d9fabc4e8b1e6fe06142935",
+      "bytes": 11094,
+      "git_blob": "dbc1c71f7cf070430c2804b793ce07657175ea8b",
       "mode": "100644",
-      "sha256": "c30564438be9d19ad8d4da9bca7feaca170dcac8e93296ddab3d30cb99c060c4"
+      "sha256": "acab546773aa6bf12cc12e9996416fed2f5db1fd0d64853b41608c7954487e5e"
     },
     {
       "path": "resources/reader2/vendor/foliate-anx/src/footnotes.js",
@@ -12063,10 +12638,10 @@
     },
     {
       "path": "resources/reader2/vendor/foliate-anx/src/paginator.js",
-      "bytes": 46728,
-      "git_blob": "58439295261cca1c88ea14ed118dfbc3d97369ca",
+      "bytes": 46800,
+      "git_blob": "b72f9911cf032cc613094d327b49bcfcae697055",
       "mode": "100644",
-      "sha256": "4e0cbab16f76c3c3ad3cdec56c13ddbf47857206a5f0a6f934b0f0832f15ac24"
+      "sha256": "9e160ab4855bee01785fde4d0adec608ef3fc651e675d6f2fbd95ac4a0540582"
     },
     {
       "path": "resources/reader2/vendor/foliate-anx/src/pdf.js",
@@ -12697,6 +13272,69 @@
       "git_blob": "8dfcd0b3c87d5f75f772b5f32fd9fbd6853dd761",
       "mode": "100644",
       "sha256": "4e6dbfedef98363aca929758083fa59b3b9578a6cdb8d9113db08b08fff27128"
+    },
+    {
+      "path": "scripts/android/build_apk.sh",
+      "bytes": 4553,
+      "git_blob": "553241a0d42f68f9ea39369770ad7cd567d70f24",
+      "mode": "100755",
+      "sha256": "9b8a87fbcac34964c2f050b8d3087cbaba72c4e48d3059212963ecc5890d4f15"
+    },
+    {
+      "path": "scripts/android/build_deps.sh",
+      "bytes": 8439,
+      "git_blob": "d9c78970c2216cabf211ff41ef009b67e64fac63",
+      "mode": "100755",
+      "sha256": "6ee174741b6890e79393d780687f807f6d2a4abb2b80f4450778f69467fb7c82"
+    },
+    {
+      "path": "scripts/android/emulator_smoke.sh",
+      "bytes": 13345,
+      "git_blob": "eb1b23532393fa3ac5affb197c9922e2a6ae1cfc",
+      "mode": "100755",
+      "sha256": "d15d4cd0fdc071512ef773614c5e84e8466132e31d1abf1072e8df3c4be6cff1"
+    },
+    {
+      "path": "scripts/android/install_toolchain.sh",
+      "bytes": 4035,
+      "git_blob": "59f4c321ea4b0b2ff59e85a64408b1d5f3b9f382",
+      "mode": "100755",
+      "sha256": "fdded7ba0d299e2cc829e4f78bb01c759d08bebab49ea84741c73672e4199112"
+    },
+    {
+      "path": "scripts/android/openssl_3_qt_android.patch",
+      "bytes": 999,
+      "git_blob": "0684a3d3a8586a66582de51470b5d10c543c706c",
+      "mode": "100644",
+      "sha256": "3ff131d384b960dfe46b2388ffa818b2325e95391dcb57b55eaafa355258f506"
+    },
+    {
+      "path": "scripts/android/prepare_cache_paths.sh",
+      "bytes": 1600,
+      "git_blob": "158ae16431c42b0222a26aafdad2ded37e242d60",
+      "mode": "100644",
+      "sha256": "fe1f56d6b6a26f7e08c124eff17939c034ffcbbc73b06213c59cbaeef2a9c491"
+    },
+    {
+      "path": "scripts/android/qualify_toolchain.py",
+      "bytes": 8843,
+      "git_blob": "ce264f80adfb4b2e4c4ef1fcb2253cb9ca2e9952",
+      "mode": "100644",
+      "sha256": "adf931898fc178514dd0f087a52f8f26963832b5ab1bcf2aec48d900ee5e5ee3"
+    },
+    {
+      "path": "scripts/android/verify_apk_openssl_pair.sh",
+      "bytes": 1044,
+      "git_blob": "24844dcc90c2fbb1abea2f82d53cc8cff26d3d92",
+      "mode": "100644",
+      "sha256": "05cbebdd5962ae940796c90266a2e39eb27d06a1b206a4e1ac9c51222bc0080b"
+    },
+    {
+      "path": "scripts/android/verify_openssl_runtime_pair.sh",
+      "bytes": 2164,
+      "git_blob": "8a064d3247e7e232a58122c3558a9739e22f933c",
+      "mode": "100644",
+      "sha256": "aa0be3cc7c465d52368bf9e8a78b9e6c3db59e54eb5e22fac19eb5062252328f"
     },
     {
       "path": "scripts/anime_brain/build_mal_db.py",
@@ -14289,10 +14927,10 @@
     },
     {
       "path": "tests/CMakeLists.txt",
-      "bytes": 243393,
-      "git_blob": "de15721d1e022170a01eaeee06396dd2966e0325",
+      "bytes": 248116,
+      "git_blob": "c1dc43356535abaa79ae093ceb3969ab8e6e1593",
       "mode": "100644",
-      "sha256": "97534a7870f261423dd7e6fd36b3f969bf7ded83d22604f1111a523789687d71"
+      "sha256": "b1d53a7ce3db9b47a3fc5b387d70fd9ef31e59c0ee102448fc67d7a893d5f596"
     },
     {
       "path": "tests/__compare_extensions_qml.qml",
@@ -14407,6 +15045,62 @@
       "sha256": "2649a2175800bc48518f4c8123066dda88b7c070d7dc6acc542f002bb6342011"
     },
     {
+      "path": "tests/android/ReaderPublicationSessionTest.java",
+      "bytes": 3855,
+      "git_blob": "22838e1b56f440d3445bc3cafb5c66f0f53caffa",
+      "mode": "100644",
+      "sha256": "6e7ef8b1a15e2b57a74dc08d6703c4c1d1dd14edb58ee579c00da9fbd7a2f0a6"
+    },
+    {
+      "path": "tests/android_adaptive_runtime_probe.qml",
+      "bytes": 2750,
+      "git_blob": "e959bead23ef3f15d6592fc1a5f910a7922e0879",
+      "mode": "100644",
+      "sha256": "ad226662a0560c028a56f17749b6f9e80cb1bd93207171726ecc90babae28613"
+    },
+    {
+      "path": "tests/android_emulator_smoke_test.py",
+      "bytes": 15791,
+      "git_blob": "03c377a88d9e635999426156c3b37f0946981b63",
+      "mode": "100644",
+      "sha256": "6769ffaa810faa372095e10c2c743b31c2ce228a710d6ff9dc3af6bfc3a10dd2"
+    },
+    {
+      "path": "tests/android_media3_state_harness.cpp",
+      "bytes": 16764,
+      "git_blob": "50f6cc9371ae47eff493007df39dd30a1ae9042d",
+      "mode": "100644",
+      "sha256": "893ee2a840e7474d32c5df3dbbe76aa52063f19dfb7850c6b08524f215c30a48"
+    },
+    {
+      "path": "tests/android_qml_engine_compile.py",
+      "bytes": 5215,
+      "git_blob": "9c460d280a30948527bffc053961c0ef24c9883b",
+      "mode": "100644",
+      "sha256": "9f96648427f9714a455bc4087e9dc33601e6b4fccbd8f4723cae1b95d0a54a8d"
+    },
+    {
+      "path": "tests/android_qml_preflight.py",
+      "bytes": 1015,
+      "git_blob": "0857ad3f9e0431870079d92c3c6de8eeba0aa25f",
+      "mode": "100644",
+      "sha256": "880dd407f5d6fe88a5a9140fe4aed73e0e70b6bc8e3ce7030c077ae319a8fe43"
+    },
+    {
+      "path": "tests/android_reader_boot_test.mjs",
+      "bytes": 2260,
+      "git_blob": "24ec785da42080f19d2af104554d9a77b4fb50c9",
+      "mode": "100644",
+      "sha256": "a51c5a8691fdaa2820dc060db2adedd1a470f951bd5ab6bd643658f5eac607b7"
+    },
+    {
+      "path": "tests/android_reader_paper_contract_harness.qml",
+      "bytes": 3877,
+      "git_blob": "703cfe0664c853875f138b409a243e7c115b4e4b",
+      "mode": "100644",
+      "sha256": "c36171a133d9c8b22b328c82bd078b6234cefd5a1b392891ed27efdc0aaf50fd"
+    },
+    {
       "path": "tests/anime_episode_presentation_test.mjs",
       "bytes": 6420,
       "git_blob": "f12547af16db9d48b4dc0aea34b3144cad895bf5",
@@ -14450,10 +15144,10 @@
     },
     {
       "path": "tests/auto/account/tst_account_core.cpp",
-      "bytes": 17336,
-      "git_blob": "c21f7d9388162c339d5d24baab8a1674a41d62ed",
+      "bytes": 17559,
+      "git_blob": "00a51ab0494ca411ef2baa9330581f737de79381",
       "mode": "100644",
-      "sha256": "8b73e5081af69d275adcc42b37dcb6b973031c287a1ab87fab7b3576e013427d"
+      "sha256": "695f50dbda71e9d84e3bbf93433b73490e6b1205ad81638113ed2c57d8d7a82f"
     },
     {
       "path": "tests/auto/account_adoption/tst_account_adoption.cpp",
@@ -14471,10 +15165,10 @@
     },
     {
       "path": "tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp",
-      "bytes": 128862,
-      "git_blob": "03df730ebc4d022ff9d38204d57e7438d28b4a76",
+      "bytes": 128968,
+      "git_blob": "2673812788c321f9cb7626fab9e5c7f2e314eea0",
       "mode": "100644",
-      "sha256": "e338da7e32dff854c8aa66479d8c32beeeb714937d40fd8e9179558ca437147c"
+      "sha256": "a1dc2ae8611d360f7b0960e51ca1a90d14530c79ddf86d246b09d6033cfe8f0d"
     },
     {
       "path": "tests/auto/account_attachment_runtime/stremio_episode_metadata_fixture.qml",
@@ -14660,10 +15354,10 @@
     },
     {
       "path": "tests/auto/core_sync_adapters/tst_core_sync_adapters.cpp",
-      "bytes": 120983,
-      "git_blob": "8c5ce138d388fa1ec5dff059b542c2a4a3c52604",
+      "bytes": 123148,
+      "git_blob": "bfe81d6411d96453980b3dbaa862b514b31b4fec",
       "mode": "100644",
-      "sha256": "8a317886c9fd28c043b15be1168750abd3ae4c088cb06d8f3ca283dae9b90a2a"
+      "sha256": "4ab0c52c3759c7ddd82010b459a1fee66e0138e546b21873add031f747c9e223"
     },
     {
       "path": "tests/auto/download_intent/tst_download_intent.cpp",
@@ -14674,10 +15368,10 @@
     },
     {
       "path": "tests/auto/downloads/local_downloads_test_stubs.cpp",
-      "bytes": 6550,
-      "git_blob": "bb5cb0d3684d57e11edf770489c8b8fd16ad3239",
+      "bytes": 6591,
+      "git_blob": "8eaef81265d647c9e4ec795a7042237e01e9a4c4",
       "mode": "100644",
-      "sha256": "0131d6e889ba5ae646f67e070a5ac6e6e88d2167c6e4eacca7aebb8e95fcf1e7"
+      "sha256": "cb700902be7097b412eeecc6d4f327e70f4454d3839c9978156a57ca1d86ff76"
     },
     {
       "path": "tests/auto/downloads/tst_local_downloads_failure.cpp",
@@ -14709,10 +15403,10 @@
     },
     {
       "path": "tests/auto/keyboard/tst_keyboard_key_events.cpp",
-      "bytes": 6506,
-      "git_blob": "bb2764602e9b17803a8b1c1d237410cf6abf9ef4",
+      "bytes": 6815,
+      "git_blob": "2837a5e5eba9e791d7457510473f82b635dc9146",
       "mode": "100644",
-      "sha256": "78f9062799d7346f8c8d608a201ecb7320600f03eab2ede53ab184fe73b79f5f"
+      "sha256": "1c69ef3e1bde2e3e097e8a3b2fb48485c6c1662aa039ab5a5cf41931749e02b3"
     },
     {
       "path": "tests/auto/keyboard/tst_keyboard_key_events_fixture.qml",
@@ -15016,6 +15710,13 @@
       "sha256": "f50a54d2b890056873cae031d30cb8b4308001e7c99430b10685d119767a83fa"
     },
     {
+      "path": "tests/auto/vault/tst_vault_android_index_adapter.cpp",
+      "bytes": 10351,
+      "git_blob": "3d4c494d87d09b8ae2116078ff63aa14e0fe033d",
+      "mode": "100644",
+      "sha256": "73cb76c3fce9b67187eb44178f5b472b14f3b5ade05c55829d28e987005d03bb"
+    },
+    {
       "path": "tests/auto/vault/tst_vault_artwork.cpp",
       "bytes": 19193,
       "git_blob": "f600f0ef8fe32bd5e9ddf0a0ae6c091cae9c8287",
@@ -15024,10 +15725,10 @@
     },
     {
       "path": "tests/auto/vault/tst_vault_browse_away.cpp",
-      "bytes": 10206,
-      "git_blob": "71bb751b73d62208bccc7151fbd0e013a69afa15",
+      "bytes": 13623,
+      "git_blob": "6f1eff00032c24a4d0045d4bb078cbbb07318c86",
       "mode": "100644",
-      "sha256": "b54598b26a676a1454526fb1f9d5319f37f20da87c49a873c68de7df40aafcc9"
+      "sha256": "f48c21b069ad605694c4a3d8859ae8d98a94966042c528b15b2024ee3749409f"
     },
     {
       "path": "tests/auto/vault/tst_vault_browse_detail.cpp",
@@ -15108,10 +15809,10 @@
     },
     {
       "path": "tests/auto/vault/tst_vault_stores.cpp",
-      "bytes": 22996,
-      "git_blob": "591843b991e65a48dbc13aa72368be2503de825a",
+      "bytes": 23847,
+      "git_blob": "c6a85118cfb39923c9035eea32689e1458292ca9",
       "mode": "100644",
-      "sha256": "b4439c8632c9130258f40c9ab2922fa1dd91c9e4daf903051b63c8d0f715ab62"
+      "sha256": "d719060be01f65118d6bea2d71ccce38ac020b0928f4f124a00d79f189061a82"
     },
     {
       "path": "tests/auto/watchparty/tst_watchparty_identity.cpp",
@@ -15192,10 +15893,10 @@
     },
     {
       "path": "tests/background_work_coordinator_harness.cpp",
-      "bytes": 3679,
-      "git_blob": "33401bee8074a565a614d12444486119e898188e",
+      "bytes": 7078,
+      "git_blob": "d5b73b6d1f6bcedc4f4b285e04601de4861ee8d1",
       "mode": "100644",
-      "sha256": "4cf3c8a88775b528a5a3437e7701e1f9978377e4be6339022f6455225bfa5e53"
+      "sha256": "3bc2967b403a11851089c2221983d4f6eb97173ae1158be5c3670cedf8a0da01"
     },
     {
       "path": "tests/batcave_guard_probe.qml",
@@ -15373,11 +16074,18 @@
       "sha256": "772052a73dc6f20faa5a295a42e0db070d592ac29d85def23fd8a134afb9b05f"
     },
     {
-      "path": "tests/cbz_archive_harness.cpp",
-      "bytes": 2991,
-      "git_blob": "db098e4de8d0cf4b01cb97d75cf5d041f3d94271",
+      "path": "tests/cbz_archive_fixture.qrc",
+      "bytes": 131,
+      "git_blob": "602091a5d097ecfe43f4ad66d0a079f048018173",
       "mode": "100644",
-      "sha256": "676e0d9adb74418f4489cb030f5cecd496628d914cadbecf7357aec17be2b877"
+      "sha256": "6d1b0c0cf23223aad2cc50b1fed95b73c43f236fdc638ac9076edf9bf018e3aa"
+    },
+    {
+      "path": "tests/cbz_archive_harness.cpp",
+      "bytes": 3622,
+      "git_blob": "245998b2194e8954ad86d6e91b436528ab53d0ee",
+      "mode": "100644",
+      "sha256": "3c0991af287ccc5cec6e4669e7ba64e98302f59ccff3301ac24f2a0090840ae9"
     },
     {
       "path": "tests/cbz_archive_probe_harness.cpp",
@@ -15884,6 +16592,13 @@
       "sha256": "8bad7e31f3747129cb14ff6b03b789ad2f03a4376afe8b5ba4c9e59aad4aa626"
     },
     {
+      "path": "tests/direct_source_policy_contract_test.mjs",
+      "bytes": 5081,
+      "git_blob": "9139632a98edc8406e37077d3a834c60e13a09ec",
+      "mode": "100644",
+      "sha256": "4660fe7b46d1d47f97c4156ea888bfff33c2d5d1b324a8f1734e7fcdff198328"
+    },
+    {
       "path": "tests/discover_api_harness.qml",
       "bytes": 8078,
       "git_blob": "f7db667de8933619de68cb0833460dfeb638cea0",
@@ -16039,10 +16754,10 @@
     },
     {
       "path": "tests/extensions_store_contract_test.mjs",
-      "bytes": 4544,
-      "git_blob": "c1477bf420ba2ee5f2fdfef04d5b6a9189eba289",
+      "bytes": 5684,
+      "git_blob": "8f2a79b4c4763da9d674a127eaed1e56d3ffe0af",
       "mode": "100644",
-      "sha256": "69ea1b9e0aaa866effdc8225504b5ed31479a49458d11eb7dcc297be143b4c86"
+      "sha256": "d12dbd5272d844aa9647d0b5a036afe2c32746811601ba03f50241f372d5c85f"
     },
     {
       "path": "tests/extensions_store_svelte_contract_test.mjs",
@@ -16521,6 +17236,13 @@
       "sha256": "030356dc65171892cb4425adb861d057cc21507db702e905ab52d0d7777b4a47"
     },
     {
+      "path": "tests/fixtures/android/onboarding-qt-ui.xml",
+      "bytes": 1452,
+      "git_blob": "e018eda7159c05d0e2ca2dd7066a0c0e754c9d09",
+      "mode": "100644",
+      "sha256": "75f0f2c315eb040f7fca98075a5a8e5be308a78c39a21231e5ac810ad2b1360d"
+    },
+    {
       "path": "tests/fixtures/anime_order/anime-list.xml",
       "bytes": 1421,
       "git_blob": "1f015391e3369bbfa24a5ff8fa19299f8ae0682c",
@@ -16892,7 +17614,7 @@
       "sha256": "0861956503ee97484e1c04c52edc55535570fe0d23c857e63af81e2a252f7bf5"
     },
     {
-      "path": "tests/fixtures/vault/accent-root/Poke Series/Poke\u00b4mon 01.cbz",
+      "path": "tests/fixtures/vault/accent-root/Poke Series/Poke´mon 01.cbz",
       "bytes": 19,
       "git_blob": "e428f4c1abce78ca7aef829b570bdf9bb65be838",
       "mode": "100644",
@@ -24025,6 +24747,13 @@
       "sha256": "3f10520fbf3bb919445ecb49dfad1938871b4b8b54293729af3dc7a63848d64f"
     },
     {
+      "path": "tests/platform_services_harness.cpp",
+      "bytes": 10242,
+      "git_blob": "430eb4fcdd07cc0d0bae90af51db76d6bc0a515d",
+      "mode": "100644",
+      "sha256": "30d4b862da1eb055ac9ca616d11f8b281f41a5892f288fda012cdc350a9e9d18"
+    },
+    {
       "path": "tests/player2/fixtures/make_media_fixtures.ps1",
       "bytes": 3081,
       "git_blob": "9c2a86ad8ce727d78e9472d51faf82ef7aa3c5e5",
@@ -24382,6 +25111,13 @@
       "sha256": "61a7204d5d36331c1c18362e635f66fa85c84ea2147af012ab12fb4a319a4863"
     },
     {
+      "path": "tests/player_pause_activity_test.cjs",
+      "bytes": 1093,
+      "git_blob": "3e014d6476f2a85ffb3158682a42e85f7147366e",
+      "mode": "100644",
+      "sha256": "1238a078a3c1e1b15279000a80829993472b4e9aa3cc4c84c8eebd388813fce1"
+    },
+    {
       "path": "tests/poster_rail_gallery_harness.qml",
       "bytes": 4433,
       "git_blob": "7b1a6288124a18d422db83a71fdeac1f3d6a2a87",
@@ -24515,6 +25251,13 @@
       "sha256": "cd38b882f31c3beff2435b96d0efaa6b5386bbd0b889b81a9bab86dead93b883"
     },
     {
+      "path": "tests/qml/tst_account_choice_accessibility.qml",
+      "bytes": 970,
+      "git_blob": "f91b53966953a29dae6eeccaa3a93b080c503c63",
+      "mode": "100644",
+      "sha256": "a91bcd85ce8a52f582e01dfaa793447283b3b2d306fe8e82fd3b80d249fd6440"
+    },
+    {
       "path": "tests/qml/tst_account_data_privacy.qml",
       "bytes": 14206,
       "git_blob": "ac15fc80c476dec83836f6d3c126861ba00cf024",
@@ -24557,6 +25300,13 @@
       "sha256": "28ad42d71bb615039c0e5752369f660db7e37e5be3f1eb83c86829c311d0433c"
     },
     {
+      "path": "tests/qml/tst_android_tv_navigation.qml",
+      "bytes": 1133,
+      "git_blob": "37bc33a4aecfca23f9bd36422f2b98364b0004ac",
+      "mode": "100644",
+      "sha256": "e7c1d13200cfbeea34f0cae3b0e38cd7db8a341ace690c61514e1c9985a078e2"
+    },
+    {
       "path": "tests/qml/tst_audiobook_activity.qml",
       "bytes": 9227,
       "git_blob": "6f34bb0fe2d1a94fdb0312dd4c76c873e345d1a5",
@@ -24590,6 +25340,13 @@
       "git_blob": "492d51f90cb98b8bdd94b8fe7e38f4ae744bfb97",
       "mode": "100644",
       "sha256": "fa471e33e32f2bab7cbf34432192b366841be10c98d083e254a6f3898f70202b"
+    },
+    {
+      "path": "tests/qml/tst_comicreader_touch_gestures.qml",
+      "bytes": 6509,
+      "git_blob": "304f28e0e70d2d037ad05acf47d7c832ffc8aacb",
+      "mode": "100644",
+      "sha256": "4ab5fe1a6405a6dfa07d765f7acbb4349d7c3c1b359123bb97d83e49fd1b789b"
     },
     {
       "path": "tests/qml/tst_discover_sidebar.qml",
@@ -24639,6 +25396,13 @@
       "git_blob": "403242507ef01420cfa2f9148a51295cdfc7f253",
       "mode": "100644",
       "sha256": "4638628dbb946b96fc0a9d47feba3c01874798e9c73affd7e5869474a232bc9c"
+    },
+    {
+      "path": "tests/qml/tst_keyboard_action_touch.qml",
+      "bytes": 1005,
+      "git_blob": "7a951d3c7d0b6d352331d729192241787bd70388",
+      "mode": "100644",
+      "sha256": "ddcc0bd15c0fe10a0d992072616a2437cf9044cd1918c31ae441e8d01f9b78a9"
     },
     {
       "path": "tests/qml/tst_keyboard_directional_continuity.qml",
@@ -24779,6 +25543,20 @@
       "git_blob": "54c23e8da61e1dec673f2edad06f7b91ec6aa5da",
       "mode": "100644",
       "sha256": "7bee0a992b0cb12ff621aef9618ec5865928f60fab3236badb14ccbf5d7bc472"
+    },
+    {
+      "path": "tests/qml/tst_phone_content_inset.qml",
+      "bytes": 2066,
+      "git_blob": "be45b7929849a3706bcc3d7c0066f6ff6edf42cf",
+      "mode": "100644",
+      "sha256": "30dfab01f7d4095080bff4bf948f3394de03f71c2de3ce536248ac07c5162b64"
+    },
+    {
+      "path": "tests/qml/tst_phone_world_tab_bar.qml",
+      "bytes": 2844,
+      "git_blob": "beccfb61ae7b94c819a8aea97a531cef7c6af424",
+      "mode": "100644",
+      "sha256": "b78e051a561cf7b7ba6389b49611c5a3586977938dbcd682e998f58ba9d73efc"
     },
     {
       "path": "tests/qml/tst_pinned_tabs.qml",
@@ -25061,6 +25839,13 @@
       "sha256": "a53598141f8c7a1c8d59de8e187d5df0a4b6c518c8676c33a75d77eb8265d77b"
     },
     {
+      "path": "tests/qml/tst_wide_world_rail.qml",
+      "bytes": 2877,
+      "git_blob": "7f1bcd059b76b49808071e353633a020d118d9d8",
+      "mode": "100644",
+      "sha256": "442fede3b479de7c085fa327d7f1b4ed42529b96ec167ec4293d79e9cbe4e472"
+    },
+    {
       "path": "tests/qml/tst_world_keyboard_journey.qml",
       "bytes": 7571,
       "git_blob": "5d469ab4f0c581d13f01b00beb9f7a592bc4900b",
@@ -25118,10 +25903,10 @@
     },
     {
       "path": "tests/reader2_logic_harness.qml",
-      "bytes": 49530,
-      "git_blob": "32d172eb3db8fee916c0d4c8b959389360ec8ac5",
+      "bytes": 50379,
+      "git_blob": "02885d3e71a02bb4e38323aaaffa06e94d9b455c",
       "mode": "100644",
-      "sha256": "bf98a70f6aaabe98160286a3d889e87d426b6bf92a171f34cd38992d4b47414f"
+      "sha256": "a21a7af5a40488466f8b7b411449b11e4ebc5aa466798f3350624fefc2d7e502"
     },
     {
       "path": "tests/reader2_paper_text_test.mjs",
@@ -25153,10 +25938,10 @@
     },
     {
       "path": "tests/reader2_stores_harness.cpp",
-      "bytes": 1775,
-      "git_blob": "50adb259680c01a9bd7583a96bad83335c9d93f7",
+      "bytes": 2707,
+      "git_blob": "54e93d349cc9b729cb6ebd25ff1bb3ff3cdb7b72",
       "mode": "100644",
-      "sha256": "1554d5a9b8187c1d678ddde665a3d4ce06c93624a1eed4c6a44762633f220ebd"
+      "sha256": "52ba580a08de85c5f4454d12955c2675044965ab3edca7e1027f599ac78546eb"
     },
     {
       "path": "tests/reader2_webengine_rhi_smoke.qml",
@@ -25272,10 +26057,10 @@
     },
     {
       "path": "tests/startup_layout_harness.cpp",
-      "bytes": 5373,
-      "git_blob": "f82886000476e88d15bd56a4d5cbf04c17da7356",
+      "bytes": 8857,
+      "git_blob": "2f194c025beb6142b032e834b835406fe179a38b",
       "mode": "100644",
-      "sha256": "9f9d985f2b280412324ff145d32c4665e202cf287284db1615dceac3bf5b0e92"
+      "sha256": "8631695d30e572dae23f827188714e83e6fcc4ab90c00bbb1962e14925ffd2dd"
     },
     {
       "path": "tests/stremio_extension_matrix_test.mjs",
@@ -25598,6 +26383,167 @@
       "git_blob": "e55f994ae2e5244d24d4c3874d7ac9515697d71a",
       "mode": "100644",
       "sha256": "b7b606f5849a4d063d5b84d9609d3db37ab61cd6df47ebf824623bee2009aa20"
+    },
+    {
+      "path": "tests/test_android_build_graph_contract.py",
+      "bytes": 5667,
+      "git_blob": "30a1784f7d2fc9ac4f076c900d05d13498be3bae",
+      "mode": "100644",
+      "sha256": "86d70cc557eeb2c59b12743e679a8b1425c2ba4ab89490926f25450692e05738"
+    },
+    {
+      "path": "tests/test_android_cache_paths.py",
+      "bytes": 6859,
+      "git_blob": "36360d4433cd903e9b0ad63a4aabfb2de5d9f6d9",
+      "mode": "100644",
+      "sha256": "7403d8b0c92743821a70f8cdbc762c658ad30aba0c77b20125513a67930ed8a5"
+    },
+    {
+      "path": "tests/test_android_main_composition_contract.py",
+      "bytes": 1151,
+      "git_blob": "3c5b3434d0909ffaf0c1880dac19a0e15971553a",
+      "mode": "100644",
+      "sha256": "1025f6e7ddac20026f3c50ac30f2e11c5f11a2c05738bb9420c01e17a99946df"
+    },
+    {
+      "path": "tests/test_android_media3_chapter_bridge.py",
+      "bytes": 1393,
+      "git_blob": "d21781acf66748c896e3537e24c4f08e30132a74",
+      "mode": "100644",
+      "sha256": "bba2e5b522d44e3751c9a49b1fcf9aa95a8b62b1f72a67a4054e3a6245093152"
+    },
+    {
+      "path": "tests/test_android_media3_item_contract.py",
+      "bytes": 3989,
+      "git_blob": "3c2a1c0c21524c0c48976b8a5db331311a62f6ac",
+      "mode": "100644",
+      "sha256": "a0a14c418fb06c0827788bb94f7e2cc8075f068cc71bfc53a21072ed71e05ccc"
+    },
+    {
+      "path": "tests/test_android_media3_java_host_contract.py",
+      "bytes": 6073,
+      "git_blob": "05ce28e7ad5699c4c9b889d6ace4bebb68bf70d7",
+      "mode": "100644",
+      "sha256": "78597f6550cae5a95da46a3c511db1de155adb5e03fd5fdfe6de8b85588844a4"
+    },
+    {
+      "path": "tests/test_android_media3_lifecycle_composition.py",
+      "bytes": 2859,
+      "git_blob": "6d3160e0efd1203ea2be4c23adba6b294dd1b5e9",
+      "mode": "100644",
+      "sha256": "a1cf978bf6cd0a69cf97fb1778d602af6f0c913173d76b79e802382733da3f8a"
+    },
+    {
+      "path": "tests/test_android_media3_packaging_contract.py",
+      "bytes": 3078,
+      "git_blob": "cfd740441bc883d3b08087d3c280c558180bc40c",
+      "mode": "100644",
+      "sha256": "1e52a029a42f376e612c9c0bdf8bb4cd8a04d2de63dcaf0699a6bc5d2943a1dd"
+    },
+    {
+      "path": "tests/test_android_media3_renderer_contract.py",
+      "bytes": 4047,
+      "git_blob": "718a4199e9923520dbedcc184ca85964a15a95b7",
+      "mode": "100644",
+      "sha256": "734d4bb1c37e82ce03bd9e5654dccfe48029e4e8e82aacd48ab9d126918d2875"
+    },
+    {
+      "path": "tests/test_android_media3_snapshot_transport.py",
+      "bytes": 1582,
+      "git_blob": "a6c45e5d7c19b9c920d4b932b54c2465ebdf2716",
+      "mode": "100644",
+      "sha256": "535cd6caaca9b9de6101484f42783026a6096391d3f92fc4d96e58121444d59e"
+    },
+    {
+      "path": "tests/test_android_media3_subtitle_overlay.py",
+      "bytes": 1148,
+      "git_blob": "37cefea500ae8d9d8ad721c541c98a1f3673c075",
+      "mode": "100644",
+      "sha256": "66ae4ec5765ff80d30973221ff6e89526eb37e5e6173a42ec6268dd2528fb80f"
+    },
+    {
+      "path": "tests/test_android_media3_track_selection.py",
+      "bytes": 1221,
+      "git_blob": "079a78219be9e4b6f01c8301ec712c68b0c324b2",
+      "mode": "100644",
+      "sha256": "8530119d81f46fd52714f6841674fa5c9973b4785b60aee45c3a7e3be723068e"
+    },
+    {
+      "path": "tests/test_android_openssl_packaging_contract.py",
+      "bytes": 2567,
+      "git_blob": "c01467077d3d1469a1049915f343cac02d913e5b",
+      "mode": "100644",
+      "sha256": "9d31562643d1c0d81f3bb5948f2fb62ca4da06a75616d432f7d5ee81330b6eb4"
+    },
+    {
+      "path": "tests/test_android_platform_services_contract.py",
+      "bytes": 2593,
+      "git_blob": "10c3320c697e2e8a2db371d06cf1fe54d955fdf6",
+      "mode": "100644",
+      "sha256": "3e988d9eaee520615ff9a776874c3b8d3cfcb609159d5065da5ef3b9cc47f53f"
+    },
+    {
+      "path": "tests/test_android_player_services_composition.py",
+      "bytes": 1557,
+      "git_blob": "17587c4a0adfbe1f4bac0fb241b6d4ae93eaeda4",
+      "mode": "100644",
+      "sha256": "707310f2a883cbba5d7e84311888ee0859126893a918a1550eef7a948d821d9a"
+    },
+    {
+      "path": "tests/test_android_reader_boundary.py",
+      "bytes": 3017,
+      "git_blob": "0a923f9cf6585089463072b70d82cf8a99389c78",
+      "mode": "100644",
+      "sha256": "c2b92ad9dfa7f6a14b154ba1b6504724f7f23c348aee1ec0048e2485da3b0cec"
+    },
+    {
+      "path": "tests/test_android_reader_session.py",
+      "bytes": 1691,
+      "git_blob": "7eff13c62933917d96089c610fcffe5421c6b3f3",
+      "mode": "100644",
+      "sha256": "3f9d5247b023aa2f09909946ad2eb054403b5d7cf623e997bad795719014586d"
+    },
+    {
+      "path": "tests/test_android_runtime_bundle.py",
+      "bytes": 5905,
+      "git_blob": "bf710cfa45dd57a8b1a97ec04bfe507402e7b0db",
+      "mode": "100644",
+      "sha256": "35a61b46814ce5997d6fc7f6edec4ed4cf3eafec12ad51aa25227b2ea643aac8"
+    },
+    {
+      "path": "tests/test_android_symbol_fallback.ps1",
+      "bytes": 4278,
+      "git_blob": "59ae87d84355f40b47f75c1fc554bf83abd35cfb",
+      "mode": "100644",
+      "sha256": "0e94e911608493ce7b1800c926ed63c3eba432d1368154de5c231b6b0ab3469a"
+    },
+    {
+      "path": "tests/test_android_toolchain_qualification.py",
+      "bytes": 2864,
+      "git_blob": "0a40d02d03d055e8ebcdc4b6cebe6b0a2eeb991e",
+      "mode": "100644",
+      "sha256": "7f3bba454a781eb3f744a4bcf0cc6181a44fc8ce71593b8b9e0c1d5d07d951ca"
+    },
+    {
+      "path": "tests/test_android_tv_navigation.py",
+      "bytes": 2341,
+      "git_blob": "9a5f59e7eb31205d918bcf8a54b8e61d2f2eb74a",
+      "mode": "100644",
+      "sha256": "535bc7f63c8978ca522834b40e75fc6b42a9ab0a3341129570aeff6aed8f1888"
+    },
+    {
+      "path": "tests/test_android_vault_contract.py",
+      "bytes": 5291,
+      "git_blob": "9f4715b17f550173bb65dd8510a3c26f591a8f56",
+      "mode": "100644",
+      "sha256": "a3f04b7194ab048dc47982f993a3ae976daf1d6557078ae20efe3b5b6f32a841"
+    },
+    {
+      "path": "tests/test_android_vault_media_boundary.py",
+      "bytes": 3918,
+      "git_blob": "faeb8bb95716038ba0ab71be4369d5c9999ceb23",
+      "mode": "100644",
+      "sha256": "525bb2ed135665fcf34706ded8feb61100bf3827af427aadd4f62a739bf9e1d7"
     },
     {
       "path": "tests/test_anime_order_async_persist_p0.ps1",
@@ -26489,6 +27435,20 @@
       "sha256": "accaf3c8c4aad301f3513239eb5ce78127afa1bb6ad08463606c8e5780a80610"
     },
     {
+      "path": "tests/test_phone_immersive_nav.ps1",
+      "bytes": 2359,
+      "git_blob": "6a13f22b7f90ce1661fb2004ee4bb89c9223801c",
+      "mode": "100644",
+      "sha256": "081c1ddce3791584ed1eab4a8671b73a0b2e261b3cb1616654a2d003e7850f2c"
+    },
+    {
+      "path": "tests/test_phone_keyboard_avoidance.ps1",
+      "bytes": 1505,
+      "git_blob": "ce91901dc99e33cb4f9c555be0c1a56723ca1a36",
+      "mode": "100644",
+      "sha256": "58cede14d371d1b0facbffbf80cb88db05149bc9a39f0716427d12d34fe7ef77"
+    },
+    {
       "path": "tests/test_player1_runtime_recovery_p0.ps1",
       "bytes": 2497,
       "git_blob": "b1ef9d3bfc1194e3efeaa6a50620718ee846d5b1",
@@ -26522,6 +27482,13 @@
       "git_blob": "64c1c1c7d6b7d38d7113b13aba488e90a74cd1ef",
       "mode": "100644",
       "sha256": "d61bc319ba494e0783283a86b9eb4c65bab336dd24aae1e9c5b9fa86749c5ccf"
+    },
+    {
+      "path": "tests/test_player_backend_contract.py",
+      "bytes": 3698,
+      "git_blob": "67acdf60bbce1d00ccfe20650854c2ceb785a0d2",
+      "mode": "100644",
+      "sha256": "0ac73258d801214cd704693e994105eff4ef9f51af506f37952702d811df1872"
     },
     {
       "path": "tests/test_player_bar_fold_p0.ps1",
@@ -26812,10 +27779,10 @@
     },
     {
       "path": "tests/test_player_stats_p0_parity.ps1",
-      "bytes": 3933,
-      "git_blob": "e31769be7a686a8a927b75cb4882a97e209e9723",
+      "bytes": 4095,
+      "git_blob": "c8981e4ee202809abe342973f9c84af7dc965f83",
       "mode": "100644",
-      "sha256": "b7627923d43431d5601300b7b28220505faff82126620b7ee644c8ef10713445"
+      "sha256": "76fe57b1c3cea7f13a561380be0c5d34296affc890f36ba9dbacd1e6d5be3823"
     },
     {
       "path": "tests/test_player_stub_detection_p0_parity.ps1",
@@ -27019,6 +27986,13 @@
       "git_blob": "474288c600f9ed353f2ccde16aab3b6466c3b463",
       "mode": "100644",
       "sha256": "469f24bb29db2a4017386f12ef04e5672fb990c8565cbaa1727db840118b56a6"
+    },
+    {
+      "path": "tests/test_shell_touch_back.py",
+      "bytes": 2211,
+      "git_blob": "8f5ba987b7f8e3a73c78a88942f3913351a3777f",
+      "mode": "100644",
+      "sha256": "54f478f8bfdbb549633aa130c1618cac21ade2d3f1ba73a2b712a3e6da790033"
     },
     {
       "path": "tests/test_shell_windowed_mode_p0.ps1",
@@ -27379,10 +28353,10 @@
     },
     {
       "path": "tests/test_video_source_handoff_p0.ps1",
-      "bytes": 4425,
-      "git_blob": "f721c4c634755d03729c5461cefab4231bca2d18",
+      "bytes": 5088,
+      "git_blob": "1670632936dcab8d6ba3416bd577d185ddab62cd",
       "mode": "100644",
-      "sha256": "4fb80a790a182d23b8dfe54cc0edf3e848094b9e03969e5f8164885fdd2fc752"
+      "sha256": "b4110a27ff415e3574207da03a2905f61c1d1bd653f2c883561f7edef56ba066"
     },
     {
       "path": "tests/test_wallpaper_suite_p0.ps1",
@@ -27390,6 +28364,13 @@
       "git_blob": "9ab1c20b9c6197ed53cabb968d57d402d368befe",
       "mode": "100644",
       "sha256": "4db320ce63695d6378967f86f5dbd472fb0d1c89b8fca9c894569a48199c76c2"
+    },
+    {
+      "path": "tests/test_wide_android_navigation.ps1",
+      "bytes": 4577,
+      "git_blob": "41f005617fadd70e1adb8c77a10517a555588eac",
+      "mode": "100644",
+      "sha256": "2b3d0a01019c6b8e0a716797fee434f10a9d8d0640ae0c9421afb1d5329a2c41"
     },
     {
       "path": "tests/test_world_lifecycle_contract.ps1",
@@ -27616,6 +28597,13 @@
       "sha256": "9715b8ab8ceffe08702cd85507ba8319f235c139234e56a793dbec5cddce7dc0"
     },
     {
+      "path": "tests/verify_android_apk_runtime_bundle.py",
+      "bytes": 12093,
+      "git_blob": "f220f0dff60d6ddd5fbab1e442fceaf5e9fa6a8d",
+      "mode": "100644",
+      "sha256": "de681d79ddce234095cfe276f25d47d43d16e87e00e56ab0967eba2d2fda6c72"
+    },
+    {
       "path": "tests/verify_universe_ids.mjs",
       "bytes": 8497,
       "git_blob": "87f6858e6abd15743f3394ca7e1c6b8e063f157e",
@@ -27670,6 +28658,34 @@
       "git_blob": "ac582a70ffd112e117aef1509eca44c8eeac8a0b",
       "mode": "100644",
       "sha256": "d9473581ac5a63b94e8cc954b270b4ca213ffe27f4d9767f9997ba712329a013"
+    },
+    {
+      "path": "tools/android-reader-probe/CMakeLists.txt",
+      "bytes": 637,
+      "git_blob": "6eeecb2bc7be1baba3776303f7209327f2ea1080",
+      "mode": "100644",
+      "sha256": "d2677e29060ee57c85407ec7dcf54bda2f3e626e2bfcda95a0080743163cf17b"
+    },
+    {
+      "path": "tools/android-reader-probe/Main.qml",
+      "bytes": 958,
+      "git_blob": "29160e46be7af916d0ac0799a686b4d032005607",
+      "mode": "100644",
+      "sha256": "439ebbce1f442505290fd7d6b76177e62ed416de2ad9be6b54152d5bd3a6460f"
+    },
+    {
+      "path": "tools/android-reader-probe/README.md",
+      "bytes": 1082,
+      "git_blob": "196057df6984071187d8aad78d43c59ee0fcdd7e",
+      "mode": "100644",
+      "sha256": "f4f314d2ab417bc40a632e49b85367a0f04bd9cb3a139cc5d5d74992b9a20425"
+    },
+    {
+      "path": "tools/android-reader-probe/main.cpp",
+      "bytes": 5290,
+      "git_blob": "0aa763a819a484cff4896a518d5ce2db46699816",
+      "mode": "100644",
+      "sha256": "644b9ba194ac0ede483f87c40e34498cd4bd9e9f9d095891e9694ef697592b01"
     },
     {
       "path": "tools/colosseum-harness/.gitignore",
@@ -28277,8 +29293,15 @@
   "omitted": [
     {
       "path": ".github/workflows/account-service-ci.yml",
-      "bytes": 2200,
-      "git_blob": "6b18be7b4b299c4edca678d462a0d28727ff510f",
+      "bytes": 2001,
+      "git_blob": "640c63cd7b21a1a5eab71091ff2bf55a954ffe9d",
+      "mode": "100644",
+      "reason": ".github/workflows/**"
+    },
+    {
+      "path": ".github/workflows/android.yml",
+      "bytes": 8317,
+      "git_blob": "388a704314122625161258c5e46dbb6e461d67cf",
       "mode": "100644",
       "reason": ".github/workflows/**"
     },
@@ -28291,22 +29314,22 @@
     },
     {
       "path": ".github/workflows/code-quality.yml",
-      "bytes": 2577,
-      "git_blob": "fc811354586d895ac83f81fee6f73fa5d7f25a6c",
+      "bytes": 2553,
+      "git_blob": "a103240cfe78ffac4426513b6a25582e0b28ccd3",
       "mode": "100644",
       "reason": ".github/workflows/**"
     },
     {
       "path": ".github/workflows/desktop-ci.yml",
-      "bytes": 30315,
-      "git_blob": "0b1f4086712863b090c9a68c244d0634c36379f6",
+      "bytes": 30627,
+      "git_blob": "7f67409118cc4f08be49fba01ac098b12a3ab68c",
       "mode": "100644",
       "reason": ".github/workflows/**"
     },
     {
       "path": ".github/workflows/release-installer-smoke.yml",
-      "bytes": 13078,
-      "git_blob": "0b6ac45cad690df12df6c2b4704720c1d6b2afb7",
+      "bytes": 12893,
+      "git_blob": "a11ecde77138dd30dded0a6b569eb4b09e5c376c",
       "mode": "100644",
       "reason": ".github/workflows/**"
     },
@@ -28322,14 +29345,14 @@
       "bytes": 5205,
       "git_blob": "4cffb2d7829a717debc8bcfa83fc9f58605a23f4",
       "mode": "100644",
-      "reason": "basename AGENTS.md"
+      "reason": "restricted basename"
     },
     {
       "path": "MEMORY.md",
       "bytes": 4254,
       "git_blob": "d00cd97637b308675a513435edc2be572e174ae8",
       "mode": "100644",
-      "reason": "MEMORY.md"
+      "reason": "restricted basename"
     },
     {
       "path": "assets/universes/dcau/environments/gotham-v11-bg.png",

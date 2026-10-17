@@ -33,6 +33,10 @@ import "CatalogueVisualMetrics.js" as Metrics
 Item {
     id: browser
 
+    // Same phone gate as the world tab bar: Android, window under 840 wide.
+    readonly property bool phoneNarrow: !!(browser.Window.window && browser.Window.window.androidHost
+                                            && browser.Window.window.width < 840)
+
     // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
     // World-namespaced by the host (theatre/biblio/tankoban): a bare shared stem would resolve
     // DFS-first into another world's hidden, pre-warmed browser (ledger naming rule).
@@ -138,7 +142,9 @@ Item {
 
     // ── the sidebar (Discover sidebar plan Slice 2): catalogues live in a pinned rail ──
     property Item backdrop: null             // the world's wallpaper, for the rail's glass
-    readonly property real contentLeft: sidebar.visible ? sidebar.width + 28 : 0
+    // Phone width: an open sidebar lies over the wall instead of squeezing it into a sliver.
+    readonly property real contentLeft: !sidebar.visible ? 0
+        : (browser.phoneNarrow ? sidebar.closedWidth : sidebar.width) + 28
 
     // ── injectable copy (world-neutral defaults; the wrapper sets its world's exact words) ──
     property string textNoCatalogue: "Nothing to browse here yet."
@@ -587,11 +593,22 @@ Item {
     onCatalogMenuOpenChanged: if (catalogMenuOpen) filterPicker.open = false
 
     // ═══ the rail — the sources (addons), pinned beside the wall ═══
+    // phone: the floor an open sidebar stands on while it covers the wall
+    Rectangle {
+        visible: browser.phoneNarrow && sidebar.visible && !sidebar.collapsed
+        z: 119
+        x: 0; y: sidebar.y
+        width: sidebar.width + 14; height: sidebar.height
+        radius: 14
+        color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+        MouseArea { anchors.fill: parent }   // taps on the floor do not reach the wall beneath
+    }
     DiscoverSidebar {
         id: sidebar
         host: browser
         backdrop: browser.backdrop
         visible: browser.adapter !== null
+        z: browser.phoneNarrow && !collapsed ? 120 : 0
     }
 
     // ═══ masthead — the type lens (left) + what fills the wall (right) ═══
@@ -642,7 +659,7 @@ Item {
             anchors.left: parent.left
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: 12
-            spacing: 28
+            spacing: browser.phoneNarrow ? 18 : 28
             property int currentIndex: 0
             focusPolicy: typeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
             function syncCurrent() {
@@ -677,7 +694,7 @@ Item {
                         text: typeTab.modelData.label
                         color: typeTab.active ? theme.ink
                              : (tHov.hovered ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: 17; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: browser.phoneNarrow ? 15 : 17; font.weight: Font.DemiBold
                         // readable on any wallpaper (2026-09-29): the idle lenses sat at inkDimmer
                         // and vanished into bright/warm art; a soft drop shadow carries them.
                         style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
@@ -737,7 +754,12 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: browser.currentCatalog ? browser.currentCatalog.title : "—"
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
-                    font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    font.family: theme.display; font.pixelSize: browser.phoneNarrow ? 22 : 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    // phone width: the catalogue name gives way to the type tabs instead of printing over them
+                    width: browser.phoneNarrow
+                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - typeSwitch.width - 44))
+                           : implicitWidth
+                    elide: browser.phoneNarrow ? Text.ElideRight : Text.ElideNone
                 }
                 Text {
                     visible: browser.categoryPickable

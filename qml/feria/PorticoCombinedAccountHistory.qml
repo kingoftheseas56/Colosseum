@@ -61,7 +61,7 @@ Item {
                         x:0;y:parent.newDay?2.2*u:0
                         width:parent.width;height:5.8*u;radius:1*u
                         color:Qt.rgba(1,1,1,0.035);border.width:1;border.color:Qt.rgba(1,1,1,0.08)
-                        RowLayout { anchors{fill:parent;leftMargin:0.7*u;rightMargin:1.3*u};spacing:1.2*u
+                        RowLayout { anchors{fill:parent;leftMargin:0.7*u;rightMargin:1.3*u} spacing:1.2*u
                             Rectangle {
                                 Layout.preferredWidth:3.4*u;Layout.preferredHeight:3.4*u;radius:modelData.id&&Data.T[modelData.id]&&Data.T[modelData.id].k==="artist"?1.7*u:0.55*u;clip:true;color:Qt.rgba(1,1,1,0.05)
                                 Image{anchors.fill:parent;visible:modelData.id&&status===Image.Ready;source:modelData.id?controller.artUrl(Data.T[modelData.id],false):"";fillMode:Image.PreserveAspectCrop;asynchronous:true}

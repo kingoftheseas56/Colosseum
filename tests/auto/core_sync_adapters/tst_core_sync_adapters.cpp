@@ -371,13 +371,25 @@ public:
                 if (!socket)
                     return;
                 m_clients.append(socket);
-                QObject::connect(socket, &QTcpSocket::readyRead, [this, socket] {
-                    m_request += socket->readAll();
-                    if (m_replied.contains(socket)
-                        || !m_request.contains(QByteArrayLiteral("\r\n\r\n"))) {
+                // Response state belongs to this connection. Keeping destroyed
+                // socket addresses in a fixture-wide set can suppress a later
+                // request when the allocator reuses an address.
+                QObject::connect(socket, &QTcpSocket::readyRead, socket,
+                    [this, socket, request = QByteArray(), replied = false]() mutable {
+                    const QByteArray chunk = socket->readAll();
+                    m_request += chunk;
+                    request += chunk;
+                    const qsizetype headerEnd = request.indexOf(QByteArrayLiteral("\r\n\r\n"));
+                    if (replied || headerEnd < 0)
                         return;
+                    qsizetype contentLength = 0;
+                    for (const QByteArray &header : request.left(headerEnd).split('\n')) {
+                        if (header.toLower().startsWith(QByteArrayLiteral("content-length:")))
+                            contentLength = header.mid(sizeof("content-length:") - 1).trimmed().toLongLong();
                     }
-                    m_replied.insert(socket);
+                    if (request.size() < headerEnd + 4 + contentLength)
+                        return;
+                    replied = true;
                     const QByteArray body = QJsonDocument(QJsonObject{
                         {QStringLiteral("result"), m_result}}).toJson(QJsonDocument::Compact);
                     socket->write(QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ")
@@ -414,7 +426,6 @@ public:
 private:
     QTcpServer m_server;
     QList<QPointer<QTcpSocket>> m_clients;
-    QSet<QTcpSocket *> m_replied;
     QByteArray m_request;
     QJsonValue m_result;
 };
@@ -629,6 +640,7 @@ private slots:
     // diverts them to a file under this test binary's own AppData root.
     void init();
     void cleanup();
+    void datastoreFixtureHandlesFragmentedIndependentConnections();
     void projectionStripsLocalOnlyNestedMaterial();
     void projectionExcludesFilesystemIdentity();
     void ratingsReviewsConversionMapsUseExistingCoreEngineWithoutEcho();
@@ -680,6 +692,31 @@ void tst_core_sync_adapters::init() {
 
 void tst_core_sync_adapters::cleanup() {
     qunsetenv("COLOSSEUM_APPDATA_TAG");
+}
+
+void tst_core_sync_adapters::datastoreFixtureHandlesFragmentedIndependentConnections() {
+    FixtureDatastoreApi datastore;
+    QVERIFY(datastore.listen());
+    datastore.setResult(QJsonArray{});
+    for (int connection = 0; connection < 16; ++connection) {
+        QTcpSocket client;
+        client.connectToHost(QHostAddress::LocalHost, datastore.endpoint().port());
+        QTRY_COMPARE(client.state(), QAbstractSocket::ConnectedState);
+        const QByteArray header = QByteArrayLiteral(
+            "POST /api/datastoreGet HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\n\r\n");
+        QCOMPARE(client.write(header), qint64(header.size()));
+        client.flush();
+        QTest::qWait(1);
+        // A previous connection's complete header must not make this one
+        // respond before its own request body has arrived.
+        QCOMPARE(client.bytesAvailable(), qint64(0));
+        QCOMPARE(client.write(QByteArrayLiteral("{}")), qint64(2));
+        client.flush();
+        QTRY_VERIFY(client.bytesAvailable() > 0);
+        QTRY_COMPARE(client.state(), QAbstractSocket::UnconnectedState);
+        QVERIFY(client.readAll().endsWith(QByteArrayLiteral("{\"result\":[]}")));
+    }
+    QCOMPARE(datastore.request().count(QByteArrayLiteral("POST /api/datastoreGet")), 16);
 }
 
 void tst_core_sync_adapters::

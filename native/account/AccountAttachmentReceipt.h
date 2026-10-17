@@ -17,6 +17,10 @@
 #include <QString>
 #include <QStringList>
 
+#ifdef COLOSSEUM_ACCOUNT_RECEIPT_TESTING
+#include <functional>
+#endif
+
 struct AccountAttachmentReceiptData {
     int version = 1;
     QString attachmentId;
@@ -59,6 +63,13 @@ public:
         AccountAttachmentReceiptData data;
         QString error;
     };
+
+#ifdef COLOSSEUM_ACCOUNT_RECEIPT_TESTING
+    // Test-only fault at the atomic commit boundary; absent from production.
+    using CommitFailureInjector =
+        std::function<bool(const AccountAttachmentReceiptData &)>;
+    static void setCommitFailureInjectorForTesting(CommitFailureInjector injector);
+#endif
 
     static QString sourceKindLegacyLocal();
     static QString sourceKindLocalOnly();

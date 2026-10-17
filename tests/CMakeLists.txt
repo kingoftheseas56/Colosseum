@@ -79,6 +79,7 @@ colosseum_register_harness(background_work_coordinator_harness unit)
 colosseum_register_harness(foreground_priority_governor_harness unit;responsiveness)
 colosseum_register_harness(background_activity_registry_harness unit)
 colosseum_register_harness(background_work_composition_harness unit;composition)
+colosseum_register_harness(platform_services_harness unit;platform)
 colosseum_register_harness(progress_store_harness        unit)
 colosseum_register_harness(collection_store_harness      unit)
 colosseum_register_harness(cbz_archive_harness           unit)
@@ -496,6 +497,42 @@ set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Android phone immersive-navigation contract: the browsing tab bar follows the existing
+# player/book/comic immersive authority instead of becoming a second full-canvas owner.
+add_test(NAME colosseum.phone_immersive_nav_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_immersive_nav.ps1")
+set_tests_properties(colosseum.phone_immersive_nav_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android phone keyboard-avoidance contract: QtActivity resizes above the IME and the narrow
+# browsing tab bar stands down while the software keyboard owns the reduced viewport.
+add_test(NAME colosseum.phone_keyboard_avoidance_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_keyboard_avoidance.ps1")
+set_tests_properties(colosseum.phone_keyboard_avoidance_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android wide-navigation contract: narrow screens keep the bottom bar while landscape
+# tablets/open foldables use the same registry and routes from a left rail.
+add_test(NAME colosseum.wide_android_navigation_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_wide_android_navigation.ps1")
+set_tests_properties(colosseum.wide_android_navigation_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android symbol fallback contract: one coverage-qualified application font is registered
+# only on Android, while existing QML symbol use sites remain platform-neutral.
+add_test(NAME colosseum.android_symbol_fallback_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_android_symbol_fallback.ps1")
+set_tests_properties(colosseum.android_symbol_fallback_contract PROPERTIES
+    LABELS "unit;android;fonts;windows"
+    TIMEOUT 120)
+
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
 add_test(NAME colosseum.search_cancellation_contract
@@ -673,6 +710,36 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
 # volumes + epub/pdf books). Backbone calls go through QMetaObject::invokeMethod
 # (the same path QML uses), so the test drives the real derivation with QObject
 # fakes. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
+# Android Vault provider snapshot -> shared index contract. Pure Qt/SQLite; no Android SDK needed.
+add_executable(tst_vault_android_index_adapter
+    auto/vault/tst_vault_android_index_adapter.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLocation.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_android_index_adapter PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_android_index_adapter PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_android_index_adapter PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_android_index_adapter POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE_DIR:tst_vault_android_index_adapter>")
+add_test(NAME colosseum.qttest.vault_android_index_adapter
+         COMMAND tst_vault_android_index_adapter)
+set_tests_properties(colosseum.qttest.vault_android_index_adapter PROPERTIES
+    LABELS "unit;qttest;android;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 add_executable(tst_vault_downloads_root
     auto/vault/tst_vault_downloads_root.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
@@ -1034,7 +1101,7 @@ add_executable(tst_vault_mal_match
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
 target_include_directories(tst_vault_mal_match PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_mal_match PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_mal_match POST_BUILD
@@ -1090,7 +1157,7 @@ add_executable(tst_vault_identifier
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h")
 target_include_directories(tst_vault_identifier PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_identifier PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_identifier POST_BUILD
@@ -1900,6 +1967,13 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_sources(account_first_light PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp")
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
@@ -2574,6 +2648,8 @@ add_executable(tst_account_attachment_coordinator
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_account_attachment_coordinator PRIVATE
+    COLOSSEUM_ACCOUNT_RECEIPT_TESTING)
 target_include_directories(tst_account_attachment_coordinator PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_account_attachment_coordinator PRIVATE
@@ -4414,8 +4490,14 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
 
+foreach(_account_runtime_target IN ITEMS account_first_light tst_account_attachment_runtime)
+    target_sources(${_account_runtime_target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp")
+endforeach()
+
 foreach(_tracker_profile_target IN ITEMS
         account_first_light
+        reader2_profile_runtime_harness
         tst_privacy_policy
         tst_account_attachment_runtime
         tst_account_adoption
