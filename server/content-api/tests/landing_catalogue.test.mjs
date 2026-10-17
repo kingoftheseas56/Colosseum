@@ -25,11 +25,10 @@ test('Comics landing keeps all eight legacy shelves and seven exact curated page
  assert.throws(()=>landingRequests('mal','manga',{...owners,date}),/Unsupported landing/);
 });
 
-test('Theatre uses exact current owner recipes, preview cap, daily subset, and deduplication',()=>{
+test('Theatre primes exact stable owner recipes, preview cap, and deduplication across UTC days',()=>{
  for(const tab of ['movies','shows','anime']){
   const dataset=tab==='anime'?'mal':'imdb';
-  let defs=owners.rules.defaultRows(tab);
-  if(tab==='movies')defs=defs.concat(owners.rules.dailyRows(Date.parse(date+'T00:00:00Z'),6));
+  const defs=owners.rules.defaultRows(tab);
   const expected=new Map();
   for(const def of defs){
    const queries=tab==='anime'?owners.api.animeQueriesFor(def.recipe):owners.rules.indexQueriesFor(def.recipe);
@@ -38,7 +37,18 @@ test('Theatre uses exact current owner recipes, preview cap, daily subset, and d
   assert.deepEqual(plain(landingRequests(dataset,tab,{...owners,date})),plain([...expected.values()]));
  }
  const movieDays=['2026-10-16','2026-10-17'].map(date=>plain(landingRequests('imdb','movies',{...owners,date})));
- assert.notDeepEqual(movieDays[0],movieDays[1]);
+ assert.deepEqual(movieDays[0],movieDays[1]);
+ const primed=new Set(movieDays[0].map(r=>selectionKey('imdb',r.method,r.args)));
+ const dailyDays=['2026-10-16','2026-10-17'].map(day=>{
+  const rows=owners.rules.dailyRows(Date.parse(day+'T00:00:00Z'),6);
+  const misses=rows.flatMap(def=>owners.rules.indexQueriesFor(def.recipe))
+   .map(q=>selectionKey('imdb','titleCatalog',[q,0,owners.api.PREVIEW_ROW_CAP]))
+   .filter(key=>!primed.has(key));
+  assert.ok(misses.length>0,'daily-only queries must miss the stable landing cache');
+  return plain({rows:rows.map(row=>row.key),misses});
+ });
+ assert.notDeepEqual(dailyDays[0].rows,dailyDays[1].rows);
+ assert.notDeepEqual(dailyDays[0].misses,dailyDays[1].misses);
 });
 
 test('Publisher stores single-dataset exact results with exclusive UTC expiry and fixed keys',async()=>{
@@ -48,12 +58,19 @@ test('Publisher stores single-dataset exact results with exclusive UTC expiry an
  assert.equal(written.length,4);
  for(const {dataset,method,args,result:bundle} of written){
   assert.equal(method,'landing');assert.deepEqual(args,[bundle.tab]);assert.equal(bundle.dataset,dataset);
-  assert.equal(bundle.version,1);assert.equal(bundle.validFrom,date);assert.equal(bundle.validUntil,'2027-01-01');
+  assert.equal(bundle.version,1);assert.equal(bundle.validFrom,date);assert.equal(bundle.validUntil,dataset==='comics'?'2027-01-01':'9999-12-31');
   for(const q of bundle.queries){const call=calls.find(c=>c.dataset===dataset&&selectionKey(dataset,c.method,c.args)===selectionKey(dataset,q.method,q.args));assert.strictEqual(q.result,call.result);}
  }
  const spring=[];
  await publishLandingCatalogues({date:'2026-10-16',qmlRoot,owners,queryFn,fixed:(_d,_m,_a,b)=>spring.push(b)});
- assert.equal(spring[0].validUntil,'2027-01-01');for(const b of spring.slice(1))assert.equal(b.validUntil,'2026-10-17');
+ assert.equal(spring[0].validUntil,'2027-01-01');
+ for(const b of spring.slice(1)){
+  assert.equal(b.validUntil,'9999-12-31');
+  // Mirror validLanding's exclusive ISO UTC date bounds, including year rollover.
+  for(const today of ['2026-10-16','2026-10-17','2027-01-01','2028-10-17'])
+   assert.ok(b.validFrom<=today && today<b.validUntil);
+  assert.ok('2026-10-15'<b.validFrom);
+ }
 });
 
 test('Bundle results equal individual semantic queries against a populated SQLite fixture',async()=>{

@@ -6,10 +6,11 @@ import {join,dirname} from 'node:path';
 import {createHash} from 'node:crypto';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {buildPublicCatalogue,retainArtwork} from '../projection/public_static.mjs';
+import {packOffsets,packLookupFiles,SEARCH_SHARD_BYTES} from '../projection/shard_packing.mjs';
 import {prebuiltCatalogue,selectionKey} from '../src/catalogue-prebuilt.ts';
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const sourceRevision='1'.repeat(64),prefix='/internal/prebuilt/'+sourceRevision+'/';
-function fixture(t,{withImdb=false,imdbRows}={}){
+function fixture(t,{withImdb=false,imdbRows,withTankoban=false}={}){
  const root=mkdtempSync(join(tmpdir(),'colosseum-i05-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
  const source=join(root,'source'),content=join(root,'content'),output=join(root,'output');
  const entries=[],write=(base,path,raw)=>{const target=join(base,path);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,raw);};
@@ -24,15 +25,24 @@ function fixture(t,{withImdb=false,imdbRows}={}){
  ];
  const imdbKeys=withImdb?put(imdbSourceRows):null;
  const list=put({[selectionKey('imdb','titleCatalog',[{}])]:{parts:[rows],length:2,chunkSize:256,shape:'array',period:'stable'}});
- const manifest={version:1,revision:sourceRevision,lists:{},fixed:{},listBuckets:{[hash(selectionKey('imdb','titleCatalog',[{}])).slice(0,2)]:list},lookups:{},search:{manga:{names:[{path:names,first:'one piece',last:'one piece'}],keys:[{path:keys,first:13,last:13}]},...(withImdb?{imdb:{names:[],keys:[{path:imdbKeys,first:'tt0000001',last:'tt0000003'}]}}:{})}};
+ const tankKey=selectionKey('tankoban','series',[13]);
+ const tankEnvelope={apiVersion:1,sourceHash:'5'.repeat(64),ready:true,seriesInfo:{volumeCount:113,countBasis:'mal'},volumes:[{number:'1',cover:'',name:''}]};
+ const lookups={};let tankRangePath=null;
+ if(withTankoban){
+  lookups[hash(tankKey).slice(0,2)]=put({[tankKey]:tankEnvelope,'["comics","series",[9]]':{placeholder:true}});
+  tankRangePath=put({[tankKey]:tankEnvelope});
+ }
+ const manifest={version:1,revision:sourceRevision,lists:{},fixed:{},listBuckets:{[hash(selectionKey('imdb','titleCatalog',[{}])).slice(0,2)]:list},lookups,search:{manga:{names:[{path:names,first:'one piece',last:'one piece'}],keys:[{path:keys,first:13,last:13}]},...(withImdb?{imdb:{names:[],keys:[{path:imdbKeys,first:'tt0000001',last:'tt0000003'}]}}:{})},...(withTankoban?{lookupRanges:{version:1,ranges:[{first:tankKey,last:tankKey,path:tankRangePath}]}}:{})};
  const raw=JSON.stringify(manifest);write(source,prefix+'manifest.json',raw);entries.push({path:prefix+'manifest.json',bytes:Buffer.byteLength(raw)});
- write(source,'static-catalogue-report.json',JSON.stringify({revision:sourceRevision,date:'2026-10-15',year:'2026',files:entries.length,listSelections:1,source:{mal:{sha256:'2'.repeat(64)}},entries}));
+ const reportObject={revision:sourceRevision,date:'2026-10-15',year:'2026',files:entries.length,listSelections:1,source:{mal:{sha256:'2'.repeat(64)}},entries};
+ const writeManifest=()=>{const next=JSON.stringify(manifest);write(source,prefix+'manifest.json',next);entries.find(e=>e.path===prefix+'manifest.json').bytes=Buffer.byteLength(next);write(source,'static-catalogue-report.json',JSON.stringify(reportObject));};
+ write(source,'static-catalogue-report.json',JSON.stringify(reportObject));
  const document='\n'+JSON.stringify({schemaVersion:1,revision:'doc-1',data:{title:'Universe',image:'https://provider.example/cover.jpg'}},null,2)+'\n';
  const artwork=Buffer.from('artwork-fixture'),artPath='/assets/content/'+hash(artwork)+'.webp';write(content,artPath,artwork);
  const cm={schemaVersion:1,revision:'3'.repeat(64),documents:{'universe-test':{revision:'doc-1',sha256:hash(document)}},assets:{'assets/test.png':{path:artPath,sha256:hash(artwork),bytes:artwork.length}}};
  write(content,'internal/content/manifest.json',JSON.stringify(cm));write(content,'internal/content/documents/universe-test.json',document);
  write(content,'internal/content/rpc-bundle.json',JSON.stringify({apiVersion:1,revision:cm.revision,method:'bundle',result:{manifest:cm,documents:{'universe-test':document}}}));
- return{root,source,content,output,manifest,entries,records,artPath,write,imdbKeys,imdbSourceRows};
+ return{root,source,content,output,manifest,entries,records,artPath,write,writeManifest,imdbKeys,imdbSourceRows,tankKey,tankEnvelope,tankRangePath};
 }
 test('public graph is hash-addressed, preserves old Worker results and shares one payload tree',async t=>{
  const f=fixture(t),report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
@@ -255,4 +265,82 @@ test('independent retention gate rejects a historical blob removed after generat
  buildPublicCatalogue({source:f.source,content:f.content,output:f.output,previous});
  rmSync(join(f.output,path));
  assert.throws(()=>retainArtwork({previous,output:f.output,verifyOnly:true}),/IMMUTABLE_ARTWORK_DROPPED/);
+});
+
+test('search shard packing enforces exact byte budgets across the whole range list',()=>{
+ const rows=Array.from({length:257},(_,i)=>({id:i,pad:'x'.repeat(i%40)}));
+ for(const budget of [64,256,SEARCH_SHARD_BYTES]){
+  const ranges=packOffsets(rows,budget);
+  assert.ok(ranges.length>0);
+  let next=0;
+  for(const [start,end]of ranges){
+   assert.equal(start,next);next=end+1;
+   assert.ok(Buffer.byteLength(JSON.stringify(rows.slice(start,end+1)))<=budget);
+  }
+  assert.equal(next,rows.length);
+ }
+ assert.deepEqual(packOffsets([]),[]);
+ assert.deepEqual(packOffsets(['aa','bb'],11),[[0,1]]);
+ assert.deepEqual(packOffsets(['aa','bb'],10),[[0,0],[1,1]]);
+ assert.throws(()=>packOffsets(['x'.repeat(100)],10),/Single source row exceeds the search shard byte budget/);
+});
+
+test('lookup file packing keeps every key, stays sorted and respects the budget',()=>{
+ const entries=[['a',{v:1}],['b',{v:'y'.repeat(10)}],['c',{v:2}],['d',{v:'z'.repeat(60)}]];
+ for(const budget of [80,SEARCH_SHARD_BYTES]){
+  const files=packLookupFiles(entries,budget),seen=[];
+  for(const file of files){
+   assert.ok(Buffer.byteLength(file.body)<=budget);
+   const parsed=JSON.parse(file.body),keys=Object.keys(parsed);
+   assert.equal(keys[0],file.first);assert.equal(keys[keys.length-1],file.last);
+   for(const key of keys){assert.ok(key>=file.first&&key<=file.last);seen.push(key);}
+   assert.deepEqual(parsed,Object.fromEntries(entries.filter(([key])=>keys.includes(key))));
+  }
+  assert.deepEqual(seen,entries.map(([key])=>key));
+ }
+ assert.deepEqual(packLookupFiles([]),[]);
+ assert.throws(()=>packLookupFiles([['key',{pad:'x'.repeat(100)}]],10),/Single lookup entry exceeds the search shard byte budget/);
+});
+
+test('tankoban fine ranges survive conversion, stay deterministic and leave coarse buckets byte-identical',async t=>{
+ const f=fixture(t,{withTankoban:true});
+ const report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const index=JSON.parse(readFileSync(join(f.output,report.index.path)));
+ assert.ok(!readFileSync(join(f.output,report.index.path),'utf8').includes('/internal/'));
+ assert.equal(index.lookupRanges.version,1);assert.equal(index.lookupRanges.ranges.length,1);
+ const ref=index.lookupRanges.ranges[0];
+ assert.equal(ref.first,f.tankKey);assert.equal(ref.last,f.tankKey);
+ assert.ok(ref.path.startsWith('/catalogue/'+report.revision+'/shared/'));
+ assert.equal(hash(readFileSync(join(f.output,ref.path))),ref.path.slice(-69,-5));
+ assert.deepEqual(JSON.parse(readFileSync(join(f.output,ref.path))),{[f.tankKey]:f.tankEnvelope});
+ const coarsePath=Object.values(index.lookups)[0];
+ assert.ok(coarsePath.startsWith('/catalogue/'+report.revision+'/shared/'));
+ const coarse=JSON.parse(readFileSync(join(f.output,coarsePath)));
+ assert.deepEqual(coarse[f.tankKey],f.tankEnvelope);
+ const fetched=[];
+ const spy={async fetch(req){fetched.push(new URL(req.url).pathname);try{return new Response(readFileSync(join(f.output,new URL(req.url).pathname)));}catch{return new Response('',{status:404});}}};
+ assert.deepEqual((await prebuiltCatalogue(spy,sourceRevision,'tankoban','series',[13])).result,f.tankEnvelope);
+ assert.ok(fetched.includes(ref.path),'fine range file served');
+ assert.ok(!fetched.includes(coarsePath),'fine hit never reads the coarse bucket');
+ const second=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:join(f.root,'second')});
+ assert.equal(second.revision,report.revision);assert.equal(second.index.sha256,report.index.sha256);
+ const g=fixture(t,{withTankoban:true});
+ delete g.manifest.lookupRanges;g.writeManifest();
+ const legacy=buildPublicCatalogue({source:g.source,content:g.content,previous:g.content,output:g.output});
+ const legacyIndex=JSON.parse(readFileSync(join(g.output,legacy.index.path)));
+ assert.ok(!Object.hasOwn(legacyIndex,'lookupRanges'));
+ const legacyCoarsePath=Object.values(legacyIndex.lookups)[0];
+ assert.equal(legacyCoarsePath.slice(-69,-5),coarsePath.slice(-69,-5),'coarse bucket bytes identical without the fine field');
+ assert.deepEqual(JSON.parse(readFileSync(join(g.output,legacyCoarsePath))),coarse);
+});
+
+test('a malformed fine range declaration still converts and fails closed at resolution',async t=>{
+ const f=fixture(t,{withTankoban:true});
+ f.manifest.lookupRanges={version:2,ranges:[{first:f.tankKey,last:f.tankKey,path:f.tankRangePath}]};
+ f.writeManifest();
+ const report=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
+ const fetched=[];
+ const spy={async fetch(req){fetched.push(new URL(req.url).pathname);try{return new Response(readFileSync(join(f.output,new URL(req.url).pathname)));}catch{return new Response('',{status:404});}}};
+ await assert.rejects(prebuiltCatalogue(spy,sourceRevision,'tankoban','series',[13]),/PREBUILT_INVALID_LOOKUP_RANGES/);
+ assert.deepEqual(fetched,[prefix+'manifest.json'],'malformed declaration fails before any payload fetch');
 });

@@ -54,11 +54,29 @@ try {
     for (const key of Object.keys(index.fixed)) {
         const [dataset, method, args] = JSON.parse(key); await emit('fixed', dataset, method, args);
     }
+    const tankobanLookupKeys = new Set();
     for (const path of Object.values(index.lookups || {})) {
         for (const key of Object.keys(load(path))) {
             const [dataset, method, args] = JSON.parse(key); await emit('all-lookups', dataset, method, args);
+            if (dataset === 'tankoban' && method === 'series') tankobanLookupKeys.add(key);
         }
     }
+    // The additive fine ranges must exactly shadow the coarse tankoban keys;
+    // emit the first/middle/last key of every range as boundary lookups.
+    const fineKeys = [];
+    let finePreviousLast = null;
+    for (const ref of index.lookupRanges?.ranges ?? []) {
+        if (finePreviousLast !== null) assert.ok(finePreviousLast < ref.first, 'lookupRanges stay sorted and disjoint');
+        finePreviousLast = ref.last;
+        const keys = Object.keys(load(ref.path));
+        assert.ok(keys.length, 'range file carries keys');
+        for (const key of keys) assert.ok(key >= ref.first && key <= ref.last, 'key inside its declared range');
+        for (const n of [0, Math.floor(keys.length / 2), keys.length - 1]) {
+            const [dataset, method, args] = JSON.parse(keys[n]); await emit('tankoban-ranges', dataset, method, args, '', true);
+        }
+        fineKeys.push(...keys);
+    }
+    if (index.lookupRanges) assert.deepEqual([...new Set(fineKeys)].sort(), [...tankobanLookupKeys].sort(), 'fine ranges cover exactly the coarse tankoban keys');
     for (const [family, directory] of Object.entries(index.search)) {
         const dataset = ['anime','manga'].includes(family) ? 'mal' : family;
         for (const ref of directory.names) {

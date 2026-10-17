@@ -10,6 +10,7 @@ import {selectionKey} from '../src/catalogue-prebuilt.ts';
 import schema from '../src/source-schema.json' with {type:'json'};
 import {publicationSql} from './publication_sql.mjs';
 import {publishLandingCatalogues} from './landing_catalogue.mjs';
+import {packOffsets,packLookupFiles} from './shard_packing.mjs';
 const [artifact,output,qmlRoot]=process.argv.slice(2);
 if(!artifact||!output||!qmlRoot)throw Error('Usage: node projection/static_catalogue.mjs static-source.sqlite fresh-output qml-directory');
 const sourceReport=JSON.parse(readFileSync(join(dirname(artifact),'static-source-report.json'),'utf8'));
@@ -31,11 +32,12 @@ function adapter(unpaged=false){return{prepare(sql){return{bind(...args){return{
 const db=adapter(),all=adapter(true),revision=sourceReport.revision,prefix='/internal/prebuilt/'+revision+'/';
 const manifest={version:1,revision,lists:{},fixed:{},search:{},lookups:{}};
 const lookupBuckets=new Map();
-function lookup(dataset,method,args,result){const key=selectionKey(dataset,method,args),bucket=sha(key).slice(0,2);if(!lookupBuckets.has(bucket))lookupBuckets.set(bucket,{});lookupBuckets.get(bucket)[key]=result;}
+function lookup(dataset,method,args,result){const key=selectionKey(dataset,method,args),bucket=sha(key).slice(0,2);if(!lookupBuckets.has(bucket))lookupBuckets.set(bucket,{});lookupBuckets.get(bucket)[key]=result;return key;}
 const files=new Map(),today=new Date().toISOString().slice(0,10),year=String(new Date().getFullYear());
 const landingFixed=new Map();
 if(sqlite.prepare("SELECT COUNT(*) AS n FROM lib_mal_manga WHERE date(start_date)>date(?)").get(today).n)throw Error('Future-dated MAL titles require an admission-aware publication; do not silently fall back daily');
-function put(value){const raw=JSON.stringify(value),bytes=Buffer.byteLength(raw);if(bytes>4*1024*1024)throw Error('Shared file exceeds4MiB');const path=prefix+'shared/'+sha(raw)+'.json';if(!files.has(path)){files.set(path,bytes);const target=join(output,path);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,raw);}if(files.size+200>18000)throw Error('Free file budget/headroom exceeded');return path;}
+function putRaw(raw){const bytes=Buffer.byteLength(raw);if(bytes>4*1024*1024)throw Error('Shared file exceeds4MiB');const path=prefix+'shared/'+sha(raw)+'.json';if(!files.has(path)){files.set(path,bytes);const target=join(output,path);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,raw);}if(files.size+200>18000)throw Error('Free file budget/headroom exceeded');return path;}
+function put(value){return putRaw(JSON.stringify(value));}
 function fixed(dataset,method,args,result){const key=selectionKey(dataset,method,args);manifest.fixed[key]=put(result);landingFixed.set(key,result);}
 function list(dataset,method,args,items,shape='array',period='stable'){
  if(method==='discoverPageFiltered')args=[args[0],args[1].map(f=>({...f,key:f.key.replace(/[A-Z]/g,c=>c.toLowerCase())})),args[2]];
@@ -100,22 +102,31 @@ manifest.tankobanSourceHash=schema.tankoban__series.sourceHash;
 const volumeMap=new Map();
 for(const r of sqlite.prepare('SELECT * FROM lib_tankoban_volumes ORDER BY number').all()){if(!volumeMap.has(r.mal_id))volumeMap.set(r.mal_id,new Map());volumeMap.get(r.mal_id).set(r.number,{number:r.number,cover:r.cover_url??'',name:r.name??''});}
 const natural=s=>s.toLowerCase().replace(/\p{Nd}+/gu,run=>run.padStart(12,'0'));
+// The fine lookup directory is additive; the coarse buckets above stay
+// byte-identical for old clients and remain the fallback on any miss.
+const tankobanLookups=new Map();
 for(const r of sqlite.prepare('SELECT * FROM lib_tankoban_series').all()){
  const overlay=new Map(volumeMap.get(r.mal_id)??[]),volumes=[];
  for(let n=1;n<=r.volume_count;n++){const number=String(n);volumes.push(overlay.get(number)??{number,cover:'',name:''});overlay.delete(number);}
  volumes.push(...overlay.values());volumes.sort((a,b)=>natural(a.number)<natural(b.number)?-1:natural(a.number)>natural(b.number)?1:0);
- lookup('tankoban','series',[r.mal_id],{apiVersion:1,sourceHash:manifest.tankobanSourceHash,ready:true,seriesInfo:{volumeCount:r.volume_count,countBasis:r.count_basis},volumes});
+ const envelope={apiVersion:1,sourceHash:manifest.tankobanSourceHash,ready:true,seriesInfo:{volumeCount:r.volume_count,countBasis:r.count_basis},volumes};
+ tankobanLookups.set(lookup('tankoban','series',[r.mal_id],envelope),envelope);
 }
 for(const[bucket,values]of lookupBuckets)manifest.lookups[bucket]=put(values);
+if(tankobanLookups.size)manifest.lookupRanges={version:1,ranges:packLookupFiles([...tankobanLookups].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0)).map(({first,last,body})=>({first,last,path:putRaw(body)}))};
 
 const fold=s=>s.replace(/[A-Z]/g,c=>c.toLowerCase());const lex=(a,b)=>a<b?-1:a>b?1:0;
 for(const [family,table]of [['imdb','lib_imdb_title'],['anime','lib_mal_anime'],['manga','lib_mal_manga'],['comics','den_comics_series']]){
  const source=sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all().map((r,i)=>({...r,__staticOrder:i})).sort((a,b)=>lex(fold(family==='comics'?a.title??'':a.norm_title??''),fold(family==='comics'?b.title??'':b.norm_title??''))||a.__staticOrder-b.__staticOrder),names=[],keys=[];
- for(let start=0;start<source.length;start+=128){
-  const raw=source.slice(start,start+128);
-  const records=raw.map(r=>family==='imdb'?{identity:imdbRow(r,true)}:family==='comics'?{identity:legacyRow(r)}:{identity:malRow(r,family,true),...(family==='manga'?{normal:malRow(r,family)}:{})});
+ const recordRows=raw=>raw.map(r=>family==='imdb'?{identity:imdbRow(r,true)}:family==='comics'?{identity:legacyRow(r)}:{identity:malRow(r,family,true),...(family==='manga'?{normal:malRow(r,family)}:{})});
+ // Manga record blocks are byte-packed to the search shard budget; the other
+ // families keep the published 128-record grouping.
+ const chunks=[];
+ if(family==='manga'){const rows=recordRows(source);for(const [start,end]of packOffsets(rows))chunks.push([start,end,rows.slice(start,end+1)]);}
+ else for(let start=0;start<source.length;start+=128)chunks.push([start,Math.min(start+128,source.length)-1,recordRows(source.slice(start,start+128))]);
+ for(const [start,end,records]of chunks){
   const path=put(records);
-  raw.forEach((r,i)=>{
+  source.slice(start,end+1).forEach((r,i)=>{
    const id=family==='imdb'?r.tt:family==='comics'?r.gcd_id:r.mal_id;
    keys.push([id,path,i,...(family==='imdb'?[{identity:{title:records[i].identity.title,type:records[i].identity.type,rating:records[i].identity.rating,votes:records[i].identity.votes,isAnime:records[i].identity.isAnime},ordinal:r.__staticOrder}]:[])]);
    for(const name of family==='comics'?[r.title??'']:[r.norm_title,r.norm_title_english].filter(Boolean))names.push([name,id,path,i,r.norm_title??'',r.year,family==='imdb'?r.rating:family==='comics'?r.__downloads:r.score,family==='imdb'?r.votes:r.__staticOrder]);
@@ -123,7 +134,11 @@ for(const [family,table]of [['imdb','lib_imdb_title'],['anime','lib_mal_anime'],
  }
  names.sort((a,b)=>lex(fold(a[0]),fold(b[0]))||a[7]-b[7]);keys.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
  const directory={names:[],keys:[]};
- for(const [kind,rows]of [['names',names],['keys',keys]])for(let n=0;n<rows.length;n+=2048){const chunk=rows.slice(n,n+2048);directory[kind].push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}
+ for(let n=0;n<names.length;n+=2048){const chunk=names.slice(n,n+2048);directory.names.push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}
+ // Manga key chunks are byte-packed for the same reason; other families keep
+ // the published 2,048-row grouping so old clients stay byte-identical.
+ if(family==='manga'){for(const [start,end]of packOffsets(keys)){const chunk=keys.slice(start,end+1);directory.keys.push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}}
+ else for(let n=0;n<keys.length;n+=2048){const chunk=keys.slice(n,n+2048);directory.keys.push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}
  manifest.search[family]=directory;
 }
 const listSelections=Object.keys(manifest.lists).length,listBuckets=new Map();

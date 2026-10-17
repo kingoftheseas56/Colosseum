@@ -430,6 +430,51 @@ std::optional<QJsonValue> compactImdbFacts(const QJsonObject &index, const QJson
     return factsResult(ids, matched);
 }
 
+// Additive fine lookup directory for the tankoban series keys. The coarse
+// two-hex bucket stays published and remains authoritative on any miss;
+// an advertised but invalid declaration is a decided exact-query failure.
+std::optional<QJsonValue> lookupRangeValue(const QJsonObject &index, const QString &key,
+                                           const Read &read) {
+    const auto root = index.value("lookupRanges");
+    if (!root.isObject())
+        throw QStringLiteral("STATIC_INVALID_LOOKUP_RANGES_DECLARATION");
+    const auto declaration = root.toObject();
+    if (declaration.value("version") != 1 || !declaration.value("ranges").isArray())
+        throw QStringLiteral("STATIC_INVALID_LOOKUP_RANGES_DECLARATION");
+    const auto refs = declaration.value("ranges").toArray();
+    if (refs.size() > filesCap)
+        throw QStringLiteral("STATIC_INVALID_LOOKUP_RANGES_DECLARATION");
+    const auto prefix = "/catalogue/" + index.value("revision").toString() + "/shared/";
+    static const QRegularExpression leaf(QStringLiteral("^[a-f0-9]{64}\\.json$"));
+    QString previousLast, covered;
+    bool haveLast = false;
+    for (const auto &value : refs) {
+        if (!value.isObject())
+            throw QStringLiteral("STATIC_INVALID_LOOKUP_RANGES_DECLARATION");
+        const auto ref = value.toObject();
+        const auto firstValue = ref.value("first"), lastValue = ref.value("last"),
+                   pathValue = ref.value("path");
+        if (!firstValue.isString() || !lastValue.isString() || !pathValue.isString())
+            throw QStringLiteral("STATIC_INVALID_LOOKUP_RANGES_DECLARATION");
+        const auto first = firstValue.toString(), last = lastValue.toString(),
+                   path = pathValue.toString();
+        if (first > last || (haveLast && previousLast >= first) || !path.startsWith(prefix) ||
+            !leaf.match(path.mid(prefix.size())).hasMatch())
+            throw QStringLiteral("STATIC_INVALID_LOOKUP_RANGES_DECLARATION");
+        previousLast = last;
+        haveLast = true;
+        if (key >= first && key <= last)
+            covered = path;
+    }
+    if (covered.isEmpty())
+        return std::nullopt;
+    // A hash-verified non-object body is a shard failure, matching the coarse path.
+    const auto values = object(read(covered));
+    if (!values.contains(key))
+        return std::nullopt;  // Covered but absent still falls back to the bucket.
+    return values.value(key);
+}
+
 // Pure I01 resolver. A missing local file suspends this evaluation; it is resumed
 // only after asynchronous verified loading. No nested event loops or GUI blocking.
 std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
@@ -493,8 +538,13 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             lookupArgs = {text(at(0)), text(at(1))};
         else
             lookupArgs = {method == "curatedByNorm" ? text(at(0)).trimmed() : text(at(0))};
-        const auto key = selection(ds, method, lookupArgs),
-                   path = index.value("lookups").toObject().value(bucket(key)).toString();
+        const auto key = selection(ds, method, lookupArgs);
+        if (ds == "tankoban" && method == "series" && index.contains("lookupRanges")) {
+            const auto fine = lookupRangeValue(index, key, read);
+            if (fine)
+                return *fine;
+        }
+        const auto path = index.value("lookups").toObject().value(bucket(key)).toString();
         if (!path.isEmpty()) {
             const auto values = object(read(path));
             if (values.contains(key))

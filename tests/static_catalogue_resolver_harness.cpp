@@ -572,10 +572,11 @@ int main(int argc, char **argv) {
     }
     publish("publication-one");
     auto resolve = [&](StaticCatalogueResolver *owner, const QString &method = "titleCatalog",
-                       const QVariantList &args = QVariantList{QVariantMap(), 0, 24}) {
+                       const QVariantList &args = QVariantList{QVariantMap(), 0, 24},
+                       const QString &dataset = QStringLiteral("imdb")) {
         bool done = false;
         StaticCatalogueResolver::Outcome out;
-        owner->resolve("imdb", method, args, &app, [&](auto v) {
+        owner->resolve(dataset, method, args, &app, [&](auto v) {
             out = v;
             done = true;
         });
@@ -991,6 +992,153 @@ int main(int argc, char **argv) {
             oldOut.result.toObject().value("tt0000001").toObject().value("rating") == 9.7 &&
             newOut.result.toObject().value("tt0000001").toObject().value("rating") == 9.7,
             "source revision invalidates in-flight old buckets and fences callbacks");
+
+    // Additive fine-range directory: a covered series key is served by the
+    // range file alone; every miss (uncovered, covered-but-absent, absent
+    // field) keeps the coarse bucket authoritative; malformed declarations
+    // fail closed before any payload read; hand-packed manga shards stay
+    // inside the 56 KiB budget and are read once per cold lookup.
+    auto publishRanges = [&](const QString &label, const QString &fault = QString()) {
+        publish("ranges-" + label);
+        const QString prefix = "/catalogue/" + pub + "/";
+        const QString tankKey = "[\"tankoban\",\"series\",[13]]";
+        const QString otherKey = "[\"tankoban\",\"series\",[7]]";
+        const auto envelope = [&](int volumeCount) {
+            QJsonArray volumes;
+            for (int n = 1; n <= 3; ++n)
+                volumes.append(
+                    QJsonObject{{"number", QString::number(n)}, {"cover", ""}, {"name", ""}});
+            return QJsonObject{{"apiVersion", 1},
+                               {"ready", true},
+                               {"sourceHash", source},
+                               {"seriesInfo",
+                                QJsonObject{{"volumeCount", volumeCount}, {"countBasis", "mal"}}},
+                               {"volumes", volumes}};
+        };
+        const auto fineRaw =
+            json(fault == "covered-missing" ? QJsonObject{{otherKey, envelope(7)}}
+                                            : QJsonObject{{tankKey, envelope(113)}});
+        const QString finePath = prefix + "shared/" + hash(fineRaw) + ".json";
+        files[finePath] = fineRaw;
+        const auto coarseRaw =
+            json(QJsonObject{{tankKey, envelope(113)}, {otherKey, envelope(7)}});
+        const QString coarsePath = prefix + "shared/" + hash(coarseRaw) + ".json";
+        files[coarsePath] = coarseRaw;
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        const auto oldIndexPath = entry.value("index").toObject().value("path").toString();
+        auto index = QJsonDocument::fromJson(files.value(oldIndexPath)).object();
+        index["lookups"] = QJsonObject{{hash(tankKey.toUtf8()).left(2), coarsePath},
+                                       {hash(otherKey.toUtf8()).left(2), coarsePath}};
+        if (fault == "manga") {
+            const auto recordsRaw =
+                "[" + json(QJsonObject{{"identity", QJsonObject{{"id", 13}, {"title", "One Piece"}}},
+                                       {"normal", QJsonObject{{"mal_id", 13},
+                                                              {"synopsis", QString(50000, QLatin1Char('x'))}}}}) +
+                "]";
+            const QString recordsPath = prefix + "shared/" + hash(recordsRaw) + ".json";
+            files[recordsPath] = recordsRaw;
+            const auto keysRaw =
+                QJsonDocument(QJsonArray{QJsonValue(QJsonArray{13, recordsPath, 0})})
+                    .toJson(QJsonDocument::Compact);
+            const QString keysPath = prefix + "shared/" + hash(keysRaw) + ".json";
+            files[keysPath] = keysRaw;
+            index["search"] = QJsonObject{
+                {"manga",
+                 QJsonObject{{"names", QJsonArray()},
+                             {"keys", QJsonArray{QJsonObject{
+                                          {"path", keysPath}, {"first", 13}, {"last", 13}}}}}}};
+        } else if (fault != "absent-field") {
+            const QJsonObject ref{{"first", tankKey}, {"last", tankKey}, {"path", finePath}};
+            if (fault == "bad-version")
+                index["lookupRanges"] = QJsonObject{{"version", 2}, {"ranges", QJsonArray{ref}}};
+            else if (fault == "bad-order")
+                index["lookupRanges"] =
+                    QJsonObject{{"version", 1},
+                                {"ranges", QJsonArray{QJsonObject{{"first", otherKey},
+                                                                  {"last", otherKey},
+                                                                  {"path", finePath}},
+                                                      ref}}};
+            else
+                index["lookupRanges"] = QJsonObject{{"version", 1}, {"ranges", QJsonArray{ref}}};
+        }
+        if (fault == "coarse-missing")
+            files.remove(coarsePath); // Any coarse read for the covered key must fail.
+        const auto bytes = json(index);
+        const auto path = prefix + "index-" + hash(bytes) + ".json";
+        files[path] = bytes;
+        files["/catalogue/current.json"] =
+            json({{"schemaVersion", 1},
+                  {"revision", pub},
+                  {"sourceRevision", source},
+                  {"index",
+                   QJsonObject{{"path", path}, {"sha256", hash(bytes)}, {"bytes", bytes.size()}}}});
+    };
+    publishRanges("fine-only", "coarse-missing");
+    auto *fineResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-fine-only"), &app);
+    const auto fineOut = resolve(fineResolver, "series", {13}, "tankoban");
+    require(fineOut.status == StaticCatalogueResolver::Status::Prepared &&
+                fineOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 113 &&
+                fineOut.metrics.value("networkFiles").toInt() == 3,
+            "covered series key is served by the fine range file alone");
+
+    publishRanges("uncovered");
+    auto *gapResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-uncovered"), &app);
+    const auto gapOut = resolve(gapResolver, "series", {7}, "tankoban");
+    require(gapOut.status == StaticCatalogueResolver::Status::Prepared &&
+                gapOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 7 &&
+                gapOut.metrics.value("networkFiles").toInt() == 3,
+            "uncovered series key keeps the coarse bucket authoritative");
+
+    publishRanges("covered-missing", "covered-missing");
+    auto *missingResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-covered-missing"), &app);
+    const auto missingOut = resolve(missingResolver, "series", {13}, "tankoban");
+    require(missingOut.status == StaticCatalogueResolver::Status::Prepared &&
+                missingOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 113 &&
+                missingOut.metrics.value("networkFiles").toInt() == 4,
+            "covered-but-absent series key falls back to the coarse bucket");
+
+    for (const auto &fault : {QStringLiteral("bad-version"), QStringLiteral("bad-order")}) {
+        publishRanges("malformed-" + fault, fault);
+        auto *badResolver = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("ranges-" + fault), &app);
+        const int before = gets, beforeWorker = posts;
+        const auto bad = resolve(badResolver, "series", {13}, "tankoban");
+        require(bad.status == StaticCatalogueResolver::Status::Failure &&
+                    bad.error == "STATIC_INVALID_LOOKUP_RANGES_DECLARATION" &&
+                    gets == before + 2 && posts == beforeWorker,
+                "malformed fine range declaration fails before any payload read");
+    }
+
+    publishRanges("absent-field", "absent-field");
+    auto *legacyResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-absent"), &app);
+    const auto legacyOut = resolve(legacyResolver, "series", {13}, "tankoban");
+    require(legacyOut.status == StaticCatalogueResolver::Status::Prepared &&
+                legacyOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 113 &&
+                legacyOut.metrics.value("networkFiles").toInt() == 3,
+            "absent fine directory keeps the plain coarse lookup");
+
+    publishRanges("manga-shards", "manga");
+    auto *mangaResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-manga"), &app);
+    const auto mangaCold = resolve(mangaResolver, "mangaById", {13}, "mal");
+    require(mangaCold.status == StaticCatalogueResolver::Status::Prepared &&
+                mangaCold.result.toObject().value("mal_id").toInt() == 13 &&
+                mangaCold.result.toObject().value("synopsis").toString().size() == 50000 &&
+                mangaCold.metrics.value("networkFiles").toInt() == 4 &&
+                mangaCold.metrics.value("largestFileBytes").toLongLong() > 40000 &&
+                mangaCold.metrics.value("largestFileBytes").toLongLong() <= 57344 &&
+                mangaCold.metrics.value("networkBytes").toLongLong() <= 2 * 57344,
+            "manga cold by-id reads exactly one key shard and one record shard inside the budget");
+    const int mangaGets = gets;
+    const auto mangaWarm = resolve(mangaResolver, "mangaById", {13}, "mal");
+    require(mangaWarm.status == StaticCatalogueResolver::Status::Prepared &&
+                mangaWarm.result == mangaCold.result &&
+                mangaWarm.metrics.value("networkFiles").toInt() == 0 && gets == mangaGets,
+            "warm manga by-id serves identical JSON without network I/O");
 
     publish("publication-one");
     auto first = resolve(r);

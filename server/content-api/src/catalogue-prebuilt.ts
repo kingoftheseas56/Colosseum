@@ -1,7 +1,7 @@
 import {clamp,integer,text} from './catalogue-semantic.ts';
 type Ref={path:string;first:string|number;last:string|number};
 type List={parts:string[];length:number;chunkSize:number;shape:'array'|'mal'|'comics';period:string;notBefore?:string};
-type Manifest={version:1;revision:string;publicRevision?:string;lists:Record<string,List>;listBuckets?:Record<string,string>;search:Record<string,{names:Ref[];keys:Ref[]}>;fixed:Record<string,string>;lookups?:Record<string,string>;tankobanSourceHash?:string};
+type Manifest={version:1;revision:string;publicRevision?:string;lists:Record<string,List>;listBuckets?:Record<string,string>;search:Record<string,{names:Ref[];keys:Ref[]}>;fixed:Record<string,string>;lookups?:Record<string,string>;lookupRanges?:{version:number;ranges:Ref[]};tankobanSourceHash?:string};
 const cachesByAssets=new WeakMap<Fetcher,Map<string,{value:any;bytes:number}>>();
 const MAX_CACHE_BYTES=12*1024*1024;
 const canonical=(v:any):any=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
@@ -34,6 +34,23 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
  if(manifest.version!==1||manifest.revision!==revision)throw Error('PREBUILT_REVISION_MISMATCH');
  if(manifest.publicRevision){if(!/^[a-f0-9]{64}$/.test(manifest.publicRevision))throw Error('PREBUILT_REVISION_MISMATCH');publicPrefix='/catalogue/'+manifest.publicRevision+'/';}
  async function bucketFor(key:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key));return new Uint8Array(digest)[0].toString(16).padStart(2,'0');}
+ // Additive fine lookup directory: the coarse bucket stays authoritative on any
+ // miss. An advertised but invalid declaration is a decided exact-query failure.
+ async function lookupRangeValue(declaration:any,key:string):Promise<any>{
+  if(!declaration||typeof declaration!=='object'||Array.isArray(declaration)||declaration.version!==1||!Array.isArray(declaration.ranges)||declaration.ranges.length>512)throw Error('PREBUILT_INVALID_LOOKUP_RANGES');
+  const shared=(path:string,at:string)=>path.startsWith(at)&&/^shared\/[a-f0-9]{64}\.json$/.test(path.slice(at.length));
+  let previousLast:string|null=null,covered='';
+  for(const ref of declaration.ranges){
+   if(!ref||typeof ref!=='object'||Array.isArray(ref)||typeof ref.first!=='string'||typeof ref.last!=='string'||typeof ref.path!=='string')throw Error('PREBUILT_INVALID_LOOKUP_RANGES');
+   if(!(shared(ref.path,prefix)||(publicPrefix&&shared(ref.path,publicPrefix)))||ref.first>ref.last||(previousLast!==null&&previousLast>=ref.first))throw Error('PREBUILT_INVALID_LOOKUP_RANGES');
+   previousLast=ref.last;
+   if(key>=ref.first&&key<=ref.last)covered=ref.path;
+  }
+  if(!covered)return undefined;
+  const values=await get(covered);
+  if(!values||typeof values!=='object'||Array.isArray(values))throw Error('PREBUILT_ASSET_MISSING');
+  return Object.hasOwn(values,key)?values[key]:undefined;
+ }
  const fixedArgs=method==='discoverFilters'||method==='cachedDiscoverFilters'?[text(args[0]),dataset==='comics'?false:!!args[1]]:args;
  const fixed=manifest.fixed[selectionKey(dataset,method,fixedArgs)];if(fixed){const result=await get(fixed);if(result===null)throw Error('PREBUILT_ASSET_MISSING');return{result};}
  if(dataset==='comics'&&method==='curatedGenreShelves'){
@@ -43,7 +60,9 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
  }
  if(manifest.lookups&&['series','downloadsFor','curatedSeries','curatedCoverage','curatedByNorm','curatedHasDownloadable','genreCount'].includes(method)){
   const lookupArgs=method==='series'||method==='downloadsFor'?[integer(args[0])]:method==='genreCount'?[text(args[0]),text(args[1])]:[method==='curatedByNorm'?text(args[0]).trim():text(args[0])];
-  const key=selectionKey(dataset,method,lookupArgs),bucket=await bucketFor(key);
+  const key=selectionKey(dataset,method,lookupArgs);
+  if(dataset==='tankoban'&&method==='series'&&manifest.lookupRanges!==undefined){const fine=await lookupRangeValue(manifest.lookupRanges,key);if(fine!==undefined)return{result:fine};}
+  const bucket=await bucketFor(key);
   const path=manifest.lookups[bucket];if(path){const values=await get(path);if(!values)throw Error('PREBUILT_ASSET_MISSING');if(Object.hasOwn(values,key))return{result:values[key]};}
   if(method==='genreCount')return{result:0};
   if(method==='curatedHasDownloadable')return{result:false};
