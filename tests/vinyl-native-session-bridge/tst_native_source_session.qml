@@ -3,6 +3,7 @@ import QtTest
 TestCase {
     id:test
     name:"VinylNativeSourceSessionBridge"
+    width:720; height:520
     when:windowShown
     property var session
     property var rawAlbum
@@ -44,6 +45,28 @@ TestCase {
         var pending=session.pendingImportCeremony.relationship;session.clearProfile();
         compare(session.pendingImportCeremony,null);verify(!session.decideImportIdentity(pending,"new-media"));
         store.destroy();
+    }
+    function test_physicalCancelDefersNativeIdentityAndReimportReprompts_data() {
+        return [{tag:"escape",pointer:false},{tag:"pointer",pointer:true}];
+    }
+    function test_physicalCancelDefersNativeIdentityAndReimportReprompts(data) {
+        var store=collectionFactory.createObject(test);session.collectionStore=store;
+        var path=BridgeFixtures.createIdentityAudio();BridgeFixtures.changeIdentityAudio(path,data.pointer ? 1310 : 1110);
+        compare(session.importFiles([path]).imported,1);var oldId=store.rows[0].payload.album.tracks[0].id;
+        BridgeFixtures.changeIdentityAudio(path,data.pointer ? 1410 : 1210);
+        session.importFiles([path]);var relationship=session.pendingImportCeremony.relationship;
+        var component=Qt.createComponent("../../qml/VaultIdentityCeremonyDialog.qml");compare(component.status,Component.Ready,component.errorString());
+        var dialog=component.createObject(test);verify(dialog!==null);
+        dialog.cancelRequested.connect(function(){session.cancelImportIdentity(true);dialog.close();});
+        dialog.openCeremony(session.pendingImportCeremony);tryCompare(dialog,"opened",true);wait(0);
+        if(data.pointer) {
+            var button=findChild(dialog.contentItem,"vaultCancelIdentity");verify(button!==null);mouseClick(button,button.width/2,button.height/2);
+        } else keyClick(Qt.Key_Escape);
+        tryCompare(dialog,"visible",false);compare(session.pendingImportCeremony,null);
+        verify(session.browseError.indexOf("Open local music")>=0);compare(store.rows.length,1);compare(store.rows[0].payload.album.tracks[0].id,oldId);
+        session.importFiles([path]);compare(session.pendingImportCeremony.relationship,relationship);
+        compare(NativeSource.importFiles([path]).albums.length,0);
+        dialog.destroy();store.destroy();
     }
     function test_pendingDecisionRejectsReboundSource() {
         var store=collectionFactory.createObject(test);session.collectionStore=store;

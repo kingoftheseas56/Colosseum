@@ -252,7 +252,9 @@ Item {
     property var pendingIdentitySource: null
     signal identityDecisionRequested(var ceremony)
     signal importFinished(var outcome)
-    function cancelImportIdentity() {
+    function cancelImportIdentity(userCancelled) {
+        if(userCancelled && pendingImportCeremony)
+            browseError="Import cancelled. Open local music and choose these files again when you are ready to decide their identity.";
         importIdentityGeneration++;pendingIdentityPaths=[];pendingImportCeremony=null;pendingIdentitySource=null;
     }
     function decideImportIdentity(relationship, choice) {

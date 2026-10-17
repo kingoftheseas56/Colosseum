@@ -892,7 +892,7 @@ Window {
     }
     function cancelPendingIdentityCeremony() {
         if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport && win.vinylWorld)
-            win.vinylWorld.session.cancelImportIdentity()
+            win.vinylWorld.session.cancelImportIdentity(true)
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
