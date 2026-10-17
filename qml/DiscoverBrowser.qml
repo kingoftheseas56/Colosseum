@@ -125,6 +125,11 @@ Item {
     property int adapterRev: 0               // bump to force adapter-derived bindings to re-evaluate
 
     property var items: []
+    // During synchronous acceptance the existing skeleton delegates become real cards.
+    // Hold their current cell capacity until the rows land, instead of briefly creating
+    // a second set of placeholders and immediately removing them on loading=false.
+    property bool _acceptingPage: false
+    property int _acceptingCellFloor: 0
     // Only a successfully accepted page may claim a native query as its model cause.
     // Resets, type restores, pin changes and rejected/failed callbacks have no owner.
     // Tankoban's component name matches analyze_arms.py's pid-scoped QML allowlist.
@@ -631,6 +636,8 @@ Item {
         warning = page.warning || ""
         freshness = page.freshness || ""
         var incoming = page.items || []
+        _acceptingCellFloor = wallCells.count
+        _acceptingPage = true
         if (incoming.length) {
             var merged = items.slice()
             for (var i = 0; i < incoming.length; i++) merged.push(incoming[i])
@@ -642,6 +649,7 @@ Item {
         // Otherwise loading=false first drops the model to zero and reconstructs
         // every visible poster card when items is assigned immediately afterward.
         loading = false
+        _acceptingPage = false
         if (tracing) {
             var elapsed = Date.now() - modelStarted
             traceModel("qml_model_end", key, elapsed, gen, st)
@@ -1092,7 +1100,9 @@ Item {
             // page and every loading flip, so the GridView rebuilt ALL its cards each time
             // (profiled 2026-09-29: 228 card creations, ~2 s). Rows are only appended/removed at
             // the end, so existing cards stay put; each card reads browser.items[index].
-            readonly property int cellTarget: browser.items.length + skelCount
+            readonly property int cellTarget: browser._acceptingPage
+                ? Math.max(browser._acceptingCellFloor, browser.items.length)
+                : browser.items.length + skelCount
             onCellTargetChanged: wall.syncCells()
             Component.onCompleted: wall.syncCells()
             function syncCells() {

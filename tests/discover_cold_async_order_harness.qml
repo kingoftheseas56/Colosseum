@@ -16,6 +16,8 @@ Item {
     property var measuredWall: null
     property bool duringDelivery: false
     property int minimumCellCount: 999999
+    property int maximumCellCount: 0
+    property int initialCellCount: 0
     function locateWall(item) {
         if (typeof item.syncCells === "function" && item.cellTarget !== undefined) return item
         var children = item.children || []
@@ -71,10 +73,14 @@ Item {
             root.measuredWall = root.locateWall(browser)
             if (!root.measuredWall || root.measuredWall.model.count < 1) { Qt.exit(13); return }
             root.measuredWall.model.countChanged.connect(function() {
-                if (root.duringDelivery)
+                if (root.duringDelivery) {
                     root.minimumCellCount = Math.min(root.minimumCellCount, root.measuredWall.model.count)
+                    root.maximumCellCount = Math.max(root.maximumCellCount, root.measuredWall.model.count)
+                }
             })
             root.minimumCellCount = root.measuredWall.model.count
+            root.maximumCellCount = root.measuredWall.model.count
+            root.initialCellCount = root.measuredWall.model.count
             root.duringDelivery = true
             root.completePage()
             Qt.callLater(function() {
@@ -86,8 +92,9 @@ Item {
                            && browser.cursor === null && root.calls === 1
                            && !browser.pageFailed
                            && root.minimumCellCount > 0 && root.measuredWall.model.count === 24
+                           && root.maximumCellCount <= Math.max(root.initialCellCount, 24)
                 root.duringDelivery = false
-                console.log("ROOT_REAL_CELL_MIN " + root.minimumCellCount)
+                console.log("ROOT_REAL_CELL_MIN " + root.minimumCellCount + " MAX " + root.maximumCellCount)
                 console.log(pass ? "DISCOVER_COLD_ORDER_GREEN" : "DISCOVER_COLD_ORDER_RED")
                 Qt.exit(pass ? 0 : 1)
             })
