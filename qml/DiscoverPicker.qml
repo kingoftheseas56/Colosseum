@@ -183,7 +183,9 @@ Item {
             id: list
             anchors.fill: parent; anchors.margins: 6
             clip: true
-            model: picker.options
+            // Hidden pickers must not rebuild option delegates on catalogue refresh.
+            // Selection and pill text remain bound to options above.
+            model: picker.open ? picker.options : []
             currentIndex: -1
             keyNavigationEnabled: false
             boundsBehavior: Flickable.StopAtBounds
