@@ -108,6 +108,67 @@ TestCase {
             probe.destroy();
         }
     }
+    function test_decadePopupKeyboardAndFocus_data() {
+        var rows=[];
+        [1280,1024].forEach(function(width){
+            ["escape","selection","keyboardSelection","outside"].forEach(function(close){
+                rows.push({tag:width+"-"+close,width:width,close:close});
+            });
+        });
+        rows.push({tag:"1024-bottom",width:1024,height:640,close:"escape"});
+        return rows;
+    }
+    function test_decadePopupKeyboardAndFocus(data) {
+        host.width=data.width;world.width=data.width;
+        host.height=data.height || 720;world.height=host.height;
+        var albums=[];
+        for(var i=0;i<13;i++){var a=record(i);a.year=1900+i*10;albums.push(a);}
+        world.session.library=albums;
+        world.session.playAlbum(albums[0],0);
+        world.worldView.setTab("discover");wait(0);
+        world.pushRoute();
+        var trigger=item("vinylFilter_decade"),menu=item("vinylFilterMenu");
+        trigger.forceActiveFocus();keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
+        var scroll=item("vinylFilterMenuScroll");
+        verify(scroll.contentHeight>scroll.height,"All decades require scrolling in this viewport");
+        var popupTop=menu.contentItem.mapToItem(world,0,0).y-menu.topPadding;
+        verify(popupTop>=world.worldScroll.y,"Popup stays below the page header");
+        verify(popupTop+menu.height<=world.contentBottom+1,"Popup stays above the player");
+        verify(scroll.height>=38,"At least one whole option remains reachable");
+        if(data.close==="escape") {
+            keyClick(Qt.Key_Escape);
+        } else if(data.close==="selection") {
+            scroll.contentY=scroll.contentHeight-scroll.height;waitForRendering(world);
+            var last=findChild(menu.contentItem,"vinylFilterValue_decade_2020s");
+            verify(last!==null,"Final decade option exists");
+            mouseClick(last,last.width/2,last.height/2);
+            compare(world.worldData.lens.decade,"2020s");
+        } else if(data.close==="keyboardSelection") {
+            keyClick(Qt.Key_Down);keyClick(Qt.Key_Return);
+            compare(world.worldData.lens.decade,"1900s");
+        } else {
+            mouseClick(world,world.width-70,world.worldScroll.y+80);
+        }
+        tryCompare(menu,"opened",false);
+        tryCompare(trigger,"activeFocus",true);
+        keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
+        var selected=findChild(menu.contentItem,"vinylFilterValue_decade_"+world.worldData.lens.decade);
+        tryCompare(selected,"activeFocus",true);
+        var optionTop=selected.mapToItem(scroll,0,0).y;
+        verify(optionTop>=-1 && optionTop+selected.height<=scroll.height+1,"Reopening reveals selected option");
+        if(data.width===1280 && data.close==="escape") {
+            host.width=1024;world.width=1024;host.height=640;world.height=640;wait(0);
+            tryVerify(function(){return menu.contentItem.mapToItem(world,0,0).y-menu.topPadding+menu.height<=world.contentBottom+1;});
+            verify(scroll.height>=38,"Resize retains a complete scrollable option");
+        }
+        keyClick(Qt.Key_Escape);tryCompare(menu,"opened",false);
+        compare(world.page,"discover","Escape closes only the popup, not the page");
+        compare(world.routeStack.length,1,"Popup Escape must not invoke the page Back handler");
+        tryCompare(trigger,"activeFocus",true);
+        mouseClick(trigger);tryCompare(menu,"opened",true);
+        keyClick(Qt.Key_Escape);tryCompare(menu,"opened",false);
+        tryCompare(trigger,"activeFocus",true);
+    }
     function test_deviceAccountRelay_data(){return [{tag:"wide",width:1280},{tag:"narrow",width:1024}];}
     function test_deviceAccountRelay(data){
         host.width=data.width;world.width=data.width;wait(0);

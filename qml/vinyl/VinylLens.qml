@@ -10,6 +10,11 @@ Item {
     readonly property string title: worldData.lensTitle
     property string openFilter: ""
     implicitHeight: filterRow.y + filterRow.height + 24
+    onWidthChanged: if (menu.opened) Qt.callLater(menu.clampToViewport)
+    Connections {
+        target: root.pageFlick
+        function onHeightChanged() { if (menu.opened) Qt.callLater(menu.clampToViewport) }
+    }
     Theme { id: theme }
     Text {
         id: heading
@@ -60,6 +65,7 @@ Item {
                 enabled: root.worldData.catalogueReachable
                 onTriggered: {
                     root.openFilter=modelData
+                    menu.focusReturn=filter
                     menu.x=filter.mapToItem(root,0,0).x
                     menu.clampToViewport()
                     menu.open()
@@ -70,22 +76,43 @@ Item {
     Popup {
         id: menu
         objectName: "vinylFilterMenu"
-        y: filterRow.y + filterRow.height + 8
+        y: opensAbove ? filterRow.y - 8 - height : filterRow.y + filterRow.height + 8
         width: 250
         // Stays inside the visible page above the player bar: the height is
         // clamped to the space left in the page viewport when the menu opens.
         height: Math.min(350, options.implicitHeight + 24, menu.maxVisibleHeight)
         property real maxVisibleHeight: 350
+        property bool opensAbove: false
+        property Item focusReturn: null
+        focus: true
         padding: 12
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        onClosed: root.forceActiveFocus()
+        onOpened: {
+            for (var i=0;i<optionButtons.count;i++) {
+                var option=optionButtons.itemAt(i)
+                if (option && option.enabled && option.selected) {
+                    option.forceActiveFocus(Qt.PopupFocusReason)
+                    return
+                }
+            }
+            var first=optionButtons.itemAt(0)
+            if (first) first.forceActiveFocus(Qt.PopupFocusReason)
+        }
+        onClosed: if (focusReturn && focusReturn.visible && focusReturn.enabled)
+                      focusReturn.forceActiveFocus(Qt.PopupFocusReason)
         function clampToViewport() {
             if (!root.pageFlick) { menu.maxVisibleHeight = 350; return }
             // A popup's own y is not settled before its first open, so the
             // top is taken from the filter row the menu hangs from.
             var sceneTop = root.mapToItem(null, 0, filterRow.y + filterRow.height + 8).y
-            var viewportBottom = root.pageFlick.mapToItem(null, 0, 0).y + root.pageFlick.height
-            menu.maxVisibleHeight = Math.max(0, viewportBottom - sceneTop - 8)
+            var viewportTop = root.pageFlick.mapToItem(null, 0, 0).y
+            var viewportBottom = viewportTop + root.pageFlick.height
+            var below = Math.max(0, viewportBottom - sceneTop - 8)
+            var above = Math.max(0, root.mapToItem(null,0,filterRow.y).y - viewportTop - 8)
+            // Keep the existing below-trigger layout unless it cannot show one
+            // complete option; then use the larger space above, still scrollable.
+            menu.opensAbove = below < 38 + 2*menu.padding && above > below
+            menu.maxVisibleHeight = menu.opensAbove ? above : below
         }
         background: Glass { backdrop: root.backdrop; radius: 16; tint: 0.12; scrim: 0.64 }
         contentItem: Flickable {
@@ -99,10 +126,19 @@ Item {
                 width: parent.width
                 spacing: 5
                 Repeater {
+                    id: optionButtons
                     model: root.openFilter ? root.worldData.filterOptions(root.openFilter) : []
                     delegate: VinylWorldButton {
                         required property var modelData
+                        required property int index
                         width: options.width
+                        KeyNavigation.up: index>0 ? optionButtons.itemAt(index-1) : null
+                        KeyNavigation.down: index+1<optionButtons.count ? optionButtons.itemAt(index+1) : null
+                        onActiveFocusChanged: if (activeFocus) {
+                            if (y < menuScroll.contentY) menuScroll.contentY=y
+                            else if (y+height > menuScroll.contentY+menuScroll.height)
+                                menuScroll.contentY=y+height-menuScroll.height
+                        }
                         objectName: "vinylFilterValue_" + root.openFilter + "_" + modelData.value
                         label: modelData.label
                         enabled: modelData.enabled && root.worldData.catalogueReachable
