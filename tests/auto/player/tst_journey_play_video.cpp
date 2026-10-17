@@ -49,6 +49,8 @@
 #include <QPointer>
 #include <QProcess>
 #include <QSignalSpy>
+#include <QSemaphore>
+#include <MpvController>
 #include <QString>
 #include <QUrl>
 #include <QtTest>
@@ -133,6 +135,8 @@ private slots:
     void decoded_fixture_reports_exact_dimensions();
     void source_identity_matches();
     void same_size_warm_reloads_refresh_dimensions();
+    void queued_decode_replacement_data();
+    void queued_decode_replacement();
 };
 
 // A freshly constructed, shown player carries no source and no decoded frame — the closest
@@ -287,6 +291,145 @@ void tst_journey_play_video::same_size_warm_reloads_refresh_dimensions()
     QTRY_VERIFY_WITH_TIMEOUT(!endedSpy.isEmpty(), 3000);
     QCOMPARE(p.item->decodedWidth(), 0);
     QCOMPARE(p.item->decodedHeight(), 0);
+}
+
+void tst_journey_play_video::queued_decode_replacement_data()
+{
+    QTest::addColumn<QSize>("secondSize");
+    QTest::addColumn<bool>("returnToFirst");
+    QTest::newRow("rapid-A-B-different-sizes") << QSize(96, 80) << false;
+    QTest::newRow("A-B-A-same-size") << QSize(64, 64) << true;
+    QTest::newRow("video-audio-handoff") << QSize() << false;
+}
+
+// Leave real A events in the GUI queue while the native worker finishes decoding.
+// No synthetic mpv signals or private MpvItem state: the semaphore models a busy
+// GUI thread, and the already shown/warmed surface keeps native decoding active.
+void tst_journey_play_video::queued_decode_replacement()
+{
+    QFETCH(QSize, secondSize);
+    QFETCH(bool, returnToFirst);
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString ffmpeg = MpvItem::findFfmpeg();
+    QVERIFY(!ffmpeg.isEmpty());
+    const QString seed = temp.filePath(QStringLiteral("seed.mp4"));
+    const QString first = temp.filePath(QStringLiteral("A.mp4"));
+    const QString second = secondSize.isValid()
+        ? temp.filePath(QStringLiteral("B.mp4"))
+        : fixtureDir() + QStringLiteral("tiny-audio.m4a");
+    const QList<QPair<QString, QSize>> fixtures = {
+        {seed, QSize(32, 32)}, {first, QSize(64, 64)},
+        {temp.filePath(QStringLiteral("B.mp4")), secondSize.isValid() ? secondSize : QSize(96, 80)}};
+    for (const auto &fixture : fixtures) {
+        QProcess generator;
+        generator.start(ffmpeg, {QStringLiteral("-v"), QStringLiteral("error"),
+            QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+            QStringLiteral("color=c=blue:s=%1x%2:r=10")
+                .arg(fixture.second.width()).arg(fixture.second.height()),
+            QStringLiteral("-t"), QStringLiteral("20"), QStringLiteral("-an"),
+            QStringLiteral("-c:v"), QStringLiteral("mpeg4"), fixture.first});
+        QVERIFY(generator.waitForFinished(15000));
+        QCOMPARE(generator.exitCode(), 0);
+    }
+    struct InspectablePlayer : MpvItem { using MpvItem::mpvController; };
+    QQuickWindow window;
+    auto *item = new InspectablePlayer;
+    item->setParent(window.contentItem());
+    item->setParentItem(window.contentItem());
+    item->setWidth(320);
+    item->setHeight(240);
+    window.resize(320, 240);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    item->setProperty(QStringLiteral("ao"), QStringLiteral("null"));
+    item->loadFile(seed);
+    QTRY_COMPARE_WITH_TIMEOUT(item->decodedWidth(), 32, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(item->decodedHeight(), 32, 5000);
+
+    MpvController *controller = item->mpvController();
+    QVERIFY(controller->thread() != QThread::currentThread());
+    QSemaphore decoded;
+    // All accesses to these two flags run on the controller thread.
+    bool loaded = false;
+    bool reported = false;
+    auto observeDecode = [&] {
+        if (!reported && loaded
+            && controller->getProperty(QStringLiteral("path")).toString()
+                == QDir::toNativeSeparators(first)
+            && controller->getProperty(QStringLiteral("dwidth")).toInt() == 64
+            && controller->getProperty(QStringLiteral("dheight")).toInt() == 64) {
+            reported = true;
+            decoded.release();
+        }
+    };
+    const auto loadConnection = connect(controller, &MpvController::fileLoaded,
+        controller, [&] { loaded = true; observeDecode(); }, Qt::DirectConnection);
+    const auto reconfigConnection = connect(controller, &MpvController::videoReconfig,
+        controller, observeDecode, Qt::DirectConnection);
+    const auto propertyConnection = connect(controller, &MpvController::propertyChanged,
+        controller, [&](const QString &name, const QVariant &) {
+            if (name == QLatin1String("dwidth") || name == QLatin1String("dheight"))
+                observeDecode();
+        }, Qt::DirectConnection);
+    item->loadFile(first);
+    // Deliberately do not dispatch GUI events until A has really decoded.
+    const bool nativeDecoded = decoded.tryAcquire(1, 5000);
+    QMetaObject::invokeMethod(controller, [&] {
+        disconnect(loadConnection);
+        disconnect(reconfigConnection);
+        disconnect(propertyConnection);
+    }, Qt::BlockingQueuedConnection);
+    QVERIFY2(nativeDecoded, "A must decode natively while its GUI notifications remain queued");
+    QCOMPARE(item->decodedWidth(), 0);
+    QCOMPARE(item->decodedHeight(), 0);
+
+    QSize expected = secondSize.isValid() ? secondSize : QSize(0, 0);
+    QString expectedPath = second;
+    QStringList wrongAnnouncements;
+    QObject observation;
+    connect(item, &MpvItem::decodedDimensionsChanged, &observation, [&] {
+        const QSize announced(item->decodedWidth(), item->decodedHeight());
+        if ((announced.width() > 0 && announced.width() != expected.width())
+            || (announced.height() > 0 && announced.height() != expected.height())) {
+            wrongAnnouncements << QStringLiteral("%1: %2x%3 expected %4x%5")
+                .arg(expectedPath).arg(announced.width()).arg(announced.height())
+                .arg(expected.width()).arg(expected.height());
+        }
+    });
+    QSignalSpy loadedSpy(item, &MpvItem::fileLoaded);
+    item->loadFile(second);
+    QCOMPARE(item->decodedWidth(), 0);
+    QCOMPARE(item->decodedHeight(), 0);
+    QTRY_COMPARE_WITH_TIMEOUT(item->getProperty(QStringLiteral("path")).toString(),
+                             QDir::toNativeSeparators(second), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!loadedSpy.isEmpty(), 5000);
+    if (secondSize.isValid()) {
+        QTRY_COMPARE_WITH_TIMEOUT(item->getProperty(QStringLiteral("dwidth")).toInt(), expected.width(), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(item->getProperty(QStringLiteral("dheight")).toInt(), expected.height(), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(item->decodedWidth(), expected.width(), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(item->decodedHeight(), expected.height(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(item->position() > 0.2, 5000);
+    } else {
+        QSignalSpy endedSpy(item, &MpvItem::endFile);
+        QTRY_VERIFY_WITH_TIMEOUT(!endedSpy.isEmpty(), 5000);
+        QCOMPARE(item->decodedWidth(), 0);
+        QCOMPARE(item->decodedHeight(), 0);
+    }
+    if (returnToFirst) {
+        expected = QSize(64, 64);
+        expectedPath = first;
+        loadedSpy.clear();
+        item->loadFile(first);
+        QCOMPARE(item->decodedWidth(), 0);
+        QCOMPARE(item->decodedHeight(), 0);
+        QTRY_COMPARE_WITH_TIMEOUT(item->getProperty(QStringLiteral("path")).toString(),
+                                 QDir::toNativeSeparators(first), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(!loadedSpy.isEmpty() && item->position() > 0.2, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(item->decodedWidth(), 64, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(item->decodedHeight(), 64, 5000);
+    }
+    QVERIFY2(wrongAnnouncements.isEmpty(), qPrintable(wrongAnnouncements.join(QLatin1Char('\n'))));
 }
 
 // The stable source identity (mpv's currentUrl, which qml/PlayerPage.qml's sourceIdentity

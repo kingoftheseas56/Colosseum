@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <memory>
 
 #include "playerbackendcontract.h"
 
@@ -269,7 +270,17 @@ private:
     double m_duration{0.0};
     QString m_formattedDuration;
     QUrl m_currentUrl;
-    bool m_decodeFileLoaded{false};
+    // generation is advanced on the GUI thread; event state belongs exclusively
+    // to MpvQt's controller thread, at the ordered load-command boundary.
+    quint64 m_decodeGeneration{0};
+    struct DecodeEvents {
+        quint64 generation{0};
+        bool started{false};
+        bool loaded{false};
+        bool reconfigured{false};
+    };
+    std::shared_ptr<DecodeEvents> m_decodeEvents{std::make_shared<DecodeEvents>()};
+    void setDecodedDimensions(int width, int height);
     int m_decodedWidth{0};
     int m_decodedHeight{0};
     QVariantList m_trackList;

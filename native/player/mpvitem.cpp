@@ -111,6 +111,12 @@ QVariantMap MpvItem::capabilities() const
 
 MpvItem::~MpvItem()
 {
+    // Direct event adapters below run on the worker. Retire them before any
+    // derived state is destroyed; MpvAbstractItem joins that worker afterwards.
+    auto *controller = mpvController();
+    QMetaObject::invokeMethod(controller, [this, controller] {
+        disconnect(controller, nullptr, this, nullptr);
+    }, Qt::BlockingQueuedConnection);
     // App quitting mid-encode: our parented QProcess would otherwise be killed mid-write,
     // leaving a truncated .gif posing as a saved clip and an orphaned %TEMP% frames dir.
     if (m_gifEncoding && m_gifEncodeProc) {
@@ -126,44 +132,101 @@ MpvItem::~MpvItem()
 
 void MpvItem::setupConnections()
 {
-    connect(mpvController(), &MpvController::propertyChanged,
+    auto *controller = mpvController();
+    const auto state = m_decodeEvents;
+    // Snapshot native decode truth on its worker, then tag the GUI delivery.
+    // Looking up dimensions later on the GUI could read a different load.
+    const auto refreshDimensions = [this, controller, state] {
+        if (!state->started || !state->loaded)
+            return;
+        const auto generation = state->generation;
+        // mpv may retain the previous VO dimensions during an audio handoff.
+        // They describe this source only when it has a selected video track.
+        const bool hasVideo = !controller->getProperty(QStringLiteral("current-tracks/video")).toMap().isEmpty();
+        const int width = hasVideo ? controller->getProperty(QStringLiteral("dwidth")).toInt() : 0;
+        const int height = hasVideo ? controller->getProperty(QStringLiteral("dheight")).toInt() : 0;
+        QMetaObject::invokeMethod(this, [this, generation, width, height] {
+            if (generation == m_decodeGeneration)
+                setDecodedDimensions(width, height);
+        }, Qt::QueuedConnection);
+    };
+    connect(controller, &MpvController::propertyChanged,
             this, &MpvItem::onPropertyChanged, Qt::QueuedConnection);
+    connect(controller, &MpvController::propertyChanged,
+            this, [refreshDimensions](const QString &name, const QVariant &) {
+        if (name == QLatin1String("dwidth") || name == QLatin1String("dheight"))
+            refreshDimensions();
+    }, Qt::DirectConnection);
 
     connect(mpvController(), &MpvController::fileStarted,
-            this, [this] { m_decodeFileLoaded = false; Q_EMIT fileStarted(); }, Qt::QueuedConnection);
+            this, [this, state] {
+        state->started = true;
+        state->loaded = false;
+        state->reconfigured = false;
+        const auto generation = state->generation;
+        QMetaObject::invokeMethod(this, [this, generation] {
+            if (generation == m_decodeGeneration)
+                Q_EMIT fileStarted();
+        }, Qt::QueuedConnection);
+    }, Qt::DirectConnection);
 
     connect(mpvController(), &MpvController::fileLoaded,
-            this, [this] { m_decodeFileLoaded = true; Q_EMIT fileLoaded(); }, Qt::QueuedConnection);
+            this, [this, state, refreshDimensions] {
+        state->loaded = true;
+        const auto generation = state->generation;
+        QMetaObject::invokeMethod(this, [this, generation] {
+            if (generation == m_decodeGeneration)
+                Q_EMIT fileLoaded();
+        }, Qt::QueuedConnection);
+        // A reconfiguration can precede FILE_LOADED. Re-read actual native
+        // decode dimensions then, so equal-size loads need no property change.
+        if (state->reconfigured)
+            refreshDimensions();
+    }, Qt::DirectConnection);
 
     connect(mpvController(), &MpvController::endFile,
-            this, [this](const QString &reason) {
-        m_decodeFileLoaded = false;
-        Q_EMIT endFile(reason);
-        if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
-            // Installed MpvQt exposes only the coarse end-file reason string here;
-            // it does not forward mpv_event_end_file.error. Report that limitation
-            // honestly instead of manufacturing network/codec/decode classifications.
-            Q_EMIT playbackError(QStringLiteral("unknown"), reason);
-        }
-    }, Qt::QueuedConnection);
+            this, [this, state](const QString &reason) {
+        state->started = false;
+        state->loaded = false;
+        state->reconfigured = false;
+        const auto generation = state->generation;
+        QMetaObject::invokeMethod(this, [this, generation, reason] {
+            if (generation != m_decodeGeneration)
+                return;
+            setDecodedDimensions(0, 0);
+            Q_EMIT endFile(reason);
+            if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
+                // Installed MpvQt exposes only the coarse end-file reason string here;
+                // it does not forward mpv_event_end_file.error. Report that limitation
+                // honestly instead of manufacturing network/codec/decode classifications.
+                Q_EMIT playbackError(QStringLiteral("unknown"), reason);
+            }
+        }, Qt::QueuedConnection);
+    }, Qt::DirectConnection);
 
     connect(mpvController(), &MpvController::videoReconfig,
-            this, [this] {
-        // loadfile resets our cache, but mpv can coalesce unchanged dwidth/dheight
-        // across same-size replacements. Reconfiguration is the native decode
-        // boundary at which to refresh those values for a loaded source. The
-        // load/unload gate rejects prior-source queued reconfigurations. Do not
-        // infer dimensions from fileLoaded or source metadata.
-        // These bounded reads happen only on reconfiguration, never per frame.
-        if (m_decodeFileLoaded) {
-            onPropertyChanged(QStringLiteral("dwidth"), getProperty(QStringLiteral("dwidth")));
-            onPropertyChanged(QStringLiteral("dheight"), getProperty(QStringLiteral("dheight")));
-        }
-        Q_EMIT videoReconfig();
-    }, Qt::QueuedConnection);
+            this, [this, state, refreshDimensions] {
+        if (state->started)
+            state->reconfigured = true;
+        refreshDimensions();
+        const auto generation = state->generation;
+        QMetaObject::invokeMethod(this, [this, generation] {
+            if (generation == m_decodeGeneration)
+                Q_EMIT videoReconfig();
+        }, Qt::QueuedConnection);
+    }, Qt::DirectConnection);
 
     connect(mpvController(), &MpvController::asyncReply,
             this, &MpvItem::onAsyncReply, Qt::QueuedConnection);
+}
+
+void MpvItem::setDecodedDimensions(int width, int height)
+{
+    if (m_decodedWidth == width && m_decodedHeight == height)
+        return;
+    m_decodedWidth = width;
+    m_decodedHeight = height;
+    Q_EMIT decodedDimensionsChanged();
 }
 
 void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
@@ -240,23 +303,6 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
     } else if (property == QLatin1String("seeking")) {
         m_coreSeeking = value.toBool();
         Q_EMIT coreSeekingChanged();
-
-    } else if (property == QLatin1String("dwidth")) {
-        // dwidth/dheight arrive as two independent property-change events for the same
-        // decode moment; each is applied and notified as it lands rather than paired,
-        // matching MediaAdmissionProbe.cpp:125-141's own dw/dh bookkeeping.
-        const int next = static_cast<int>(value.toLongLong());
-        if (next != m_decodedWidth) {
-            m_decodedWidth = next;
-            Q_EMIT decodedDimensionsChanged();
-        }
-
-    } else if (property == QLatin1String("dheight")) {
-        const int next = static_cast<int>(value.toLongLong());
-        if (next != m_decodedHeight) {
-            m_decodedHeight = next;
-            Q_EMIT decodedDimensionsChanged();
-        }
 
     } else if (property == QLatin1String("chapter-list")) {
         QVariantList out;
@@ -352,7 +398,7 @@ void MpvItem::loadSource(const QString &url, const QVariantMap &headers)
 
 void MpvItem::issueLoadFile(const QString &file)
 {
-    m_decodeFileLoaded = false; // queued prior-source reconfiguration cannot refill the reset cache
+    const auto generation = ++m_decodeGeneration;
     auto url = QUrl::fromUserInput(file);
     if (m_currentUrl != url) {
         m_currentUrl = url;
@@ -365,15 +411,21 @@ void MpvItem::issueLoadFile(const QString &file)
     // before the command goes out so stale prior dimensions cannot read "decoded" and
     // decodedWidth/decodedHeight always start at zero for
     // this load (J1-Video-Seam's "ready_resets_on_unload"-style guarantee, at the native layer).
-    if (m_decodedWidth != 0 || m_decodedHeight != 0) {
-        m_decodedWidth = 0;
-        m_decodedHeight = 0;
-        Q_EMIT decodedDimensionsChanged();
-    }
+    setDecodedDimensions(0, 0);
 
-    command(QStringList() << QStringLiteral("loadfile")
-                          << m_currentUrl.toString(QUrl::PreferLocalFile)
-                          << QStringLiteral("replace"));
+    auto *controller = mpvController();
+    const auto state = m_decodeEvents;
+    const QString path = m_currentUrl.toString(QUrl::PreferLocalFile);
+    QMetaObject::invokeMethod(controller, [controller, state, generation, path] {
+        // Drain pending old native events with their OLD tag before advancing.
+        // Both this boundary and eventHandler run on the same controller thread.
+        controller->eventHandler();
+        state->generation = generation;
+        state->started = false;
+        state->loaded = false;
+        state->reconfigured = false;
+        controller->command({QStringLiteral("loadfile"), path, QStringLiteral("replace")});
+    }, Qt::QueuedConnection);
 }
 
 void MpvItem::stopPlayback()
