@@ -55,7 +55,19 @@ assert.equal(win.pendingVinylResume,null);assert.equal(win.pendingPlayerOpen,nul
 assert.equal(tornDown,'b','active book loader is torn down before record deletion');
 assert.deepEqual(records.map(r=>r.id),['c','web']);assert.deepEqual(session.queue,[1,2]);
 opened='';win.activateSession({id:'stale',contentKind:'music'});assert.equal(opened,'');
-assert.match(main,/function onProfileLeaving\(\) \{ win.leaveVinylProfile\(\) \}/);
+const departureHandler=main.match(/function onProfileLeaving\(\) \{([\s\S]*?)\n        \}/);
+assert.ok(departureHandler, 'shared source profile-departure handler exists');
+assert.match(departureHandler[1], /win\.leaveVinylProfile\(\)/, 'profile departure still reaches the shell owner');
+const departureCalls=[];
+const departureWin={pendingIdentityRoute:{vinylImport:true},
+ cancelPendingIdentityCeremony(){departureCalls.push('cancel-identity');},
+ leaveVinylProfile(){departureCalls.push('leave-profile');}};
+const depart=vm.runInNewContext('(function(){'+departureHandler[1]+'\n})',{win:departureWin});
+depart();assert.deepEqual(departureCalls,['cancel-identity','leave-profile'], 'pending Vinyl ceremony cancels before profile departure');
+for (const pending of [null,{vinylImport:false}]) {
+ departureCalls.length=0;departureWin.pendingIdentityRoute=pending;depart();
+ assert.deepEqual(departureCalls,['leave-profile'], 'ordinary departure preserves unrelated identity routes');
+}
 assert.doesNotMatch(main,/function onCheckpointRequested\(\) \{ win.leaveVinylProfile/);
 assert.match(player,/var startupOwnedByUi = root.audioHandoffPaused/);
 assert.match(player,/if \(root.audioHandoffPaused && !mpv.pause\) \{ mpv.pause = true; return \}/);
