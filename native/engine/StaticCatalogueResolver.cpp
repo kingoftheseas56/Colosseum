@@ -1024,7 +1024,8 @@ struct StaticCatalogueResolver::Impl {
             if (currentEtag.size() > 1024 || currentEtag.contains('\r') ||
                 currentEtag.contains('\n'))
                 currentEtag.clear();
-        } catch (const QString &) {
+        } catch (const QString &why) {
+            qCDebug(staticCatalogueLog) << "loadLastGood ignored invalid last-good cache:" << why;
         }
     }
     void atomic(const QString &path, const QByteArray &raw, const QVariantMap& context = {}) {
