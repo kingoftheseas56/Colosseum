@@ -8,6 +8,8 @@
 #define COLOSSEUM_MPVITEM_H
 
 #include <QElapsedTimer>
+#include <QMutex>
+#include <QPointer>
 #include <MpvAbstractItem>
 #include <QTimer>
 #include <QStringList>
@@ -224,7 +226,10 @@ Q_SIGNALS:
     void playbackStatsReady(QVariantMap stats);
 
 private:
+    friend class tst_journey_play_video;
     void setupConnections();
+    void handlePlaybackEvent(const mpv_event &event);
+    void refreshDecodedDimensions();
     // Shared body of loadFile / loadFileWithHeaders: update currentUrl, emit, issue `loadfile`.
     void issueLoadFile(const QString &file);
     void onPropertyChanged(const QString &property, const QVariant &value);
@@ -274,12 +279,20 @@ private:
     // to MpvQt's controller thread, at the ordered load-command boundary.
     quint64 m_decodeGeneration{0};
     struct DecodeEvents {
+        // Also fences a running direct adapter against derived destruction.
+        QMutex lifetime;
+        MpvItem *target{nullptr};
         quint64 generation{0};
+        qint64 expectedEntry{-1};
+        qint64 streamEntry{-1};
+        bool acceptNextEntry{false};
         bool started{false};
         bool loaded{false};
         bool reconfigured{false};
     };
     std::shared_ptr<DecodeEvents> m_decodeEvents{std::make_shared<DecodeEvents>()};
+    QPointer<MpvController> m_decodeController;
+    QThread *m_decodeWorker{nullptr}; // owned by MpvAbstractItem, outlives derived destructor
     void setDecodedDimensions(int width, int height);
     int m_decodedWidth{0};
     int m_decodedHeight{0};

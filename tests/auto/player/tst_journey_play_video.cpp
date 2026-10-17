@@ -137,6 +137,12 @@ private slots:
     void same_size_warm_reloads_refresh_dimensions();
     void queued_decode_replacement_data();
     void queued_decode_replacement();
+    void late_native_replacement_data();
+    void late_native_replacement();
+    void dynamic_dimensions_are_coherent();
+    void playlist_redirect_retains_request();
+    void teardown_data();
+    void teardown();
 };
 
 // A freshly constructed, shown player carries no source and no decoded frame — the closest
@@ -430,6 +436,179 @@ void tst_journey_play_video::queued_decode_replacement()
         QTRY_COMPARE_WITH_TIMEOUT(item->decodedHeight(), 64, 5000);
     }
     QVERIFY2(wrongAnnouncements.isEmpty(), qPrintable(wrongAnnouncements.join(QLatin1Char('\n'))));
+}
+
+void tst_journey_play_video::late_native_replacement_data()
+{
+    QTest::addColumn<int>("eventType");
+    QTest::addColumn<int>("reason");
+    QTest::newRow("late-A-error") << int(MPV_EVENT_END_FILE) << int(MPV_END_FILE_REASON_ERROR);
+    QTest::newRow("late-A-eof") << int(MPV_EVENT_END_FILE) << int(MPV_END_FILE_REASON_EOF);
+    QTest::newRow("late-A-stop") << int(MPV_EVENT_END_FILE) << int(MPV_END_FILE_REASON_STOP);
+    QTest::newRow("late-A-reconfig") << int(MPV_EVENT_VIDEO_RECONFIG) << 0;
+    QTest::newRow("late-A-loaded") << int(MPV_EVENT_FILE_LOADED) << 0;
+}
+
+void tst_journey_play_video::late_native_replacement()
+{
+    QFETCH(int, eventType);
+    QFETCH(int, reason);
+    struct InspectablePlayer : MpvItem { using MpvItem::mpvController; };
+    QQuickWindow window;
+    auto *item = new InspectablePlayer;
+    item->setParent(window.contentItem());
+    item->setParentItem(window.contentItem());
+    item->setSize(QSizeF(320, 240));
+    window.resize(320, 240);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    item->setPause(true);
+    const QString path = fixtureDir() + QStringLiteral("tiny.mp4");
+    item->loadFile(path);
+    QTRY_COMPARE_WITH_TIMEOUT(item->decodedWidth(), 64, 5000);
+    auto *controller = item->mpvController();
+    qint64 oldId = -1;
+    QMetaObject::invokeMethod(controller, [&] {
+        oldId = item->m_decodeEvents->expectedEntry;
+    }, Qt::BlockingQueuedConnection);
+    QVERIFY(oldId >= 0);
+
+    QSignalSpy endSpy(item, &MpvItem::endFile);
+    QSignalSpy errorSpy(item, &MpvItem::playbackError);
+    QSignalSpy reconfigSpy(item, &MpvItem::videoReconfig);
+    QSignalSpy loadedSpy(item, &MpvItem::fileLoaded);
+    // Park the producer so the injection is queued immediately AFTER B's
+    // load-command boundary and BEFORE any queued native drain for B. This is
+    // deliberately a native-adapter injection, not an attempt to make libmpv
+    // naturally reproduce a scheduling race. Same URL, new native entry id.
+    QSemaphore parked, resume;
+    QMetaObject::invokeMethod(controller, [&] {
+        parked.release();
+        resume.acquire();
+    }, Qt::QueuedConnection);
+    QVERIFY(parked.tryAcquire(1, 5000));
+    item->loadFile(path);
+    bool checked = false;
+    bool distinctId = false;
+    bool leaked = true;
+    const auto inject = [&] {
+        mpv_event_end_file end{};
+        end.playlist_entry_id = oldId;
+        end.reason = mpv_end_file_reason(reason);
+        mpv_event event{};
+        event.event_id = mpv_event_id(eventType);
+        event.data = &end;
+        item->handlePlaybackEvent(event);
+    };
+    QMetaObject::invokeMethod(controller, [&] {
+        distinctId = item->m_decodeEvents->expectedEntry != oldId;
+        inject();
+        QMetaObject::invokeMethod(item, [&] {
+            leaked = !endSpy.isEmpty() || !errorSpy.isEmpty()
+                || !reconfigSpy.isEmpty() || !loadedSpy.isEmpty();
+            checked = true;
+        }, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
+    resume.release();
+    QTRY_VERIFY_WITH_TIMEOUT(checked, 5000);
+    QVERIFY(distinctId);
+    QVERIFY2(!leaked, "late A event reached B handlers after B load boundary");
+    QTRY_VERIFY_WITH_TIMEOUT(!loadedSpy.isEmpty(), 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(item->decodedWidth(), 64, 5000);
+    // END_FILE has an explicit id: even a delayed A END after B START/LOAD
+    // must neither terminate B nor clear its decoded dimensions.
+    if (eventType == MPV_EVENT_END_FILE) {
+        QMetaObject::invokeMethod(controller, inject, Qt::BlockingQueuedConnection);
+        QCoreApplication::sendPostedEvents(item, QEvent::MetaCall);
+        QVERIFY(endSpy.isEmpty());
+        QVERIFY(errorSpy.isEmpty());
+        QCOMPARE(item->decodedWidth(), 64);
+    }
+}
+
+void tst_journey_play_video::dynamic_dimensions_are_coherent()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString ffmpeg = MpvItem::findFfmpeg();
+    QVERIFY(!ffmpeg.isEmpty());
+    QFile stream(temp.filePath(QStringLiteral("dynamic.ts")));
+    QVERIFY(stream.open(QIODevice::WriteOnly));
+    for (const QSize size : {QSize(64, 48), QSize(96, 80)}) {
+        const QString segment = temp.filePath(QString::number(size.width()) + QStringLiteral(".ts"));
+        QProcess generator;
+        generator.start(ffmpeg, {QStringLiteral("-v"), QStringLiteral("error"),
+            QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+            QStringLiteral("color=c=blue:s=%1x%2:r=10").arg(size.width()).arg(size.height()),
+            QStringLiteral("-t"), QStringLiteral("2"), QStringLiteral("-an"),
+            QStringLiteral("-c:v"), QStringLiteral("mpeg2video"), QStringLiteral("-f"),
+            QStringLiteral("mpegts"), segment});
+        QVERIFY(generator.waitForFinished(15000));
+        QCOMPARE(generator.exitCode(), 0);
+        QFile input(segment);
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        const auto bytes = input.readAll();
+        QCOMPARE(stream.write(bytes), bytes.size());
+    }
+    stream.close();
+    WindowedPlayer p;
+    QVERIFY(QTest::qWaitForWindowExposed(&p.window));
+    QStringList mixed;
+    connect(p.item, &MpvItem::decodedDimensionsChanged, this, [&] {
+        const QSize size(p.item->decodedWidth(), p.item->decodedHeight());
+        if (size != QSize(0, 0) && size != QSize(64, 48) && size != QSize(96, 80))
+            mixed << QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+    });
+    p.item->loadFile(stream.fileName());
+    QTRY_COMPARE_WITH_TIMEOUT(p.item->decodedWidth(), 64, 5000);
+    QCOMPARE(p.item->decodedHeight(), 48);
+    QTRY_COMPARE_WITH_TIMEOUT(p.item->decodedWidth(), 96, 5000);
+    QCOMPARE(p.item->decodedHeight(), 80);
+    QVERIFY2(mixed.isEmpty(), qPrintable(mixed.join(QLatin1Char(','))));
+}
+
+void tst_journey_play_video::teardown_data()
+{
+    QTest::addColumn<bool>("stopWorker");
+    QTest::newRow("pending-native-events") << false;
+    QTest::newRow("worker-already-exited") << true;
+}
+
+void tst_journey_play_video::playlist_redirect_retains_request()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    QFile playlist(temp.filePath(QStringLiteral("source.m3u")));
+    QVERIFY(playlist.open(QIODevice::WriteOnly));
+    const auto path = (fixtureDir() + QStringLiteral("tiny.mp4\n")).toUtf8();
+    playlist.write("#EXTM3U\n");
+    playlist.write(path);
+    playlist.write(path);
+    playlist.close();
+    WindowedPlayer p;
+    QVERIFY(QTest::qWaitForWindowExposed(&p.window));
+    QSignalSpy loadedSpy(p.item, &MpvItem::fileLoaded);
+    p.item->loadFile(playlist.fileName());
+    QTRY_VERIFY_WITH_TIMEOUT(loadedSpy.size() >= 2, 10000);
+    QCOMPARE(p.item->currentUrl(), QUrl::fromLocalFile(playlist.fileName()));
+}
+
+void tst_journey_play_video::teardown()
+{
+    QFETCH(bool, stopWorker);
+    struct InspectablePlayer : MpvItem { using MpvItem::mpvController; };
+    auto *item = new InspectablePlayer;
+    item->loadFile(fixtureDir() + QStringLiteral("tiny-audio.m4a"));
+    if (stopWorker) {
+        auto *worker = item->mpvController()->thread();
+        worker->quit();
+        QVERIFY(worker->wait(5000));
+        QVERIFY(item->m_decodeController.isNull());
+    }
+    QElapsedTimer elapsed;
+    elapsed.start();
+    delete item;
+    QVERIFY2(elapsed.elapsed() < 3000, "destructor blocked on worker acknowledgement");
 }
 
 // The stable source identity (mpv's currentUrl, which qml/PlayerPage.qml's sourceIdentity
