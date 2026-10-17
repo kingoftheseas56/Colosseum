@@ -264,6 +264,7 @@ Item {
     property int    subModelRev: 0        // bump to re-evaluate subRows after an add
     property bool   subsLoading: false
     property bool   fileReady: false      // mpv has a file open (needed before sub-add)
+    property bool   playbackEnded: false  // natural EOF unloaded the source; explicit play must reload
     property bool   autoSubDone: false    // auto-load ran for this file
     property bool   userTouchedSubs: false// user picked Off/a track → stop auto-overriding
     property bool   subtitleDropToastOpen: false
@@ -386,6 +387,7 @@ Item {
         }
     }
     property string currentPlaybackUrl: ""
+    property var currentPlaybackHeaders: ({})
     property bool liveGuideOpen: false
     property var liveGuideFocusReturnItem: null
     onLiveGuideOpenChanged: {
@@ -1091,6 +1093,8 @@ Item {
         var requestHeaders = (headers && typeof headers === "object" && !Array.isArray(headers))
                            ? headers : ({})
         root.currentPlaybackUrl = directUrl
+        root.currentPlaybackHeaders = Object.assign({}, requestHeaders)
+        root.playbackEnded = false
         if (Object.keys(requestHeaders).length)
             mpv.loadFileWithHeaders(directUrl, requestHeaders)
         else
@@ -1663,7 +1667,7 @@ Item {
         if (directUrl.length)
             root.loadDirectStreamUrl(directUrl, c.headers)
         else
-            mpv.loadFile(root.currentPlaybackUrl)
+            root.loadDirectStreamUrl(root.currentPlaybackUrl, ({}))
     }
 
     function handlePlaybackFailure(reason) {
@@ -1691,7 +1695,7 @@ Item {
                 root.statusMsg = "Reconnecting stream..."
                 root.resetRecoveryWatch()
                 streamWatchdog.restart()
-                mpv.loadFile(root.currentPlaybackUrl)
+                root.loadDirectStreamUrl(root.currentPlaybackUrl, ({}))
                 return
             }
             root.errored = true
@@ -2458,7 +2462,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(url)
+        root.loadDirectStreamUrl(url, ({}))
     }
 
     // Downloaded-file playback with STREAM-GRADE identity (spec 2026-07-06 downloaded-video
@@ -2566,7 +2570,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(root.mediaLocalPath)
+        root.loadDirectStreamUrl(root.mediaLocalPath, ({}))
         root.maybeHydrateContext()
     }
 
@@ -2722,6 +2726,7 @@ Item {
     }
 
     function stop() {
+        root.playbackEnded = false
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.sendTraktPlayback(false)
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
@@ -2755,6 +2760,8 @@ Item {
         }
     }
     function resumeFromMinimize() {
+        if (root.replayEndedPlayback())
+            return
         if (root.audioHandoffPaused) {
             root.requestAudioPlayback()
             mpv.pause = false
@@ -3178,13 +3185,40 @@ Item {
             return Math.round(mpv.volume) + "%" + (mpv.mute ? " / muted" : "")
         return "--"
     }
+    // EOF unloads mpv but keeps this page/session alive. Only explicit Play or
+    // activation of that warm session may re-admit it; visibility and handoff never do.
+    function replayEndedPlayback() {
+        // Room-controlled play remains on its existing authoritative command path.
+        if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+            return false
+        if (!root.playbackEnded || root.starting || root.errored || !root.currentPlaybackUrl.length)
+            return false
+        root.requestAudioPlayback()
+        root.cancelUpNext()
+        root.autoPausedInactive = false
+        root.pendingSeekSec = 0
+        root.wakeReconnectPendingSeek = -1
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.resumePromptConsumed = true
+        root.starting = true
+        root.fileReady = false
+        root.statusMsg = "Opening..."
+        root.resetRecoveryWatch()
+        streamWatchdog.restart()
+        root.loadDirectStreamUrl(root.currentPlaybackUrl, root.currentPlaybackHeaders)
+        root.wakeChrome()
+        return true
+    }
     function togglePlayPause() {
         if (!root.starting && !root.errored) {
-            if (mpv.pause) root.requestAudioPlayback()
-            if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+            if (typeof WatchPartySync !== "undefined" && WatchPartySync.active) {
+                if (mpv.pause) root.requestAudioPlayback()
                 WatchPartySync.requestLocalPlayback(mpv.pause, mpv.position)
-            else
+            } else if (!root.replayEndedPlayback()) {
+                if (mpv.pause) root.requestAudioPlayback()
                 mpv.pause = !mpv.pause
+            }
         }
         root.wakeChrome()
     }
@@ -3625,6 +3659,7 @@ Item {
             root.hoverThumbBucket = -1
         }
         onFileStarted: {
+            root.playbackEnded = false
             root.starting = true
             root.statusMsg = "Buffering..."
             root.wakeChrome()
@@ -3703,8 +3738,7 @@ Item {
             // which owns the recovery ladder. Calling handlePlaybackFailure here too would
             // double-fire the retry (both signals emit on the same error). [Feature 3]
             if (reason === "eof") {
-                if (root.audioHandoffPaused) return
-                if (root.arrivingStreamUrl !== "" && mpv.duration > 0
+                if (!root.audioHandoffPaused && root.arrivingStreamUrl !== "" && mpv.duration > 0
                         && mpv.position < mpv.duration - 5) {
                     // Hit the end of the .part, not the end of the film — the frontier
                     // watcher's predictive handover missed (burst download, deep seek).
@@ -3714,9 +3748,18 @@ Item {
                     root.switchArrivingToStream()
                     return
                 }
+                root.playbackEnded = true
+                root.autoPausedInactive = false
+                streamWatchdog.stop()
+                if (root.audioHandoffPaused) {
+                    mpv.pause = true
+                    return
+                }
                 root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
                 root.sendTraktPlayback(false)
                 root.recordProgress()
+                mpv.pause = true
+                root.wakeChrome()
                 if (root.handleSleepEpisodeEnd())
                     return
                 root.startUpNextCountdown()
@@ -3840,7 +3883,7 @@ Item {
             root.streamStatsSpeedBps = 0
             root.streamStatsDownloaded = 0
             Stream.watchStats(infoHash, fileIdx)
-            mpv.loadFile(url)
+            root.loadDirectStreamUrl(url, ({}))
         }
         function onStreamStats(infoHash, fileIdx, stats) {
             if (!root.starting)
