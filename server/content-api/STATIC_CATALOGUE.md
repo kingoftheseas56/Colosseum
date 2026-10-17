@@ -51,9 +51,12 @@ Do not attach account Authorization headers to public requests.
 Cloudflare's published Free limits are 20,000 assets/version and 25 MiB/file.
 The converter counts the **whole output**, conservatively including `_headers`,
 compatibility files, content documents and supplied artwork. It does not impose
-the abandoned 128 KiB resharding constraint. Current I01 files remain unchanged
-in logical grouping (256-item pages, 128-record blocks, 2,048-row search blocks).
-Its existing 4 MiB publisher/legacy-parser bound remains for older clients.
+the abandoned 128 KiB resharding constraint but enforces a per-query search-shard
+budget of 56 KiB (57,344 bytes) measured as the exact compact-JSON file bytes.
+Manga record blocks, manga key blocks and the additive Tankoban fine-range files
+are byte-packed to that budget. Other I01 files keep their unchanged logical
+grouping (256-item pages, 128-record blocks, 2,048-row search blocks). The
+existing 4 MiB publisher/legacy-parser bound remains for older clients.
 
 ## Discovery, identity and integrity
 
@@ -109,6 +112,7 @@ last-good entry/index for offline use; a failed refresh must not replace it.
 | `listBuckets` | Two lowercase hex digits to shared selection-map path |
 | `fixed` | Selection-key to shared complete JSON result path |
 | `lookups` | Two lowercase hex digits to shared exact-lookup map path |
+| `lookupRanges` (optional) | `{version:1,ranges:[{first,last,path},...]}`, the additive Tankoban series fine lookup directory described below |
 | `search` | Family (`imdb`, `anime`, `manga`, `comics`) to `{names:Ref[],keys:Ref[]}` |
 | `facts.imdb` (optional) | Versioned IMDb facts-specific ID directory: aligned blocks plus optional SHA-256 hash buckets, described below |
 | `tankobanSourceHash` | Original Tankoban series manifest identity |
@@ -176,6 +180,13 @@ index/parent reference, not by trying to infer it from their hashed filename:
    `{schemaVersion:1,revision,data}`; bundle is
    `{apiVersion:1,revision,method:"bundle",result:{manifest,documents}}`, where
    `documents` maps IDs to the exact document JSON **strings**.
+9. **Fine range body (optional Tankoban lookup directory):** `{selectionKey:envelope,...}`
+   for Tankoban series envelopes (item 4 shape), byte-packed to the 56 KiB budget.
+   Every key in a fine body must also appear in a coarse lookup bucket, so the
+   union of fine keys equals the coarse Tankoban key set; fine files duplicate
+   fast-path data and never carry keys the coarse directory lacks. The bodies are
+   purely additive: a client without `lookupRanges` support, and any lookup miss,
+   keep using the coarse buckets unchanged.
 
 `content` in the index is `{manifest:{path,sha256},bundle:{path,sha256},
 documents:{id:{path,sha256,revision}}}`. Content revisions are independent of
@@ -238,6 +249,20 @@ Unspecified combinations are **not prepared**, and go to the existing Worker.
   text. Absent keys in a verified complete bucket yield `0` for genreCount,
   `false` for curatedHasDownloadable, `[]` for downloadsFor, `{}` for other
   Comics methods, and an empty ready Tankoban envelope with original sourceHash.
+* Tankoban `series` additionally consults the optional fine directory when
+  `lookupRanges` is present. The declaration is `{version:1,ranges:[...]}` with
+  at most 512 refs; each ref is `{first,last,path}` with string bounds compared
+  against the literal selection key by **raw UTF-16 code units** and `path` a
+  same-publication `/catalogue/<revision>/shared/<sha256>.json` leaf. Ranges must
+  be strictly increasing and disjoint (`previousLast < first`). A covered key
+  reads its range body `{selectionKey:envelope}`; a present key returns that
+  envelope **without reading the coarse bucket**. A covered-but-absent key, an
+  uncovered key or an absent field keeps the coarse bucket fully authoritative.
+  A malformed advertised declaration (wrong version, non-array/oversized ranges,
+  non-string fields, bad path, reversed or unsorted bounds) is a failed exact
+  query — error `STATIC_INVALID_LOOKUP_RANGES_DECLARATION` — never a coarse
+  fallback, and fails before any payload read. A missing or invalid covered body
+  fails like any other corrupt shard.
 * `mangaById` and `titlePresentation` use the original ID directories.
   Presentation is `{title,type}`. IMDb `titleFacts` selects `facts.imdb` when
   present, falling back to the original IMDb ID directory **only if that

@@ -35,14 +35,31 @@ const indexRaw=readFileSync(join(publication,entry.index.path)),index=JSON.parse
 assert.equal(sha(indexRaw),entry.index.sha256);assert.equal(indexRaw.length,entry.index.bytes);
 assert.equal(index.schemaVersion,1);assert.equal(index.version,1);assert.equal(index.revision,entry.revision);assert.equal(index.sourceRevision,entry.sourceRevision);
 for(const d of Object.values(index.content.documents))assert.equal(sha(readFileSync(join(publication,d.path))),d.sha256);
-assert.equal(bytes,report.totalBytes);assert.equal(max,report.largestFileBytes);assert.ok(paths.length<=20000);
+// The additive fine lookup directory must be sorted, disjoint, same-revision
+// and cover exactly the coarse tankoban series key set it shadows.
+const tankobanKeys=new Set();
+for(const path of Object.values(index.lookups))for(const key of Object.keys(JSON.parse(readFileSync(join(publication,path))))){const[dataset,method]=JSON.parse(key);if(dataset==='tankoban'&&method==='series')tankobanKeys.add(key);}
+if(index.lookupRanges!==undefined){
+ assert.equal(index.lookupRanges.version,1);assert.ok(Array.isArray(index.lookupRanges.ranges));
+ const fine=new Set();let previousLast=null;
+ for(const ref of index.lookupRanges.ranges){
+  assert.equal(typeof ref.first,'string');assert.equal(typeof ref.last,'string');assert.equal(typeof ref.path,'string');
+  assert.ok(ref.first<=ref.last);if(previousLast!==null)assert.ok(previousLast<ref.first,'lookupRanges stay sorted and disjoint');previousLast=ref.last;
+  assert.ok(ref.path.startsWith(prefix+'shared/')&&/^shared\/[a-f0-9]{64}\.json$/.test(ref.path.slice(prefix.length)));
+  for(const key of Object.keys(JSON.parse(readFileSync(join(publication,ref.path))))){
+   assert.ok(key>=ref.first&&key<=ref.last,'key inside its declared range');assert.ok(!fine.has(key),'no duplicate fine key');fine.add(key);
+  }
+ }
+ assert.deepEqual([...fine].sort(),[...tankobanKeys].sort(),'fine ranges cover exactly the coarse tankoban keys');
+}
+assert.equal(bytes,report.totalBytes);assert.equal(max,report.largestFileBytes);assert.ok(paths.length<=18000);
 const cfg=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8').replace(/^\s*\/\/.*$/gm,''));
 const mf=new Miniflare(convertV4MiniflareOptions({modules:true,compatibilityDate:cfg.compatibility_date,
  script:'export default {fetch(){return new Response("WORKER_INVOKED",{status:418,headers:{"X-Worker-Invoked":"yes"}})}}',
  assets:{directory:publication,binding:'ASSETS',run_worker_first:cfg.assets.run_worker_first,routerConfig:{has_user_worker:true}}}));
 const routing=[];
 try{
- const sample=['/catalogue/current.json',entry.index.path,Object.values(index.listBuckets)[0],Object.values(index.lookups)[0],Object.values(index.fixed)[0],index.search.manga.names[0].path,index.search.imdb.keys[0].path,index.content.manifest.path,index.content.bundle.path,Object.values(index.content.documents)[0].path,paths.find(p=>p.startsWith('/assets/content/'))];
+ const sample=['/catalogue/current.json',entry.index.path,Object.values(index.listBuckets)[0],Object.values(index.lookups)[0],...(index.lookupRanges?.ranges??[]).slice(0,1).map(r=>r.path),Object.values(index.fixed)[0],index.search.manga.names[0].path,index.search.imdb.keys[0].path,index.content.manifest.path,index.content.bundle.path,Object.values(index.content.documents)[0].path,paths.find(p=>p.startsWith('/assets/content/'))];
  for(const path of sample){
   const r=await mf.dispatchFetch('https://public-static.invalid'+path),raw=Buffer.from(await r.arrayBuffer());
   assert.equal(r.status,200,path);assert.equal(r.headers.get('X-Worker-Invoked'),null,path);assert.deepEqual(raw,readFileSync(join(publication,path)));
@@ -56,5 +73,5 @@ try{
  }
 }finally{await mf.dispose();}
 const result={revision:entry.revision,sourceRevision:entry.sourceRevision,files:paths.length,bytes,largestFileBytes:max,hashedFiles,verifiedReferences:refs.size,artworkFiles:report.artworkFiles,contentDocuments:report.contentDocuments,
- filesWithConservative135Artwork:paths.length+Math.max(0,135-report.artworkFiles),fileHeadroom:20000-paths.length,routing,publicGetHead304Checks:33,remoteRequests:0,d1Writes:0,deployed:false};
+ filesWithConservative135Artwork:paths.length+Math.max(0,135-report.artworkFiles),fileHeadroom:18000-paths.length,routing,publicGetHead304Checks:33,remoteRequests:0,d1Writes:0,deployed:false};
 writeFileSync(evidence,JSON.stringify(result,null,2));console.log(JSON.stringify({...result,routing:undefined}));

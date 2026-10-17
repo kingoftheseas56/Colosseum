@@ -6,9 +6,10 @@ import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
+import {createHash} from 'node:crypto';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {catalogueMethod} from '../src/catalogue-semantic.ts';
-import {prebuiltCatalogue} from '../src/catalogue-prebuilt.ts';
+import {prebuiltCatalogue,selectionKey} from '../src/catalogue-prebuilt.ts';
 import schema from '../src/source-schema.json' with {type:'json'};
 import {publicationSql} from './publication_sql.mjs';
 const [artifact,publication,evidence,liveFlag]=process.argv.slice(2);
@@ -17,8 +18,8 @@ const entry=join(publication,'catalogue/current.json');
 const report=JSON.parse(readFileSync(existsSync(entry)?entry:join(publication,'static-catalogue-report.json'),'utf8')),revision=report.sourceRevision??report.revision;
 const sqlite=new DatabaseSync(artifact,{readOnly:true});
 const adapter={prepare(sql){sql=publicationSql(sql);return{bind(...args){return{async all(){return{success:true,results:sqlite.prepare(sql).all(...args)}}}}}}};
-let assetReads=0,assetBytes=0;
-const assets={async fetch(request){assetReads++;try{const raw=readFileSync(join(publication,new URL(request.url).pathname));assetBytes+=raw.byteLength;return new Response(raw,{headers:{'Content-Type':'application/json'}});}catch(e){if(e.code==='ENOENT')return new Response('',{status:404});throw e;}}};
+let assetReads=0,assetBytes=0;const assetFiles=[];
+const assets={async fetch(request){assetReads++;const path=new URL(request.url).pathname;try{const raw=readFileSync(join(publication,path));assetBytes+=raw.byteLength;assetFiles.push({path,bytes:raw.byteLength});return new Response(raw,{headers:{'Content-Type':'application/json'}});}catch(e){if(e.code==='ENOENT')return new Response('',{status:404});throw e;}}};
 const cases=[
  ['mal','discoverPageFiltered',['popular',[],false,0,24]],['mal','discoverPageFiltered',['popular',[],false,24,24]],
  ['mal','discoverPageFiltered',['top-rated',[{axis:'genre',key:'romance'}],false,0,24]],['mal','discoverFilters',['genre',false]],
@@ -55,17 +56,31 @@ try{
  const guest=await mf.dispatchFetch('https://static.invalid/v1/guest/session',{method:'POST',headers:{'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.10'},body:JSON.stringify({appId:'colosseum',apiVersion:1})});assert.equal(guest.status,200);const token=(await guest.json()).token;
  let firstTag;
  for(let i=0;i<cases.length;i++){
-  const start=performance.now(),beforeReads=assetReads,beforeBytes=assetBytes;
+  const start=performance.now(),beforeReads=assetReads,beforeBytes=assetBytes,beforeFiles=assetFiles.length;
   const [dataset,method,args]=cases[i],response=await mf.dispatchFetch(`https://static.invalid/v1/catalogue/${dataset}/${method}`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({args})});
   const localWallMs=performance.now()-start;
   assert.equal(response.status,200,await response.clone().text());assert.equal(response.headers.get('X-Catalogue-Delivery'),'prebuilt');
   const rows=Number(response.headers.get('X-Catalogue-D1-Rows'));assert.equal(rows,i===0?1:0);
   assert.deepEqual((await response.json()).result,await catalogueMethod(adapter,dataset,method,args));
   if(i===0)firstTag=response.headers.get('ETag');
-  result.http.push({dataset,method,args,rowsRead:rows,delivery:'prebuilt',localWallMs,assetReads:assetReads-beforeReads,assetBytes:assetBytes-beforeBytes});
+  result.http.push({dataset,method,args,rowsRead:rows,delivery:'prebuilt',localWallMs,assetReads:assetReads-beforeReads,assetBytes:assetBytes-beforeBytes,shards:assetFiles.slice(beforeFiles).filter(f=>f.path.includes('/shared/'))});
  }
+ // Every per-fetch payload file stays inside the 56 KiB search shard budget.
+ const shardCap=56*1024,mangaHttp=result.http.find(r=>r.dataset==='mal'&&r.method==='mangaById');
+ assert.ok(mangaHttp,'mangaById measured');assert.equal(mangaHttp.shards.length,2,'mangaById reads the key chunk and the record chunk');
+ for(const f of mangaHttp.shards)assert.ok(f.bytes<=shardCap,`mangaById shard within budget ${f.path}`);
  const conditional=await mf.dispatchFetch('https://static.invalid/v1/catalogue/mal/discoverPageFiltered',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','If-None-Match':firstTag},body:JSON.stringify({args:cases[0][2]})});assert.equal(conditional.status,304);assert.equal(await conditional.text(),'');assert.equal(conditional.headers.get('X-Catalogue-D1-Rows'),'0');result.conditional304=true;
- const tank=await mf.dispatchFetch('https://static.invalid/v1/tankoban/series/13',{headers:{Authorization:'Bearer '+token,'CF-Connecting-IP':'192.0.2.10'}});assert.equal(tank.status,200);assert.equal(tank.headers.get('X-Catalogue-D1-Rows'),'0');const tv=await tank.json();assert.equal(tv.volumes.length,113);result.http.push({dataset:'tankoban',method:'series',id:13,rowsRead:0,volumes:tv.volumes.length});
+ const publicIndex=report.index?JSON.parse(readFileSync(join(publication,report.index.path))):null;
+ const tankKey=selectionKey('tankoban','series',[13]);
+ const fineRef=(publicIndex?.lookupRanges?.ranges??[]).find(r=>tankKey>=r.first&&tankKey<=r.last);
+ const coarseRef=publicIndex?.lookups?.[createHash('sha256').update(tankKey).digest('hex').slice(0,2)];
+ const tankFiles=assetFiles.length;
+ const tank=await mf.dispatchFetch('https://static.invalid/v1/tankoban/series/13',{headers:{Authorization:'Bearer '+token,'CF-Connecting-IP':'192.0.2.10'}});assert.equal(tank.status,200);assert.equal(tank.headers.get('X-Catalogue-D1-Rows'),'0');const tv=await tank.json();assert.equal(tv.volumes.length,113);
+ const tankShards=assetFiles.slice(tankFiles).filter(f=>f.path.includes('/shared/'));
+ if(fineRef&&coarseRef&&fineRef.path!==coarseRef){assert.ok(tankShards.some(f=>f.path===fineRef.path),'tankoban series reads the fine range file');assert.ok(!tankShards.some(f=>f.path===coarseRef),'fine hit never reads the coarse bucket');}
+ for(const f of tankShards)assert.ok(f.bytes<=shardCap,`tankoban shard within budget ${f.path}`);
+ assert.equal(tankShards.length,1,'tankoban series reads exactly one payload file');
+ result.http.push({dataset:'tankoban',method:'series',id:13,rowsRead:0,volumes:tv.volumes.length,shards:tankShards});
 }finally{await mf.dispose();}
 writeFileSync(evidence,JSON.stringify(result,null,2));
 if(liveFlag==='--live'){
