@@ -22,8 +22,9 @@ export function landingRequests(dataset,tab,{rules,api,date}) {
   for(const [kind,arg] of [['stocked',''],['publisher','Marvel'],['publisher','DC'],['publisher','Image'],['decade','2020'],['decade','2010'],['deep',''],['fanmade','']])add('shelf',[kind,arg,24]);
   for(const [catalog,axis,key] of [['recently-available','',''],['complete-runs','',''],['near-complete','',''],['popular','format','omnibus'],['popular','format','deluxe'],['popular','format','graphic novel'],['community-collections','','']])add('discoverPageFiltered',[catalog,axis&&key?[{axis,key}]:[],false,0,24]);
  } else if(dataset==='imdb'&&(tab==='movies'||tab==='shows')) {
-  let defs=rules.defaultRows(tab);
-  if(tab==='movies')defs=defs.concat(rules.dailyRows(Date.parse(date+'T00:00:00Z'),6));
+  // Landing only primes exact child queries. Daily movie recipes are selected
+  // by the client for its current UTC day and load individually on cache miss.
+  const defs=rules.defaultRows(tab);
   for(const def of defs)for(const q of rules.indexQueriesFor(def.recipe))add('titleCatalog',[q,0,api.PREVIEW_ROW_CAP]);
  } else if(dataset==='mal'&&tab==='anime') {
   for(const def of rules.defaultRows(tab))for(const q of api.animeQueriesFor(def.recipe))add('animeCatalog',[q,0,api.PREVIEW_ROW_CAP]);
@@ -33,7 +34,6 @@ export function landingRequests(dataset,tab,{rules,api,date}) {
 
 export async function publishLandingCatalogues({date,qmlRoot,queryFn,fixed,owners=theatreLandingOwners(qmlRoot)}) {
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)throw Error('Invalid landing date');
- const nextDay=new Date(Date.parse(date+'T00:00:00Z')+86400000).toISOString().slice(0,10);
  const published=[];
  for(const [dataset,tab] of [['comics','comics'],['imdb','movies'],['imdb','shows'],['mal','anime']]) {
   const queries=[];
@@ -42,7 +42,9 @@ export async function publishLandingCatalogues({date,qmlRoot,queryFn,fixed,owner
    if(result===undefined)throw Error('Missing landing result '+dataset+'/'+method);
    queries.push({method,args,result});
   }
-  const bundle={version:1,dataset,tab,validFrom:date,validUntil:dataset==='comics'?String(Number(date.slice(0,4))+1)+'-01-01':nextDay,queries};
+  // Theatre/anime selections live with the publication, including across years.
+  // Preserve the existing comics validity policy.
+  const bundle={version:1,dataset,tab,validFrom:date,validUntil:dataset==='comics'?String(Number(date.slice(0,4))+1)+'-01-01':'9999-12-31',queries};
   if(Buffer.byteLength(JSON.stringify(bundle))>4*1024*1024)throw Error('Landing exceeds 4MiB: '+dataset+'/'+tab);
   fixed(dataset,'landing',[tab],bundle);published.push({dataset,tab,queries:queries.length});
  }
