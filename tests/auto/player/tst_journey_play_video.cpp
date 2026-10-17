@@ -43,8 +43,11 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QTemporaryDir>
 #include <QGuiApplication>
 #include <QQuickWindow>
+#include <QPointer>
+#include <QProcess>
 #include <QSignalSpy>
 #include <QString>
 #include <QUrl>
@@ -129,6 +132,7 @@ private slots:
     void audio_only_never_ready();
     void decoded_fixture_reports_exact_dimensions();
     void source_identity_matches();
+    void same_size_warm_reloads_refresh_dimensions();
 };
 
 // A freshly constructed, shown player carries no source and no decoded frame — the closest
@@ -208,6 +212,81 @@ void tst_journey_play_video::decoded_fixture_reports_exact_dimensions()
     QVERIFY2(playerReadyFrom(/*sessionFileLoaded=*/true, /*sessionErrored=*/false,
                               p.item->decodedWidth(), p.item->decodedHeight()),
              "playerReady must be true once a real frame has decoded on an otherwise-loaded session");
+}
+
+// Exercise actual warm replacement of both the same URL and an equal-size second
+// file. Cache-zero at load is required, but it must recover from native decode even
+// if mpv coalesces equal dwidth/dheight values across replacement. Raw observations
+// in a failure distinguish a stale application cache from failed native decoding.
+void tst_journey_play_video::same_size_warm_reloads_refresh_dimensions()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString ffmpeg = MpvItem::findFfmpeg();
+    QVERIFY2(!ffmpeg.isEmpty(), "ffmpeg is required to generate bounded warm-reload fixtures");
+    const QString first = temp.filePath(QStringLiteral("blue.mp4"));
+    const QString second = temp.filePath(QStringLiteral("red.mp4"));
+    for (const QString &color : {QStringLiteral("blue"), QStringLiteral("red")}) {
+        QProcess generator;
+        generator.start(ffmpeg, {QStringLiteral("-v"), QStringLiteral("error"),
+            QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+            QStringLiteral("color=c=%1:s=64x64:r=10").arg(color),
+            QStringLiteral("-t"), QStringLiteral("20"), QStringLiteral("-an"),
+            QStringLiteral("-c:v"), QStringLiteral("mpeg4"),
+            temp.filePath(color + QStringLiteral(".mp4"))});
+        QVERIFY(generator.waitForFinished(15000));
+        QCOMPARE(generator.exitCode(), 0);
+    }
+    WindowedPlayer p;
+    QVERIFY(QTest::qWaitForWindowExposed(&p.window));
+    p.item->setProperty(QStringLiteral("ao"), QStringLiteral("null"));
+    // Use a long playing source: the original 1s fixture could reach EOF
+    // during a failing wait. Require actual advancement on each loaded source.
+    p.item->setPause(false);
+    const QPointer<MpvItem> originalPlayer(p.item);
+    QSignalSpy loadedSpy(p.item, &MpvItem::fileLoaded);
+    for (int pass = 0; pass < 8; ++pass) {
+        const QString path = (pass % 4 < 2) ? first : second;
+        QVERIFY(originalPlayer);
+        QCOMPARE(p.item, originalPlayer.data());
+        loadedSpy.clear();
+        p.item->loadFile(path);
+        QCOMPARE(p.item->currentUrl(), QUrl::fromUserInput(path));
+        QCOMPARE(p.item->decodedWidth(), 0);
+        QCOMPARE(p.item->decodedHeight(), 0);
+        const bool ready = QTest::qWaitFor([&] {
+            return !loadedSpy.isEmpty() && p.item->duration() > 0 && p.item->position() > 0.2
+                && p.item->decodedWidth() > 0 && p.item->decodedHeight() > 0;
+        }, 3000);
+        if (!ready) {
+            qWarning() << "warm pass" << pass << "cache" << p.item->decodedWidth()
+                       << p.item->decodedHeight() << "native"
+                       << p.item->getProperty(QStringLiteral("dwidth"))
+                       << p.item->getProperty(QStringLiteral("dheight"))
+                       << "clock" << p.item->position() << "duration" << p.item->duration();
+        }
+        QVERIFY2(ready, "same-size native reload did not restore decoded-dimension cache");
+        QCOMPARE(p.item->decodedWidth(), 64);
+        QCOMPARE(p.item->decodedHeight(), 64);
+        QVERIFY(!p.item->pause());
+    }
+    // A rapid video replacement followed by audio must not inherit the prior
+    // frame cache from a queued reconfiguration. Audio stays paused for inspection.
+    p.item->loadFile(first);
+    p.item->setPause(true);
+    loadedSpy.clear();
+    const QString audio = fixtureDir() + QStringLiteral("tiny-audio.m4a");
+    p.item->loadFile(audio);
+    QTRY_VERIFY_WITH_TIMEOUT(!loadedSpy.isEmpty() && p.item->pause(), 3000);
+    QTRY_COMPARE_WITH_TIMEOUT(p.item->getProperty(QStringLiteral("path")).toString(), QDir::toNativeSeparators(audio), 3000);
+    QTRY_COMPARE_WITH_TIMEOUT(p.item->decodedWidth(), 0, 3000);
+    QTRY_COMPARE_WITH_TIMEOUT(p.item->decodedHeight(), 0, 3000);
+    QCOMPARE(p.item, originalPlayer.data());
+    QSignalSpy endedSpy(p.item, &MpvItem::endFile);
+    p.item->command(QStringList{QStringLiteral("stop")});
+    QTRY_VERIFY_WITH_TIMEOUT(!endedSpy.isEmpty(), 3000);
+    QCOMPARE(p.item->decodedWidth(), 0);
+    QCOMPARE(p.item->decodedHeight(), 0);
 }
 
 // The stable source identity (mpv's currentUrl, which qml/PlayerPage.qml's sourceIdentity
