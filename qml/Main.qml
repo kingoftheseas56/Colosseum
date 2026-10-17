@@ -286,6 +286,30 @@ Window {
             win.armHomeContinueRail()
         }
     }
+    // Hosted catalogues only: queue Tankoban Discover's first page and filter lists while the
+    // boot splash is up, so the first Manga/Comics Discover open reads the query cache instead
+    // of waiting on two sequential static-shard round trips. Same native calls and arguments
+    // as TankobanDiscoverApi's default view ("popular", no filters, first 24). A local SQLite
+    // catalogue reports source "local" and is skipped, so nothing runs SQL on the GUI thread.
+    function warmTankobanDiscover() {
+        var x = !!contentPreferences.showExplicit
+        function remote(catalog) {
+            return catalog && catalog.remoteEnabled && typeof catalog.discoverPageFilteredState === "function"
+                && catalog.discoverPageFilteredState("popular", [], x, 0, 24).source === "remote"
+        }
+        var mal = typeof MalCatalog !== "undefined" ? MalCatalog : null
+        if (remote(mal)) {
+            mal.cachedDiscoverFilters("genre", x)
+            mal.cachedDiscoverFilters("demographic", x)
+            mal.discoverPageFiltered("popular", [], x, 0, 24)
+        }
+        var comics = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
+        if (remote(comics)) {
+            for (var axis of ["genre", "publisher", "format", "availability"])
+                comics.discoverFilters(axis, x)
+            comics.discoverPageFiltered("popular", [], x, 0, 24)
+        }
+    }
     function armStartupIdleWork() {
         if (startupIdleWorkArmed || boot.visible) return
         startupIdleWorkArmed = true
@@ -582,6 +606,7 @@ Window {
         } else if (typeof Extensions !== "undefined") {
             UniverseApi.setReader(function (file) { return Extensions.universePayload(file) })
         }
+        Qt.callLater(win.warmTankobanDiscover)
         // Efficiency gate: play a given local file through the real player as soon as the shell is
         // up, so both backends can be measured under identical conditions.
         if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
@@ -4049,8 +4074,11 @@ Window {
                 // (below) builds it hidden ahead of the first click.
                 asynchronous: true
                 Component.onCompleted: {
+                    // showExplicitContent too: otherwise Tankoban Discover's first page is
+                    // fetched with the WorldPage default and refetched when onLoaded binds it.
                     setSource(win.worldSourceFor(mode), {
-                        "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen
+                        "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen,
+                        "showExplicitContent": contentPreferences.showExplicit
                     })
                     active = true
                 }

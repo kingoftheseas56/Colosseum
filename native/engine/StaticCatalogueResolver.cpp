@@ -926,7 +926,7 @@ struct StaticCatalogueResolver::Impl {
             (endpoint.scheme() != "https" &&
              !(endpoint.scheme() == "http" &&
                (endpoint.host() == "127.0.0.1" || endpoint.host() == "localhost")))) {
-            endpoint = {};
+            endpoint = QUrl();
             nam = nullptr;
         }
         if (!root.isEmpty() && !endpoint.isEmpty())
