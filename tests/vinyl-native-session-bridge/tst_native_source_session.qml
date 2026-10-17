@@ -14,6 +14,73 @@ TestCase {
         session.library=[{id:rawAlbum.id,payload:{album:rawAlbum}}];
     }
     function cleanup() {session.destroy();wait(0);}
+    Component {
+        id: collectionFactory
+        QtObject {
+            property var rows: []
+            signal changed()
+            function items(world) { return rows; }
+            function replaceItems(world,removed,added) {
+                rows=rows.filter(r=>removed.indexOf(r.id)<0 && !added.some(a=>a.id===r.id)).concat(added);changed();return true;
+            }
+        }
+    }
+    function test_changedAudioSameMediaCancelAndProfileFence() {
+        var store=collectionFactory.createObject(test);session.collectionStore=store;
+        var path=BridgeFixtures.createIdentityAudio();compare(session.importFiles([path]).imported,1);
+        var album=store.rows[0].payload.album;session.shownEdition=session.normalize(album);session.playTrack(0);
+        tryVerify(()=>session.player!==null);var oldId=session.playingTrack.id;
+        var queueId=session.queue[0].queueId;
+        BridgeFixtures.changeIdentityAudio(path,320);
+        compare(session.importFiles([path]).imported,0);verify(session.pendingImportCeremony!==null);
+        var relationship=session.pendingImportCeremony.relationship;
+        session.cancelImportIdentity();compare(session.pendingImportCeremony,null);compare(store.rows.length,1);
+        session.importFiles([path]);compare(session.pendingImportCeremony.relationship,relationship);
+        verify(session.decideImportIdentity(relationship,"same-media"));tryCompare(session,"browseError","");
+        compare(store.rows[0].payload.album.tracks[0].id,oldId);compare(session.queue[0].queueId,queueId);
+        session.retry();tryVerify(()=>session.player!==null);compare(session.error,"");compare(session.playingTrack.id,oldId);
+        var second=BridgeFixtures.createIdentityAudio();session.importFiles([second]);BridgeFixtures.changeIdentityAudio(second,480);
+        session.importFiles([second]);verify(session.pendingImportCeremony!==null);
+        var pending=session.pendingImportCeremony.relationship;session.clearProfile();
+        compare(session.pendingImportCeremony,null);verify(!session.decideImportIdentity(pending,"new-media"));
+        store.destroy();
+    }
+    function test_pendingDecisionRejectsReboundSource() {
+        var store=collectionFactory.createObject(test);session.collectionStore=store;
+        var path=BridgeFixtures.createIdentityAudio();BridgeFixtures.changeIdentityAudio(path,920);
+        compare(session.importFiles([path]).imported,1);BridgeFixtures.changeIdentityAudio(path,1020);
+        session.importFiles([path]);var relationship=session.pendingImportCeremony.relationship;
+        session.source=null;verify(!session.decideImportIdentity(relationship,"same-media"));
+        verify(session.browseError.indexOf("source changed")>=0);
+        compare(NativeSource.importFiles([path]).identityCeremonies.length,1);
+        store.destroy();
+    }
+    function test_decisionRetryCannotCrossProfileDeparture() {
+        var store=collectionFactory.createObject(test);session.collectionStore=store;
+        var path=BridgeFixtures.createIdentityAudio();BridgeFixtures.changeIdentityAudio(path,710);
+        compare(session.importFiles([path]).imported,1);BridgeFixtures.changeIdentityAudio(path,810);
+        session.importFiles([path]);verify(session.pendingImportCeremony!==null);
+        verify(session.decideImportIdentity(session.pendingImportCeremony.relationship,"new-media"));
+        session.clearProfile();wait(0);compare(store.rows.length,1);compare(session.library.length,0);
+        compare(session.pendingImportCeremony,null);store.destroy();
+    }
+    function test_changedAudioMultipleNewMediaDoesNotRetargetQueue() {
+        var store=collectionFactory.createObject(test);session.collectionStore=store;
+        var a=BridgeFixtures.createIdentityAudio(), b=BridgeFixtures.createIdentityAudio();
+        // Distinct size avoids likely-copy ceremony in this changed-content test.
+        BridgeFixtures.changeIdentityAudio(b,240);
+        compare(session.importFiles([a,b]).imported,2);
+        session.shownEdition=session.normalize(store.rows[0].payload.album);session.playTrack(0);tryVerify(()=>session.player!==null);
+        var oldId=session.playingTrack.id, oldQueue=session.queue[0].queueId;
+        BridgeFixtures.changeIdentityAudio(a,400);BridgeFixtures.changeIdentityAudio(b,500);
+        session.importFiles([a,b]);var first=session.pendingImportCeremony.relationship;
+        verify(session.decideImportIdentity(first,"new-media"));
+        tryVerify(()=>session.pendingImportCeremony!==null && session.pendingImportCeremony.relationship!==first);
+        verify(session.decideImportIdentity(session.pendingImportCeremony.relationship,"new-media"));
+        tryCompare(session,"browseError","");compare(session.queue[0].queueId,oldQueue);compare(session.playingTrack.id,oldId);
+        session.retry();tryCompare(session,"sourceState","error");verify(session.error.indexOf("changed")>=0);
+        compare(store.rows.length,4);store.destroy();
+    }
     function test_nativeSignalAlbumOpensAndQueues() {
         console.log("Bridge array diagnostics",Array.isArray(rawAlbum.tracks),Array.isArray(rawAlbum.artists),Array.isArray(rawAlbum.editions));
         session.openAlbum(rawAlbum.id);tryCompare(session,"browsing",false);

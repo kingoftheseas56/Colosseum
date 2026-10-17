@@ -15,6 +15,9 @@ TestCase {
         verify(component.status === Component.Ready, component.errorString());
         host = component.createObject(null);
         verify(host !== null);
+        // Original geometric fixtures keep image readiness/rotation assertions offline.
+        host.artistData.artworkRoot = Qt.resolvedUrl("../fixtures/vinyl-generated-art");
+        host.artistScroll.heroItem.syncInitialBackdrop();
         host.pageData.frozen = true;
         tryCompare(host, "ready", true);
         host.artistData.open("Eminem");

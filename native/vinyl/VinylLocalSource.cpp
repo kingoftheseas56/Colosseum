@@ -34,7 +34,7 @@ VinylLocalSource::VinylLocalSource(VaultIdentity *identity, QObject *parent, int
     connect(this, &VinylLocalSource::shuttingDown, this, &VinylLocalSource::cancelAll);
 }
 QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
-    QVariantList albums; QStringList errors, replacedManifestPaths; QSet<QString> seen;
+    QVariantList albums, ceremonies; QStringList errors, replacedManifestPaths; QSet<QString> seen;
     static const QSet<QString> extensions = {"mp3","flac","wav","ogg","opus","m4a","aac","aiff","aif","wma","ape","alac","m4b"};
     for (const auto &input : inputs) {
         QString path = localPath(input);
@@ -44,7 +44,7 @@ QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
         QFileInfo file(path);
         if (file.fileName().endsWith(".vinyl.json", Qt::CaseInsensitive)) {
             QString error;
-            const auto releases = importManifest(file.canonicalFilePath(), &error);
+            const auto releases = importManifest(file.canonicalFilePath(), &error, &ceremonies);
             if (!error.isEmpty()) errors.append(error);
             else {
                 replacedManifestPaths.append(file.canonicalFilePath());
@@ -61,7 +61,7 @@ QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
         bool pendingIdentity = false;
         for (const auto &pendingValue : m_identity->pendingCeremonies()) {
             if (pendingValue.toMap().value("newPath").toString() == path) {
-                pendingIdentity = true; break;
+                ceremonies.append(pendingValue); pendingIdentity = true; break;
             }
         }
         if (pendingIdentity) {
@@ -69,6 +69,7 @@ QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
         }
         const auto observation = m_identity->observeFile(path, file.size(), file.lastModified().toMSecsSinceEpoch());
         if (observation.value("prompt").toBool()) {
+            ceremonies.append(observation);
             errors.append(QStringLiteral("This file needs an identity decision before import: %1").arg(path)); continue;
         }
         const auto trackId = observation.value("id").toString();
@@ -86,9 +87,12 @@ QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
             {"year",QStringLiteral("Local file")},
             {"cover",QString()},{"origin",QStringLiteral("local")},{"tracks",QVariantList{track}},{"externalIds",QVariantMap{}}});
     }
-    return {{"albums",albums},{"errors",errors},{"replacedManifestPaths",replacedManifestPaths}};
+    return {{"albums",albums},{"errors",errors},{"replacedManifestPaths",replacedManifestPaths},{"identityCeremonies",ceremonies}};
 }
-QVariantList VinylLocalSource::importManifest(const QString &path, QString *error) {
+bool VinylLocalSource::decideImportIdentity(const QString &relationship, const QString &choice) {
+    return m_identity && m_identity->decideCeremony(relationship, choice);
+}
+QVariantList VinylLocalSource::importManifest(const QString &path, QString *error, QVariantList *ceremonies) {
     auto fail = [&](const QString &message) -> QVariantList {
         *error = QStringLiteral("Invalid local catalogue %1: %2").arg(QFileInfo(path).fileName(),message); return {};
     };
@@ -256,14 +260,19 @@ QVariantList VinylLocalSource::importManifest(const QString &path, QString *erro
     QList<VaultIdentity::FileFacts> facts;
     for (const auto &identityPath : identityPaths) {
         for (const auto &pending : m_identity->pendingCeremonies())
-            if (pending.toMap().value("newPath").toString() == identityPath) return fail("a file needs an identity decision before import");
+            if (pending.toMap().value("newPath").toString() == identityPath) {
+                ceremonies->append(pending); return fail("a file needs an identity decision before import");
+            }
         const QFileInfo info(identityPath);
         facts.append({identityPath,info.size(),info.lastModified().toMSecsSinceEpoch()});
     }
     const auto observations = m_identity->observeFiles(facts);
     for (qsizetype i=0; i<facts.size(); ++i) {
         const auto observation = observations.at(i);
-        if (observation.value("prompt").toBool() || observation.value("id").toString().isEmpty()) return fail("a file needs an identity decision before import");
+        if (observation.value("prompt").toBool() || observation.value("id").toString().isEmpty()) {
+            if (observation.value("prompt").toBool()) ceremonies->append(observation);
+            return fail("a file needs an identity decision before import");
+        }
         fileIds.insert(facts.at(i).path,observation.value("id").toString());
     }
     if (manifestId.isEmpty()) manifestId=fileIds.value(path);

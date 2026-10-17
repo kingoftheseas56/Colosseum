@@ -49,6 +49,36 @@ int main(int argc, char **argv) {
     check(source.importFiles({"https://example.com/audio.wav",temp.path(),temp.path()+"/absent.wav"}).value("errors").toStringList().size()==3,"reject remote directory and absent input");
     { VaultIdentity restored(registry); VinylLocalSource second(&restored);
       check(second.importFiles({path}).value("albums").toList().first().toMap().value("id")==album.value("id"),"identity survives registry restart"); }
+    // A changed file must expose the shared owner's decision, never silently import.
+    check(f.open(QIODevice::WriteOnly),"replace same-path audio"); f.write("RIFF changed fixture with different size"); f.close();
+    const auto changedImport=source.importFiles({path});
+    check(changedImport.value("albums").toList().isEmpty(),"changed audio waits for decision");
+    check(changedImport.value("identityCeremonies").toList().size()==1,"changed audio exposes actionable shared identity ceremony");
+    auto ceremony=changedImport.value("identityCeremonies").toList().first().toMap();
+    check(ceremony.value("oldId")==id && ceremony.value("newId")!=id,"shared ceremony preserves old and candidate IDs");
+    check(source.importFiles({path}).value("identityCeremonies").toList().size()==1,"deferred ceremony is offered again without bypass");
+    check(!source.decideImportIdentity(ceremony.value("relationship").toString(),"cancel"),"cancel is not an identity decision");
+    check(source.importFiles({path}).value("albums").toList().isEmpty(),"cancel leaves changed input blocked");
+    check(source.decideImportIdentity(ceremony.value("relationship").toString(),"same-media"),"same media accepted by shared owner");
+    auto sameMedia=source.importFiles({path});
+    check(sameMedia.value("errors").toStringList().isEmpty() && sameMedia.value("albums").toList().first().toMap().value("id")==album.value("id"),"same media reimport retains album and progress identity");
+    source.request("play","resolve",id); QCoreApplication::processEvents();check(error.isEmpty(),"same media repairs old queued track resolution");
+    { VaultIdentity restored(registry); VinylLocalSource second(&restored);
+      check(second.importFiles({path}).value("albums").toList().first().toMap().value("id")==album.value("id"),"same-media choice survives restart"); }
+    const QString newMediaPath=temp.path()+"/different.wav"; QFile different(newMediaPath);
+    check(different.open(QIODevice::WriteOnly),"write new-media fixture");different.write("RIFF initial different");different.close();
+    auto priorNew=source.importFiles({newMediaPath}).value("albums").toList().first().toMap();
+    const auto priorId=priorNew.value("tracks").toList().first().toMap().value("id").toString();
+    source.setAlbums({album,priorNew});
+    check(different.open(QIODevice::WriteOnly),"replace new-media fixture");different.write("RIFF replacement with distinct bytes and size");different.close();
+    auto separate=source.importFiles({newMediaPath}); auto separateChoice=separate.value("identityCeremonies").toList().first().toMap();
+    check(source.decideImportIdentity(separateChoice.value("relationship").toString(),"new-media"),"new media accepted by shared owner");
+    auto separateAlbum=source.importFiles({newMediaPath}).value("albums").toList().first().toMap();
+    const auto separateId=separateAlbum.value("tracks").toList().first().toMap().value("id").toString();
+    check(separateId!=priorId && identity.resolve(priorId)!=identity.resolve(separateId),"new media never aliases old progress identity");
+    source.setAlbums({album,priorNew,separateAlbum});
+    source.request("play","resolve",priorId);QCoreApplication::processEvents();check(error.contains("changed"),"new-media choice cannot retarget old queue");
+    source.request("play","resolve",separateId);QCoreApplication::processEvents();check(error.isEmpty(),"new-media identity resolves replacement");
     const QFileInfo original(path); const auto size=original.size(); const auto mtime=original.lastModified().toMSecsSinceEpoch();
     const QString moved=temp.path()+"/renamed.wav"; check(QFile::rename(path,moved),"rename input");
     identity.reconcile({{moved,size,mtime}});
@@ -108,6 +138,17 @@ int main(int argc, char **argv) {
     const int browse=source.request("browse","album",main.value("id").toString());
     source.request("queue","album",main.value("id").toString()); QCoreApplication::processEvents();
     check(lastId!=browse && error.isEmpty(),"queue request accepted independently");
+    write("one.wav","RIFF replacement first recording"); write("two.wav","RIFF replacement second recording with another size");
+    auto pendingManifest=source.importFiles({manifest});
+    check(pendingManifest.value("albums").toList().isEmpty() && pendingManifest.value("replacedManifestPaths").toStringList().isEmpty(),"manifest identity decisions preserve existing Collection atomically");
+    check(!pendingManifest.value("identityCeremonies").toList().isEmpty(),"manifest returns shared identity ceremony");
+    int manifestDecisions=0;
+    while(!pendingManifest.value("identityCeremonies").toList().isEmpty() && manifestDecisions<3) {
+        const auto prompt=pendingManifest.value("identityCeremonies").toList().first().toMap();
+        check(source.decideImportIdentity(prompt.value("relationship").toString(),"same-media"),"manifest shared decision accepted");
+        ++manifestDecisions;pendingManifest=source.importFiles({manifest});
+    }
+    check(manifestDecisions==2 && pendingManifest.value("errors").toStringList().isEmpty() && pendingManifest.value("albums").toList().size()==2,"manifest retries finish after each bounded file decision");
     supplied.replace("Two Discs","Retitled Discs"); write("collection.vinyl.json",supplied);
     auto refreshed=source.importFiles({manifest});
     check(refreshed.value("errors").toStringList().isEmpty() && refreshed.value("albums").toList().first().toMap().value("id")==main.value("id"),"metadata refresh preserves canonical release identity");

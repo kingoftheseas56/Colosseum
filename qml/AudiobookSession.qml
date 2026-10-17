@@ -29,6 +29,9 @@ Item {
     property bool audioHandoffPaused: false
     signal playbackRequested()
     property bool ready: false
+    // ready keeps the selected book available to reader controls; completed means
+    // its final file has unloaded and Play must explicitly load a fresh session.
+    property bool completed: false
     readonly property bool multiFile: session.files.length > 1
     property var chapterModel: []
 
@@ -167,6 +170,7 @@ Item {
         if (!pk) return
         if (session.ready && session.activePairKey === pk) return
         if (session.ready) session.recordProgress()          // leaving the old book: save its spot first
+        session.completed = false
         session.activePairKey = pk
         session.book = b || ({})
         session.files = (typeof Audiobooks !== 'undefined') ? Audiobooks.localFiles(pk) : []
@@ -194,7 +198,9 @@ Item {
     function playIndex(i, automatic) {
         if (i < 0 || i >= session.files.length) return
         if (automatic === true && session.audioHandoffPaused) return
+        session.completed = false
         if (automatic !== true) session.requestAudioPlayback()
+        session.activityBeginIfNeeded()
         session.pendingResumeSec = -1         // a deliberate jump cancels any in-flight resume seek
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
@@ -202,6 +208,7 @@ Item {
         mpv.pause = false
     }
     function togglePlay() {
+        if (session.completed) { session.playIndex(0); return }
         if (mpv.pause) session.requestAudioPlayback()
         mpv.pause = !mpv.pause
         session.recordProgress()
@@ -210,6 +217,7 @@ Item {
     // carries a `play` flag — a double-click-to-seek wants the narration PLAYING, not toggled
     // (togglePlay would pause an already-playing stream). Idempotent: a no-op if already playing.
     function play() {
+        if (session.completed) { session.playIndex(0); return }
         if (mpv.pause) {
             session.requestAudioPlayback()
             mpv.pause = false
@@ -223,6 +231,19 @@ Item {
     }
     function seekTo(t) {
         var target = Math.max(0, t)
+        if (session.pendingResumeSec >= 0) {
+            // ReaderShell selects a chapter then seeks to a passage before load
+            // completes. The latest request owns the eventual native seek.
+            session.pendingResumeSec = target
+            return
+        }
+        if (session.completed) {
+            // Read-along may seek and then play after EOF. Reload the selected file
+            // paused and park the requested target; only Play alone restarts the book.
+            session.playIndexKeepState(session.currentIndex)
+            session.pendingResumeSec = target
+            return
+        }
         session.activityDiscontinuity(target)   // Activity (Lane E): explicit seek
         mpv.seekExact(target)
     }
@@ -232,7 +253,7 @@ Item {
         if (!session.ready || index < 0 || index >= session.chapterModel.length) return
         var ch = session.chapterModel[index]
         if (ch.kind === "file") {
-            if (ch.index !== session.currentIndex) session.playIndex(ch.index)
+            if (session.completed || ch.index !== session.currentIndex) session.playIndex(ch.index)
         } else {
             session.seekTo(Number(ch.time) || 0)
         }
@@ -243,6 +264,8 @@ Item {
     function playIndexKeepState(i) {
         if (i < 0 || i >= session.files.length) return
         var wasPaused = mpv.pause
+        session.completed = false
+        session.activityBeginIfNeeded()
         session.pendingResumeSec = -1
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
@@ -253,7 +276,7 @@ Item {
         if (!session.ready || index < 0 || index >= session.chapterModel.length) return
         var ch = session.chapterModel[index]
         if (ch.kind === "file") {
-            if (ch.index !== session.currentIndex) session.playIndexKeepState(ch.index)
+            if (session.completed || ch.index !== session.currentIndex) session.playIndexKeepState(ch.index)
         } else {
             session.seekTo(Number(ch.time) || 0)   // a seek already preserves play state
         }
@@ -268,6 +291,7 @@ Item {
         mpv.command(["stop"])
         session.pendingResumeSec = -1
         session.ready = false
+        session.completed = false
         session.activePairKey = ""
         session.book = ({})
         session.files = []
@@ -279,16 +303,22 @@ Item {
     Connections {
         target: mpv
         function onEndFile(reason) {
-            if (!session.ready || session.audioHandoffPaused) return
+            if (!session.ready || session.audioHandoffPaused || session.completed) return
             if (reason === "eof" && session.multiFile && session.currentIndex + 1 < session.files.length)
                 session.playIndex(session.currentIndex + 1, true)   // intermediate EOF: discontinuity, same session
-            else if (reason === "eof")
+            else if (reason === "eof") {
                 session.activityNaturalEof()   // Activity (Lane E): final-file EOF completes once
+                session.completed = true
+                session.pendingResumeSec = -1
+                session.sleepMinutes = 0
+                mpv.pause = true
+                session.recordProgress()       // preserve completion after mpv unloads duration/position
+            }
         }
         function onFileLoaded() {
             if (!session.ready) return
             if (session.audioHandoffPaused) mpv.pause = true
-            if (session.pendingResumeSec > 0) {
+            if (session.pendingResumeSec >= 0) {
                 // apply the parked resume seek — and SKIP this heartbeat: mpv.position is
                 // still ~0 here (the seek lands async), so recording now would overwrite
                 // the saved Continue spot with 0. The 10s Timer records the true spot.
@@ -304,7 +334,7 @@ Item {
             }
         }
         function onPauseChanged() {
-            if (session.audioHandoffPaused && !mpv.pause) { mpv.pause = true; return }
+            if ((session.audioHandoffPaused || session.completed) && !mpv.pause) { mpv.pause = true; return }
             session.activityDiscontinuity()
         }   // Activity: pause/sleep-timer pause
         function onSpeedChanged() { session.activityDiscontinuity() }   // Activity: speed change
@@ -331,11 +361,12 @@ Item {
     function overallProgress() {
         // coarse: (completed files + current fraction) / file count — good enough for the row bar
         if (session.files.length === 0) return 0
+        if (session.completed) return 1
         var frac = (mpv.duration > 0) ? (mpv.position / mpv.duration) : 0
         return (session.currentIndex + frac) / session.files.length
     }
     function recordProgress() {
-        if (session.pendingResumeSec > 0) return   // resume not applied yet — the store's spot is still the truth
+        if (session.pendingResumeSec >= 0) return   // resume not applied yet — the store's spot is still the truth
         if (!session.ready || typeof Progress === 'undefined' || !session.activePairKey) return
         Progress.record({
             "kind": "audiobook", "id": session.activePairKey,
@@ -344,8 +375,8 @@ Item {
             "sub": (session.book && session.book.author) ? session.book.author : "",
             "cover": (session.book && session.book.cover) ? session.book.cover : "",
             "progress": session.overallProgress(),
-            "resume": { "pairKey": session.activePairKey, "fileIndex": session.currentIndex,
-                        "position": mpv.position, "book": session.book }
+            "resume": { "pairKey": session.activePairKey, "fileIndex": session.completed ? 0 : session.currentIndex,
+                        "position": session.completed ? 0 : mpv.position, "book": session.book }
         })
     }
     Timer {

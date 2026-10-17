@@ -891,6 +891,8 @@ Window {
             universeLayer.item.requestEscape()
     }
     function cancelPendingIdentityCeremony() {
+        if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport && win.vinylWorld)
+            win.vinylWorld.session.cancelImportIdentity()
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
@@ -2905,6 +2907,12 @@ Window {
     }
     function decidePendingIdentity(choice) {
         var pending = win.pendingIdentityRoute
+        if (pending && pending.vinylImport) {
+            win.pendingIdentityRoute = null
+            identityCeremonyDialog.close()
+            if (win.vinylWorld) win.vinylWorld.session.decideImportIdentity(pending.relationship || "", choice)
+            return
+        }
         if (!pending || typeof LocalLaunch === "undefined") return
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
@@ -4428,8 +4436,20 @@ Window {
     }
 
     Connections {
+        target: win.vinylWorld ? win.vinylWorld.session : null
+        function onIdentityDecisionRequested(ceremony) {
+            if (!win.vinylProfileActive) return
+            win.pendingIdentityRoute = Object.assign({}, ceremony, {vinylImport:true})
+            identityCeremonyDialog.ceremony = ceremony
+            identityCeremonyDialog.open()
+        }
+    }
+    Connections {
         target: typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null
-        function onProfileLeaving() { win.leaveVinylProfile() }
+        function onProfileLeaving() {
+            if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport) win.cancelPendingIdentityCeremony()
+            win.leaveVinylProfile()
+        }
         function onProfileEntered() { win.vinylProfileActive = true }
     }
 

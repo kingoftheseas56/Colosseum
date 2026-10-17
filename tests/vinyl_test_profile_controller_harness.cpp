@@ -21,12 +21,14 @@ int main(int argc, char **argv) {
     int callbacks = 0;
     bool failActivation = false;
     bool pendingRequested = false;
+    int shutdownArms = 0;
     VinylTestProfileController c(data, [&](const QString &next, bool withPendingWrite) {
         pendingRequested = withPendingWrite;
         ++callbacks;
         if (failActivation) return false;
         alias = next; return true;
-    }, [&]() { return VinylTestProfileController::Status{alias, true, true, true}; });
+    }, [&]() { return VinylTestProfileController::Status{alias, true, true, true}; },
+    [&] { ++shutdownArms; return true; });
     qputenv("COLOSSEUM_VINYL_TEST_ROOT", fixture.path().toUtf8());
     qputenv("COLOSSEUM_APPDATA_TAG", "vinyl075-fixture-guard");
     for (const auto &entry : {qMakePair("HOME", "home"), qMakePair("XDG_DATA_HOME", "data"),
@@ -92,8 +94,13 @@ int main(int argc, char **argv) {
           "pending-write-noop-on-B-refused-before-callback");
     const int previousCallbacks = callbacks;
     auto status = c.execute({{"action", "status"}});
-    check(status["success"].toBool() && callbacks == previousCallbacks && status.size() == 12,
+    check(status["success"].toBool() && callbacks == previousCallbacks && status.size() == 17,
           "status-read-only-and-minimal");
+    auto shutdownArm = c.execute({{"action", "arm-shutdown-with-pending-write"}});
+    check(shutdownArm["success"].toBool() && shutdownArms == 1 && callbacks == previousCallbacks,
+          "shutdown-arm-is-bounded-and-does-not-switch-profile");
+    check(!c.execute({{"action", "arm-shutdown-with-pending-write"}, {"position", 999}})["success"].toBool()
+          && shutdownArms == 1, "shutdown-arm-rejects-arbitrary-checkpoint-input");
     VinylTestProfileController retired(data, [](const QString &, bool) { return true; }, [] {
         VinylTestProfileController::Status observed{"B", true, true, true};
         observed.pendingWriteAccepted = true;
@@ -108,6 +115,8 @@ int main(int argc, char **argv) {
           && !retiredStatus["pendingWriteCompleted"].toBool()
           && !retiredStatus["pendingWriteSucceeded"].toBool(),
           "owner-retirement-does-not-fabricate-durable-acknowledgement");
+    check(!retired.execute({{"action", "arm-shutdown-with-pending-write"}})["success"].toBool(),
+          "shutdown-arm-refused-without-bound-callback");
     alias = "real-profile";
     check(!c.execute({{"action", "activate-a"}})["success"].toBool() && callbacks == previousCallbacks,
           "unrecognized-profile-refused-before-callback");

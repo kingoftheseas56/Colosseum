@@ -246,7 +246,38 @@ Item {
             notes:album.notes || "",credits:creditGroups(edition.credits || album.credits || []),discNumbers:discNumbers,
             length:seconds>0 ? formatTime(seconds) : "",discs:discs};
     }
+    property int importIdentityGeneration: 0
+    property var pendingIdentityPaths: []
+    property var pendingImportCeremony: null
+    property var pendingIdentitySource: null
+    signal identityDecisionRequested(var ceremony)
+    signal importFinished(var outcome)
+    function cancelImportIdentity() {
+        importIdentityGeneration++;pendingIdentityPaths=[];pendingImportCeremony=null;pendingIdentitySource=null;
+    }
+    function decideImportIdentity(relationship, choice) {
+        if(shuttingDown || !profileActive || !pendingImportCeremony
+                || pendingImportCeremony.relationship!==relationship) return false;
+        if(source!==pendingIdentitySource) {
+            browseError="The audio source changed. Open the files again to retry.";cancelImportIdentity();return false;
+        }
+        if(!source || !source.decideImportIdentity || !source.decideImportIdentity(relationship,choice)) {
+            browseError="The identity decision could not be saved. Import the audio again to retry.";
+            cancelImportIdentity();return false;
+        }
+        var paths=pendingIdentityPaths.slice();cancelImportIdentity();
+        // The shared dialog closes after emitting its choice. Retry on the next turn
+        // so another file's ceremony cannot be hidden by that close.
+        var generation=profileGeneration, importGeneration=importIdentityGeneration, importSource=source;
+        Qt.callLater(function() {
+            if(!root.shuttingDown && root.profileActive && generation===root.profileGeneration
+                    && importGeneration===root.importIdentityGeneration && importSource===root.source) root.importFiles(paths);
+        });
+        return true;
+    }
     function importFiles(paths) {
+        if(shuttingDown || !profileActive) return {imported:0,errors:[]};
+        cancelImportIdentity();
         if (!source || !source.importFiles) {
             browseError="Local audio import is unavailable.";
             return {imported:0,errors:[browseError]};
@@ -276,7 +307,15 @@ Item {
         }
         refreshLibrary();
         browseError=errors.join("\n");
-        return {imported:count,errors:errors};
+        var ceremonies=result.identityCeremonies || [];
+        if(ceremonies.length) {
+            pendingIdentityPaths=Array.prototype.slice.call(paths);
+            pendingImportCeremony=ceremonies[0];pendingIdentitySource=source;
+            identityDecisionRequested(pendingImportCeremony);
+        }
+        var outcome={imported:count,errors:errors,pendingIdentity:ceremonies.length>0};
+        importFinished(outcome);
+        return outcome;
     }
     function refreshSource() {
         if (!source || !source.setAlbums) return;
@@ -611,6 +650,7 @@ Item {
     function clearProfile() {
         if(shuttingDown) return;
         profileGeneration++;
+        cancelImportIdentity();
         snapshot();activityEnd(false);profileActive=false;resetting=true;retirePlayer();cancelBrowse();cancelQueueRequest();
         shownDisc=0;playingDisc=0;shuffleEnabled=false;repeatMode="off";unshuffledIds=[];manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
         shownEdition=emptyEdition;playingEdition=emptyEdition;playingIndex=-1;queue=[];queueIndex=-1;

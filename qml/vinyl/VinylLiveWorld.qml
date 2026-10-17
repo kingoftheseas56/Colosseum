@@ -88,6 +88,14 @@ Item {
         if(!worldVisible) {showLibrary();return true;}
         return false;
     }
+    function updateImportStatus(outcome) {
+        var count=outcome ? outcome.imported : 0, errors=outcome && outcome.errors || [];
+        importStatus=count>0 ? "Opened " + count + (count===1 ? " local audio file." : " local audio files.") : "";
+        if(outcome && outcome.pendingIdentity)
+            importStatus += (importStatus ? "\n" : "") + "Choose an identity option to finish importing, or cancel and open these files again later.";
+        if(errors.length) importStatus += (importStatus ? "\n" : "") + errors.join("\n");
+        if(!importStatus) importStatus="No audio files were added.";
+    }
     function importLocalFiles(paths) {
         if (!paths || !paths.length || importing) return;
         var importGeneration = session.profileGeneration;
@@ -102,9 +110,8 @@ Item {
                     importStatus = "Open cancelled because the profile changed. Choose the files again.";
                     return;
                 }
-                var outcome = session.importFiles(paths);
-                importStatus = outcome && outcome.imported > 0 ? "Opened " + outcome.imported + (outcome.imported === 1 ? " local audio file." : " local audio files.") : "No audio files were added.";
                 showLibrary();
+                updateImportStatus(session.importFiles(paths));
             } catch (error) {
                 importStatus = "Could not open these files. " + String(error);
             } finally {
@@ -116,6 +123,7 @@ Item {
     Theme {id:theme}
     VinylLiveSession {
         id:session
+        onImportFinished: outcome => root.updateImportStatus(outcome)
         onAlbumOpened: {if(!root.restoringRoute)root.routeStack=root.routeStack.concat([root.pendingAlbumRoute || root.captureRoute()]);root.pendingAlbumRoute=null;root.page="album";Qt.callLater(function(){album.focusPrimaryControl();});}
         onPlaybackRequested: root.playbackRequested()
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})

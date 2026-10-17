@@ -13,6 +13,7 @@ public:
     // Internal construction seam for isolated native timing qualification; ordinary default is zero.
     explicit VinylLocalSource(VaultIdentity *identity, QObject *parent = nullptr, int resolutionDelayMs = 0);
     Q_INVOKABLE QVariantMap importFiles(const QStringList &pathsOrUrls);
+    Q_INVOKABLE bool decideImportIdentity(const QString &relationship, const QString &choice);
     Q_INVOKABLE void setAlbums(const QVariantList &entries);
     int cataloguePageVersion() const { return 1; }
     Q_INVOKABLE int request(const QString &lane, const QString &operation, const QString &value,
@@ -26,7 +27,7 @@ signals:
     void checkpointRequested();
     void shuttingDown();
 private:
-    QVariantList importManifest(const QString &path, QString *error);
+    QVariantList importManifest(const QString &path, QString *error, QVariantList *ceremonies);
     QVariant read(const QString &operation, const QString &value, QString *error) const;
     VaultIdentity *m_identity;
     QHash<QString, QVariantMap> m_albums, m_tracks, m_artists;

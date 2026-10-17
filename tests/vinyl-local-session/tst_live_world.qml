@@ -20,6 +20,8 @@ TestCase {
     Component {id:sourceFactory;QtObject {
         property int serial:0
         property int cataloguePageVersion:0
+        property var importOutcome: ({albums:[],errors:[]})
+        function importFiles(paths) {return importOutcome;}
         signal completed(string lane,int requestId,var data,string error)
         signal profileLeaving()
         signal profileEntered()
@@ -53,6 +55,16 @@ TestCase {
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
     }
     Component { id:clipProbeFactory; Rectangle { width:8; height:8; color:"#ff00ff"; z:1000 } }
+    function test_importErrorSurvivesLibraryNavigationAndRetryStatusUpdates() {
+        source.importOutcome={albums:[],errors:["This audio file no longer exists: /missing.wav"]};
+        world.importLocalFiles(["/missing.wav"]);tryCompare(world,"importing",false);
+        verify(world.importStatus.indexOf("no longer exists")>=0);
+        verify(world.session.browseError.indexOf("no longer exists")>=0);
+        world.session.importFinished({imported:1,errors:[]});
+        compare(world.importStatus,"Opened 1 local audio file.");
+        world.session.importFinished({imported:0,errors:["Identity decision required"],pendingIdentity:true});
+        verify(world.importStatus.indexOf("cancel and open these files again")>=0);
+    }
     function test_dockedTabsClipScrollingTaste_data() {
         return [{tag:"narrow",width:1024},{tag:"wide",width:1280}];
     }

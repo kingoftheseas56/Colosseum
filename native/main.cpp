@@ -2148,16 +2148,96 @@ int main(int argc, char *argv[]) {
     const QString vinylFixtureB = QStringLiteral("11111111-1111-4111-8111-111111111176");
     struct VinylFixtureWriteObservation {
         quint64 generation = 0;
-        bool accepted = false;
-        bool pendingBeforeSwitch = false;
-        bool completed = false;
-        bool succeeded = false;
-        bool ownerRetired = false;
+        bool accepted = false, pendingBeforeSwitch = false, completed = false;
+        bool succeeded = false, ownerRetired = false, armed = false;
+        bool identityMatched = false, writeError = false;
+        double priorPosition = -1, finalPosition = -1;
     };
     const auto vinylWriteObservation = std::make_shared<VinylFixtureWriteObservation>();
+    const auto armVinylPendingWrite = [vinylFixtureStores, vinylWriteObservation](bool shutdown) {
+        if (!vinylFixtureStores || vinylWriteObservation->armed) return false;
+        const QPointer<ProgressStore> outgoing(vinylFixtureStores->progressStore());
+        if (!outgoing || outgoing->get("music-session", "vinyl").isEmpty()) return false;
+        const quint64 generation = vinylWriteObservation->generation + 1;
+        *vinylWriteObservation = VinylFixtureWriteObservation{};
+        vinylWriteObservation->generation = generation;
+        vinylWriteObservation->armed = true;
+        const auto report = [vinylWriteObservation](const char *phase) {
+            const auto &o = *vinylWriteObservation;
+            qInfo().noquote() << "VinylPendingWrite" << QJsonDocument(QJsonObject{
+                {"phase", QString::fromLatin1(phase)}, {"accepted", o.accepted},
+                {"pendingBefore", o.pendingBeforeSwitch}, {"completed", o.completed},
+                {"succeeded", o.succeeded}, {"ownerRetired", o.ownerRetired},
+                {"identityMatched", o.identityMatched}, {"writeError", o.writeError},
+                {"priorPosition", o.priorPosition}, {"finalPosition", o.finalPosition}
+            }).toJson(QJsonDocument::Compact);
+        };
+        QObject::connect(outgoing, &QObject::destroyed, qApp,
+            [vinylWriteObservation, generation, report] {
+                if (vinylWriteObservation->generation != generation) return;
+                vinylWriteObservation->ownerRetired = true;
+                report("retired");
+            });
+        const auto boundary = [outgoing, vinylWriteObservation, generation, report] {
+            if (!outgoing || vinylWriteObservation->generation != generation) return;
+            vinylWriteObservation->armed = false;
+            auto session = outgoing->get("music-session", "vinyl");
+            auto resume = session.value("resume").toMap();
+            const auto queue = resume.value("queue").toList();
+            const auto editions = resume.value("editionTable").toList();
+            const int index = resume.value("queueIndex", -1).toInt();
+            const int edition = index >= 0 && index < queue.size()
+                ? queue.at(index).toMap().value("editionKey", -1).toInt() : -1;
+            const QString id = edition >= 0 && edition < editions.size()
+                ? editions.at(edition).toMap().value("id").toString() : QString();
+            auto music = outgoing->get("music", id);
+            const auto musicResume = music.value("resume").toMap();
+            const double prior = resume.value("position", -1).toDouble();
+            const double duration = resume.value("duration").toDouble();
+            if (id.isEmpty() || music.isEmpty() || prior < 0 || duration <= 7.5
+                || resume.value("trackId").toString().isEmpty()
+                || musicResume.value("trackId") != resume.value("trackId")
+                || musicResume.value("position") != resume.value("position")) {
+                vinylWriteObservation->writeError = true;
+                report("invalid-existing-checkpoint");
+                return;
+            }
+            outgoing->flush(); // The older checkpoint precedes the distinct final write.
+            vinylWriteObservation->identityMatched = true;
+            vinylWriteObservation->priorPosition = prior;
+            const double finalPosition = prior == 6.25 ? 7.5 : 6.25;
+            vinylWriteObservation->finalPosition = finalPosition;
+            resume.insert("position", finalPosition);
+            session.insert("resume", resume);
+            music.insert("resume", resume);
+            music.insert("progress", finalPosition / duration);
+            outgoing->recordSilent(music);
+            outgoing->recordSilent(session);
+            vinylWriteObservation->accepted = outgoing->requestDurableReceipt(
+                [vinylWriteObservation, generation, report](bool committed, const QString &error) {
+                    if (vinylWriteObservation->generation != generation) return;
+                    vinylWriteObservation->completed = true;
+                    vinylWriteObservation->succeeded = committed;
+                    vinylWriteObservation->writeError = !error.isEmpty();
+                    report("completed");
+                });
+            vinylWriteObservation->pendingBeforeSwitch = vinylWriteObservation->accepted
+                && !vinylWriteObservation->completed;
+            report("pending");
+        };
+        if (shutdown) {
+            QObject::connect(qApp, &QCoreApplication::aboutToQuit, outgoing,
+                             boundary, Qt::SingleShotConnection);
+        } else {
+            QObject::connect(vinylFixtureStores, &ProfileStoreRuntime::storesAboutToChange,
+                             outgoing, boundary, Qt::SingleShotConnection);
+        }
+        report("armed");
+        return true;
+    };
     auto vinylFixture = std::make_shared<VinylTestProfileController>(
         instanceAppData,
-        [vinylFixtureStores, vinylFixtureA, vinylFixtureB, vinylWriteObservation, instanceAppData](
+        [vinylFixtureStores, vinylFixtureA, vinylFixtureB, armVinylPendingWrite, instanceAppData](
             const QString &alias, bool withPendingWrite) {
             if (!vinylFixtureStores) return false;
             const QString targetId = alias == QLatin1String("A") ? vinylFixtureA : vinylFixtureB;
@@ -2167,31 +2247,7 @@ int main(int argc, char *argv[]) {
                 const auto targetPaths = ProfilePaths::account(targetId, instanceAppData);
                 if (!targetPaths || !QDir().mkpath(targetPaths->profileRoot())) return false;
             }
-            if (withPendingWrite) {
-                auto *outgoingProgress = vinylFixtureStores->progressStore();
-                if (!outgoingProgress) return false;
-                const quint64 requestGeneration = ++vinylWriteObservation->generation;
-                vinylWriteObservation->accepted = false;
-                vinylWriteObservation->pendingBeforeSwitch = false;
-                vinylWriteObservation->completed = false;
-                vinylWriteObservation->succeeded = false;
-                vinylWriteObservation->ownerRetired = false;
-                QObject::connect(outgoingProgress, &QObject::destroyed,
-                    vinylFixtureStores.data(), [vinylWriteObservation, requestGeneration] {
-                        if (vinylWriteObservation->generation == requestGeneration)
-                            vinylWriteObservation->ownerRetired = true;
-                    });
-                vinylWriteObservation->accepted = outgoingProgress->requestDurableReceipt(
-                    [vinylWriteObservation, requestGeneration](bool committed, const QString &) {
-                        // Observe only this request, never the incoming profile/store.
-                        if (vinylWriteObservation->generation != requestGeneration) return;
-                        vinylWriteObservation->completed = true;
-                        vinylWriteObservation->succeeded = committed;
-                    });
-                vinylWriteObservation->pendingBeforeSwitch = vinylWriteObservation->accepted
-                    && !vinylWriteObservation->completed;
-                if (!vinylWriteObservation->accepted) return false;
-            }
+            if (withPendingWrite && !armVinylPendingWrite(false)) return false;
             QString error; // Never return store paths or detailed errors over this fixture.
             if (alias == QLatin1String("local"))
                 return vinylFixtureStores->activateLocalOnlyProfile(&error);
@@ -2215,6 +2271,11 @@ int main(int argc, char *argv[]) {
             status.pendingWriteCompleted = vinylWriteObservation->completed;
             status.pendingWriteSucceeded = vinylWriteObservation->succeeded;
             status.pendingOwnerRetired = vinylWriteObservation->ownerRetired;
+            status.pendingWriteArmed = vinylWriteObservation->armed;
+            status.pendingIdentityMatched = vinylWriteObservation->identityMatched;
+            status.pendingWriteError = vinylWriteObservation->writeError;
+            status.pendingPriorPosition = vinylWriteObservation->priorPosition;
+            status.pendingFinalPosition = vinylWriteObservation->finalPosition;
             const auto &profile = vinylFixtureStores->activeProfile();
             if (profile.kind() == ProfilePaths::Kind::LocalOnly
                 || profile.kind() == ProfilePaths::Kind::LegacyLocal)
@@ -2230,7 +2291,7 @@ int main(int argc, char *argv[]) {
             status.activityHealthy = vinylFixtureStores->activityStore()
                 && vinylFixtureStores->activityStore()->healthy();
             return status;
-        });
+        }, [armVinylPendingWrite] { return armVinylPendingWrite(true); });
     lanistaServer->setVinylTestProfileHandler([vinylFixture](const QJsonObject &request) {
         return vinylFixture->execute(request);
     });

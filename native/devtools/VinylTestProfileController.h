@@ -22,16 +22,23 @@ public:
         bool pendingWriteCompleted = false;
         bool pendingWriteSucceeded = false;
         bool pendingOwnerRetired = false;
+        bool pendingWriteArmed = false;
+        bool pendingIdentityMatched = false;
+        bool pendingWriteError = false;
+        double pendingPriorPosition = -1;
+        double pendingFinalPosition = -1;
     };
     using ActivateCallback = std::function<bool(const QString &alias, bool withPendingWrite)>;
     using StatusCallback = std::function<Status()>;
+    using ArmShutdownCallback = std::function<bool()>;
     static constexpr const char *markerName = ".vinyl075-synthetic-fixture";
     static constexpr const char *markerContents = "vinyl075-synthetic-fixture-v1\n";
 
     VinylTestProfileController(QString actualAppDataRoot,
-                               ActivateCallback activate, StatusCallback status)
+                               ActivateCallback activate, StatusCallback status, ArmShutdownCallback armShutdown = {})
         : m_appDataRoot(std::move(actualAppDataRoot)),
-          m_activate(std::move(activate)), m_status(std::move(status)) {}
+          m_activate(std::move(activate)), m_status(std::move(status)),
+          m_armShutdown(std::move(armShutdown)) {}
 
     bool enabled() const {
         if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") != "1") return false;
@@ -86,11 +93,15 @@ public:
         const QString action = payload.value("action").toString();
         if (action != "status" && action != "activate-a"
             && action != "activate-b" && action != "activate-local"
-            && action != "activate-b-with-pending-write")
+            && action != "activate-b-with-pending-write" && action != "arm-shutdown-with-pending-write")
             return failure("invalid-action");
         if (!m_activate || !m_status) return failure("fixture-unbound");
         Status before = m_status();
         if (!validAlias(before.alias)) return failure("unrecognized-profile");
+        if (action == "arm-shutdown-with-pending-write") {
+            if (!m_armShutdown || !m_armShutdown()) return result(m_status(), false, "arming-failed");
+            return result(m_status(), true, "");
+        }
         if (action != "status") {
             const QString alias = action == "activate-a" ? "A"
                 : (action == "activate-b" || action == "activate-b-with-pending-write") ? "B" : "local";
@@ -135,10 +146,16 @@ private:
                 {"pendingBeforeSwitch", s.pendingBeforeSwitch},
                 {"pendingWriteCompleted", s.pendingWriteCompleted},
                 {"pendingWriteSucceeded", s.pendingWriteSucceeded},
-                {"pendingOwnerRetired", s.pendingOwnerRetired}};
+                {"pendingOwnerRetired", s.pendingOwnerRetired},
+                {"pendingWriteArmed", s.pendingWriteArmed},
+                {"pendingIdentityMatched", s.pendingIdentityMatched},
+                {"pendingWriteError", s.pendingWriteError},
+                {"pendingPriorPosition", s.pendingPriorPosition},
+                {"pendingFinalPosition", s.pendingFinalPosition}};
     }
     QString m_appDataRoot;
     ActivateCallback m_activate;
     StatusCallback m_status;
+    ArmShutdownCallback m_armShutdown;
     int m_generation = 0;
 };

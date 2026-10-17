@@ -113,13 +113,14 @@ void MpvItem::setupConnections()
             this, &MpvItem::onPropertyChanged, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::fileStarted,
-            this, &MpvItem::fileStarted, Qt::QueuedConnection);
+            this, [this] { m_decodeFileLoaded = false; Q_EMIT fileStarted(); }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::fileLoaded,
-            this, &MpvItem::fileLoaded, Qt::QueuedConnection);
+            this, [this] { m_decodeFileLoaded = true; Q_EMIT fileLoaded(); }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::endFile,
             this, [this](const QString &reason) {
+        m_decodeFileLoaded = false;
         Q_EMIT endFile(reason);
         if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
             // Installed MpvQt exposes only the coarse end-file reason string here;
@@ -130,7 +131,19 @@ void MpvItem::setupConnections()
     }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::videoReconfig,
-            this, &MpvItem::videoReconfig, Qt::QueuedConnection);
+            this, [this] {
+        // loadfile resets our cache, but mpv can coalesce unchanged dwidth/dheight
+        // across same-size replacements. Reconfiguration is the native decode
+        // boundary at which to refresh those values for a loaded source. The
+        // load/unload gate rejects prior-source queued reconfigurations. Do not
+        // infer dimensions from fileLoaded or source metadata.
+        // These bounded reads happen only on reconfiguration, never per frame.
+        if (m_decodeFileLoaded) {
+            onPropertyChanged(QStringLiteral("dwidth"), getProperty(QStringLiteral("dwidth")));
+            onPropertyChanged(QStringLiteral("dheight"), getProperty(QStringLiteral("dheight")));
+        }
+        Q_EMIT videoReconfig();
+    }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::asyncReply,
             this, &MpvItem::onAsyncReply, Qt::QueuedConnection);
@@ -309,6 +322,7 @@ void MpvItem::loadFileWithHeaders(const QString &url, const QVariantMap &headers
 
 void MpvItem::issueLoadFile(const QString &file)
 {
+    m_decodeFileLoaded = false; // queued prior-source reconfiguration cannot refill the reset cache
     auto url = QUrl::fromUserInput(file);
     if (m_currentUrl != url) {
         m_currentUrl = url;
@@ -317,9 +331,9 @@ void MpvItem::issueLoadFile(const QString &file)
 
     // A fresh `loadfile ... replace` starts a brand-new decode every time this runs, even when
     // the URL is unchanged (a replay). mpv only fires dwidth/dheight property-change events on a
-    // VALUE CHANGE, so a same-size reload would otherwise never re-announce them — leaving the
-    // stale prior dimensions reading "decoded" before the new file has decoded anything. Reset
-    // here, before the command goes out, so decodedWidth/decodedHeight always start at zero for
+    // VALUE CHANGE. The videoReconfig handler refreshes equal-size replacements; reset
+    // before the command goes out so stale prior dimensions cannot read "decoded" and
+    // decodedWidth/decodedHeight always start at zero for
     // this load (J1-Video-Seam's "ready_resets_on_unload"-style guarantee, at the native layer).
     if (m_decodedWidth != 0 || m_decodedHeight != 0) {
         m_decodedWidth = 0;
