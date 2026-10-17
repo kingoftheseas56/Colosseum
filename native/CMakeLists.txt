@@ -1067,7 +1067,9 @@ target_link_libraries(platform_services_harness PRIVATE Qt6::Core Qt6::Gui Qt6::
 if(WIN32)
     target_sources(platform_services_harness PRIVATE
         account/WindowsAccountCredentialStore.cpp
-        account/WindowsAccountCredentialStore.h)
+        account/WindowsAccountCredentialStore.h
+        account/WindowsAccountSensitiveClipboard.cpp
+        account/WindowsAccountSensitiveClipboard.h)
     target_link_libraries(platform_services_harness PRIVATE advapi32)
 endif()
 add_executable(tankoyomi_script_provider_transport_harness
