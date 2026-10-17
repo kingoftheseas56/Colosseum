@@ -36,6 +36,8 @@ QString VaultIdentity::computeId(const QString& path, qint64 size, qint64 mtimeM
 void VaultIdentity::load()
 {
     const QJsonObject doc = VaultStoreIo::load(m_dir, QStringLiteral("identity.json"));
+    m_recoverUnresolvedCandidates = doc.value("legacyAdmissionReview").toBool()
+        || (!doc.isEmpty() && !doc.value("pendingCeremonies").isArray());
 
     for (const auto& v : doc.value(QStringLiteral("entries")).toArray()) {
         const QJsonObject o = v.toObject();
@@ -63,8 +65,32 @@ void VaultIdentity::load()
         const QJsonObject o = v.toObject();
         const QString relationship = o.value(QStringLiteral("relationship")).toString();
         const QString choice = o.value(QStringLiteral("choice")).toString();
-        if (!relationship.isEmpty() && !choice.isEmpty())
-            m_decisions.insert(relationship, choice);
+        const bool valid = (relationship.startsWith("changed-content|")
+                            && (choice == "same-media" || choice == "new-media"))
+            || (relationship.startsWith("likely-copy|")
+                            && (choice == "use-existing-state" || choice == "separate-copy"));
+        if (valid) m_decisions.insert(relationship, choice);
+    }
+    // Registration is not consent: unresolved candidates must survive restart.
+    for (const auto& value : doc.value(QStringLiteral("pendingCeremonies")).toArray()) {
+        const auto o = value.toObject();
+        const QString type = o.value("type").toString();
+        const QString oldId = o.value("oldId").toString();
+        const QString newId = o.value("newId").toString();
+        const QString oldPath = o.value("oldPath").toString();
+        const QString newPath = o.value("newPath").toString();
+        const QString relationship = o.value("relationship").toString();
+        if ((type != QLatin1String("changed-content") && type != QLatin1String("likely-copy"))
+            || oldId == newId || !m_byId.contains(oldId) || !m_byId.contains(newId)
+            || oldPath.isEmpty() || newPath.isEmpty()
+            || relationship != relationshipKey(type, oldId, newPath)
+            || normalizePath(m_byId.value(newId).path) != normalizePath(newPath)
+            || normalizePath(m_byId.value(oldId).path) != normalizePath(oldPath)) {
+            m_recoverUnresolvedCandidates = true;
+            continue; // Cached admission below reconstructs malformed/legacy candidates.
+        }
+        if (!m_decisions.contains(relationship))
+            rememberPending({type, relationship, oldId, newId, oldPath, newPath});
     }
 }
 
@@ -73,6 +99,9 @@ void VaultIdentity::persist()
     if (m_deferPersist) { m_persistPending = true; return; }
     QJsonObject doc;
     doc.insert(QStringLiteral("version"), 1);
+    // Preserve legacy review across unrelated writes until every candidate has
+    // an explicit relationship decision; no admission is inferred from load.
+    if (m_recoverUnresolvedCandidates) doc.insert(QStringLiteral("legacyAdmissionReview"), true);
 
     QJsonArray entries;
     for (const Entry& e : m_byId) {
@@ -113,6 +142,11 @@ void VaultIdentity::persist()
         ceremonyDecisions.append(o);
     }
     doc.insert(QStringLiteral("ceremonyDecisions"), ceremonyDecisions);
+
+    QJsonArray pendingCeremonies;
+    for (const auto& fields : m_pending)
+        pendingCeremonies.append(QJsonObject::fromVariantMap(ceremonyMap(fields)));
+    doc.insert(QStringLiteral("pendingCeremonies"), pendingCeremonies);
 
     VaultStoreIo::save(m_dir, QStringLiteral("identity.json"), doc);
     emit changed();
@@ -187,11 +221,106 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
     const QString cid = computeId(path, size, mtimeMs);
     QVariantMap out;
     out.insert(QStringLiteral("id"), cid);
+    for (const auto& fields : m_pending) {
+        if (fields.size() >= 6 && (fields.at(3) == resolve(cid)
+                || normalizePath(fields.at(5)) == normalizePath(path))) {
+            const auto prompt = ceremonyMap(fields);
+            for (auto it = prompt.constBegin(); it != prompt.constEnd(); ++it) out.insert(it.key(), it.value());
+            return out;
+        }
+    }
     if (m_alias.contains(cid)) {
-        out[QStringLiteral("id")] = m_alias.value(cid);
+        const QString canonical = m_alias.value(cid);
+        if (m_recoverUnresolvedCandidates && m_byId.contains(canonical)) {
+            const auto candidate = m_byId.value(canonical);
+            // A legacy rename alias can still point at an unapproved candidate.
+            // Only block when conflicting registry facts demonstrate ambiguity;
+            // a plain unique rename remains admitted.
+            QSet<QString> visitedPaths{normalizePath(path)};
+            QStringList pendingPaths{normalizePath(path)};
+            QList<QStringList> provenance;
+            while (!pendingPaths.isEmpty()) {
+                const QString destination = pendingPaths.takeLast();
+                for (const auto& pa : m_pathAliases) {
+                    if (pa.size() != 2 || normalizePath(pa.at(1)) != destination) continue;
+                    provenance.append(pa);
+                    const QString predecessor = normalizePath(pa.at(0));
+                    if (!visitedPaths.contains(predecessor)) {
+                        visitedPaths.insert(predecessor);
+                        pendingPaths.append(predecessor);
+                    }
+                }
+            }
+            for (const auto& pa : provenance) {
+                for (const auto& other : m_byId) {
+                    if (other.id==canonical) continue;
+                    const bool changed = (normalizePath(other.path)==normalizePath(pa.at(0))
+                        || normalizePath(other.path)==normalizePath(path))
+                        && (other.size!=candidate.size || !withinMtimeTolerance(other.mtimeMs,candidate.mtimeMs));
+                    const bool copy = normalizePath(other.path)!=normalizePath(path)
+                        && other.size==candidate.size && other.mtimeMs==candidate.mtimeMs;
+                    if (!changed && !copy) continue;
+                    const QString type=changed ? QStringLiteral("changed-content") : QStringLiteral("likely-copy");
+                    const QString before=m_decisions.value(relationshipKey(type,other.id,pa.at(0)));
+                    const QString after=m_decisions.value(relationshipKey(type,other.id,path));
+                    const QString reverse=m_decisions.value(relationshipKey(type,canonical,other.path));
+                    const auto approved=[changed](const QString &choice) {
+                        return changed ? choice=="same-media" || choice=="new-media"
+                            : choice=="use-existing-state" || choice=="separate-copy";
+                    };
+                    bool hasApproval = approved(before) || approved(after) || approved(reverse);
+                    for (const auto& prior : provenance)
+                        hasApproval = hasApproval || approved(m_decisions.value(relationshipKey(type, other.id, prior.at(0))));
+                    if (hasApproval) continue;
+                    out[QStringLiteral("id")]=QString();
+                    out[QStringLiteral("error")]=QStringLiteral("This older library has ambiguous moved-file identities. Import is blocked to protect existing progress. Restore a known-good library backup before retrying.");
+                    return out;
+                }
+            }
+        }
+        out[QStringLiteral("id")] = canonical;
         return out;
     }
     if (m_byId.contains(cid)) {
+        // Older registries saved the candidate entry but dropped its pending
+        // ceremony. A known computed ID alone cannot approve such a candidate.
+        // Also reconstruct conservatively when a pending row was malformed.
+        QStringList ids = m_recoverUnresolvedCandidates ? m_byId.keys() : QStringList{};
+        ids.sort();
+        for (const auto& otherId : ids) {
+            if (otherId == cid) continue;
+            const auto other = m_byId.value(otherId);
+            bool unapprovedCandidate = false;
+            for (const auto& pending : m_pending)
+                if (pending.size() >= 6 && pending.at(3) == otherId) { unapprovedCandidate = true; break; }
+            if (unapprovedCandidate) continue;
+            const bool changed = normalizePath(other.path) == normalizePath(path)
+                && (other.size != size || !withinMtimeTolerance(other.mtimeMs, mtimeMs));
+            const bool copy = normalizePath(other.path) != normalizePath(path)
+                && other.size == size && other.mtimeMs == mtimeMs && QFileInfo(other.path).exists();
+            if (!changed && !copy) continue;
+            const QString type = changed ? QStringLiteral("changed-content") : QStringLiteral("likely-copy");
+            const QString relationship = relationshipKey(type, otherId, path);
+            const QString forward = m_decisions.value(relationship);
+            const QString reverse = m_decisions.value(relationshipKey(type, cid, other.path));
+            const auto approved = [changed](const QString& choice) {
+                return changed ? choice == QLatin1String("new-media") || choice == QLatin1String("same-media")
+                    : choice == QLatin1String("separate-copy") || choice == QLatin1String("use-existing-state");
+            };
+            if (approved(forward) || approved(reverse)) continue;
+            if (copy) {
+                // Old storage has no provenance telling which equal-signature
+                // copy was accepted first. Never invent a merge direction.
+                out[QStringLiteral("id")] = QString();
+                out[QStringLiteral("error")] = QStringLiteral("This older library has ambiguous copy identities. Import is blocked to protect existing progress. Restore a known-good library backup before retrying.");
+                return out;
+            }
+            const QStringList fields{type, relationship, otherId, cid, other.path, path};
+            rememberPending(fields); persist();
+            const auto prompt = ceremonyMap(fields);
+            for (auto it = prompt.constBegin(); it != prompt.constEnd(); ++it) out.insert(it.key(), it.value());
+            return out;
+        }
         m_byId[cid].path = path;
         return out;
     }
@@ -289,6 +418,31 @@ QVariantList VaultIdentity::pendingCeremonies() const
     return out;
 }
 
+bool VaultIdentity::decideFileCeremony(const QString& relationship, const QString& choice)
+{
+    const auto fields = m_pending.value(relationship);
+    if (fields.size() < 6) return false;
+    const QFileInfo current(fields.at(5));
+    if (!current.exists() || !current.isFile()) return false;
+    const auto currentId = computeId(fields.at(5), current.size(), current.lastModified().toMSecsSinceEpoch());
+    const auto candidate = m_byId.value(fields.at(3));
+    if (resolve(currentId) != fields.at(3) || candidate.size != current.size()
+        || candidate.mtimeMs != current.lastModified().toMSecsSinceEpoch()) {
+        // The user saw a different candidate. Discard only its unapproved
+        // registration, then let the same owner observe the current facts.
+        m_pending.remove(relationship);
+        if (!m_alias.contains(fields.at(3))) m_byId.remove(fields.at(3));
+        for (auto alias = m_alias.begin(); alias != m_alias.end(); ) {
+            if (alias.value() == fields.at(3)) alias = m_alias.erase(alias);
+            else ++alias;
+        }
+        observeFile(fields.at(5), current.size(), current.lastModified().toMSecsSinceEpoch());
+        persist();
+        return false;
+    }
+    return decideCeremony(relationship, choice);
+}
+
 bool VaultIdentity::decideCeremony(const QString& relationship, const QString& choice)
 {
     const auto it = m_pending.constFind(relationship);
@@ -315,6 +469,8 @@ bool VaultIdentity::decideCeremony(const QString& relationship, const QString& c
             candidateSize = m_byId.value(newId).size;
             candidateMtime = m_byId.value(newId).mtimeMs;
         }
+        for (auto alias = m_alias.begin(); alias != m_alias.end(); ++alias)
+            if (alias.value() == newId) alias.value() = oldId;
         m_alias.insert(newId, oldId);
         if (m_byId.contains(newId) && newId != oldId)
             m_byId.remove(newId);
@@ -460,6 +616,21 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
             m_alias.insert(candidate.cid, oldEntry.id);
             m_pathAliases.append({oldEntry.path, candidate.f.path});
             m_byId[oldEntry.id].path = candidate.f.path; // move the canonical entry's location
+            // Moving a registered candidate does not approve its pending identity.
+            const auto pendingBeforeMove = m_pending;
+            for (auto pending = pendingBeforeMove.constBegin(); pending != pendingBeforeMove.constEnd(); ++pending) {
+                auto fields = pending.value();
+                if (fields.size() < 6) continue;
+                if (fields.at(3) == oldEntry.id) {
+                    m_pending.remove(pending.key());
+                    fields[5] = candidate.f.path;
+                    fields[1] = relationshipKey(fields.at(0), fields.at(2), fields.at(5));
+                    rememberPending(fields);
+                } else if (fields.at(2) == oldEntry.id) {
+                    fields[4] = candidate.f.path;
+                    rememberPending(fields);
+                }
+            }
             result.migrated.append({oldEntry.id, candidate.cid, oldEntry.path, candidate.f.path});
             migratedFresh.insert(newIndexes.first());
         } else {

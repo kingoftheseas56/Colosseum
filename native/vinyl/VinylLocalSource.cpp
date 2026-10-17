@@ -72,6 +72,9 @@ QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
             ceremonies.append(observation);
             errors.append(QStringLiteral("This file needs an identity decision before import: %1").arg(path)); continue;
         }
+        if (!observation.value("error").toString().isEmpty()) {
+            errors.append(observation.value("error").toString()); continue;
+        }
         const auto trackId = observation.value("id").toString();
         if (trackId.isEmpty() || seen.contains(trackId)) continue;
         seen.insert(trackId);
@@ -90,7 +93,7 @@ QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
     return {{"albums",albums},{"errors",errors},{"replacedManifestPaths",replacedManifestPaths},{"identityCeremonies",ceremonies}};
 }
 bool VinylLocalSource::decideImportIdentity(const QString &relationship, const QString &choice) {
-    return m_identity && m_identity->decideCeremony(relationship, choice);
+    return m_identity && m_identity->decideFileCeremony(relationship, choice);
 }
 QVariantList VinylLocalSource::importManifest(const QString &path, QString *error, QVariantList *ceremonies) {
     auto fail = [&](const QString &message) -> QVariantList {
@@ -271,7 +274,8 @@ QVariantList VinylLocalSource::importManifest(const QString &path, QString *erro
         const auto observation = observations.at(i);
         if (observation.value("prompt").toBool() || observation.value("id").toString().isEmpty()) {
             if (observation.value("prompt").toBool()) ceremonies->append(observation);
-            return fail("a file needs an identity decision before import");
+            return fail(observation.value("error").toString().isEmpty()
+                ? QStringLiteral("a file needs an identity decision before import") : observation.value("error").toString());
         }
         fileIds.insert(facts.at(i).path,observation.value("id").toString());
     }

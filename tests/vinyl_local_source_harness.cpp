@@ -5,6 +5,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QDateTime>
+#include <QDataStream>
+#include <QProcess>
 #include <QDir>
 #include <QUrl>
 #include <QDebug>
@@ -18,6 +20,19 @@
 
 int main(int argc, char **argv) {
     QCoreApplication app(argc,argv);
+    const auto args=app.arguments();
+    if(args.size()>=5 && (args.at(1)=="--cold-pending" || args.at(1)=="--cold-accepted")) {
+        VaultIdentity owner(args.at(2));VinylLocalSource local(&owner);const auto result=local.importFiles({args.at(3)});
+        if(args.at(1)=="--cold-pending") {
+            const auto prompts=result.value("identityCeremonies").toList();
+            if(!result.value("albums").toList().isEmpty() || prompts.size()!=1 || prompts.first().toMap().value("oldId")!=args.at(4)) return 11;
+        } else {
+            const auto albums=result.value("albums").toList();
+            if(!result.value("errors").toStringList().isEmpty() || albums.size()!=1
+                || albums.first().toMap().value("tracks").toList().first().toMap().value("id")!=args.at(4)) return 12;
+        }
+        return 0;
+    }
     QTemporaryDir temp;
     int checks=0;
     auto check=[&](bool ok,const char *name) { ++checks; if (!ok) { qCritical()<<"FAIL"<<name; ::exit(1); } };
@@ -287,6 +302,184 @@ int main(int argc, char **argv) {
         QElapsedTimer timer; timer.start(); const auto largeResult=largeSource.importFiles({largeFile.fileName()});
         qInfo()<<"BENCHMARK"<<benchmarkCount<<"fresh tracks import milliseconds"<<timer.elapsed()<<"errors"<<largeResult.value("errors");
         check(largeResult.value("errors").toStringList().isEmpty(),"large catalogue import");
+    }
+    // Persisted/legacy/malformed unresolved candidates must never become consent.
+    auto writePcm = [&](const QString &name, int frames) {
+        QFile output(name); check(output.open(QIODevice::WriteOnly),"write valid cold-identity PCM");
+        QDataStream pcm(&output);pcm.setByteOrder(QDataStream::LittleEndian);
+        pcm.writeRawData("RIFF",4);pcm << quint32(36+frames*2);pcm.writeRawData("WAVEfmt ",8);
+        pcm << quint32(16) << quint16(1) << quint16(1) << quint32(8000) << quint32(16000) << quint16(2) << quint16(16);
+        pcm.writeRawData("data",4);pcm << quint32(frames*2);
+        for(int n=0;n<frames;++n) pcm << qint16(n%2 ? 1000 : -1000);
+    };
+    for (const bool copy : {false,true}) for (const bool share : {false,true})
+    for (const QString mode : {QStringLiteral("persisted"),QStringLiteral("legacy"),QStringLiteral("malformed")}) {
+        QTemporaryDir cold; const QString registry=cold.path()+"/vault";
+        const QString original=cold.path()+"/original.wav", candidate=copy ? cold.path()+"/copy.wav" : original;
+        writePcm(original,160);QString oldId,newId,relationship;
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            const auto first=local.importFiles({original}).value("albums").toList();check(first.size()==1,"cold identity original imports");
+            oldId=first.first().toMap().value("tracks").toList().first().toMap().value("id").toString();
+            if(copy) {
+                check(QFile::copy(original,candidate),"copy valid PCM");QFile target(candidate);check(target.open(QIODevice::ReadWrite),"open copied PCM");
+                check(target.setFileTime(QFileInfo(original).lastModified(),QFileDevice::FileModificationTime),"preserve copy signature");target.close();
+            } else writePcm(candidate,320);
+            const auto pending=local.importFiles({candidate});check(pending.value("albums").toList().isEmpty(),"cold identity initially blocks candidate");
+            const auto prompts=pending.value("identityCeremonies").toList();check(prompts.size()==1,"cold identity initially offers decision");
+            const auto prompt=prompts.first().toMap();newId=prompt.value("newId").toString();relationship=prompt.value("relationship").toString();
+        } // Cancel/defer: no decideCeremony call before destruction.
+        if(mode!="persisted") {
+            QFile store(registry+"/identity.json");check(store.open(QIODevice::ReadOnly),"read cold identity storage");auto json=QJsonDocument::fromJson(store.readAll()).object();store.close();
+            if(mode=="legacy") json.remove("pendingCeremonies");
+            else json.insert("pendingCeremonies",QJsonArray{QJsonObject{{"type","invalid"},{"newId",newId}}});
+            check(store.open(QIODevice::WriteOnly|QIODevice::Truncate),"write legacy or malformed identity storage");store.write(QJsonDocument(json).toJson());store.close();
+        }
+        if(copy && mode!="persisted") {
+            for(const auto &observed : {original,candidate}) {
+                VaultIdentity owner(registry);VinylLocalSource local(&owner);
+                const auto blocked=local.importFiles({observed});
+                check(blocked.value("albums").toList().isEmpty() && blocked.value("identityCeremonies").toList().isEmpty(),"ambiguous legacy copy neither admits nor fabricates decision direction");
+                check(blocked.value("errors").toStringList().join(" ").contains("ambiguous copy identities"),"legacy copy block provides actionable explanation");
+                check(owner.resolve(oldId)==oldId && owner.resolve(newId)==newId,"legacy copy block preserves both canonical identities");
+                check(!owner.decideCeremony(relationship,"use-existing-state"),"legacy copy cannot redirect canonical progress without provenance");
+            }
+            continue;
+        }
+        check(QProcess::execute(QCoreApplication::applicationFilePath(),{"--cold-pending",registry,candidate,oldId})==0,"fresh process cancelled candidate reprompts without adoption");
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            const auto pending=local.importFiles({candidate});check(pending.value("albums").toList().isEmpty(),"cold cancelled candidate never silently admitted");
+            const auto prompts=pending.value("identityCeremonies").toList();check(prompts.size()==1,"cold cancelled candidate reprompts");
+            const auto prompt=prompts.first().toMap();check(prompt.value("oldId")==oldId && prompt.value("newId")==newId,"cold prompt retains exact original and candidate identities");
+            relationship=prompt.value("relationship").toString();
+        }
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            check(local.importFiles({candidate}).value("albums").toList().isEmpty(),"second cold defer remains blocked");
+            const QString choice=copy ? (share ? "use-existing-state" : "separate-copy") : (share ? "same-media" : "new-media");
+            check(owner.decideCeremony(relationship,choice),"cold decision accepted by existing identity owner");
+        }
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            const auto accepted=local.importFiles({candidate});check(accepted.value("errors").toStringList().isEmpty(),"accepted choice survives cold restart");
+            const auto records=accepted.value("albums").toList();check(records.size()==1,"accepted candidate imports after restart");
+            const auto acceptedId=records.first().toMap().value("tracks").toList().first().toMap().value("id").toString();
+            check(acceptedId==(share ? oldId : newId),"cold shared versus separate canonical identity preserved");
+            check(owner.pendingCeremonies().isEmpty(),"accepted cold decision clears pending state");
+        }
+        check(QProcess::execute(QCoreApplication::applicationFilePath(),{"--cold-accepted",registry,candidate,share ? oldId : newId})==0,"fresh process preserves accepted canonical choice");
+    }
+    {
+        QTemporaryDir changedAgain;const QString registry=changedAgain.path()+"/vault",path=changedAgain.path()+"/again.wav";
+        writePcm(path,160);VaultIdentity owner(registry);VinylLocalSource local(&owner);
+        const auto original=local.importFiles({path}).value("albums").toList().first().toMap();
+        const auto oldId=original.value("tracks").toList().first().toMap().value("id").toString();
+        writePcm(path,320);const auto first=local.importFiles({path}).value("identityCeremonies").toList().first().toMap();
+        writePcm(path,480);
+        check(!local.decideImportIdentity(first.value("relationship").toString(),"same-media"),"stale candidate choice rejected after further replacement");
+        const auto retried=local.importFiles({path});check(retried.value("albums").toList().isEmpty(),"further replacement requires fresh decision");
+        const auto prompt=retried.value("identityCeremonies").toList().first().toMap();
+        check(prompt.value("oldId")==oldId && prompt.value("newId")!=first.value("newId"),"fresh prompt preserves original and updates candidate identity");
+        check(local.decideImportIdentity(prompt.value("relationship").toString(),"same-media"),"fresh replacement choice accepted");
+        check(local.importFiles({path}).value("albums").toList().first().toMap().value("id")==original.value("id"),"fresh accepted replacement retains old canonical media");
+    }
+    {
+        QTemporaryDir legacy;const QString registry=legacy.path()+"/vault";QStringList paths,oldIds;
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            for(int n=0;n<2;++n) {
+                const QString path=legacy.path()+QString("/legacy-%1.wav").arg(n);paths.append(path);writePcm(path,160+n*20);
+                oldIds.append(local.importFiles({path}).value("albums").toList().first().toMap().value("tracks").toList().first().toMap().value("id").toString());
+                writePcm(path,320+n*20);check(local.importFiles({path}).value("albums").toList().isEmpty(),"multiple legacy candidates initially blocked");
+            }
+        }
+        QFile store(registry+"/identity.json");check(store.open(QIODevice::ReadOnly),"read multiple legacy candidates");auto json=QJsonDocument::fromJson(store.readAll()).object();store.close();json.remove("pendingCeremonies");
+        check(store.open(QIODevice::WriteOnly|QIODevice::Truncate),"write multiple legacy candidates");store.write(QJsonDocument(json).toJson());store.close();
+        check(QProcess::execute(QCoreApplication::applicationFilePath(),{"--cold-pending",registry,paths[0],oldIds[0]})==0,"first legacy recovery persists its prompt");
+        check(QProcess::execute(QCoreApplication::applicationFilePath(),{"--cold-pending",registry,paths[1],oldIds[1]})==0,"second legacy candidate remains blocked across recovery write and restart");
+    }
+    for(const bool share : {false,true}) {
+        QTemporaryDir movedPending;const QString registry=movedPending.path()+"/vault";
+        const QString original=movedPending.path()+"/pending.wav",moved=movedPending.path()+"/moved.wav";
+        QString oldId,candidateId;
+        writePcm(original,160);
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            oldId=local.importFiles({original}).value("albums").toList().first().toMap().value("tracks").toList().first().toMap().value("id").toString();
+            writePcm(original,320);const auto prompt=local.importFiles({original}).value("identityCeremonies").toList().first().toMap();candidateId=prompt.value("newId").toString();
+            check(QFile::rename(original,moved),"rename deferred candidate");const QFileInfo facts(moved);
+            owner.reconcile({{moved,facts.size(),facts.lastModified().toMSecsSinceEpoch()}});
+            check(local.importFiles({moved}).value("albums").toList().isEmpty(),"rename alias cannot admit pending candidate");
+        }
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            const auto pending=local.importFiles({moved});check(pending.value("albums").toList().isEmpty(),"cold renamed candidate remains blocked");
+            const auto prompt=pending.value("identityCeremonies").toList().first().toMap();
+            check(prompt.value("oldId")==oldId && prompt.value("newId")==candidateId && prompt.value("newPath")==moved,"renamed pending retains original identities at current path");
+            check(local.decideImportIdentity(prompt.value("relationship").toString(),share ? "same-media" : "new-media"),"renamed pending accepts current-file decision");
+            const auto accepted=local.importFiles({moved}).value("albums").toList();check(accepted.size()==1,"renamed decided candidate imports");
+            check(accepted.first().toMap().value("tracks").toList().first().toMap().value("id")== (share ? oldId : candidateId),"renamed decision keeps one-hop canonical alias semantics");
+        }
+        check(QProcess::execute(QCoreApplication::applicationFilePath(),{"--cold-accepted",registry,moved,share ? oldId : candidateId})==0,"renamed accepted identity survives fresh process");
+    }
+    for(const bool ambiguous : {false,true}) for(const bool twoMoves : {false,true}) for(const bool cycle : {false,true}) {
+        QTemporaryDir legacyMove;const QString registry=legacyMove.path()+"/vault";
+        const QString path=legacyMove.path()+"/prior.wav",intermediate=legacyMove.path()+"/intermediate.wav",moved=legacyMove.path()+"/current.wav";QString oldId,candidateId;
+        writePcm(path,160);
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);
+            oldId=local.importFiles({path}).value("albums").toList().first().toMap().value("tracks").toList().first().toMap().value("id").toString();
+            if(ambiguous) {writePcm(path,320);candidateId=local.importFiles({path}).value("identityCeremonies").toList().first().toMap().value("newId").toString();}
+            if(twoMoves) {
+                check(QFile::rename(path,intermediate),"first legacy admission rename");
+                const QFileInfo facts(intermediate);owner.reconcile({{intermediate,facts.size(),facts.lastModified().toMSecsSinceEpoch()}});
+            }
+            check(QFile::rename(twoMoves ? intermediate : path,moved),"rename legacy admission fixture");const QFileInfo facts(moved);owner.reconcile({{moved,facts.size(),facts.lastModified().toMSecsSinceEpoch()}});
+        }
+        QFile file(registry+"/identity.json");check(file.open(QIODevice::ReadOnly),"read legacy rename snapshot");auto json=QJsonDocument::fromJson(file.readAll()).object();file.close();json.remove("pendingCeremonies");
+        if(cycle) {
+            auto aliases=json.value("pathAliases").toArray();
+            aliases.append(QJsonObject{{"oldPath",moved},{"newPath",path}});
+            json.insert("pathAliases",aliases);
+        }
+        check(file.open(QIODevice::WriteOnly|QIODevice::Truncate),"write legacy rename snapshot");file.write(QJsonDocument(json).toJson());file.close();
+        VaultIdentity owner(registry);VinylLocalSource local(&owner);const auto result=local.importFiles({moved});
+        if(ambiguous) {
+            check(result.value("albums").toList().isEmpty() && result.value("errors").toStringList().join(" ").contains("ambiguous moved-file identities"),"legacy alias cannot silently admit unresolved renamed candidate");
+            check(owner.resolve(oldId)==oldId && owner.resolve(candidateId)==candidateId,"blocked legacy alias preserves canonical entries");
+        } else {
+            check(result.value("errors").toStringList().isEmpty() && result.value("albums").toList().size()==1,"ordinary legacy unique rename remains playable");
+            check(result.value("albums").toList().first().toMap().value("tracks").toList().first().toMap().value("id")==oldId,"ordinary legacy rename retains canonical identity");
+        }
+    }
+    {
+        QTemporaryDir approvedMove;const QString registry=approvedMove.path()+"/vault";
+        const QString original=approvedMove.path()+"/original.wav", path=approvedMove.path()+"/copy.wav", middle=approvedMove.path()+"/middle.wav", moved=approvedMove.path()+"/moved.wav";
+        QString copyId;
+        writePcm(original,160);check(QFile::copy(original,path),"copy approved legacy fixture");
+        QFile copied(path);check(copied.open(QIODevice::ReadWrite),"open copy to preserve signature");
+        check(copied.setFileTime(QFileInfo(original).lastModified(),QFileDevice::FileModificationTime),"preserve copy signature");copied.close();
+        {
+            VaultIdentity owner(registry);VinylLocalSource local(&owner);local.importFiles({original});
+            const auto prompt=local.importFiles({path}).value("identityCeremonies").toList().first().toMap();copyId=prompt.value("newId").toString();
+            check(local.decideImportIdentity(prompt.value("relationship").toString(),"separate-copy"),"approve separate copy before renames");
+            check(QFile::rename(path,middle),"first approved copy rename");
+            check(QFile::rename(middle,moved),"second approved copy rename");
+        }
+        QFile file(registry+"/identity.json");check(file.open(QIODevice::ReadOnly),"read approved legacy snapshot");auto json=QJsonDocument::fromJson(file.readAll()).object();file.close();json.remove("pendingCeremonies");
+        // Persisted legacy provenance fixture: two rename aliases for the
+        // already approved distinct copy, with its original still present.
+        auto entries=json.value("entries").toArray();
+        for(qsizetype i=0;i<entries.size();++i) {auto entry=entries.at(i).toObject();if(entry.value("id").toString()==copyId) {entry.insert("path",moved);entries[i]=entry;}}
+        json.insert("entries",entries);
+        const QFileInfo movedFacts(moved);
+        json.insert("aliases",QJsonArray{QJsonObject{{"computed",VaultIdentity::computeId(moved,movedFacts.size(),movedFacts.lastModified().toMSecsSinceEpoch())},{"canonical",copyId}}});
+        json.insert("pathAliases",QJsonArray{QJsonObject{{"oldPath",path},{"newPath",middle}},QJsonObject{{"oldPath",middle},{"newPath",moved}}});
+        check(file.open(QIODevice::WriteOnly|QIODevice::Truncate),"write approved legacy snapshot");file.write(QJsonDocument(json).toJson());file.close();
+        VaultIdentity owner(registry);VinylLocalSource local(&owner);const auto result=local.importFiles({moved});
+        check(result.value("errors").toStringList().isEmpty() && result.value("albums").toList().size()==1,"approved legacy copy remains admitted after two renames");
+        check(result.value("albums").toList().first().toMap().value("tracks").toList().first().toMap().value("id")==copyId,"approved legacy copy preserves distinct canonical identity");
     }
     qInfo()<<"PASS vinyl_local_source_harness"<<checks<<"checks"; return 0;
 }
