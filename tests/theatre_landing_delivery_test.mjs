@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {publishLandingCatalogues} from '../server/content-api/projection/landing_catalogue.mjs';
+import {selectionKey} from '../server/content-api/src/catalogue-prebuilt.ts';
+import {fileURLToPath} from 'node:url';
 
 const strip=s=>s.replace(/^\.(pragma|import).*$/gm,'');
 const source=name=>strip(fs.readFileSync(new URL('../qml/'+name,import.meta.url),'utf8'));
@@ -17,7 +20,7 @@ function moduleUnderTest(){
  return {mod,live};
 }
 function signal(){const slots=new Set();return{connect:f=>slots.add(f),disconnect:f=>slots.delete(f),emit:(...args)=>[...slots].forEach(f=>f(...args)),get size(){return slots.size;}};}
-function fixture(mod,tab,{legacy=false}={}){
+function fixture(mod,tab,{legacy=false,bundle=null}={}){
  const method=tab==='anime'?'animeCatalog':'titleCatalog';
  const key=args=>JSON.stringify(args),cache=new Map(),reads=[],misses=[];
  let status='pending',error='',cached=false,landingReads=0;
@@ -28,6 +31,7 @@ function fixture(mod,tab,{legacy=false}={}){
   landingState(requested){assert.equal(requested,tab);return{source:'remote',key:'landing:'+tab,status,error,cached,enabled:true,retryable:status==='failure'};}
  };
  function prime(){
+  if(bundle){for(const q of bundle.queries)cache.set(key(q.args),q.result);return;}
   let defs=mod.Rules.defaultRows(tab);if(tab==='movies')defs=defs.concat(mod.Rules.dailyRows(now,6));
   for(const def of defs)for(const q of tab==='anime'?mod.animeQueriesFor(def.recipe):mod.Rules.indexQueriesFor(def.recipe)){
    const row=tab==='anime'?{mal_id:1,title:'Anime fixture',images:{jpg:{large_image_url:'poster'}},genres:[],score:8,members:100000}:{tt:'tt1',type:tab==='movies'?'movie':'series',title:'IMDb fixture',genres:[],year:2026,rating:8,votes:300000};
@@ -94,6 +98,33 @@ test('rotation is UTC and remote reads use the same supplied day as initial rows
  const f=fixture(mod,'movies');
  const cancel=mod.loadCatalogPage('movies',{imdbCatalog:f.cat,nowMs:now},()=>{});f.succeed();
  assert.equal(f.misses.length,0,'initial and remotePage findDef share the pinned day');cancel();
+});
+
+test('one published movie bundle primes stable rows while later UTC days fetch their own daily queries',async()=>{
+ const bundles=[];
+ await publishLandingCatalogues({date:'2026-10-16',qmlRoot:fileURLToPath(new URL('../qml/',import.meta.url)),
+  queryFn:async()=>[{tt:'tt1',type:'movie',title:'Published fixture',genres:[],year:2026,rating:8,votes:300000}],
+  fixed:(_dataset,_method,_args,bundle)=>bundles.push(bundle)});
+ const bundle=bundles.find(b=>b.tab==='movies');
+ const primed=new Set(bundle.queries.map(q=>selectionKey('imdb',q.method,q.args)));
+ const days=[];
+ for(const day of ['2026-10-16','2026-10-17','2027-01-01']){
+  const {mod}=moduleUnderTest(),f=fixture(mod,'movies',{bundle});
+  const nowMs=Date.parse(day+'T12:00:00Z');
+  assert.ok(bundle.validFrom<=day && day<bundle.validUntil);
+  const daily=mod.Rules.dailyRows(nowMs,6);
+  const expected=new Set(daily.flatMap(def=>mod.Rules.indexQueriesFor(def.recipe))
+   .map(q=>selectionKey('imdb','titleCatalog',[q,0,mod.PREVIEW_ROW_CAP])).filter(k=>!primed.has(k)));
+  const cancel=mod.loadCatalogPage('movies',{imdbCatalog:f.cat,nowMs},()=>{});
+  assert.equal(f.reads.length,0);f.succeed();await tick();
+  const missed=new Set(f.misses.map(args=>selectionKey('imdb','titleCatalog',args)));
+  assert.ok(missed.size>0);
+  assert.deepEqual(missed,expected,'only the current day daily-only queries miss and enter individual delivery');
+  assert.ok(f.reads.some(args=>primed.has(selectionKey('imdb','titleCatalog',args))));
+  days.push(Array.from(daily,row=>row.key));
+  cancel();assert.equal(f.cat.remoteQueryChanged.size,0);
+ }
+ assert.notDeepEqual(days[0],days[1]);
 });
 
 for (const tab of ['movies','shows','anime'])test(tab+': configured API never gates a ready local SQLite owner',()=>{
