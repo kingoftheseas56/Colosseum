@@ -122,6 +122,8 @@ int main(int argc, char **argv) {
     QString pub = hash("publication-one"), source(64, 'a'), leaf;
     int gets = 0, posts = 0;
     bool offline = false, holdLeaf = false, rotateMissing = false;
+    int retiredStatus = 404;
+    QString rotatedLabel = "publication-hot-update";
     bool delayBuckets = false;
     int liveBuckets = 0, peakBuckets = 0;
     QSet<QString> delayedPaths;
@@ -436,8 +438,8 @@ int main(int argc, char **argv) {
                 }
                 if (rotateMissing && path == leaf) {
                     rotateMissing = false;
-                    publish("publication-hot-update");
-                    status = 404;
+                    publish(rotatedLabel);
+                    status = retiredStatus;
                     body.clear();
                 }
                 if (holdLeaf && path == leaf) {
@@ -1379,6 +1381,18 @@ int main(int argc, char **argv) {
     require(switched.status == StaticCatalogueResolver::Status::Prepared &&
                 switched.result.toArray().at(0).toObject().value("title") == "publication-hot-update",
             "retired shard triggers one entry refresh and completes from the new publication");
+    // The deployed Worker answers an unknown non-asset path with 401 (its lease
+    // gate), not 404. A retired shard must still trigger the one refresh.
+    publish("publication-before-hot-update-401");
+    rotatedLabel = "publication-hot-update-401";
+    retiredStatus = 401;
+    rotateMissing = true;
+    auto *hot401 = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("hot-update-401"), &app);
+    const auto switched401 = resolve(hot401);
+    require(switched401.status == StaticCatalogueResolver::Status::Prepared &&
+                switched401.result.toArray().at(0).toObject().value("title") ==
+                    "publication-hot-update-401",
+            "retired shard answered 401 also refreshes the entry and completes");
     require(QJsonDocument::fromVariant(measured).isArray(), "measurement rows available");
     if (argc > 1) {
         QFile report(QString::fromLocal8Bit(argv[1]));

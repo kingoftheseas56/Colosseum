@@ -942,6 +942,11 @@ struct StaticCatalogueResolver::Impl {
                 r->deleteLater();
             }
     }
+    // A retired immutable path: the deployed Worker answers paths no longer in
+    // its assets with 401 (lease gate) rather than 404/410.
+    static bool retiredPath(const QString &error) {
+        return error == "STATIC_HTTP_404" || error == "STATIC_HTTP_410" || error == "STATIC_HTTP_401";
+    }
     QString pub() const {
         return entry.value("revision").toString();
     }
@@ -1618,7 +1623,7 @@ struct StaticCatalogueResolver::Impl {
                         // Revalidate once; an unchanged/malformed publication
                         // still fails, never becomes empty or SQL fallback.
                         if (!job->refreshedMissing &&
-                            (error == "STATIC_HTTP_404" || error == "STATIC_HTTP_410")) {
+                            retiredPath(error)) {
                             job->refreshedMissing = true;
                             checked = {};
                             ensure(id);
@@ -1642,7 +1647,7 @@ struct StaticCatalogueResolver::Impl {
             j->evaluationMs += evalClock.nsecsElapsed() / 1e6;
             evaluation.finish("failure", {{"reason", why}});
             if (j->bucketPrefetched && !j->refreshedMissing &&
-                (why == "STATIC_HTTP_404" || why == "STATIC_HTTP_410")) {
+                retiredPath(why)) {
                 j->refreshedMissing = true;
                 checked = {};
                 resetBuckets(j);
