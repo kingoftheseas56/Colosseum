@@ -53,21 +53,6 @@ Column {
     property real viewportTop: 0
     property real viewportHeight: 0
 
-    // A newly visible Column child still has y=0 until positioning runs.
-    // Coalesce admissions and lay out the column before deciding which shelves
-    // are near; otherwise every arriving shelf permanently marks itself built.
-    Timer {
-        id: shelfBuildTimer
-        interval: 0
-        onTriggered: {
-            comicsTab.forceLayout()
-            for (var i = 0; i < shelfRepeater.count; i++) {
-                var slot = shelfRepeater.itemAt(i)
-                if (slot && slot.visible && slot.near) slot.built = true
-            }
-        }
-    }
-
     signal westernRequested(string title)
     signal westernExploreRequested(var box)
     signal comicSeriesRequested(var d)
@@ -132,9 +117,9 @@ Column {
             readonly property bool near: comicsTab.viewportHeight <= 0
                 || (shelfSlot.y < comicsTab.viewportTop + 2 * comicsTab.viewportHeight
                     && shelfSlot.y + shelfSlot.height > comicsTab.viewportTop - comicsTab.viewportHeight)
-            onNearChanged: shelfBuildTimer.restart()
-            onVisibleChanged: shelfBuildTimer.restart()
-            Component.onCompleted: shelfBuildTimer.restart()
+            onNearChanged: if (shelfSlot.visible && shelfSlot.near) shelfSlot.built = true
+            onVisibleChanged: if (shelfSlot.visible && shelfSlot.near) shelfSlot.built = true
+            Component.onCompleted: if (shelfSlot.visible && shelfSlot.near) shelfSlot.built = true
 
             Loader {
                 width: parent.width

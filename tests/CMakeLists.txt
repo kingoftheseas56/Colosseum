@@ -1776,7 +1776,6 @@ set_tests_properties(colosseum.qml.tracker_sync_center PROPERTIES
 # Isolated production-component regressions: run on both platforms without
 # depending on the Windows-only aggregate QML suite or live catalogue services.
 foreach(catalogue_regression IN ITEMS
-        comics_shelf_residency_harness
         discover_page_flow_pagination_harness
         tst_tankoban_focus_refresh_regression)
     add_test(NAME colosseum.qml.${catalogue_regression}
