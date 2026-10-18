@@ -769,7 +769,7 @@ jobs:
           subprocess.run(["git", "merge-base", "--is-ancestor", compiled, "HEAD"], check=True)
           assert not git("status", "--porcelain"), "Qualification source must be clean"
           changed = set(filter(None, git("diff", "--name-only", compiled, "HEAD").splitlines()))
-          allowed = {".github/workflows/desktop-ci.yml", "tests/b1_native_catalogue_qualification.py", "tests/b1_native_addon_qualification.py"}
+          allowed = {".github/workflows/desktop-ci.yml", "tests/b1_native_catalogue_qualification.py", "tests/b1_native_addon_qualification.py", "qml/MangaTankobanLibrary.qml", "tests/tst_tankoban_focus_refresh_regression.qml"}
           assert changed <= allowed, f"Compiled-source mismatch: {sorted(changed - allowed)}"
           expected = {
               "colosseum": "acb86ce66202531629c137f8706d8d873c3065df8a08867cbeb8bd60eafaa677",
@@ -794,6 +794,12 @@ jobs:
               (build / name).chmod(0o755)
           receipt = {
               "compiledSourceCommit": compiled,
+              "compiledNativeSourceCommit": compiled,
+              "runtimeQmlSourceCommit": git("rev-parse", "HEAD"),
+              "nativeReuseMode": "verified-native-with-refreshed-filesystem-qml",
+              "priorQmlManifestSha256": expected["qml-build.manifest"],
+              "originalManifestSha256": expected["qml-build.manifest"],
+              "priorQmlTreeSha256": "7c3164beabbd4135fea3389f04db33cb5d52ece0169fcb79e8806b38fe22768b",
               "qualificationSourceCommit": git("rev-parse", "HEAD"),
               "binarySha256": expected["colosseum"], "lanistaSha256": expected["lanista"],
               "qmlManifestSha256": expected["qml-build.manifest"],
@@ -808,7 +814,27 @@ jobs:
           cmake "-DQML_ROOT=$GITHUB_WORKSPACE/qml" \
             "-DOUTPUT_FILE=$RUNNER_TEMP/b1-evidence/current-qml.manifest" \
             -P native/bootstrap/write_qml_build_manifest.cmake
-          cmp "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" "$RUNNER_TEMP/b1-evidence/current-qml.manifest"
+          # Production runtime_ready uses this same helper for QML-only updates.
+          # Preserve the original binding and explicitly record the new runtime binding.
+          cp "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" "$RUNNER_TEMP/b1-evidence/prior-qml.manifest"
+          cp "$RUNNER_TEMP/b1-evidence/current-qml.manifest" "$COLOSSEUM_LINUX_BUILD/qml-build.manifest"
+          python - <<'PYQML'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          path = root / "b1-evidence/compiled-provenance.json"
+          receipt = json.loads(path.read_text())
+          manifest = (root / "b1-evidence/current-qml.manifest").read_bytes()
+          values = dict(line.split("=", 1) for line in manifest.decode().splitlines())
+          assert values["schema"] == "1" and len(values["qmlTreeSha256"]) == 64
+          receipt["qmlManifestSha256"] = hashlib.sha256(manifest).hexdigest()
+          receipt["currentQmlManifestSha256"] = receipt["qmlManifestSha256"]
+          receipt["runtimeQmlTreeSha256"] = values["qmlTreeSha256"]
+          receipt["runtimeQmlManifestGenerator"] = "native/bootstrap/write_qml_build_manifest.cmake"
+          receipt["runtimeQmlManifestGeneratorSha256"] = hashlib.sha256(pathlib.Path(receipt["runtimeQmlManifestGenerator"]).read_bytes()).hexdigest()
+          assert subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() == receipt["runtimeQmlSourceCommit"]
+          assert not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
+          path.write_text(json.dumps(receipt, indent=2) + "\n")
+          PYQML
           sha256sum "$COLOSSEUM_LINUX_BUILD/colosseum" "$COLOSSEUM_LINUX_BUILD/lanista" \
             "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" > "$RUNNER_TEMP/b1-evidence/binary-sha256.txt"
           { cmake --version; c++ --version; "$QT_ROOT_DIR/bin/qmake" -query QT_VERSION; \
@@ -826,6 +852,14 @@ jobs:
           set -euo pipefail
           "$QT_ROOT_DIR/bin/qmltestrunner" -input tests/discover_page_flow_pagination_harness.qml \
             2>&1 | tee "$RUNNER_TEMP/b1-build-logs/discover-pagination-tests.log"
+      - name: Run actual Tankoban focus refresh regression
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+        run: |
+          set -euo pipefail
+          "$QT_ROOT_DIR/bin/qmltestrunner" -input tests/tst_tankoban_focus_refresh_regression.qml \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/tankoban-focus-refresh-tests.log"
       - name: Check qualification evidence parser
         run: |
           set -euo pipefail
@@ -877,6 +911,7 @@ jobs:
             ${{ runner.temp }}/b1-evidence/*.txt
             ${{ runner.temp }}/b1-evidence/compiled-provenance.json
             ${{ runner.temp }}/b1-evidence/current-qml.manifest
+            ${{ runner.temp }}/b1-evidence/prior-qml.manifest
             ${{ runner.temp }}/b1-evidence/addons/*.json
             ${{ runner.temp }}/b1-evidence/addons/install/*.json
             ${{ runner.temp }}/b1-evidence/addons/install/*.png

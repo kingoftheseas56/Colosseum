@@ -92,6 +92,18 @@ def positive_area(q):
     return right > x and bottom > y
 
 
+def stable_geometry(previous, current, tolerance=0.5):
+    """Two visible scene rectangles, not a command acknowledgement."""
+    if not previous or not positive_area(previous) or not positive_area(current):
+        return False
+    return all(abs(previous['rect'][key] - current['rect'][key]) <= tolerance
+               for key in ('x', 'y', 'width', 'height'))
+
+
+def selector_matches(state, kind):
+    return state.get('currentType') == kind and state.get('active') is True
+
+
 def native_success(events, dataset, method):
     return any(e.get('component') == 'remote' and e.get('event') == 'result_delivery_end'
                and e.get('dataset') == dataset and e.get('method') == method
@@ -276,6 +288,64 @@ class Driver:
             time.sleep(0.25)
         raise RuntimeError('Visible control deadline exceeded: ' + name)
 
+    def select_catalogue(self, kind, required=True, attempts=3):
+        # Each retry is observable; never equate injected input with activation.
+        receipt = {'kind': kind, 'attempts': [], 'passed': False}
+        self.last_selector_receipt = receipt
+        if not hasattr(self, 'selector_receipts'):
+            self.selector_receipts = []
+        self.selector_receipts.append(receipt)
+        try:
+            for number in range(attempts):
+                attempt = {'number': number + 1, 'geometryObservations': []}
+                receipt['attempts'].append(attempt)
+                try:
+                    previous = None
+                    stable = 0
+                    deadline = time.monotonic() + 5
+                    target = None
+                    while time.monotonic() < deadline:
+                        snap = self.call('ui-snapshot')
+                        candidates = [item for item in snap.get('elements', [])
+                                      if item.get('objectName') == 'tankobanDiscoverType_' + kind
+                                      and item.get('enabled')]
+                        visible = [(item, self.call('ui-query', {'object': item['handle']}))
+                                   for item in candidates]
+                        visible = [(item, geometry) for item, geometry in visible if positive_area(geometry)]
+                        if len(visible) > 1:
+                            raise RuntimeError('Ambiguous visible catalogue selector')
+                        if visible:
+                            item, geometry = visible[0]
+                            attempt['geometryObservations'].append(geometry)
+                            stable = stable + 1 if stable_geometry(previous, geometry) else 0
+                            previous = geometry
+                            if stable >= 2:
+                                target = item['handle']
+                                break
+                        else:
+                            previous, stable = None, 0
+                        time.sleep(0.15)
+                    if target is None:
+                        raise RuntimeError('Catalogue selector geometry did not settle')
+                    self.last_click_ns = time.monotonic_ns()
+                    attempt['clickSentMonotonicNs'] = self.last_click_ns
+                    attempt['click'] = self.call('ui-click', {'target': target})
+                    attempt['immediateState'] = self.props('tankobanDiscoverBrowser', ['currentType', 'active'])
+                    attempt['passed'] = selector_matches(attempt['immediateState'], kind)
+                    if attempt['passed']:
+                        receipt['passed'] = True
+                        break
+                except Exception as error:
+                    attempt['error'] = str(error)
+                    attempt['passed'] = False
+                time.sleep(0.15)
+            receipt['recoveredAfterFailedAttempt'] = receipt['passed'] and len(receipt['attempts']) > 1
+            if required and not receipt['passed']:
+                raise RuntimeError('Catalogue selector failed bounded state verification: ' + kind)
+            return receipt
+        finally:
+            write(self.output / 'catalogue-selector-attempts.json', self.selector_receipts)
+
     def grab(self, name, object_name):
         result = self.call('qml-get', {'object': object_name, 'props': ['visible'],
                                       'grab': {'target': 'window'}})
@@ -328,6 +398,7 @@ class Driver:
                    and native_success(events, dataset, method))
         result = {'name': name, 'dataset': dataset, 'method': method,
                   'properties': props, 'visibleCards': visible_cards, 'passed': success,
+                  'selectorNavigation': getattr(self, 'last_selector_receipt', None) if dataset in ('comics', 'mal') else None,
                   'navigationClickSentMonotonicNs': self.last_click_ns,
                   'firstPopulatedCardObservedSinceClickWithinMs': (observed - self.last_click_ns) / 1e6 if visible_cards else None,
                   'observationStartedMonotonicNs': started, 'observedMonotonicNs': observed,
@@ -431,7 +502,7 @@ class Driver:
 
     def page_more(self, kind):
         self.ensure_world('Tankoban')
-        self.click('tankobanDiscoverType_' + kind)
+        self.select_catalogue(kind)
         event_start = len(traces(self.raw_stderr))
         geometry_before = self.pagination_geometry()
         before = self.props('tankobanDiscoverBrowser', ['automationItemCount', 'exhausted', 'pageFailed', 'loading'])
@@ -999,10 +1070,17 @@ class Driver:
         cases = []
         comics = next(x for x in landing if x['name'] == 'comics')
         manga = next(x for x in landing if x['name'] == 'manga')
+        if not comics['visibleCards']:
+            for name in ('comics-series-1', 'comics-series-2', 'comics-series-3', 'comics-warm-reopen'):
+                blocked = {'case': name, 'status': 'BLOCKED',
+                           'reason': 'Initial Comics landing returned no verified visible card sample',
+                           'landingPassed': comics['passed']}
+                cases.append(blocked)
+                write(self.output / ('deep-' + name + '.json'), blocked)
         for index, card in enumerate(comics['visibleCards'][:3]):
             def run_comic(card=card, index=index):
                 self.ensure_world('Tankoban')
-                self.click('tankobanDiscoverType_comics')
+                self.select_catalogue('comics')
                 self.click(card['objectName'])
                 try:
                     return self.comics_series('comics-series-' + str(index + 1))
@@ -1012,7 +1090,7 @@ class Driver:
         if comics['visibleCards']:
             def reopen_comic():
                 self.ensure_world('Tankoban')
-                self.click('tankobanDiscoverType_comics')
+                self.select_catalogue('comics')
                 self.click(comics['visibleCards'][0]['objectName'])
                 try:
                     result = self.comics_series('comics-warm-reopen')
@@ -1027,7 +1105,7 @@ class Driver:
             card = manga['visibleCards'][0]
             def first_manga():
                 self.ensure_world('Tankoban')
-                self.click('tankobanDiscoverType_manga')
+                self.select_catalogue('manga')
                 self.click(card['objectName'])
                 try:
                     return self.manga_series('manga-series-1')
@@ -1061,7 +1139,7 @@ class Driver:
         if manga['visibleCards']:
             def reopen_manga():
                 self.ensure_world('Tankoban')
-                self.click('tankobanDiscoverType_manga')
+                self.select_catalogue('manga')
                 self.click(manga['visibleCards'][0]['objectName'])
                 try:
                     result = self.manga_series('manga-warm-reopen')
@@ -1243,7 +1321,37 @@ def self_test():
     # A key receipt is not progress: wrong index remains unqualified.
     nav.volume_navigation_state = lambda: {'shelf': {'focusIndex': 3}, 'flow': {'activeFocus': True, 'currentIndex': 3, 'contentX': 300}}
     assert not nav.wait_volume_index(4)[0]
-    print('47 pure qualification helper checks passed')
+    geometry = {'visible': True, 'rect': {'x': 10, 'y': 10, 'width': 60, 'height': 30},
+                'rootWindow': {'width': 1600, 'height': 1000}}
+    moved = dict(geometry, rect=dict(geometry['rect'], x=90))
+    assert stable_geometry(geometry, geometry)
+    assert not stable_geometry(geometry, moved)
+    assert not selector_matches({'currentType': 'manga', 'active': True}, 'comics')
+    assert not selector_matches({'currentType': 'comics', 'active': False}, 'comics')
+    with tempfile.TemporaryDirectory() as temp:
+        selector = Driver.__new__(Driver)
+        selector.output = Path(temp)
+        clicks = []
+        observations = iter([geometry, moved, geometry, geometry, geometry])
+        def selector_call(command, payload=None):
+            if command == 'ui-snapshot':
+                return {'elements': [{'objectName': 'tankobanDiscoverType_comics', 'enabled': True, 'handle': 'fresh'}]}
+            if command == 'ui-query':
+                return next(observations, geometry)
+            if command == 'ui-click':
+                clicks.append(payload)
+                return {'clicked': 'tankobanDiscoverType_comics'}
+            raise AssertionError(command)
+        selector.call = selector_call
+        selector.props = lambda target, fields: {'currentType': 'manga' if len(clicks) == 1 else 'comics', 'active': True}
+        result = selector.select_catalogue('comics')
+        assert len(result['attempts'][0]['geometryObservations']) == 5
+        assert result['passed'] and result['recoveredAfterFailedAttempt'] and not result['attempts'][0]['passed']
+        selector.props = lambda target, fields: {'currentType': 'manga', 'active': True}
+        result = selector.select_catalogue('comics', required=False, attempts=2)
+        assert not result['passed'] and len(result['attempts']) == 2
+        assert len(json.loads((Path(temp) / 'catalogue-selector-attempts.json').read_text())) == 2
+    print('55 pure qualification helper checks passed')
 
 
 def main():
@@ -1310,7 +1418,9 @@ def main():
                'qualificationSourceCommit': subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip(),
                'binarySha256': sha(binary), 'lanistaSha256': sha(a.lanista),
                'qmlManifestSha256': sha(manifest),
-               'sourceCommit': compiled.get('compiledSourceCommit') or qa_head,
+               'compiledNativeSourceCommit': compiled.get('compiledNativeSourceCommit') or compiled.get('compiledSourceCommit') or qa_head,
+               'runtimeQmlSourceCommit': compiled.get('runtimeQmlSourceCommit') or compiled.get('compiledSourceCommit') or qa_head,
+               'sourceCommit': compiled.get('runtimeQmlSourceCommit') or compiled.get('compiledSourceCommit') or qa_head,
                'sourceStatus': subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True),
                'driverSha256': sha(__file__), 'profileInitiallyEmpty': True,
                'rendering': 'full native app under X11; CI supplies Xvfb, local validation supplies owned desktop',
@@ -1333,10 +1443,10 @@ def main():
         if not Path(state.get('appDataRoot', '')).is_relative_to(profile / 'data'):
             raise RuntimeError('Actual appDataRoot is not isolated profile')
         driver.click('modePill_Tankoban')
-        driver.click('tankobanDiscoverType_comics')
+        driver.select_catalogue('comics', required=False)
         results.append(driver.journey('comics', 'comics', 'discoverPageFiltered', 'tankobanDiscoverBrowser',
                                       {'currentType': 'comics'}, 'discoverCard_', a.catalogue_timeout))
-        driver.click('tankobanDiscoverType_manga')
+        driver.select_catalogue('manga', required=False)
         results.append(driver.journey('manga', 'mal', 'discoverPageFiltered', 'tankobanDiscoverBrowser',
                                       {'currentType': 'manga'}, 'mangaDiscoverCard_', a.catalogue_timeout))
         driver.click('modePill_Theatre')

@@ -467,8 +467,24 @@ Item {
         root.refresh(); root.refreshResume(); root._autoLand()
     }
     onVolumeRowsChanged: {
-        if (root.indexOfNumber(root.focusToken) < 0) root.focusAtNumber(root.initialFocusNumber())
-        root._autoLand()
+        // Metadata enrichment republishes the model while the user browses.
+        // Keep the selected volume identity; only a new/empty shelf or a removed
+        // selection needs the initial/resume landing policy again.
+        var rows = root.volumeRows || []
+        if (!rows.length) {
+            root._landedIndex = -1
+            return
+        }
+        var selected = root.indexOfNumber(root.focusToken)
+        if (root._landedIndex < 0 || selected < 0) {
+            root._autoLand()
+            return
+        }
+        root.focusNumber = rows[selected].number
+        root._landedIndex = selected
+        // Resolve the latest selection when the model has settled, rather than
+        // capturing an index that could belong to an older model or series.
+        Qt.callLater(root.centreFlow)
     }
 
     Connections {

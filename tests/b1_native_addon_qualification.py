@@ -39,20 +39,45 @@ def project_owner(row):
             'resources': manifest.get('resources', []), 'types': manifest.get('types', [])}
 
 
-def owner_rows(app_data_root):
-    # get-state.appDataRoot is the actual active owner, not a recursive profile scan.
-    # Inactive migrated/legacy profile copies must never qualify an installation.
-    result = []
-    path = Path(app_data_root) / 'extensions' / 'installed.json'
+def valid_profile_id(value):
+    if value in ('legacy', 'local'):
+        return True
+    if not isinstance(value, str):
+        return False
     try:
-        doc = json.loads(path.read_text())
-    except (OSError, ValueError):
-        return result
-    for row in doc.get('extensions', []):
-        if row.get('id') in (NYAA, TORRENTIO):
-            projected = project_owner(row)
-            projected['ownerFileRelative'] = 'extensions/installed.json'
-            result.append(projected)
+        parsed = uuid.UUID(value)
+        return parsed.int != 0 and str(parsed) == value
+    except ValueError:
+        return False
+
+
+def owner_rows(app_data_root, active_profile_id):
+    # ExtensionsStore combines global non-Theatre rows with the active profile's
+    # Theatre rows. "legacy" is an active profile mode on a fresh no-account boot,
+    # not evidence of an inactive copy. Never scan or merge other profile folders.
+    if not valid_profile_id(active_profile_id):
+        raise RuntimeError('Missing or unsafe active extension profile identity')
+    root = Path(app_data_root).resolve()
+    sources = ((root / 'extensions' / 'installed.json', NYAA, 'global'),
+               (root / 'profiles' / active_profile_id / 'extensions' / 'installed.json', TORRENTIO, active_profile_id))
+    result = []
+    for path, identity, scope in sources:
+        if path.resolve() != path or not path.resolve().is_relative_to(root):
+            raise RuntimeError('Extension owner path leaves its exact declared scope')
+        try:
+            doc = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(doc, dict) or not isinstance(doc.get('extensions'), list):
+            raise RuntimeError('Malformed extension owner document')
+        if scope != 'global' and (doc.get('version') != 1 or doc.get('profileId') != active_profile_id):
+            raise RuntimeError('Theatre extension owner profile envelope mismatch')
+        for row in doc['extensions']:
+            if isinstance(row, dict) and row.get('id') == identity:
+                projected = project_owner(row)
+                projected['ownerFileRelative'] = str(path.relative_to(root))
+                projected['ownerProfileId'] = scope
+                result.append(projected)
     return result
 
 
@@ -90,7 +115,7 @@ class AddonDriver(Driver):
         if mutate and initial.get('checked') is False:
             self.click(name)
         state = wait_for_value(lambda: self.props(name, ['checked']) if self.props(name, ['checked']).get('checked') else None, 5)
-        rows = owner_rows(self.app_data_root)
+        rows = owner_rows(self.app_data_root, self.active_profile_id)
         self.grab('nyaa-enabled' if mutate else 'nyaa-restarted', 'extensionsStorePage')
         return {'status': 'PASS' if state and enabled_owner(rows, NYAA) else 'FAIL',
                 'initialUI': initial, 'finalUI': state, 'ownerRows': [r for r in rows if r['id'] == NYAA],
@@ -127,9 +152,9 @@ class AddonDriver(Driver):
             errors = self.props('extensionsStorePage', ['loadError', 'installError', 'loading'])
             self.grab('torrentio-store-blocked', 'extensionsStorePage')
             return {'status': 'BLOCKED', 'reason': str(exc), 'providerErrors': errors, 'manifestRequested': None,
-                    'initialOwnerRows': [r for r in owner_rows(self.app_data_root) if r['id'] == TORRENTIO]}
+                    'initialOwnerRows': [r for r in owner_rows(self.app_data_root, self.active_profile_id) if r['id'] == TORRENTIO]}
         initial = self.props(self.visible_ref(card, allow_first=True), ['installed', 'busy'])
-        initial_owners = [r for r in owner_rows(self.app_data_root) if r['id'] == TORRENTIO]
+        initial_owners = [r for r in owner_rows(self.app_data_root, self.active_profile_id) if r['id'] == TORRENTIO]
         submitted = False
         submitted_epoch = None
         if mutate:
@@ -162,7 +187,7 @@ class AddonDriver(Driver):
         deadline = time.monotonic() + 45
         rows, error = None, {}
         while time.monotonic() < deadline:
-            current = owner_rows(self.app_data_root)
+            current = owner_rows(self.app_data_root, self.active_profile_id)
             error = self.props('extensionsStorePage', ['installError', 'loadError'])
             try:
                 setup_state = self.props('extensionsSetupSheet', ['status', 'open'])
@@ -214,20 +239,41 @@ def self_test():
     assert not valid_provenance([])
     assert not valid_provenance({'compiledSourceCommit': 'known'})
     assert valid_provenance({key: 'verified' for key in ('binarySha256', 'lanistaSha256', 'qmlManifestSha256', 'qualificationSourceCommit', 'compiledSourceCommit')})
+    assert valid_profile_id('legacy') and valid_profile_id('local')
+    assert valid_profile_id('12345678-1234-1234-1234-123456789abc')
+    assert all(not valid_profile_id(v) for v in ('', 'sealed', '../legacy', '/tmp', 'LEGACY', None, '00000000-0000-0000-0000-000000000000'))
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
-        inactive = root / 'profiles' / 'legacy' / 'extensions'
-        inactive.mkdir(parents=True)
-        entry = {'id': TORRENTIO, 'enabled': True, 'transportUrl': MANIFEST, 'manifest': {'id': TORRENTIO}}
-        (inactive / 'installed.json').write_text(json.dumps({'extensions': [entry]}))
-        assert owner_rows(root) == []
-        active = root / 'extensions'
-        active.mkdir()
-        (active / 'installed.json').write_text(json.dumps({'extensions': [dict(entry, enabled=False)]}))
-        assert not enabled_owner(owner_rows(root), TORRENTIO)
-        (active / 'installed.json').write_text(json.dumps({'extensions': [entry]}))
-        assert len(owner_rows(root)) == 1 and enabled_owner(owner_rows(root), TORRENTIO)
-    print('22 addon qualification helper checks passed')
+        global_file = root / 'extensions' / 'installed.json'
+        active_file = root / 'profiles' / 'legacy' / 'extensions' / 'installed.json'
+        inactive_file = root / 'profiles' / 'local' / 'extensions' / 'installed.json'
+        for path in (global_file, active_file, inactive_file):
+            path.parent.mkdir(parents=True, exist_ok=True)
+        nyaa = {'id': NYAA, 'enabled': True, 'transportUrl': 'colosseum://well/nyaa', 'manifest': {'id': NYAA}}
+        torrentio = {'id': TORRENTIO, 'enabled': True, 'transportUrl': MANIFEST, 'manifest': {'id': TORRENTIO}}
+        global_file.write_text(json.dumps({'extensions': [nyaa, torrentio]}))
+        inactive_file.write_text(json.dumps({'version': 1, 'profileId': 'local', 'extensions': [torrentio]}))
+        assert not enabled_owner(owner_rows(root, 'legacy'), TORRENTIO)
+        active_file.write_text(json.dumps({'version': 1, 'profileId': 'legacy', 'extensions': [dict(torrentio, enabled=False)]}))
+        assert not enabled_owner(owner_rows(root, 'legacy'), TORRENTIO)
+        active_file.write_text(json.dumps({'version': 1, 'profileId': 'legacy', 'extensions': [torrentio]}))
+        rows = owner_rows(root, 'legacy')
+        assert len(rows) == 2 and enabled_owner(rows, NYAA) and enabled_owner(rows, TORRENTIO)
+        assert next(r for r in rows if r['id'] == TORRENTIO)['ownerFileRelative'] == 'profiles/legacy/extensions/installed.json'
+        assert persistence_pass(rows, owner_rows(root, 'legacy'))
+        active_file.write_text(json.dumps({'version': 1, 'profileId': 'local', 'extensions': [torrentio]}))
+        try:
+            owner_rows(root, 'legacy')
+            raise AssertionError('Mismatched profile envelope accepted')
+        except RuntimeError:
+            pass
+        try:
+            owner_rows(root, '../legacy')
+            raise AssertionError('Unsafe profile identity accepted')
+        except RuntimeError:
+            pass
+    print('29 addon qualification helper checks passed')
+
 
 
 def main():
@@ -277,11 +323,14 @@ def main():
           'helperDriverSha256': sha(Path(__file__).with_name('b1_native_catalogue_qualification.py')),
           'qualificationSourceCommit': qa_head, 'sourceStatus': source_status,
           'compiledSourceCommit': compiled.get('compiledSourceCommit'), 'compiledProvenance': compiled,
+          'compiledNativeSourceCommit': compiled.get('compiledNativeSourceCommit') or compiled.get('compiledSourceCommit'),
+          'runtimeQmlSourceCommit': compiled.get('runtimeQmlSourceCommit') or compiled.get('compiledSourceCommit'),
           'compiledIdentityNote': 'Verified supplied provenance' if compiled else 'Binary hashes recorded; compiled source commit not independently supplied',
           'profileInitiallyEmpty': True, 'restartReusesOnlyThisProfile': True,
           'proxyVariableNamesPresent': [k for k in env if k.lower() in ('http_proxy', 'https_proxy', 'all_proxy', 'no_proxy')]})
     rounds, all_cases = [], []
     active_root = None
+    active_profile_id = None
     discovery = {'status': 'NOT_RUN', 'reason': 'SourcesSheet.show automatically prefetches a torrent; requires separate controlled-source/prefetch-policy review before discovery'}
     for phase in ('install', 'restart'):
         phase_out = output / phase
@@ -298,10 +347,19 @@ def main():
                 if not Path(state.get('appDataRoot', '')).is_relative_to(profile / 'data'):
                     raise RuntimeError('App profile isolation failed')
                 current_root = Path(state['appDataRoot']).resolve()
-                if active_root is not None and current_root != active_root:
-                    raise RuntimeError('Actual active appDataRoot changed on persistence restart')
+                if not current_root.is_relative_to((profile / 'data').resolve()):
+                    raise RuntimeError('Resolved app profile isolation failed')
+                profile_state = driver.props('stremioSyncState', ['activeProfileId'])
+                current_profile_id = profile_state.get('activeProfileId')
+                if not valid_profile_id(current_profile_id):
+                    raise RuntimeError('Active extension profile identity unavailable or unsafe')
+                if active_root is not None and (current_root != active_root or current_profile_id != active_profile_id):
+                    raise RuntimeError('Actual active extension root or profile identity changed on persistence restart')
                 active_root = current_root
+                active_profile_id = current_profile_id
                 driver.app_data_root = active_root
+                driver.active_profile_id = active_profile_id
+                state['extensionProfileIdentity'] = profile_state
                 write(phase_out / 'initial-state.json', state)
                 driver.open_store()
                 all_cases.append(driver.case(phase + '-nyaa', lambda: driver.nyaa(phase == 'install')))
@@ -326,8 +384,12 @@ def main():
                             process.wait(timeout=5)
                     code = process.returncode
         # Only projected owner facts and sanitized diagnostics leave private state.
-        owners = owner_rows(active_root) if active_root is not None else []
-        record = {'phase': phase, 'numericExitStatus': code, 'forcedTermination': forced, 'error': error, 'ownerRows': owners, 'activeAppDataRoot': str(active_root) if active_root else None}
+        try:
+            owners = owner_rows(active_root, active_profile_id) if active_root is not None else []
+        except RuntimeError as exc:
+            owners = []
+            error = (error + '; ' if error else '') + 'Owner receipt rejected: ' + str(exc)
+        record = {'phase': phase, 'numericExitStatus': code, 'forcedTermination': forced, 'error': error, 'ownerRows': owners, 'activeAppDataRoot': str(active_root) if active_root else None, 'activeExtensionProfileId': active_profile_id}
         rounds.append(record)
         write(phase_out / 'exit.json', record)
         (phase_out / 'app.sanitized.log').write_text(sanitize(raw.read_text(errors='replace')))
