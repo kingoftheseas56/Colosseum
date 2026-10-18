@@ -159,9 +159,11 @@
 #if !defined(Q_OS_ANDROID)
 #include "feria/PorticoComposition.h"
 #include "feria/FeriaBrowserPolicy.h"
+#include "feria/FeriaBrowserRuntime.h"
 #include "feria/FeriaAccountStore.h"
 #include "vinyl/VinylProvider.h"
 #include "vinyl/VinylLocalSource.h"
+#include "vinyl/VinylAvailability.h"
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
 #include "devtools/VinylTestProfileController.h"
 #include "account/ActivityStore.h"
@@ -1919,12 +1921,14 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<PorticoComposition> feriaDiscovery;
     FeriaBrowserPolicy *feriaBrowserPolicy = nullptr;
     FeriaAccountStore *feriaAccount = nullptr;
-    auto ensureFeriaRuntime = [&engine, &feriaDiscovery, &feriaBrowserPolicy, &feriaAccount, accountRuntime, sessions]() {
+    auto ensureFeriaRuntime = [&app, &engine, &feriaDiscovery, &feriaBrowserPolicy, &feriaAccount, accountRuntime, sessions]() {
         if (feriaDiscovery)
             return;
         feriaDiscovery = std::make_unique<PorticoComposition>();
         feriaDiscovery->exposeTo(engine.rootContext());
         feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
+        QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                         feriaBrowserPolicy->runtime(), &FeriaBrowserRuntime::shutdown);
         feriaAccount = new FeriaAccountStore(&engine);
         auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
             const auto &profile = accountRuntime->profileStores()->activeProfile();
@@ -1952,7 +1956,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylProvider"), vinylProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"),
-        qEnvironmentVariableIntValue("COLOSSEUM_VINYL_LIVE") == 1);
+        Colosseum::vinylLiveEnabled());
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
                      vinylLocalSource, &VinylLocalSource::checkpointRequested);
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,

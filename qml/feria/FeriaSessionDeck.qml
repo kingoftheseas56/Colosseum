@@ -69,6 +69,14 @@ Item {
         }
     }
     readonly property var downloads: sharedProfile ? regularDownloads : null
+    // The engine-neutral operation/request seam owned by SessionStore. Both
+    // engine controllers and the WebView2 wrapper fence through this object.
+    readonly property var operations: sessions ? sessions.browserOperations() : null
+    // Native lifecycle owner. This deck is its engine adapter: it creates and
+    // destroys the Qt Quick objects, reports what the engine did, and runs the
+    // commands the runtime has already validated.
+    readonly property var runtime: policy ? policy.runtime : null
+    property bool shuttingDown: false
     property bool quiescing: false
     property bool holdForCleanup: false
     property bool cleanupNotified: false
@@ -77,7 +85,7 @@ Item {
     property var activeEntry: null
     readonly property var activeBrowser: activeEntry ? activeEntry.browser : null
     readonly property string activeError: activeEntry ? activeEntry.errorText : ""
-    readonly property bool ready: !quiescing && policy !== null && accountStore !== null && policy.storageRoot.length > 0
+    readonly property bool ready: !quiescing && !shuttingDown && policy !== null && accountStore !== null && policy.storageRoot.length > 0
     signal quiesced()
     signal quiescenceFailed(string reason)
     Timer {
@@ -92,12 +100,14 @@ Item {
         id: regularDownloads
         profile: deck.sharedProfile
         accountStore: deck.accountStore
+        runtime: deck.runtime
         onMessage: (text) => deck.message(deck.sessions.activeId, text)
     }
     FeriaBrowserDownloads {
         id: privateDownloads
         profile: deck.privateProfile
         accountStore: deck.accountStore
+        runtime: deck.runtime
         privateBrowsing: true
         onMessage: (text) => deck.message(deck.sessions.activeId, text)
     }
@@ -174,9 +184,80 @@ Item {
         if (!entry.closeController.prepareNavigation()) return false
         return nav[action]()
     }
-    function back(id) { return dispatchNavigation(id, "back") }
-    function forward(id) { return dispatchNavigation(id, "forward") }
-    function reload(id) { return dispatchNavigation(id, "reload") }
+    // Every shell command enters through the native runtime, which checks the
+    // lease, the instance phase and the navigation policy before this deck's
+    // runBrowserCommand touches an engine object.
+    function command(id, name, args) { return runtime.command(id, name, args || {}).accepted === true }
+    function back(id) { return command(id, "back") }
+    function forward(id) { return command(id, "forward") }
+    function reload(id) { return command(id, "reload") }
+    function activate(id) { return command(id, "activate") }
+    function recover(id) { return command(id, "recover") }
+    function open(descriptor, fresh, navigate, activate) {
+        return String(runtime.open(descriptor, {fresh: !!fresh, navigate: !!navigate,
+            activate: activate !== false}).spaceId || "")
+    }
+    // Engine adapter entry point, invoked only by the runtime.
+    function runBrowserCommand(request) {
+        var id = request.spaceId, entry = entries[id]
+        if (request.name === "navigate")
+            return engineNavigate(id, request.url, request.position || 0, request.locator || null,
+                                  request.context || null)
+        if (request.name === "back" || request.name === "forward" || request.name === "reload")
+            return dispatchNavigation(id, request.name)
+        if (request.name === "stop") { var nav = navigationForSession(id); return nav ? nav.stop() : false }
+        if (request.name === "close")
+            return entry && !entry.retiring && entry.browser ? entry.closeController.begin(true) : false
+        if (request.name === "recover") return recoverSession(id)
+        return false
+    }
+    function recoverSession(id) {
+        var entry = entries[id]
+        if (!entry || entry.retiring || !ready) return false
+        // A lost renderer is replaced by loading a document again: same
+        // activity, new engine generation. A view that never came up is rebuilt.
+        if (entry.browser) return dispatchNavigation(id, "reload")
+        return !entry.engineBlocked && entry.recreate()
+    }
+    // Application exit, invoked by the runtime. Canonical activities stay as
+    // they are (they are what gets restored); only engine objects go, views
+    // before the profiles they use. Deferred deletions run in this order.
+    function shutdownEngines() {
+        if (shuttingDown) return
+        snapshotTimer.stop(); closeDeadline.stop()
+        persistTabs()
+        shuttingDown = true
+        regularDownloads.cancelActive()
+        privateDownloads.cancelActive()
+        var retained = entries
+        entries = ({})
+        activeEntry = null
+        pendingRetirements = []
+        for (var id of Object.keys(retained)) {
+            accountStore.endSessionVisit(id)
+            retained[id].shutdown()
+        }
+        // Entries already retiring (still draining a script) are no longer in
+        // the map; they are parented here and must not outlive their profile.
+        var remaining = []
+        for (var i = 0; i < deck.children.length; ++i)
+            if (typeof deck.children[i].shutdown === "function" && deck.children[i].sessionId !== undefined)
+                remaining.push(deck.children[i])
+        for (var waiting of remaining) waiting.shutdown()
+        var regular = sharedProfile, secret = privateProfile
+        sharedProfile = null; privateProfile = null
+        if (regular) regular.destroy()
+        if (secret) secret.destroy()
+    }
+    function replayLoaderNavigation(forEntry) {
+        if (!forEntry) return
+        Qt.callLater(function() {
+            if (deck.entries[forEntry.sessionId] !== forEntry) return
+            var pending = forEntry.pendingNavigation
+            if (pending) deck.engineNavigate(forEntry.sessionId, pending.url,
+                pending.position, pending.locator, pending.context)
+        })
+    }
     function resumePendingNavigation(id) {
         var entry = entries[id]
         if (!entry || entry.retiring || entry.closePending) return
@@ -184,7 +265,7 @@ Item {
         entry.pendingNavigation = null
         if (!pending) return
         if (pending.action) dispatchNavigation(id, pending.action)
-        else navigateSession(id, pending.url, pending.position, pending.locator, pending.context)
+        else engineNavigate(id, pending.url, pending.position, pending.locator, pending.context)
     }
     function hostLeaseCurrent(lease) {
         if (!lease || !lease.spaceId || !ready) return false
@@ -192,34 +273,35 @@ Item {
         if (!entry || entry.retiring || !entry.browser) return false
         // A host lease survives navigation; a fresh document identity is read
         // at each dispatch. No queued host event crosses a host/account/page move.
-        var keys = ["accountEpoch", "profileId", "spaceId", "pageGeneration", "hostId", "hostGeneration"]
-        for (var key of keys) if (lease[key] !== fresh[key]) return false
-        return true
+        return runtime.leaseCurrent(lease)
     }
     function hostCommand(lease, action, value) {
-        if (!hostLeaseCurrent(lease)) return false
-        var id = lease.spaceId
-        if (action === "navigate") return navigateInput(id, value)
-        if (action === "back") return back(id)
-        if (action === "forward") return forward(id)
-        if (action === "reload") return reload(id)
-        if (action === "close") return closeTab(id)
-        if (action === "restore") return restoreSession(id)
-        if (action === "activate") { sessions.switchTo(id); return true }
-        return false
+        // Presentation moves stay with this adapter; everything else is a
+        // leased native command.
+        if (action === "restore") return hostLeaseCurrent(lease) && restoreSession(lease.spaceId)
+        return runtime.execute(lease, action,
+            action === "navigate" ? {text: String(value || "")} : {}).accepted === true
     }
-    function stop(id) { var nav = navigationForSession(id); return nav ? nav.stop() : false }
+    function stop(id) { return command(id, "stop") }
     function historyOffset(id, offset, revision) {
         var nav = navigationForSession(id)
         return nav ? nav.goToOffset(offset, revision) : false
     }
     function navigateInput(id, text, searchEngine) {
-        var url = String(policy.omniboxUrl(text, searchEngine || "duckduckgo"))
-        return url.length > 0 && navigateSession(id, url, 0, null, null)
+        return command(id, "navigate", {text: String(text || ""), searchEngine: searchEngine || "duckduckgo"})
+    }
+    function engineAdmitted(engineId) {
+        // Engine selection is explicit and validated before allocation; an
+        // unavailable engine is a visible blocked state, never a fallback.
+        return engineId !== "webview2" || policy.webView2Available
     }
     function newSpace(sourceId, privateBrowsing, activate) {
         var source = entries[sourceId]
         if (!source || source.retiring || !ready) return ""
+        if (!engineAdmitted(source.descriptor.engineId)) {
+            message(sourceId, "The WebView2 engine is not available in this build.")
+            return ""
+        }
         var descriptor = Object.assign({}, source.descriptor)
         var provider = ProviderData.P[descriptor.providerId]
         // Explicit fixture/integration startUrl is validated, never a page URL.
@@ -231,24 +313,27 @@ Item {
         descriptor.privateBrowsing = Boolean(privateBrowsing)
         delete descriptor.restoreId
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
-        return sessions.openBrowser(descriptor, true, false, activate !== false)
+        return open(descriptor, true, false, activate)
     }
     // Compatibility facade; new presentation supplies an explicit source ID.
     function newTab(privateBrowsing, url, activate) {
         if (!activeEntry) return ""
         if (!url) return newSpace(activeEntry.sessionId, privateBrowsing, activate)
         if (!ready || !policy.allowsNavigation(url)) return ""
+        if (!engineAdmitted(activeEntry.descriptor.engineId)) {
+            message(activeEntry.sessionId, "The WebView2 engine is not available in this build.")
+            return ""
+        }
         var descriptor = Object.assign({}, activeEntry.descriptor)
         descriptor.url = url
         descriptor.privateBrowsing = Boolean(privateBrowsing)
         delete descriptor.restoreId
         delete descriptor.position; delete descriptor.locator; delete descriptor.titleId
-        return sessions.openBrowser(descriptor, true, false, activate !== false)
+        return open(descriptor, true, false, activate)
     }
-    function closeTab(id) {
-        var entry = entries[id]
-        return entry && !entry.retiring && entry.browser ? entry.closeController.begin(true) : false
-    }
+    // With a live view the engine is asked to unload; an activity whose view
+    // never came up is closed by the runtime through the same close ledger.
+    function closeTab(id) { return command(id, "close") }
     function answerClose(id, attempt, leave) {
         var entry = entries[id]
         return entry && !entry.retiring ? entry.closeController.answer(attempt, leave) : false
@@ -454,6 +539,10 @@ Item {
         if (!ready || !provider) return ""
         var record = sessions.prepareBrowserReopen(provider)
         if (!record.recordId || !record.descriptor || !policy.allowsNavigation(record.descriptor.url)) return ""
+        if (!engineAdmitted(record.descriptor.engineId)) {
+            message("", "That space was saved for the WebView2 engine, which is not available in this build.")
+            return ""
+        }
         var id = sessions.openBrowser(record.descriptor, true, false, true)
         var entry = entries[id]
         if (!entry || !entry.browser) {
@@ -508,6 +597,7 @@ Item {
         if (quiescing || !privateProfileRetiring || !privateProfile) return
         if (policy.runtimeViewsForProfile(privateProfile) > 0) return
         privateDownloads.cancelActive()
+        if (!runtime.profileReleasable(privateProfile)) return
         var old = privateProfile
         privateProfile = null
         old.destroy()
@@ -583,6 +673,10 @@ Item {
     }
     function advanceQuiescence() {
         if (!quiescing || policy.runtimeViewCount > 0) return
+        // Views are gone; a profile still goes only once nothing admitted
+        // against it is outstanding.
+        if ((sharedProfile && !runtime.profileReleasable(sharedProfile))
+            || (privateProfile && !runtime.profileReleasable(privateProfile))) return
         if (sharedProfile) {
             var profile = sharedProfile
             sharedProfile = null
@@ -605,6 +699,10 @@ Item {
         }
     }
     function navigateSession(id, url, position, locator, context) {
+        return command(id, "navigate", {url: String(url), position: position || 0,
+            locator: locator || null, context: context || null})
+    }
+    function engineNavigate(id, url, position, locator, context) {
         var entry = entries[id]
         if (!entry || !policy.allowsNavigation(url) || quiescing) return false
         if (!entry.browser) {
@@ -668,13 +766,19 @@ Item {
             Qt.callLater(deck.advanceQuiescence)
         }
     }
-    onReadyChanged: if (ready) {
+    function initializeRuntime() {
+        if (!ready || !runtime) return
+        if (!runtime.attach(deck, sessions)) {
+            console.warn("Feria: another engine adapter already owns the browser runtime")
+            return
+        }
         if (consentSurface && !consentPresentation) attachConsentSurface(consentSurface)
         captureRestoreSource()
         syncSessions()
         Qt.callLater(considerRestore)
     }
-    Component.onCompleted: if (ready) { captureRestoreSource(); syncSessions(); Qt.callLater(considerRestore) }
+    onReadyChanged: if (ready) initializeRuntime()
+    Component.onCompleted: { initializeRuntime() }
     Component.onDestruction: {
         if (ready) persistTabs()
         if (accountStore) for (var id of Object.keys(entries)) accountStore.endSessionVisit(id)
@@ -688,6 +792,15 @@ Item {
             readonly property var ownerDeck: deck
             required property var descriptor
             property bool initialWindowRequest: false
+            // Explicit, validated engine selection: an admitted webview2
+            // preference uses the Windows adapter; anything else keeps the
+            // working QtWebEngine path unchanged.
+            readonly property bool wantsWebView2: descriptor.engineId === "webview2"
+            readonly property bool usesWebView2: wantsWebView2 && deck.policy.webView2Available
+            // An explicitly requested engine that is unavailable on this
+            // build blocks the space visibly: no silent fallback to another
+            // engine, and the descriptor/partition request is preserved.
+            readonly property bool engineBlocked: wantsWebView2 && !deck.policy.webView2Available
             property var visitContext: descriptor.visitContext || ({ title: descriptor.title || "", cover: "" })
             property string token: ""
             property bool retiring: false
@@ -699,9 +812,15 @@ Item {
             property var creationEntry: null
             property int liveAdoptedChildren: 0
             property string adoptionState: "none"
-            function beginAdoption() { adoptionState = "pending"; adoptionDeadline.restart() }
+            property real adoptionWork: 0
+            function beginAdoption() {
+                adoptionState = "pending"
+                // Bound to this placeholder's page: only it can observe the adoption.
+                adoptionWork = deck.runtime.admitWork(browser, "adoption")
+                adoptionDeadline.restart()
+            }
             function observeAdoption() {
-                if (adoptionState !== "pending") return
+                if (adoptionState !== "pending" || !deck.runtime.redeemWork(adoptionWork)) return
                 adoptionState = "observed"
                 adoptionDeadline.stop()
             }
@@ -711,6 +830,7 @@ Item {
                 onTriggered: {
                     if (entry.adoptionState !== "pending" || deck.entries[entry.sessionId] !== entry) return
                     entry.adoptionState = "unobserved-failed"
+                    deck.runtime.releaseWork(entry.adoptionWork)
                     deck.sessions.close(entry.sessionId)
                     deck.message(entry.sessionId, "The requested window did not initialize. Its placeholder was removed.")
                 }
@@ -718,6 +838,7 @@ Item {
             property string reopenRecordId: ""
             property string restoreOfferId: ""
             property bool mainLoadSucceeded: false
+            property bool loadWasStopped: false
             function rollbackReopen(recordId) {
                 if (retiring || !recordId || reopenRecordId !== recordId
                     || deck.entries[sessionId] !== entry) return
@@ -741,26 +862,68 @@ Item {
                     entry.rollbackReopen(recordId)
                 })
             }
-            readonly property alias closeController: closeController
-            readonly property alias closeConsent: closeController.consent
-            readonly property alias closePending: closeController.pending
-            FeriaCloseController {
-                id: closeController
-                browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
-                retirementAllowed: entry.liveAdoptedChildren === 0
-                onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
-                onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
-                onChanged: {
-                    ++deck.presentationRevision
-                    Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
-                }
-                onFailureChanged: {
-                    entry.errorText = failure
-                    ++deck.presentationRevision
-                    if (failure.length) deck.message(entry.sessionId, failure)
+            readonly property alias closeController: closeControllerLoader.item
+            readonly property var closeConsent: closeController ? closeController.consent : null
+            readonly property bool closePending: closeController ? closeController.pending : false
+            Component {
+                id: qtCloseFactory
+                FeriaCloseController {
+                    browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
+                    retirementAllowed: entry.liveAdoptedChildren === 0
+                    onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
+                    onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
+                    onChanged: {
+                        ++deck.presentationRevision
+                        Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
+                    }
+                    onFailureChanged: {
+                        entry.errorText = failure
+                        ++deck.presentationRevision
+                        if (failure.length) deck.message(entry.sessionId, failure)
+                    }
                 }
             }
-            property string errorText: ""
+            Component {
+                id: webView2CloseFactory
+                FeriaWebView2CloseController {
+                    browser: entry.browser; sessions: deck.sessions; sessionId: entry.sessionId
+                    retirementAllowed: entry.liveAdoptedChildren === 0
+                    onBlocked: (reason) => { entry.errorText = reason; deck.message(entry.sessionId, reason) }
+                    onCancellationSettled: Qt.callLater(deck.resumePendingNavigation, entry.sessionId)
+                    onChanged: {
+                        ++deck.presentationRevision
+                        Qt.callLater(deck.restoreInactiveMax, entry.sessionId)
+                    }
+                    onFailureChanged: {
+                        entry.errorText = failure
+                        ++deck.presentationRevision
+                        if (failure.length) deck.message(entry.sessionId, failure)
+                    }
+                }
+            }
+            Loader {
+                id: closeControllerLoader
+                sourceComponent: entry.usesWebView2 ? webView2CloseFactory : qtCloseFactory
+            }
+            property string errorText: engineBlocked
+                ? "The WebView2 engine is not available in this build. This space stays closed to protect its saved engine partition."
+                : ""
+            onEngineBlockedChanged: if (engineBlocked) {
+                errorText = "The WebView2 engine is not available in this build. This space stays closed to protect its saved engine partition."
+                deck.runtime.failInstance(sessionId, "engine-unavailable")
+            }
+            // Rebuild the engine view for the same activity after a failed
+            // creation. The runtime starts a new engine generation first.
+            property bool creationSuspended: false
+            property bool shutdownQueued: false
+            function recreate() {
+                if (retiring || browser) return false
+                creationSuspended = true
+                errorText = ""
+                var started = deck.runtime.beginInstance(sessionId)
+                creationSuspended = false
+                return started
+            }
             property var pendingNavigation: null
             readonly property var browser: browserLoader.item
             anchors.fill: parent
@@ -769,6 +932,7 @@ Item {
             function retire() {
                 if (retiring) return
                 retiring = true
+                deck.runtime.retireInstance(sessionId)
                 adoptionDeadline.stop()
                 closeController.invalidate(false)
                 // Detach from a disposable host before destroying it. QObject
@@ -779,11 +943,31 @@ Item {
                 if (browser) browser.prepareForClose(closeController.engineClosed)
                 else destroy()
             }
+            // Application exit: no drain is possible once the event loop is
+            // leaving. Detach from disposable hosts, let the engine adapter
+            // release its web contents while the view object is still whole,
+            // and queue this view's deletion ahead of its profile's.
+            function shutdown() {
+                if (shutdownQueued) return
+                shutdownQueued = true
+                retiring = true
+                adoptionDeadline.stop()
+                anchors.fill = null
+                parent = deck
+                deck.disposeHost(entry)
+                if (browser && typeof browser.discardForExit === "function"
+                        && !browser.discardForExit())
+                    console.warn("Feria: a browser view could not be discarded before exit")
+                destroy()
+            }
             Component.onDestruction: {
                 if (creationEntry) --creationEntry.liveAdoptedChildren
                 Qt.callLater(deck.drainRetirements)
             }
             Component.onCompleted: {
+                // The instance exists (creating) before any engine object does.
+                deck.runtime.beginInstance(sessionId)
+                if (engineBlocked) deck.runtime.failInstance(sessionId, "engine-unavailable")
                 token = deck.accountStore.beginSessionVisit(sessionId, {
                     pk: descriptor.providerId, resumePending: Number(descriptor.position || 0) > 0,
                     privateBrowsing: descriptor.privateBrowsing === true,
@@ -800,18 +984,14 @@ Item {
                     ? (deck.sessions.activeId === entry.sessionId ? deck.embeddedDiagnostic : "")
                     : !entry.ownerDeck.consentPresentation ? closeController.failure : ""
             }
-            Loader {
-                id: browserLoader
-                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.top: consentDock.bottom
-                active: entry.token.length > 0 && (entry.descriptor.privateBrowsing
-                    ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
-                    : deck.sharedProfile !== null)
-                sourceComponent: FeriaQtWebEngine {
+            Component {
+                id: qtViewFactory
+                FeriaQtWebEngine {
                     sourceUrl: entry.initialWindowRequest ? "" : entry.descriptor.url
                     adoptingWindowRequest: entry.initialWindowRequest
                     managedBeforeUnload: true
                     profilePath: deck.policy.storageRoot
+                    sessions: deck.sessions
                     sharedProfile: entry.descriptor.privateBrowsing ? deck.privateProfile : deck.sharedProfile
                     providerId: entry.descriptor.providerId
                     accountVisitToken: entry.token
@@ -822,37 +1002,85 @@ Item {
                     resumeLocator: entry.descriptor.locator || null
                     suppressed: !entry.visible
                     freezeBackground: deck.accountStore.browserPreferences.freezeBackground !== false
-                    lifecycleBlocked: closeController.busy
+                    lifecycleBlocked: entry.closeController ? entry.closeController.busy : false
                     activitySuspended: !deck.displayed
                         || (deck.Window.window && deck.Window.window.visibility === Window.Minimized)
                         || (entry.hostWindow && entry.hostWindow.visibility === Window.Minimized)
                 }
-                onStatusChanged: if (status === Loader.Error) entry.errorText = "The browser could not start."
+            }
+            Loader {
+                id: browserLoader
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.top: consentDock.bottom
+                active: !entry.engineBlocked && !entry.creationSuspended && entry.token.length > 0
+                    && (entry.descriptor.privateBrowsing
+                    ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
+                    : deck.sharedProfile !== null)
+                // The WebView2 view loads by URL so Qt-only harnesses never
+                // compile the native Colosseum.FeriaHost import: the module
+                // is registered where the engine is actually available.
+                source: entry.usesWebView2 ? "FeriaWebView2.qml" : ""
+                sourceComponent: entry.usesWebView2 ? null : qtViewFactory
+                onStatusChanged: if (status === Loader.Error) {
+                    entry.errorText = "The browser could not start."
+                    deck.runtime.failInstance(entry.sessionId, "creation-failed")
+                }
                 onLoaded: {
-                    Qt.callLater(function() {
-                        if (deck.entries[entry.sessionId] !== entry) return
-                        var pending = entry.pendingNavigation
-                        if (pending) deck.navigateSession(entry.sessionId, pending.url, pending.position, pending.locator, pending.context)
-                    })
+                    // One live engine view per activity, bound for its lifetime.
+                    deck.runtime.bindView(entry.sessionId, item)
+                    if (entry.usesWebView2) {
+                        // Immutable profile/identity bindings are applied
+                        // before the initial URL so the native partition is
+                        // configured ahead of the first navigation.
+                        item.profilePath = entry.descriptor.privateBrowsing
+                            ? deck.policy.storageRoot + "/webview2-private-" + entry.sessionId
+                            : deck.policy.storageRoot
+                        item.accountSessionId = Qt.binding(function() { return entry.sessionId })
+                        item.sessions = Qt.binding(function() { return deck.sessions })
+                        item.suppressed = Qt.binding(function() { return !entry.visible })
+                        item.sourceUrl = entry.initialWindowRequest ? "" : entry.descriptor.url
+                        item.providerId = Qt.binding(function() { return entry.descriptor.providerId })
+                        item.accountVisitToken = Qt.binding(function() { return entry.token })
+                        item.observationMode = Qt.binding(function() { return entry.descriptor.mode || "watch" })
+                        item.observationEnabled = Qt.binding(function() {
+                            return deck.accountStore.recording && !entry.descriptor.privateBrowsing })
+                        item.resumePosition = Qt.binding(function() { return Number(entry.descriptor.position || 0) })
+                        item.resumeLocator = Qt.binding(function() { return entry.descriptor.locator || null })
+                    }
+                    // A navigation queued while the loader was creating the
+                    // view is replayed for either engine once it exists.
+                    deck.replayLoaderNavigation(entry)
                 }
             }
             Connections {
                 target: entry.browser
+                // Engine adapters expose different signal subsets (e.g. the
+                // WebView2 wrapper has no renderer/safeToDestroy signals).
+                ignoreUnknownSignals: true
                 function onSafeToDestroy() {
                     if (entry.retiring) Qt.callLater(function() { entry.destroy() })
                 }
                 function onStarted(location) {
+                    // A real engine event, not object creation, makes it ready.
+                    deck.runtime.markReady(entry.browser)
                     entry.observeAdoption()
                     entry.mainLoadSucceeded = false
                     if (!entry.browser.rendererLost) entry.errorText = ""
                     if (!entry.descriptor.privateBrowsing) deck.policy.rememberOrigin(entry.descriptor.providerId, location)
                     deck.sessions.updateBrowser(entry.sessionId, location, "")
                 }
+                function onStopped(location) {
+                    // A cancelled/stopped load leaves the previous page
+                    // usable: no failure error for its terminal.
+                    entry.loadWasStopped = true
+                }
                 function onCompleted(location, success) {
                     if (entry.retiring) return
+                    if (success) deck.runtime.markReady(entry.browser)
                     entry.observeAdoption()
                     if (entry.browser.rendererLost) entry.errorText = "The browser page stopped responding. Reload to recover; unsaved page state may be lost."
-                    else if (!success) entry.errorText = closeController.failure || "Could not open the page. Try Reload."
+                    else if (!success && !entry.loadWasStopped) entry.errorText = closeController.failure || "Could not open the page. Try Reload."
+                    entry.loadWasStopped = false
                     deck.sessions.updateBrowser(entry.sessionId, location,
                                                 entry.browser ? entry.browser.title : "")
                 }
@@ -861,7 +1089,8 @@ Item {
                     entry.mainLoadSucceeded = true
                     entry.errorText = closeController.failure
                     deck.sessions.updateBrowser(entry.sessionId, location, entry.browser.title)
-                    deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token, location, entry.browser.title)
+                    deck.accountStore.recordBrowserVisit(entry.sessionId, entry.token, location,
+                        entry.browser.title, entry.browser.navigationGeneration)
                     deck.completeRestore(entry)
                 }
                 function onDocumentReplaced(generation) {
@@ -882,6 +1111,13 @@ Item {
                     if (entry.reopenRecordId) entry.rollbackReopen(entry.reopenRecordId)
                 }
                 function onTabRequested(request) { deck.openWindow(entry.sessionId, request) }
+                function onImageTabRequested(imageUrl) {
+                    // An image URL has no WebEngineNewWindowRequest to adopt. Use
+                    // the existing owned tab constructor, only for the live source tab.
+                    if (!entry.browser || entry.retiring || deck.activeEntry !== entry
+                        || !deck.policy.allowsNavigation(imageUrl)) return
+                    deck.newTab(!!entry.descriptor.privateBrowsing, imageUrl, true)
+                }
                 function onGeometryChangeRequested(geometry) {
                     if (entry.hostWindow) entry.hostWindow.applyGeometry(geometry)
                 }
@@ -890,6 +1126,11 @@ Item {
                     if (entry.browser && entry.browser.title.length) entry.observeAdoption()
                     if (entry.browser) deck.sessions.updateBrowser(entry.sessionId,
                         String(entry.browser.url), entry.browser.title)
+                    // A title that settles after the load belongs to the visit
+                    // that document recorded; the store refuses any other.
+                    if (entry.browser && !entry.retiring && deck.entries[entry.sessionId] === entry)
+                        deck.accountStore.updateBrowserVisitTitle(entry.sessionId, entry.token,
+                            entry.browser.navigationGeneration, entry.browser.title)
                 }
                 function onUrlChanged() {
                     if (entry.browser) deck.sessions.updateBrowser(entry.sessionId,

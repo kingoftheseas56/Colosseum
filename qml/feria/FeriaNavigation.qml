@@ -40,20 +40,26 @@ Item {
         target: navigation.historyItems
         function onModelReset() { ++navigation.historyRevision }
     }
+    // Native commands run through the shared operation contract: each
+    // dispatch admits a typed operation that settles exactly once on the
+    // engine's terminal load state.
     function back() {
         if (!canGoBack) return false
+        browser.admitNavigation("back")
         browser.wakePage()
         browser.goBack()
         return true
     }
     function forward() {
         if (!canGoForward) return false
+        browser.admitNavigation("forward")
         browser.wakePage()
         browser.goForward()
         return true
     }
     function reload() {
         if (!usable) return false
+        browser.admitNavigation("reload")
         browser.wakePage()
         browser.reload()
         return true
@@ -67,6 +73,7 @@ Item {
         if (!usable || revision !== historyRevision || !Number.isInteger(offset)
             || offset === 0 || offset < -backCount || offset > forwardCount) return false
         browser.wakePage()
+        browser.admitNavigation(offset < 0 ? "back" : "forward")
         // Explicit chooser offsets intentionally differ from Back's engine
         // skip-on-back/forward policy. Never replace this with URL assignment.
         browser.goBackOrForward(offset)

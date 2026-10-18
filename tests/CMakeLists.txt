@@ -4979,3 +4979,39 @@ if(COLOSSEUM_VINYL_TEST_NODE)
     set_tests_properties(colosseum.vinyl_search_privacy PROPERTIES
         LABELS "unit;vinyl;privacy" TIMEOUT 30)
 endif()
+
+# Integration safety of dormant worlds uses the production owners, not provider journeys.
+foreach(variant release qualification)
+    add_executable(vinyl_availability_${variant} vinyl_availability_harness.cpp)
+    target_include_directories(vinyl_availability_${variant} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(vinyl_availability_${variant} PRIVATE Qt6::Core)
+    if(variant STREQUAL "qualification")
+        target_compile_definitions(vinyl_availability_${variant} PRIVATE COLOSSEUM_ENABLE_VINYL_QUALIFICATION=1)
+    endif()
+    add_test(NAME colosseum.vinyl_availability_${variant} COMMAND vinyl_availability_${variant})
+endforeach()
+find_package(Qt6 REQUIRED COMPONENTS Test)
+foreach(owner runtime operations)
+    add_executable(feria_${owner}_integration_test feria_${owner}_test.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+    target_include_directories(feria_${owner}_integration_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(feria_${owner}_integration_test PRIVATE feria_discovery Qt6::Test)
+endforeach()
+# The donor's unsafe-fence negative control needs its separate FERIA_TEST_CONTROLS
+# library. Production-owner integration runs all fourteen ordinary contract cases.
+add_test(NAME colosseum.feria_runtime_integration COMMAND feria_runtime_integration_test
+    testIdentitySurvivesNavigationAndAllowsDuplicateUrls
+    testLifecyclePhasesFollowEngineAndCanonicalClose
+    testWorkIsBoundToDocumentAndRedeemsOnce
+    testRendererLossStartsNewEngineGeneration
+    testAccountSwitchRejectsOldWorkAndCommands
+    testReplacementInstanceFencesPreviousView
+    testViewIsNeverReboundAndActivityHasOneView
+    testCommandsRequireCurrentLeaseAndPhase
+    testNavigateIsValidatedBeforeDispatch
+    testCloseWithoutEngineUsesTheCloseLedger
+    testOpenIsValidatedAndKeepsOpenOrSwitch
+    testViewsRetireBeforeProfiles
+    testShutdownRefusesWorkAndRunsAdapterOnce
+    testAdmissionIsRefusedOffTheOwnerThread)
+add_test(NAME colosseum.feria_operations_integration COMMAND feria_operations_integration_test)

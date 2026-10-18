@@ -98,3 +98,13 @@ test('updater requests the same shell shutdown gate',()=>{
     assert.match(hook,/Colosseum::Bootstrap::requestApplicationShutdown\(app, engine\)/);
     assert.doesNotMatch(hook,/QCoreApplication::quit|app\.quit\(/);
 });
+
+test('lazy deck open facade refuses unloaded calls and forwards to its owner',()=>{
+    const c={item:null};
+    runInNewContext(body('open'),c);
+    assert.equal(c.open({url:'https://example.com'},true,false),'');
+    const descriptor={url:'https://example.com'};let called;
+    c.item={open(...args){called=args;return 'owned-browser';}};
+    assert.equal(c.open(descriptor,true,false),'owned-browser');
+    assert.deepEqual(called,[descriptor,true,false]);
+});

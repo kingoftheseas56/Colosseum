@@ -5307,7 +5307,7 @@ Window {
             item.backdrop = wall
             item.sharedAccount = true
             item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
-                var id = Sessions.openBrowser(descriptor, fresh, navigate)
+                var id = feriaSessionDeck.open(descriptor, fresh, navigate)
                 if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
                 item.activateBrowserRecord(Sessions.get(id))
                 if (navigate) Qt.callLater(function() {
@@ -5375,6 +5375,9 @@ Window {
         readonly property var embeddedConsent: item ? item.embeddedConsent : false
         readonly property var embeddedDiagnostic: item ? item.embeddedDiagnostic : ""
         readonly property var entries: item ? item.entries : ({})
+        function open(descriptor, fresh, navigate) {
+            return item ? item.open(descriptor, fresh, navigate) : ""
+        }
         function closeTab(id) { if (item) item.closeTab(id) }
         function restoreSession(id) { if (item) item.restoreSession(id) }
         function navigateSession(id, url, position, locator, ctx) { if (item) item.navigateSession(id, url, position, locator, ctx) }
