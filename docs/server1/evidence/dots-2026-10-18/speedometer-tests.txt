@@ -1,0 +1,163 @@
+K12 speedometer utility, 2026-10-18 UTC
+Parent b3b77ec40ae2bdc298c78a5aa9bacdee23a63b20
+Linux x86_64; GCC 14.2; Qt 6.11.1; Release
+Executable SHA256 b77f1bc3de1dd4f0c3942ded89095b93c3e70386d09610092dfb3055d8151ca1
+Build exit 0; complete CTest exit 0: 103 passed/0 failed/0 skipped, 69.21s
+Focused ASan exit 0: 2 passed/0 failed/0 skipped, detect_leaks=0
+Node22 differential exit 0: 14 cases; native ownership: 3 checks
+Commands and qualifications: ../../DOTS-2026-10-18-SPEEDOMETER.md
+
+Source/native differential result (controlled clock):
+{
+  "state": "PASS",
+  "node": "v22.16.0",
+  "cases": 14,
+  "oracleSha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "moduleSha256": "63410c90938208354e1c4c0db52f340008d227794ed7c16367db8e09f81b60cf",
+  "actual": [
+    {
+      "name": "startup-empty",
+      "readings": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "same-tick-bursts",
+      "readings": [
+        100,
+        150,
+        150
+      ]
+    },
+    {
+      "name": "startup-to-window",
+      "readings": [
+        40,
+        80,
+        96,
+        106.66666666666667,
+        114.28571428571429,
+        120,
+        124.44444444444444,
+        128,
+        130.9090909090909,
+        133.33333333333334,
+        135.3846153846154,
+        137.14285714285714,
+        138.66666666666666,
+        140,
+        141.1764705882353,
+        142.22222222222223,
+        143.1578947368421,
+        144,
+        152,
+        152,
+        152,
+        152,
+        152,
+        152,
+        152
+      ]
+    },
+    {
+      "name": "long-idle",
+      "readings": [
+        200,
+        160,
+        0
+      ]
+    },
+    {
+      "name": "ring-overwrites",
+      "readings": [
+        0,
+        10,
+        30,
+        60,
+        90,
+        120,
+        150,
+        180,
+        210,
+        240,
+        270,
+        300
+      ]
+    },
+    {
+      "name": "zero-window-default",
+      "readings": [
+        100,
+        33.333333333333336,
+        0
+      ]
+    },
+    {
+      "name": "tick-wrap",
+      "readings": [
+        20,
+        60,
+        60
+      ]
+    },
+    {
+      "name": "full-wrap-source-alias",
+      "readings": [
+        80,
+        80
+      ]
+    },
+    {
+      "name": "nearly-full-wrap",
+      "readings": [
+        80,
+        0
+      ]
+    },
+    {
+      "name": "shared-clock-independent-meters",
+      "readings": [
+        100,
+        50,
+        66.66666666666667,
+        48,
+        33.333333333333336
+      ]
+    },
+    {
+      "name": "negative-delta",
+      "readings": [
+        100,
+        60,
+        32
+      ]
+    },
+    {
+      "name": "nan-falsy-delta",
+      "readings": [
+        100,
+        100,
+        100
+      ]
+    },
+    {
+      "name": "nonfinite-json",
+      "readings": [
+        "Infinity",
+        "NaN",
+        "NaN"
+      ]
+    },
+    {
+      "name": "window-edge",
+      "readings": [
+        80,
+        16,
+        0,
+        0
+      ]
+    }
+  ]
+}
