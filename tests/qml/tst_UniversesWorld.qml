@@ -23,6 +23,7 @@ Item {
         when: windowShown
         function init() {
             world.facet = ""; opened.clear(); tribute.clear()
+            world.pageFlickable.contentY = 0
             wait(20) // Finish WorldPage's deferred initial focus before exercising arrows.
         }
 
@@ -53,7 +54,15 @@ Item {
             const ledger = findChild(world, "universesLedger")
             tryVerify(function() { return ledger.children.length > 20 })
             for (let i = 0; i < 20; ++i) {
-                const mark = findChild(ledger.children[i], "universeBannerMark")
+                // Art is requested around the viewport. Visit every banner
+                // instead of requiring offscreen artwork to load at startup.
+                const row = ledger.children[i]
+                const flick = world.pageFlickable
+                flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height,
+                                        row.mapToItem(flick.contentItem, 0, 0).y))
+                tryVerify(function() { return row.artActive }, 2000,
+                          "scrolled banner must become art-active: " + row.entry.name)
+                const mark = findChild(row, "universeBannerMark")
                 tryVerify(function() { return mark.status === Image.Ready }, 5000,
                           "mark did not load for " + ledger.children[i].entry.name + ": " + mark.source)
             }

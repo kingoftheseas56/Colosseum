@@ -130,6 +130,7 @@ TestCase {
     }
 
     function test_feria_context_limits_settings_and_resets_on_reopen() {
+        center.feriaEnabled = true
         center.open("feria", null, "feria")
         compare(center.feriaOnly, true)
         compare(center.activeSection, "feria")
@@ -145,6 +146,15 @@ TestCase {
         verify(byName(center, "accountCenterRail_feria") !== null)
         verify(byName(center, "accountCenterRail_profile") !== null)
         verify(byName(center, "accountCenterRail_colosseum") === null)
+    }
+
+    function test_disabled_feria_remains_inaccessible() {
+        compare(center.feriaEnabled, false)
+        center.open("feria", null, "feria")
+        compare(center.feriaOnly, false)
+        compare(center.activeSection, "profile")
+        verify(!center.railSections.some(function(row) { return row.id === "feria" }))
+        compare(byName(center, "accountCenterRail_feria"), null)
     }
 
     function test_switching_sections_clears_recovery_transient_secret_input() {
