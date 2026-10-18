@@ -514,6 +514,34 @@ class Driver:
         return {'status': 'PASS' if good else 'FAIL', 'query': query, 'properties': state, 'resultControls': names,
                 'nativeDataset': dataset, 'nativeSearchCorrelations': correlations, 'nativeResultProjection': native_rows, 'expectedEmpty': expect_empty}
 
+    def volume_navigation_state(self):
+        return {'shelf': self.props('readingRoomLibrary', ['focusIndex', 'focusToken']),
+                'flow': self.props('volumeFlow', ['activeFocus', 'currentIndex', 'contentX', 'moving', 'flicking'])}
+
+    def focus_volume_flow(self):
+        # Tab is real keyboard navigation. Never click a volume or press activation keys.
+        for _ in range(60):
+            if self.props('volumeFlow', ['activeFocus']).get('activeFocus') is True:
+                return True
+            self.call('ui-keypress', {'key': 'Tab'})
+            time.sleep(0.03)
+        return self.props('volumeFlow', ['activeFocus']).get('activeFocus') is True
+
+    def wait_volume_index(self, expected):
+        deadline = time.monotonic() + 3
+        previous_x = None
+        last = {}
+        while time.monotonic() < deadline:
+            last = self.volume_navigation_state()
+            flow, shelf = last['flow'], last['shelf']
+            if (flow.get('activeFocus') is True and shelf.get('focusIndex') == expected
+                    and flow.get('currentIndex') == expected and not flow.get('moving') and not flow.get('flicking')
+                    and previous_x is not None and flow.get('contentX') == previous_x):
+                return True, last
+            previous_x = flow.get('contentX')
+            time.sleep(0.08)
+        return False, last
+
     def manga_series(self, label):
         deadline = time.monotonic() + 45
         head = {}
@@ -540,7 +568,17 @@ class Driver:
             time.sleep(0.25)
         page = self.props('mangaSeriesPage', ['chapterOnly', 'chapterMode', 'hasShelf', 'loading', 'errorMsg', 'errorText'])
         self.grab('deep-' + label + '-first', 'mangaSeriesPage')
-        observed, transient_errors = {}, []
+        observed, transient_errors, navigation = {}, [], []
+        navigation_error = None
+        if rows:
+            if not self.focus_volume_flow():
+                navigation_error = 'Tab navigation did not focus volumeFlow; no activation attempted'
+            else:
+                self.call('ui-keypress', {'key': 'Home'})
+                settled, state = self.wait_volume_index(0)
+                navigation.append({'key': 'Home', 'expectedIndex': 0, 'settled': settled, 'state': state})
+                if not settled:
+                    navigation_error = 'Home did not establish stable first-volume focus'
         # Read only live, actually visible delegates after the normal wheel animation.
         # A destroyed virtualized item is retried without discarding earlier facts.
         for step in range(min(len(rows) + 3, 130)):
@@ -578,13 +616,26 @@ class Driver:
                     if not vanished_item(exc):
                         raise
                     transient_errors.append({'step': step, 'attempt': attempt + 1, 'error': str(exc)})
-            if len(observed) >= len(rows) or not rows:
+            if len(observed) >= len(rows) or not rows or navigation_error:
                 break
-            self.call('ui-scroll', {'target': self.visible_ref('volumeFlow'), 'dy': -120})
+            state_before = self.volume_navigation_state()
+            current = state_before['shelf'].get('focusIndex')
+            if not isinstance(current, int) or current >= len(rows) - 1:
+                navigation_error = 'Reached final focus or invalid focus before every returned row was observed'
+                break
+            if not state_before['flow'].get('activeFocus') and not self.focus_volume_flow():
+                navigation_error = 'Volume keyboard focus lost and could not be reacquired'
+                break
+            self.call('ui-keypress', {'key': 'Right'})
+            settled, state_after = self.wait_volume_index(current + 1)
+            navigation.append({'key': 'Right', 'expectedIndex': current + 1, 'settled': settled, 'before': state_before, 'state': state_after})
+            if not settled:
+                navigation_error = 'Right key did not advance and settle at the next returned volume'
+                break
         # Persist partial observations even if later screenshots or assertions fail.
         write(self.output / ('deep-' + label + '-volume-observations.json'),
               {'malId': mal_id, 'nativeReturnedCount': len(rows), 'observedVolumeCards': observed,
-               'transientDelegateErrors': transient_errors})
+               'transientDelegateErrors': transient_errors, 'navigation': navigation, 'navigationError': navigation_error})
         self.grab('deep-' + label, 'mangaSeriesPage')
         numbers = [str(v.get('number', '')) for v in rows]
         expected_names = {}
@@ -600,14 +651,14 @@ class Driver:
         native_completed = bool(entry.get('sourceHash')) and bool(publication) and any(e.get('status') == 'prepared' for e in native_events)
         matched = native_completed and head.get('ready') and not page.get('loading') and not page.get('errorMsg') and not page.get('errorText') and shelf.get('rowCount') == len(rows) and len(set(numbers)) == len(numbers) and not mismatches and not order_mismatches
         matched = matched and numeric == sorted(numeric) and (bool(rows) or zero_volume_state(page))
-        complete_ui = set(numbers).issubset(observed)
+        complete_ui = set(numbers).issubset(observed) and not navigation_error
         return {'status': 'PASS' if matched and complete_ui else 'INCOMPLETE' if matched else 'FAIL',
                 'malId': mal_id, 'masthead': head, 'nativePublication': publication,
                 'nativeSourceHash': entry.get('sourceHash'), 'nativeQueryKey': tankoban_key, 'nativeDeliveryEvents': native_events, 'seriesInfo': entry.get('seriesInfo'),
                 'nativeReturnedCount': len(rows), 'nativeVolumes': rows,
                 'missingNameCount': sum(not str(r.get('name', '')).strip() for r in rows),
                 'missingCoverUrlCount': sum(not str(r.get('cover', '')).strip() for r in rows), 'displayedShelf': shelf,
-                'pageState': page, 'zeroStateVariant': 'legacy' if page.get('chapterOnly') is None else 'rebuilt', 'transientDelegateErrors': transient_errors, 'observedVolumeCards': observed, 'allReturnedRowsObserved': complete_ui, 'observationScope': 'All returned delegate facts when traversal completes; first/final window screenshots and per-image Qt states are separate',
+                'pageState': page, 'zeroStateVariant': 'legacy' if page.get('chapterOnly') is None else 'rebuilt', 'transientDelegateErrors': transient_errors, 'navigation': navigation, 'navigationError': navigation_error, 'observedVolumeCards': observed, 'allReturnedRowsObserved': complete_ui, 'observationScope': 'All returned delegate facts when traversal completes; first/final window screenshots and per-image Qt states are separate',
                 'nameMismatches': mismatches, 'displayOrderMismatches': order_mismatches, 'numericOrderAscending': numeric == sorted(numeric),
                 'numericOrderScope': 'Numeric tokens in returned order; nonnumeric extras retained',
                 'countClass': 'zero' if not rows else 'single' if len(rows) == 1 else 'multi',
@@ -1154,6 +1205,8 @@ def self_test():
         mock.raw_stderr = mock.output / 'stderr.log'
         mock.raw_stderr.write_text('')
         mock.grab = lambda *args: None
+        mock.focus_volume_flow = lambda: True
+        mock.wait_volume_index = lambda expected: (True, {'flow': {'currentIndex': expected}, 'shelf': {'focusIndex': expected}})
         mock.cache_entry = lambda *args: ('key', {'volumes': [{'number': '1', 'name': 'Title', 'cover': ''}], 'sourceHash': 'test'}, 'test')
         def properties(target, fields):
             if target == 'tankobanSeriesMasthead':
@@ -1180,7 +1233,17 @@ def self_test():
     assert wait_for_value(lambda: None, 0, 0) is None
     assert wait_for_value(lambda: {'method': 'search', 'result': []}, 0, 0) == {'method': 'search', 'result': []}
     assert image_status('Ready') != image_status('Loading') and image_status('Error') == 3
-    print('44 pure qualification helper checks passed')
+    nav = Driver.__new__(Driver)
+    steps = []
+    nav.props = lambda target, fields: {'activeFocus': len(steps) >= 2}
+    nav.call = lambda command, payload: steps.append(payload['key'])
+    assert nav.focus_volume_flow() and steps == ['Tab', 'Tab']
+    nav.volume_navigation_state = lambda: {'shelf': {'focusIndex': 4}, 'flow': {'activeFocus': True, 'currentIndex': 4, 'contentX': 400, 'moving': False, 'flicking': False}}
+    assert nav.wait_volume_index(4)[0]
+    # A key receipt is not progress: wrong index remains unqualified.
+    nav.volume_navigation_state = lambda: {'shelf': {'focusIndex': 3}, 'flow': {'activeFocus': True, 'currentIndex': 3, 'contentX': 300}}
+    assert not nav.wait_volume_index(4)[0]
+    print('47 pure qualification helper checks passed')
 
 
 def main():

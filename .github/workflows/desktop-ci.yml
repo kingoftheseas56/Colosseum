@@ -677,6 +677,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      actions: read
     env:
       ECM_VERSION: "6.15.0"
       ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
@@ -686,6 +687,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -745,36 +747,76 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/b1-build-logs/mpvqt-build.log"
           echo "MPVQT_ROOT=$deps/install" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$QT_ROOT_DIR/lib:$deps/install/lib:$deps/install/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
-      - name: Configure the full B1 app
+      - name: Download exact previously qualified native binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: "12135359197"
+          run-id: "39125553486"
+          repository: kingoftheseas56/Colosseum
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/b1-prior-artifact
+          merge-multiple: true
+      - name: Verify compiled source, binaries and current QML before reuse
         run: |
           set -euo pipefail
-          cmake -S native -B "$COLOSSEUM_LINUX_BUILD" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
-            -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
-            -DCOLOSSEUM_NO_COMPILER_CACHE=ON -DCOLOSSEUM_NO_ACCOUNT_EDITION=ON \
-            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev \
-            -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC \
-            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$MPVQT_ROOT" -DMPVQT_PREFIX="$MPVQT_ROOT" \
-            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/configure.log"
-      - name: Build full app and focused proxy tests
-        run: |
-          set -euo pipefail
-          cmake --build "$COLOSSEUM_LINUX_BUILD" \
-            --target colosseum_runtime_ready lanista pin_proxy_factory_harness cover_delivery_harness \
-            --parallel 4 2>&1 | tee "$RUNNER_TEMP/b1-build-logs/build.log"
+          python - <<'PYVERIFY'
+          import hashlib, json, os, pathlib, shutil, subprocess
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          prior = root / "b1-prior-artifact"
+          compiled = "cb2db25904dfe9f86660efebffa498aa3f06e5e8"
+          def git(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+          subprocess.run(["git", "merge-base", "--is-ancestor", compiled, "HEAD"], check=True)
+          assert not git("status", "--porcelain"), "Qualification source must be clean"
+          changed = set(filter(None, git("diff", "--name-only", compiled, "HEAD").splitlines()))
+          allowed = {".github/workflows/desktop-ci.yml", "tests/b1_native_catalogue_qualification.py", "tests/b1_native_addon_qualification.py"}
+          assert changed <= allowed, f"Compiled-source mismatch: {sorted(changed - allowed)}"
+          expected = {
+              "colosseum": "acb86ce66202531629c137f8706d8d873c3065df8a08867cbeb8bd60eafaa677",
+              "lanista": "9577113c1fe48521755d964431e7c76dece2d8d82b3cd30c83ddf1a29cc88aad",
+              "qml-build.manifest": "e88aecd3a9a6f21d6ff24cc9c13211faebebdb990868adf92b84e2aa6c0580de",
+          }
+          for name, digest in expected.items():
+              assert hashlib.sha256((prior / "b1-build" / name).read_bytes()).hexdigest() == digest, name
+          launch = json.loads((prior / "b1-evidence/runtime/launch.json").read_text())
+          assert launch["sourceCommit"] == compiled and launch["sourceStatus"] == ""
+          for field, name in [("binarySha256", "colosseum"), ("lanistaSha256", "lanista"), ("qmlManifestSha256", "qml-build.manifest")]:
+              assert launch[field] == expected[name], field
+          endpoint = "https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev"
+          assert launch["configuredContentEndpoint"] == endpoint
+          tests = (prior / "b1-build-logs/focused-tests.log").read_text()
+          assert "100% tests passed, 0 tests failed out of 2" in tests
+          build = pathlib.Path(os.environ["COLOSSEUM_LINUX_BUILD"])
+          build.mkdir()
+          for name in expected:
+              shutil.copy2(prior / "b1-build" / name, build / name)
+          for name in ["colosseum", "lanista"]:
+              (build / name).chmod(0o755)
+          receipt = {
+              "compiledSourceCommit": compiled,
+              "qualificationSourceCommit": git("rev-parse", "HEAD"),
+              "binarySha256": expected["colosseum"], "lanistaSha256": expected["lanista"],
+              "qmlManifestSha256": expected["qml-build.manifest"],
+              "configuredContentEndpoint": endpoint,
+              "priorRunId": 39125553486, "priorArtifactId": 12135359197,
+              "focusedRegressionTests": "reused prior run 2/2 pass; not rerun",
+              "changedPaths": sorted(changed),
+          }
+          (root / "b1-evidence/compiled-provenance.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          shutil.copy2(prior / "b1-build-logs/focused-tests.log", root / "b1-build-logs/prior-focused-tests.log")
+          PYVERIFY
+          cmake "-DQML_ROOT=$GITHUB_WORKSPACE/qml" \
+            "-DOUTPUT_FILE=$RUNNER_TEMP/b1-evidence/current-qml.manifest" \
+            -P native/bootstrap/write_qml_build_manifest.cmake
+          cmp "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" "$RUNNER_TEMP/b1-evidence/current-qml.manifest"
           sha256sum "$COLOSSEUM_LINUX_BUILD/colosseum" "$COLOSSEUM_LINUX_BUILD/lanista" \
             "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" > "$RUNNER_TEMP/b1-evidence/binary-sha256.txt"
-          cp "$COLOSSEUM_LINUX_BUILD/CMakeCache.txt" "$RUNNER_TEMP/b1-build-logs/"
           { cmake --version; c++ --version; "$QT_ROOT_DIR/bin/qmake" -query QT_VERSION; \
-            pkg-config --modversion mpv libtorrent-rasterbar openssl; } > "$RUNNER_TEMP/b1-evidence/toolchain.txt"
-      - name: Run focused proxy regression tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          set -euo pipefail
-          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
-            -R '^colosseum\.(pin_proxy_factory_harness|cover_delivery_harness)$' \
-            --no-tests=error --output-on-failure 2>&1 | tee "$RUNNER_TEMP/b1-build-logs/focused-tests.log"
+            pkg-config --modversion mpv libtorrent-rasterbar openssl; } > "$RUNNER_TEMP/b1-evidence/runtime-toolchain.txt"
+          cp "$RUNNER_TEMP/b1-prior-artifact/b1-evidence/toolchain.txt" "$RUNNER_TEMP/b1-evidence/compiled-toolchain.txt"
+          tail -n 4 "$RUNNER_TEMP/b1-evidence/compiled-toolchain.txt" > "$RUNNER_TEMP/b1-evidence/compiled-library-versions.txt"
+          tail -n 4 "$RUNNER_TEMP/b1-evidence/runtime-toolchain.txt" > "$RUNNER_TEMP/b1-evidence/runtime-library-versions.txt"
+          cmp "$RUNNER_TEMP/b1-evidence/compiled-library-versions.txt" "$RUNNER_TEMP/b1-evidence/runtime-library-versions.txt"
       - name: Run real DiscoverBrowser pagination regression
         env:
           QT_QPA_PLATFORM: offscreen
@@ -789,20 +831,38 @@ jobs:
           set -euo pipefail
           python tests/b1_native_catalogue_qualification.py --self-test \
             2>&1 | tee "$RUNNER_TEMP/b1-build-logs/driver-self-test.log"
-      - name: Qualify actual app catalogues and posters under Xvfb
-        timeout-minutes: 15
+      - name: Check addon qualification parser
+        run: |
+          set -euo pipefail
+          python tests/b1_native_addon_qualification.py --self-test \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/addon-self-test.log"
+      - name: Qualify addon installation first, then deep catalogues under Xvfb
+        timeout-minutes: 25
         env:
           QT_QPA_PLATFORM: xcb
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
           set -euo pipefail
-          xvfb-run --auto-servernum --server-args='-screen 0 1600x1000x24 -nolisten tcp' \
+          # Run both independent fresh-profile gates even when the first fails.
+          set +e
+          timeout --kill-after=30s 300s xvfb-run --auto-servernum --server-args='-screen 0 1600x1000x24 -nolisten tcp' \
+            python tests/b1_native_addon_qualification.py \
+              --binary "$COLOSSEUM_LINUX_BUILD/colosseum" --lanista "$COLOSSEUM_LINUX_BUILD/lanista" \
+              --compiled-provenance "$RUNNER_TEMP/b1-evidence/compiled-provenance.json" \
+              --source "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/b1-evidence/addons" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/addon-qualification.log"
+          addon_status=$?
+          timeout --kill-after=30s 900s xvfb-run --auto-servernum --server-args='-screen 0 1600x1000x24 -nolisten tcp' \
             python tests/b1_native_catalogue_qualification.py \
               --binary "$COLOSSEUM_LINUX_BUILD/colosseum" \
               --lanista "$COLOSSEUM_LINUX_BUILD/lanista" \
-              --deep \
+              --deep --compiled-provenance "$RUNNER_TEMP/b1-evidence/compiled-provenance.json" \
               --source "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/b1-evidence/runtime" \
             2>&1 | tee "$RUNNER_TEMP/b1-build-logs/qualification.log"
+          catalogue_status=$?
+          set -e
+          printf 'addon=%s\ncatalogue=%s\n' "$addon_status" "$catalogue_status" > "$RUNNER_TEMP/b1-evidence/qualification-exit-statuses.txt"
+          test "$addon_status" -eq 0 && test "$catalogue_status" -eq 0
       - name: Record final source status
         if: always()
         run: git status --porcelain > "$RUNNER_TEMP/b1-evidence/source-status-after.txt"
@@ -815,6 +875,17 @@ jobs:
           if-no-files-found: warn
           path: |
             ${{ runner.temp }}/b1-evidence/*.txt
+            ${{ runner.temp }}/b1-evidence/compiled-provenance.json
+            ${{ runner.temp }}/b1-evidence/current-qml.manifest
+            ${{ runner.temp }}/b1-evidence/addons/*.json
+            ${{ runner.temp }}/b1-evidence/addons/install/*.json
+            ${{ runner.temp }}/b1-evidence/addons/install/*.png
+            ${{ runner.temp }}/b1-evidence/addons/install/*.sanitized.log
+            ${{ runner.temp }}/b1-evidence/addons/install/ipc/*.json
+            ${{ runner.temp }}/b1-evidence/addons/restart/*.json
+            ${{ runner.temp }}/b1-evidence/addons/restart/*.png
+            ${{ runner.temp }}/b1-evidence/addons/restart/*.sanitized.log
+            ${{ runner.temp }}/b1-evidence/addons/restart/ipc/*.json
             ${{ runner.temp }}/b1-evidence/runtime/*.json
             ${{ runner.temp }}/b1-evidence/runtime/*.png
             ${{ runner.temp }}/b1-evidence/runtime/*.sanitized.log
