@@ -28,6 +28,42 @@ Item {
             }
             return null
         }
+        function init() {
+            tab.comicShelves = []
+            tab.viewportTop = 0
+            tab.viewportHeight = 720
+            wait(30)
+        }
+        function populatedShelves() {
+            var result = []
+            for (var i = 0; i < 15; i++)
+                result.push({label: "Shelf " + i, rows: rows("Title " + i)})
+            return result
+        }
+        function verifyViewportResidency() {
+            wait(150)
+            var first = shelf("Shelf 0")
+            var last = shelf("Shelf 14")
+            verify(first !== null && last !== null)
+            verify(first.built, "The first nearby shelf must load")
+            verify(!last.near, "The final shelf must be outside the activation range")
+            compare(last.built, false, "An offscreen shelf must not load against its initial y=0")
+            tab.viewportTop = last.y
+            tryCompare(last, "built", true)
+            compare(first.built, true, "A previously visited shelf must retain its view")
+        }
+        function test_initial_population_waits_for_column_layout() {
+            tab.comicShelves = populatedShelves()
+            verifyViewportResidency()
+        }
+        function test_pending_slots_populate_without_building_far_shelves() {
+            var pending = populatedShelves()
+            for (var i = 0; i < pending.length; i++) pending[i].rows = []
+            tab.comicShelves = pending
+            wait(30)
+            tab.comicShelves = populatedShelves()
+            verifyViewportResidency()
+        }
         function test_peer_response_retains_existing_shelf_and_view() {
             tab.comicShelves = [
                 { label: "Marvel", kind: "publisher", arg: "Marvel", rows: rows("First") },
