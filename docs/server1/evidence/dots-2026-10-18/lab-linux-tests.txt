@@ -1,0 +1,314 @@
+=== identity-before.log ===
+test_comm_spaces_and_parentheses_do_not_shift_start_time (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time) ... FAIL
+test_non_group_leader_never_kills_callers_group (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group) ... FAIL
+test_zombie_is_not_a_live_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process) ... FAIL
+
+======================================================================
+FAIL: test_comm_spaces_and_parentheses_do_not_shift_start_time (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 16, in test_comm_spaces_and_parentheses_do_not_shift_start_time
+    self.assertEqual(value,'linux:boot-fixture:pid:[77]:123456')
+AssertionError: '0' != 'linux:boot-fixture:pid:[77]:123456'
+- 0
++ linux:boot-fixture:pid:[77]:123456
+
+
+======================================================================
+FAIL: test_non_group_leader_never_kills_callers_group (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 21, in test_non_group_leader_never_kills_callers_group
+    group.assert_not_called()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/unittest/mock.py", line 910, in assert_not_called
+    raise AssertionError(msg)
+AssertionError: Expected 'killpg' to not have been called. Called 1 times.
+Calls: [call(987, <Signals.SIGKILL: 9>)].
+
+======================================================================
+FAIL: test_zombie_is_not_a_live_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 26, in test_zombie_is_not_a_live_process
+    self.assertFalse(lab._pid_alive(987))
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+FAILED (failures=3)
+
+
+=== identity-safety-before.log ===
+test_comm_spaces_and_parentheses_do_not_shift_start_time (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time) ... ok
+test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) ... 
+  test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) (pid=0) ... FAIL
+  test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) (pid=-1) ... FAIL
+test_linux_image_comparison_is_case_sensitive (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_linux_image_comparison_is_case_sensitive) ... FAIL
+test_non_group_leader_never_kills_callers_group (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group) ... ok
+test_zombie_is_not_a_live_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process) ... ok
+
+======================================================================
+FAIL: test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) (pid=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 34, in test_invalid_pid_cannot_signal_any_process
+    with self.assertRaises(ValueError):lab._terminate_tree(pid)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) (pid=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 34, in test_invalid_pid_cannot_signal_any_process
+    with self.assertRaises(ValueError):lab._terminate_tree(pid)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_linux_image_comparison_is_case_sensitive (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_linux_image_comparison_is_case_sensitive)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 43, in test_linux_image_comparison_is_case_sensitive
+    kill.assert_not_called()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/unittest/mock.py", line 910, in assert_not_called
+    raise AssertionError(msg)
+AssertionError: Expected '_terminate_tree' to not have been called. Called 1 times.
+Calls: [call(987)].
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.004s
+
+FAILED (failures=3)
+
+
+=== audit-before.log ===
+test_changed_audit_creation_prevents_termination (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_changed_audit_creation_prevents_termination) ... FAIL
+test_comm_spaces_and_parentheses_do_not_shift_start_time (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time) ... ok
+test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) ... ok
+test_linux_image_comparison_is_case_sensitive (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_linux_image_comparison_is_case_sensitive) ... ok
+test_non_group_leader_never_kills_callers_group (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group) ... ok
+test_zombie_is_not_a_live_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process) ... ok
+
+======================================================================
+FAIL: test_changed_audit_creation_prevents_termination (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_changed_audit_creation_prevents_termination)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_linux_identity.py", line 52, in test_changed_audit_creation_prevents_termination
+    kill.assert_not_called()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/unittest/mock.py", line 910, in assert_not_called
+    raise AssertionError(msg)
+AssertionError: Expected '_terminate_tree' to not have been called. Called 1 times.
+Calls: [call(987)].
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+FAILED (failures=1)
+
+
+=== audit-after.log ===
+test_changed_audit_creation_prevents_termination (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_changed_audit_creation_prevents_termination) ... ok
+test_comm_spaces_and_parentheses_do_not_shift_start_time (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time) ... ok
+test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) ... ok
+test_linux_image_comparison_is_case_sensitive (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_linux_image_comparison_is_case_sensitive) ... ok
+test_non_group_leader_never_kills_callers_group (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group) ... ok
+test_zombie_is_not_a_live_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.003s
+
+OK
+
+
+=== runner-third.log ===
+test_comm_spaces_and_parentheses_do_not_shift_start_time (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time) ... ok
+test_invalid_pid_cannot_signal_any_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) ... ok
+test_linux_image_comparison_is_case_sensitive (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_linux_image_comparison_is_case_sensitive) ... ok
+test_non_group_leader_never_kills_callers_group (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group) ... ok
+test_zombie_is_not_a_live_process (tools.server_lab.tests.test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process) ... ok
+test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (tools.server_lab.tests.test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) ... ok
+test_cleanup_cli_is_usable_without_subject_arguments (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_cli_is_usable_without_subject_arguments) ... ok
+test_cleanup_failure_cannot_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_failure_cannot_pass) ... ok
+test_cleanup_preserves_creation_or_image_mismatch (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_preserves_creation_or_image_mismatch) ... ok
+test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable (tools.server_lab.tests.test_runner.P04RunnerTests.test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable) ... ok
+test_committed_p04_sample_is_real_schema_valid_and_replayable (tools.server_lab.tests.test_runner.P04RunnerTests.test_committed_p04_sample_is_real_schema_valid_and_replayable) ... ok
+test_event_is_written_after_final_result_and_matches_receipt (tools.server_lab.tests.test_runner.P04RunnerTests.test_event_is_written_after_final_result_and_matches_receipt) ... ok
+test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (tools.server_lab.tests.test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... ok
+test_lease_is_published_before_slow_windows_identity_lookup (tools.server_lab.tests.test_runner.P04RunnerTests.test_lease_is_published_before_slow_windows_identity_lookup) ... ok
+test_p04_02_statuses_remain_distinct_and_never_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_p04_02_statuses_remain_distinct_and_never_pass) ... ok
+test_raw_protocol_divergence_cannot_be_normalized_into_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass) ... ok
+test_receipt_has_nullable_server_fields_and_observation_arrays (tools.server_lab.tests.test_runner.P04RunnerTests.test_receipt_has_nullable_server_fields_and_observation_arrays) ... ok
+test_replay_is_full_lab_command_and_uses_committed_fixture (tools.server_lab.tests.test_runner.P04RunnerTests.test_replay_is_full_lab_command_and_uses_committed_fixture) ... ok
+test_schema_round_trip_and_raw_normalized_lanes_are_separate (tools.server_lab.tests.test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate) ... ok
+test_termination_error_cannot_pass (tools.server_lab.tests.test_runner.P04RunnerTests.test_termination_error_cannot_pass) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 14.053s
+
+OK
+
+
+=== tracker-before.log ===
+test_tracker_receipt_waits_for_response_recording (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_tracker_receipt_waits_for_response_recording) ... FAIL
+
+======================================================================
+FAIL: test_tracker_receipt_waits_for_response_recording (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_tracker_receipt_waits_for_response_recording)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_fixtures.py", line 162, in test_tracker_receipt_waits_for_response_recording
+    self.assertTrue(tracker.wait_for_event("response", timeout=2))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 0.506s
+
+FAILED (failures=1)
+
+
+=== tracker-after.log ===
+test_cancellation_profile_rejects_cancelled_tracker_origin_and_peer_work (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_cancellation_profile_rejects_cancelled_tracker_origin_and_peer_work) ... ok
+test_choke_profile_preserves_wire_order (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_choke_profile_preserves_wire_order) ... ok
+test_corpus_declares_every_required_fault_profile (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_corpus_declares_every_required_fault_profile) ... ok
+test_corruption_profile_is_visible_after_an_authorized_request (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_corruption_profile_is_visible_after_an_authorized_request) ... ok
+test_delay_profile_is_observable_on_tracker_and_peer_ports (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_delay_profile_is_observable_on_tracker_and_peer_ports) ... ok
+test_disconnect_profile_is_a_clean_eof (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_disconnect_profile_is_a_clean_eof) ... ok
+test_discovery_profile_is_exact_and_deterministic (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_discovery_profile_is_exact_and_deterministic) ... ok
+test_lab_runner_and_evidence_schema_record_a_replayable_receipt (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_lab_runner_and_evidence_schema_record_a_replayable_receipt) ... ok
+test_payload_identity_and_geometry_are_converged (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_payload_identity_and_geometry_are_converged) ... ok
+test_tracker_receipt_waits_for_response_recording (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_tracker_receipt_waits_for_response_recording) ... ok
+test_unauthorized_delivery_is_rejected_beyond_ledger_presence (tools.server_lab.tests.test_fixtures.P06CFixtureCorpusTests.test_unauthorized_delivery_is_rejected_beyond_ledger_presence) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 2.850s
+
+OK
+
+
+=== node22-counter.log ===
+K12 counter differential: 14 passed, 0 failed; Node v22.16.0
+
+
+=== node22-interface-probe.log ===
+ERR_SYSTEM_ERROR uv_interface_addresses 1
+
+
+=== all-tests-final.log ===
+test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered (test_comparator.QualifiedNodeOrderingTests.test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered) ... ok
+test_baseline_trace_is_accepted_without_normalization (test_comparator.TraceComparatorMutationTests.test_baseline_trace_is_accepted_without_normalization) ... ok
+test_callback_removal_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_callback_removal_is_rejected_with_identity_path_and_rule) ... ok
+test_duplicate_sequence_is_rejected_before_equality (test_comparator.TraceComparatorMutationTests.test_duplicate_sequence_is_rejected_before_equality) ... ok
+test_duplicate_terminal_event_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_duplicate_terminal_event_is_rejected_with_identity_path_and_rule) ... ok
+test_identical_duplicate_terminal_trace_is_rejected_as_oracle_contract_error (test_comparator.TraceComparatorMutationTests.test_identical_duplicate_terminal_trace_is_rejected_as_oracle_contract_error) ... ok
+test_missing_required_field_in_actual_is_rejected_before_equality (test_comparator.TraceComparatorMutationTests.test_missing_required_field_in_actual_is_rejected_before_equality) ... ok
+test_non_list_actual_trace_is_rejected_as_candidate_contract_error (test_comparator.TraceComparatorMutationTests.test_non_list_actual_trace_is_rejected_as_candidate_contract_error) ... ok
+test_null_for_omitted_key_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_null_for_omitted_key_is_rejected_with_identity_path_and_rule) ... ok
+test_priority_reorder_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_priority_reorder_is_rejected_with_identity_path_and_rule) ... ok
+test_same_terminal_identity_across_generations_remains_valid_during_unrelated_mismatch (test_comparator.TraceComparatorMutationTests.test_same_terminal_identity_across_generations_remains_valid_during_unrelated_mismatch) ... ok
+test_wrong_cancellation_generation_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_wrong_cancellation_generation_is_rejected_with_identity_path_and_rule) ... ok
+test_wrong_type_and_non_contiguous_sequence_are_rejected_before_equality (test_comparator.TraceComparatorMutationTests.test_wrong_type_and_non_contiguous_sequence_are_rejected_before_equality) ... ok
+test_contract_freezes_raw_trace_identity_and_ordering_boundaries (test_comparator.TraceContractTests.test_contract_freezes_raw_trace_identity_and_ordering_boundaries) ... ok
+test_cancellation_profile_rejects_cancelled_tracker_origin_and_peer_work (test_fixtures.P06CFixtureCorpusTests.test_cancellation_profile_rejects_cancelled_tracker_origin_and_peer_work) ... ok
+test_choke_profile_preserves_wire_order (test_fixtures.P06CFixtureCorpusTests.test_choke_profile_preserves_wire_order) ... ok
+test_corpus_declares_every_required_fault_profile (test_fixtures.P06CFixtureCorpusTests.test_corpus_declares_every_required_fault_profile) ... ok
+test_corruption_profile_is_visible_after_an_authorized_request (test_fixtures.P06CFixtureCorpusTests.test_corruption_profile_is_visible_after_an_authorized_request) ... ok
+test_delay_profile_is_observable_on_tracker_and_peer_ports (test_fixtures.P06CFixtureCorpusTests.test_delay_profile_is_observable_on_tracker_and_peer_ports) ... ok
+test_disconnect_profile_is_a_clean_eof (test_fixtures.P06CFixtureCorpusTests.test_disconnect_profile_is_a_clean_eof) ... ok
+test_discovery_profile_is_exact_and_deterministic (test_fixtures.P06CFixtureCorpusTests.test_discovery_profile_is_exact_and_deterministic) ... ok
+test_lab_runner_and_evidence_schema_record_a_replayable_receipt (test_fixtures.P06CFixtureCorpusTests.test_lab_runner_and_evidence_schema_record_a_replayable_receipt) ... ok
+test_payload_identity_and_geometry_are_converged (test_fixtures.P06CFixtureCorpusTests.test_payload_identity_and_geometry_are_converged) ... ok
+test_tracker_receipt_waits_for_response_recording (test_fixtures.P06CFixtureCorpusTests.test_tracker_receipt_waits_for_response_recording) ... ok
+test_unauthorized_delivery_is_rejected_beyond_ledger_presence (test_fixtures.P06CFixtureCorpusTests.test_unauthorized_delivery_is_rejected_beyond_ledger_presence) ... ok
+test_changed_audit_creation_prevents_termination (test_linux_identity.LinuxIdentityTests.test_changed_audit_creation_prevents_termination) ... ok
+test_comm_spaces_and_parentheses_do_not_shift_start_time (test_linux_identity.LinuxIdentityTests.test_comm_spaces_and_parentheses_do_not_shift_start_time) ... ok
+test_invalid_pid_cannot_signal_any_process (test_linux_identity.LinuxIdentityTests.test_invalid_pid_cannot_signal_any_process) ... ok
+test_linux_image_comparison_is_case_sensitive (test_linux_identity.LinuxIdentityTests.test_linux_image_comparison_is_case_sensitive) ... ok
+test_non_group_leader_never_kills_callers_group (test_linux_identity.LinuxIdentityTests.test_non_group_leader_never_kills_callers_group) ... ok
+test_zombie_is_not_a_live_process (test_linux_identity.LinuxIdentityTests.test_zombie_is_not_a_live_process) ... ok
+test_all_raw_sample_paths_are_preserved (test_probes.BaselineReportTests.test_all_raw_sample_paths_are_preserved) ... ok
+test_changed_after_run_thresholds_are_rejected (test_probes.BaselineReportTests.test_changed_after_run_thresholds_are_rejected) ... ok
+test_fake_player_telemetry_is_rejected (test_probes.BaselineReportTests.test_fake_player_telemetry_is_rejected) ... ok
+test_missing_profile_dataset_is_rejected (test_probes.BaselineReportTests.test_missing_profile_dataset_is_rejected) ... ok
+test_p07_03_reports_every_sample_and_uncertainty (test_probes.BaselineReportTests.test_p07_03_reports_every_sample_and_uncertainty) ... ok
+test_partial_or_best_only_dataset_is_rejected (test_probes.BaselineReportTests.test_partial_or_best_only_dataset_is_rejected) ... ok
+test_report_is_complete_and_baseline_only (test_probes.BaselineReportTests.test_report_is_complete_and_baseline_only) ... ok
+test_server_0_1_unavailability_is_non_blocking_and_not_a_parity_verdict (test_probes.BaselineReportTests.test_server_0_1_unavailability_is_non_blocking_and_not_a_parity_verdict) ... ok
+test_under_ten_dataset_is_rejected (test_probes.BaselineReportTests.test_under_ten_dataset_is_rejected) ... ok
+test_source_authority_files_are_still_authenticated (test_probes.SourceAndEnvironmentTests.test_source_authority_files_are_still_authenticated) ... ERROR
+test_fingerprint_preserves_bundle_identity_and_runtime_metadata (test_reference_identity.ReferenceIdentityTests.test_fingerprint_preserves_bundle_identity_and_runtime_metadata) ... ok
+test_missing_companions_are_recorded_without_silent_repair (test_reference_identity.ReferenceIdentityTests.test_missing_companions_are_recorded_without_silent_repair) ... ok
+test_reference_reports_port_exhaustion_without_trying_port_11475 (test_reference_identity.ReferenceIdentityTests.test_reference_reports_port_exhaustion_without_trying_port_11475) ... ok
+test_reference_serves_heartbeat_and_settings_in_disposable_paths (test_reference_identity.ReferenceIdentityTests.test_reference_serves_heartbeat_and_settings_in_disposable_paths) ... FAIL
+test_source_trace_matches_all_six_p02_authorities_from_worker_plan (test_reference_identity.SourceAuthorityTraceTests.test_source_trace_matches_all_six_p02_authorities_from_worker_plan) ... ERROR
+test_portable_node_is_official_verified_and_disposable (test_reference_identity.WslReferenceQualificationTests.test_portable_node_is_official_verified_and_disposable) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_all_five_occupied_ports_are_exhausted_without_11475 (test_reference_identity.WslReferenceQualificationTests.test_wsl_all_five_occupied_ports_are_exhausted_without_11475) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing (test_reference_identity.WslReferenceQualificationTests.test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_reference_serves_heartbeat_and_settings (test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings) ... skipped 'oracle and WSL Ubuntu are required'
+test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) ... ok
+test_cleanup_cli_is_usable_without_subject_arguments (test_runner.P04RunnerTests.test_cleanup_cli_is_usable_without_subject_arguments) ... ok
+test_cleanup_failure_cannot_pass (test_runner.P04RunnerTests.test_cleanup_failure_cannot_pass) ... ok
+test_cleanup_preserves_creation_or_image_mismatch (test_runner.P04RunnerTests.test_cleanup_preserves_creation_or_image_mismatch) ... ok
+test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable (test_runner.P04RunnerTests.test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable) ... ok
+test_committed_p04_sample_is_real_schema_valid_and_replayable (test_runner.P04RunnerTests.test_committed_p04_sample_is_real_schema_valid_and_replayable) ... ok
+test_event_is_written_after_final_result_and_matches_receipt (test_runner.P04RunnerTests.test_event_is_written_after_final_result_and_matches_receipt) ... ok
+test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... ok
+test_lease_is_published_before_slow_windows_identity_lookup (test_runner.P04RunnerTests.test_lease_is_published_before_slow_windows_identity_lookup) ... ok
+test_p04_02_statuses_remain_distinct_and_never_pass (test_runner.P04RunnerTests.test_p04_02_statuses_remain_distinct_and_never_pass) ... ok
+test_raw_protocol_divergence_cannot_be_normalized_into_pass (test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass) ... ok
+test_receipt_has_nullable_server_fields_and_observation_arrays (test_runner.P04RunnerTests.test_receipt_has_nullable_server_fields_and_observation_arrays) ... ok
+test_replay_is_full_lab_command_and_uses_committed_fixture (test_runner.P04RunnerTests.test_replay_is_full_lab_command_and_uses_committed_fixture) ... ok
+test_schema_round_trip_and_raw_normalized_lanes_are_separate (test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate) ... ok
+test_termination_error_cannot_pass (test_runner.P04RunnerTests.test_termination_error_cannot_pass) ... ok
+test_case_packet_and_evidence_contract (test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract) ... ok
+test_matrix_separates_source_accounting_from_runtime_observation (test_surface_matrix.SurfaceMatrixTests.test_matrix_separates_source_accounting_from_runtime_observation) ... ok
+test_p02s_01_profiles_change_only_source_composition (test_surface_matrix.SurfaceMatrixTests.test_p02s_01_profiles_change_only_source_composition) ... ok
+test_p02s_02_dependency_only_is_not_a_mount (test_surface_matrix.SurfaceMatrixTests.test_p02s_02_dependency_only_is_not_a_mount) ... ok
+test_p02s_03_completeness_rejects_deleted_observed_surface (test_surface_matrix.SurfaceMatrixTests.test_p02s_03_completeness_rejects_deleted_observed_surface) ... ok
+test_profile_contract_does_not_inject_invalid_companion_paths (test_surface_matrix.SurfaceMatrixTests.test_profile_contract_does_not_inject_invalid_companion_paths) ... ok
+test_profile_receipts_separate_failed_runs_from_observation (test_surface_matrix.SurfaceMatrixTests.test_profile_receipts_separate_failed_runs_from_observation) ... ok
+test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection (test_surface_matrix.SurfaceMatrixTests.test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection) ... ok
+
+======================================================================
+ERROR: test_source_authority_files_are_still_authenticated (test_probes.SourceAndEnvironmentTests.test_source_authority_files_are_still_authenticated)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_probes.py", line 232, in test_source_authority_files_are_still_authenticated
+    self.assertEqual(hashlib.sha256(WORK_ITEMS_PATH.read_bytes()).hexdigest(), EXPECTED_PLAN_SHA256)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\PublicUser\\Desktop\\Preflight-Architect\\arcs\\44-native-stream-server\\plans\\server1-v2.1-parallel\\PARALLEL-WORK-ITEMS.json'
+
+======================================================================
+ERROR: test_source_trace_matches_all_six_p02_authorities_from_worker_plan (test_reference_identity.SourceAuthorityTraceTests.test_source_trace_matches_all_six_p02_authorities_from_worker_plan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_reference_identity.py", line 30, in test_source_trace_matches_all_six_p02_authorities_from_worker_plan
+    plan_bytes = PARALLEL_WORK_ITEMS.read_bytes()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\PublicUser\\Desktop\\Preflight-Architect\\arcs\\44-native-stream-server\\plans\\server1-v2.1-parallel\\PARALLEL-WORK-ITEMS.json'
+
+======================================================================
+FAIL: test_reference_serves_heartbeat_and_settings_in_disposable_paths (test_reference_identity.ReferenceIdentityTests.test_reference_serves_heartbeat_and_settings_in_disposable_paths)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_reference_identity.py", line 89, in test_reference_serves_heartbeat_and_settings_in_disposable_paths
+    self.assertIn(result["failure"]["kind"], {"bind-denied", "port-exhausted"})
+AssertionError: 'startup-failed' not found in {'bind-denied', 'port-exhausted'}
+
+----------------------------------------------------------------------
+Ran 73 tests in 19.887s
+
+FAILED (failures=1, errors=2, skipped=4)
+EXACT_RESULTS {"run": 73, "passed": 66, "failure_events": 1, "error_events": 2, "skipped": 4}

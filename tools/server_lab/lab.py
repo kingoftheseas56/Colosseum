@@ -59,7 +59,7 @@ class LabRunner:
                 accept_thread.start()
                 lease = {"token": token, "pid": process.pid, "command": command, "started_at": started, "controller": {"pid": os.getpid(), "identity": {"creation": None, "image": None}}, "identity": {"subject": str(subject), "mode": mode, "token": token, "command": subprocess.list2cmdline(command), "creation": None, "image": None, "pending": True}}
                 pending_lease_path.write_text(json.dumps(lease, indent=2) + "\n", encoding="utf-8")
-                identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                identity = {"creation": (_process_handle_creation(process._handle) if os.name == "nt" else _native_process_creation(process.pid)), "image": str(Path(sys.executable).resolve())}
                 controller_identity = {"creation": _native_process_creation(os.getpid()), "image": str(Path(sys.executable).resolve())}
                 lease["controller"]["identity"] = {"creation": controller_identity.get("creation"), "image": controller_identity.get("image")}
                 lease["identity"].update({"creation": identity.get("creation"), "image": identity.get("image"), "pending": not bool(identity.get("creation"))})
@@ -182,10 +182,15 @@ def cleanup_orphans(data_root: Path) -> dict[str, Any]:
             stale.append(str(lease_path.parent))
             lease_path.unlink(missing_ok=True)
             continue
-        if expected.get("creation") != current.get("creation") or (expected.get("image") and expected.get("image").lower() != current.get("image", "").lower()):
+        if expected.get("creation") != current.get("creation") or (expected.get("image") and _identity_text(expected.get("image")) != _identity_text(current.get("image", ""))):
             skipped.append(str(lease_path.parent))
             continue
         audit = _process_identity(pid)
+        # Linux audit uses the same exact native identity representation. CIM
+        # creation timestamps on Windows have a different precision contract.
+        if audit and os.name != "nt" and audit.get("creation") != current.get("creation"):
+            skipped.append(str(lease_path.parent))
+            continue
         if audit and (expected.get("subject", "").lower() not in audit.get("command", "").lower() or expected.get("mode", "").lower() not in audit.get("command", "").lower() or expected.get("token", "").lower() not in audit.get("command", "").lower()):
             skipped.append(str(lease_path.parent))
             continue
@@ -209,12 +214,24 @@ def _accept_one(listener: socket.socket) -> None:
         pass
 
 
+def _identity_text(value: str) -> str:
+    return value.lower() if os.name == "nt" else value
+
+
 def _terminate_tree(pid: int) -> None:
+    if pid <= 0:
+        raise ValueError("refusing to terminate a non-positive process id")
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False)
     else:
         try:
-            os.killpg(pid, signal.SIGKILL)
+            # Lab subjects normally own a new session. A verified external
+            # lease may name a single child instead; never signal its parent's
+            # process group, and do not assume a group with id=pid exists.
+            if os.getpgid(pid) == pid:
+                os.killpg(pid, signal.SIGKILL)
+            else:
+                os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
 
@@ -261,10 +278,16 @@ def _is_locked(path: Path) -> bool:
 def _pid_alive(pid: int) -> bool:
     if os.name != "nt":
         try:
+            if sys.platform.startswith("linux"):
+                fields = _linux_stat_fields(pid)
+                if fields and fields[0] in ("Z", "X"):
+                    return False
             os.kill(pid, 0)
             return True
         except ProcessLookupError:
             return False
+        except PermissionError:
+            return True
     import ctypes
     kernel32 = _kernel32()
     handle = kernel32.OpenProcess(0x1000 | 0x0400, False, pid)
@@ -283,10 +306,26 @@ def _process_creation(pid: int) -> str | None:
     return _native_process_creation(pid)
 
 
+def _linux_stat_fields(pid: int) -> list[str]:
+    # comm (field 2) may contain spaces and parentheses. Fields after the final
+    # ')' begin with state; starttime is index 19 in that suffix.
+    try:
+        text = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        end = text.rfind(")")
+        return text[end + 1:].split() if end >= 0 else []
+    except OSError:
+        return []
+
+
 def _native_process_creation(pid: int) -> str | None:
     if os.name != "nt":
         try:
-            return Path(f"/proc/{pid}/stat").read_text(encoding="ascii").split()[21]
+            fields = _linux_stat_fields(pid)
+            if len(fields) <= 19:
+                return None
+            boot = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+            namespace = os.readlink(f"/proc/{pid}/ns/pid")
+            return f"linux:{boot}:{namespace}:{fields[19]}"
         except (OSError, IndexError):
             return None
     from ctypes import wintypes
@@ -318,9 +357,11 @@ def _process_handle_creation(handle) -> str | None:
 def _native_process_identity(pid: int) -> dict[str, str] | None:
     if os.name != "nt":
         try:
-            stat_fields = Path(f"/proc/{pid}/stat").read_text(encoding="ascii").split()
-            image = str(Path(f"/proc/{pid}/exe").resolve())
-            return {"creation": stat_fields[21], "image": image}
+            creation = _native_process_creation(pid)
+            image = os.readlink(f"/proc/{pid}/exe")
+            if not creation or creation != _native_process_creation(pid):
+                return None
+            return {"creation": creation, "image": image}
         except (OSError, IndexError):
             return None
     import ctypes
@@ -387,7 +428,7 @@ def _process_identity(pid: int) -> dict[str, Any] | None:
         return {"command": value.get("CommandLine", ""), "creation": creation}
     try:
         value = Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace").replace("\x00", " ").strip()
-        creation = Path(f"/proc/{pid}/stat").read_text(encoding="ascii").split()[21]
+        creation = _native_process_creation(pid)
     except (OSError, IndexError):
         return None
     return {"command": value, "creation": creation}

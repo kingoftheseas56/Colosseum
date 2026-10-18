@@ -6,7 +6,7 @@ import copy
 import json
 import os
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -17,7 +17,8 @@ ARTIFACT_ROOT = ROOT / "artifacts/server1/P02S/P02S-A"
 RUNNER_PATH = ARTIFACT_ROOT / "run_reference_profiles.py"
 PROFILE_RUNS_PATH = ARTIFACT_ROOT / "profile-runs.json"
 QUALIFICATION_PATH = ARTIFACT_ROOT / "QUALIFICATION-SUMMARY.json"
-QUALIFIED_NODE = Path(
+# Historical receipt identity is Windows syntax even when inspected on Linux.
+QUALIFIED_NODE = PureWindowsPath(
     r"C:\Users\PublicUser\AppData\Local\Temp\p05-b-node-v22.16.0"
 ) / "node-v22.16.0-win-x64" / "node.exe"
 CLASSIFICATIONS = {

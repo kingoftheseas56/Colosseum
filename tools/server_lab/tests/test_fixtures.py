@@ -6,6 +6,7 @@ import hashlib
 import json
 import socket
 import tempfile
+import threading
 import textwrap
 import time
 import unittest
@@ -144,6 +145,26 @@ class P06CFixtureCorpusTests(unittest.TestCase):
         self.assertEqual([len(piece) for piece in multi.pieces], [16384, 16384, 232])
         self.assertEqual([file.offset for file in multi.files], [0, 7000, 21000])
 
+    def test_tracker_receipt_waits_for_response_recording(self) -> None:
+        entered, release = threading.Event(), threading.Event()
+        class HeldTracker(TrackerFixturePort):
+            def _record(self, operation, **fields):
+                if operation == "response":
+                    entered.set()
+                    if not release.wait(20): raise RuntimeError("fixture release timeout")
+                super()._record(operation, **fields)
+        tracker = HeldTracker().start()
+        try:
+            self.assertEqual(_get(tracker.url())[0], 200)
+            self.assertTrue(entered.wait(2))
+            self.assertFalse(tracker.wait_for_event("response", timeout=0.01))
+            release.set()
+            self.assertTrue(tracker.wait_for_event("response", timeout=2))
+            self.assertEqual([e["operation"] for e in tracker.events], ["ready", "request", "response"])
+        finally:
+            release.set()
+            _stop_cleanly(tracker)
+
     def test_discovery_profile_is_exact_and_deterministic(self) -> None:
         compact_peer = bytes((127, 0, 0, 1)) + (49001).to_bytes(2, "big")
         expected = b"d8:intervali30e5:peers6:" + compact_peer + b"e"
@@ -151,6 +172,7 @@ class P06CFixtureCorpusTests(unittest.TestCase):
         try:
             status, body, _ = _get(tracker.url("/announce?generation=1&token=discovery"))
             self.assertEqual((status, body), (200, expected))
+            self.assertTrue(tracker.wait_for_event("response", timeout=2))
             self.assertEqual(
                 [event["operation"] for event in tracker.events],
                 ["ready", "request", "response"],

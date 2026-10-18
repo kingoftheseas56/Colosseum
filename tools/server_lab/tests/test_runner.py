@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -254,7 +255,11 @@ class P04RunnerTests(unittest.TestCase):
             if child_pid_file.exists() and child_pid_file.read_text(encoding="ascii").strip():
                 leaked = int(child_pid_file.read_text(encoding="ascii"))
                 if _pid_alive(leaked):
-                    subprocess.run(["taskkill", "/PID", str(leaked), "/T", "/F"], capture_output=True, check=False)
+                    if os.name == "nt":
+                        subprocess.run(["taskkill", "/PID", str(leaked), "/T", "/F"], capture_output=True, check=False)
+                    else:
+                        try: os.kill(leaked, signal.SIGKILL)
+                        except ProcessLookupError: pass
             if unrelated.poll() is None:
                 unrelated.kill()
                 unrelated.wait(timeout=3)
@@ -497,6 +502,17 @@ class P04RunnerTests(unittest.TestCase):
 
 
 def _pid_alive(pid: int) -> bool:
+    # Independent OS observation: do not assert cleanup through the production
+    # helper whose behavior these tests are qualifying.
+    if os.name != "nt":
+        try:
+            text = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+            state = text[text.rfind(")") + 1:].split()[0]
+            if state in ("Z", "X"): return False
+            os.kill(pid, 0)
+            return True
+        except (FileNotFoundError, ProcessLookupError): return False
+        except PermissionError: return True
     completed = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True, check=False)
     return str(pid) in completed.stdout
 

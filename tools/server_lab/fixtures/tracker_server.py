@@ -60,6 +60,7 @@ class TrackerFixturePort:
         self.config = config if isinstance(config, TrackerConfig) else TrackerConfig.from_value(config)
         self.events: list[dict[str, Any]] = []
         self._lock = threading.Lock()
+        self._changed = threading.Condition(self._lock)
         self._requests = 0
         self._cancelled: dict[str, Any] | None = None
         self._server: ThreadingHTTPServer | None = None
@@ -142,6 +143,15 @@ class TrackerFixturePort:
         body = _bencode({"interval": self.config.interval, "peers": compact})
         self._respond(request, 200, body, {"Content-Type": "text/plain", "Content-Length": str(len(body))})
 
+    def wait_for_event(self, operation: str, timeout: float = 2.0) -> bool:
+        # Receiving bytes and recording their send are separate thread events.
+        # Wait for actual recording without manufacturing/reordering a receipt.
+        with self._changed:
+            return self._changed.wait_for(
+                lambda: any(event["operation"] == operation for event in self.events),
+                timeout=timeout,
+            )
+
     def _respond(self, request: BaseHTTPRequestHandler, status: int, body: bytes, headers: dict[str, str]) -> None:
         request.send_response(status)
         for key, value in headers.items():
@@ -151,7 +161,7 @@ class TrackerFixturePort:
         self._record("response", status=status, response_bytes=body.hex(), headers=headers)
 
     def _record(self, operation: str, **fields: Any) -> None:
-        with self._lock:
+        with self._changed:
             event = {"sequence": len(self.events), "operation": operation, **fields}
             self.events.append(event)
             if self.config.event_file:
@@ -159,6 +169,7 @@ class TrackerFixturePort:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with path.open("a", encoding="utf-8") as stream:
                     stream.write(json.dumps(event, sort_keys=True) + "\n")
+            self._changed.notify_all()
 
 
 TrackerServer = TrackerFixturePort
