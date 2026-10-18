@@ -409,6 +409,31 @@ void caseK06_F2(const std::filesystem::path &root)
     std::cout << "K06-F2 PASS\n";
 }
 
+void caseK06_F3(const std::filesystem::path &root)
+{
+    const auto caseRoot = root / "K06-F3";
+    std::filesystem::remove_all(caseRoot);
+    auto store = makeEightByteStore(caseRoot);
+    store.stage(0, bytes("abcd"));
+    require(store.verify(0).success, "bitmap failure fixture verifies");
+    const auto bitmap = caseRoot / ".verification-bitmap";
+    std::filesystem::remove(bitmap);
+    std::filesystem::create_directory(bitmap);
+    const auto failed = store.commit(0,1);
+    require(failed.state == CommitState::Error && !failed.error.empty(),
+            "bitmap failure returns an explicit commit error");
+    require(!store.isCommitted(0), "failed bitmap persistence published committed state");
+    require(store.isVerified(0) && store.read(0).value() == bytes("abcd"),
+            "failed commit retains verified staged bytes for retry");
+    std::filesystem::remove(bitmap);
+    require(store.commit(0,1).state == CommitState::Committed,
+            "retry after bitmap recovery commits original staged bytes");
+    auto reopened = makeEightByteStore(caseRoot);
+    require(reopened.isCommitted(0) && reopened.read(0).value() == bytes("abcd"),
+            "successful retry survives reopen");
+    std::cout << "K06-F3 PASS\n";
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -424,8 +449,10 @@ int main(int argc, char **argv)
             caseK06_03(root);
         if (requested == "all" || requested == "K06-F2")
             caseK06_F2(root);
+        if (requested == "all" || requested == "K06-F3")
+            caseK06_F3(root);
         if (requested != "all" && requested != "K06-01" && requested != "K06-02"
-            && requested != "K06-03" && requested != "K06-F2")
+            && requested != "K06-03" && requested != "K06-F2" && requested != "K06-F3")
             throw std::runtime_error("unknown K06 case");
     } catch (const std::exception &error) {
         std::cerr << "K06 FAIL: " << error.what() << '\n';

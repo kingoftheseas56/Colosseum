@@ -257,13 +257,27 @@ CommitResult PersistentPieceStore::commitNow(std::size_t start, std::size_t endE
         if (!writePiece(piece, &error))
             return {CommitState::Error, result.callbackCount, false, error};
     }
+    // Durability is published only after the bitmap write succeeds. Keep the
+    // staged bytes and previous bits available if persistence fails, so retry
+    // cannot report a successful commit with missing input bytes.
+    std::vector<bool> previousBits;
+    previousBits.reserve(endExclusive - start);
+    for (std::size_t piece = start; piece < endExclusive; ++piece) {
+        previousBits.push_back(verificationBitmap_->get(piece));
+        verificationBitmap_->set(piece, true);
+    }
+    try {
+        verificationBitmap_->persist();
+    } catch (const std::exception &error) {
+        for (std::size_t piece = start; piece < endExclusive; ++piece)
+            verificationBitmap_->set(piece, previousBits[piece - start]);
+        return {CommitState::Error, result.callbackCount, false, error.what()};
+    }
     for (std::size_t piece = start; piece < endExclusive; ++piece) {
         committed_[piece] = true;
         staged_[piece].reset();
-        verificationBitmap_->set(piece, true);
         ledger_.push_back("commit:" + std::to_string(piece));
     }
-    verificationBitmap_->persist();
     return result;
 }
 

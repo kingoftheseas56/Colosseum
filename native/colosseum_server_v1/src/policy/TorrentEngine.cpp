@@ -506,6 +506,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     std::set<std::size_t> staging;
     std::set<std::size_t> advertisedVerificationPieces;
     std::map<std::size_t, SelectionId> groupSelections;
+    std::uint64_t stageEpoch = 0;
     std::set<ports::PeerHandle> interestedPeers;
     std::vector<ports::TorrentObservation> deferred;
     std::vector<ports::ConnectAction> pendingConnects;
@@ -1229,7 +1230,14 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             }
             if (state->closing.load() || !state->store) return;
             std::string error;
-            auto bytes = state->store->read(piece, clockCopy(), &error);
+            std::optional<ByteBuffer> bytes;
+            try {
+                bytes = state->store->read(piece, clockCopy(), &error);
+            } catch (const std::exception &failure) {
+                error = failure.what();
+            } catch (...) {
+                error = "piece store read failed";
+            }
             // A late app completion owns its copied bytes, not a store slot.
             if (reservation.owns_lock()) reservation.unlock();
             sink("read", piece, 0, 0, bytes ? bytes->size() : 0);
@@ -1282,7 +1290,10 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         auto clockCopy = clock;
         std::weak_ptr<Impl> weak = weak_from_this();
         auto app = appPost;
-        post([state, piece, bytes = std::move(bytes), sink, clockCopy, weak, app]() mutable {
+        const auto group = realPieceGroup(
+            metadata->geometry().virtualPieces().at(piece).verificationIndex.value);
+        const auto epoch = stageEpoch;
+        post([state, piece, group, epoch, bytes = std::move(bytes), sink, clockCopy, weak, app]() mutable {
             if (state->closing.load() || !state->store) return;
             std::unique_lock<std::mutex> reservation(state->readMutex, std::defer_lock);
             if (state->circular) reservation.lock();
@@ -1292,33 +1303,52 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 // Retain this received piece once; do not turn cache pressure into
                 // a terminal failure or discard it and request the network again.
                 reservation.unlock();
-                if (app) static_cast<void>(app([weak, piece, bytes = std::move(bytes)]() mutable {
+                if (app) static_cast<void>(app([weak, piece, epoch, bytes = std::move(bytes)]() mutable {
                     const auto self = weak.lock();
-                    if (self && !self->closed) self->postStage(piece, std::move(bytes));
+                    if (self && !self->closed && self->stageEpoch == epoch)
+                        self->postStage(piece, std::move(bytes));
                 }));
                 return;
             }
             const auto length = bytes.size();
-            const auto result = state->store->stage(piece, std::move(bytes), clockCopy());
+            StageResult result;
+            try {
+                result = state->store->stage(piece, std::move(bytes), clockCopy());
+            } catch (const std::exception &failure) {
+                result.complete = true;
+                result.start = group.first;
+                result.endExclusive = group.second;
+                result.error = failure.what();
+            } catch (...) {
+                result.complete = true;
+                result.start = group.first;
+                result.endExclusive = group.second;
+                result.error = "piece store stage failed";
+            }
             if (reservation.owns_lock()) reservation.unlock();
             sink("stage", piece, 0, 0, length);
             if (!result.complete)
                 sink("verify-incomplete", piece, result.start, result.endExclusive);
             else if (!result.success && result.retryable)
                 sink("verify-failure", piece, result.start, result.endExclusive);
-            else
+            else if (result.success)
                 sink("verify-success", piece, result.start, result.endExclusive);
+            else
+                sink("store-error", piece, result.start, result.endExclusive);
             if (result.success)
                 sink("commit", piece, result.start, result.endExclusive);
-            if (app) static_cast<void>(app([weak, piece, result] {
-                if (const auto self = weak.lock()) self->stageResult(piece, result);
+            if (app) static_cast<void>(app([weak, piece, epoch, result] {
+                if (const auto self = weak.lock()) self->stageResult(piece, result, epoch);
             }));
         });
     }
 
-    void stageResult(std::size_t piece, const StageResult &result)
+    void stageResult(std::size_t piece, const StageResult &result, std::uint64_t epoch)
     {
         if (closed || !ready) return;
+        // Valid already-queued commits remain usable. Old failures/incomplete
+        // work must not resurrect demand canceled by a terminal store failure.
+        if (epoch != stageEpoch && !result.success) return;
         for (const auto evicted : result.evicted) {
             committed.erase(evicted);
             if (evicted < metadata->geometry().virtualPieces().size())
@@ -1364,6 +1394,27 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             if (!result.retryable) {
                 const auto reason = result.error.empty() ? "piece store commit failed"
                                                          : result.error;
+                // All readers below become terminal. Their engine-owned
+                // verification-group selections must not outlive that demand.
+                ++stageEpoch;
+                staging.clear();
+                demandedPieces.clear();
+                for (const auto &[verification, selection] : groupSelections) {
+                    static_cast<void>(verification);
+                    static_cast<void>(scheduler->deselect(selection));
+                }
+                groupSelections.clear();
+                for (const auto &[id, request] : activeRequests) {
+                    static_cast<void>(id);
+                    if (const auto wire = wireAction(SchedulerAction{
+                            SchedulerActionType::Cancel, request, true}))
+                        static_cast<void>(transport->submit(*wire));
+                    schedulerActions->finish(request.requestId, generation, RequestOutcome::Canceled);
+                    if (const auto buffer = pieceBuffers.find(request.piece); buffer != pieceBuffers.end())
+                        buffer->second->cancel(request.block);
+                }
+                activeRequests.clear();
+                pieceBuffers.clear();
                 for (auto &weakReader : readers)
                     if (auto reader = weakReader.lock()) reader->fail(reason);
                 return;
@@ -1447,7 +1498,13 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         const auto group = realPieceGroup(observation.block.piece);
         post([state, observation, virtualPiece, group, offset, length, sink, weak, app]() {
             if (state->closing.load() || !state->store) return;
-            auto bytes = state->store->uploadRead(virtualPiece, group.first, group.second);
+            std::optional<ByteBuffer> bytes;
+            try {
+                bytes = state->store->uploadRead(virtualPiece, group.first, group.second);
+            } catch (...) {
+                // The existing app-lane path emits one ownership-matched abort.
+                bytes.reset();
+            }
             sink("upload-read", virtualPiece, offset, offset + length, bytes ? bytes->size() : 0);
             if (app) static_cast<void>(app([weak, observation, offset, length,
                                             bytes = std::move(bytes)] {

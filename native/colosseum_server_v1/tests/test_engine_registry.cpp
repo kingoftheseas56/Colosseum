@@ -1966,6 +1966,178 @@ void regressionCircularActiveReaders(bool fullCache = false, int cancellations =
     std::cout << "K11-EVICTION full=" << fullCache << " canceled=" << cancellations << " PASS\n";
 }
 
+// A real persistent-store exception must complete the waiting reader once.
+void regressionStorageStageException(bool multiVirtual = false)
+{
+    const Bytes payload = multiVirtual ? Bytes(524289, 'A') : Bytes{'A','B','C','D'};
+    const auto torrent = multiVirtual
+        ? dataFixture("storage-multi", {{"first.bin",4},{"rest.bin",524285}}, payload,1048576)
+        : dataFixture("storage.bin", {{"storage.bin",4}}, payload);
+    FakeFactory factory;
+    LaneWorker worker;
+    EngineRegistryConfig config;
+    const auto root = uniqueRoot("k11-storage-exception");
+    config.cacheRoot = root;
+    config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
+    config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    EngineRegistry registry(std::move(config));
+    registry.create({torrent.hash, Value::object({{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);
+    auto state = factory.at(0);
+    ready(state,torrent);
+    settle(registry,worker);
+    auto engine = registry.get(torrent.hash);
+    expect(engine && engine->ready(), "STORAGE engine did not reach ready");
+    std::filesystem::create_directories(root / torrent.hash / ".verification-bitmap");
+    observe(state, AvailablePiecesObservation{engine->generation(),91,{0,1}});
+    observe(state, PeerObservation{91,false,true,1.0,0.0,0,0});
+    auto reader = engine->createReader(0);
+    reader->request(4);
+    settle(registry,worker);
+    const auto requests = actionsOf<RequestAction>(state);
+    expect(!requests.empty(), "STORAGE missing request");
+    const auto &r = requests.back();
+    const auto start = r.block.piece * (multiVirtual ? 1048576 : 4) + r.block.offset;
+    observe(state,BlockObservation{r.ownership,r.peer,r.block,
+        Bytes(payload.begin()+start,payload.begin()+start+r.block.length),false,false});
+    settle(registry,worker);
+    expect(reader->closed(), "STORAGE stage exception left reader pending");
+    expect(reader->takeError().has_value(), "STORAGE stage error not delivered");
+    expect(reader->pendingReads()==0 && reader->lockedPieces().empty()
+        && engine->selectionCount()==0, "STORAGE ownership leaked");
+    expect(reader->takeData().empty() && countActions<AdvertisePieceAction>(state)==0,
+        "STORAGE failed commit delivered or advertised bytes");
+    const auto requestCount = countActions<RequestAction>(state);
+    settle(registry,worker);
+    expect(countActions<RequestAction>(state)==requestCount, "STORAGE requested data after terminal failure");
+    expect(!reader->takeError() && reader->takeData().empty(), "STORAGE duplicate completion");
+    std::cout << "K11-STORAGE stage-exception PASS\n";
+}
+
+void regressionStorageReadException(bool upload)
+{
+    const Bytes payload{'A','B','C','D'};
+    const auto torrent = dataFixture("storage-read.bin", {{"storage-read.bin",4}}, payload);
+    FakeFactory factory;
+    LaneWorker worker;
+    EngineRegistryConfig config;
+    const auto root = uniqueRoot("k11-storage-read-exception");
+    config.cacheRoot = root;
+    config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
+    config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    EngineRegistry registry(std::move(config));
+    registry.create({torrent.hash, Value::object({{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);
+    auto state = factory.at(0);
+    ready(state,torrent);
+    settle(registry,worker);
+    auto engine = registry.get(torrent.hash);
+    observe(state, AvailablePiecesObservation{engine->generation(),91,{0}});
+    observe(state, PeerObservation{91,false,true,1.0,0.0,0,0});
+    auto first = engine->createReader(0);
+    first->request(4);
+    settle(registry,worker);
+    const auto requests = actionsOf<RequestAction>(state);
+    expect(!requests.empty(), "STORAGE-READ missing request");
+    const auto &r = requests.back();
+    observe(state,BlockObservation{r.ownership,r.peer,r.block,payload,false,false});
+    settle(registry,worker);
+    expect(first->takeData()==std::vector<Bytes>{payload}, "STORAGE-READ fixture did not commit");
+    first->close();
+    settle(registry,worker);
+    const auto backing = root / torrent.hash / "0";
+    std::filesystem::remove(backing);
+    std::filesystem::create_symlink("0",backing);
+    if (upload) {
+        observe(state,UploadRequestObservation{UploadOwnership{123,engine->generation()},91,
+                                               BlockSpan{0,0,0,4}});
+        settle(registry,worker);
+        const auto aborts = actionsOf<UploadAbortAction>(state);
+        expect(aborts.size()==1 && aborts[0].ownership.requestId==123,
+               "STORAGE-READ upload exception lost matching abort");
+        expect(countActions<UploadResponseAction>(state)==0, "STORAGE-READ invalid upload escaped");
+        settle(registry,worker);
+        expect(countActions<UploadAbortAction>(state)==1, "STORAGE-READ duplicate upload abort");
+    } else {
+        auto reader = engine->createReader(0);
+        reader->request(4);
+        settle(registry,worker);
+        expect(reader->closed() && reader->takeError().has_value(),
+               "STORAGE-READ exception left reader pending");
+        expect(reader->pendingReads()==0 && reader->lockedPieces().empty()
+            && reader->takeData().empty(), "STORAGE-READ failed read leaked ownership or bytes");
+        settle(registry,worker);
+        expect(!reader->takeError(), "STORAGE-READ duplicate error");
+    }
+    std::cout << "K11-STORAGE read-exception upload=" << upload << " PASS\n";
+}
+
+void regressionStorageLateStageFailure()
+{
+    const Bytes payload{'A','B','C','D','E','F','G','H'};
+    const auto torrent = dataFixture("late", {{"a.bin",4},{"b.bin",4}}, payload);
+    FakeFactory factory;
+    LaneWorker worker;
+    EngineRegistryConfig config;
+    const auto root = uniqueRoot("k11-late-stage-error");
+    const auto bitmap = root / torrent.hash / ".verification-bitmap";
+    config.cacheRoot = root;
+    config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
+    config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    config.trace = [&](const EngineTrace &trace) {
+        if (trace.kind == "store-error") std::filesystem::remove_all(bitmap);
+    };
+    EngineRegistry registry(std::move(config));
+    registry.create({torrent.hash, Value::object({{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);
+    auto state = factory.at(0);
+    ready(state,torrent);
+    settle(registry,worker);
+    auto engine = registry.get(torrent.hash);
+    std::filesystem::create_directories(bitmap);
+    observe(state, AvailablePiecesObservation{engine->generation(),91,{0,1}});
+    observe(state, PeerObservation{91,false,true,1000000.0,0.0,0,0});
+    auto a = engine->createReader(0), b = engine->createReader(1);
+    a->request(4); b->request(4);
+    settle(registry,worker);
+    auto requests = actionsOf<RequestAction>(state);
+    expect(!requests.empty(), "LATE-STAGE first request missing");
+    worker.fence();
+    const auto first = requests.front();
+    observe(state,BlockObservation{first.ownership,first.peer,first.block,
+        Bytes(payload.begin()+first.block.piece*4,payload.begin()+first.block.piece*4+4),false,false});
+    registry.poll(); registry.dispatch();
+    requests = actionsOf<RequestAction>(state);
+    const auto other = std::find_if(requests.begin(),requests.end(),[&](const auto &r) {
+        return r.block.piece != first.block.piece;
+    });
+    expect(other!=requests.end(), "LATE-STAGE second request missing");
+    observe(state,BlockObservation{other->ownership,other->peer,other->block,Bytes(4,'X'),false,false});
+    registry.poll(); registry.dispatch();
+    worker.release();
+    expect(worker.waitIdle(), "LATE-STAGE work did not settle");
+    registry.dispatch();
+    expect(a->closed() && b->closed(), "LATE-STAGE readers not terminal");
+    expect(engine->selectionCount()==0, "LATE-STAGE old verification failure resurrected demand");
+    const auto requestCount = countActions<RequestAction>(state);
+    settle(registry,worker);
+    expect(countActions<RequestAction>(state)==requestCount,
+           "LATE-STAGE new wire request after terminal failure");
+    auto retried = engine->createReader(other->block.piece);
+    retried->request(4);
+    settle(registry,worker);
+    const auto refreshed = actionsOf<RequestAction>(state);
+    expect(refreshed.size()>requestCount, "LATE-STAGE fresh reader could not retry flushed buffer");
+    const auto &next = refreshed.back();
+    observe(state,BlockObservation{next.ownership,next.peer,next.block,
+        Bytes(payload.begin()+next.block.piece*4,payload.begin()+next.block.piece*4+4),false,false});
+    settle(registry,worker);
+    expect(retried->takeData()==std::vector<Bytes>{Bytes(payload.begin()+next.block.piece*4,
+        payload.begin()+next.block.piece*4+4)} && !retried->takeError(),
+        "LATE-STAGE recovered read did not return original bytes");
+    std::cout << "K11-STORAGE late-stage-failure PASS\n";
+}
+
 void runK1103()
 {
     const auto one = fixture("one.bin", {{"one.bin", 8}});
@@ -2195,6 +2367,11 @@ int main(int argc, char **argv)
         else if (id == "R8") regressionCircularActiveReaders(true);
         else if (id == "R9") regressionCircularActiveReaders(true, 1);
         else if (id == "R10") regressionCircularActiveReaders(true, 2);
+        else if (id == "R16") regressionStorageLateStageFailure();
+        else if (id == "R15") regressionStorageStageException(true);
+        else if (id == "R13") regressionStorageReadException(false);
+        else if (id == "R14") regressionStorageReadException(true);
+        else if (id == "R12") regressionStorageStageException();
         else if (id == "R11") regressionCircularActiveReaders(true, 0, true);
         else throw std::runtime_error("unknown K11 case: " + id);
         return EXIT_SUCCESS;
