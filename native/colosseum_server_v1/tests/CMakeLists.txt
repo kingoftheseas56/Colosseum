@@ -72,3 +72,6 @@ add_test(NAME INT-W3-spine-contracts-link COMMAND server1_spine_contracts_link_t
 set_tests_properties(INT-W3-spine-contracts-link PROPERTIES
   LABELS "server1;unit;INT-W3"
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K12.cmake")
+server1_register_k12_tests()
