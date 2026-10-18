@@ -1,0 +1,10 @@
+{
+  "info_hash": "6f86507e80761923581b503b016f608e3043b60b",
+  "file_index": 0,
+  "payload_bytes": 116123,
+  "payload_sha256": "54ca8e68aec74460b13505c4a4e0356fba5d8174e876a02e9f30eda634d30229",
+  "origin": "FFmpeg lavfi testsrc2 and sine, newly generated, no external media",
+  "duration_seconds": 4,
+  "torrent_has_announce": false,
+  "torrent_private": true
+}

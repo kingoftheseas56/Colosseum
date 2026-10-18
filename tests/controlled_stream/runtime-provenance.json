@@ -1,0 +1,37 @@
+{
+  "official_download_page": "https://www.stremio.com/download-service",
+  "package_url": "https://dl.strem.io/stremio-service/v0.1.21/stremio-service_amd64.deb",
+  "package_version": "0.1.21-1",
+  "package_bytes": 65220176,
+  "package_sha256": "7d55ddafc46d683b56c720855a3f8c8cb7cac1dce817314bfabe098ae5868c67",
+  "server_version": "4.20.17",
+  "runtime_files": {
+    "stremio-runtime": {
+      "bytes": 86797344,
+      "sha256": "a2e203a57671d2914ac6311dfed01ebda3bc7f93c24fcae9d804ab611da1d10b"
+    },
+    "server.js": {
+      "bytes": 6631104,
+      "sha256": "567a397bb11b788571bf1750fd05dd78927f97bec0c9ddeaa6d9cc1eccee3922"
+    },
+    "ffmpeg": {
+      "bytes": 77173696,
+      "sha256": "3ea58083710f63bf920b16c7d5d24ae081e7d731f57a656fed11af0410d4eb48"
+    },
+    "ffprobe": {
+      "bytes": 77067360,
+      "sha256": "71cfc596ce2e88a67f0b5c8ecfc858e42c458dbf5bf23dfd400fa0bc15685a88"
+    },
+    "stremio-service": {
+      "bytes": 6447480,
+      "sha256": "64abcde69b3bdb7a2dd47496f24b2482ce47f42f3a9cf19e796bbb0a123bdd53"
+    }
+  },
+  "executed": false,
+  "system_installed": false,
+  "licences": [
+    "extracted/usr/share/licenses/stremio-service/LICENSE.md",
+    "extracted/usr/share/doc/stremio-service/copyright"
+  ],
+  "inspection": "Static createEngine accepts options.peerSearch.sources. Loopback-only tracker source can be supplied to POST /<hash>/create while leaving torrent as hash magnet; default dht:false/tracker:false. This route is statically supported, not yet transport-tested. POST /create with torrent blob alone uses defaults/public discovery and is inappropriate without isolation."
+}

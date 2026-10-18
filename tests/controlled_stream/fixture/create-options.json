@@ -1,0 +1,11 @@
+{
+  "dht": false,
+  "tracker": false,
+  "peerSearch": {
+    "min": 1,
+    "max": 1,
+    "sources": [
+      "tracker:http://127.0.0.1:49022/announce"
+    ]
+  }
+}
