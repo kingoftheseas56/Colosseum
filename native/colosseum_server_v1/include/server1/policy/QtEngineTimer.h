@@ -10,4 +10,7 @@ namespace server1::policy {
 // Required error sink must not throw. Callback exceptions cannot cross Qt dispatch.
 using EngineTimerError = std::function<void(std::exception_ptr)>;
 EngineAfter qtEngineAfter(QObject *owner, EngineTimerError onError);
+// Positive intervals only. Overdue intervals coalesce through Qt event delivery;
+// no elapsed-time catch-up loop. Callback failure cancels before error reporting.
+EngineRepeat qtEngineRepeat(QObject *owner, EngineTimerError onError);
 }

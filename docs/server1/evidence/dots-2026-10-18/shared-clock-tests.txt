@@ -1,0 +1,17 @@
+Shared delivered-tick clock, Linux x86_64, 2026-10-18 UTC
+Parent f68dcd561716182e3d16a24bd28e2014b9823b5c
+GCC14.2 / Qt6.11.1 / CMake4.4.3 / Release
+Build exit0. Full CTest103/103PASS,0FAIL,0SKIP,68.91s.
+QT_FATAL_WARNINGS=1 timer executable:29 casesPASS,exit0.
+Timer executable SHA256 56ad7718a73bce9bc3fa9be5476e77cd1fd2d8f5839e799983db97ff8279946a
+Matching RelWithDebInfo ASan timer CTest1/1PASS,exit0,1.26s.
+ASAN_OPTIONS=detect_leaks=0. No LeakSanitizer or Windows qualification.
+
+Before (uncommitted first repeat implementation):
+repeat discarded callable-local state
+TEST_EXIT=1
+After: same mutable-state assertion plus throwing-copy guard PASS.
+Other original one-shot assertions unchanged.
+
+Commands and limits: ../../DOTS-2026-10-18-SHARED-CLOCK.md
+Production transfer feed remains unconnected; no end-to-end rate claim.

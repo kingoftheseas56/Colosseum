@@ -1,4 +1,5 @@
 #include "server1/policy/QtEngineTimer.h"
+#include "server1/policy/EngineSpeedometerClock.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -10,6 +11,21 @@
 using namespace server1::policy;
 void require(bool ok,const char *message){if(!ok)throw std::runtime_error(message);}
 void spin(int ms){QElapsedTimer timer;timer.start();while(timer.elapsed()<ms){QCoreApplication::processEvents(QEventLoop::AllEvents,5);QThread::msleep(1);}}
+struct ManualTimer final : EngineTimer {
+    bool live=true;
+    void cancel() noexcept override {live=false;}
+    bool active() const noexcept override{return live;}
+    std::uint64_t id() const noexcept override{return 1;}
+};
+struct CopyGuard {
+    std::shared_ptr<bool> armed;
+    int *calls;
+    CopyGuard(std::shared_ptr<bool> a,int *c):armed(std::move(a)),calls(c){}
+    CopyGuard(const CopyGuard &other):armed(other.armed),calls(other.calls){
+        if(*armed)throw std::runtime_error("unexpected callback copy");
+    }
+    void operator()(){++*calls;}
+};
 int main(int argc,char **argv){
     QCoreApplication app(argc,argv);
     try {
@@ -53,6 +69,56 @@ int main(int argc,char **argv){
         counter->increment({"b",0});counter->decrement({"b",0});
         std::thread counterDestroyer([&]{counter.reset();});counterDestroyer.join();spin(120);
         require(zero==1,"foreign-thread counter destruction delivered callback");
-        std::cout<<"Qt one-shot lifecycle: 10 cases PASS\\n";return 0;
+        auto repeat=qtEngineRepeat(&live,onError);
+        int repeats=0;
+        auto repeating=repeat(5,[&]{require(QThread::currentThread()==lane,"repeat escaped app lane");++repeats;});
+        require(repeating && repeats==0,"repeat delivered inline");
+        spin(35);require(repeats>=2 && repeating->active(),"repeat did not remain live");
+        repeating->cancel();const auto stopped=repeats;spin(20);
+        require(repeats==stopped && !repeating->active(),"canceled repeat delivered");
+        bool zeroRejected=false;try{repeat(0,[]{});}catch(const std::invalid_argument&){zeroRejected=true;}
+        require(zeroRejected,"zero repeating interval accepted");
+        auto repeatOwner=std::make_unique<QObject>();
+        auto ownedRepeat=qtEngineRepeat(repeatOwner.get(),onError)(5,[&]{++repeats;});
+        repeatOwner.reset();spin(20);require(repeats==stopped && !ownedRepeat->active(),"dead repeat owner delivered");
+        std::shared_ptr<EngineTimer> selfRepeat;
+        int selfCalls=0;selfRepeat=repeat(5,[&]{++selfCalls;selfRepeat.reset();});
+        spin(25);require(selfCalls==1 && !selfRepeat,"repeat self destruction failed");
+        auto failingRepeat=repeat(5,[]{throw std::runtime_error("repeat failure");});
+        spin(25);require(!failingRepeat->active() && errors.size()==2 && errors.back()=="repeat failure","repeat failure was not terminal");
+        auto foreignRepeat=repeat(5,[&]{++repeats;});
+        std::thread foreignRelease([&]{foreignRepeat.reset();});foreignRelease.join();spin(20);
+        require(repeats==stopped,"foreign repeat destruction delivered");
+        int delayed=0;auto coalesced=repeat(10,[&]{++delayed;});
+        QThread::msleep(75);require(delayed==0,"timer ran without app loop");
+        QCoreApplication::processEvents();coalesced->cancel();
+        require(delayed==1,"overdue repeating timer performed elapsed-time catchup");
+        std::vector<int> mutableCalls;
+        auto mutableRepeat=repeat(5,[n=0,&mutableCalls]() mutable {mutableCalls.push_back(++n);});
+        spin(30);mutableRepeat->cancel();
+        require(mutableCalls.size()>=2 && mutableCalls[0]==1 && mutableCalls[1]==2,"repeat discarded callable-local state");
+        auto armed=std::make_shared<bool>(false);int guardedCalls=0;
+        auto guardedRepeat=repeat(5,CopyGuard(armed,&guardedCalls));*armed=true;
+        spin(25);guardedRepeat->cancel();require(guardedCalls>=2,"repeat copied armed callback");
+        auto sourceClock=engineSpeedometerClock(repeat);
+        auto secondReader=sourceClock;
+        require(sourceClock()==1 && secondReader()==1,"source clock initial/shared tick incorrect");
+        QThread::msleep(550);require(sourceClock()==1,"source clock synthesized wall-time ticks");
+        QCoreApplication::processEvents();require(sourceClock()==2 && secondReader()==2,"source clock missed coalesced delivery");
+        std::uint16_t foreignTick=0;std::thread reader([&]{foreignTick=sourceClock();});reader.join();
+        require(foreignTick==2,"source clock foreign read failed");
+        sourceClock={};require(secondReader()==2,"clock reader copy lost shared lifetime");
+        std::thread lastRelease([&]{secondReader={};});lastRelease.join();spin(10);
+        bool missingRejected=false;try{engineSpeedometerClock({});}catch(const std::invalid_argument&){missingRejected=true;}
+        require(missingRejected,"missing clock repeat accepted");
+        bool refusedRejected=false;try{engineSpeedometerClock([](std::uint64_t,EngineContinuation){return std::shared_ptr<EngineTimer>{};});}catch(const std::runtime_error&){refusedRejected=true;}
+        require(refusedRejected,"refused clock timer accepted");
+        EngineContinuation deliver;auto manual=std::make_shared<ManualTimer>();
+        auto wrapping=engineSpeedometerClock([&](std::uint64_t interval,EngineContinuation callback){require(interval==250,"source interval changed");deliver=std::move(callback);return manual;});
+        for(int n=0;n<65535;++n)deliver();require(wrapping()==0,"source clock modulo wrap failed");
+        deliver();require(wrapping()==1,"source clock post-wrap failed");
+        wrapping={};require(!manual->active(),"last clock reader did not cancel");
+        deliver();require(!manual->active(),"late clock callback revived dead owner");
+        std::cout<<"Qt timer lifecycle: 29 cases PASS\\n";return 0;
     }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}
 }

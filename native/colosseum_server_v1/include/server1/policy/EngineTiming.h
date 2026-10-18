@@ -13,6 +13,9 @@ public:
     [[nodiscard]] virtual bool active() const noexcept = 0;
     [[nodiscard]] virtual std::uint64_t id() const noexcept = 0;
 };
+// Repeating app-lane delivery, never inline during registration. The owner
+// retains the handle; cancellation prevents future delivery (an in-flight
+// callback may finish). Dropping the final handle cancels the timer.
 using EngineRepeat = std::function<std::shared_ptr<EngineTimer>(std::uint64_t, EngineContinuation)>;
 // One-shot, never inline, app-lane delivery. Handles allow safe teardown.
 using EngineAfter = std::function<std::shared_ptr<EngineTimer>(std::uint64_t, EngineContinuation)>;
