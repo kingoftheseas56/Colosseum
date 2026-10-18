@@ -37,6 +37,7 @@ jobs:
           node tests/android_reader_boot_test.mjs
           python tests/test_android_openssl_packaging_contract.py
           python tests/test_android_runtime_bundle.py
+          python tests/test_android_feria_contract.py
           python tests/test_android_vault_contract.py
           python tests/test_android_vault_media_boundary.py
           python tests/android_emulator_smoke_test.py

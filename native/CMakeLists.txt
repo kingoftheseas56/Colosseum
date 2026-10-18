@@ -1376,7 +1376,7 @@ add_executable(session_store_harness
     SessionStore.h
 )
 target_include_directories(session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(session_store_harness PRIVATE Qt6::Core)
+target_link_libraries(session_store_harness PRIVATE Qt6::Core feria_discovery)
 
 add_executable(background_work_coordinator_harness
     ../tests/background_work_coordinator_harness.cpp
@@ -3098,7 +3098,7 @@ if(BUILD_TESTING)
     add_executable(vinyl_session_store_harness
         ../tests/vinyl_session_store_harness.cpp SessionStore.h)
     target_include_directories(vinyl_session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core)
+    target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core feria_discovery)
     add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
 endif()
 endif() # NOT ANDROID: desktop harness/test estate

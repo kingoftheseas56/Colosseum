@@ -30,7 +30,9 @@
 #include <QtGlobal>
 #include <QUrl>
 #include <QUuid>
+#if !defined(Q_OS_ANDROID)
 #include "feria/FeriaBrowserOperations.h"
+#endif
 
 class SessionStore : public QObject {
     Q_OBJECT
@@ -38,10 +40,12 @@ class SessionStore : public QObject {
     Q_PROPERTY(QString activeId READ activeId NOTIFY activeChangedProp)
 
 public:
-    explicit SessionStore(QObject *parent = nullptr)
-        : QObject(parent), m_operations(new FeriaBrowserOperations(this))
+    explicit SessionStore(QObject *parent = nullptr) : QObject(parent)
     {
+#if !defined(Q_OS_ANDROID)
+        m_operations = new FeriaBrowserOperations(this);
         m_operations->setStore(this);
+#endif
     }
 
     int revision() const { return m_revision; }
@@ -267,7 +271,9 @@ public:
     // Engine-neutral operation/request seam. It adds no competing state: the
     // close attempt below stays this store's ledger, and the seam only types
     // and fences the operations adapters admit against it.
+#if !defined(Q_OS_ANDROID)
     Q_INVOKABLE FeriaBrowserOperations *browserOperations() { return m_operations; }
+#endif
     Q_INVOKABLE QString beginBrowserClose(const QVariantMap &identity) {
         const int index = browserIdentityIndex(identity);
         if (index < 0) return {};
@@ -715,6 +721,8 @@ private:
     quint64 m_browserEpoch = 0;
     quint64 m_browserPageSeq = 0;
     QVariantList m_closedBrowsers;
+#if !defined(Q_OS_ANDROID)
     FeriaBrowserOperations *m_operations = nullptr;
+#endif
 };
 
