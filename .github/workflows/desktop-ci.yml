@@ -2,6 +2,12 @@ name: desktop-ci
 
 on:
   workflow_dispatch:
+    inputs:
+      b1_native_qualification:
+        description: "Run only the bounded Linux B1 full-app catalogue/poster qualification"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -12,6 +18,7 @@ concurrency:
 
 jobs:
   public-trust:
+    if: ${{ !inputs.b1_native_qualification && github.ref != 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -25,6 +32,7 @@ jobs:
         run: python scripts/check_public_paths.py
 
   linux-runtime-contract:
+    if: ${{ !inputs.b1_native_qualification && github.ref != 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     needs: public-trust
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -46,6 +54,7 @@ jobs:
           apt-cache show mpv >/dev/null
 
   windows-desktop:
+    if: ${{ !inputs.b1_native_qualification && github.ref != 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     needs: public-trust
     runs-on: windows-2025
     # Dependency setup, CodeQL, clang-tidy, and the ASAN probe build exceed
@@ -301,6 +310,7 @@ jobs:
           }
 
   linux-desktop:
+    if: ${{ !inputs.b1_native_qualification && github.ref != 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     needs: public-trust
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -516,6 +526,7 @@ jobs:
         run: ccache --show-stats || true
 
   dependency-scan:
+    if: ${{ !inputs.b1_native_qualification && github.ref != 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -534,6 +545,7 @@ jobs:
           "$(go env GOPATH)/bin/govulncheck" ./...
 
   fuzz-smoke:
+    if: ${{ !inputs.b1_native_qualification && github.ref != 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     needs: public-trust
     runs-on: windows-2025
     timeout-minutes: 30
@@ -654,3 +666,144 @@ jobs:
               throw "fuzz failure: $($t.name) (exit $rc)"
             }
           }
+
+  b1-native-qualification:
+    if: ${{ inputs.b1_native_qualification || github.ref == 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ECM_VERSION: "6.15.0"
+      ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Prepare evidence directories
+        run: |
+          mkdir -p "$RUNNER_TEMP/b1-evidence" "$RUNNER_TEMP/b1-build-logs"
+          echo "COLOSSEUM_LINUX_BUILD=$RUNNER_TEMP/b1-build" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$RUNNER_TEMP/b1-evidence/source-commit.txt"
+          git status --porcelain > "$RUNNER_TEMP/b1-evidence/source-status-before.txt"
+      - name: Install qualification dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config clang-format \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev libxkbcommon-dev libxcb-cursor0 \
+            libnss3 libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
+            libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-xinerama0 \
+            xvfb xauth ffmpeg p7zip-full libarchive-tools
+          python -m pip install 'cmake==3.31.6'
+      - name: Install full Qt 6.11.1 SDK
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qtmultimedia qtimageformats qttasktree"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Build checksum-pinned ECM and MpvQt
+        run: |
+          set -euo pipefail
+          deps="$RUNNER_TEMP/b1-deps"
+          mkdir -p "$deps"
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" \
+            --output "$deps/ecm.tar.xz"
+          echo "$ECM_SHA256  $deps/ecm.tar.xz" | sha256sum --check --strict
+          tar -xf "$deps/ecm.tar.xz" -C "$deps"
+          cmake -S "$deps/extra-cmake-modules-$ECM_VERSION" -B "$deps/ecm-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$deps/install" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/ecm-configure.log"
+          cmake --build "$deps/ecm-build" --target install --parallel 2 \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/ecm-build.log"
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" \
+            --output "$deps/mpvqt.tar.xz"
+          echo "$MPVQT_SHA256  $deps/mpvqt.tar.xz" | sha256sum --check --strict
+          tar -xf "$deps/mpvqt.tar.xz" -C "$deps"
+          export LD_LIBRARY_PATH="$QT_ROOT_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          cmake -S "$deps/mpvqt-$MPVQT_VERSION" -B "$deps/mpvqt-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$deps/install" -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$deps/install" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/mpvqt-configure.log"
+          cmake --build "$deps/mpvqt-build" --target install --parallel 2 \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/mpvqt-build.log"
+          echo "MPVQT_ROOT=$deps/install" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$QT_ROOT_DIR/lib:$deps/install/lib:$deps/install/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+      - name: Configure the full B1 app
+        run: |
+          set -euo pipefail
+          cmake -S native -B "$COLOSSEUM_LINUX_BUILD" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
+            -DCOLOSSEUM_NO_COMPILER_CACHE=ON -DCOLOSSEUM_NO_ACCOUNT_EDITION=ON \
+            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev \
+            -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$MPVQT_ROOT" -DMPVQT_PREFIX="$MPVQT_ROOT" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/configure.log"
+      - name: Build full app and focused proxy tests
+        run: |
+          set -euo pipefail
+          cmake --build "$COLOSSEUM_LINUX_BUILD" \
+            --target colosseum_runtime_ready lanista pin_proxy_factory_harness cover_delivery_harness \
+            --parallel 4 2>&1 | tee "$RUNNER_TEMP/b1-build-logs/build.log"
+          sha256sum "$COLOSSEUM_LINUX_BUILD/colosseum" "$COLOSSEUM_LINUX_BUILD/lanista" \
+            "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" > "$RUNNER_TEMP/b1-evidence/binary-sha256.txt"
+          cp "$COLOSSEUM_LINUX_BUILD/CMakeCache.txt" "$RUNNER_TEMP/b1-build-logs/"
+          { cmake --version; c++ --version; "$QT_ROOT_DIR/bin/qmake" -query QT_VERSION; \
+            pkg-config --modversion mpv libtorrent-rasterbar openssl; } > "$RUNNER_TEMP/b1-evidence/toolchain.txt"
+      - name: Run focused proxy regression tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -euo pipefail
+          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
+            -R '^colosseum\.(pin_proxy_factory_harness|cover_delivery_harness)$' \
+            --no-tests=error --output-on-failure 2>&1 | tee "$RUNNER_TEMP/b1-build-logs/focused-tests.log"
+      - name: Check qualification evidence parser
+        run: |
+          set -euo pipefail
+          python tests/b1_native_catalogue_qualification.py --self-test \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/driver-self-test.log"
+      - name: Qualify actual app catalogues and posters under Xvfb
+        timeout-minutes: 10
+        env:
+          QT_QPA_PLATFORM: xcb
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          xvfb-run --auto-servernum --server-args='-screen 0 1600x1000x24 -nolisten tcp' \
+            python tests/b1_native_catalogue_qualification.py \
+              --binary "$COLOSSEUM_LINUX_BUILD/colosseum" \
+              --lanista "$COLOSSEUM_LINUX_BUILD/lanista" \
+              --source "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/b1-evidence/runtime" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/qualification.log"
+      - name: Record final source status
+        if: always()
+        run: git status --porcelain > "$RUNNER_TEMP/b1-evidence/source-status-after.txt"
+      - name: Upload qualification evidence and built binaries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b1-native-qualification-${{ github.sha }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/b1-evidence/*.txt
+            ${{ runner.temp }}/b1-evidence/runtime/*.json
+            ${{ runner.temp }}/b1-evidence/runtime/*.png
+            ${{ runner.temp }}/b1-evidence/runtime/*.sanitized.log
+            ${{ runner.temp }}/b1-evidence/runtime/ipc/*.json
+            ${{ runner.temp }}/b1-build-logs/*.log
+            ${{ runner.temp }}/b1-build/colosseum
+            ${{ runner.temp }}/b1-build/lanista
+            ${{ runner.temp }}/b1-build/qml-build.manifest
