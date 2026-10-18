@@ -1076,6 +1076,8 @@ void CoverDeliveryHarness::queuedRequestHonorsNew429Cooldown()
     CachingNam nam({}, nullptr, nullptr, true, nullptr, nullptr, nullptr,
                    &state, cache.path() + QLatin1String("/c"));
     const QString base = QStringLiteral("http://127.0.0.1:%1/cover/").arg(server.port());
+    const QString ledgerPath = cache.path() + QLatin1String("/retry.json");
+    QVERIFY(state.loadLedger(ledgerPath));
     auto *rate = nam.get(QNetworkRequest(QUrl(base + QStringLiteral("rate.jpg"))));
     auto *slow = nam.get(QNetworkRequest(QUrl(base + QStringLiteral("slow.jpg"))));
     auto *queued = nam.get(QNetworkRequest(QUrl(base + QStringLiteral("queued.jpg"))));
@@ -1085,6 +1087,22 @@ void CoverDeliveryHarness::queuedRequestHonorsNew429Cooldown()
     QVERIFY(queued->errorString().contains(QStringLiteral("cover-cooldown")));
     QCOMPARE(server.countFor(QStringLiteral("/cover/queued.jpg")), 0);
     QVERIFY(waitFinished(slow, 5000));
+    QCOMPARE(slow->error(), QNetworkReply::NoError);
+
+    // The slow transaction started before the 429. Its successful completion
+    // cannot revoke the server's still-active Retry-After for sibling requests.
+    const QString host = QStringLiteral("127.0.0.1");
+    const auto siblingDigest = CoverDeliveryState::urlDigest(
+        QUrl(base + QStringLiteral("later.jpg")));
+    QVERIFY(state.cooldownRemainingMs(host, siblingDigest) > 0);
+    auto *later = nam.get(QNetworkRequest(QUrl(base + QStringLiteral("later.jpg"))));
+    QVERIFY(waitFinished(later, 5000));
+    QVERIFY(later->errorString().contains(QStringLiteral("cover-cooldown")));
+    QCOMPARE(server.countFor(QStringLiteral("/cover/later.jpg")), 0);
+
+    CoverDeliveryState restarted;
+    QVERIFY(restarted.loadLedger(ledgerPath));
+    QVERIFY(restarted.cooldownRemainingMs(host, siblingDigest) > 0);
 }
 
 void CoverDeliveryHarness::immediateLedgerAndBoundedRetryAfter()

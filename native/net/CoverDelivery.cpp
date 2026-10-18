@@ -352,12 +352,21 @@ void CoverDeliveryState::record429(const QString &host, const QByteArray &digest
 void CoverDeliveryState::noteSuccess(const QString &host, const QByteArray &digest)
 {
     bool changed = false;
+    const qint64 nowMono = nowMonoMs();
     {
         QMutexLocker locker(&m_mutex);
-        if (m_hostDeadlineMono.remove(normalizeHost(host)))
+        // Another transaction may have recorded Retry-After after this one
+        // started. A late 200 cannot revoke that unexpired server deadline.
+        const auto hostIt = m_hostDeadlineMono.find(normalizeHost(host));
+        if (hostIt != m_hostDeadlineMono.end() && hostIt.value() <= nowMono) {
+            m_hostDeadlineMono.erase(hostIt);
             changed = true;
-        if (m_urlDeadlineMono.remove(digest))
+        }
+        const auto urlIt = m_urlDeadlineMono.find(digest);
+        if (urlIt != m_urlDeadlineMono.end() && urlIt.value() <= nowMono) {
+            m_urlDeadlineMono.erase(urlIt);
             changed = true;
+        }
         if (changed) {
             m_dirty = true;
             ++m_ledgerRevision;
