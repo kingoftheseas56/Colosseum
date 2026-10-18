@@ -174,8 +174,8 @@ INSTALLER_BYTES="$(wc -c < "$OUT" | tr -d '[:space:]')"
 # Size gate (1.1.2 lesson): that release shipped 647MB of build garbage vs 1.1.1's 211MB.
 # Refuse loudly rather than publish a bloated installer nobody eyeballed.
 MAX_INSTALLER_BYTES=$((300 * 1024 * 1024))
-# 1.1.9 bundles the four-sea atlas artwork. Its clean, complete runtime
-# needs a 350 MiB budget; retain the historical limit for other versions.
+# The integrated 1.1.9 desktop runtime has a 350 MiB ceiling. Published
+# artwork is stripped above; retain the historical limit for other versions.
 if [ "$VERSION" = "1.1.9" ]; then
   MAX_INSTALLER_BYTES=$((350 * 1024 * 1024))
 fi
