@@ -394,6 +394,12 @@ int main(int argc, char *argv[]) {
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
+    const bool useSystemProxy = PinProxyFactory::systemProxyEnabled();
+    // Install before any backend NAM can start work; the later factory adds the
+    // unchanged concierge configuration for the default (non-opt-in) path.
+    if (useSystemProxy)
+        QNetworkProxyFactory::setApplicationProxyFactory(
+            new PinProxyFactory({}, nullptr, 0, false));
 
     // Backend stores and workers must finish while Qt and its event dispatcher
     // still exist. QML goes first so its destruction handlers can flush activity.
@@ -685,7 +691,8 @@ int main(int argc, char *argv[]) {
         QStringLiteral("wsrv.nl")
     };
     auto *pinStore = new Ipv4PinStore(QString(), Ipv4PinStore::Lookup(), &backendServices);
-    const QHash<QString, QString> initialPins = pinStore->snapshot();
+    const QHash<QString, QString> initialPins = useSystemProxy
+        ? QHash<QString, QString>() : pinStore->snapshot();
     for (auto it = initialPins.constBegin(); it != initialPins.constEnd(); ++it)
         qInfo("[net] cached IPv4 pin %s -> %s", qUtf8Printable(it.key()), qUtf8Printable(it.value()));
 
@@ -821,8 +828,9 @@ int main(int argc, char *argv[]) {
     auto *dlNam = new QNetworkAccessManager(&backendServices);
     auto *downloads = new MangaDownloader(dlNam, &backendServices, {}, {}, manga->tankoyomiService());
     downloads->setIpv4Pins(initialPins);   // cached pins are available before async refresh
-    pinStore->setPinChangedCallback([manga, downloads, pinStore](const QString&, const QString&) {
-        const QHash<QString, QString> pins = pinStore->snapshot();
+    pinStore->setPinChangedCallback([manga, downloads, pinStore, useSystemProxy](const QString&, const QString&) {
+        const QHash<QString, QString> pins = useSystemProxy
+            ? QHash<QString, QString>() : pinStore->snapshot();
         manga->setIpv4Pins(pins);
         downloads->setIpv4Pins(pins);
     });
@@ -1926,7 +1934,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if (!hasQmlOverride) {
+    if (!hasQmlOverride && !useSystemProxy) {
         QTimer::singleShot(0, pinStore, [pinStore, pinnedHosts] {
             pinStore->refresh(pinnedHosts);
         });

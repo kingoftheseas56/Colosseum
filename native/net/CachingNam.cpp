@@ -12,6 +12,7 @@
 
 #include "net/BiblioImageDiag.h"
 #include "net/Ipv4PinStore.h"
+#include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
 #include "net/PosterTimingProbe.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
@@ -119,7 +120,9 @@ CachingNam::CachingNam(QStringList pinnedHosts, Ipv4PinStore *pinStore, QObject 
                        BiblioImageDiag *imageDiag, PosterTimingProbe *posterTiming,
                        CoverDeliveryState *coverState, QString cacheDirOverride)
     : QNetworkAccessManager(parent),
-      m_pinnedHosts(std::move(pinnedHosts)),
+      // Proxy routing must see the original hostname, including redirects and
+      // the search/smoke NAMs. Keep URL/IP rewriting unchanged by default.
+      m_pinnedHosts(PinProxyFactory::systemProxyEnabled() ? QStringList() : std::move(pinnedHosts)),
       m_pinStore(pinStore),
       m_useCache(useCache),
       m_scoreboard(scoreboard),
@@ -335,7 +338,9 @@ CachingNamFactory::CachingNamFactory(QStringList pinnedHosts, Ipv4PinStore *pinS
                                      PosterScoreboard *scoreboard, BiblioImageDiag *imageDiag,
                                      PosterTimingProbe *posterTiming,
                                      CoverDeliveryState *coverState)
-    : m_pinnedHosts(std::move(pinnedHosts)),
+    : // Proxy routing must see the original hostname, including redirects and
+      // the search/smoke NAMs. Keep URL/IP rewriting unchanged by default.
+      m_pinnedHosts(PinProxyFactory::systemProxyEnabled() ? QStringList() : std::move(pinnedHosts)),
       m_pinStore(pinStore),
       m_scoreboard(scoreboard),
       m_imageDiag(imageDiag),

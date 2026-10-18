@@ -17,6 +17,7 @@
 //   * streaming passthrough, gzip Jikan branch unchanged, malformed ledger safe
 
 #include <QCoreApplication>
+#include <QScopeGuard>
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
@@ -370,6 +371,7 @@ class CoverDeliveryHarness : public QObject
 
 private slots:
     void initTestCase();
+    void systemProxyPreservesCanonicalHosts();
     void classification();
     void sameHostCapAcrossNams();
     void twoRealThreadCapAndOtherHostProgress();
@@ -394,6 +396,54 @@ private slots:
 void CoverDeliveryHarness::initTestCase()
 {
     QStandardPaths::setTestModeEnabled(true);
+}
+
+void CoverDeliveryHarness::systemProxyPreservesCanonicalHosts()
+{
+    const bool wasSet = qEnvironmentVariableIsSet("COLOSSEUM_USE_SYSTEM_PROXY");
+    const QByteArray oldValue = qgetenv("COLOSSEUM_USE_SYSTEM_PROXY");
+    const auto restore = qScopeGuard([&] {
+        if (wasSet) qputenv("COLOSSEUM_USE_SYSTEM_PROXY", oldValue);
+        else qunsetenv("COLOSSEUM_USE_SYSTEM_PROXY");
+    });
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("pins.json"));
+    const QString host = QStringLiteral("pinned.example");
+    const QUrl original(QStringLiteral("https://pinned.example/cover/start.jpg"));
+    Ipv4PinStore live(path, [](const QString&, Ipv4PinStore::LookupDone done) {
+        done(QStringLiteral("203.0.113.7"));
+    });
+    qunsetenv("COLOSSEUM_USE_SYSTEM_PROXY");
+    CachingNam defaults({host}, &live, nullptr, false);
+    QCOMPARE(defaults.prepareCoverHop(original).url(), original); // cold
+    live.refresh({host});
+    QCOMPARE(defaults.prepareCoverHop(original).url().host(), QStringLiteral("203.0.113.7"));
+    QCOMPARE(defaults.prepareCoverHop(original).peerVerifyName(), host);
+    Ipv4PinStore cached(path);
+    QCOMPARE(cached.pinForHost(host), QStringLiteral("203.0.113.7"));
+    for (const QByteArray flag : {QByteArray("0"), QByteArray("true"), QByteArray("01")}) {
+        qputenv("COLOSSEUM_USE_SYSTEM_PROXY", flag);
+        CachingNam disabled({host}, &cached, nullptr, false);
+        QCOMPARE(disabled.prepareCoverHop(original).url().host(), QStringLiteral("203.0.113.7"));
+    }
+    qputenv("COLOSSEUM_USE_SYSTEM_PROXY", "1");
+    CachingNam optedIn({host}, &cached, nullptr, false);
+    const auto prepared = optedIn.prepareCoverHop(original);
+    QCOMPARE(prepared.url(), original);
+    QVERIFY(!prepared.hasRawHeader("Host"));
+    QVERIFY(prepared.peerVerifyName().isEmpty()); // Qt verifies original URL hostname
+    QCOMPARE(prepared.attribute(QNetworkRequest::RedirectPolicyAttribute).toInt(),
+             int(QNetworkRequest::UserVerifiedRedirectPolicy));
+    const QUrl hop(QStringLiteral("https://pinned.example/cover/redirected.jpg"));
+    QCOMPARE(optedIn.prepareCoverHop(hop).url(), hop);
+    Ipv4PinStore refreshing(dir.filePath(QStringLiteral("live.json")),
+        [](const QString&, Ipv4PinStore::LookupDone done) { done(QStringLiteral("203.0.113.8")); });
+    CachingNam liveOptIn({host}, &refreshing, nullptr, false);
+    QCOMPARE(liveOptIn.prepareCoverHop(original).url(), original);
+    refreshing.refresh({host});
+    QCOMPARE(liveOptIn.prepareCoverHop(original).url(), original);
+    const QUrl loopback(QStringLiteral("http://127.0.0.1:45678/local"));
+    QCOMPARE(liveOptIn.prepareCoverHop(loopback).url(), loopback);
 }
 
 void CoverDeliveryHarness::classification()
