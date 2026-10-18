@@ -30,6 +30,9 @@ option(COLOSSEUM_NO_ACCOUNT_EDITION
 
 set(COLOSSEUM_CONTENT_API_URL "" CACHE STRING
     "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")
+option(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    "Enable isolated synthetic Vinyl lifecycle fixtures; never production default" OFF)
+
 option(COLOSSEUM_RATINGS_REVIEWS_TESTING
     "Enable the isolated Arc 49 Ratings & Reviews joined fixture"
     OFF)
@@ -890,6 +893,10 @@ if(NOT ANDROID)
 endif()
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
+if(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES AND NOT ANDROID)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=1)
+endif()
+
 if(COLOSSEUM_SIMKL_CLIENT_ID)
     string(STRIP "${COLOSSEUM_SIMKL_CLIENT_ID}" colosseum_simkl_client_id)
     if(NOT colosseum_simkl_client_id STREQUAL COLOSSEUM_SIMKL_CLIENT_ID
@@ -3024,10 +3031,51 @@ endforeach()
 # live in tests/CMakeLists.txt, never here. include(CTest) defines BUILD_TESTING
 # (default ON); OFF skips registration entirely and changes nothing else — the
 # harness targets above build either way, exactly as before this seam existed.
+# Vinyl's local adapter consumes the existing Vault identity. The plain Python
+# transport remains available for later connection but local playback never uses it.
+# Deferred VinylTorrentProvider sources remain in the repository, excluded here:
+# current StreamServer has no donor request-scoped manifest/stream/cancel contract.
+target_sources(colosseum PRIVATE
+    vinyl/VinylLocalSource.h vinyl/VinylLocalSource.cpp
+    vinyl/VinylProvider.h)
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
 endif()
 
+# Bounded synthetic lifecycle fixture guards. No fixture command exists in the
+# production-default app unless COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES is enabled.
+if(BUILD_TESTING)
+    add_executable(vinyl_test_profile_controller_harness
+        ../tests/vinyl_test_profile_controller_harness.cpp
+        devtools/VinylTestProfileController.h)
+    target_include_directories(vinyl_test_profile_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_test_profile_controller_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_test_profile_controller
+             COMMAND vinyl_test_profile_controller_harness)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(vinyl_personal_state_harness
+        ../tests/vinyl_personal_state_harness.cpp CollectionStore.h)
+    target_include_directories(vinyl_personal_state_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_personal_state_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_personal_state COMMAND vinyl_personal_state_harness)
+    add_executable(vinyl_taste_preferences_harness
+        ../tests/vinyl_taste_preferences_harness.cpp SearchHistoryStore.h
+        account/ProfilePreferencesStore.cpp account/ProfilePreferencesStore.h
+        account/RatingsReviewsConversionMap.cpp account/RatingsReviewsConversionMap.h)
+    target_include_directories(vinyl_taste_preferences_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_taste_preferences_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_taste_preferences COMMAND vinyl_taste_preferences_harness)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(vinyl_session_store_harness
+        ../tests/vinyl_session_store_harness.cpp SessionStore.h)
+    target_include_directories(vinyl_session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core)
+    add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
+endif()
 endif() # NOT ANDROID: desktop harness/test estate

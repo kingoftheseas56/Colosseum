@@ -45,14 +45,15 @@ bool isValidType(const QString &value) {
 bool isValidWorld(const QString &value) {
     return value == QLatin1String("theatre")
         || value == QLatin1String("tankoban")
-        || value == QLatin1String("biblio");
+        || value == QLatin1String("biblio")
+        || value == QLatin1String("vinyl");
 }
 
 bool isValidKind(const QString &value) {
     static const QSet<QString> kinds{
         QStringLiteral("movie"), QStringLiteral("episode"), QStringLiteral("manga_chapter"),
         QStringLiteral("comic_issue"), QStringLiteral("tankoban_volume"), QStringLiteral("book"),
-        QStringLiteral("audiobook")};
+        QStringLiteral("audiobook"), QStringLiteral("music")};
     return kinds.contains(value);
 }
 
@@ -79,6 +80,8 @@ void validateWorldKind(const QString &world, const QString &kind) {
         return;
     if (world == QLatin1String("biblio")
         && (kind == QLatin1String("book") || kind == QLatin1String("audiobook")))
+        return;
+    if (world == QLatin1String("vinyl") && kind == QLatin1String("music"))
         return;
     fail(QStringLiteral("invalid world/kind combination"));
 }
@@ -272,7 +275,7 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
 
     if (ev.type == QLatin1String("playback_delta")) {
         if (!(ev.kind == QLatin1String("movie") || ev.kind == QLatin1String("episode")
-              || ev.kind == QLatin1String("audiobook")))
+              || ev.kind == QLatin1String("audiobook") || ev.kind == QLatin1String("music")))
             fail(QStringLiteral("invalid playback kind"));
         ev.startAtMs = requireInteger(obj, QStringLiteral("startAtMs"));
         ev.endAtMs = requireInteger(obj, QStringLiteral("endAtMs"));
@@ -535,6 +538,7 @@ struct TitleStats {
     QString kind;
     qint64 watchMs = 0;
     qint64 listenMs = 0;
+    qint64 musicMs = 0;
     qint64 tankobanPages = 0;
     qint64 bookPages = 0;
     qint64 progressMicros = 0;
@@ -544,6 +548,7 @@ struct TitleStats {
     qint64 latestTankobanAtMs = -1;
     qint64 latestBookAtMs = -1;
     qint64 latestAudioAtMs = -1;
+    qint64 latestMusicAtMs = -1;
     qint64 latestCompletionAtMs = -1;
 
     bool hasRepTheatre = false;
@@ -660,13 +665,14 @@ private:
 // Highlights (mirrors compareMetric / makeHighlight / buildHighlights)
 // ---------------------------------------------------------------------------
 
-enum class HighlightRole { Theatre, Tankoban, BiblioEbook, Audiobook, Completion, Recent };
+enum class HighlightRole { Theatre, Tankoban, BiblioEbook, Audiobook, Music, Completion, Recent };
 
 QString roleName(HighlightRole role) {
     switch (role) {
     case HighlightRole::Theatre: return QStringLiteral("theatre");
     case HighlightRole::Tankoban: return QStringLiteral("tankoban");
     case HighlightRole::BiblioEbook: return QStringLiteral("biblio_ebook");
+    case HighlightRole::Music: return QStringLiteral("music");
     case HighlightRole::Audiobook: return QStringLiteral("audiobook");
     case HighlightRole::Completion: return QStringLiteral("completion");
     case HighlightRole::Recent: return QStringLiteral("recent");
@@ -734,6 +740,10 @@ Highlight makeHighlight(const TitleStats &stats, HighlightRole role) {
             kind = QStringLiteral("audiobook");
         }
         break;
+    case HighlightRole::Music:
+        world = QStringLiteral("vinyl");
+        kind = QStringLiteral("music");
+        break;
     case HighlightRole::Completion:
         if (stats.hasRepCompletion) {
             world = stats.repCompletionWorld;
@@ -755,7 +765,7 @@ Highlight makeHighlight(const TitleStats &stats, HighlightRole role) {
     highlight.world = world;
     highlight.kind = kind;
     highlight.watchSeconds = stats.watchMs / 1000;
-    highlight.listenSeconds = stats.listenMs / 1000;
+    highlight.listenSeconds = (stats.listenMs + stats.musicMs) / 1000;
     highlight.pagesRead = stats.tankobanPages + stats.bookPages;
     highlight.progressMicros = stats.progressMicros;
     highlight.completedCount = stats.completionCount;
@@ -805,6 +815,8 @@ QJsonArray buildHighlights(const QVector<TitleStats> &all) {
          [](const TitleStats &s) { return s.progressMicros > 0 || s.bookPages > 0; }},
         {HighlightRole::Audiobook, &TitleStats::listenMs, &TitleStats::latestAudioAtMs, nullptr,
          [](const TitleStats &s) { return s.listenMs > 0; }},
+        {HighlightRole::Music, &TitleStats::musicMs, &TitleStats::latestMusicAtMs, nullptr,
+         [](const TitleStats &s) { return s.musicMs > 0; }},
         {HighlightRole::Completion, &TitleStats::completionCount, &TitleStats::latestCompletionAtMs,
          nullptr, [](const TitleStats &s) { return s.completionCount > 0; }},
     };
@@ -860,7 +872,7 @@ QString recentVerb(const Moment &moment) {
         return QStringLiteral("completed");
     if (moment.kind == QLatin1String("movie") || moment.kind == QLatin1String("episode"))
         return QStringLiteral("watched");
-    if (moment.kind == QLatin1String("audiobook"))
+    if (moment.kind == QLatin1String("audiobook") || moment.kind == QLatin1String("music"))
         return QStringLiteral("listened");
     return QStringLiteral("read");
 }
@@ -949,6 +961,12 @@ QJsonObject projectMonth(const QJsonArray &events, const QString &monthKey) {
                         stats.latestAudioAtMs = atMs;
                         stats.hasRepAudio = true;
                     }
+                }
+
+                if (event.world == QLatin1String("vinyl") && event.kind == QLatin1String("music")) {
+                    listenMs += segment.activeMs;
+                    stats.musicMs += segment.activeMs;
+                    stats.latestMusicAtMs = std::max(stats.latestMusicAtMs, atMs);
                 }
 
                 activeDates.insert(segment.localDate);

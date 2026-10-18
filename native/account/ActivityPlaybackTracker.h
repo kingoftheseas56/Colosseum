@@ -46,6 +46,7 @@
 #include "ActivityStore.h"
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QVariantMap>
 #include <QVector>
@@ -194,7 +195,8 @@ private:
     void emitPlaybackLifecycle(const QString &action, bool completedLocally = false);
     void endSessionInternal(bool emitPlaybackLifecycle = true);
 
-    ActivityStore *m_sink = nullptr;
+    void discardSession();
+    QPointer<ActivityStore> m_sink;
 
     MonotonicClockFn m_monotonicClockFn;
     WallClockFn m_wallClockFn;

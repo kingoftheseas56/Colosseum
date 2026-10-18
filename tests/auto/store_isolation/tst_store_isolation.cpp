@@ -45,6 +45,8 @@ using ProgressStoreDetail::progressStoreTaggedIniPath;
 #include <QSettings>
 #include <QStandardPaths>
 #include <QUuid>
+#include <QTemporaryDir>
+#include <QTimer>
 #include <QtTest>
 
 namespace {
@@ -62,6 +64,58 @@ class tst_store_isolation : public QObject
     Q_OBJECT
 
 private slots:
+    void progress_late_teardown_record_after_aboutToQuit_is_durable()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("shutdown-progress.ini"));
+        {
+            ProgressStore store(path);
+            const QVariantMap initial{{"kind", "music-session"}, {"id", "vinyl"},
+                {"resume", QVariantMap{{"position", 12.0}}}};
+            store.record(initial);
+            QSignalSpy quitting(qApp, &QCoreApplication::aboutToQuit);
+            QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+            QCOMPARE(QCoreApplication::exec(), 0);
+            QCOMPARE(quitting.count(), 1);
+            // QML engine teardown can invoke record after the main loop has quit.
+            const QVariantMap final{{"kind", "music-session"}, {"id", "vinyl"},
+                {"resume", QVariantMap{{"position", 37.0}}}};
+            QVERIFY(QMetaObject::invokeMethod(&store, "record", Qt::DirectConnection,
+                                              Q_ARG(QVariantMap, final)));
+            QVERIFY(store.healthy());
+            // Deliberately no explicit flush: destruction owns the final barrier.
+        }
+        ProgressStore reopened(path);
+        QVERIFY(reopened.healthy());
+        QCOMPARE(reopened.get("music-session", "vinyl").value("resume").toMap()
+                     .value("position").toDouble(), 37.0);
+    }
+
+    void vinyl_session_checkpoint_is_durable_but_not_a_continue_tile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("synthetic-progress.ini"));
+        {
+            ProgressStore store(path);
+            for (const QString &kind : {QStringLiteral("music"), QStringLiteral("book"), QStringLiteral("video")})
+                store.recordSilent({{QStringLiteral("kind"), kind}, {QStringLiteral("id"), kind + QStringLiteral("-synthetic")}, {QStringLiteral("progress"), 0.2}});
+            store.recordSilent({{QStringLiteral("kind"), QStringLiteral("music-session")}, {QStringLiteral("id"), QStringLiteral("vinyl")},
+                {QStringLiteral("resume"), QVariantMap{{QStringLiteral("version"), 2}, {QStringLiteral("queue"), QVariantList{}}, {QStringLiteral("queueIndex"), -1}}}});
+            store.flush();
+            QVERIFY(store.healthy());
+            QCOMPARE(store.recent().size(), 3);
+            QCOMPARE(store.recent(QStringLiteral("music")).size(), 1);
+            QCOMPARE(store.recent(QStringLiteral("book")).size(), 1);
+            QCOMPARE(store.recent(QStringLiteral("video")).size(), 1);
+            QCOMPARE(store.recent(QStringLiteral("music-session")).size(), 1);
+        }
+        ProgressStore reopened(path);
+        const QVariantMap checkpoint = reopened.get(QStringLiteral("music-session"), QStringLiteral("vinyl"));
+        QCOMPARE(checkpoint.value(QStringLiteral("resume")).toMap().value(QStringLiteral("queueIndex")).toInt(), -1);
+        QCOMPARE(reopened.recent().size(), 3);
+    }
     void init()
     {
         // Every test starts from a known-clean env: no tag set. QStandardPaths test mode

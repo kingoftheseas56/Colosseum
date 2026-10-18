@@ -104,6 +104,33 @@ setShowExplicit(
         true);
 }
 
+bool ProfilePreferencesStore::setVinylTaste(bool answered, const QStringList &artistIds) {
+    if (artistIds.size() > 512 || (!answered && !artistIds.isEmpty())) return false;
+    QStringList validated;
+    for (const auto &id : artistIds) {
+        if (id.trimmed().isEmpty() || id.size() > 4096 || validated.contains(id)) return false;
+        validated.append(id);
+    }
+    const QString key = QStringLiteral("vinyl/taste");
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    const QVariantMap value{{QStringLiteral("answered"), answered}, {QStringLiteral("artistIds"), validated}};
+    m_settings->setValue(key, value);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed) m_settings->setValue(key, previous); else m_settings->remove(key);
+        m_vinylPersistenceError = QStringLiteral("Taste choices could not be saved.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+    m_vinylTasteAnswered = answered;
+    m_vinylTasteArtistIds = validated;
+    m_vinylPersistenceError.clear();
+    ++m_revision;
+    emit vinylTasteChanged(); emit vinylPersistenceErrorChanged(); emit changed();
+    return true;
+}
+
 void ProfilePreferencesStore::setRememberSearchHistory(bool enabled) {
     if (m_rememberSearchHistory == enabled)
         return;
@@ -259,6 +286,28 @@ bool ProfilePreferencesStore::commitMainSyncProvider(
 }
 
 void ProfilePreferencesStore::load() {
+    if (m_settings->contains(QStringLiteral("vinyl/taste"))) {
+        const QVariant raw = m_settings->value(QStringLiteral("vinyl/taste"));
+        const QVariantMap taste = raw.toMap();
+        const QVariant answered = taste.value(QStringLiteral("answered"));
+        const QVariant ids = taste.value(QStringLiteral("artistIds"));
+        bool valid = raw.metaType().id() == QMetaType::QVariantMap
+            && answered.metaType().id() == QMetaType::Bool
+            && (ids.metaType().id() == QMetaType::QStringList || ids.metaType().id() == QMetaType::QVariantList);
+        QStringList checked;
+        const auto values = ids.toList();
+        valid = valid && values.size() <= 512;
+        for (const auto &value : values) {
+            const QString id = value.toString();
+            if (value.metaType().id() != QMetaType::QString || id.trimmed().isEmpty()
+                || id.size() > 4096 || checked.contains(id)) valid = false;
+            checked.append(id);
+        }
+        valid = valid && (answered.toBool() || checked.isEmpty());
+        if (valid) { m_vinylTasteAnswered = answered.toBool(); m_vinylTasteArtistIds = checked; }
+        else m_vinylPersistenceError = QStringLiteral("Saved taste choices are malformed and could not be loaded.");
+    }
+
     m_hasShowExplicitValue =
         m_settings->contains(
             QString::fromLatin1(

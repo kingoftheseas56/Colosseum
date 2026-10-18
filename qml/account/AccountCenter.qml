@@ -134,7 +134,7 @@ Rectangle {
     // Theatre worlds) derives its scope from searchMode.toLowerCase(), and Main.qml only
     // ever sets searchMode to "Tankoban" or "Theatre". No "all"/"home"/"world" scope exists
     // in production use — E2 clears exactly these three, nothing else.
-    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre"]
+    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre", "vinyl"]
 
     // E2: aggregate local search-history clear via the real SearchHistoryStore owner.
     onPrivacyClearSearchHistoryRequested: {

@@ -465,6 +465,7 @@ class tst_account_adoption : public QObject {
     Q_OBJECT
 
 private slots:
+    void vinylTasteSnapshotPreservesFactsAndLegacyDigest();
     void populatedFirstAccountCommitsBeforeActivation();
     void cleanRestartKeepsCommittedAdoption();
     void committedAccountSessionMergesResidualLocalOnlyState();
@@ -504,6 +505,44 @@ private slots:
     void stremioCredentialTransferRetriesBeforeSourceRetirement();
     void migrationSuspensionStopsWhenTrackerCloseCannotBePersisted();
 };
+
+void tst_account_adoption::vinylTasteSnapshotPreservesFactsAndLegacyDigest() {
+    PersonalStateSnapshot source = populatedSnapshot();
+    const auto legacy = source.toJson();
+    QCOMPARE(legacy.value(QStringLiteral("version")).toInt(), 5);
+    const QString legacyDigest = source.semanticDigest();
+    const QString musicId = QString::fromUtf8(QJsonDocument(QJsonArray{
+        QStringLiteral("album:synthetic"), QStringLiteral("edition:synthetic"), 0, 1,
+        QStringLiteral("audio:synthetic")}).toJson(QJsonDocument::Compact));
+    source.historyRecords.insert(QStringLiteral("music\x1f") + musicId,
+        QJsonObject{{QStringLiteral("kind"), QStringLiteral("music")}, {QStringLiteral("id"), musicId},
+                    {QStringLiteral("syncable"), false}, {QStringLiteral("title"), QStringLiteral("Synthetic track")}});
+    source.vinylTaste = {{QStringLiteral("answered"), true},
+        {QStringLiteral("artistIds"), QJsonArray{QStringLiteral("artist:synthetic")}}};
+    QCOMPARE(source.toJson().value(QStringLiteral("version")).toInt(), 6);
+    QVERIFY(!source.matchesSemanticDigest(legacyDigest));
+    QString error;
+    const auto parsed = PersonalStateSnapshot::fromJson(source.toJson(), &error);
+    QVERIFY2(parsed.has_value(), qPrintable(error));
+    QCOMPARE(parsed->vinylTaste, source.vinylTaste);
+    const auto old = PersonalStateSnapshot::fromJson(legacy, &error);
+    QVERIFY(old.has_value()); QVERIFY(old->vinylTaste.isEmpty());
+    QVERIFY(old->matchesSemanticDigest(legacyDigest));
+    QTemporaryDir directory;
+    auto storage = LegacyPersonalStateStorage::isolated(directory.path());
+    QVERIFY2(storage.restorePersonalState(source, &error), qPrintable(error));
+    const auto captured = storage.capture(&error);
+    QVERIFY2(captured.has_value(), qPrintable(error));
+    QCOMPARE(captured->vinylTaste, source.vinylTaste);
+    QCOMPARE(captured->historyRecords, source.historyRecords);
+    QVERIFY(storage.clearPersonalState(&error));
+    const auto cleared = storage.capture(&error);
+    QVERIFY(cleared.has_value()); QVERIFY(cleared->vinylTaste.isEmpty());
+    { QSettings prefs(storage.preferencesIniPath(), QSettings::IniFormat);
+      prefs.setValue(QStringLiteral("vinyl/taste"), QStringLiteral("malformed")); prefs.sync(); }
+    QVERIFY(!storage.capture(&error).has_value());
+    QVERIFY(!error.isEmpty());
+}
 
 void tst_account_adoption::
 legacySnapshotV1RemainsReadableWithoutHistory() {

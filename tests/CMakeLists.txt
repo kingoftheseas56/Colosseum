@@ -1714,6 +1714,50 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
 
+# Vinyl donor regression registry: explicit source suites, not a historical total.
+# These run the real shared runner and preserve its isolated settings setup.
+# Presentation fixtures are test-only; native local playback has separate contracts.
+foreach(vinyl_suite IN ITEMS
+    vinyl_album_page
+    vinyl_artist_header
+    vinyl_artist_model_replacement
+    vinyl_artist_page
+    vinyl_artist_photo_layers
+    vinyl_artist_repair
+    vinyl_artist_scrollbars
+    vinyl_artist_shared_picker
+    vinyl_discover_page
+    vinyl_home_page
+    vinyl_local_controls
+    vinyl_live_artist
+    vinyl_note_picker
+    vinyl_page_data
+    vinyl_personal_state
+    vinyl_song_page
+    vinyl_world_journeys
+    vinyl_world_lists
+    vinyl_world_navigation
+    vinyl_world_visual
+    discover_picker
+    discover_sidebar
+)
+    add_test(NAME "colosseum.qml.${vinyl_suite}"
+        COMMAND colosseum_qml_tests -input
+            "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_${vinyl_suite}.qml")
+    set_tests_properties("colosseum.qml.${vinyl_suite}" PROPERTIES
+        LABELS "qml;vinyl;regression"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+        TIMEOUT 120)
+endforeach()
+
+add_test(NAME colosseum.qml.account_flyout_local_privacy
+    COMMAND colosseum_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_account_flyout_local_privacy.qml")
+set_tests_properties(colosseum.qml.account_flyout_local_privacy PROPERTIES
+    LABELS "qml;privacy;vinyl;regression"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input
                  "${CMAKE_CURRENT_SOURCE_DIR}/qml/tracker_sync_center")
@@ -4841,3 +4885,83 @@ foreach(_test_catalogue_target IN LISTS _test_catalogue_targets)
         target_link_libraries(${_test_catalogue_target} PRIVATE Qt6::Network)
     endif()
 endforeach()
+
+# Preserved Vinyl provider-independent contracts. No public provider or seed is run.
+add_executable(music_torrent_matcher_harness
+    music_torrent_matcher_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp")
+target_include_directories(music_torrent_matcher_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(music_torrent_matcher_harness PRIVATE Qt6::Core)
+add_test(NAME colosseum.music_torrent_matcher COMMAND music_torrent_matcher_harness)
+set_tests_properties(colosseum.music_torrent_matcher PROPERTIES LABELS "unit;vinyl" TIMEOUT 60)
+
+# BLOCKED donor contracts, deliberately not registered as passing/skipped tests.
+# Sources are preserved under vinyl-live/ for the deferred external integration.
+# Both require StreamServer::requestManifest/cancelRequest/requestFile and
+# torrentManifestReady/torrentStreamReady/torrentRequestError signals; the current
+# app-base StreamServer does not provide them. Do not transplant the donor owner.
+set(COLOSSEUM_VINYL_BLOCKED_CONTRACTS
+    vinyl_torrent_provider_contracts
+    vinyl_stream_contracts)
+message(STATUS "Vinyl BLOCKED dependency: ${COLOSSEUM_VINYL_BLOCKED_CONTRACTS}; current StreamServer lacks request-scoped torrent APIs (external integration deferred)")
+
+# Local source contract uses the same VaultIdentity implementation as the native app.
+add_executable(vinyl_local_source_harness
+    vinyl_local_source_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp")
+set_target_properties(vinyl_local_source_harness PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_local_source_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_local_source_harness PRIVATE Qt6::Core)
+add_test(NAME colosseum.vinyl_local_source COMMAND vinyl_local_source_harness)
+set_tests_properties(colosseum.vinyl_local_source PROPERTIES
+    LABELS "unit;vinyl;local;identity" TIMEOUT 60)
+
+# Local session state machine uses its dedicated fake MpvItem module only.
+add_executable(vinyl_native_session_bridge
+    vinyl-native-session-bridge/runner.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_native_session_bridge PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_native_session_bridge PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_native_session_bridge PRIVATE Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest)
+add_test(NAME colosseum.qml.vinyl_native_session_bridge
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_native_session_bridge PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 60)
+
+add_test(NAME colosseum.qml.vinyl_local_session
+    COMMAND colosseum_qml_tests
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_local_session PROPERTIES
+    LABELS "qml;vinyl;local;session"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+find_program(COLOSSEUM_VINYL_TEST_NODE NAMES node)
+if(COLOSSEUM_VINYL_TEST_NODE)
+    add_test(NAME colosseum.vinyl_shell_back
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_shell_back_test.mjs")
+    set_tests_properties(colosseum.vinyl_shell_back PROPERTIES
+        LABELS "unit;vinyl;shell" TIMEOUT 30)
+endif()
+
+# Shared search privacy scope contract; static Node assertions, no native UI claim.
+if(COLOSSEUM_VINYL_TEST_NODE)
+    add_test(NAME colosseum.vinyl_search_privacy
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_search_privacy_test.mjs"
+            "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    set_tests_properties(colosseum.vinyl_search_privacy PROPERTIES
+        LABELS "unit;vinyl;privacy" TIMEOUT 30)
+endif()

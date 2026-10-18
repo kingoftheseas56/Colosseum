@@ -983,3 +983,10 @@ bool ActivityStore::clearAll() {
     emit resetCommitted(m_resetGeneration, m_resetAtMs);
     return true;
 }
+
+void ActivityStore::setRetentionEnabled(bool enabled) {
+    if (m_retentionEnabled == enabled)
+        return;
+    m_retentionEnabled = enabled;
+    emit retentionEnabledChanged(enabled);
+}

@@ -287,7 +287,12 @@ Item {
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
             Pill { label: "Feria"; comingSoon: true }
-            Pill { label: "Vinyl"; comingSoon: true }
+            Pill {
+                label: "Vinyl"
+                readonly property bool qualificationEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+                comingSoon: !qualificationEnabled
+                objectName: bar.visible && bar.lifecycleActive ? (qualificationEnabled ? "worldPillVinyl" : "modePill_Vinyl") : ""
+            }
         }
     }
 

@@ -1,0 +1,2222 @@
+{
+ "slug": "easywanderlings",
+ "channelId": "UCPv2LOFD6FTk6bzEK2lHbWQ",
+ "requestedChannelId": "UCLo0ZqEI1xTikp4sU-bAIMA",
+ "fetchedAt": "2026-10-14T16:21:52.255357+00:00",
+ "provider": "ytmusicapi 1.12.3",
+ "location": "IN",
+ "calls": [
+  {
+   "call": "get_artist",
+   "ok": true,
+   "ms": 1333
+  },
+  {
+   "call": "get_playlist:songs",
+   "ok": true,
+   "ms": 282
+  },
+  {
+   "call": "get_playlist:videos",
+   "ok": true,
+   "ms": 240
+  }
+ ],
+ "artist": {
+  "description": "Easy Wanderlings embody the next wave of Indian independent music, crafting a lush blend of soul, pop, and R&B. Their acclaimed EP Caught in a Parade was named the Best Indian EP of 2022 by Rolling Stone India, while its single Mayflower earned a spot in Apple Music India’s 100 Best Songs of 2022. The collective has graced stages at leading festivals including Lollapalooza India, Bacardi NH7 Weekender, and Vh1 Supersonic, and were invited to represent India at the SXSW Music Festival in Austin. Recognized as rising voices in the global music landscape, they have been spotlighted in both Spotify RADAR and Apple’s UP-NEXT program. In a country widely celebrated for its Bollywood sound, Easy Wanderlings offer a refreshing perspective…music shaped by global influences yet deeply enriched with Indian artistry and storytelling.",
+  "descriptionRuns": [
+   {
+    "text": "Easy Wanderlings embody the next wave of Indian independent music, crafting a lush blend of soul, pop, and R&B. Their acclaimed EP Caught in a Parade was named the Best Indian EP of 2022 by Rolling Stone India, while its single Mayflower earned a spot in Apple Music India’s 100 Best Songs of 2022. The collective has graced stages at leading festivals including Lollapalooza India, Bacardi NH7 Weekender, and Vh1 Supersonic, and were invited to represent India at the SXSW Music Festival in Austin. Recognized as rising voices in the global music landscape, they have been spotlighted in both Spotify RADAR and Apple’s UP-NEXT program. In a country widely celebrated for its Bollywood sound, Easy Wanderlings offer a refreshing perspective…music shaped by global influences yet deeply enriched with Indian artistry and storytelling."
+   }
+  ],
+  "views": "658,210 views",
+  "name": "Easy Wanderlings",
+  "channelId": "UCPv2LOFD6FTk6bzEK2lHbWQ",
+  "shuffleId": "RDAOl5LXze9PQjbzk4rr8K_4Ug",
+  "radioId": "RDEMl5LXze9PQjbzk4rr8K_4Ug",
+  "subscribers": "5.34K",
+  "monthlyListeners": null,
+  "subscribed": false,
+  "thumbnails": [
+   {
+    "url": "https://yt3.ggpht.com/ytc/AIdro_k4k3z3Kl-WScZ_jVHNXp0jZaVhehbGyff7pFXxQcAqxaw=w540-h225-l90-rj-dcqQOErZEL",
+    "width": 540,
+    "height": 225
+   },
+   {
+    "url": "https://yt3.ggpht.com/ytc/AIdro_k4k3z3Kl-WScZ_jVHNXp0jZaVhehbGyff7pFXxQcAqxaw=w816-h340-l90-rj-dcqQOErZEL",
+    "width": 816,
+    "height": 340
+   },
+   {
+    "url": "https://yt3.ggpht.com/ytc/AIdro_k4k3z3Kl-WScZ_jVHNXp0jZaVhehbGyff7pFXxQcAqxaw=w1080-h450-l90-rj-dcqQOErZEL",
+    "width": 1080,
+    "height": 450
+   }
+  ],
+  "songs": {
+   "browseId": "VLOLAK5uy_mjkpjVn_0FFYn6FibFLkqhsUEuEDZZtTM",
+   "results": [
+    {
+     "videoId": "x8JIr7Ai82Q",
+     "title": "Mellow",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      },
+      {
+       "name": "Mali",
+       "id": null
+      }
+     ],
+     "album": {
+      "name": "Mellow",
+      "id": "MPREb_YYSLl7eF61q"
+     },
+     "likeStatus": "INDIFFERENT",
+     "inLibrary": false,
+     "pinnedToListenAgain": false,
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w60-h60-l90-rj",
+       "width": 60,
+       "height": 60
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w120-h120-l90-rj",
+       "width": 120,
+       "height": 120
+      }
+     ],
+     "isAvailable": true,
+     "isExplicit": false,
+     "videoType": "MUSIC_VIDEO_TYPE_ATV",
+     "views": null,
+     "communityVoteStatus": null
+    },
+    {
+     "videoId": "hUf9MdsgvSU",
+     "title": "Enjoy It While It Lasts",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "album": {
+      "name": "As Written in the Stars",
+      "id": "MPREb_OPCLh8vwJNl"
+     },
+     "likeStatus": "INDIFFERENT",
+     "inLibrary": false,
+     "pinnedToListenAgain": false,
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+       "width": 60,
+       "height": 60
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+       "width": 120,
+       "height": 120
+      }
+     ],
+     "isAvailable": true,
+     "isExplicit": false,
+     "videoType": "MUSIC_VIDEO_TYPE_ATV",
+     "views": null,
+     "communityVoteStatus": null
+    },
+    {
+     "videoId": "bJfdlN8uHss",
+     "title": "Makin' My Move",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "album": {
+      "name": "Caught in a Parade",
+      "id": "MPREb_jIvIf1k88wy"
+     },
+     "likeStatus": "INDIFFERENT",
+     "inLibrary": false,
+     "pinnedToListenAgain": false,
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+       "width": 60,
+       "height": 60
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+       "width": 120,
+       "height": 120
+      }
+     ],
+     "isAvailable": true,
+     "isExplicit": false,
+     "videoType": "MUSIC_VIDEO_TYPE_ATV",
+     "views": null,
+     "communityVoteStatus": null,
+     "creditsBrowseId": "MPTCbJfdlN8uHss"
+    },
+    {
+     "videoId": "GAQs3UgGSfc",
+     "title": "Mayflower",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      },
+      {
+       "name": "Nikhil D'Souza",
+       "id": "UCWkKRb2w41maMLGIMK-FpLQ"
+      }
+     ],
+     "album": {
+      "name": "Caught in a Parade",
+      "id": "MPREb_jIvIf1k88wy"
+     },
+     "likeStatus": "INDIFFERENT",
+     "inLibrary": false,
+     "pinnedToListenAgain": false,
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+       "width": 60,
+       "height": 60
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+       "width": 120,
+       "height": 120
+      }
+     ],
+     "isAvailable": true,
+     "isExplicit": false,
+     "videoType": "MUSIC_VIDEO_TYPE_ATV",
+     "views": null,
+     "communityVoteStatus": null,
+     "creditsBrowseId": "MPTCGAQs3UgGSfc"
+    },
+    {
+     "videoId": "gkmG6YJf9Ow",
+     "title": "Dream to Keep Us Going",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "album": {
+      "name": "As Written in the Stars",
+      "id": "MPREb_OPCLh8vwJNl"
+     },
+     "likeStatus": "INDIFFERENT",
+     "inLibrary": false,
+     "pinnedToListenAgain": false,
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+       "width": 60,
+       "height": 60
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+       "width": 120,
+       "height": 120
+      }
+     ],
+     "isAvailable": true,
+     "isExplicit": false,
+     "videoType": "MUSIC_VIDEO_TYPE_ATV",
+     "views": null,
+     "communityVoteStatus": null
+    }
+   ]
+  },
+  "albums": {
+   "browseId": null,
+   "results": [
+    {
+     "title": "As Written in the Stars",
+     "artists": [],
+     "browseId": "MPREb_OPCLh8vwJNl",
+     "audioPlaylistId": "OLAK5uy_mmvaclEJi8XhHnIqmmkezInrlkMlwBc5w",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ],
+     "isExplicit": false,
+     "year": "2017"
+    }
+   ]
+  },
+  "singles": {
+   "browseId": null,
+   "results": [
+    {
+     "title": "Mellow",
+     "browseId": "MPREb_YYSLl7eF61q",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ],
+     "type": "Single",
+     "year": "2026"
+    },
+    {
+     "title": "Caught in a Parade",
+     "browseId": "MPREb_jIvIf1k88wy",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ],
+     "type": "EP",
+     "year": "2022"
+    },
+    {
+     "title": "Fly Away",
+     "browseId": "MPREb_Nf0BeqFdf9q",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ],
+     "type": "Single",
+     "year": "2020"
+    },
+    {
+     "title": "My Place to You",
+     "browseId": "MPREb_DefB8uIrdyK",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ],
+     "type": "Single",
+     "year": "2019"
+    },
+    {
+     "title": "The Akkare Tapes (Live from Akkarai)",
+     "browseId": "MPREb_7xd00FQXMFQ",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ],
+     "type": "EP",
+     "year": "2021"
+    }
+   ]
+  },
+  "videos": {
+   "browseId": "VLOLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+   "results": [
+    {
+     "title": "Mellow",
+     "videoId": "tVmSky2lA5A",
+     "artists": [
+      {
+       "name": "Mali",
+       "id": null
+      },
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/tVmSky2lA5A/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nxOC3CvSjz5sH-AzkiM2G1aG8DwA",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/tVmSky2lA5A/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3l0H38PLf72mpUiW0P_5NNIxJbIOQ",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "15K"
+    },
+    {
+     "title": "Enjoy it while it lasts",
+     "videoId": "kPyzCPztkQw",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/kPyzCPztkQw/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mSRIf7ue_dVy4VaP4xeHfEc1YHeQ",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/kPyzCPztkQw/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3kPF3XgLDGX1FImKJxV_Iqj2tAHvg",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "53K"
+    },
+    {
+     "title": "Mayflower",
+     "videoId": "-3V4OpteifI",
+     "artists": [
+      {
+       "name": "Nikhil D'Souza",
+       "id": "UCWkKRb2w41maMLGIMK-FpLQ"
+      },
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/-3V4OpteifI/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mFDFCanfMuciUwzUzjXBeQcn4KvQ",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/-3V4OpteifI/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3l-1TdS_gFWcLM32URnFUYBbyQdWQ",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "70K"
+    },
+    {
+     "title": "Makin' My Move",
+     "videoId": "pcE0dO9b-10",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/pcE0dO9b-10/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kYZhF0qPlaWEwxtHJyE7aPmfDuSQ",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/pcE0dO9b-10/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3lKEvqmAf8Rx4GgZY4vAXY9N8u-Dw",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "76K"
+    },
+    {
+     "title": "Dream to keep us going",
+     "videoId": "_ewU3NpB9gY",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/_ewU3NpB9gY/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3ndL-YmUoi4qg4M36hI7KW-2H4NsQ",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/_ewU3NpB9gY/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3nHQZf3S1-y5A5q-O7wu5_pU0g9Ew",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "72K"
+    },
+    {
+     "title": "Beneath the Fireworks",
+     "videoId": "NiqtIHnckYo",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/NiqtIHnckYo/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nQES3XTR1ugbl46iQ-VWg9BL-vQA",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/NiqtIHnckYo/hqdefault.jpg?sqp=-oaymwEWCOADEI4CIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kRhmUTYBZUkjz0RNeZ0XrhGDxwQw",
+       "width": 480,
+       "height": 270
+      }
+     ],
+     "views": "13K"
+    },
+    {
+     "title": "Going Easy",
+     "videoId": "SfckFY8aQS0",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/SfckFY8aQS0/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kyLDk3Te5AGDajzLkV5l-sLaHuDA",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/SfckFY8aQS0/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3n3hstn0DBk49mh9ohZOfkPNjUldA",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "11K"
+    },
+    {
+     "title": "Here's to you",
+     "videoId": "WI3umkfenQI",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/WI3umkfenQI/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kaQHiWgfBoU0iSyz-gedl_vv1pTg",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/WI3umkfenQI/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3notZyxDsr8AfItMGVIETQ5KonLeQ",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "17K"
+    },
+    {
+     "title": "I for little things",
+     "videoId": "pjEzlNsm1Tg",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/pjEzlNsm1Tg/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3lJKjpmCYUQWzhLCCjAvvpfcgxfMA",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/pjEzlNsm1Tg/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3mzBaaY1WUL_C6kRZNmwn7Pgcbwww",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "21K"
+    },
+    {
+     "title": "Fly Away",
+     "videoId": "t7SsTV6kzJA",
+     "artists": [
+      {
+       "name": "Easy Wanderlings",
+       "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+      }
+     ],
+     "playlistId": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+     "thumbnails": [
+      {
+       "url": "https://i.ytimg.com/vi/t7SsTV6kzJA/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nrA4bGKUBj9B9DtSEZeLii3xYimw",
+       "width": 400,
+       "height": 225
+      },
+      {
+       "url": "https://i.ytimg.com/vi/t7SsTV6kzJA/hq720.jpg?sqp=-oaymwEKCKAGEMIDIABIWg&rs=AMzJL3lWjh3VPtXwychUsGtQBuPeecM4ZA",
+       "width": 800,
+       "height": 450
+      }
+     ],
+     "views": "4.6K"
+    }
+   ],
+   "params": "ggMCCAI%3D"
+  },
+  "related": {
+   "browseId": null,
+   "results": [
+    {
+     "title": "Moom",
+     "browseId": "UCQZ8pv2pXGEg1TAB2Worrtg",
+     "subscribers": "127",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/-FvKJB2JVHBkWHrL1PP9lumcybMg7g4lmoz91CAAqUCbR46Ar3lLSA6JFM8cTZHWRXqvwYni2XspOyfC=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/-FvKJB2JVHBkWHrL1PP9lumcybMg7g4lmoz91CAAqUCbR46Ar3lLSA6JFM8cTZHWRXqvwYni2XspOyfC=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Sope",
+     "browseId": "UCC5pejTxnZ118nhznFVZ3SA",
+     "subscribers": "76",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/35zCUymfiN9aNRMcTkdXMq2yZ3srKmS2sEffVh8nIbSWW8Z_B3-v9GjMCWGD0jufqZam5Y_oEhtko-s2=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/35zCUymfiN9aNRMcTkdXMq2yZ3srKmS2sEffVh8nIbSWW8Z_B3-v9GjMCWGD0jufqZam5Y_oEhtko-s2=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "valen",
+     "browseId": "UCKuFYOKMVNkSGOXrDa3CCTA",
+     "subscribers": "460",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/B0C_xf8WpLwJYdqhWDYqB68Gxb0OzQ4YUkPgCN8jiihPVf4RsilSaPCtx_v83EHNCJ5o7v2ea9Q_x84=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/B0C_xf8WpLwJYdqhWDYqB68Gxb0OzQ4YUkPgCN8jiihPVf4RsilSaPCtx_v83EHNCJ5o7v2ea9Q_x84=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Jason Yu",
+     "browseId": "UCeWHRKbZzuYfrWfP8qEpnHQ",
+     "subscribers": "2.98K",
+     "thumbnails": [
+      {
+       "url": "https://yt3.ggpht.com/ytc/AIdro_newPSL2LOxs-QuaALlMvjXP7iid9N9k94OF1SdK-rmefU=w226-h226-l90-rj-dcmXaSSa4H",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.ggpht.com/ytc/AIdro_newPSL2LOxs-QuaALlMvjXP7iid9N9k94OF1SdK-rmefU=w544-h544-l90-rj-dcmXaSSa4H",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Under the trees",
+     "browseId": "UCZxMvZTGzCpUagjhoXg7GTA",
+     "subscribers": "82",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/Ez_MPu5NGRdIkfv-6ZAESQFjrr9tQJkKGOTbC-yRMO5b9iRF45eFqTi5r-SD26faPmH-o_ELnJyMHN-Heg=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/Ez_MPu5NGRdIkfv-6ZAESQFjrr9tQJkKGOTbC-yRMO5b9iRF45eFqTi5r-SD26faPmH-o_ELnJyMHN-Heg=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Yara Meyers",
+     "browseId": "UCdwefxATkqYstXixr2J4acw",
+     "subscribers": "912",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/vdlbU9cZVlRiY-w3ePYqSoMdg0M3vmjgICGRdqA4amgC6E3cDH0Mz_BBmYinu780qmKRGvC5ObcqmGPq=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/vdlbU9cZVlRiY-w3ePYqSoMdg0M3vmjgICGRdqA4amgC6E3cDH0Mz_BBmYinu780qmKRGvC5ObcqmGPq=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Valentina Ploy",
+     "browseId": "UCZ89QoJtRdluUDJ493jOMww",
+     "subscribers": "87K",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/9o7ogvPkK-HqC1ofImzeDkQAWtIhfhhjts13_4Gt_hAkNU_cHKlDA8YJNIggV7OM4xHwHelA=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/9o7ogvPkK-HqC1ofImzeDkQAWtIhfhhjts13_4Gt_hAkNU_cHKlDA8YJNIggV7OM4xHwHelA=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Ghost of the Robot",
+     "browseId": "UCArnPzJWGhJA63bAKnWnE4w",
+     "subscribers": "2.88K",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/eZBriT9PcCS9mhf6wj6oVdyjsyGnMdgfFAAyWRkXd4Y1Ueiy_LG5e0Hdd5IzHs6NMbTUyW7lYTXSD_Bing=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/eZBriT9PcCS9mhf6wj6oVdyjsyGnMdgfFAAyWRkXd4Y1Ueiy_LG5e0Hdd5IzHs6NMbTUyW7lYTXSD_Bing=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "Nolan Gibbons",
+     "browseId": "UCP6A8gfd84mc8gVd9hysjTg",
+     "subscribers": "2.09K",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/M6QeQwYGFlbFQr95iqesjvIUWuzqafDNaFTqCmyk2Q_m0WLM5-WtzoGjNu7SiLpb08TyyGI428yTr5cJTA=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/M6QeQwYGFlbFQr95iqesjvIUWuzqafDNaFTqCmyk2Q_m0WLM5-WtzoGjNu7SiLpb08TyyGI428yTr5cJTA=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    },
+    {
+     "title": "CHUROSE",
+     "browseId": "UCiTL447wmioAHqoJTu8zE5g",
+     "subscribers": "52",
+     "thumbnails": [
+      {
+       "url": "https://yt3.googleusercontent.com/ENO43j6QR-qfYPOCwTJ_KCQDGsQUT-2vUwpEClaiK8YwF9zSnVD5ktTjZg7tO7N_mN33CargkSvV3NrjQw=w226-h226-l90-rj",
+       "width": 226,
+       "height": 226
+      },
+      {
+       "url": "https://yt3.googleusercontent.com/ENO43j6QR-qfYPOCwTJ_KCQDGsQUT-2vUwpEClaiK8YwF9zSnVD5ktTjZg7tO7N_mN33CargkSvV3NrjQw=w544-h544-l90-rj",
+       "width": 544,
+       "height": 544
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "albums": {
+  "source": "get_artist inline shelf",
+  "complete": true,
+  "items": [
+   {
+    "title": "As Written in the Stars",
+    "artists": [],
+    "browseId": "MPREb_OPCLh8vwJNl",
+    "audioPlaylistId": "OLAK5uy_mmvaclEJi8XhHnIqmmkezInrlkMlwBc5w",
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w226-h226-l90-rj",
+      "width": 226,
+      "height": 226
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w544-h544-l90-rj",
+      "width": 544,
+      "height": 544
+     }
+    ],
+    "isExplicit": false,
+    "year": "2017"
+   }
+  ]
+ },
+ "singles": {
+  "source": "get_artist inline shelf",
+  "complete": true,
+  "items": [
+   {
+    "title": "Mellow",
+    "browseId": "MPREb_YYSLl7eF61q",
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w226-h226-l90-rj",
+      "width": 226,
+      "height": 226
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w544-h544-l90-rj",
+      "width": 544,
+      "height": 544
+     }
+    ],
+    "type": "Single",
+    "year": "2026"
+   },
+   {
+    "title": "Caught in a Parade",
+    "browseId": "MPREb_jIvIf1k88wy",
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w226-h226-l90-rj",
+      "width": 226,
+      "height": 226
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w544-h544-l90-rj",
+      "width": 544,
+      "height": 544
+     }
+    ],
+    "type": "EP",
+    "year": "2022"
+   },
+   {
+    "title": "Fly Away",
+    "browseId": "MPREb_Nf0BeqFdf9q",
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w226-h226-l90-rj",
+      "width": 226,
+      "height": 226
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w544-h544-l90-rj",
+      "width": 544,
+      "height": 544
+     }
+    ],
+    "type": "Single",
+    "year": "2020"
+   },
+   {
+    "title": "My Place to You",
+    "browseId": "MPREb_DefB8uIrdyK",
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w226-h226-l90-rj",
+      "width": 226,
+      "height": 226
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w544-h544-l90-rj",
+      "width": 544,
+      "height": 544
+     }
+    ],
+    "type": "Single",
+    "year": "2019"
+   },
+   {
+    "title": "The Akkare Tapes (Live from Akkarai)",
+    "browseId": "MPREb_7xd00FQXMFQ",
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w226-h226-l90-rj",
+      "width": 226,
+      "height": 226
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w544-h544-l90-rj",
+      "width": 544,
+      "height": 544
+     }
+    ],
+    "type": "EP",
+    "year": "2021"
+   }
+  ]
+ },
+ "songsPlaylist": {
+  "id": "OLAK5uy_mjkpjVn_0FFYn6FibFLkqhsUEuEDZZtTM",
+  "title": "Top songs",
+  "trackCount": 21,
+  "tracks": [
+   {
+    "videoId": "x8JIr7Ai82Q",
+    "title": "Mellow",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     },
+     {
+      "name": "Mali",
+      "id": null
+     }
+    ],
+    "album": {
+     "name": "Mellow",
+     "id": "MPREb_YYSLl7eF61q"
+    },
+    "duration": "4:19",
+    "duration_seconds": 259,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/7n5Zu2MyXAXa2VNKFZY4d6qM4VS55Qb2E-vNusVcoIvzZ530I1BeZYG9g5LtmNKMmSAmh7WLVwB7Fr0=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "hUf9MdsgvSU",
+    "title": "Enjoy It While It Lasts",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "3:01",
+    "duration_seconds": 181,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "bJfdlN8uHss",
+    "title": "Makin' My Move",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "Caught in a Parade",
+     "id": "MPREb_jIvIf1k88wy"
+    },
+    "duration": "4:20",
+    "duration_seconds": 260,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "GAQs3UgGSfc",
+    "title": "Mayflower",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     },
+     {
+      "name": "Nikhil D'Souza",
+      "id": "UCWkKRb2w41maMLGIMK-FpLQ"
+     }
+    ],
+    "album": {
+     "name": "Caught in a Parade",
+     "id": "MPREb_jIvIf1k88wy"
+    },
+    "duration": "4:10",
+    "duration_seconds": 250,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "gkmG6YJf9Ow",
+    "title": "Dream to Keep Us Going",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "6:26",
+    "duration_seconds": 386,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "xnSQKedX9SU",
+    "title": "I for Little Things",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "3:46",
+    "duration_seconds": 226,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "oc3PC5peYSo",
+    "title": "Here's to You",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "3:27",
+    "duration_seconds": 207,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "RKb_RCFir48",
+    "title": "Beneath the Fireworks",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "My Place to You",
+     "id": "MPREb_DefB8uIrdyK"
+    },
+    "duration": "5:25",
+    "duration_seconds": 325,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "w1NSjAJhOzA",
+    "title": "Center of the Universe",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "Caught in a Parade",
+     "id": "MPREb_jIvIf1k88wy"
+    },
+    "duration": "3:08",
+    "duration_seconds": 188,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "E28nS86APHk",
+    "title": "Enemy",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "Caught in a Parade",
+     "id": "MPREb_jIvIf1k88wy"
+    },
+    "duration": "3:43",
+    "duration_seconds": 223,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "167cG7E6_CM",
+    "title": "Madeline",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "My Place to You",
+     "id": "MPREb_DefB8uIrdyK"
+    },
+    "duration": "5:15",
+    "duration_seconds": 315,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/sIr1OEymHUzJyEIoSfvlG1HjTpKTiu-iDX1GXmFGMzvJ0xdFaGJov1qg1OPHW5G4L6uBFPIhytjJZWE=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "TUQ1D2-jxd0",
+    "title": "Fly Away",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "Fly Away",
+     "id": "MPREb_Nf0BeqFdf9q"
+    },
+    "duration": "3:21",
+    "duration_seconds": 201,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/zeeZAKdIbJH0IYXtPV4F6oHkqZHOeymNt0gjY5Fs-27yy4i1arTGpJiGZHFYQgjg8Ytm0r7s-8Yv85o=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "yPJ_6dSFelk",
+    "title": "Ode to a Bristlecone",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "3:47",
+    "duration_seconds": 227,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "-T9CPVTfftE",
+    "title": "Faces",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "4:06",
+    "duration_seconds": 246,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "RFFCKgTXF88",
+    "title": "Summer Is Away",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "3:41",
+    "duration_seconds": 221,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "StWupA4VLh8",
+    "title": "Going Easy",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "As Written in the Stars",
+     "id": "MPREb_OPCLh8vwJNl"
+    },
+    "duration": "4:38",
+    "duration_seconds": 278,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/ld0A0Olj0MiYgXy8MpGxAuHXQ1gNppB4OJ6jInz8eLt-coRWJPLvmsEoL2MvPg4NCNtXDTYDcxd4SdA=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "g3EssKCjQJg",
+    "title": "Castles In The Air",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "Caught in a Parade",
+     "id": "MPREb_jIvIf1k88wy"
+    },
+    "duration": "3:49",
+    "duration_seconds": 229,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/XtsIhYqVRTX3dFiTV4XY77TjItAv32NJQDT1bc5OTKFex0OFu5zos1zxnklu2oXkfQNfkCID6Eq6TsPr=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "ogeNVK9WdwA",
+    "title": "Madeline (Live from Akkarai)",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "The Akkare Tapes (Live from Akkarai)",
+     "id": "MPREb_7xd00FQXMFQ"
+    },
+    "duration": "4:12",
+    "duration_seconds": 252,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "uAH1jLSFBl4",
+    "title": "Enjoy It While It Lasts (Live from Akkarai)",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "The Akkare Tapes (Live from Akkarai)",
+     "id": "MPREb_7xd00FQXMFQ"
+    },
+    "duration": "3:35",
+    "duration_seconds": 215,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "paKrHQlooGg",
+    "title": "Beneath the Fireworks (Live from Akkarai)",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "The Akkare Tapes (Live from Akkarai)",
+     "id": "MPREb_7xd00FQXMFQ"
+    },
+    "duration": "4:26",
+    "duration_seconds": 266,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   },
+   {
+    "videoId": "oHPZNYOz8Ao",
+    "title": "Faces (Live from Akkarai)",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": {
+     "name": "The Akkare Tapes (Live from Akkarai)",
+     "id": "MPREb_7xd00FQXMFQ"
+    },
+    "duration": "2:49",
+    "duration_seconds": 169,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w60-h60-l90-rj",
+      "width": 60,
+      "height": 60
+     },
+     {
+      "url": "https://yt3.googleusercontent.com/99Zy_99-OjUDCiTMC8e8xTL8dmSJ_i_gHTK99vRsi9DFpMZ7bLGFvLrMkXwd5BmzgyTwqI01oiYRjaQ=w120-h120-l90-rj",
+      "width": 120,
+      "height": 120
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_ATV"
+   }
+  ]
+ },
+ "videosPlaylist": {
+  "id": "OLAK5uy_l5JhibhT38jXMshM8ATPMuAsGMIS5LKck",
+  "title": "Videos",
+  "trackCount": 26,
+  "tracks": [
+   {
+    "videoId": "tVmSky2lA5A",
+    "title": "Mellow",
+    "artists": [
+     {
+      "name": "Mali",
+      "id": null
+     },
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:22",
+    "duration_seconds": 262,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/tVmSky2lA5A/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nxOC3CvSjz5sH-AzkiM2G1aG8DwA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "kPyzCPztkQw",
+    "title": "Enjoy it while it lasts",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:01",
+    "duration_seconds": 181,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/kPyzCPztkQw/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mSRIf7ue_dVy4VaP4xeHfEc1YHeQ",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "-3V4OpteifI",
+    "title": "Mayflower",
+    "artists": [
+     {
+      "name": "Nikhil D'Souza",
+      "id": "UCWkKRb2w41maMLGIMK-FpLQ"
+     },
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:12",
+    "duration_seconds": 252,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/-3V4OpteifI/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mFDFCanfMuciUwzUzjXBeQcn4KvQ",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "pcE0dO9b-10",
+    "title": "Makin' My Move",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:15",
+    "duration_seconds": 255,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/pcE0dO9b-10/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kYZhF0qPlaWEwxtHJyE7aPmfDuSQ",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "_ewU3NpB9gY",
+    "title": "Dream to keep us going",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "6:35",
+    "duration_seconds": 395,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/_ewU3NpB9gY/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3ndL-YmUoi4qg4M36hI7KW-2H4NsQ",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "YpLTswi9E_Y",
+    "title": "Center of the Universe",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:33",
+    "duration_seconds": 213,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/YpLTswi9E_Y/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3n4SVpcK8xY5oEl_7eKnH9w_VobuA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "NiqtIHnckYo",
+    "title": "Beneath the Fireworks",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "5:38",
+    "duration_seconds": 338,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/NiqtIHnckYo/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nQES3XTR1ugbl46iQ-VWg9BL-vQA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "SfckFY8aQS0",
+    "title": "Going Easy",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:43",
+    "duration_seconds": 223,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/SfckFY8aQS0/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kyLDk3Te5AGDajzLkV5l-sLaHuDA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "WI3umkfenQI",
+    "title": "Here's to you",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:30",
+    "duration_seconds": 210,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/WI3umkfenQI/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kaQHiWgfBoU0iSyz-gedl_vv1pTg",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "pjEzlNsm1Tg",
+    "title": "I for little things",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:51",
+    "duration_seconds": 231,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/pjEzlNsm1Tg/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3lJKjpmCYUQWzhLCCjAvvpfcgxfMA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "t7SsTV6kzJA",
+    "title": "Fly Away",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:05",
+    "duration_seconds": 245,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/t7SsTV6kzJA/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nrA4bGKUBj9B9DtSEZeLii3xYimw",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "7E-WPytdIk0",
+    "title": "Enemy",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:58",
+    "duration_seconds": 238,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/7E-WPytdIk0/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3lSrrXSlJ2CgzmGYqF0oJ-9SF7PPA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "8e6V6td1LvE",
+    "title": "Madeline",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "5:22",
+    "duration_seconds": 322,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/8e6V6td1LvE/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3m7TOckVClfsDyNGDhPKGxgyWwU0w",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "3u3kCnc5Aok",
+    "title": "Easy Wanderlings - Dream to Keep us going | Live at Zomaland 2025",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:36",
+    "duration_seconds": 276,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/3u3kCnc5Aok/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3n8Khgsjp8y31hbktw8BCyZNLO8jw",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "WuXLDf6H9JI",
+    "title": "Faces",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:12",
+    "duration_seconds": 252,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/WuXLDf6H9JI/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3k8xcHZLu5n9HHziwxTRVeofX724g",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "6dPDvq1dbjw",
+    "title": "Easy Wanderlings - Mountain Valley Tour 2019",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:33",
+    "duration_seconds": 213,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/6dPDvq1dbjw/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3npisFDJmInWD_utnOZKVtIYi2zXA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "XjYp7Wv9R-o",
+    "title": "Going Easy",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:54",
+    "duration_seconds": 234,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/XjYp7Wv9R-o/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3n4mX29tM0kPtBrcUTLOZuZ122r-w",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "6GDJvTcQ7n8",
+    "title": "Makin' My Move",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:56",
+    "duration_seconds": 296,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/6GDJvTcQ7n8/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mIqqjsrtSftWLfBt2Bzta-l21teg",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "bCKtmVs5sp8",
+    "title": "Ode to a Bristlecone",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:22",
+    "duration_seconds": 202,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/bCKtmVs5sp8/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3koNKiD5xqYPZw-hbEzIj8hZBB9Dg",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "4iYsRhjFIVo",
+    "title": "Summer is away",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:47",
+    "duration_seconds": 227,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/4iYsRhjFIVo/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nyXYgAJjggi8xPE4nWCrGKhyonpg",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "N3cXqri28kg",
+    "title": "Easy Wanderlings - Enjoy it while it lasts  | The Akkarai Tapes",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:49",
+    "duration_seconds": 229,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/N3cXqri28kg/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3lT0Aja0cmB_VEoxCoRbHeIaoq6KA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "KmSnVCg_zOg",
+    "title": "Madeline (Live from Akkarai)",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:31",
+    "duration_seconds": 271,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/KmSnVCg_zOg/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kjL1dUJgIbssNxUxknP16m0q-NPA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "U_NMTgb8YeE",
+    "title": "Beneath the Fireworks (Live from Akkarai)",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "4:41",
+    "duration_seconds": 281,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/U_NMTgb8YeE/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3k5DcXnlldJ69FaJo3EGDc2Q5nAmQ",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "BB76GgtoHK8",
+    "title": "Easy Wanderlings - Faces | The Akkarai Tapes",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "2:55",
+    "duration_seconds": 175,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/BB76GgtoHK8/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3lkDuyTmwS5QotStmjSRCuH05X6SA",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "m6DPENslzkA",
+    "title": "Going Easy",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "3:35",
+    "duration_seconds": 215,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/m6DPENslzkA/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mPXG4CWQ8OSNRoICceA_gwwEeRyw",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   },
+   {
+    "videoId": "ggfhP8SKk8c",
+    "title": "Dream to keep us going",
+    "artists": [
+     {
+      "name": "Easy Wanderlings",
+      "id": "UCLo0ZqEI1xTikp4sU-bAIMA"
+     }
+    ],
+    "album": null,
+    "duration": "6:16",
+    "duration_seconds": 376,
+    "isExplicit": false,
+    "isAvailable": true,
+    "thumbnails": [
+     {
+      "url": "https://i.ytimg.com/vi/ggfhP8SKk8c/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3ms4THbj3cgcgm7l05Pt1PzfY8SFQ",
+      "width": 400,
+      "height": 225
+     }
+    ],
+    "videoType": "MUSIC_VIDEO_TYPE_OMV"
+   }
+  ]
+ },
+ "mb": {
+  "search": [
+   {
+    "id": "db7571d3-fde7-4fb5-b6ea-157411241a24",
+    "name": "Easy Wanderlings",
+    "score": 100,
+    "country": "IN",
+    "disambiguation": null
+   }
+  ],
+  "mbid": "db7571d3-fde7-4fb5-b6ea-157411241a24",
+  "releaseGroups": [
+   {
+    "id": "2529549c-5b79-4f8d-bf41-7586d87a3eff",
+    "title": "As Written In The Stars",
+    "primary": "Album",
+    "secondary": [],
+    "first": "2017-08-06"
+   },
+   {
+    "id": "8dfa7a01-a5cc-442e-ad27-b8c18824ad57",
+    "title": "Caught in a Parade",
+    "primary": "EP",
+    "secondary": [],
+    "first": "2022-10-07"
+   }
+  ],
+  "count": 2
+ }
+}

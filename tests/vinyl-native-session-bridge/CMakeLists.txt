@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.21)
+project(VinylNativeSessionBridge LANGUAGES CXX)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_CXX_STANDARD 17)
+find_package(Qt6 REQUIRED COMPONENTS Core Qml Quick QuickTest)
+add_executable(vinyl_native_session_bridge runner.cpp ../../native/vinyl/VinylLocalSource.cpp ../../native/vinyl/VinylLocalSource.h ../../native/engine/VaultIdentity.cpp ../../native/engine/VaultIdentity.h)
+target_include_directories(vinyl_native_session_bridge PRIVATE ../../native)
+target_link_libraries(vinyl_native_session_bridge PRIVATE Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest)

@@ -20,7 +20,7 @@
 #include <memory>
 
 namespace {
-constexpr int kSnapshotVersion = 5;
+constexpr int kSnapshotVersion = 6;
 constexpr qsizetype kMaximumPrivateStateBytes = 1024 * 1024;
 constexpr qsizetype kMaximumTheatreExtensions = 512;
 
@@ -263,6 +263,7 @@ bool PersonalStateSnapshot::isEmpty() const {
         && historyRecords.isEmpty()
         && ratingsReviewsRecords.isEmpty()
         && ratingsReviewsTombstones.isEmpty()
+        && vinylTaste.isEmpty()
         && !showExplicit
         && mainSyncProvider.isEmpty()
         && stremioState.isEmpty()
@@ -273,7 +274,7 @@ QJsonObject PersonalStateSnapshot::toJson() const {
     QJsonObject object;
     object.insert(
         QStringLiteral("version"),
-        kSnapshotVersion);
+        vinylTaste.isEmpty() ? 5 : kSnapshotVersion);
     object.insert(
         QStringLiteral("progress_entries"),
         progressEntries);
@@ -307,6 +308,7 @@ QJsonObject PersonalStateSnapshot::toJson() const {
     object.insert(
         QStringLiteral("show_explicit"),
         showExplicit);
+    if (!vinylTaste.isEmpty()) object.insert(QStringLiteral("vinyl_taste"), vinylTaste);
     object.insert(QStringLiteral("main_sync_provider"), mainSyncProvider);
     object.insert(QStringLiteral("stremio_state"), stremioState);
     object.insert(QStringLiteral("theatre_extensions"), theatreExtensions);
@@ -430,6 +432,10 @@ matchesSemanticDigest(
     if (semanticDigest() == normalized)
         return true;
 
+    // Legacy receipts cannot authenticate newly added taste facts. Empty-taste
+    // snapshots keep their exact v5 encoding, including its existing digests.
+    if (!vinylTaste.isEmpty()) return false;
+
     const bool ratingsReviewsEmpty =
         ratingsReviewsRecords.isEmpty()
         && ratingsReviewsTombstones.isEmpty();
@@ -541,6 +547,26 @@ PersonalStateSnapshot::fromJson(
 
     snapshot.showExplicit =
         showExplicit.toBool();
+    if (version >= 6) {
+        const auto taste = object.value(QStringLiteral("vinyl_taste"));
+        if (!taste.isObject()) { if(error) *error = QStringLiteral("Invalid Vinyl taste snapshot."); return std::nullopt; }
+        snapshot.vinylTaste = taste.toObject();
+        if (!snapshot.vinylTaste.isEmpty()) {
+            const auto answered = snapshot.vinylTaste.value(QStringLiteral("answered"));
+            const auto ids = snapshot.vinylTaste.value(QStringLiteral("artistIds"));
+            if (!answered.isBool() || !ids.isArray() || ids.toArray().size() > 512
+                || (!answered.toBool() && !ids.toArray().isEmpty())) {
+                if(error) *error = QStringLiteral("Invalid Vinyl taste snapshot."); return std::nullopt;
+            }
+            QStringList seen;
+            for(const auto &id : ids.toArray()) {
+                if(!id.isString() || id.toString().trimmed().isEmpty() || id.toString().size()>4096 || seen.contains(id.toString())) {
+                    if(error) *error = QStringLiteral("Invalid Vinyl artist identity."); return std::nullopt;
+                }
+                seen.append(id.toString());
+            }
+        }
+    }
     if (version >= 5) {
         if (!snapshotObject(
                 object,
@@ -901,6 +927,20 @@ LegacyPersonalStateStorage::capture(
     snapshot.ratingsReviewsRecords = ratingsReviews.recordsJson();
     snapshot.ratingsReviewsTombstones = ratingsReviews.tombstonesJson();
 
+    if (preferences->contains(QStringLiteral("vinyl/taste"))) {
+        const QVariant rawTaste = preferences->value(QStringLiteral("vinyl/taste"));
+        if (rawTaste.metaType().id() != QMetaType::QVariantMap) {
+            setError(error, QStringLiteral("Saved Vinyl taste is malformed; adoption was not started."));
+            return std::nullopt;
+        }
+        snapshot.vinylTaste = QJsonObject::fromVariantMap(rawTaste.toMap());
+        PersonalStateSnapshot probe;
+        probe.vinylTaste = snapshot.vinylTaste;
+        if (snapshot.vinylTaste.isEmpty() || !PersonalStateSnapshot::fromJson(probe.toJson(), error)) {
+            setError(error, QStringLiteral("Saved Vinyl taste is malformed; adoption was not started."));
+            return std::nullopt;
+        }
+    }
     snapshot.showExplicit =
         preferences
             ->value(
@@ -1012,6 +1052,7 @@ bool LegacyPersonalStateStorage::clearPersonalState(
 
     audioPairing->remove(
         QStringLiteral("audiobook/pairings"));
+    preferences->remove(QStringLiteral("vinyl/taste"));
     preferences->remove(
         QStringLiteral("content/showExplicit"));
     preferences->remove(
@@ -1135,6 +1176,8 @@ bool LegacyPersonalStateStorage::restorePersonalState(
                 .toJson(QJsonDocument::Compact));
     }
 
+    if (snapshot.vinylTaste.isEmpty()) preferences->remove(QStringLiteral("vinyl/taste"));
+    else preferences->setValue(QStringLiteral("vinyl/taste"), snapshot.vinylTaste.toVariantMap());
     preferences->setValue(
         QStringLiteral("content/showExplicit"),
         snapshot.showExplicit);
