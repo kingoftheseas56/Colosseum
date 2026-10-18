@@ -792,10 +792,15 @@ std::vector<std::string> EngineRegistry::list() const
 {
     std::vector<std::string> result;
     result.reserve(impl_->entries.size());
-    for (const auto &[key, entry] : impl_->entries) {
-        static_cast<void>(entry);
-        result.push_back(key);
-    }
+    // M172 Object.keys retains creation order for the canonical 40-character
+    // hash keys. Generations are assigned monotonically when an entry is made;
+    // reusing an entry retains its generation, recreating it appends naturally.
+    std::vector<std::pair<ports::EngineGeneration, std::string>> ordered;
+    ordered.reserve(impl_->entries.size());
+    for (const auto &[key, entry] : impl_->entries)
+        ordered.emplace_back(entry.generation, key);
+    std::sort(ordered.begin(), ordered.end());
+    for (const auto &entry : ordered) result.push_back(entry.second);
     return result;
 }
 

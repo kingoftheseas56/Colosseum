@@ -1332,6 +1332,36 @@ void swarmCapCreationBinding()
            "K11-01 reuse options rebound the creation-time swarm-cap updater");
 }
 
+void regressionInsertionOrder()
+{
+    FakeFactory factory;
+    LaneWorker worker;
+    EngineRegistryConfig config;
+    config.cacheRoot = uniqueRoot("k12-insertion-order");
+    config.workExecutor = [&](EngineContinuation task) {return worker.post(std::move(task));};
+    config.transportFactory = [&](const auto &request) {return factory.open(request);};
+    EngineRegistry registry(std::move(config));
+    const std::string first(40, 'f'), second(40, 'a'), third(40, '9');
+    const Value quiet = Value::object({{"peerSearch", Value::boolean(false)}});
+    registry.create({first, quiet});
+    registry.create({second, quiet});
+    registry.create({third, quiet});
+    settle(registry, worker);
+    expect(registry.list() == std::vector<std::string>{first, second, third},
+           "K12 registry list must preserve source insertion order, not hash order");
+    registry.create({first, quiet});
+    settle(registry, worker);
+    expect(registry.list() == std::vector<std::string>{first, second, third},
+           "K12 reuse must retain insertion position");
+    registry.remove(second);
+    settle(registry, worker);
+    registry.create({second, quiet});
+    settle(registry, worker);
+    expect(registry.list() == std::vector<std::string>{first, third, second},
+           "K12 recreated engine must append to insertion order");
+    std::cout << "K12 insertion/reuse/recreation order PASS\n";
+}
+
 void runK1101()
 {
     static_cast<void>(runM172Scenario());
@@ -2367,6 +2397,7 @@ int main(int argc, char **argv)
         else if (id == "R8") regressionCircularActiveReaders(true);
         else if (id == "R9") regressionCircularActiveReaders(true, 1);
         else if (id == "R10") regressionCircularActiveReaders(true, 2);
+        else if (id == "R17") regressionInsertionOrder();
         else if (id == "R16") regressionStorageLateStageFailure();
         else if (id == "R15") regressionStorageStageException(true);
         else if (id == "R13") regressionStorageReadException(false);

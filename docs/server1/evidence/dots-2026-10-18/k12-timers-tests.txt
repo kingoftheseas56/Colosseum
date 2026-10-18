@@ -1,0 +1,872 @@
+=== order-before.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 80: R17-engine-registry
+1/1 Test #80: R17-engine-registry ..............***Failed    0.01 sec
+K12 registry list must preserve source insertion order, not hash order
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+K11        =   0.01 sec*proc (1 test)
+native     =   0.01 sec*proc (1 test)
+server1    =   0.01 sec*proc (1 test)
+
+Total Test time (real) =   0.01 sec
+
+The following tests FAILED:
+	 80 - R17-engine-registry (Failed)                      K11 native server1
+Errors while running CTest
+
+
+=== order-after.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 67: K11-01-engine-registry
+1/6 Test #67: K11-01-engine-registry ...........   Passed    0.02 sec
+    Start 68: K11-02-engine-registry
+2/6 Test #68: K11-02-engine-registry ...........   Passed    0.03 sec
+    Start 69: K11-03-engine-registry
+3/6 Test #69: K11-03-engine-registry ...........   Passed    0.08 sec
+    Start 80: R17-engine-registry
+4/6 Test #80: R17-engine-registry ..............   Passed    0.01 sec
+    Start 83: K12-counter-ownership
+5/6 Test #83: K12-counter-ownership ............   Passed    0.00 sec
+    Start 84: K12-01-counter-differential
+6/6 Test #84: K12-01-counter-differential ......   Passed    0.19 sec
+
+100% tests passed out of 6
+
+Label Time Summary:
+K11        =   0.13 sec*proc (4 tests)
+K12        =   0.20 sec*proc (2 tests)
+native     =   0.33 sec*proc (6 tests)
+server1    =   0.33 sec*proc (6 tests)
+
+Total Test time (real) =   0.33 sec
+
+
+=== qt-timer-before.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 84: K12-real-app-lane-timer
+1/1 Test #84: K12-real-app-lane-timer ..........***Failed    0.00 sec
+one-shot timer was not scheduled asynchronously
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+K12        =   0.00 sec*proc (1 test)
+native     =   0.00 sec*proc (1 test)
+server1    =   0.00 sec*proc (1 test)
+
+Total Test time (real) =   0.01 sec
+
+The following tests FAILED:
+	 84 - K12-real-app-lane-timer (Failed)                  K12 native server1
+Errors while running CTest
+
+
+=== qt-throw-before.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 84: K12-real-app-lane-timer
+1/1 Test #84: K12-real-app-lane-timer ..........***Failed    0.15 sec
+timer callback failure
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+K12        =   0.15 sec*proc (1 test)
+native     =   0.15 sec*proc (1 test)
+server1    =   0.15 sec*proc (1 test)
+
+Total Test time (real) =   0.15 sec
+
+The following tests FAILED:
+	 84 - K12-real-app-lane-timer (Failed)                  K12 native server1
+Errors while running CTest
+
+
+=== qt-foreign-before.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 84: K12-real-app-lane-timer
+1/1 Test #84: K12-real-app-lane-timer ..........Subprocess aborted***Exception:   0.17 sec
+QObject::killTimer: Timers cannot be stopped from another thread
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+K12        =   0.17 sec*proc (1 test)
+native     =   0.17 sec*proc (1 test)
+server1    =   0.17 sec*proc (1 test)
+
+Total Test time (real) =   0.17 sec
+
+The following tests FAILED:
+	 84 - K12-real-app-lane-timer (Subprocess aborted)      K12 native server1
+Errors while running CTest
+
+
+=== qt-foreign-after.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 83: K12-counter-ownership
+1/3 Test #83: K12-counter-ownership ............   Passed    0.00 sec
+    Start 84: K12-real-app-lane-timer
+2/3 Test #84: K12-real-app-lane-timer ..........   Passed    0.41 sec
+    Start 85: K12-01-counter-differential
+3/3 Test #85: K12-01-counter-differential ......   Passed    0.18 sec
+
+100% tests passed out of 3
+
+Label Time Summary:
+K12        =   0.59 sec*proc (3 tests)
+native     =   0.59 sec*proc (3 tests)
+server1    =   0.59 sec*proc (3 tests)
+
+Total Test time (real) =   0.60 sec
+
+
+=== timer-full-tests.log ===
+Test project <workspace>/server-parity/build-linux
+      Start  1: P03-02-server1-host
+ 1/85 Test  #1: P03-02-server1-host ..........................   Passed    0.00 sec
+      Start  2: K00-01-js-semantics
+ 2/85 Test  #2: K00-01-js-semantics ..........................   Passed    0.00 sec
+      Start  3: K00-02-js-semantics
+ 3/85 Test  #3: K00-02-js-semantics ..........................   Passed    0.00 sec
+      Start  4: K00-03-js-semantics
+ 4/85 Test  #4: K00-03-js-semantics ..........................   Passed    0.00 sec
+      Start  5: K01-01-metadata-geometry
+ 5/85 Test  #5: K01-01-metadata-geometry .....................   Passed    0.00 sec
+      Start  6: K01-02-metadata-geometry
+ 6/85 Test  #6: K01-02-metadata-geometry .....................   Passed    0.00 sec
+      Start  7: K01-03-metadata-geometry
+ 7/85 Test  #7: K01-03-metadata-geometry .....................   Passed    0.00 sec
+      Start  8: K13-01-settings-cache-defaults
+ 8/85 Test  #8: K13-01-settings-cache-defaults ...............   Passed    0.00 sec
+      Start  9: K13-02-cache-policy
+ 9/85 Test  #9: K13-02-cache-policy ..........................   Passed    0.00 sec
+      Start 10: K13-03-cache-convergence
+10/85 Test #10: K13-03-cache-convergence .....................   Passed    0.05 sec
+      Start 11: H00-01-http-contract
+11/85 Test #11: H00-01-http-contract .........................   Passed    0.01 sec
+      Start 12: H00-02-http-contract
+12/85 Test #12: H00-02-http-contract .........................   Passed    0.00 sec
+      Start 13: H00-03-http-contract
+13/85 Test #13: H00-03-http-contract .........................   Passed    1.51 sec
+      Start 14: H00-04-http-contract
+14/85 Test #14: H00-04-http-contract .........................   Passed    0.01 sec
+      Start 15: H00-05-http-contract
+15/85 Test #15: H00-05-http-contract .........................   Passed    0.27 sec
+      Start 16: M00-01-process-discovery
+16/85 Test #16: M00-01-process-discovery .....................   Passed    0.01 sec
+      Start 17: M00-02-process-lifecycle
+17/85 Test #17: M00-02-process-lifecycle .....................   Passed    0.25 sec
+      Start 18: M00-03-remote-driver
+18/85 Test #18: M00-03-remote-driver .........................   Passed    0.03 sec
+      Start 19: K02-01-piece-buffer
+19/85 Test #19: K02-01-piece-buffer ..........................   Passed    0.00 sec
+      Start 20: K02-02-piece-buffer
+20/85 Test #20: K02-02-piece-buffer ..........................   Passed    0.00 sec
+      Start 21: K02-03-piece-buffer
+21/85 Test #21: K02-03-piece-buffer ..........................   Passed    0.00 sec
+      Start 22: K05-01-swarm-metadata
+22/85 Test #22: K05-01-swarm-metadata ........................   Passed    0.00 sec
+      Start 23: K05-02-swarm-metadata
+23/85 Test #23: K05-02-swarm-metadata ........................   Passed    0.00 sec
+      Start 24: K05-03-swarm-metadata
+24/85 Test #24: K05-03-swarm-metadata ........................   Passed    0.00 sec
+      Start 25: K05-A2-peer-lifecycle-counts
+25/85 Test #25: K05-A2-peer-lifecycle-counts .................   Passed    0.00 sec
+      Start 26: K06-01-persistent-store
+26/85 Test #26: K06-01-persistent-store ......................   Passed    0.01 sec
+      Start 27: K06-02-persistent-store
+27/85 Test #27: K06-02-persistent-store ......................   Passed    0.01 sec
+      Start 28: K06-03-persistent-store
+28/85 Test #28: K06-03-persistent-store ......................   Passed    0.01 sec
+      Start 29: K06-F2-persistent-store
+29/85 Test #29: K06-F2-persistent-store ......................   Passed    0.02 sec
+      Start 30: K06-F3-persistent-store
+30/85 Test #30: K06-F3-persistent-store ......................   Passed    0.01 sec
+      Start 31: K03-01-scheduler-selections
+31/85 Test #31: K03-01-scheduler-selections ..................   Passed    0.00 sec
+      Start 32: K03-02-scheduler-selections
+32/85 Test #32: K03-02-scheduler-selections ..................   Passed    0.00 sec
+      Start 33: K03-03-scheduler-selections
+33/85 Test #33: K03-03-scheduler-selections ..................   Passed    0.00 sec
+      Start 34: K07-01-circular-store
+34/85 Test #34: K07-01-circular-store ........................   Passed    0.00 sec
+      Start 35: K07-02-circular-store
+35/85 Test #35: K07-02-circular-store ........................   Passed    0.00 sec
+      Start 36: K07-03-circular-store
+36/85 Test #36: K07-03-circular-store ........................   Passed    0.00 sec
+      Start 37: K09-01-peer-search
+37/85 Test #37: K09-01-peer-search ...........................   Passed    0.00 sec
+      Start 38: K09-02-peer-search
+38/85 Test #38: K09-02-peer-search ...........................   Passed    0.00 sec
+      Start 39: K09-03-peer-search
+39/85 Test #39: K09-03-peer-search ...........................   Passed    0.00 sec
+      Start 40: K04-01-scheduler-actions
+40/85 Test #40: K04-01-scheduler-actions .....................   Passed    0.00 sec
+      Start 41: K04-02-scheduler-actions
+41/85 Test #41: K04-02-scheduler-actions .....................   Passed    0.00 sec
+      Start 42: K04-03-scheduler-actions
+42/85 Test #42: K04-03-scheduler-actions .....................   Passed    0.00 sec
+      Start 43: K08-01-file-reader
+43/85 Test #43: K08-01-file-reader ...........................   Passed    0.00 sec
+      Start 44: K08-02-file-reader
+44/85 Test #44: K08-02-file-reader ...........................   Passed    0.00 sec
+      Start 45: K08-03-file-reader
+45/85 Test #45: K08-03-file-reader ...........................   Passed    0.00 sec
+      Start 46: K08-F2-file-reader
+46/85 Test #46: K08-F2-file-reader ...........................   Passed    0.00 sec
+      Start 47: K10-01-native-transport-real-wire
+47/85 Test #47: K10-01-native-transport-real-wire ............   Passed    2.01 sec
+      Start 48: K10-01-native-transport-submit-after-ready
+48/85 Test #48: K10-01-native-transport-submit-after-ready ...   Passed    2.17 sec
+      Start 49: K10-02-native-transport-sequential-wire
+49/85 Test #49: K10-02-native-transport-sequential-wire ......   Passed    2.99 sec
+      Start 50: K10-02-native-transport-have-wire
+50/85 Test #50: K10-02-native-transport-have-wire ............   Passed    3.13 sec
+      Start 51: K10-02-native-transport-live-reuse
+51/85 Test #51: K10-02-native-transport-live-reuse ...........   Passed    4.08 sec
+      Start 52: K10-02-native-transport-failure-drain
+52/85 Test #52: K10-02-native-transport-failure-drain ........   Passed    2.89 sec
+      Start 53: K10-02-native-transport-cancel-drain
+53/85 Test #53: K10-02-native-transport-cancel-drain .........   Passed    2.90 sec
+      Start 54: K10-02-native-transport
+54/85 Test #54: K10-02-native-transport ......................   Passed    1.13 sec
+      Start 55: K10-03-native-transport
+55/85 Test #55: K10-03-native-transport ......................   Passed    2.90 sec
+      Start 56: K10-02-native-transport-lifecycle
+56/85 Test #56: K10-02-native-transport-lifecycle ............   Passed    3.09 sec
+      Start 57: K10-02-native-transport-inbound-utp
+57/85 Test #57: K10-02-native-transport-inbound-utp ..........   Passed    3.47 sec
+      Start 58: K10-E-transport-source-invalid
+58/85 Test #58: K10-E-transport-source-invalid ...............   Passed    0.00 sec
+      Start 59: K10-E-transport-source-generation
+59/85 Test #59: K10-E-transport-source-generation ............   Passed    0.00 sec
+      Start 60: K10-E-transport-source-cached
+60/85 Test #60: K10-E-transport-source-cached ................   Passed    0.27 sec
+      Start 61: K10-E-transport-source-mismatch
+61/85 Test #61: K10-E-transport-source-mismatch ..............   Passed    0.01 sec
+      Start 62: K10-E-transport-source-infohash
+62/85 Test #62: K10-E-transport-source-infohash ..............   Passed    0.77 sec
+      Start 63: K10-E-transport-source-magnet
+63/85 Test #63: K10-E-transport-source-magnet ................   Passed    0.77 sec
+      Start 64: K10-E-transport-source-close
+64/85 Test #64: K10-E-transport-source-close .................   Passed    0.26 sec
+      Start 65: K10-G-transport-pause-generation
+65/85 Test #65: K10-G-transport-pause-generation .............   Passed    2.92 sec
+      Start 66: K10-H-transport-upload-real-wire
+66/85 Test #66: K10-H-transport-upload-real-wire .............   Passed   17.03 sec
+      Start 67: K11-01-engine-registry
+67/85 Test #67: K11-01-engine-registry .......................   Passed    0.01 sec
+      Start 68: K11-02-engine-registry
+68/85 Test #68: K11-02-engine-registry .......................   Passed    0.03 sec
+      Start 69: K11-03-engine-registry
+69/85 Test #69: K11-03-engine-registry .......................   Passed    0.08 sec
+      Start 70: R7-engine-registry
+70/85 Test #70: R7-engine-registry ...........................   Passed    0.01 sec
+      Start 71: R8-engine-registry
+71/85 Test #71: R8-engine-registry ...........................   Passed    0.01 sec
+      Start 72: R9-engine-registry
+72/85 Test #72: R9-engine-registry ...........................   Passed    0.01 sec
+      Start 73: R10-engine-registry
+73/85 Test #73: R10-engine-registry ..........................   Passed    0.01 sec
+      Start 74: R11-engine-registry
+74/85 Test #74: R11-engine-registry ..........................   Passed    0.01 sec
+      Start 75: R12-engine-registry
+75/85 Test #75: R12-engine-registry ..........................   Passed    0.01 sec
+      Start 76: R13-engine-registry
+76/85 Test #76: R13-engine-registry ..........................   Passed    0.01 sec
+      Start 77: R14-engine-registry
+77/85 Test #77: R14-engine-registry ..........................   Passed    0.00 sec
+      Start 78: R15-engine-registry
+78/85 Test #78: R15-engine-registry ..........................   Passed    0.01 sec
+      Start 79: R16-engine-registry
+79/85 Test #79: R16-engine-registry ..........................   Passed    0.01 sec
+      Start 80: R17-engine-registry
+80/85 Test #80: R17-engine-registry ..........................   Passed    0.01 sec
+      Start 81: P08-T-torrent-transport-contract
+81/85 Test #81: P08-T-torrent-transport-contract .............   Passed    0.00 sec
+      Start 82: INT-W3-spine-contracts-link
+82/85 Test #82: INT-W3-spine-contracts-link ..................   Passed    0.00 sec
+      Start 83: K12-counter-ownership
+83/85 Test #83: K12-counter-ownership ........................   Passed    0.00 sec
+      Start 84: K12-real-app-lane-timer
+84/85 Test #84: K12-real-app-lane-timer ......................   Passed    0.41 sec
+      Start 85: K12-01-counter-differential
+85/85 Test #85: K12-01-counter-differential ..................   Passed    0.18 sec
+
+100% tests passed out of 85
+
+Label Time Summary:
+INT-W3     =   0.00 sec*proc (1 test)
+K02        =   0.01 sec*proc (3 tests)
+K03        =   0.01 sec*proc (3 tests)
+K04        =   0.00 sec*proc (3 tests)
+K05        =   0.01 sec*proc (4 tests)
+K06        =   0.04 sec*proc (5 tests)
+K07        =   0.01 sec*proc (3 tests)
+K08        =   0.01 sec*proc (4 tests)
+K09        =   0.00 sec*proc (3 tests)
+K10        =  30.77 sec*proc (11 tests)
+K10-E      =   2.08 sec*proc (7 tests)
+K10-G      =   2.92 sec*proc (1 test)
+K10-H      =  17.03 sec*proc (1 test)
+K11        =   0.19 sec*proc (14 tests)
+K12        =   0.59 sec*proc (3 tests)
+P08-T      =   0.00 sec*proc (1 test)
+http       =   1.80 sec*proc (5 tests)
+native     =  53.56 sec*proc (37 tests)
+server1    =  55.46 sec*proc (72 tests)
+unit       =   1.90 sec*proc (35 tests)
+
+Total Test time (real) =  55.85 sec
+
+
+=== oracle-final-tests.log ===
+Test project <workspace>/server-parity/build-linux
+    Start 86: K12-oracle-module-loader
+1/2 Test #86: K12-oracle-module-loader .........   Passed    2.11 sec
+    Start 87: K12-oracle-registry-order
+2/2 Test #87: K12-oracle-registry-order ........   Passed    2.34 sec
+
+100% tests passed out of 2
+
+Label Time Summary:
+K12        =   4.45 sec*proc (2 tests)
+oracle     =   4.45 sec*proc (2 tests)
+server1    =   4.45 sec*proc (2 tests)
+
+Total Test time (real) =   4.45 sec
+
+
+=== asan-tests.log ===
+Test project <workspace>/server-parity/build-k12-asan
+    Start 83: K12-counter-ownership
+1/3 Test #83: K12-counter-ownership ............***Failed    0.01 sec
+==177==LeakSanitizer has encountered a fatal error.
+==177==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1
+==177==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)
+
+    Start 84: K12-real-app-lane-timer
+2/3 Test #84: K12-real-app-lane-timer ..........***Failed    0.42 sec
+==180==LeakSanitizer has encountered a fatal error.
+==180==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1
+==180==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)
+
+    Start 85: K12-01-counter-differential
+3/3 Test #85: K12-01-counter-differential ......***Failed    0.20 sec
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: ==192==LeakSanitizer has encountered a fatal error.
+==192==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1
+==192==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)
+
+
+1 !== 0
+
+    at Object.<anonymous> (<workspace>/server-parity/source/tools/server_lab/oracle/k12_counter.cjs:60:10)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
+
+
+0% tests passed, 3 tests failed out of 3
+
+Label Time Summary:
+K12        =   0.63 sec*proc (3 tests)
+native     =   0.63 sec*proc (3 tests)
+server1    =   0.63 sec*proc (3 tests)
+
+Total Test time (real) =   0.64 sec
+
+The following tests FAILED:
+	 83 - K12-counter-ownership (Failed)                    K12 native server1
+	 84 - K12-real-app-lane-timer (Failed)                  K12 native server1
+	 85 - K12-01-counter-differential (Failed)              K12 native server1
+Errors while running CTest
+
+
+=== asan-no-leak-tests.log ===
+Test project <workspace>/server-parity/build-k12-asan
+    Start 83: K12-counter-ownership
+1/3 Test #83: K12-counter-ownership ............   Passed    0.01 sec
+    Start 84: K12-real-app-lane-timer
+2/3 Test #84: K12-real-app-lane-timer ..........   Passed    0.41 sec
+    Start 85: K12-01-counter-differential
+3/3 Test #85: K12-01-counter-differential ......   Passed    0.18 sec
+
+100% tests passed out of 3
+
+Label Time Summary:
+K12        =   0.60 sec*proc (3 tests)
+native     =   0.60 sec*proc (3 tests)
+server1    =   0.60 sec*proc (3 tests)
+
+Total Test time (real) =   0.60 sec
+
+
+=== lab-python-correct-cwd.log ===
+test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered (test_comparator.QualifiedNodeOrderingTests.test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered) ... FAIL
+test_baseline_trace_is_accepted_without_normalization (test_comparator.TraceComparatorMutationTests.test_baseline_trace_is_accepted_without_normalization) ... ok
+test_callback_removal_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_callback_removal_is_rejected_with_identity_path_and_rule) ... ok
+test_duplicate_sequence_is_rejected_before_equality (test_comparator.TraceComparatorMutationTests.test_duplicate_sequence_is_rejected_before_equality) ... ok
+test_duplicate_terminal_event_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_duplicate_terminal_event_is_rejected_with_identity_path_and_rule) ... ok
+test_identical_duplicate_terminal_trace_is_rejected_as_oracle_contract_error (test_comparator.TraceComparatorMutationTests.test_identical_duplicate_terminal_trace_is_rejected_as_oracle_contract_error) ... ok
+test_missing_required_field_in_actual_is_rejected_before_equality (test_comparator.TraceComparatorMutationTests.test_missing_required_field_in_actual_is_rejected_before_equality) ... ok
+test_non_list_actual_trace_is_rejected_as_candidate_contract_error (test_comparator.TraceComparatorMutationTests.test_non_list_actual_trace_is_rejected_as_candidate_contract_error) ... ok
+test_null_for_omitted_key_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_null_for_omitted_key_is_rejected_with_identity_path_and_rule) ... ok
+test_priority_reorder_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_priority_reorder_is_rejected_with_identity_path_and_rule) ... ok
+test_same_terminal_identity_across_generations_remains_valid_during_unrelated_mismatch (test_comparator.TraceComparatorMutationTests.test_same_terminal_identity_across_generations_remains_valid_during_unrelated_mismatch) ... ok
+test_wrong_cancellation_generation_is_rejected_with_identity_path_and_rule (test_comparator.TraceComparatorMutationTests.test_wrong_cancellation_generation_is_rejected_with_identity_path_and_rule) ... ok
+test_wrong_type_and_non_contiguous_sequence_are_rejected_before_equality (test_comparator.TraceComparatorMutationTests.test_wrong_type_and_non_contiguous_sequence_are_rejected_before_equality) ... ok
+test_contract_freezes_raw_trace_identity_and_ordering_boundaries (test_comparator.TraceContractTests.test_contract_freezes_raw_trace_identity_and_ordering_boundaries) ... ok
+test_cancellation_profile_rejects_cancelled_tracker_origin_and_peer_work (test_fixtures.P06CFixtureCorpusTests.test_cancellation_profile_rejects_cancelled_tracker_origin_and_peer_work) ... ok
+test_choke_profile_preserves_wire_order (test_fixtures.P06CFixtureCorpusTests.test_choke_profile_preserves_wire_order) ... ok
+test_corpus_declares_every_required_fault_profile (test_fixtures.P06CFixtureCorpusTests.test_corpus_declares_every_required_fault_profile) ... ok
+test_corruption_profile_is_visible_after_an_authorized_request (test_fixtures.P06CFixtureCorpusTests.test_corruption_profile_is_visible_after_an_authorized_request) ... ok
+test_delay_profile_is_observable_on_tracker_and_peer_ports (test_fixtures.P06CFixtureCorpusTests.test_delay_profile_is_observable_on_tracker_and_peer_ports) ... ok
+test_disconnect_profile_is_a_clean_eof (test_fixtures.P06CFixtureCorpusTests.test_disconnect_profile_is_a_clean_eof) ... ok
+test_discovery_profile_is_exact_and_deterministic (test_fixtures.P06CFixtureCorpusTests.test_discovery_profile_is_exact_and_deterministic) ... ok
+test_lab_runner_and_evidence_schema_record_a_replayable_receipt (test_fixtures.P06CFixtureCorpusTests.test_lab_runner_and_evidence_schema_record_a_replayable_receipt) ... ERROR
+test_payload_identity_and_geometry_are_converged (test_fixtures.P06CFixtureCorpusTests.test_payload_identity_and_geometry_are_converged) ... ok
+test_unauthorized_delivery_is_rejected_beyond_ledger_presence (test_fixtures.P06CFixtureCorpusTests.test_unauthorized_delivery_is_rejected_beyond_ledger_presence) ... ok
+test_all_raw_sample_paths_are_preserved (test_probes.BaselineReportTests.test_all_raw_sample_paths_are_preserved) ... FAIL
+test_changed_after_run_thresholds_are_rejected (test_probes.BaselineReportTests.test_changed_after_run_thresholds_are_rejected) ... ok
+test_fake_player_telemetry_is_rejected (test_probes.BaselineReportTests.test_fake_player_telemetry_is_rejected) ... ok
+test_missing_profile_dataset_is_rejected (test_probes.BaselineReportTests.test_missing_profile_dataset_is_rejected) ... ok
+test_p07_03_reports_every_sample_and_uncertainty (test_probes.BaselineReportTests.test_p07_03_reports_every_sample_and_uncertainty) ... ok
+test_partial_or_best_only_dataset_is_rejected (test_probes.BaselineReportTests.test_partial_or_best_only_dataset_is_rejected) ... ok
+test_report_is_complete_and_baseline_only (test_probes.BaselineReportTests.test_report_is_complete_and_baseline_only) ... ok
+test_server_0_1_unavailability_is_non_blocking_and_not_a_parity_verdict (test_probes.BaselineReportTests.test_server_0_1_unavailability_is_non_blocking_and_not_a_parity_verdict) ... ok
+test_under_ten_dataset_is_rejected (test_probes.BaselineReportTests.test_under_ten_dataset_is_rejected) ... ok
+test_source_authority_files_are_still_authenticated (test_probes.SourceAndEnvironmentTests.test_source_authority_files_are_still_authenticated) ... ERROR
+test_fingerprint_preserves_bundle_identity_and_runtime_metadata (test_reference_identity.ReferenceIdentityTests.test_fingerprint_preserves_bundle_identity_and_runtime_metadata) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_missing_companions_are_recorded_without_silent_repair (test_reference_identity.ReferenceIdentityTests.test_missing_companions_are_recorded_without_silent_repair) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_reference_reports_port_exhaustion_without_trying_port_11475 (test_reference_identity.ReferenceIdentityTests.test_reference_reports_port_exhaustion_without_trying_port_11475) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_reference_serves_heartbeat_and_settings_in_disposable_paths (test_reference_identity.ReferenceIdentityTests.test_reference_serves_heartbeat_and_settings_in_disposable_paths) ... skipped 'STREMIO_SERVER_JS must name the supplied oracle'
+test_source_trace_matches_all_six_p02_authorities_from_worker_plan (test_reference_identity.SourceAuthorityTraceTests.test_source_trace_matches_all_six_p02_authorities_from_worker_plan) ... ERROR
+test_portable_node_is_official_verified_and_disposable (test_reference_identity.WslReferenceQualificationTests.test_portable_node_is_official_verified_and_disposable) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_all_five_occupied_ports_are_exhausted_without_11475 (test_reference_identity.WslReferenceQualificationTests.test_wsl_all_five_occupied_ports_are_exhausted_without_11475) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing (test_reference_identity.WslReferenceQualificationTests.test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing) ... skipped 'oracle and WSL Ubuntu are required'
+test_wsl_reference_serves_heartbeat_and_settings (test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings) ... skipped 'oracle and WSL Ubuntu are required'
+test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) ... 
+  test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='byte') ... ERROR
+  test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='status') ... ERROR
+  test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='header') ... ERROR
+  test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='timeout') ... ERROR
+  test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='crash') ... ERROR
+  test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='missing-evidence') ... ERROR
+test_cleanup_cli_is_usable_without_subject_arguments (test_runner.P04RunnerTests.test_cleanup_cli_is_usable_without_subject_arguments) ... ok
+test_cleanup_failure_cannot_pass (test_runner.P04RunnerTests.test_cleanup_failure_cannot_pass) ... ERROR
+test_cleanup_preserves_creation_or_image_mismatch (test_runner.P04RunnerTests.test_cleanup_preserves_creation_or_image_mismatch) ... ok
+test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable (test_runner.P04RunnerTests.test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable) ... FAIL
+test_committed_p04_sample_is_real_schema_valid_and_replayable (test_runner.P04RunnerTests.test_committed_p04_sample_is_real_schema_valid_and_replayable) ... ERROR
+test_event_is_written_after_final_result_and_matches_receipt (test_runner.P04RunnerTests.test_event_is_written_after_final_result_and_matches_receipt) ... ERROR
+test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans) ... Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 440, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 435, in main
+    receipt = LabRunner().run(subject=args.subject.resolve(), mode=mode, data_root=args.data_root.resolve(), evidence_dir=args.evidence_dir.resolve(), run_id=args.run_id, config_path=args.config.resolve() if args.config else None)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 62, in run
+    identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                                                     ^^^^^^^^^^^^^^^
+AttributeError: 'Popen' object has no attribute '_handle'
+FAIL
+test_lease_is_published_before_slow_windows_identity_lookup (test_runner.P04RunnerTests.test_lease_is_published_before_slow_windows_identity_lookup) ... FAIL
+test_p04_02_statuses_remain_distinct_and_never_pass (test_runner.P04RunnerTests.test_p04_02_statuses_remain_distinct_and_never_pass) ... ok
+test_raw_protocol_divergence_cannot_be_normalized_into_pass (test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass) ... ERROR
+test_receipt_has_nullable_server_fields_and_observation_arrays (test_runner.P04RunnerTests.test_receipt_has_nullable_server_fields_and_observation_arrays) ... ERROR
+test_replay_is_full_lab_command_and_uses_committed_fixture (test_runner.P04RunnerTests.test_replay_is_full_lab_command_and_uses_committed_fixture) ... ERROR
+test_schema_round_trip_and_raw_normalized_lanes_are_separate (test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate) ... ERROR
+test_termination_error_cannot_pass (test_runner.P04RunnerTests.test_termination_error_cannot_pass) ... ERROR
+test_case_packet_and_evidence_contract (test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract) ... FAIL
+test_matrix_separates_source_accounting_from_runtime_observation (test_surface_matrix.SurfaceMatrixTests.test_matrix_separates_source_accounting_from_runtime_observation) ... ok
+test_p02s_01_profiles_change_only_source_composition (test_surface_matrix.SurfaceMatrixTests.test_p02s_01_profiles_change_only_source_composition) ... ok
+test_p02s_02_dependency_only_is_not_a_mount (test_surface_matrix.SurfaceMatrixTests.test_p02s_02_dependency_only_is_not_a_mount) ... ok
+test_p02s_03_completeness_rejects_deleted_observed_surface (test_surface_matrix.SurfaceMatrixTests.test_p02s_03_completeness_rejects_deleted_observed_surface) ... ok
+test_profile_contract_does_not_inject_invalid_companion_paths (test_surface_matrix.SurfaceMatrixTests.test_profile_contract_does_not_inject_invalid_companion_paths) ... ok
+test_profile_receipts_separate_failed_runs_from_observation (test_surface_matrix.SurfaceMatrixTests.test_profile_receipts_separate_failed_runs_from_observation) ... ERROR
+test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection (test_surface_matrix.SurfaceMatrixTests.test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection) ... ERROR
+
+======================================================================
+ERROR: test_lab_runner_and_evidence_schema_record_a_replayable_receipt (test_fixtures.P06CFixtureCorpusTests.test_lab_runner_and_evidence_schema_record_a_replayable_receipt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_fixtures.py", line 326, in test_lab_runner_and_evidence_schema_record_a_replayable_receipt
+    receipt = LabRunner().run(
+              ^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 62, in run
+    identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                                                     ^^^^^^^^^^^^^^^
+AttributeError: 'Popen' object has no attribute '_handle'
+
+======================================================================
+ERROR: test_source_authority_files_are_still_authenticated (test_probes.SourceAndEnvironmentTests.test_source_authority_files_are_still_authenticated)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_probes.py", line 232, in test_source_authority_files_are_still_authenticated
+    self.assertEqual(hashlib.sha256(WORK_ITEMS_PATH.read_bytes()).hexdigest(), EXPECTED_PLAN_SHA256)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\PublicUser\\Desktop\\Preflight-Architect\\arcs\\44-native-stream-server\\plans\\server1-v2.1-parallel\\PARALLEL-WORK-ITEMS.json'
+
+======================================================================
+ERROR: test_source_trace_matches_all_six_p02_authorities_from_worker_plan (test_reference_identity.SourceAuthorityTraceTests.test_source_trace_matches_all_six_p02_authorities_from_worker_plan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_reference_identity.py", line 30, in test_source_trace_matches_all_six_p02_authorities_from_worker_plan
+    plan_bytes = PARALLEL_WORK_ITEMS.read_bytes()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\PublicUser\\Desktop\\Preflight-Architect\\arcs\\44-native-stream-server\\plans\\server1-v2.1-parallel\\PARALLEL-WORK-ITEMS.json'
+
+======================================================================
+ERROR: test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='byte')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 118, in test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures
+    exit_code, receipt, _ = self.run_cli(mode, f"run-{mode}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-qbav31zy/evidence/run-byte/run.json'
+
+======================================================================
+ERROR: test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='status')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 118, in test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures
+    exit_code, receipt, _ = self.run_cli(mode, f"run-{mode}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-qbav31zy/evidence/run-status/run.json'
+
+======================================================================
+ERROR: test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='header')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 118, in test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures
+    exit_code, receipt, _ = self.run_cli(mode, f"run-{mode}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-qbav31zy/evidence/run-header/run.json'
+
+======================================================================
+ERROR: test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='timeout')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 118, in test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures
+    exit_code, receipt, _ = self.run_cli(mode, f"run-{mode}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-qbav31zy/evidence/run-timeout/run.json'
+
+======================================================================
+ERROR: test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='crash')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 118, in test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures
+    exit_code, receipt, _ = self.run_cli(mode, f"run-{mode}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-qbav31zy/evidence/run-crash/run.json'
+
+======================================================================
+ERROR: test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures (test_runner.P04RunnerTests.test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures) (mode='missing-evidence')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 118, in test_broken_subjects_have_nonzero_exit_for_all_p04_01_failures
+    exit_code, receipt, _ = self.run_cli(mode, f"run-{mode}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-qbav31zy/evidence/run-missing-evidence/run.json'
+
+======================================================================
+ERROR: test_cleanup_failure_cannot_pass (test_runner.P04RunnerTests.test_cleanup_failure_cannot_pass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 494, in test_cleanup_failure_cannot_pass
+    receipt = LabRunner().run(subject=subject, mode="pass", data_root=self.root / "data", evidence_dir=self.root / "evidence" / "cleanup-failure", run_id="cleanup-failure")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 62, in run
+    identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                                                     ^^^^^^^^^^^^^^^
+AttributeError: 'Popen' object has no attribute '_handle'
+
+======================================================================
+ERROR: test_committed_p04_sample_is_real_schema_valid_and_replayable (test_runner.P04RunnerTests.test_committed_p04_sample_is_real_schema_valid_and_replayable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 443, in test_committed_p04_sample_is_real_schema_valid_and_replayable
+    sample = json.loads(sample_path.read_text(encoding="utf-8"))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<workspace>/server-parity/source/artifacts/server1/P04/SAMPLE-RUN.json'
+
+======================================================================
+ERROR: test_event_is_written_after_final_result_and_matches_receipt (test_runner.P04RunnerTests.test_event_is_written_after_final_result_and_matches_receipt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 414, in test_event_is_written_after_final_result_and_matches_receipt
+    receipt = LabRunner().run(subject=subject, mode="pass", data_root=self.root / "data", evidence_dir=self.root / "evidence" / "event-order", run_id="run-event-order")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 62, in run
+    identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                                                     ^^^^^^^^^^^^^^^
+AttributeError: 'Popen' object has no attribute '_handle'
+
+======================================================================
+ERROR: test_raw_protocol_divergence_cannot_be_normalized_into_pass (test_runner.P04RunnerTests.test_raw_protocol_divergence_cannot_be_normalized_into_pass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 388, in test_raw_protocol_divergence_cannot_be_normalized_into_pass
+    exit_code, receipt, _ = self.run_cli("raw-diverge", "run-raw-diverge")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-492nymvi/evidence/run-raw-diverge/run.json'
+
+======================================================================
+ERROR: test_receipt_has_nullable_server_fields_and_observation_arrays (test_runner.P04RunnerTests.test_receipt_has_nullable_server_fields_and_observation_arrays)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 472, in test_receipt_has_nullable_server_fields_and_observation_arrays
+    _, receipt, _ = self.run_cli("byte", "run-fields")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-21knde7l/evidence/run-fields/run.json'
+
+======================================================================
+ERROR: test_replay_is_full_lab_command_and_uses_committed_fixture (test_runner.P04RunnerTests.test_replay_is_full_lab_command_and_uses_committed_fixture)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 429, in test_replay_is_full_lab_command_and_uses_committed_fixture
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-s5_lo_si/evidence/replay-source/run.json'
+
+======================================================================
+ERROR: test_schema_round_trip_and_raw_normalized_lanes_are_separate (test_runner.P04RunnerTests.test_schema_round_trip_and_raw_normalized_lanes_are_separate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 348, in test_schema_round_trip_and_raw_normalized_lanes_are_separate
+    exit_code, receipt, evidence = self.run_cli("byte", "run-roundtrip")
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 104, in run_cli
+    receipt = json.loads((evidence / "run.json").read_text(encoding="utf-8"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/p04-runner-test-a1ob7o29/evidence/run-roundtrip/run.json'
+
+======================================================================
+ERROR: test_termination_error_cannot_pass (test_runner.P04RunnerTests.test_termination_error_cannot_pass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 291, in test_termination_error_cannot_pass
+    receipt = lab.LabRunner().run(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/lab.py", line 62, in run
+    identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                                                     ^^^^^^^^^^^^^^^
+AttributeError: 'Popen' object has no attribute '_handle'
+
+======================================================================
+ERROR: test_profile_receipts_separate_failed_runs_from_observation (test_surface_matrix.SurfaceMatrixTests.test_profile_receipts_separate_failed_runs_from_observation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_surface_matrix.py", line 143, in test_profile_receipts_separate_failed_runs_from_observation
+    runs = load_json(PROFILE_RUNS_PATH)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_surface_matrix.py", line 34, in load_json
+    return json.loads(path.read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<workspace>/server-parity/source/artifacts/server1/P02S/P02S-A/profile-runs.json'
+
+======================================================================
+ERROR: test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection (test_surface_matrix.SurfaceMatrixTests.test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_surface_matrix.py", line 130, in test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection
+    source = RUNNER_PATH.read_text(encoding="utf-8")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<workspace>/server-parity/source/artifacts/server1/P02S/P02S-A/run_reference_profiles.py'
+
+======================================================================
+FAIL: test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered (test_comparator.QualifiedNodeOrderingTests.test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_comparator.py", line 428, in test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered
+    trace = run_qualified_node_order_probe()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_comparator.py", line 234, in run_qualified_node_order_probe
+    raise AssertionError("P05_QUALIFIED_NODE must name the qualified Node executable")
+AssertionError: P05_QUALIFIED_NODE must name the qualified Node executable
+
+======================================================================
+FAIL: test_all_raw_sample_paths_are_preserved (test_probes.BaselineReportTests.test_all_raw_sample_paths_are_preserved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_probes.py", line 227, in test_all_raw_sample_paths_are_preserved
+    self.assertTrue(path.is_file(), path)
+AssertionError: False is not true : <workspace>/server-parity/source/artifacts/server1/P07/P07-C/raw-samples/measured-01.json
+
+======================================================================
+FAIL: test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable (test_runner.P04RunnerTests.test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 319, in test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable
+    self.assertIn(child.pid, cleanup["removed_pids"])
+AssertionError: 47 not found in []
+
+======================================================================
+FAIL: test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans (test_runner.P04RunnerTests.test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 168, in test_interleaved_runs_isolate_cache_ports_events_and_cleanup_orphans
+    self.assertTrue(marker.exists())
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_lease_is_published_before_slow_windows_identity_lookup (test_runner.P04RunnerTests.test_lease_is_published_before_slow_windows_identity_lookup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_runner.py", line 282, in test_lease_is_published_before_slow_windows_identity_lookup
+    self.assertTrue(lease.exists())
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_case_packet_and_evidence_contract (test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<workspace>/server-parity/source/tools/server_lab/tests/test_surface_matrix.py", line 117, in test_case_packet_and_evidence_contract
+    self.assertTrue(ARTIFACT_ROOT.is_dir())
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 66 tests in 13.261s
+
+FAILED (failures=6, errors=19, skipped=8)

@@ -19,7 +19,8 @@ struct EngineCounterConfig final {
     EngineAfter after;
 };
 // Source-compatible M662 counter utility. Registry/HTTP wiring is a separate K12 gate.
-// All operations, callbacks and destruction belong to one app lane.
+// Mutations/callbacks belong to one app lane. close/destruction is synchronized;
+// injected timer handles must permit thread-safe cancellation/destruction.
 class EngineCounter final {
 public:
     explicit EngineCounter(EngineCounterConfig config);

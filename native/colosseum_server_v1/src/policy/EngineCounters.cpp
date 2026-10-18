@@ -1,6 +1,7 @@
 #include "server1/policy/EngineCounters.h"
 #include <limits>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -10,6 +11,7 @@ struct EngineCounter::State final {
     explicit State(EngineCounterConfig c) : config(std::move(c)) {}
     EngineCounterConfig config;
     std::thread::id lane = std::this_thread::get_id();
+    std::recursive_mutex mutex;
     bool alive = true;
     std::uint64_t serial = 0;
     std::map<std::string, double> counts;
@@ -45,7 +47,9 @@ EngineCounter::EngineCounter(EngineCounterConfig config) {
 EngineCounter::~EngineCounter() { close(); }
 void EngineCounter::close() noexcept {
     auto state = state_;
-    if (!state || !state->alive) return;
+    if (!state) return;
+    std::lock_guard<std::recursive_mutex> lock(state->mutex);
+    if (!state->alive) return;
     state->alive = false;
     auto pending = std::move(state->owned);
     state->timeouts.clear();
@@ -54,6 +58,7 @@ void EngineCounter::close() noexcept {
 }
 void EngineCounter::increment(const CounterEvent &event) {
     auto s = state_;
+    std::lock_guard<std::recursive_mutex> lock(s->mutex);
     s->checkLane();
     if (!s->alive) return;
     const auto key = s->config.key(event);
@@ -68,6 +73,7 @@ void EngineCounter::increment(const CounterEvent &event) {
 }
 void EngineCounter::decrement(const CounterEvent &event) {
     auto s = state_;
+    std::lock_guard<std::recursive_mutex> lock(s->mutex);
     s->checkLane();
     if (!s->alive) return;
     const auto key = s->config.key(event);
@@ -83,7 +89,9 @@ void EngineCounter::decrement(const CounterEvent &event) {
     try {
         handle = s->config.after(delay, [weak, key, event, token] {
             auto state = weak.lock();
-            if (!state || !state->alive) return;
+            if (!state) return;
+            std::lock_guard<std::recursive_mutex> lock(state->mutex);
+            if (!state->alive) return;
             state->checkLane();
             auto pending = state->owned.find(token);
             if (pending == state->owned.end() || pending->second.fired) return;

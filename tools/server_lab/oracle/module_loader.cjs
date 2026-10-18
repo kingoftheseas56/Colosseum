@@ -130,12 +130,14 @@ function loadBundle(bundlePath, options = {}) {
   }
   const traceMath = Object.create(Math);
   traceMath.random = random;
+  const nodeRequire = createRequire(path.resolve(bundlePath));
   const context = vm.createContext({
+    require: nodeRequire,
     Buffer, console, process, setTimeout, clearTimeout, setInterval, clearInterval,
     Date: TraceDate, Math: traceMath,
   });
+  context.global = context;
   const cache = new Map();
-  const nodeRequire = createRequire(path.resolve(bundlePath));
   function webpackRequire(id) {
     if (!Number.isInteger(id) || id < 0 || id >= extracted.modules.length || !extracted.modules[id].source.trim()) throw new Error(`unknown webpack module ${id}`);
     if (cache.has(id)) return cache.get(id).exports;
