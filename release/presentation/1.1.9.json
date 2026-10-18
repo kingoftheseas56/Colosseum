@@ -1,9 +1,10 @@
 {
-  "eyebrow": "UNIVERSES, VAULT AND EXTENSIONS",
+  "eyebrow": "ONLINE CATALOGUES AND UNIVERSES",
   "title": "Colosseum 1.1.9",
-  "summary": "Explore cross-media Universes, browse the redesigned Vault, and manage extensions in the native House.",
+  "summary": "Load catalogues and Universe content online, explore cross-media worlds, browse desktop Vault, and manage extensions in the native House.",
   "notes_url": "https://getcolosseum.world/releases/v1.1.9",
   "highlights": [
+    {"kind": "feature", "section": "CONTENT API", "title": "Content arrives online", "body": "Native catalogues, Universe definitions and owned artwork use the content API with caching. Native add-on artwork remains bundled; Feria and Vinyl remain Coming Soon.", "artwork_assets": []},
     {"kind": "feature", "section": "UNIVERSES", "title": "Your fourth world", "body": "Explore franchise banners, cross-media shelves and a separate Tributes carousel.", "artwork_assets": []},
     {"kind": "feature", "section": "ONE PIECE", "title": "Sail all four seas", "body": "Explore interactive atlases from East Blue to the Final Sea, with arc previews and online artwork.", "artwork_assets": []},
     {"kind": "feature", "section": "VAULT", "title": "Your local media library", "body": "Browse poster rails, folder breadcrumbs and detail sheets in the redesigned Vault.", "artwork_assets": []},

@@ -13,6 +13,15 @@ Window {
     visible: true
     property string page: "album"
     property bool ready: false
+    property var contentStore: typeof Content !== "undefined" ? Content : null
+    readonly property string fallbackSource: {
+        if (root.contentStore) {
+            const remote = (root.contentStore.generation,
+                            root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg"))
+            if (remote) return remote
+        }
+        return Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+    }
     property bool developerStrip: true
     property alias pageData: pageData
     property alias worldData: worldData
@@ -138,7 +147,7 @@ Window {
         artistLayerBSource: artistPage.heroItem ? artistPage.heroItem.layerBSource : ""
         artistActiveLayer: artistPage.heroItem ? artistPage.heroItem.activeVisualLayer : 0
         reducedMotion: artistData.reducedMotion
-        source: root.page === "artist" ? (artistPage.heroItem && artistPage.heroItem.currentSynchronizedSource ? artistPage.heroItem.currentSynchronizedSource : (artistData.record.releases.length ? artistData.artwork(artistData.record.releases[0].album.cover) : Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg"))) : root.page === "world" ? Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
+        source: root.page === "artist" ? (artistPage.heroItem && artistPage.heroItem.currentSynchronizedSource ? artistPage.heroItem.currentSynchronizedSource : (artistData.record.releases.length ? artistData.artwork(artistData.record.releases[0].album.cover) : root.fallbackSource)) : root.page === "world" ? root.fallbackSource : pageData.artwork(root.page === "album" ? pageData.shownEdition.cover : (pageData.playingEdition.backdrop || pageData.playingEdition.cover))
         wordsShown: root.page === "song" && pageData.lyricsShown
         tallFixture: root.page === "song" && pageData.playingEdition.id === "mounamela"
         Rectangle {

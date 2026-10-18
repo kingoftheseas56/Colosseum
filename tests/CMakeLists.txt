@@ -1714,6 +1714,13 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
 
+add_test(NAME colosseum.qml.native_wallpaper_assets
+         COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_native_wallpaper_assets.qml")
+set_tests_properties(colosseum.qml.native_wallpaper_assets PROPERTIES
+    LABELS "qml;content;release"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 # Vinyl donor regression registry: explicit source suites, not a historical total.
 # These run the real shared runner and preserve its isolated settings setup.
 # Presentation fixtures are test-only; native local playback has separate contracts.

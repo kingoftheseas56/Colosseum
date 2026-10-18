@@ -94,6 +94,14 @@ def build(native_source, output, starter=None, previous=None):
     assets = {}
     asset_root = native_source / "assets/universes"
     artwork = set(path for path in asset_root.rglob("*") if path.is_file() and path.suffix.lower() != ".json")
+    # These neutral application backgrounds also travel through the existing
+    # content owner. Keep add-on artwork, UI glyphs and unrelated local files out.
+    for relative in ("assets/wallpaper/captured-motion.jpg", "assets/wallpaper/cold-ripple.jpg"):
+        path = native_source / relative
+        if path.is_file():
+            if path.is_symlink() or not path.resolve().is_relative_to(native_source / "assets"):
+                raise ValueError("Native background is outside assets: " + relative)
+            artwork.add(path)
     # Saga wallpapers are outside the tribute folder. Collect declared file
     # references too; directory prefixes are resolved by exported artByArc data.
     def references(value):

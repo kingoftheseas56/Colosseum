@@ -8,6 +8,15 @@ Item {
     property bool wordsShown: false
     property bool tallFixture: false
     property url source
+    property var contentStore: typeof Content !== "undefined" ? Content : null
+    readonly property string fallbackSource: {
+        if (root.contentStore) {
+            const remote = (root.contentStore.generation,
+                            root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg"))
+            if (remote) return remote
+        }
+        return Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+    }
     property bool artistSkinActive: false
     property url artistLayerASource: ""
     property url artistLayerBSource: ""
@@ -38,7 +47,7 @@ Item {
             id: art
             anchors.fill: parent
             anchors.margins: -60
-            source: root.source || Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+            source: root.source || root.fallbackSource
             fillMode: Image.PreserveAspectCrop
             visible: false
         }
@@ -89,7 +98,7 @@ Item {
                 height: Math.max(parent.height, parent.width / imageRatio)
                 x: (parent.width - width) * root.artistLayerAFocalX
                 y: (parent.height - height) * root.artistLayerAFocalY
-                source: root.artistLayerASource || root.source || Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+                source: root.artistLayerASource || root.source || root.fallbackSource
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: false
             }
@@ -128,7 +137,7 @@ Item {
                 height: Math.max(parent.height, parent.width / imageRatio)
                 x: (parent.width - width) * root.artistLayerBFocalX
                 y: (parent.height - height) * root.artistLayerBFocalY
-                source: root.artistLayerBSource || root.artistLayerASource || root.source || Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+                source: root.artistLayerBSource || root.artistLayerASource || root.source || root.fallbackSource
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: false
             }

@@ -19,7 +19,7 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
         self.assertTrue((ROOT / 'release/presentation/1.1.9.json').is_file())
         presentation = load_presentation(ROOT / 'release/presentation/1.1.9.json', '1.1.9')
         self.assertEqual(presentation['title'], 'Colosseum 1.1.9')
-        self.assertEqual(len(presentation['highlights']), 6)
+        self.assertTrue(any(item['section'] == 'CONTENT API' for item in presentation['highlights']))
         notes = (ROOT / 'docs/release-notes/v1.1.9.md').read_text(encoding='utf-8').lower()
         # Existing 1.1.8 clients require the manual first-party migration.
         self.assertIn('1.1.8', notes)

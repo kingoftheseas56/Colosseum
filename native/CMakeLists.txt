@@ -12,12 +12,14 @@ option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
 
-# 1.1.9 no-account edition switch (2026-10-14). ON: account sign-in,
+# Legacy local-only qualification switch. Shipping uses one standard,
+# accounts-capable edition with optional local use; this must remain OFF.
+# ON: account sign-in,
 # registration and account-sync entry points are hidden, no account-service
 # traffic can be constructed (the endpoint resolves to nothing, remembered
 # sessions are never restored), and startup settles straight into the
 # local-only profile. AccountRuntime and every local store it owns stay
-# intact for the later account edition; application identity (name/org/
+# intact for isolated regression fixtures; application identity (name/org/
 # version) is unchanged so existing local profiles carry over untouched.
 option(COLOSSEUM_NO_ACCOUNT_EDITION
     "Build the no-account edition: account features hidden and inert, local-only profiles only"

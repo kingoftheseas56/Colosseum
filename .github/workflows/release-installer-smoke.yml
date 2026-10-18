@@ -25,11 +25,11 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-      VERSION: ${{ inputs.expected_version || '1.1.8' }}
+      VERSION: ${{ inputs.expected_version || '1.1.9' }}
       VCPKG_TAG: "2026.07.29"
-      MPV_RELEASE: "20260814"
-      MPV_VERSION: "20260814-git-7b8915bc1d"
-      MPV_SHA256: "0af22b28e920620036d3ae08fd9283156dc9af0420bf4df84b0e02282094599c"
+      MPV_RELEASE: "20261011"
+      MPV_VERSION: "20261011-git-accb7b2821"
+      MPV_SHA256: "cf63b4ce66e03e5e70acf2648cbc3177656c77c5b9583e16d83efc58801182b7"
       MPVQT_VERSION: "1.2.0"
       MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
       V113_SHA256: "140cefc39a47b932558cabb15adfacd7e991fda7e1762c2681c48a0be9272ee7"
@@ -142,6 +142,9 @@ jobs:
           $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
           cmake -S native -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF `
             -DCOLOSSEUM_UPDATE_TESTING=OFF `
+            -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF `
+            -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF `
+            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             "-DCMAKE_PREFIX_PATH=$prefix" "-DMPVQT_PREFIX=$env:MPVQT_ROOT" "-DLIBMPV_PREFIX=$env:LIBMPV_ROOT"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -190,7 +193,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           if (!(Test-Path $makensis)) { throw "makensis missing after install" }
-      - name: Package canonical 1.1.8 installer
+      - name: Package canonical release installer
         shell: bash
         run: |
           set -euo pipefail
@@ -223,7 +226,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     env:
-      VERSION: ${{ inputs.expected_version || '1.1.8' }}
+      VERSION: ${{ inputs.expected_version || '1.1.9' }}
     steps:
       - uses: actions/checkout@v7
       - name: Download canonical installer artifact

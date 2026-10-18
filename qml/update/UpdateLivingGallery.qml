@@ -5,13 +5,14 @@ import QtQuick.Effects
 import QtQuick.Window
 import "../"
 
-// The release chronicle is deliberately one stage: verified local art, a monochrome wash,
+// The release chronicle is deliberately one stage: artwork, a monochrome wash,
 // directional scrims, and editorial copy. State actions live in the persistent taskbar.
 Item {
     id: root
     objectName: "colosseumUpdateGallery"
 
     property var release: ({})
+    property var contentStore: typeof Content !== "undefined" ? Content : null
     property var chapters: []
     property int currentIndex: 0
     property bool reducedMotion: false
@@ -62,7 +63,14 @@ Item {
     }
     readonly property bool hasArtwork: selectedArtwork.length > 0
     readonly property string versionText: String(release.version || "")
-    readonly property string fallbackSource: Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")
+    readonly property string fallbackSource: {
+        if (root.contentStore) {
+            const remote = (root.contentStore.generation,
+                            root.contentStore.assetUrl("assets/wallpaper/captured-motion.jpg"))
+            if (remote) return remote
+        }
+        return Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")
+    }
     // The back capsule owns the first 86px of the chrome row. Keep the release masthead in
     // its own editorial lane so the navigation control never sits on top of its lettering.
     readonly property int chromeSafeLeft: 126

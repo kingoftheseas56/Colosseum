@@ -68,6 +68,29 @@ class Release119Scope(unittest.TestCase):
         self.assertNotIn("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest", main)
         self.assertIn('Pill { label: "Universes" }', (ROOT / "qml/TopBar.qml").read_text(encoding="utf-8"))
 
+    def test_packager_requires_the_qualified_api_and_standard_edition(self):
+        git_bash = pathlib.Path("C:/Program Files/Git/bin/bash.exe")
+        bash = str(git_bash) if git_bash.is_file() else shutil.which("bash")
+        if not bash:
+            self.skipTest("Bash is required to execute the real packaging guard")
+        script = (ROOT / "scripts/installer/package_release.sh").read_text(encoding="utf-8")
+        guard = script[script.index("# Qualification builds must never"):script.index("# API builds use semantic queries")]
+        production = "https://colosseum-content-api.colosseum-watchparty-relay.workers.dev"
+        with tempfile.TemporaryDirectory(prefix="colosseum-api-release-guard-") as directory:
+            cache = pathlib.Path(directory) / "CMakeCache.txt"
+            for origin, no_account, accepted in [(production, False, True), ("", False, False),
+                    (production.replace("content-api.", "content-api-staging."), False, False),
+                    (production, True, False)]:
+                with self.subTest(origin=origin, no_account=no_account):
+                    cache.write_text("CMAKE_BUILD_TYPE:STRING=Release\n"
+                                     f"COLOSSEUM_CONTENT_API_URL:STRING={origin}\n"
+                                     f"COLOSSEUM_NO_ACCOUNT_EDITION:BOOL={'ON' if no_account else 'OFF'}\n")
+                    result = subprocess.run([bash, "--noprofile", "--norc", "-c", guard + "echo ACCEPTED"],
+                                            cwd=directory, env=dict(os.environ, BUILD_DIR=".", VERSION="1.1.9"),
+                                            capture_output=True, text=True, timeout=10)
+                    self.assertEqual(result.returncode, 0 if accepted else 1, result.stdout + result.stderr)
+                    self.assertEqual("ACCEPTED" in result.stdout, accepted)
+
     def test_production_signing_trust_is_unchanged(self):
         baseline = subprocess.check_output(["git", "show", "v1.1.8:native/update/UpdatePublicKey.h"], cwd=ROOT)
         self.assertEqual(baseline.replace(b"\r\n", b"\n"), (ROOT / "native/update/UpdatePublicKey.h").read_bytes().replace(b"\r\n", b"\n"))
