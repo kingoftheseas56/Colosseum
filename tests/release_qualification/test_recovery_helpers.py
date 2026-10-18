@@ -15,6 +15,11 @@ fixture=load('b1_catalogue_fault_fixture.py')
 controller=load('native_recovery_controller.py' if (ROOT/'native_recovery_controller.py').exists() else 'b1_native_recovery_controller.py')
 
 class RecoveryHelpers(unittest.TestCase):
+    def test_case_selection(self):
+        self.assertEqual(controller.selected_lanes("universe-only"), ("universe",))
+        self.assertEqual(controller.selected_lanes("all"), ("recovery", "universe"))
+        with self.assertRaises(ValueError): controller.selected_lanes("unknown")
+
     def test_response_modes(self):
         raw=b'{"items":[1,2,3]}'
         self.assertEqual(fixture.response(raw,'healthy'),(200,raw,len(raw)))

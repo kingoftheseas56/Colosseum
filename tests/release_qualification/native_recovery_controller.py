@@ -116,6 +116,12 @@ def request_matches(row,path,mode,raw):
             and row.get('bodySha256')==hashlib.sha256(body).hexdigest())
 
 
+def selected_lanes(selection):
+    if selection not in ("all", "universe-only"):
+        raise ValueError("Unknown case selection")
+    return ("universe",) if selection == "universe-only" else ("recovery", "universe")
+
+
 def main():
     p = argparse.ArgumentParser()
     for arg in ('binary','lanista','source','provenance','publication','output','expected-catalogue'):
@@ -123,7 +129,11 @@ def main():
     p.add_argument('--publication-b', type=Path)
     p.add_argument('--universe-hook', type=Path)
     p.add_argument('--timeout', type=int, default=60)
+    p.add_argument('--cases', choices=('all','universe-only'), default='all')
     a = p.parse_args()
+    lanes = selected_lanes(a.cases)
+    if lanes == ('universe',) and (not a.universe_hook or not a.publication_b):
+        p.error('universe-only requires universe-hook and publication-b')
     if not 1 <= a.timeout <= 90:
         p.error('timeout must be 1..90 seconds')
     a.output = a.output.resolve()
@@ -134,7 +144,8 @@ def main():
     out = a.output
     expected=json.loads(a.expected_catalogue.read_text())
     summary = {'expectedCatalogue':expected,'lane':'full-native-controlled-publication-offscreen', 'syntheticPublication':True,
-               'runtimeModelInjection':False, 'cases':[], 'passed':False}
+               'runtimeModelInjection':False, 'caseSelection':a.cases,
+               'notRerun':['live-comics','catalogue-recovery'] if a.cases=='universe-only' else [], 'cases':[], 'passed':False}
     server = None
     def save_summary(): base.write(out/'summary.json',summary)
     control = out/'fixture-control.json'
@@ -314,18 +325,7 @@ def main():
                         'failure':bad,'recovery':good,'retryInput':click,'faultRequests':delivered,
                         'recoveryRequests':fetched,'expectedRejectionPreserved':True}
             return run
-        profile=out/'profiles/healthy'; tag='i05-static-'+uuid.uuid4().hex[:12]
-        baseline=session('C0-healthy',profile,tag,healthy)
-        if baseline['status']!='PASS':
-            for case in ('C1-empty-entry','C2-truncated-json','C3-empty-index','C5-warm','C6-offline','universe-publication'):
-                summary['cases'].append({'case':case,'status':'SKIPPED','reason':'Healthy controlled-publication prerequisite failed'})
-        else:
-            for name,target,fault in [('C1-empty-entry','/catalogue/current.json','zero'),
-                                      ('C2-truncated-json','/catalogue/current.json','truncated-json'),
-                                      ('C3-empty-index',endpoint['indexPath'],'zero')]:
-                mode(target,fault)
-                session(name,out/'profiles'/name,'i05-static-'+uuid.uuid4().hex[:12],faulty(target,fault))
-            mode()
+        def run_universe():
             if a.universe_hook:
                 hook=load(a.universe_hook,'universe_hook')
                 universe_profile=out/'profiles/universe'
@@ -344,6 +344,23 @@ def main():
                     session('universe-after',universe_profile,universe_tag,phase(hook.run_after))
                 else: summary['cases'].append({'case':'universe-after','status':'SKIPPED','reason':'Universe A prerequisite failed'})
                 set_publication('A')
+        if lanes == ('universe',):
+            run_universe()
+            summary['passed']=bool(summary['cases']) and all(r['status']=='PASS' for r in summary['cases'])
+            return 0 if summary['passed'] else 1
+        profile=out/'profiles/healthy'; tag='i05-static-'+uuid.uuid4().hex[:12]
+        baseline=session('C0-healthy',profile,tag,healthy)
+        if baseline['status']!='PASS':
+            for case in ('C1-empty-entry','C2-truncated-json','C3-empty-index','C5-warm','C6-offline','universe-publication'):
+                summary['cases'].append({'case':case,'status':'SKIPPED','reason':'Healthy controlled-publication prerequisite failed'})
+        else:
+            for name,target,fault in [('C1-empty-entry','/catalogue/current.json','zero'),
+                                      ('C2-truncated-json','/catalogue/current.json','truncated-json'),
+                                      ('C3-empty-index',endpoint['indexPath'],'zero')]:
+                mode(target,fault)
+                session(name,out/'profiles'/name,'i05-static-'+uuid.uuid4().hex[:12],faulty(target,fault))
+            mode()
+            run_universe()
             def reopen(driver,folder):
                 result=healthy(driver,folder)
                 same=same_cards(baseline['observation'],result['observation'])

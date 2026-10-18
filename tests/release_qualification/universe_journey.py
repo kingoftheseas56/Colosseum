@@ -1,5 +1,5 @@
 """QA-only real-UI A/B assertions. Controller owns process/profile/fixture lifecycle."""
-import json,time,math
+import json,time,math,re
 from pathlib import Path
 NAME='Colosseum QA Publication 1.1.9'
 TITLE='Star Wars: Episode IV - A New Hope'
@@ -44,40 +44,81 @@ def until(fn,seconds=90):
   except (RuntimeError,KeyError) as e:last=str(e)
   time.sleep(.3)
  raise TimeoutError(str(last))
-def roster(driver):return driver.props('universesWorld',['roster','universeContentGeneration','shown'])
+class UniverseObservationError(RuntimeError):
+ def __init__(self,message,observation):
+  self.observation=observation;super().__init__(message+'; observation='+json.dumps(observation,default=str))
+def observe_ledger(driver):
+ # QML var arrays/objects arrive as null through this binary's qml-get bridge.
+ # Enumerate every Repeater delegate (including offscreen ones) from a complete tree,
+ # then read scalar title Text properties. Do not equate null with an empty model.
+ state=driver.props('universesWorld',['universeContentGeneration','facet'])
+ count=driver.props('universesCount',['text']);match=re.fullmatch(r'(\d+) universes?',str(count.get('text','')))
+ rows=driver.tree('universesLedger');observation={'state':state,'count':count,'treeRows':len(rows) if isinstance(rows,list) else None,'entries':[]}
+ if not isinstance(rows,list):raise UniverseObservationError('Non-array complete UI tree',observation)
+ banners=[r for r in rows if 'UniverseBanner' in r.get('class','')]
+ observation['bannerCount']=len(banners)
+ for banner in banners:
+  copies=[r for r in rows if r.get('parentHandle')==banner['handle'] and r.get('objectName')=='universeBannerCopy']
+  if len(copies)!=1:raise UniverseObservationError('Banner copy structure missing/ambiguous',observation)
+  # UniverseBanner.qml: first direct Text child of Copy is the name, then blurb/holds.
+  texts=[r for r in rows if r.get('parentHandle')==copies[0]['handle'] and 'Text' in r.get('class','')]
+  if not texts:raise UniverseObservationError('Banner scalar title missing',observation)
+  props=driver.props(texts[0]['handle'],['text']);name=props.get('text')
+  if not isinstance(name,str) or not name:raise UniverseObservationError('Banner title is not a nonempty scalar string',dict(observation,badTitle=props))
+  observation['entries'].append({'name':name,'handle':banner['handle'],'titleHandle':texts[0]['handle']})
+ names=[e['name'] for e in observation['entries']]
+ if not match or int(match[1])!=len(banners) or len(names)!=len(set(names)) or not names or state.get('facet')!='' or not isinstance(state.get('universeContentGeneration'),int) or state['universeContentGeneration']<=0:
+  raise UniverseObservationError('Ledger completeness/count/generation check failed',observation)
+ observation['declaredCount']=int(match[1]);return observation
+def ledger_when(driver,output,label,predicate):
+ def sample():
+  try:state=observe_ledger(driver)
+  except UniverseObservationError as error:
+   save(output,label+'-last-observation.json',{'error':str(error),'observation':error.observation});raise
+  save(output,label+'-last-observation.json',state)
+  return state if predicate(state) else None
+ return until(sample)
 def run_before(driver,set_publication,output):
  driver.ensure_world('Universes')
- state=until(lambda: (lambda x:x if x.get('universeContentGeneration',0)>0 and len(x.get('roster',[]))>0 else None)(roster(driver)))
- assert all(x.get('name')!=NAME for x in state['roster']), 'Test universe unexpectedly in A'
+ state=ledger_when(driver,output,'universe-A',lambda x:True)
+ assert all(x['name']!=NAME for x in state['entries']), 'Test universe unexpectedly in A'
  save(output,'universe-A-roster.json',state);driver.grab('universe-A-absent','universesWorld')
- return {'status':'PASS','phase':'A','nameAbsent':NAME,'generation':state['universeContentGeneration'],'rosterCount':len(state['roster'])}
+ return {'status':'PASS','phase':'A','nameAbsent':NAME,'generation':state['state']['universeContentGeneration'],'rosterCount':state['declaredCount'],'identityProof':'All actual ledger delegates enumerated; count equals rendered universe count'}
 def run_after(driver,set_publication,output):
  driver.ensure_world('Universes')
- state=until(lambda: (lambda x:x if any(r.get('name')==NAME for r in x.get('roster',[])) else None)(roster(driver)))
- entry=[x for x in state['roster'] if x.get('name')==NAME];assert len(entry)==1 and entry[0].get('page')=='shelves'
+ state=ledger_when(driver,output,'universe-B',lambda x:any(r['name']==NAME for r in x['entries']))
+ assert sum(x['name']==NAME for x in state['entries'])==1
  save(output,'universe-B-roster.json',state)
  # Only ordinary wheel/click input. Read entry from fresh actual banner handles.
  activated=False;receipts=[]
  for attempt in range(24):
   target_query=None
-  rows=driver.tree('universesLedger')
-  for row in rows:
-   if 'UniverseBanner' not in row.get('class',''):continue
-   p=driver.props(row['handle'],['entry','visible'])
-   if p.get('entry',{}).get('name')!=NAME:continue
+  current=observe_ledger(driver)
+  save(output,'universe-B-click-observation.json',current)
+  for row in current['entries']:
+   if row['name']!=NAME:continue
    q=driver.call('ui-query',{'object':row['handle']});target_query=q
    viewport=driver.call('ui-query',{'object':'universesWorldScroll'})
-   if p.get('visible') and center_in_view(q,viewport):
-    receipts.append({'entry':p['entry'],'query':q,'viewport':viewport,'input':driver.call('ui-click',{'target':row['handle']})});activated=True;break
+   if center_in_view(q,viewport):
+    receipts.append({'name':row['name'],'query':q,'viewport':viewport,'input':driver.call('ui-click',{'target':row['handle']})});activated=True;break
   if activated:break
   scroll_toward(driver,'universesWorldScroll',target_query);time.sleep(.25)
  save(output,'universe-B-input.json',receipts);assert activated,'Specific published Universe banner not reached through ordinary UI'
  page=until(lambda:(lambda p:p if p.get('active') and p.get('universeName')==NAME and p.get('templatePage')=='shelves' and p.get('status') in (1,'Ready') else None)(driver.props('universeLayer',['active','universeName','templatePage','status'])))
- medium=until(lambda:(lambda p:p if p.get('title')=='QA Films' and p.get('visible') and len(p.get('runs',[]))==1 else None)(driver.props('shelvesMedium_qa-films',['title','runs','visible'])))
- items=medium['runs'][0].get('items',[]);assert len(items)==1 and items[0].get('title')==TITLE and items[0].get('id')=='tt0076759',items
+ medium=until(lambda:(lambda p:p if p.get('title')=='QA Films' and p.get('visible') and p.get('total')==1 and p.get('kind')=='movie' else None)(driver.props('shelvesMedium_qa-films',['title','total','kind','key','visible'])))
+ save(output,'universe-B-medium.json',medium)
+ def caption():
+  for row in driver.tree('shelvesMedium_qa-films'):
+   if 'Text' in row.get('class',''):
+    p=driver.props(row['handle'],['text','visible'])
+    if p.get('text')==TITLE and p.get('visible'):
+     q=driver.call('ui-query',{'object':row['handle']})
+     if visible_bounds(q):return {'text':p['text'],'query':q}
+     scroll_toward(driver,'shelvesScroll',q)
+  return None
  def rendered():
   for row in driver.tree('universeLayer'):
-   if row.get('objectName','').startswith('shelvesCover_'):
+   if row.get('objectName')=='shelvesCover_qa-films:0':
     p=driver.props(row['handle'],['source','status','visible','width','height'])
     if p.get('visible') and p.get('width',0)>0 and p.get('height',0)>0 and p.get('status') in (1,'Ready') and '/assets/content/' in str(p.get('source','')):
      q=driver.call('ui-query',{'object':row['handle']});viewport=driver.call('ui-query',{'object':'shelvesScroll'})
@@ -85,6 +126,9 @@ def run_after(driver,set_publication,output):
      scroll_toward(driver,'shelvesScroll',q)
   return None
  art=until(rendered)
+ title=until(caption)
+ art=until(rendered)  # Re-query after any caption scroll before the final grab.
+ save(output,'universe-B-title.json',title)
  driver.grab('universe-B-rendered','universeLayer')
- result={'status':'PASS','phase':'B','page':page,'medium':medium,'renderedOwnedArtwork':art,'claim':'Same runtime content-only discovery/navigation/render; controlled fixture, not live publication coverage'}
+ result={'status':'PASS','phase':'B','page':page,'medium':medium,'renderedTitle':title,'renderedOwnedArtwork':art,'identityScope':'Rendered title and slot matched; IMDb identity verified in published fixture, not read as native QML var','claim':'Same runtime content-only discovery/navigation/render; controlled fixture, not live publication coverage'}
  save(output,'universe-B-render.json',result);return result
