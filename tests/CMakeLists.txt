@@ -1722,6 +1722,20 @@ set_tests_properties(colosseum.qml.tracker_sync_center PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 120)
 
+# Isolated production-component regressions: run on both platforms without
+# depending on the Windows-only aggregate QML suite or live catalogue services.
+foreach(catalogue_regression IN ITEMS
+        discover_page_flow_pagination_harness
+        tst_tankoban_focus_refresh_regression)
+    add_test(NAME colosseum.qml.${catalogue_regression}
+             COMMAND colosseum_qml_tests -input
+                     "${CMAKE_CURRENT_SOURCE_DIR}/${catalogue_regression}.qml")
+    set_tests_properties(colosseum.qml.${catalogue_regression} PROPERTIES
+        LABELS "unit;qml;catalogue"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+        TIMEOUT 90)
+endforeach()
+
 # Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
 add_test(NAME colosseum.comicreader_sync_resume
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File

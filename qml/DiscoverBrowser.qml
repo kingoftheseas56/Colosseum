@@ -103,6 +103,8 @@ Item {
     // viewport, so only rows near the viewport are built. Harnesses leave it null (self-scrolling).
     property Flickable pageFlick: null
     readonly property bool pageFlow: browser.pageFlick !== null
+    property real _outerPreviousY: 0
+    onPageFlickChanged: _outerPreviousY = pageFlick ? pageFlick.contentY : 0
     // (never shorter than the rail wants, so a short wall does not crop the catalogue list)
     readonly property real flowHeight: Math.max(wallHost.y + wallHost.flowContentHeight + 24, sidebar.naturalHeight)
     // Test-only introspection: the actual rendered delegate box, so an offscreen harness can prove
@@ -1151,9 +1153,9 @@ Item {
             // Arrow keys park the focused row under the docked tab bar, like the mock.
             onCurrentIndexChanged: if (browser.pageFlow && browser.keyboardMode) browser.revealCell(wall.currentIndex)
             onContentYChanged: {
-                // Deferred: in page flow contentY is pushed from windowTop, and a synchronous
-                // request adds skeleton rows that change windowTop's own inputs (binding loop).
-                if (contentHeight > height
+                // Page flow is admitted by the outer viewport below. Its clamped inner
+                // window can stay at zero, and layout changes must not chain page requests.
+                if (!browser.pageFlow && contentHeight > height
                     && contentY + height >= contentHeight - 2 * cellHeight)
                     Qt.callLater(browser.requestPage)
             }
@@ -1237,6 +1239,36 @@ Item {
         // Shared wheel controller — unifies the wall's scroll feel with every landing page and
         // the See-all grids (fast accumulator drain, no double-scroll with GridView's wheel).
         ScrollGlide { id: wallGlide; flick: browser.pageFlow ? null : wall }
+    }
+
+    // A short wall can fit its entire inner grid while the outer page still scrolls.
+    // Listen to forward outer movement, not windowTop/content-height changes: adding
+    // skeletons or accepting an empty page must never create an auto-fetch loop.
+    function pageFlowNearEnd() {
+        return pageFlow && wallHost._visibleTop < wallHost.flowContentHeight
+            && wallHost._visibleTop + pageFlick.height > 0
+            && wallHost._visibleTop + pageFlick.height
+                >= wallHost.flowContentHeight - 2 * wall.cellHeight
+    }
+    function requestPageFromOuterScroll() {
+        if (!active || !items.length || loading || exhausted || pageFailed || !pageFlowNearEnd()) return
+        var gen = fetchGen
+        var flick = pageFlick
+        // Defer outside the viewport binding update, but do not carry an old scroll
+        // across catalogue/type changes, deactivation, or another accepted request.
+        Qt.callLater(function() {
+            if (browser.fetchGen === gen && browser.pageFlick === flick
+                && browser.active && browser.items.length && browser.pageFlowNearEnd())
+                browser.requestPage()
+        })
+    }
+    Connections {
+        target: browser.pageFlick
+        function onContentYChanged() {
+            var forward = target.contentY > browser._outerPreviousY
+            browser._outerPreviousY = target.contentY
+            if (forward) browser.requestPageFromOuterScroll()
+        }
     }
 
     NumberAnimation {
