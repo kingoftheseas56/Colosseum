@@ -1,10 +1,6 @@
 name: desktop-ci
 
 on:
-  # Temporary: remove this branch-only trigger when catalogue qualification ends.
-  push:
-    branches:
-      - dots/b1-cloud-system-proxy-20261018
   workflow_dispatch:
     inputs:
       b1_native_qualification:
