@@ -1,6 +1,10 @@
 name: desktop-ci
 
 on:
+  # Temporary one-run release qualification trigger; remove immediately after start.
+  push:
+    branches:
+      - dots/b1-cloud-system-proxy-20261018
   workflow_dispatch:
     inputs:
       b1_native_qualification:
