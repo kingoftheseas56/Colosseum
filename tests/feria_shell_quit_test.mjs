@@ -76,6 +76,25 @@ test('shell uses lazy deck signals and routes all final quit calls through the g
     assert.match(source,/function onQuiescenceFailed\(reason\)\s*\{\s*win\.failApplicationQuit\(reason\)/);
     assert.match(source,/onClosing:\s*function\(event\)[\s\S]*?event\.accepted = false[\s\S]*?win\.requestApplicationQuit\(\)/);
     assert.equal((source.match(/Qt\.quit\(\)/g)||[]).length,1);
-    assert.match(source,/source: "feria\/FeriaSessionDeck.qml"/);
+    assert.match(source,/setSource\("feria\/FeriaSessionDeck.qml"/);
     assert.doesNotMatch(source,/import "feria"/);
+});
+test('lazy deck receives required services before Loader creates the component',()=>{
+    const c={active:true,item:null,Sessions:{},FeriaAccount:{},FeriaBrowserPolicy:{},loads:[]};
+    c.setSource=(url,props)=>c.loads.push({url,props});
+    runInNewContext(body('loadBrowserDeck'),c);
+    c.loadBrowserDeck();
+    assert.equal(c.loads.length,1);
+    assert.equal(c.loads[0].url,'feria/FeriaSessionDeck.qml');
+    assert.equal(c.loads[0].props.sessions,c.Sessions);
+    assert.equal(c.loads[0].props.accountStore,c.FeriaAccount);
+    assert.equal(c.loads[0].props.policy,c.FeriaBrowserPolicy);
+    c.loads=[];c.active=false;c.loadBrowserDeck();assert.equal(c.loads.length,0);
+    c.active=true;c.item={};c.loadBrowserDeck();assert.equal(c.loads.length,0);
+});
+test('updater requests the same shell shutdown gate',()=>{
+    const native=readFileSync(new URL('../native/main.cpp',import.meta.url),'utf8');
+    const hook=native.slice(native.indexOf('updateHooks.requestShutdown ='),native.indexOf('updateHooks.fetchArtwork ='));
+    assert.match(hook,/Colosseum::Bootstrap::requestApplicationShutdown\(app, engine\)/);
+    assert.doesNotMatch(hook,/QCoreApplication::quit|app\.quit\(/);
 });

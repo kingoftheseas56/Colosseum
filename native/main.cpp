@@ -63,6 +63,7 @@
 #include "update/UpdateTrust.h"
 #endif
 #include "update/UpdateUserAgent.h"
+#include "bootstrap/ApplicationShutdown.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
 #include "work/ForegroundPriorityGovernor.h"
@@ -473,9 +474,11 @@ int main(int argc, char *argv[]) {
         const auto launch = updateBridge->prepare(installer, target, error);
         return launch.has_value() && updateBridge->launchDetached(*launch, error);
     };
-    // Installer waits on /WAITPID=<our PID>; queue the quit so it runs after
-    // this call stack (and any QML state signals from setState) unwind.
-    updateHooks.requestShutdown = [&app] { QTimer::singleShot(0, &app, &QCoreApplication::quit); };
+    // Installer waits on /WAITPID=<our PID>; the shell must drain browsers
+    // before ending the event loop, just as it does for a user-requested quit.
+    updateHooks.requestShutdown = [&app, &engine] {
+        Colosseum::Bootstrap::requestApplicationShutdown(app, engine);
+    };
     updateHooks.fetchArtwork = [catalogNam](const QString&, const QUrl& url, qint64 cap,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkCompleted done,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkFailed failed) {

@@ -5193,7 +5193,19 @@ Window {
         id: feriaSessionDeck
         objectName: "feriaSessionDeck"
         active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
-        source: "feria/FeriaSessionDeck.qml"
+        // Required properties must exist during construction; onLoaded is too late.
+        // Defer until the native enabledChanged handler has exposed Feria services.
+        function loadBrowserDeck() {
+            if (!active || item) return
+            setSource("feria/FeriaSessionDeck.qml", {
+                sessions: Sessions, accountStore: FeriaAccount, policy: FeriaBrowserPolicy
+            })
+        }
+        onActiveChanged: {
+            if (active) Qt.callLater(loadBrowserDeck)
+            else source = ""
+        }
+        Component.onCompleted: if (active) Qt.callLater(loadBrowserDeck)
         z: 58.5
         readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
                                                         : Qt.rect(0, 160, win.width, win.height - 160)
@@ -5219,9 +5231,6 @@ Window {
                 || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
         }
         onLoaded: {
-            item.sessions = Sessions
-            item.accountStore = FeriaAccount
-            item.policy = FeriaBrowserPolicy
             item.fullSizeSurface = feriaFullSizeSurface
             item.message.connect(function(id, text) {
                 if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)

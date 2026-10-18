@@ -180,6 +180,12 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
 
+add_executable(application_shutdown_test application_shutdown_test.cpp)
+target_include_directories(application_shutdown_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+target_link_libraries(application_shutdown_test PRIVATE Qt6::Core Qt6::Qml)
+add_test(NAME colosseum.application_shutdown_test COMMAND application_shutdown_test)
+set_tests_properties(colosseum.application_shutdown_test PROPERTIES LABELS "unit;feria;update" TIMEOUT 10)
+
 add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
     "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
 target_include_directories(feria_session_ownership_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")

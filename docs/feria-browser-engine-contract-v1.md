@@ -37,6 +37,19 @@ failure keeps the app open, shows a retry message, and does not force terminatio
 This also applies to retained browser sessions while another world is displayed.
 The existing popup adoption/retirement guard remains in effect.
 
+The native updater also queues this shell gate before its installer can continue.
+An absent shell during startup may quit directly; a loaded shell missing the gate
+stays open. The lazy deck receives its required services as `Loader.setSource`
+initial properties, after native service exposure; assigning them in `onLoaded`
+fails construction and cannot establish retained-browser shutdown coverage.
+
+Receiving verification on 2026-10-18 used a fresh standard accounts-capable native
+build: the normal gated cold/warm catalogue journey passed 20 steps. Through an
+owned QML copy with Feria's two Soon controls enabled, real retained regular and
+private YouTube views/profiles drained from two each to zero, and the root/helper
+processes exited naturally. This is offscreen/software evidence; it does not
+qualify GPU presentation, provider accounts/DRM, or a real installer handoff.
+
 `SessionStore` remains an in-memory registry. Its browser app/space projections,
 identity-fenced close attempts, and sanitized recent-close/reopen records do not
 introduce another durable store. Account changes invalidate the prior browser
