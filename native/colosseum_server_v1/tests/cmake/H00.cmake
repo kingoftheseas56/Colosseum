@@ -8,7 +8,7 @@ function(server1_register_h00_tests)
     "$<$<CXX_COMPILER_ID:MSVC>:/permissive->")
   target_link_libraries(server1_h00_http_contract PRIVATE server1_h00_http)
 
-  foreach(case_id IN ITEMS H00-01 H00-02 H00-03)
+  foreach(case_id IN ITEMS H00-01 H00-02 H00-03 H00-04 H00-05)
     add_test(NAME "${case_id}-http-contract"
       COMMAND server1_h00_http_contract "${case_id}")
     set_tests_properties("${case_id}-http-contract" PROPERTIES

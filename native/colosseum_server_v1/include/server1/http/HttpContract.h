@@ -95,5 +95,7 @@ void server1_http_server_set_drain_paused(void *server, int paused);
 std::size_t server1_http_server_queued_bytes(void *server);
 std::size_t server1_http_server_max_queued_bytes(void *server);
 std::size_t server1_http_server_active_connections(void *server);
+// Socket-buffered plus deferred pipeline bytes, excluding the active parser.
+std::size_t server1_http_server_input_backlog_bytes(void *server);
 
 }

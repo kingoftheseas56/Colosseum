@@ -688,6 +688,97 @@ void caseH00_03()
     std::cout << "H00-03 PASS\n";
 }
 
+void caseH00_04()
+{
+    for (const QByteArray &payload : {QByteArray(), QByteArray("A\0B\xff",4), QByteArray("\0Z\0",3)}) {
+        void *router = server1_http_router_create();
+        auto handler = +[](const void *, void *response, server1_http_next_fn, void *, void *context) {
+            const auto &bytes = *static_cast<const QByteArray *>(context);
+            server1_http_response_set_status(response,200);
+            return server1_http_response_set_body(response,bytes.constData(),bytes.size());
+        };
+        require(server1_http_router_add_handler(router,0,0,"GET","/bytes",handler,
+            const_cast<QByteArray *>(&payload),nullptr)==1,"binary route registered");
+        void *server = server1_http_server_create(router,65536);
+        require(server1_http_server_listen(server,0)==1,"binary listener started");
+        for (const QByteArray &method : {QByteArray("GET"),QByteArray("HEAD")}) {
+            QTcpSocket client;
+            client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+            require(client.waitForConnected(1000),"binary client connected");
+            client.write(method+" /bytes HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+            client.flush();
+            const auto wire = collectUntilDisconnected(client);
+            const auto split = wire.indexOf("\r\n\r\n");
+            require(split>=0,"binary response has headers");
+            require(wire.left(split).contains("Content-Length: "+QByteArray::number(payload.size())),
+                    "non-stream binary response lost its explicit length");
+            require(wire.mid(split+4)==(method=="HEAD" ? QByteArray() : payload),
+                    "non-stream binary response changed bytes or HEAD body");
+        }
+        server1_http_server_destroy(server);
+        server1_http_router_destroy(router);
+    }
+    std::cout << "H00-04 binary wire PASS\n";
+}
+
+void caseH00_05()
+{
+    constexpr std::size_t inputCap = 3U*1024U*1024U + 64U*1024U;
+    void *router = server1_http_router_create();
+    require(server1_http_router_add_static(router,0,0,"GET","/wait",200,"ok")==1,
+            "backpressure route registered");
+    void *server = server1_http_server_create(router,65536);
+    require(server1_http_server_listen(server,0)==1,"backpressure listener started");
+    server1_http_server_set_drain_paused(server,1);
+    QTcpSocket client;
+    client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+    require(client.waitForConnected(1000),"backpressure client connected");
+    client.write("GET /wait HTTP/1.1\r\nHost: localhost\r\n\r\n"); client.flush();
+    pumpUntil([&] {return server1_http_server_queued_bytes(server)>0;},"first response queued");
+    client.write(QByteArray(static_cast<qsizetype>(inputCap*4),'x')); client.flush();
+    QElapsedTimer timer; timer.start();
+    while (timer.elapsed()<250) QCoreApplication::processEvents(QEventLoop::AllEvents,10);
+    const auto buffered = server1_http_server_input_backlog_bytes(server);
+    std::cout << "H00-05 paused input bytes=" << buffered << " cap=" << inputCap << '\n';
+    require(buffered>0 && buffered<=inputCap,"deferred pipeline input exceeded one bounded socket buffer");
+    client.abort();
+    // Resume the test-only output pause so Qt can observe closure after its
+    // full input buffer applies backpressure. Preserve the cleanup assertion.
+    server1_http_server_set_drain_paused(server,0);
+    pumpUntil([&] {return server1_http_server_active_connections(server)==0;},"paused input disconnect released owner");
+    require(server1_http_server_input_backlog_bytes(server)==0,"disconnect retained pipeline bytes");
+    server1_http_server_set_drain_paused(server,0);
+    QTcpSocket pipeline;
+    pipeline.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+    require(pipeline.waitForConnected(1000),"pipeline client connected");
+    pipeline.write("GET /wait HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                   "GET /wait HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+    pipeline.flush();
+    const auto wire=collectUntilDisconnected(pipeline);
+    require(wire.count("HTTP/1.1 200 OK")==2 && wire.count("\r\n\r\nok")==2,
+            "resumed pipelined requests lost responses");
+    require(server1_http_router_add_static(router,0,0,"GET","/later",200,"later")==1,
+            "later response registered");
+    server1_http_server_set_drain_paused(server,1);
+    QTcpSocket bufferedClient;
+    bufferedClient.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+    require(bufferedClient.waitForConnected(1000),"buffered client connected");
+    bufferedClient.write("GET /wait HTTP/1.1\r\nHost: localhost\r\n\r\n"); bufferedClient.flush();
+    pumpUntil([&] {return server1_http_server_queued_bytes(server)>0;},"buffered first response queued");
+    const QByteArray later="GET /later HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+    bufferedClient.write(later); bufferedClient.flush();
+    pumpUntil([&] {return server1_http_server_input_backlog_bytes(server)>=static_cast<std::size_t>(later.size());},
+              "second request entered bounded socket buffer while response paused");
+    server1_http_server_set_drain_paused(server,0);
+    const auto resumed=collectUntilDisconnected(bufferedClient);
+    require(resumed.count("HTTP/1.1 200 OK")==2 && resumed.endsWith("later")
+        && resumed.indexOf("\r\n\r\nok")<resumed.indexOf("\r\n\r\nlater"),
+        "buffered second request was lost or reordered after resume");
+    server1_http_server_destroy(server);
+    server1_http_router_destroy(router);
+    std::cout << "H00-05 input backpressure PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -749,8 +840,11 @@ int main(int argc, char **argv)
             caseH00_02();
         if (requested == "all" || requested == "H00-03")
             caseH00_03();
+        if (requested == "all" || requested == "H00-04")
+            caseH00_04();
+        if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';

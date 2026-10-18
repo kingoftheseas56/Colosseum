@@ -107,6 +107,7 @@ public:
     [[nodiscard]] std::size_t pendingBytes() const;
     [[nodiscard]] std::size_t maxQueuedBytes() const;
     [[nodiscard]] std::size_t activeConnections() const;
+    [[nodiscard]] std::size_t inputBacklogBytes() const;
     [[nodiscard]] void *router() const;
     [[nodiscard]] bool drainPaused() const;
     void addConnection(HttpConnection *connection);
@@ -167,6 +168,11 @@ public:
             ? std::numeric_limits<std::size_t>::max()
             : applicationQueuedBytes_ + socketBytes;
     }
+    [[nodiscard]] std::size_t inputBacklogBytes() const
+    {
+        return pendingInput_.size()
+            + (socket_ ? static_cast<std::size_t>(std::max<qint64>(0,socket_->bytesAvailable())) : 0);
+    }
     [[nodiscard]] bool released() const { return released_; }
 
     void closeFromServer()
@@ -196,13 +202,11 @@ private:
 
     void readAvailable()
     {
-        if (closed_ || socket_ == nullptr)
+        if (closed_ || socket_ == nullptr || responsePending_)
             return;
+        // Leave later requests in Qt's bounded read buffer while the current
+        // response is pending. Reading into another buffer defeats backpressure.
         const QByteArray bytes = socket_->readAll();
-        if (responsePending_) {
-            deferredInput_.append(bytes.constData(), static_cast<std::size_t>(bytes.size()));
-            return;
-        }
         feed(bytes.constData(), static_cast<std::size_t>(bytes.size()));
     }
 
@@ -250,7 +254,8 @@ private:
             wire = makeResponseHeaders(status, keepAlive, responseClose, response, contentLength,
                                        chunked);
         } else {
-            const std::string responseBody = server1_http_response_body(response);
+            const std::string responseBody(server1_http_response_body(response),
+                                           server1_http_response_body_size(response));
             wire = makeResponse(status, responseBody, method, keepAlive, responseClose, response);
             server1_http_response_destroy(response);
             response = nullptr;
@@ -490,7 +495,6 @@ private:
             responsePending_ = false;
             closed_ = true;
             pendingInput_.clear();
-            deferredInput_.clear();
             socket_->disconnectFromHost();
             if (socket_->state() == QAbstractSocket::UnconnectedState)
                 handleDisconnected();
@@ -511,11 +515,8 @@ private:
             if (closed_ || responsePending_)
                 return;
         }
-        if (!deferredInput_.isEmpty()) {
-            const QByteArray input = std::move(deferredInput_);
-            deferredInput_.clear();
-            feed(input.constData(), static_cast<std::size_t>(input.size()));
-        }
+        // readyRead is not repeated for bytes already buffered while paused.
+        if (socket_ && socket_->bytesAvailable() > 0) readAvailable();
     }
 
     void handleDisconnected()
@@ -546,7 +547,6 @@ private:
         queue_.clear();
         applicationQueuedBytes_ = 0;
         pendingInput_.clear();
-        deferredInput_.clear();
         responsePending_ = false;
     }
 
@@ -572,7 +572,6 @@ private:
     std::deque<PendingWrite> queue_;
     std::size_t applicationQueuedBytes_ = 0;
     std::string pendingInput_;
-    QByteArray deferredInput_;
     bool responsePending_ = false;
     bool drainPaused_ = false;
     bool closed_ = false;
@@ -654,6 +653,14 @@ std::size_t HttpServer::pendingBytes() const
             return std::numeric_limits<std::size_t>::max();
         total += pending;
     }
+    return total;
+}
+
+std::size_t HttpServer::inputBacklogBytes() const
+{
+    std::size_t total = 0;
+    for (const auto *connection : connections_)
+        if (connection && !connection->released()) total += connection->inputBacklogBytes();
     return total;
 }
 
@@ -774,6 +781,12 @@ std::size_t server1_http_server_active_connections(void *opaqueServer)
     return opaqueServer == nullptr
         ? 0
         : static_cast<server1::http::connection_detail::HttpServer *>(opaqueServer)->activeConnections();
+}
+
+std::size_t server1_http_server_input_backlog_bytes(void *opaqueServer)
+{
+    return opaqueServer == nullptr ? 0
+        : static_cast<server1::http::connection_detail::HttpServer *>(opaqueServer)->inputBacklogBytes();
 }
 
 }
