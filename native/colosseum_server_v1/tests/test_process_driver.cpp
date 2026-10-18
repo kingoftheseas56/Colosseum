@@ -92,6 +92,7 @@ elif mode == "environment":
 elif mode == "ignore-term":
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, lambda _signum, _frame: None)
+    print("term-handler-ready", flush=True)
     while True:
         time.sleep(0.05)
 elif mode == "sleep":
@@ -293,14 +294,16 @@ void caseM00_02()
     ProcessSpec ignoresTerm = fixtureSpec(python, fixture, QStringLiteral("ignore-term"));
     std::optional<ProcessResult> stopResult;
     bool stopStarted = false;
+    QByteArray stopOutput;
     const quint64 stopId = stopPort.start(ignoresTerm, ProcessCallbacks {
         [&] { stopStarted = true; },
-        {},
+        [&](const QByteArray &bytes) { stopOutput += bytes; },
         {},
         [&](const ProcessResult &finished) { stopResult = finished; },
         {}
     });
-    waitUntil([&] { return stopStarted; }, 3000, "graceful-stop fixture did not start");
+    waitUntil([&] { return stopStarted && stopOutput.contains("term-handler-ready"); },
+              3000, "graceful-stop fixture did not install its signal handler");
     require(stopPort.requestStop(stopId, 50), "owned child graceful stop must be accepted");
     waitUntil([&] { return stopResult.has_value(); }, 5000, "graceful-stop fixture did not finish");
     require(stopResult->terminationRequested, "stop must be visible in the result");
@@ -421,6 +424,43 @@ void caseM00_02()
     require(lateStarted == 0 && lateStdout == 0 && lateStderr == 0 && lateFinished == 0,
             "late local callbacks must not call a destroyed ProcessDriver");
 
+    for (const bool destroyAtStart : {true, false}) {
+        auto owner = std::make_unique<ProcessPort>();
+        int lateTerminal = 0;
+        bool callbackCompleted = false;
+        const std::string marker(4096, 'q');
+        auto destroyOwner = [&, marker] {
+            owner.reset();
+            require(marker == std::string(4096, 'q'), "callback capture outlives owner deletion");
+            callbackCompleted = true;
+        };
+        ProcessCallbacks callbacks;
+        if (destroyAtStart) callbacks.onStarted = destroyOwner;
+        else callbacks.onStdout = [destroyOwner](const QByteArray &) { destroyOwner(); };
+        callbacks.onFinished = [&](const ProcessResult &) { ++lateTerminal; };
+        (void)owner->start(pendingOutput, std::move(callbacks));
+        waitUntil([&] { return callbackCompleted; }, 5000, "self-deleting owner callback did not finish");
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
+        require(!owner && lateTerminal == 0, "deleted owner delivered a late terminal callback");
+    }
+    {
+        ProcessPort nested;
+        int terminalCount = 0;
+        bool outputReturned = false;
+        const std::string marker(4096, 'n');
+        ProcessCallbacks callbacks;
+        callbacks.onStdout = [&, marker](const QByteArray &) {
+            waitUntil([&] { return terminalCount == 1; }, 3000,
+                      "nested output callback did not observe completion");
+            require(marker == std::string(4096, 'n'), "nested completion destroyed callback capture");
+            outputReturned = true;
+        };
+        callbacks.onFinished = [&](const ProcessResult &) { ++terminalCount; };
+        (void)nested.start(fixtureSpec(python, fixture, QStringLiteral("binary")), std::move(callbacks));
+        waitUntil([&] { return outputReturned; }, 5000, "nested output callback did not return");
+        require(terminalCount == 1 && nested.activeCount() == 0,
+                "nested event loop duplicated terminal delivery");
+    }
     std::cout << "M00-02 PASS\n";
 }
 

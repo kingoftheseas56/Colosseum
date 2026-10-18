@@ -4,6 +4,7 @@
 #include <QHostAddress>
 #include <QTcpServer>
 #include <QTimer>
+#include <QPointer>
 
 #include <algorithm>
 #include <atomic>
@@ -13,6 +14,7 @@
 
 #ifdef Q_OS_UNIX
 #include <signal.h>
+#include <cerrno>
 #include <sys/types.h>
 #elif defined(Q_OS_WIN)
 #ifndef NOMINMAX
@@ -34,7 +36,18 @@ struct Child final {
     ProcessCallbacks callbacks;
     ProcessResult result;
     bool finished = false;
+    qint64 ownedProcessGroup = 0;
 };
+
+void killRemainingOwnedGroup(Child &child)
+{
+#ifdef Q_OS_UNIX
+    const auto group = std::exchange(child.ownedProcessGroup, qint64{0});
+    if (group > 0) ::kill(-static_cast<pid_t>(group), SIGKILL);
+#else
+    Q_UNUSED(child);
+#endif
+}
 
 struct RemoteChild final {
     quint64 id = 0;
@@ -90,7 +103,10 @@ void configureOwnedProcess(QProcess &process)
         arguments->flags |= CREATE_NEW_PROCESS_GROUP;
     });
 #elif defined(Q_OS_UNIX)
-    process.setChildProcessModifier([] { ::setpgid(0, 0); });
+    process.setChildProcessModifier([&process] {
+        if (::setpgid(0, 0) != 0)
+            process.failChildProcessModifier("setpgid", errno);
+    });
 #else
     Q_UNUSED(process);
 #endif
@@ -147,8 +163,8 @@ struct ProcessPort::Impl final {
         if (bytes.isEmpty())
             return;
         appendRetained(child.result.stdoutData, bytes);
-        if (child.callbacks.onStdout)
-            child.callbacks.onStdout(bytes);
+        const auto callback = child.callbacks.onStdout;
+        if (callback) callback(bytes);
     }
 
     void readStderr(Child &child)
@@ -157,8 +173,8 @@ struct ProcessPort::Impl final {
         if (bytes.isEmpty())
             return;
         appendRetained(child.result.stderrData, bytes);
-        if (child.callbacks.onStderr)
-            child.callbacks.onStderr(bytes);
+        const auto callback = child.callbacks.onStderr;
+        if (callback) callback(bytes);
     }
 
     void finish(quint64 id, int exitCode, QProcess::ExitStatus exitStatus)
@@ -167,8 +183,20 @@ struct ProcessPort::Impl final {
         if (!current || current->finished)
             return;
 
+        // Output callbacks may destroy the owner or run a nested event loop.
+        // Claim terminal delivery before invoking them, then recheck ownership.
+        current->finished = true;
+        // Retire inherited-group descendants before callbacks can delete us.
+        if (current->result.terminationRequested) killRemainingOwnedGroup(*current);
+        QPointer<ProcessPort> guard(owner);
         readStdout(*current);
+        if (!guard) return;
+        current = child(id);
+        if (!current) return;
         readStderr(*current);
+        if (!guard) return;
+        current = child(id);
+        if (!current) return;
         current->result.exitCode = exitCode;
         current->result.exitStatus = exitStatus;
         if (current->result.signal.isEmpty() && exitStatus == QProcess::CrashExit)
@@ -188,6 +216,7 @@ struct ProcessPort::Impl final {
         for (auto &[id, child] : children) {
             Q_UNUSED(id);
             QObject::disconnect(&child->process, nullptr, owner, nullptr);
+            killRemainingOwnedGroup(*child);
             if (child->process.state() != QProcess::NotRunning) {
                 killOwnedProcessTree(child->process);
                 child->process.waitForFinished(2000);
@@ -236,17 +265,22 @@ quint64 ProcessPort::start(const ProcessSpec &spec, ProcessCallbacks callbacks)
         if (!current)
             return;
         current->result.started = true;
-        if (current->callbacks.onStarted)
-            current->callbacks.onStarted();
+        current->ownedProcessGroup = current->process.processId();
+        QTimer::singleShot(0, this, [this, id] {
+            if (auto *owned = impl_->child(id)) {
+                const auto callback = owned->callbacks.onStarted;
+                if (callback) callback();
+            }
+        });
     });
     QObject::connect(&childPtr->process, &QProcess::readyReadStandardOutput, this, [this, id] {
         if (Child *current = impl_->child(id))
             impl_->readStdout(*current);
-    });
+    }, Qt::QueuedConnection);
     QObject::connect(&childPtr->process, &QProcess::readyReadStandardError, this, [this, id] {
         if (Child *current = impl_->child(id))
             impl_->readStderr(*current);
-    });
+    }, Qt::QueuedConnection);
     QObject::connect(&childPtr->process, &QProcess::errorOccurred, this,
                      [this, id](QProcess::ProcessError error) {
                          Child *current = impl_->child(id);
@@ -255,13 +289,15 @@ quint64 ProcessPort::start(const ProcessSpec &spec, ProcessCallbacks callbacks)
                          current->result.error = error;
                          current->result.errorString = current->process.errorString();
                          if (error == QProcess::FailedToStart)
-                             impl_->finish(id, -1, QProcess::NormalExit);
+                             QTimer::singleShot(0, this, [this, id] {
+                                 impl_->finish(id, -1, QProcess::NormalExit);
+                             });
                      });
     QObject::connect(&childPtr->process,
                      qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
                      [this, id](int exitCode, QProcess::ExitStatus exitStatus) {
                          impl_->finish(id, exitCode, exitStatus);
-                     });
+                     }, Qt::QueuedConnection);
 
     childPtr->process.setProcessEnvironment(spec.environment);
     childPtr->process.setProcessChannelMode(QProcess::SeparateChannels);
