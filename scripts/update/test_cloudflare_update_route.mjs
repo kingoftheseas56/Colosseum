@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { serveStableFeed, stableUpdateOrigin, stableUpdatePath } from "./cloudflare_update_route.mjs";
+import * as route from "./cloudflare_update_route.mjs";
 
 const feed = JSON.stringify({
   tag_name: "v1.1.9",
@@ -72,4 +73,41 @@ test("broken, redirect, missing or invalid GitLab data fails closed", async () =
     assert.equal(r.status, 503);
     assert.equal(r.headers.get("Cache-Control"), "no-store");
   }
+});
+
+
+test("deployable Worker forwards the stable feed including query URLs", async (t) => {
+  assert.equal(typeof route.default?.fetch, "function", "feed helper needs a Worker entrypoint");
+  t.mock.method(globalThis, "fetch", fetcher());
+  const response = await route.default.fetch(request("GET", stableUpdatePath + "?channel=stable"));
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), feed);
+  assert.match(response.headers.get("Content-Type"), /application\/json/);
+});
+
+test("Worker keeps a missing release inactive and HEAD bodyless", async (t) => {
+  assert.equal(typeof route.default?.fetch, "function", "feed helper needs a Worker entrypoint");
+  t.mock.method(globalThis, "fetch", async () => new Response("missing", {status:404}));
+  const get = await route.default.fetch(request());
+  assert.equal(get.status, 503);
+  assert.equal(get.headers.get("Cache-Control"), "no-store");
+  assert.equal(get.headers.get("Retry-After"), "300");
+  const head = await route.default.fetch(request("HEAD"));
+  assert.equal(head.status, 503);
+  assert.equal(await head.text(), "");
+});
+
+test("Worker rejects wrong paths and write methods without upstream requests", async (t) => {
+  assert.equal(typeof route.default?.fetch, "function", "feed helper needs a Worker entrypoint");
+  let fetched = false;
+  t.mock.method(globalThis, "fetch", async () => { fetched = true; throw Error("unexpected upstream request"); });
+  const post = await route.default.fetch(request("POST"));
+  assert.equal(post.status, 405);
+  assert.equal(post.headers.get("Allow"), "GET, HEAD");
+  const wrong = await route.default.fetch(request("GET", stableUpdatePath + ".html"));
+  assert.equal(wrong.status, 404);
+  const head = await route.default.fetch(request("HEAD", stableUpdatePath + "/wrong"));
+  assert.equal(head.status, 404);
+  assert.equal(await head.text(), "");
+  assert.equal(fetched, false);
 });

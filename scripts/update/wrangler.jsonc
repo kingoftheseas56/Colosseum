@@ -1,0 +1,17 @@
+{
+  "$schema": "../../server/content-api/node_modules/wrangler/config-schema.json",
+  "name": "colosseum-update-feed",
+  "main": "cloudflare_update_route.mjs",
+  "account_id": "69049ce787cd73028c878bf0953946f6",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": false,
+  "preview_urls": false,
+  // The wildcard admits query strings. The handler accepts only the exact
+  // pathname; other suffixes return 404. No website asset routes are covered.
+  "routes": [
+    {
+      "pattern": "https://getcolosseum.world/updates/stable.json*",
+      "zone_name": "getcolosseum.world"
+    }
+  ]
+}

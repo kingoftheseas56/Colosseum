@@ -1,6 +1,6 @@
-// Cloudflare Pages' advanced Worker entrypoint can call serveStableFeed(request)
-// before env.ASSETS.fetch(request). Keep the site's existing HTML and assets
-// handling intact. This module does not publish a release.
+// Deployable feed-only Worker. A narrowly scoped zone route preserves the
+// existing Pages website. Pages adapters may still import serveStableFeed.
+// This module does not publish a release.
 export const stableUpdatePath = "/updates/stable.json";
 export const stableUpdateOrigin =
   "https://gitlab.com/kingoftheseas56/colosseum-site/-/raw/" +
@@ -76,3 +76,17 @@ export async function serveStableFeed(request, fetcher = fetch) {
     return unavailable();
   }
 }
+
+export default {
+  async fetch(request) {
+    const response = await serveStableFeed(request) || new Response("Not found\n", {
+      status: 404,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
+    // Also strip error bodies: no signed feed exists during route preparation.
+    return request.method === "HEAD" ? new Response(null, response) : response;
+  },
+};
