@@ -84,6 +84,17 @@ class ApiStagingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "starter missing"):
             staging.stage_api_content(self.stage, apply=True)
 
+    def test_linux_runtime_uses_the_same_checksums_and_online_asset_policy(self):
+        (self.stage / "native/build-msvc/colosseum.exe").unlink()
+        runtime = self.stage / "usr/bin/colosseum"
+        runtime.parent.mkdir(parents=True)
+        runtime.write_bytes(b"\x7fELF-fixture")
+        self.assertEqual(staging.stage_api_content(self.stage, apply=True)["files"], 5)
+        self.assertTrue(runtime.is_file())
+        self.assertTrue((self.stage / "assets/undeclared.png").is_file())
+        self.assertFalse((self.stage / "assets/universes/art.png").exists())
+        self.assertEqual(list((self.stage / "data").glob("*_catalog.db")), [])
+
 
 if __name__ == "__main__":
     unittest.main()

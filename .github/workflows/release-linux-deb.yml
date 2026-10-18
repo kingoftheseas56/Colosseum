@@ -1,0 +1,174 @@
+name: Linux Debian installer candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/119-linux-deb-*']
+    paths:
+      - '.github/workflows/release-linux-deb.yml'
+      - 'tools/linux-release/**'
+      - 'scripts/stage_api_content.py'
+      - 'tests/test_linux_release_policy.py'
+      - 'tests/test_stage_api_content.py'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      ECM_VERSION: '6.15.0'
+      ECM_SHA256: f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2
+      MPVQT_VERSION: '1.2.0'
+      MPVQT_SHA256: 8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build and package tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config patchelf binutils dpkg-dev \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 ffmpeg
+      - name: Packaging regressions and public path guard
+        run: |
+          python3 -m unittest -v tests.test_linux_release_policy tests.test_stage_api_content
+          python3 tools/linux-release/test_packaging.py
+          python3 scripts/check_public_paths.py
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: '6.11.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
+      - name: Build pinned ECM and MpvQt
+        run: |
+          curl --fail --location --retry 3 "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" -o "$RUNNER_TEMP/ecm.tar.xz"
+          echo "$ECM_SHA256  $RUNNER_TEMP/ecm.tar.xz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/ecm-source"
+          tar -xf "$RUNNER_TEMP/ecm.tar.xz" -C "$RUNNER_TEMP/ecm-source" --strip-components=1
+          cmake -S "$RUNNER_TEMP/ecm-source" -B "$RUNNER_TEMP/ecm-build" -G Ninja -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/ecm-install"
+          cmake --build "$RUNNER_TEMP/ecm-build" --target install --parallel 2
+          curl --fail --location --retry 3 "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" -o "$RUNNER_TEMP/mpvqt.tar.xz"
+          echo "$MPVQT_SHA256  $RUNNER_TEMP/mpvqt.tar.xz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/mpvqt-source"
+          tar -xf "$RUNNER_TEMP/mpvqt.tar.xz" -C "$RUNNER_TEMP/mpvqt-source" --strip-components=1
+          cmake -S "$RUNNER_TEMP/mpvqt-source" -B "$RUNNER_TEMP/mpvqt-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/mpvqt-install" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install"
+          cmake --build "$RUNNER_TEMP/mpvqt-build" --target install --parallel 2
+      - name: Build matching Qt TIFF plugin with bundled libtiff
+        run: |
+          git init "$RUNNER_TEMP/qtimageformats"
+          git -C "$RUNNER_TEMP/qtimageformats" remote add origin https://github.com/qt/qtimageformats.git
+          git -C "$RUNNER_TEMP/qtimageformats" fetch --depth 1 origin 77f35e5694885844c3eb3a737769b5ed290b8ccc
+          git -C "$RUNNER_TEMP/qtimageformats" checkout --detach FETCH_HEAD
+          cmake -S "$RUNNER_TEMP/qtimageformats" -B "$RUNNER_TEMP/qtimageformats-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DFEATURE_system_tiff=OFF -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
+          cmake --build "$RUNNER_TEMP/qtimageformats-build" --target QTiffPlugin --parallel 2
+      - name: Compile standard production candidate
+        run: |
+          cmake -S native -B "$RUNNER_TEMP/app-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+            -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
+            -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF -DCOLOSSEUM_UPDATE_TESTING=OFF \
+            -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \
+            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install;$RUNNER_TEMP/mpvqt-install" \
+            -DMPVQT_PREFIX="$RUNNER_TEMP/mpvqt-install"
+          cmake --build "$RUNNER_TEMP/app-build" --target colosseum_runtime_ready --parallel 2
+      - name: Assemble and verify Linux runtime
+        run: |
+          notices="$RUNNER_TEMP/notices"
+          mkdir -p "$notices/host-copyrights"
+          cp -r "$RUNNER_TEMP/mpvqt-source/LICENSES" "$notices/MpvQt-LICENSES"
+          cp -r "$RUNNER_TEMP/qtimageformats/LICENSES" "$notices/QtImageFormats-LICENSES"
+          cp "$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/COPYRIGHT" "$notices/libtiff-COPYRIGHT"
+          cp "$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/qt_attribution.json" "$notices/libtiff-qt_attribution.json"
+          find /usr/share/doc -name copyright -type f -exec cp --parents '{}' "$notices/host-copyrights/" ';'
+          dpkg-query -W -f='${Package}\t${Version}\t${source:Package}\t${source:Version}\n' > "$notices/ubuntu-package-provenance.tsv"
+          printf '%s\n' 'Private review candidate. Bundled libmpv/FFmpeg/Qt dependencies retain their own licenses. Corresponding-source and redistribution obligations remain a public-release gate.' > "$notices/NOTICE-CANDIDATE.txt"
+          args=()
+          # The app uses SQLite, not the SDK's optional external database clients.
+          for plugin in "$QT_ROOT_DIR"/plugins/sqldrivers/*.so; do
+            [[ "$(basename "$plugin")" == libqsqlite.so ]] || args+=(--exclude-plugin "sqldrivers/$(basename "$plugin")")
+          done
+          if [[ -f "$QT_ROOT_DIR/plugins/position/libqtposition_serialnmea.so" ]]; then
+            args+=(--exclude-plugin position/libqtposition_serialnmea.so)
+          fi
+          if [[ -d "$QT_ROOT_DIR/qml/QtQuick3D" ]]; then
+            args+=(--exclude-qml-module QtQuick3D)
+          fi
+          tiff="$(find "$RUNNER_TEMP/qtimageformats-build" -name libqtiff.so -type f -print -quit)"
+          test -n "$tiff"
+          args+=(--plugin-override "imageformats/libqtiff.so=$tiff")
+          python3 tools/linux-release/assemble.py \
+            --source "$GITHUB_WORKSPACE" --build "$RUNNER_TEMP/app-build" --qt "$QT_ROOT_DIR" \
+            --stage "$RUNNER_TEMP/AppDir" --commit "$(git rev-parse HEAD)" --patchelf "$(command -v patchelf)" \
+            --dep-lib "$RUNNER_TEMP/mpvqt-install/lib" --dep-lib "$RUNNER_TEMP/mpvqt-install/lib/x86_64-linux-gnu" \
+            --binary /usr/bin/ffmpeg --binary /usr/bin/ffprobe --dependency-notices "$notices" "${args[@]}"
+          mkdir -p release-output
+          python3 tools/linux-release/check_package.py "$RUNNER_TEMP/AppDir" --report release-output/package-check.json
+          python3 scripts/linux_runtime_dependency_gate.py --appdir "$RUNNER_TEMP/AppDir"
+          cp "$RUNNER_TEMP/AppDir/BUILD-IDENTITY.json" release-output/
+          python3 tools/linux-release/package_deb.py --stage "$RUNNER_TEMP/AppDir" --output release-output/Colosseum-1.1.9-linux-amd64.deb
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Colosseum-1.1.9-linux-deb-candidate
+          path: release-output/
+          if-no-files-found: warn
+          retention-days: 7
+
+  installed-smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: Colosseum-1.1.9-linux-deb-candidate
+          path: package
+      - name: Install on clean Ubuntu without a Qt SDK
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0
+          cd package
+          sha256sum --check --strict Colosseum-1.1.9-linux-amd64.deb.sha256
+          apt-get install -y --no-install-recommends ./Colosseum-1.1.9-linux-amd64.deb
+          desktop-file-validate /usr/share/applications/colosseum.desktop
+          test "$(/usr/bin/colosseum --version)" = 'Colosseum 1.1.9'
+      - name: Start and quit installed UI as a normal user
+        run: |
+          useradd --create-home --shell /bin/bash package-test
+          mkdir -p /tmp/installed-receipts
+          chown package-test:package-test /tmp/installed-receipts
+          runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
+            python3 tools/linux-release/smoke_installed.py --output /tmp/installed-receipts
+      - name: Verify clean uninstall preserves user files
+        run: |
+          runuser -u package-test -- sh -c 'mkdir -p "$HOME/.local/share/Colosseum"; echo preserve > "$HOME/.local/share/Colosseum/package-uninstall-sentinel"'
+          apt-get remove -y colosseum
+          test ! -e /opt/colosseum
+          test ! -e /usr/bin/colosseum
+          test ! -e /usr/share/applications/colosseum.desktop
+          test "$(cat /home/package-test/.local/share/Colosseum/package-uninstall-sentinel)" = preserve
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Colosseum-1.1.9-linux-installed-smoke
+          path: /tmp/installed-receipts/
+          if-no-files-found: warn
+          retention-days: 7

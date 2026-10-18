@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Assemble an explicitly pinned Colosseum build. No downloads or uploads."""
 import argparse, hashlib, json, os, re, shutil, subprocess, sys
+import importlib.util
 from pathlib import Path
 
 SYSTEM = re.compile(r'^(ld-linux[^/]*|lib(c|m|dl|pthread|rt|resolv|util|anl)\.so\..*|lib(GL|EGL|GLX|GLdispatch|OpenGL|drm[^/]*|gbm|vulkan|va(?!-wayland)[^/]*)\.so\..*)$')
@@ -14,6 +15,21 @@ def sha(p):
         for b in iter(lambda:f.read(1048576),b''):h.update(b)
     return h.hexdigest()
 def run(cmd, **kw):return subprocess.run(cmd,text=True,capture_output=True,check=True,**kw).stdout
+
+def release_version(source):
+    match = re.search(r'project\(colosseum\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)',
+                      (source/'native/CMakeLists.txt').read_text(), re.I)
+    if not match:raise ValueError('Project release version missing')
+    return match.group(1)
+
+def validate_shipping_cache(cache):
+    if not re.search(r'^CMAKE_BUILD_TYPE:STRING=Release$',cache,re.M):raise ValueError('Not Release')
+    for flag in ('COLOSSEUM_UPDATE_TESTING','COLOSSEUM_ENABLE_VINYL_QUALIFICATION',
+                 'COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES','COLOSSEUM_NO_ACCOUNT_EDITION'):
+        if re.search(r'^'+flag+r':BOOL=ON$',cache,re.M):raise ValueError('Shipping flag forbidden: '+flag)
+    if 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' not in cache:raise ValueError('Standard edition must be explicit')
+    if not re.search(r'^COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api\.colosseum-watchparty-relay\.workers\.dev$',cache,re.M):
+        raise ValueError('Qualified production catalogue origin required')
 
 def main():
     ap=argparse.ArgumentParser()
@@ -30,11 +46,14 @@ def main():
     if out.exists():raise SystemExit('Stage must not exist; choose a fresh directory')
     if not (build/'colosseum').is_file():raise SystemExit('Compiled application missing')
     cache=(build/'CMakeCache.txt').read_text()
-    if not re.search(r'^CMAKE_BUILD_TYPE:STRING=Release$',cache,re.M):raise SystemExit('Not Release')
-    if re.search(r'^COLOSSEUM_UPDATE_TESTING:BOOL=ON$',cache,re.M):raise SystemExit('Testing updater trust forbidden')
+    validate_shipping_cache(cache)
+    version=release_version(src)
     out.mkdir(parents=True); bind=out/'usr/bin'; lib=out/'usr/lib'; bind.mkdir(parents=True);lib.mkdir()
     shutil.copy2(build/'colosseum',bind/'colosseum');shutil.copy2(build/'qml-build.manifest',bind/'qml-build.manifest')
     for name in ('qml','assets','resources','data'):shutil.copytree(src/name,out/name,symlinks=False)
+    spec=importlib.util.spec_from_file_location('stage_api_content',src/'scripts/stage_api_content.py')
+    staging=importlib.util.module_from_spec(spec);spec.loader.exec_module(staging)
+    content_staging=staging.stage_api_content(out,apply=True)
     for name in ('qml','plugins','resources','translations'):
         if (qt/name).exists():shutil.copytree(qt/name,out/'usr'/name,symlinks=False,ignore=shutil.ignore_patterns('*.o','*.obj','objects-*','*.a','*.debug','*.prl','*.la','*.cmake','*.pdb'))
     (out/'usr/libexec').mkdir();shutil.copy2(qt/'libexec/QtWebEngineProcess',out/'usr/libexec/QtWebEngineProcess')
@@ -94,8 +113,8 @@ def main():
     for d in ('licenses','Licenses'):
         if (qt/d).is_dir():shutil.copytree(qt/d,notices/'Qt',dirs_exist_ok=True)
     launcher=Path(__file__).with_name('AppRun');shutil.copy2(launcher,out/'AppRun');(out/'AppRun').chmod(0o755)
-    metadata={'source_commit':a.commit,'original_source_commit':'15fd79af6331f2b4726ab2350a69a0c896cdbecd','version':'1.1.8','architecture':'x86_64','qt_expected':'6.11.1','build_type':'Release','unrelocated_build_binary_sha256':sha(build/'colosseum'),'binary_sha256':sha(bind/'colosseum'),'external_system_dependencies':external,'bundled_dependency_origins':origins,'qt_plugin_selection':plugin_changes}
+    metadata={'source_commit':a.commit,'version':version,'architecture':'x86_64','qt_expected':'6.11.1','build_type':'Release','content_staging':content_staging,'unrelocated_build_binary_sha256':sha(build/'colosseum'),'binary_sha256':sha(bind/'colosseum'),'external_system_dependencies':external,'bundled_dependency_origins':origins,'qt_plugin_selection':plugin_changes}
     (out/'BUILD-IDENTITY.json').write_text(json.dumps(metadata,indent=2)+'\n')
-    (out/'README-LINUX.txt').write_text('Colosseum 1.1.8 Linux candidate\nRun ./AppRun from this directory. No installation is required.\nThis is a review candidate, not a stable release.\nSystem requirements: Linux x86_64 with glibc as recorded by package-check.json; an X11 or Wayland desktop, fontconfig/fonts, desktop audio server, and compatible graphics drivers.\nGPU/GL/EGL/DRM/Vulkan drivers and glibc remain system supplied.\nAppRun does not disable WebEngine sandboxing. Running as root is not supported.\nProfiles use the normal XDG user directories; set XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME to disposable paths for tests.\nNo private accounts, catalog databases, Widevine CDM or provider credentials are bundled.\nRefer to the accompanying delivery record for tested capabilities and known limitations.\n')
+    (out/'README-LINUX.txt').write_text(f'Colosseum {version} Linux candidate\nRun ./AppRun from this directory, or install the accompanying Debian package.\nThis is a review candidate, not a stable release.\nSystem requirements: Ubuntu24.04/Mint22 x86_64 with glibc as recorded by package-check.json; an X11 or Wayland desktop, fontconfig/fonts, desktop audio server, and compatible graphics drivers.\nGPU/GL/EGL/DRM/Vulkan drivers and glibc remain system supplied.\nAppRun does not disable WebEngine sandboxing. Running as root is not supported.\nProfiles use the normal XDG user directories; set XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME to disposable paths for tests.\nNo private accounts, catalog databases, Widevine CDM or provider credentials are bundled.\nLinux torrent streaming requires an available Stremio Service when no bundled engine is present. Updates are manual.\nRefer to the accompanying delivery record for tested capabilities and known limitations.\n')
     print(json.dumps({'stage':str(out),'elf_files':len(seen),'bundled_dependencies':len(origins),'binary_sha256':metadata['binary_sha256']},indent=2))
 if __name__=='__main__':main()

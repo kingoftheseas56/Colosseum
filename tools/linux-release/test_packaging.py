@@ -11,9 +11,14 @@ class PackageTests(unittest.TestCase):
         s=self.p/'source';b=self.p/'build';q=self.p/'qt';d=self.p/'deps'
         for p in (s,b,q,d):p.mkdir()
         for name in ('qml','assets','resources','data'):(s/name).mkdir()
+        (s/'native').mkdir();(s/'native/CMakeLists.txt').write_text('project(colosseum VERSION 1.1.9 LANGUAGES C CXX)\n')
+        (s/'scripts').mkdir();shutil.copy2(HERE.parents[1]/'scripts/stage_api_content.py',s/'scripts/stage_api_content.py')
+        starter=s/'assets/content-starter/bundle.json';starter.parent.mkdir()
+        starter.write_text(json.dumps({'manifest':{'documents':{str(i):{} for i in range(10)},'assets':{}}}))
+        icon=s/'assets/icons/colosseum.svg';icon.parent.mkdir();icon.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"/>')
         (s/'qml/Main.qml').write_text('import QtQuick\nItem {}\n')
         for name in ('LICENSE','THIRD_PARTY_NOTICES.md'):(s/name).write_text('Test fixture only\n')
-        (b/'CMakeCache.txt').write_text('CMAKE_BUILD_TYPE:STRING=Release\n')
+        (b/'CMakeCache.txt').write_text('CMAKE_BUILD_TYPE:STRING=Release\nCOLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF\nCOLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\n')
         import hashlib
         content=(s/'qml/Main.qml').read_bytes();h=hashlib.sha256(b'Main.qml\n'+hashlib.sha256(content).hexdigest().encode()+b'\n').hexdigest()
         (b/'qml-build.manifest').write_text('schema=1\nqmlTreeSha256='+h+'\n')
@@ -82,4 +87,20 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(r.returncode,0,r.stderr.decode());self.assertTrue(out.exists());self.assertTrue(Path(str(out)+'.sha256').exists())
     def test_outside_symlink_rejected(self):
         (self.stage/'external').symlink_to('/etc/hosts');self.assertNotEqual(self.check()[0],0)
+    def test_deb_contains_the_qualified_payload_and_launcher(self):
+        out=self.p/'colosseum.deb'
+        proc=subprocess.run(['python3',str(HERE/'package_deb.py'),'--stage',str(self.stage),'--output',str(out)],text=True,capture_output=True)
+        self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr)
+        info=subprocess.check_output(['dpkg-deb','--field',str(out),'Package','Version','Architecture'],text=True)
+        self.assertIn('Package: colosseum',info);self.assertIn('Version: 1.1.9',info);self.assertIn('Architecture: amd64',info)
+        extracted=self.p/'deb-extracted';subprocess.run(['dpkg-deb','--extract',str(out),str(extracted)],check=True)
+        self.assertEqual((extracted/'opt/colosseum/usr/bin/colosseum').read_bytes(),(self.stage/'usr/bin/colosseum').read_bytes())
+        self.assertTrue((extracted/'usr/share/applications/colosseum.desktop').is_file())
+        self.assertTrue(os.access(extracted/'usr/bin/colosseum',os.X_OK))
+        self.assertIn('/opt/colosseum/AppRun',(extracted/'usr/bin/colosseum').read_text())
+    def test_deb_rejects_qml_drift_before_creating_output(self):
+        (self.stage/'qml/Main.qml').write_text('changed')
+        out=self.p/'bad.deb'
+        proc=subprocess.run(['python3',str(HERE/'package_deb.py'),'--stage',str(self.stage),'--output',str(out)],text=True,capture_output=True)
+        self.assertNotEqual(proc.returncode,0);self.assertFalse(out.exists())
 if __name__=='__main__':unittest.main(verbosity=2)
