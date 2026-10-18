@@ -111,6 +111,25 @@ def query_key(method, args):
                                      separators=(',', ':'), sort_keys=True).encode()).hexdigest()
 
 
+class TreeEvidenceIncomplete(RuntimeError):
+    pass
+
+
+def image_status(value):
+    return {'Null': 0, 'Ready': 1, 'Loading': 2, 'Error': 3}.get(value, value)
+
+
+def zero_volume_state(page):
+    # Legacy MangaSeries has no chapterOnly and remains on its empty shelf.
+    if page.get('chapterOnly') is None:
+        return not page.get('hasShelf') and not page.get('loading')
+    return bool(page.get('chapterOnly') and page.get('chapterMode') and not page.get('hasShelf'))
+
+
+def vanished_item(exc):
+    return 'NO_SUCH_ITEM' in str(exc)
+
+
 def deep_cover_assessment(cases, probe_rows):
     decoded = {r.get('url') for r in probe_rows if r.get('decodedMs', -1) >= 0}
     checks, missing = [], []
@@ -137,8 +156,8 @@ def deep_cover_assessment(cases, probe_rows):
         if not expected_url and not sources:
             missing.append({'case': case, 'id': identity, 'field': 'optional cover URL absent'})
             continue
-        ready = any(i.get('status') == 1 for i in images) or bool(({expected_url} | set(sources)) & decoded)
-        failed = not ready and any(i.get('status') == 3 for i in images)
+        ready = any(image_status(i.get('status')) == 1 for i in images) or bool(({expected_url} | set(sources)) & decoded)
+        failed = not ready and any(image_status(i.get('status')) == 3 for i in images)
         results.append({'case': case, 'id': identity, 'expectedCoverUrl': expected_url, 'observedImages': images,
                         'status': 'PASS' if ready else 'FAIL' if failed else 'INCOMPLETE'})
     status = 'FAIL' if any(r['status'] == 'FAIL' for r in results) else 'INCOMPLETE' if not results or any(r['status'] == 'INCOMPLETE' for r in results) else 'PASS'
@@ -311,21 +330,31 @@ class Driver:
     def props(self, target, names):
         return self.call('qml-get', {'object': target, 'props': names})['props']
 
-    def tree(self, root=None):
+    def tree(self, root=None, max_depth=None):
         payload = {'maxItems': 1800}
+        if max_depth is not None:
+            payload['maxDepth'] = max_depth
         if root:
             payload['root'] = root
         rows = []
-        for _ in range(6):
+        deadline = time.monotonic() + 20
+        for _ in range(80):
+            if time.monotonic() > deadline or len(rows) > 18000:
+                break
             reply = self.call('dump-ui', payload)
-            rows.extend(reply.get('items', []))
+            batch = reply.get('items', [])
+            rows.extend(batch)
+            # Fresh dump invalidates the caller's old root handle. Continue using
+            # the same root's newly minted handle, not the prior generation token.
+            if root and 'cursor' not in payload and batch:
+                payload['root'] = batch[0]['handle']
             if not reply.get('truncated'):
                 return rows
             payload.update(cursor=reply['continuation']['cursor'], generation=reply['generation'])
-        raise RuntimeError('UI tree evidence limit exceeded; completeness unverified')
+        raise TreeEvidenceIncomplete('UI tree evidence incomplete: bounded continuation exhausted, rows=' + str(len(rows)) + ', cursor=' + str(payload.get('cursor')))
 
     def visible_ref(self, name=None, class_prefix=None, allow_first=False):
-        rows = self.call('ui-snapshot').get('elements', []) if name else self.tree()
+        rows = self.call('ui-snapshot').get('elements', []) if name else self.tree(max_depth=6)
         found = []
         for row in rows:
             if name and row.get('objectName') != name:
@@ -380,9 +409,20 @@ class Driver:
             time.sleep(0.25)
         return None, None, None
 
+    def pagination_geometry(self):
+        result = {}
+        for target, fields in [
+            ('tankobanWorldScroll', ['contentY', 'contentHeight', 'height', 'width', 'atYEnd', 'moving', 'flicking']),
+            ('tankobanDiscoverWall', ['contentY', 'contentHeight', 'height', 'width', 'originY', 'cellHeight', 'columnCount', 'count']),
+            ('tankobanDiscoverBrowser', ['pageFlow', 'automationItemCount', 'exhausted', 'loading', 'pageFailed'])]:
+            result[target] = self.props(target, fields)
+        return result
+
     def page_more(self, kind):
         self.ensure_world('Tankoban')
         self.click('tankobanDiscoverType_' + kind)
+        event_start = len(traces(self.raw_stderr))
+        geometry_before = self.pagination_geometry()
         before = self.props('tankobanDiscoverBrowser', ['automationItemCount', 'exhausted', 'pageFailed', 'loading'])
         if before.get('exhausted'):
             return {'status': 'NOT_APPLICABLE_EXHAUSTED', 'before': before}
@@ -396,12 +436,17 @@ class Driver:
         while after.get('loading') and time.monotonic() < deadline:
             time.sleep(0.5)
             after = self.props('tankobanDiscoverBrowser', ['automationItemCount', 'exhausted', 'pageFailed', 'loading'])
+        time.sleep(0.5)
+        geometry_after = self.pagination_geometry()
+        paging_events = [e for e in traces(self.raw_stderr)[event_start:] if e.get('dataset') == ('mal' if kind == 'manga' else 'comics') and e.get('method') == 'discoverPageFiltered']
         self.grab('deep-' + kind + '-pagination', 'tankobanDiscoverBrowser')
         # Return to top using ordinary wheel events, never a contentY setter.
         for _ in range(12):
             self.call('ui-scroll', {'target': self.visible_ref('tankobanWorldScroll'), 'dy': 960, 'xFraction': 0.92, 'yFraction': 0.85})
         return {'status': 'PASS' if after.get('automationItemCount', 0) > before.get('automationItemCount', 0) and not after.get('pageFailed') else 'FAIL',
-                'before': before, 'after': after, 'scope': 'One additional returned browse page, not entire catalogue'}
+                'before': before, 'after': after, 'geometryBefore': geometry_before, 'geometryAfter': geometry_after,
+                'nativePagingEvents': paging_events, 'nativePagingSuccessCount': sum(e.get('component') == 'remote' and e.get('event') == 'result_delivery_end' and e.get('status') == 'success' for e in paging_events),
+                'alternateSizeProbe': 'NOT_RUN: no resize command in this production Lanista driver; another Xvfb launch size is a possible separate test', 'scope': 'One additional returned browse page, not entire catalogue'}
 
     def search(self, world, query, expect_empty=False):
         trace_start = len(traces(self.raw_stderr))
@@ -472,29 +517,49 @@ class Driver:
             time.sleep(0.25)
         page = self.props('mangaSeriesPage', ['chapterOnly', 'chapterMode', 'hasShelf', 'loading', 'errorMsg', 'errorText'])
         self.grab('deep-' + label + '-first', 'mangaSeriesPage')
-        observed = {}
-        # One normal wheel notch advances one volume. This never activates/acquires it.
-        for _ in range(min(len(rows) + 2, 130)):
-            nodes = self.tree('readingRoomLibrary')
-            parents = {n['handle']: n.get('parentHandle') for n in nodes}
-            cards = {n['handle']: n['objectName'].removeprefix('tankobanVolumeCard_') for n in nodes if n.get('objectName', '').startswith('tankobanVolumeCard_')}
-            for handle, number in cards.items():
-                observed[number] = self.props(handle, ['index', 'nameText', 'cardState', 'stateText'])
-                observed[number]['imageStates'] = []
-            for item in nodes:
-                if 'Image' not in item.get('class', ''):
-                    continue
-                ancestor = item.get('parentHandle')
-                while ancestor and ancestor not in cards:
-                    ancestor = parents.get(ancestor)
-                if ancestor in cards:
-                    image = self.props(item['handle'], ['source', 'status'])
-                    if str(image.get('source', '')).startswith(('http://', 'https://')):
-                        observed[cards[ancestor]]['imageStates'].append(image)
+        observed, transient_errors = {}, []
+        # Read only live, actually visible delegates after the normal wheel animation.
+        # A destroyed virtualized item is retried without discarding earlier facts.
+        for step in range(min(len(rows) + 3, 130)):
+            for attempt in range(3):
+                time.sleep(0.35)
+                try:
+                    nodes = self.tree('readingRoomLibrary')
+                    parents = {n['handle']: n.get('parentHandle') for n in nodes}
+                    cards = {n['handle']: n['objectName'].removeprefix('tankobanVolumeCard_') for n in nodes if n.get('objectName', '').startswith('tankobanVolumeCard_')}
+                    live = {}
+                    for handle, number in cards.items():
+                        if not positive_area(self.call('ui-query', {'object': handle})):
+                            continue
+                        values = self.props('tankobanVolumeCard_' + number, ['index', 'nameText', 'cardState', 'stateText'])
+                        previous = observed.get(number, {})
+                        values['imageStates'] = list(previous.get('imageStates', []))
+                        observed[number] = values
+                        live[handle] = number
+                    for item in nodes:
+                        if 'Image' not in item.get('class', ''):
+                            continue
+                        ancestor = item.get('parentHandle')
+                        while ancestor and ancestor not in live:
+                            ancestor = parents.get(ancestor)
+                        if ancestor in live:
+                            im = self.props(item['handle'], ['source', 'status'])
+                            if str(im.get('source', '')).startswith(('http://', 'https://')):
+                                values = observed[live[ancestor]]['imageStates']
+                                if im not in values:
+                                    values.append(im)
+                    break
+                except RuntimeError as exc:
+                    if not vanished_item(exc):
+                        raise
+                    transient_errors.append({'step': step, 'attempt': attempt + 1, 'error': str(exc)})
             if len(observed) >= len(rows) or not rows:
                 break
             self.call('ui-scroll', {'target': self.visible_ref('volumeFlow'), 'dy': -120})
-            time.sleep(0.12)
+        # Persist partial observations even if later screenshots or assertions fail.
+        write(self.output / ('deep-' + label + '-volume-observations.json'),
+              {'malId': mal_id, 'nativeReturnedCount': len(rows), 'observedVolumeCards': observed,
+               'transientDelegateErrors': transient_errors})
         self.grab('deep-' + label, 'mangaSeriesPage')
         numbers = [str(v.get('number', '')) for v in rows]
         expected_names = {}
@@ -509,7 +574,7 @@ class Driver:
         native_events = [e for e in traces(self.raw_stderr) if e.get('dataset') == 'tankoban' and e.get('queryKey') == tankoban_key and e.get('event') == 'result_delivery_end']
         native_completed = bool(entry.get('sourceHash')) and bool(publication) and any(e.get('status') == 'prepared' for e in native_events)
         matched = native_completed and head.get('ready') and not page.get('loading') and not page.get('errorMsg') and not page.get('errorText') and shelf.get('rowCount') == len(rows) and len(set(numbers)) == len(numbers) and not mismatches and not order_mismatches
-        matched = matched and numeric == sorted(numeric) and (bool(rows) or (page.get('chapterOnly') and page.get('chapterMode') and not page.get('hasShelf')))
+        matched = matched and numeric == sorted(numeric) and (bool(rows) or zero_volume_state(page))
         complete_ui = set(numbers).issubset(observed)
         return {'status': 'PASS' if matched and complete_ui else 'INCOMPLETE' if matched else 'FAIL',
                 'malId': mal_id, 'masthead': head, 'nativePublication': publication,
@@ -517,7 +582,7 @@ class Driver:
                 'nativeReturnedCount': len(rows), 'nativeVolumes': rows,
                 'missingNameCount': sum(not str(r.get('name', '')).strip() for r in rows),
                 'missingCoverUrlCount': sum(not str(r.get('cover', '')).strip() for r in rows), 'displayedShelf': shelf,
-                'pageState': page, 'observedVolumeCards': observed, 'allReturnedRowsObserved': complete_ui, 'observationScope': 'All returned delegate facts when traversal completes; first/final window screenshots and per-image Qt states are separate',
+                'pageState': page, 'zeroStateVariant': 'legacy' if page.get('chapterOnly') is None else 'rebuilt', 'transientDelegateErrors': transient_errors, 'observedVolumeCards': observed, 'allReturnedRowsObserved': complete_ui, 'observationScope': 'All returned delegate facts when traversal completes; first/final window screenshots and per-image Qt states are separate',
                 'nameMismatches': mismatches, 'displayOrderMismatches': order_mismatches, 'numericOrderAscending': numeric == sorted(numeric),
                 'numericOrderScope': 'Numeric tokens in returned order; nonnumeric extras retained',
                 'countClass': 'zero' if not rows else 'single' if len(rows) == 1 else 'multi',
@@ -534,6 +599,8 @@ class Driver:
                 page = self.props(root, ['locgId', 'seriesTitle', 'loading', 'errorMsg', 'notAvailable', 'gcTag'])
                 if not page.get('loading'):
                     break
+            except TreeEvidenceIncomplete:
+                raise
             except RuntimeError:
                 pass
             time.sleep(0.4)
@@ -735,6 +802,8 @@ class Driver:
                     page = self.props(root, ['gcdId', 'seriesTitle', 'totalReleases', 'loading', 'errorMsg', 'sortMode'])
                     if page.get('gcdId') == chosen['gcdId'] and not page.get('loading'):
                         break
+                except TreeEvidenceIncomplete:
+                    raise
                 except RuntimeError:
                     pass
                 time.sleep(0.3)
@@ -969,7 +1038,65 @@ def self_test():
     assert positive_integer('malformed') == 0
     assert positive_integer(None) == 0
     assert positive_integer('-1') == 0
-    print('25 pure qualification helper checks passed')
+    # Minimal public/structural values from failed run39123075405, never app input.
+    # The server byte cap produced six truncated pages; a seventh must be consumed.
+    mock = Driver.__new__(Driver)
+    pages = [{'items': [{'handle': str(i)}], 'truncated': i < 6,
+              'generation': 14, 'continuation': {'cursor': i + 1}} for i in range(7)]
+    seen = []
+    def paged_call(command, payload):
+        seen.append(dict(payload))
+        return pages[len(seen) - 1]
+    mock.call = paged_call
+    assert len(mock.tree('old-root-handle')) == 7 and seen[-1]['cursor'] == 6
+    assert seen[1]['root'] == '0'
+    mock.call = lambda command, payload: {'items': [], 'truncated': True, 'generation': 1, 'continuation': {'cursor': 1}}
+    try:
+        mock.tree()
+        raise AssertionError('Truncation was silently accepted')
+    except TreeEvidenceIncomplete:
+        pass
+    legacy_zero = {'chapterOnly': None, 'chapterMode': False, 'hasShelf': False, 'loading': False}
+    assert zero_volume_state(legacy_zero)
+    assert not zero_volume_state(dict(legacy_zero, hasShelf=True))
+    assert not zero_volume_state(dict(legacy_zero, chapterOnly=True))
+    assert zero_volume_state(dict(legacy_zero, chapterOnly=True, chapterMode=True))
+    assert image_status('Ready') == 1 and image_status(1) == 1
+    assert image_status('Error') == 3 and image_status('Loading') == 2
+    cover_case['observedVolumeCards'] = {'1': {'imageStates': [{'source': 'https://example.test/cover', 'status': 'Error'}]}}
+    assert deep_cover_assessment([cover_case], [])['status'] == 'FAIL'
+    cover_case['observedVolumeCards']['1']['imageStates'][0]['status'] = 'Ready'
+    assert deep_cover_assessment([cover_case], [])['status'] == 'PASS'
+    assert vanished_item(RuntimeError('Lanista error NO_SUCH_ITEM s504h27'))
+    assert not vanished_item(TreeEvidenceIncomplete('UI tree incomplete'))
+    # Exercise actual observation retry with a vanished delegate. No app/API is run.
+    with tempfile.TemporaryDirectory() as temporary:
+        mock.output = Path(temporary)
+        mock.raw_stderr = mock.output / 'stderr.log'
+        mock.raw_stderr.write_text('')
+        mock.grab = lambda *args: None
+        mock.cache_entry = lambda *args: ('key', {'volumes': [{'number': '1', 'name': 'Title', 'cover': ''}], 'sourceHash': 'test'}, 'test')
+        def properties(target, fields):
+            if target == 'tankobanSeriesMasthead':
+                return {'resolvedMalId': '13', 'ready': True}
+            if target == 'tankobanShelfState':
+                return {'rowCount': 1, 'coveredCount': 0}
+            if target == 'mangaSeriesPage':
+                return {'hasShelf': True, 'loading': False}
+            return {'index': 0, 'nameText': 'Title'}
+        mock.props = properties
+        attempts = []
+        def moving_tree(*args, **kwargs):
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise RuntimeError('NO_SUCH_ITEM s504h27')
+            return [{'handle': 'live', 'parentHandle': None, 'objectName': 'tankobanVolumeCard_1', 'class': 'QQuickItem'}]
+        mock.tree = moving_tree
+        mock.call = lambda *args: {'visible': True, 'rect': {'x': 0, 'y': 0, 'width': 10, 'height': 10}, 'rootWindow': {'width': 100, 'height': 100}, 'clipChain': []}
+        result = mock.manga_series('unit-only')
+        assert len(result['transientDelegateErrors']) == 1 and result['observedVolumeCards']['1']['nameText'] == 'Title'
+        assert result['status'] != 'PASS'  # No native delivery fixture may manufacture success.
+    print('40 pure qualification helper checks passed')
 
 
 def main():
