@@ -670,78 +670,229 @@ jobs:
   b1-native-qualification:
     if: ${{ inputs.b1_native_qualification || github.ref == 'refs/heads/dots/b1-cloud-system-proxy-20261018' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 60
     permissions:
       contents: read
+      actions: read
+    env:
+      ECM_VERSION: "6.15.0"
+      ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Prepare controlled component evidence
+      - name: Prepare evidence directories
         run: |
-          mkdir -p "$RUNNER_TEMP/stream-evidence"
-          git rev-parse HEAD > "$RUNNER_TEMP/stream-evidence/source-commit.txt"
-          git status --porcelain > "$RUNNER_TEMP/stream-evidence/source-status-before.txt"
-      - name: Stage official dependencies before isolation
+          mkdir -p "$RUNNER_TEMP/b1-evidence" "$RUNNER_TEMP/b1-build-logs"
+          echo "COLOSSEUM_LINUX_BUILD=$RUNNER_TEMP/b1-build" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$RUNNER_TEMP/b1-evidence/source-commit.txt"
+          git status --porcelain > "$RUNNER_TEMP/b1-evidence/source-status-before.txt"
+      - name: Install qualification dependencies
         run: |
-          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential pkg-config libtorrent-rasterbar-dev libssl-dev iproute2 util-linux
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config clang-format \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev libxkbcommon-dev libxcb-cursor0 \
+            libnss3 libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
+            libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-xinerama0 \
+            xvfb xauth ffmpeg p7zip-full libarchive-tools
+          python -m pip install 'cmake==3.31.6' 'Pillow==12.3.0'
+      - name: Install full Qt 6.11.1 SDK
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qtmultimedia qtimageformats qttasktree"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Build checksum-pinned ECM and MpvQt
+        run: |
+          set -euo pipefail
+          deps="$RUNNER_TEMP/b1-deps"
+          mkdir -p "$deps"
           curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
-            https://dl.strem.io/stremio-service/v0.1.21/stremio-service_amd64.deb -o "$RUNNER_TEMP/stremio-service.deb"
-          echo "7d55ddafc46d683b56c720855a3f8c8cb7cac1dce817314bfabe098ae5868c67  $RUNNER_TEMP/stremio-service.deb" | sha256sum --check --strict
-          dpkg-deb -x "$RUNNER_TEMP/stremio-service.deb" "$RUNNER_TEMP/stremio-runtime"
-          python - <<'PYRUNTIME'
-          import hashlib, json, os, pathlib
-          provenance = json.loads(pathlib.Path('tests/controlled_stream/runtime-provenance.json').read_text())
-          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'stremio-runtime/usr/share/stremio-service'
-          for name, pin in provenance['runtime_files'].items():
-              assert hashlib.sha256((root / name).read_bytes()).hexdigest() == pin['sha256'], name
-          PYRUNTIME
-      - name: Verify owned fixture and compile loopback seeder
+            "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" \
+            --output "$deps/ecm.tar.xz"
+          echo "$ECM_SHA256  $deps/ecm.tar.xz" | sha256sum --check --strict
+          tar -xf "$deps/ecm.tar.xz" -C "$deps"
+          cmake -S "$deps/extra-cmake-modules-$ECM_VERSION" -B "$deps/ecm-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$deps/install" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/ecm-configure.log"
+          cmake --build "$deps/ecm-build" --target install --parallel 2 \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/ecm-build.log"
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" \
+            --output "$deps/mpvqt.tar.xz"
+          echo "$MPVQT_SHA256  $deps/mpvqt.tar.xz" | sha256sum --check --strict
+          tar -xf "$deps/mpvqt.tar.xz" -C "$deps"
+          export LD_LIBRARY_PATH="$QT_ROOT_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          cmake -S "$deps/mpvqt-$MPVQT_VERSION" -B "$deps/mpvqt-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$deps/install" -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$deps/install" \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/mpvqt-configure.log"
+          cmake --build "$deps/mpvqt-build" --target install --parallel 2 \
+            2>&1 | tee "$RUNNER_TEMP/b1-build-logs/mpvqt-build.log"
+          echo "MPVQT_ROOT=$deps/install" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$QT_ROOT_DIR/lib:$deps/install/lib:$deps/install/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+      - name: Download exact previously qualified native binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: "12137078740"
+          run-id: "39129013913"
+          repository: kingoftheseas56/Colosseum
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/b1-prior-artifact
+          merge-multiple: true
+      - name: Verify exact qualified native and QML identities
         run: |
           set -euo pipefail
-          fixture="$RUNNER_TEMP/controlled-stream-fixture"
-          cp -a tests/controlled_stream/fixture "$fixture"
-          (cd "$fixture" && sha256sum --check --strict SOURCE_SHA256SUMS)
-          printf '%s\n' 'c++ -std=c++17 -O2 loopback_seed.cpp -o loopback_seed $(pkg-config --cflags --libs libtorrent-rasterbar) -pthread' > "$RUNNER_TEMP/stream-evidence/seeder-compile-command.txt"
-          c++ -std=c++17 -O2 "$fixture/loopback_seed.cpp" -o "$fixture/loopback_seed" \
-            $(pkg-config --cflags --libs libtorrent-rasterbar) -pthread
-          cp "$fixture/SOURCE_SHA256SUMS" "$fixture/SHA256SUMS"
-          (cd "$fixture" && sha256sum loopback_seed >> SHA256SUMS && sha256sum --check --strict SHA256SUMS)
-          cp "$fixture/SHA256SUMS" "$RUNNER_TEMP/stream-evidence/fixture-sha256.txt"
-          { c++ --version; pkg-config --modversion libtorrent-rasterbar openssl; } > "$RUNNER_TEMP/stream-evidence/toolchain.txt"
-      - name: Check isolation and transport helper contracts offline
+          python - <<'PYVERIFY'
+          import hashlib, json, os, pathlib, shutil, subprocess
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          prior = root / "b1-prior-artifact"
+          compiled = "cb2db25904dfe9f86660efebffa498aa3f06e5e8"
+          runtime = "6199235afcd6768010bd87816ce2d14a00ae77a4"
+          def git(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+          subprocess.run(["git", "merge-base", "--is-ancestor", runtime, "HEAD"], check=True)
+          assert not git("status", "--porcelain"), "Qualification source must be clean"
+          changed = set(filter(None, git("diff", "--name-only", runtime, "HEAD").splitlines()))
+          # Parked component assets are QA only, and are never executed here.
+          allowed = {'tests/controlled_stream/stream_component.py', 'tests/controlled_stream/fixture/create-options.json', 'tests/release_qualification/universe_journey.py', 'tests/release_qualification/test_universe_geometry.py', 'tests/release_qualification/verify_offline.py', 'tests/controlled_stream/runtime-provenance.json', 'tests/controlled_stream/fixture/loopback_tracker.py', 'tests/release_qualification/native_recovery_controller.py', 'tests/release_qualification/test_recovery_helpers.py', 'tests/release_qualification/build_catalogue.mjs', '.github/workflows/desktop-ci.yml', 'tests/controlled_stream/check_isolation.py', 'tests/controlled_stream/fixture/owned-test-pattern.mp4', 'tests/release_qualification/native_ui.py', 'tests/release_qualification/probe.py', 'tests/release_qualification/test_probe.py', 'tests/controlled_stream/fixture/loopback_seed.cpp', 'tests/controlled_stream/fixture/owned-test-pattern.torrent', 'tests/release_qualification/prepare_content.py', 'tests/release_qualification/test_prepare_content.py', 'tests/controlled_stream/launch_isolated.py', 'tests/controlled_stream/fixture/fixture.json', 'tests/controlled_stream/fixture/SOURCE_SHA256SUMS', 'tests/release_qualification/b1_catalogue_fault_fixture.py', 'tests/release_qualification/expected-catalogue.json'}
+          assert changed <= allowed, sorted(changed - allowed)
+          expected = {
+              "colosseum": "acb86ce66202531629c137f8706d8d873c3065df8a08867cbeb8bd60eafaa677",
+              "lanista": "9577113c1fe48521755d964431e7c76dece2d8d82b3cd30c83ddf1a29cc88aad",
+              "qml-build.manifest": "d52158f306a2f5588ad5370ea1aa95fb72074af49a4cea27e76eccc5b48b0dd5",
+          }
+          for name, digest in expected.items():
+              assert hashlib.sha256((prior / "b1-build" / name).read_bytes()).hexdigest() == digest, name
+          receipt = json.loads((prior / "b1-evidence/compiled-provenance.json").read_text())
+          launch = json.loads((prior / "b1-evidence/runtime/launch.json").read_text())
+          assert receipt["compiledNativeSourceCommit"] == compiled
+          assert receipt["runtimeQmlSourceCommit"] == runtime
+          assert receipt["runtimeQmlTreeSha256"] == "bc48a019a12d408ce983d0f4ed8b9f0b075934c4c19090a9c2aa2c9f0fb399cf"
+          assert launch["qualificationSourceCommit"] == runtime and launch["sourceStatus"] == ""
+          for field, name in [("binarySha256", "colosseum"), ("lanistaSha256", "lanista"), ("qmlManifestSha256", "qml-build.manifest")]:
+              assert receipt[field] == launch[field] == expected[name]
+          assert receipt["configuredContentEndpoint"] == launch["configuredContentEndpoint"] == "https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev"
+          build = pathlib.Path(os.environ["COLOSSEUM_LINUX_BUILD"])
+          build.mkdir()
+          for name in expected:
+              shutil.copy2(prior / "b1-build" / name, build / name)
+          for name in ["colosseum", "lanista"]:
+              (build / name).chmod(0o755)
+          receipt.update(qualificationSourceCommit=git("rev-parse", "HEAD"), priorRunId=39129013913,
+                         priorArtifactId=12137078740, nativeReuseMode="exact-qualified-native-and-runtime-qml",
+                         focusedRegressionTests="reused prior evidence; not rerun", changedPaths=sorted(changed))
+          (root / "b1-evidence/compiled-provenance.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          PYVERIFY
+          cmake "-DQML_ROOT=$GITHUB_WORKSPACE/qml" \
+            "-DOUTPUT_FILE=$RUNNER_TEMP/b1-evidence/current-qml.manifest" \
+            -P native/bootstrap/write_qml_build_manifest.cmake
+          cmp "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" "$RUNNER_TEMP/b1-evidence/current-qml.manifest"
+          { cmake --version; c++ --version; "$QT_ROOT_DIR/bin/qmake" -query QT_VERSION; \
+            pkg-config --modversion mpv libtorrent-rasterbar openssl; } > "$RUNNER_TEMP/b1-evidence/runtime-toolchain.txt"
+          cp "$RUNNER_TEMP/b1-prior-artifact/b1-evidence/compiled-library-versions.txt" "$RUNNER_TEMP/b1-evidence/compiled-library-versions.txt"
+          tail -n 4 "$RUNNER_TEMP/b1-evidence/runtime-toolchain.txt" > "$RUNNER_TEMP/b1-evidence/runtime-library-versions.txt"
+          cmp "$RUNNER_TEMP/b1-evidence/compiled-library-versions.txt" "$RUNNER_TEMP/b1-evidence/runtime-library-versions.txt"
+      - name: Check release QA helpers without network
         run: |
           set -euo pipefail
-          python tests/controlled_stream/check_isolation.py --self-test
-          python tests/controlled_stream/stream_component.py --self-test
-          python -m py_compile tests/controlled_stream/launch_isolated.py
-      - name: Run controlled torrent transport in one ephemeral loopback namespace
-        timeout-minutes: 4
+          python tests/release_qualification/test_recovery_helpers.py
+          python tests/release_qualification/test_probe.py
+          python -m unittest discover -s tests/release_qualification -p test_universe_geometry.py
+          python -m unittest discover -s tests/release_qualification -p test_prepare_content.py
+          python tests/release_qualification/native_ui.py --self-test
+          python -m py_compile tests/release_qualification/*.py
+      - name: Build isolated A and B publications with unchanged production publisher
         run: |
           set -euo pipefail
-          python tests/controlled_stream/launch_isolated.py \
-            --source-commit "$GITHUB_SHA" \
-            --fixture-dir "$RUNNER_TEMP/controlled-stream-fixture" \
-            --runtime-dir "$RUNNER_TEMP/stremio-runtime/usr/share/stremio-service" \
-            --runtime-provenance tests/controlled_stream/runtime-provenance.json \
-            --output "$RUNNER_TEMP/stream-evidence/isolation"
+          qa=tests/release_qualification
+          output="$RUNNER_TEMP/release-publications"
+          python "$qa/prepare_content.py" --source "$GITHUB_WORKSPACE" --output "$output"
+          node "$qa/build_catalogue.mjs" "$GITHUB_WORKSPACE" "$output"
+          python "$qa/verify_offline.py" --source "$GITHUB_WORKSPACE" --output "$output"
+          mkdir "$RUNNER_TEMP/b1-evidence/publication-receipts"
+          for name in content-A-report content-B-report publication-A-report publication-B-report verification-A verification-B verifier-extraction fixture-scope test-universe; do
+            test ! -f "$output/$name.json" || cp "$output/$name.json" "$RUNNER_TEMP/b1-evidence/publication-receipts/"
+          done
+      - name: Run independent live Comics and controlled offscreen release lanes
+        timeout-minutes: 37
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          qa=tests/release_qualification
+          set +e
+          timeout --kill-after=15s 300s python "$qa/probe.py" --output "$RUNNER_TEMP/b1-evidence/comics-targeted-live.json"
+          probe_status=$?
+          QT_QPA_PLATFORM=xcb timeout --kill-after=30s 600s xvfb-run --auto-servernum --server-args='-screen 0 1600x1000x24 -nolisten tcp' \
+            python "$qa/native_ui.py" --driver tests/b1_native_catalogue_qualification.py \
+              --probe "$RUNNER_TEMP/b1-evidence/comics-targeted-live.json" --source "$GITHUB_WORKSPACE" \
+              --binary "$COLOSSEUM_LINUX_BUILD/colosseum" --lanista "$COLOSSEUM_LINUX_BUILD/lanista" \
+              --compiled-provenance "$RUNNER_TEMP/b1-evidence/compiled-provenance.json" \
+              --prior-multi "$RUNNER_TEMP/b1-prior-artifact/b1-evidence/runtime/deep-comics-series-1.json" \
+              --output "$RUNNER_TEMP/b1-evidence/live-comics"
+          live_status=$?
+          QT_QPA_PLATFORM=offscreen timeout --kill-after=30s 1200s \
+            python "$qa/native_recovery_controller.py" \
+              --binary "$COLOSSEUM_LINUX_BUILD/colosseum" --lanista "$COLOSSEUM_LINUX_BUILD/lanista" \
+              --source "$GITHUB_WORKSPACE" --provenance "$RUNNER_TEMP/b1-prior-artifact/b1-evidence/runtime/launch.json" \
+              --publication "$RUNNER_TEMP/release-publications/publication-A" \
+              --publication-b "$RUNNER_TEMP/release-publications/publication-B" \
+              --universe-hook "$qa/universe_journey.py" --expected-catalogue "$qa/expected-catalogue.json" \
+              --output "$RUNNER_TEMP/b1-evidence/recovery"
+          recovery_status=$?
+          set -e
+          printf 'live_probe=%s\nlive_native=%s\ncontrolled_recovery=%s\n' "$probe_status" "$live_status" "$recovery_status" > "$RUNNER_TEMP/b1-evidence/qualification-exit-statuses.txt"
+          test "$probe_status" -eq 0 && test "$live_status" -eq 0 && test "$recovery_status" -eq 0
       - name: Record final source status
         if: always()
-        run: git status --porcelain > "$RUNNER_TEMP/stream-evidence/source-status-after.txt"
-      - name: Upload bounded component receipts
+        run: |
+          set -euo pipefail
+          git status --porcelain > "$RUNNER_TEMP/b1-evidence/source-status-after.txt"
+          test ! -s "$RUNNER_TEMP/b1-evidence/source-status-after.txt"
+          cmake "-DQML_ROOT=$GITHUB_WORKSPACE/qml" \
+            "-DOUTPUT_FILE=$RUNNER_TEMP/b1-evidence/after-qml.manifest" \
+            -P native/bootstrap/write_qml_build_manifest.cmake
+          cmp "$COLOSSEUM_LINUX_BUILD/qml-build.manifest" "$RUNNER_TEMP/b1-evidence/after-qml.manifest"
+
+      - name: Upload bounded release qualification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: b1-controlled-stream-component-${{ github.sha }}-${{ github.run_attempt }}
+          name: b1-native-qualification-${{ github.sha }}-${{ github.run_attempt }}
           retention-days: 7
           if-no-files-found: warn
           path: |
-            ${{ runner.temp }}/stream-evidence/*.txt
-            ${{ runner.temp }}/stream-evidence/isolation/launcher-result.json
-            ${{ runner.temp }}/stream-evidence/isolation/isolation-proof.json
-            ${{ runner.temp }}/stream-evidence/isolation/component/component-result.json
+            ${{ runner.temp }}/b1-evidence/*.txt
+            ${{ runner.temp }}/b1-evidence/compiled-provenance.json
+            ${{ runner.temp }}/b1-evidence/current-qml.manifest
+            ${{ runner.temp }}/b1-evidence/after-qml.manifest
+            ${{ runner.temp }}/b1-evidence/prior-qml.manifest
+            ${{ runner.temp }}/b1-evidence/*.json
+            ${{ runner.temp }}/b1-evidence/publication-receipts/*.json
+            ${{ runner.temp }}/b1-evidence/live-comics/*.json
+            ${{ runner.temp }}/b1-evidence/live-comics/*.png
+            ${{ runner.temp }}/b1-evidence/live-comics/*.sanitized.log
+            ${{ runner.temp }}/b1-evidence/live-comics/ipc/*.json
+            ${{ runner.temp }}/b1-evidence/recovery/*.json
+            ${{ runner.temp }}/b1-evidence/recovery/*/*.json
+            ${{ runner.temp }}/b1-evidence/recovery/*/*.png
+            ${{ runner.temp }}/b1-evidence/recovery/*/*.sanitized.log
+            ${{ runner.temp }}/b1-evidence/recovery/*/ipc/*.json
+            ${{ runner.temp }}/b1-evidence/recovery/fixture/requests.jsonl
+            ${{ runner.temp }}/b1-evidence/runtime/*.png
+            ${{ runner.temp }}/b1-evidence/runtime/*.sanitized.log
+            ${{ runner.temp }}/b1-evidence/runtime/ipc/*.json
+            ${{ runner.temp }}/b1-build-logs/*.log
