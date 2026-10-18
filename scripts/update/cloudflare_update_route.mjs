@@ -90,7 +90,7 @@ export function serveReleaseNotes(request) {
     "X-Content-Type-Options":"nosniff",
     "Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
   };
-  const validators = (request.headers.get("If-None-Match") || "").split(",").map(value => value.trim());
+  const validators = (request.headers.get("If-None-Match") || "").split(",").map(value => value.trim().replace(/^W\//, ""));
   if (validators.includes(notesETag) || validators.includes("*"))
     return new Response(null, {status:304, headers});
   return new Response(request.method === "HEAD" ? null : notesHtml, {status:200, headers});

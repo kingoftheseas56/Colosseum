@@ -142,3 +142,10 @@ test("notes conditional requests, HEAD and writes preserve the scoped route", as
   for (const wrong of ["/releases/v1.1.9.html", "/releases/v1.1.90", "/releases/v1.1.8"])
     assert.equal((await route.default.fetch(request("GET", wrong))).status, 404);
 });
+
+
+test("notes accept a weak validator from Cloudflare content compression", async () => {
+  const get = await route.default.fetch(request("GET", "/releases/v1.1.9"));
+  const r = await route.default.fetch(request("GET", "/releases/v1.1.9", {"If-None-Match":"W/"+get.headers.get("ETag")}));
+  assert.equal(r.status,304);
+});
