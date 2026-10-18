@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import "../../qml/update" as Updates
 import "../../qml/vinyl" as Vinyl
+import "../../qml/WallpaperApi.js" as Wallpapers
 
 TestCase {
     id: testCase
@@ -55,5 +56,15 @@ TestCase {
         content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
         content.generation++
         tryCompare(view, "fallbackSource", blueImage)
+    }
+    function test_default_and_saved_owned_wallpaper_use_published_asset() {
+        compare(Wallpapers.imageSource(null, content), redImage)
+        compare(Wallpapers.imageSource({image_url:"../assets/wallpaper/cold-ripple.jpg"}, content), redImage)
+        compare(Wallpapers.imageSource({image_url:"native:noirflow"}, content), "native:noirflow")
+        compare(Wallpapers.imageSource({image_url:"https://example.test/chosen.jpg"}, content),
+                "https://example.test/chosen.jpg")
+        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+        content.generation++
+        compare(Wallpapers.imageSource(null, content), blueImage)
     }
 }

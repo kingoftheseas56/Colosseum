@@ -31,6 +31,7 @@ import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
+import "WallpaperApi.js" as Wallpapers
 
 Window {
     id: win
@@ -191,7 +192,10 @@ Window {
     readonly property var searchLayerRef: searchLayer
     readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
-    property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    readonly property string defaultWallpaperSource: typeof Content !== "undefined"
+        ? (Content.generation, Wallpapers.imageSource(null, Content)) : ""
+    property string wallpaperSource: win.defaultWallpaperSource
+    onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -603,7 +607,7 @@ Window {
     }
     function refreshWallpaper() {
         var pick = pickFor(currentSurface)
-        wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/cold-ripple.jpg"
+        wallpaperSource = Wallpapers.imageSource(pick, typeof Content !== "undefined" ? Content : null)
     }
     function setWallpaperPick(world, pick) {
         wallpaperSettings[wallpaperKey(world)] = typeof pick === "string" ? pick : JSON.stringify(pick || {})

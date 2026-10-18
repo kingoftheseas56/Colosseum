@@ -36,6 +36,34 @@ TestCase {
                 {tag: "Universes", medium: "Universes"},
                 {tag: "Feria", medium: "Feria"}]
     }
+    QtObject {
+        id: localAccount
+        property string mode: "localOnly"
+        property string username: ""
+        property bool accountFeaturesAvailable: true
+    }
+    function test_system_controls_have_space_with_local_account_data() {
+        return [{tag:"904", width:904}, {tag:"1040", width:1040},
+                {tag:"1172", width:1172}, {tag:"1500", width:1500}]
+    }
+    function test_system_controls_have_space_with_local_account(data) {
+        bar.width = data.width
+        bar.activeMedium = "Theatre"
+        bar.trackersEnabled = true
+        bar.accountController = localAccount
+        wait(30)
+        var picker = findChild(bar, "topBarWorldPicker")
+        var systems = findChild(bar, "topBarSystemChrome")
+        var left = findChild(bar, "topBarLeftChrome")
+        verify(systems.spacing >= (data.width < 1000 ? 12 : 20),
+               "System controls need breathing room at the active window size")
+        verify(picker.x >= left.x + left.width + 8, "Picker must clear the left controls")
+        verify(picker.x + picker.width + 8 <= systems.x, "Picker must clear the right controls")
+        verify(systems.x >= 0 && systems.x + systems.width <= bar.width + 1)
+        bar.accountController = null
+        bar.trackersEnabled = false
+        bar.width = 1040
+    }
     function test_compact_world_picker_does_not_overlap_search(data) {
         bar.width = 904 // 1024px window minus the production side margins
         bar.activeMedium = data.medium
