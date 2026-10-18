@@ -30,7 +30,14 @@ class ProfilePreferencesStore final : public QObject {
     Q_PROPERTY(bool keepActivityHistory READ keepActivityHistory WRITE setKeepActivityHistory NOTIFY keepActivityHistoryChanged)
     Q_PROPERTY(bool syncActivityHistory READ syncActivityHistory WRITE setSyncActivityHistory NOTIFY syncActivityHistoryChanged)
 
+    Q_PROPERTY(bool vinylTasteAnswered READ vinylTasteAnswered NOTIFY vinylTasteChanged)
+    Q_PROPERTY(QStringList vinylTasteArtistIds READ vinylTasteArtistIds NOTIFY vinylTasteChanged)
+    Q_PROPERTY(QString vinylPersistenceError READ vinylPersistenceError NOTIFY vinylPersistenceErrorChanged)
 public:
+    bool vinylTasteAnswered() const { return m_vinylTasteAnswered; }
+    QStringList vinylTasteArtistIds() const { return m_vinylTasteArtistIds; }
+    QString vinylPersistenceError() const { return m_vinylPersistenceError; }
+    Q_INVOKABLE bool setVinylTaste(bool answered, const QStringList &artistIds);
     explicit ProfilePreferencesStore(
         QObject *parent = nullptr);
 
@@ -92,6 +99,8 @@ public:
     bool clearSyncedMainSyncProvider();
 
 signals:
+    void vinylTasteChanged();
+    void vinylPersistenceErrorChanged();
     void showExplicitChanged();
     void rememberSearchHistoryChanged();
     void keepActivityHistoryChanged();
@@ -149,5 +158,8 @@ private:
     bool m_ratingsReviewsConversionMapsHealthy = true;
     QString m_ratingsReviewsConversionMapsError;
 
+    bool m_vinylTasteAnswered = false;
+    QStringList m_vinylTasteArtistIds;
+    QString m_vinylPersistenceError;
     int m_revision = 0;
 };

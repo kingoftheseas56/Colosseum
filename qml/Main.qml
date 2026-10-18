@@ -96,6 +96,78 @@ Window {
     readonly property bool feriaComingSoon: true
     property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
+    property var vinylWorld: null
+    property var pendingVinylResume: null
+    property bool audioHandoffBusy: false
+    property string audioOwner: ""
+    property bool vinylProfileActive: true
+    property int vinylShellGeneration: 0
+    // Arbitration lives at the shell; engines retain their own queues and resume state.
+    function claimAudio(owner) {
+        if (win.audioHandoffBusy) return
+        win.audioHandoffBusy = true
+        try {
+            win.audioOwner = owner
+            if (owner !== "vinyl" && win.vinylWorld)
+                win.vinylWorld.session.suspendPlayback("audio-handoff")
+            if (owner !== "audiobook") audioSession.suspendForAudioHandoff()
+            if (owner !== "theatre") {
+                win.pendingPlayerOpen = null
+                if (playerLayer.item) {
+                    if (playerLayer.item.suspendForAudioHandoff)
+                        playerLayer.item.suspendForAudioHandoff()
+                    else if (playerLayer.item.suspendForMinimize)
+                        playerLayer.item.suspendForMinimize()
+                }
+            }
+        } finally { win.audioHandoffBusy = false }
+    }
+    function requestTheatreAudio() {
+        win.claimAudio("theatre")
+        if (playerLayer.item && playerLayer.item.requestAudioPlayback)
+            playerLayer.item.requestAudioPlayback()
+    }
+    function registerVinylSession() {
+        if (!win.vinylEnabled || !win.vinylProfileActive) return
+        Sessions.openOrSwitch({ appType: "vinyl", contentKind: "music", title: "Vinyl",
+                                target: { id: "vinyl-session" } })
+    }
+    function leaveVinylProfile() {
+        win.vinylProfileActive = false
+        win.vinylShellGeneration++
+        win.pendingVinylResume = null
+        win.pendingPlayerOpen = null
+        win.audioOwner = ""
+        if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("profile-leaving")
+        audioSession.stop()
+        if (playerLayer.item) {
+            if (playerLayer.item.suspendForAudioHandoff) playerLayer.item.suspendForAudioHandoff()
+            playerLayer.item.stop()
+        }
+        win.warmPlayerSessionId = ""
+        win.playerOpen = false
+        var records = Sessions.list()
+        for (var i = 0; i < records.length; i++)
+            if (["music", "movie", "book"].indexOf(records[i].contentKind) >= 0)
+                win.closeSession(records[i].id)
+    }
+    readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    function openVinylResume(entry, play) {
+        if (!vinylEnabled || !vinylProfileActive) return
+        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration }
+        openWorld("Vinyl")
+        applyVinylResume()
+    }
+    function applyVinylResume() {
+        if (!vinylWorld || !pendingVinylResume) return
+        var pending = pendingVinylResume
+        pendingVinylResume = null
+        if (!vinylProfileActive || pending.generation !== vinylShellGeneration) return
+        vinylWorld.session.snapshot()
+        vinylWorld.session.restore(pending.entry)
+        vinylWorld.page = pending.play ? "song" : "album"
+        if (pending.play) vinylWorld.session.paused = false
+    }
     property var feriaReturnSnapshot: null
     // Feria is desktop-only (its deck rides QtWebEngine, which Android does not ship).
     // Every Feria surface below is a string-source Loader gated on this flag, so nothing
@@ -522,6 +594,7 @@ Window {
     function wallpaperWorldForSession(rec) {
         var appType = rec && rec.appType ? ("" + rec.appType).toLowerCase() : ""
         var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
+        if (contentKind === "music") return "Vinyl"
         if (contentKind === "browser") return "Feria"
         if (appType === "theatre" || contentKind === "movie") return "Theatre"
         if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
@@ -926,6 +999,8 @@ Window {
             universeLayer.item.requestEscape()
     }
     function cancelPendingIdentityCeremony() {
+        if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport && win.vinylWorld)
+            win.vinylWorld.session.cancelImportIdentity(true)
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
@@ -985,7 +1060,11 @@ Window {
         case "biblioGenreIndex": win.closeBiblioGenreIndex(); return
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
-        case "world": win.closeWorld(); return
+        case "world":
+            if (worldStack.current === "Vinyl" && win.vinylWorld
+                    && win.vinylWorld.goBack && win.vinylWorld.goBack()) return
+            win.closeWorld()
+            return
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
@@ -1152,6 +1231,7 @@ Window {
         { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
     ]
     function worldSourceFor(medium) {
+        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylLiveWorld.qml"
         for (var i = 0; i < win.worldDefinitions.length; ++i)
             if (win.worldDefinitions[i].name === medium)
                 return win.worldDefinitions[i].source
@@ -1191,7 +1271,7 @@ Window {
     function openWorld(medium) { win.cancelCatalogueRoute();
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
-        if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || requestedWorld === "vinyl") return
+        if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
         if (medium === "Feria") { win.openFeriaPage(); return }
         if (win.parkFeria) win.parkFeria(true)
         var found = false
@@ -1842,9 +1922,11 @@ Window {
             return
         }
         if (p.kind === "direct") {
-            if (win.playerOpen)
+            if (win.playerOpen) {
+                win.requestTheatreAudio()
                 playerLayer.item.playTorrent(p.infoHash, p.fileIdx, p.title, p.backdrop, p.subType, p.subId,
                                              p.candidates || [], p.context || ({}))
+            }
             return
         }
         if (p.kind === "watchParty" && win.playerOpen)
@@ -2040,6 +2122,7 @@ Window {
     Connections {
         target: win
         function onPlayerOpenChanged() {
+            if (win.playerOpen) win.claimAudio("theatre")
             if (win.playerOpen || !win.pendingResolves.length)
                 return
             var p = win.pendingResolves.shift()
@@ -2449,6 +2532,7 @@ Window {
                                       streamCandidates || [], playbackContext || ({}))
             return
         }
+        win.requestTheatreAudio()
         playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId,
                                      streamCandidates || [], playbackContext || ({}))
     }
@@ -2475,6 +2559,7 @@ Window {
             return true
         }
         var candidate = { "infoHash": hash, "fileIdx": fileIdx }
+        win.requestTheatreAudio()
         playerLayer.item.playTorrent(hash, fileIdx, "Watch Party", "", "", "",
                                     [candidate], { "watchPartyJoin": true })
         return true
@@ -2872,6 +2957,7 @@ Window {
     //  resume (center play/read icon):
     function resumeContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, true); return }
         var r = entry.resume || ({})
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
@@ -2924,6 +3010,7 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, false); return }
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
         var title = entry.title || entry.caption || presentation.title || ""
@@ -3104,6 +3191,12 @@ Window {
     }
     function decidePendingIdentity(choice) {
         var pending = win.pendingIdentityRoute
+        if (pending && pending.vinylImport) {
+            win.pendingIdentityRoute = null
+            identityCeremonyDialog.close()
+            if (win.vinylWorld) win.vinylWorld.session.decideImportIdentity(pending.relationship || "", choice)
+            return
+        }
         if (!pending || typeof LocalLaunch === "undefined") return
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
@@ -3256,11 +3349,13 @@ Window {
     function activateMovieSession(rec) {
         if (!rec || !rec.id || !playerLayer.item)
             return
+        win.claimAudio("theatre")
         var t = rec.target || ({})
         var st = rec.savedState || ({})
         if (win.warmPlayerSessionId === rec.id) {
             playerLayer.item.resumeFromMinimize()
         } else {
+            win.requestTheatreAudio()
             if (t.localPath && String(t.localPath).length)
                 playerLayer.item.playLocalFile(t)
             else if (t.streamUrl && String(t.streamUrl).length) {
@@ -3290,6 +3385,12 @@ Window {
 
     function activateSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "music") {
+            if (!win.vinylEnabled || !win.vinylProfileActive) return
+            win.openWorld("Vinyl")
+            // The kept-alive Vinyl owner alone restores queue/position; taskbar is presentation.
+            return
+        }
         if (rec.contentKind === "browser") {
             if (!win.ensureFeriaRuntime()) return
             if (!win.activeBrowserSessionId.length) win.browserReturnToFeria = feriaLayer.open
@@ -3377,10 +3478,15 @@ Window {
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
                 bookReaderLayer.item.openBook(t.path)
-                if (bookReaderLayer.bookMeta.openAudio)
+                if (bookReaderLayer.bookMeta.openAudio) {
+                    var audioPanelGeneration = win.vinylShellGeneration
+                    var audioPanelSessionId = rec.id
                     Qt.callLater(function() {
-                        if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
+                        if (win.vinylProfileActive && win.vinylShellGeneration === audioPanelGeneration
+                                && Sessions.activeId === audioPanelSessionId && bookReaderLayer.item)
+                            bookReaderLayer.item.openAudioPanel()
                     })
+                }
             } else bookReaderLayer.active = true
             // book precision: the reader restores its own saved position on reopen (resume seam).
         }
@@ -3390,6 +3496,7 @@ Window {
     // capture the live outgoing surface's state (called BEFORE teardown).
     function captureSession(rec) {
         if (!rec || !rec.id) return ({})
+        if (rec.contentKind === "music") return { page: win.vinylWorld ? win.vinylWorld.page : "library" }
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
         if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — capture from whichever is live
@@ -3403,6 +3510,10 @@ Window {
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
     function teardownSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "music") {
+            if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("session-parked")
+            return
+        }
         if (rec.contentKind === "browser") {
             // activeId's property signal already selects the incoming entry.
             // Tear down presentation on the outgoing record, never its sibling.
@@ -4127,10 +4238,13 @@ Window {
                 Component.onCompleted: {
                     // showExplicitContent too: otherwise Tankoban Discover's first page is
                     // fetched with the WorldPage default and refetched when onLoaded binds it.
-                    setSource(win.worldSourceFor(mode), {
-                        "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen,
-                        "showExplicitContent": contentPreferences.showExplicit
-                    })
+                    var initialProperties = {
+                        "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen
+                    }
+                    // Vinyl's local catalogue does not expose the WorldPage filter.
+                    if (mode !== "Vinyl")
+                        initialProperties.showExplicitContent = contentPreferences.showExplicit
+                    setSource(win.worldSourceFor(mode), initialProperties)
                     active = true
                 }
                 onLoaded: {
@@ -4143,6 +4257,28 @@ Window {
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
+                    if (mode === "Vinyl") {
+                        item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                            accountFlyout.toggleAt(anchorRight, anchorBottom)
+                        })
+                        win.vinylWorld = item
+                        item.shellDockRight = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0
+                        })
+                        item.shellDockBottomExtent = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.bottomGap + taskbar.closedSize : 0
+                        })
+                        item.minimizeClicked.connect(win.minimizeShell)
+                        item.fullscreenClicked.connect(win.toggleFullscreenShell)
+                        item.powerClicked.connect(function() { win.requestApplicationQuit() })
+                        item.playbackRequested.connect(function() {
+                            if (!win.vinylProfileActive) return
+                            win.claimAudio("vinyl")
+                            win.registerVinylSession()
+                        })
+                        win.applyVinylResume()
+                        return
+                    }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
@@ -4709,6 +4845,8 @@ Window {
             console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
                         + "  (booted=" + Player2Available + ")")
             item.backdrop = wall
+            if (item.playbackRequested)
+                item.playbackRequested.connect(function() { win.claimAudio("theatre") })
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -4755,7 +4893,29 @@ Window {
     // Loader) so playback survives the reader opening/closing. The READER is the only
     // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
     // and Audio tab both drive this session. ----
-    AudiobookSession { id: audioSession }
+    AudiobookSession {
+        id: audioSession
+        objectName: "vinylHandoffAudiobook"
+        onPlaybackRequested: win.claimAudio("audiobook")
+    }
+
+    Connections {
+        target: win.vinylWorld ? win.vinylWorld.session : null
+        function onIdentityDecisionRequested(ceremony) {
+            if (!win.vinylProfileActive) return
+            win.pendingIdentityRoute = Object.assign({}, ceremony, {vinylImport:true})
+            identityCeremonyDialog.ceremony = ceremony
+            identityCeremonyDialog.open()
+        }
+    }
+    Connections {
+        target: typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null
+        function onProfileLeaving() {
+            if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport) win.cancelPendingIdentityCeremony()
+            win.leaveVinylProfile()
+        }
+        function onProfileEntered() { win.vinylProfileActive = true }
+    }
 
     Loader {
         id: bookReaderLayer

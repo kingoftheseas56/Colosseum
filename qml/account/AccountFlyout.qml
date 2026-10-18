@@ -15,6 +15,7 @@ Item {
     property Item focusReturnItem: null
     readonly property bool accountPresent: controller
         && (controller.mode === "signedIn" || controller.mode === "offline")
+    readonly property bool localDevice: controller && controller.mode === "localOnly"
     readonly property bool onlineAccount: controller
         && controller.mode === "signedIn"
 
@@ -61,7 +62,7 @@ Item {
         Qt.callLater(function() {
             if (!root.visible)
                 return
-            if (root.accountPresent && navRepeater.count > 0) {
+            if (navColumn.visible && navRepeater.count > 0) {
                 const first = navRepeater.itemAt(0)
                 if (first && first.visible && first.enabled) {
                     first.forceActiveFocus()
@@ -125,7 +126,7 @@ Item {
                 retrySyncAction.forceActiveFocus()
                 return true
             }
-            if (key === Qt.Key_Up && root.accountPresent && navRepeater.count > 0) {
+            if (key === Qt.Key_Up && navColumn.visible && navRepeater.count > 0) {
                 const last = navRepeater.itemAt(navRepeater.count - 1)
                 if (last) {
                     last.forceActiveFocus()
@@ -140,7 +141,7 @@ Item {
                 sessionAction.forceActiveFocus()
                 return true
             }
-            if (key === Qt.Key_Up && root.accountPresent && navRepeater.count > 0) {
+            if (key === Qt.Key_Up && navColumn.visible && navRepeater.count > 0) {
                 const last = navRepeater.itemAt(navRepeater.count - 1)
                 if (last) {
                     last.forceActiveFocus()
@@ -305,15 +306,18 @@ Item {
                 id: navColumn
                 width: parent.width
                 spacing: 2
-                visible: root.accountPresent
+                visible: root.accountPresent || root.localDevice
                 Repeater {
                     id: navRepeater
-                    model: [
+                    model: root.accountPresent ? [
                         { label: qsTr("Account ›"), section: "profile" },
                         { label: qsTr("Devices ›"), section: "devices" }
-                    ]
+                    ] : root.localDevice ? [
+                        { label: qsTr("Data & privacy"), section: "privacy" }
+                    ] : []
                     Item {
                         id: navItem
+                        objectName: "accountFlyoutNav_" + modelData.section
                         width: parent ? parent.width : 0
                         height: 32
                         activeFocusOnTab: root.visible && navColumn.visible
@@ -379,7 +383,7 @@ Item {
                 height: 34
                 focusPolicy: Qt.StrongFocus
                 Keys.onUpPressed: {
-                    if (root.accountPresent && navRepeater.count > 0) {
+                    if (navColumn.visible && navRepeater.count > 0) {
                         const last = navRepeater.itemAt(navRepeater.count - 1)
                         if (last)
                             last.forceActiveFocus()
@@ -420,7 +424,7 @@ Item {
                 Keys.onUpPressed: {
                     if (retrySyncAction.visible) {
                         retrySyncAction.forceActiveFocus()
-                    } else if (root.accountPresent && navRepeater.count > 0) {
+                    } else if (navColumn.visible && navRepeater.count > 0) {
                         const last = navRepeater.itemAt(navRepeater.count - 1)
                         if (last)
                             last.forceActiveFocus()

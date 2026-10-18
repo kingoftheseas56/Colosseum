@@ -56,6 +56,9 @@ class VaultForensics;
 class LanistaServer : public QObject
 {
     Q_OBJECT
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    std::function<QJsonObject(const QJsonObject&)> m_vinylTestProfileHandler;
+#endif
 public:
     explicit LanistaServer(QQmlApplicationEngine* engine, QObject* parent = nullptr);
     // Out-of-line (defined in the .cpp) ONLY so the unique_ptr<LanistaEventLog>
@@ -89,6 +92,12 @@ public:
     // answers VAULT_FORENSICS_UNAVAILABLE rather than dereferencing null.
     void setVaultForensics(VaultForensics* forensics) { m_vaultForensics = forensics; }
 #endif
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    void setVinylTestProfileHandler(std::function<QJsonObject(const QJsonObject&)> handler) {
+        m_vinylTestProfileHandler = std::move(handler);
+    }
+#endif
+
 
     static constexpr const char* kSchema = "colosseum.dev.v1.0";
 

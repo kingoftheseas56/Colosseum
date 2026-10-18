@@ -1,0 +1,493 @@
+{
+  "name": "vinyl-discover-journey",
+  "comment": "NOT RUN by Dots. Windows receiving replay required. Run lanista session run this.json --qml qml/vinyl/VinylPagesPrototype.qml --tag vinylworld --drive. Fixture-only; no service/network/media qualification. No bridge size claims.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Tagged fixture app answers",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "Record tagged data/cache roots and actual window"
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "First frame ready",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Freeze the simulated clock",
+      "payload": {
+        "target": "vinylDevFreeze"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Clock frozen",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "frozen",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open world in the backward-compatible prototype host",
+      "payload": {
+        "target": "vinylDevPageWorld"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World visible",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "page",
+        "value": "world",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open Discover",
+      "payload": {
+        "target": "vinylTab_discover"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Discover selected",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "currentTab",
+        "value": "discover",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Page parked at the tab bar, no scroll needed to reach the lens",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Record lens position",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "props": [
+          "contentY"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open language menu",
+      "payload": {
+        "target": "vinylFilter_language"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Menu values built",
+      "payload": {
+        "object": "vinylFilterValue_language_Telugu",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Scroll the menu inside itself to its last values",
+      "payload": {
+        "target": "vinylFilterMenuScroll",
+        "dy": -500
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Menu scroll settled before the next click",
+      "payload": {
+        "object": "vinylFilterMenuScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Choose Telugu",
+      "payload": {
+        "target": "vinylFilterValue_language_Telugu"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Every shelf follows Telugu lens",
+      "payload": {
+        "object": "vinylLens",
+        "prop": "title",
+        "value": "Telugu",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open complete Popular list",
+      "payload": {
+        "target": "vinylShelfSeeAll_popular"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Full Popular list",
+      "payload": {
+        "object": "vinylListPage",
+        "prop": "title",
+        "value": "Popular",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Return to Discover",
+      "payload": {
+        "target": "vinylListBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Shelf route restored",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "listKey",
+        "value": "",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open first lensed album",
+      "payload": {
+        "target": "vinylCard_popular_0"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Album page visible",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "page",
+        "value": "album",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Exact selected album loaded",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "shownAlbumId",
+        "value": "MPREb_gdubPaMNURy",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Play second fixture track",
+      "payload": {
+        "target": "vinylTrackRow_1"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Second track playing",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "playingIndex",
+        "value": 1,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Inspect actual track identity",
+      "payload": {
+        "object": "vinylPageData",
+        "props": [
+          "playingEditionId",
+          "playingTrack"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Back to Discover",
+      "payload": {
+        "target": "vinylAlbumBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World restored",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "page",
+        "value": "world",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Discover remains selected",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "currentTab",
+        "value": "discover",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Record restored scroll",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "props": [
+          "contentY"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,454 @@
+{
+  "name": "vinyl-home-journey",
+  "comment": "NOT RUN by Dots. Windows receiving replay required. Run lanista session run this.json --qml qml/vinyl/VinylPagesPrototype.qml --tag vinylworld --drive. Fixture-only; no service/network/media qualification. No bridge size claims.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Tagged fixture app answers",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "Record tagged data/cache roots and actual window"
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "First frame ready",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Freeze the simulated clock",
+      "payload": {
+        "target": "vinylDevFreeze"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Clock frozen",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "frozen",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open world in the backward-compatible prototype host",
+      "payload": {
+        "target": "vinylDevPageWorld"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World visible",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "page",
+        "value": "world",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select new fixture profile",
+      "payload": {
+        "target": "vinylDevProfileNew"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Reset picker for deterministic first visit",
+      "payload": {
+        "target": "vinylDevResetPicker"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home picker visible",
+      "payload": {
+        "object": "vinylTastePicker",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Move world viewport using its own scroll owner",
+      "payload": {
+        "target": "vinylPickerQuestion",
+        "dy": -450
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World scroll settled before the next click",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Skip optional setup",
+      "payload": {
+        "target": "vinylPickerSkip"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Skip persisted for this running profile",
+      "payload": {
+        "object": "vinylWorldData",
+        "prop": "pickerAnswered",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Honest cold shelf visible",
+      "payload": {
+        "object": "vinylHomeColdShelf_popular",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Reopen picker",
+      "payload": {
+        "target": "vinylDevResetPicker"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Picker reset",
+      "payload": {
+        "object": "vinylTastePicker",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Offered artists back at the top of the picker",
+      "payload": {
+        "object": "vinylPickerArtist_0",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Pick first artist",
+      "payload": {
+        "target": "vinylPickerArtist_0"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Pick second artist",
+      "payload": {
+        "target": "vinylPickerArtist_1"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Finish two-pick setup",
+      "payload": {
+        "target": "vinylPickerDone"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Done persisted",
+      "payload": {
+        "object": "vinylWorldData",
+        "prop": "pickerAnswered",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Earned fixture recommendation row",
+      "payload": {
+        "object": "vinylHomeRow_recommend-songs",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select seasoned fixture history",
+      "payload": {
+        "target": "vinylDevProfileSeasoned"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Seasoned profile active",
+      "payload": {
+        "object": "vinylWorldData",
+        "prop": "profile",
+        "value": "seasoned",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Record a recommendation reason against supplied history",
+      "payload": {
+        "object": "vinylCard_recommend-songs_0",
+        "props": [
+          "reason"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Move world viewport using its own scroll owner",
+      "payload": {
+        "target": "vinylWorldScroll",
+        "dy": 1000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "World scroll settled before the next click",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Resume through the shared carousel",
+      "payload": {
+        "target": "featuredPrimaryAction_0"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Song page opened without a second transport",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "page",
+        "value": "song",
+        "timeout_ms": 15000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    }
+  ]
+}

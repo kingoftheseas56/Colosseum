@@ -1,0 +1,101 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const main=fs.readFileSync(new URL('../qml/Main.qml',import.meta.url),'utf8');
+const player=fs.readFileSync(new URL('../qml/PlayerPage.qml',import.meta.url),'utf8');
+function load(source,name,context){
+ const match=source.match(new RegExp('    function '+name+'\\(([^)]*)\\) \\{([\\s\\S]*?)\\n    \\}'));
+ assert.ok(match,`${name} production function exists`);
+ return vm.runInNewContext('(function('+match[1]+'){'+match[2]+'\n})',context);
+}
+let pauses=0,videoPauses=0;
+const session={queue:[1,2],position:42,suspendPlayback(){pauses++;this.paused=true;}};
+const audio={paused:false,suspendForAudioHandoff(){this.paused=true;}};
+const video={suspendForAudioHandoff(){videoPauses++;}};
+const win={vinylWorld:{session},pendingPlayerOpen:{kind:'direct'},audioHandoffBusy:false,audioOwner:''};
+const context={win,audioSession:audio,playerLayer:{item:video}};
+win.claimAudio=load(main,'claimAudio',context);
+win.claimAudio('vinyl');
+assert.equal(audio.paused,true);assert.equal(videoPauses,1);assert.equal(pauses,0);
+assert.equal(win.pendingPlayerOpen,null);
+audio.paused=false;win.claimAudio('audiobook');assert.equal(pauses,1);assert.equal(videoPauses,2);
+win.claimAudio('theatre');assert.equal(audio.paused,true);assert.equal(pauses,2);
+assert.deepEqual(session.queue,[1,2]);assert.equal(session.position,42);
+win.vinylWorld=null;context.playerLayer.item=null;win.claimAudio('vinyl');
+const mpv={pause:false};
+let requested=0;
+const root={adjacentResolveGen:7,fileReady:false,autoPausedInactive:true,audioHandoffPaused:false,closeMenus(){},cancelUpNext(){},playbackRequested(){requested++;}};
+root.suspendForAudioHandoff=load(player,'suspendForAudioHandoff',{root,mpv});
+root.requestAudioPlayback=load(player,'requestAudioPlayback',{root});
+root.suspendForAudioHandoff();assert.equal(mpv.pause,true);assert.equal(root.audioHandoffPaused,true);assert.equal(root.autoPausedInactive,false);
+assert.equal(requested,0,'suspension never requests playback');assert.equal(root.adjacentResolveGen,8,'late episode resolver invalidated');
+root.requestAudioPlayback();assert.equal(root.audioHandoffPaused,false);assert.equal(requested,1);
+assert.match(player,/else if \(mpv.pause && !root.audioHandoffPaused\)/,'late fileLoaded cannot autoplay over handoff');
+assert.match(player,/if \(!paused && root.audioHandoffPaused\) return/,'late room unpause is fenced');
+console.log('PASS shell three-owner handoff, pending cancellation, preserved queue, unavailable owners, pending decoder fence, explicit resume');
+// Actual route dispatcher retains the owner and never restores a queue or autoplays.
+let opened='';win.vinylEnabled=true;win.vinylProfileActive=true;win.openWorld=w=>opened=w;
+win.vinylWorld={session,page:'song'};
+win.activateSession=load(main,'activateSession',{win});
+win.activateSession({id:'music',contentKind:'music',savedState:{queue:['stale'],position:99}});
+assert.equal(opened,'Vinyl');assert.deepEqual(session.queue,[1,2]);assert.equal(session.position,42);
+win.captureSession=load(main,'captureSession',{win});
+assert.deepEqual(JSON.parse(JSON.stringify(win.captureSession({id:'music',contentKind:'music'}))),{page:'song'});
+let records=[{id:'m',contentKind:'music'},{id:'v',contentKind:'movie'},{id:'b',contentKind:'book'},
+             {id:'c',contentKind:'comic'},{id:'web',contentKind:'browser'}];
+let stopped=0;context.audioSession.stop=()=>stopped++;
+context.playerLayer.item={stop(){stopped++;},suspendForAudioHandoff(){videoPauses++;}};
+context.Sessions={list:()=>records.slice(),get:id=>records.find(r=>r.id===id)||{},activeId:'b',close:id=>{records=records.filter(r=>r.id!==id);}};
+let tornDown='';win.teardownSession=rec=>tornDown=rec.id;
+win.closeSession=load(main,'closeSession',context);
+win.pendingVinylResume={entry:{queue:['old']}};win.pendingPlayerOpen={kind:'direct'};win.vinylShellGeneration=4;
+win.leaveVinylProfile=load(main,'leaveVinylProfile',context);
+win.leaveVinylProfile();assert.equal(win.vinylProfileActive,false);assert.equal(win.vinylShellGeneration,5);
+assert.equal(win.pendingVinylResume,null);assert.equal(win.pendingPlayerOpen,null);assert.equal(stopped,2);
+assert.equal(tornDown,'b','active book loader is torn down before record deletion');
+assert.deepEqual(records.map(r=>r.id),['c','web']);assert.deepEqual(session.queue,[1,2]);
+opened='';win.activateSession({id:'stale',contentKind:'music'});assert.equal(opened,'');
+const departureHandler=main.match(/function onProfileLeaving\(\) \{([\s\S]*?)\n        \}/);
+assert.ok(departureHandler, 'shared source profile-departure handler exists');
+assert.match(departureHandler[1], /win\.leaveVinylProfile\(\)/, 'profile departure still reaches the shell owner');
+const departureCalls=[];
+const departureWin={pendingIdentityRoute:{vinylImport:true},
+ cancelPendingIdentityCeremony(){departureCalls.push('cancel-identity');},
+ leaveVinylProfile(){departureCalls.push('leave-profile');}};
+const depart=vm.runInNewContext('(function(){'+departureHandler[1]+'\n})',{win:departureWin});
+depart();assert.deepEqual(departureCalls,['cancel-identity','leave-profile'], 'pending Vinyl ceremony cancels before profile departure');
+for (const pending of [null,{vinylImport:false}]) {
+ departureCalls.length=0;departureWin.pendingIdentityRoute=pending;depart();
+ assert.deepEqual(departureCalls,['leave-profile'], 'ordinary departure preserves unrelated identity routes');
+}
+assert.doesNotMatch(main,/function onCheckpointRequested\(\) \{ win.leaveVinylProfile/);
+assert.match(player,/var startupOwnedByUi = root.audioHandoffPaused/);
+assert.match(player,/if \(root.audioHandoffPaused && !mpv.pause\) \{ mpv.pause = true; return \}/);
+console.log('PASS music taskbar route-only restoration and committed-profile departure fences');
+// Execute the production fileLoaded autoplay decision with a late pending load.
+const startup=player.match(/            var startupOwnedByUi = root.audioHandoffPaused([\s\S]*?)            \/\/ Feature 6: language-ranked/);
+assert.ok(startup);
+const loadedRoot={audioHandoffPaused:true,wakeReconnectPendingSeek:-1,pendingSeekSec:-1,starting:true};
+const loadedMpv={pause:true};let watchdogStops=0;
+const decide=vm.runInNewContext('(function(){var startupOwnedByUi = root.audioHandoffPaused'+startup[1]+'\n})',
+ {root:loadedRoot,mpv:loadedMpv,streamWatchdog:{stop(){watchdogStops++;}}});
+decide();assert.equal(loadedMpv.pause,true);assert.equal(loadedRoot.starting,false);assert.equal(watchdogStops,1);
+loadedRoot.audioHandoffPaused=false;decide();assert.equal(loadedMpv.pause,false,'ordinary explicit fresh play still autoplays');
+const pauseBody=player.match(/        onPauseChanged: \{([\s\S]*?)\n        \}/);
+loadedRoot.audioHandoffPaused=true;loadedMpv.pause=false;
+vm.runInNewContext('(function(){'+pauseBody[1]+'\n})',{root:loadedRoot,mpv:loadedMpv})();
+assert.equal(loadedMpv.pause,true,'unsolicited native unpause cannot clear handoff');
+console.log('PASS actual Theatre fileLoaded and native-unpause fence bodies');
+
+// The Vinyl early-return branch must relay the same anchored flyout as other worlds.
+const vinylBranch=main.slice(main.indexOf('if (mode === "Vinyl") {'),main.indexOf('item.seriesRequested.connect(win.openSeries)'));
+const accountWire=vinylBranch.match(/item\.accountClicked\.connect\(function\(anchorRight, anchorBottom\) \{([\s\S]*?)\}\)/);
+assert.ok(accountWire, 'Vinyl account button reaches the shell flyout');
+assert.equal((vinylBranch.match(/item\.accountClicked\.connect/g)||[]).length,1);
+const anchors=[];
+vm.runInNewContext('(function(anchorRight,anchorBottom){'+accountWire[1]+'})',
+ {accountFlyout:{toggleAt:(x,y)=>anchors.push([x,y])}})(432,76);
+assert.deepEqual(anchors,[[432,76]]);
+assert.match(main,/onAccountClicked: \(anchorRight, anchorBottom\) => accountFlyout.toggleAt\(anchorRight, anchorBottom\)/);
+assert.match(main,/if \(item.accountClicked\) item.accountClicked.connect/);
+console.log('PASS single Vinyl account relay preserves coordinates and existing Home/generic routes');

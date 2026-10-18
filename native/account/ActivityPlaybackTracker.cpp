@@ -85,7 +85,21 @@ ActivityStore *ActivityPlaybackTracker::sink() const {
 void ActivityPlaybackTracker::setSink(ActivityStore *sink) {
     if (m_sink == sink)
         return;
+    if (m_sink)
+        disconnect(m_sink, nullptr, this, nullptr);
+    discardSession();
     m_sink = sink;
+    if (m_sink) {
+        connect(m_sink, &QObject::destroyed, this, [this] {
+            discardSession();
+            emit sinkChanged();
+        });
+        connect(m_sink, &ActivityStore::retentionEnabledChanged, this, [this](bool) {
+            discardSession();
+        });
+        connect(m_sink, &ActivityStore::resetCommitted, this, [this] { discardSession(); });
+        connect(m_sink, &ActivityStore::resetApplied, this, [this] { discardSession(); });
+    }
     emit sinkChanged();
 }
 
@@ -96,6 +110,7 @@ quint64 ActivityPlaybackTracker::lifecycleScopeGeneration() const {
 void ActivityPlaybackTracker::setLifecycleScopeGeneration(quint64 generation) {
     if (m_lifecycleScopeGeneration == generation)
         return;
+    discardSession();
     m_lifecycleScopeGeneration = generation;
     emit lifecycleScopeGenerationChanged();
 }
@@ -319,7 +334,7 @@ void ActivityPlaybackTracker::submitChunk(const QVariantMap &fact, qint64 qualif
 
 bool ActivityPlaybackTracker::emitCompletion(const QString &reason, qint64 atMs,
                                                int utcOffsetMinutes) {
-    if (!m_sink)
+    if (!m_sink || !m_sink->retentionEnabled())
         return false;
 
     QVariantMap fact = m_identity;
@@ -412,11 +427,14 @@ void ActivityPlaybackTracker::endSessionInternal(bool emitTrackerClose) {
     closeOpenInterval();
     if (emitTrackerClose && m_lifecycleStarted)
         emitPlaybackLifecycle(QStringLiteral("close"), m_localCompletionPersisted);
-    if (!m_gateCrossed) {
-        // §8: "session ends below 10 seconds -> discard buffered activity."
-        m_pendingBuffer.clear();
-        m_gateAccumulatedMs = 0;
-    }
+    discardSession();
+}
+
+void ActivityPlaybackTracker::discardSession() {
+    // Privacy/profile fences must never flush old identity or activation buffers.
+    m_identity.clear();
+    m_kind.clear();
+    m_sessionId.clear();
     m_active = false;
     m_haveBaseline = false;
     m_playingKnown = false;

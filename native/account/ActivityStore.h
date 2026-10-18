@@ -77,7 +77,7 @@ public:
     Q_INVOKABLE bool recordReadingDelta(const QVariantMap &fact);
     Q_INVOKABLE bool recordCompletion(const QVariantMap &fact);
 
-    void setRetentionEnabled(bool enabled) { m_retentionEnabled = enabled; }
+    void setRetentionEnabled(bool enabled);
     bool retentionEnabled() const { return m_retentionEnabled; }
 
     // Durable privacy barrier. A reset generation is exported as a control
@@ -146,6 +146,7 @@ public:
     static QString fileDigestSha256(const QString &path);
 
 signals:
+    void retentionEnabledChanged(bool enabled);
     void changed();
     void integrityError(const QString &code, const QString &detail);
     void factCommitted(const QVariantMap &event);

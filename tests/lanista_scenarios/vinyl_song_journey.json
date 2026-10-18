@@ -1,0 +1,444 @@
+{
+  "name": "vinyl-song-journey",
+  "comment": "NOT RUN here. Receiving Windows replay: lanista session run this.json --qml qml/vinyl/VinylPagesPrototype.qml --tag vinylproto --drive. Fixture state only; no real media/network. Hemanth visual review pending.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Tagged fixture app answers",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "Record tagged data/cache roots and window identity"
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "First frame presented",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Freeze fixture clock",
+      "payload": {
+        "target": "vinylDevFreeze"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture clock frozen",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "frozen",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Compact preview geometry",
+      "payload": {
+        "target": "vinylDevSize720"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Load song fixture",
+      "payload": {
+        "target": "vinylDevFixtureWithoutMe"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Song fixture active",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "fixtureId",
+        "value": "without-me",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open current song",
+      "payload": {
+        "target": "vinylBarNowPlaying"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Song route active",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "page",
+        "value": "song",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Show lyric stand-ins",
+      "payload": {
+        "target": "vinylBarLyrics"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Lyrics beside unchanged poster",
+      "payload": {
+        "object": "vinylSongPage",
+        "prop": "lyricsShown",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Seek with delayed single click",
+      "payload": {
+        "target": "vinylLyricLine_3"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Lyric seek completed",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "currentLineIndex",
+        "value": 3,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Enable auto annotations",
+      "payload": {
+        "target": "vinylBarNotes"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Auto notes enabled",
+      "payload": {
+        "object": "vinylSongPage",
+        "prop": "autoNotes",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Show simulated video still",
+      "payload": {
+        "target": "vinylBarVideo"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Video frame visible",
+      "payload": {
+        "object": "vinylSongPage",
+        "prop": "videoShown",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Video switch preserves position",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "position",
+        "value": 36,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Return to poster",
+      "payload": {
+        "target": "vinylBarVideo"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Poster restored",
+      "payload": {
+        "object": "vinylSongPage",
+        "prop": "videoShown",
+        "value": false,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Simulate source wait",
+      "payload": {
+        "target": "vinylDevSourceFinding"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Finding state visible",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "sourceState",
+        "value": "finding",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Restore fixture playing state",
+      "payload": {
+        "target": "vinylDevSourcePlaying"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Playing state restored",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "sourceState",
+        "value": "playing",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Switch to Sagara fixture",
+      "payload": {
+        "target": "vinylDevFixtureMounamela"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Tall cover and shaded tools",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "fixtureId",
+        "value": "mounamela",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Observe vinylPlayerBar",
+      "payload": {
+        "object": "vinylPlayerBar",
+        "props": [
+          "toolCount"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    }
+  ]
+}

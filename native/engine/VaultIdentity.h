@@ -47,6 +47,9 @@ public:
         qint64 size = 0;
         qint64 mtimeMs = 0;
     };
+    // Same observations and ambiguity policy as observeFile, with one persistence
+    // notification for the bounded batch. Does not approve identity ceremonies.
+    QList<QVariantMap> observeFiles(const QList<FileFacts>& files);
     struct ReconcileResult {
         // each: [oldId, newComputedId, oldPath, newPath]
         QList<QStringList> migrated;
@@ -64,6 +67,8 @@ public:
     Q_INVOKABLE QVariantMap observeFile(const QString& path, qint64 size, qint64 mtimeMs);
     Q_INVOKABLE QVariantList pendingCeremonies() const;
     Q_INVOKABLE bool decideCeremony(const QString& relationship, const QString& choice);
+    // File-backed import decisions additionally fence changed bytes since the prompt.
+    Q_INVOKABLE bool decideFileCeremony(const QString& relationship, const QString& choice);
 
     // Path aliases recorded by migrations (the Reader 2 bridge hook).
     Q_INVOKABLE QVariantList pathAliases() const; // [{oldPath, newPath}]
@@ -92,5 +97,9 @@ private:
     QList<QStringList> m_pathAliases; // [oldPath, newPath]
     QHash<QString, QString> m_decisions; // relationship -> same-media/new-media/use-existing-state/separate-copy
     QHash<QString, QStringList> m_pending; // relationship -> [type, relationship, oldId, newId, oldPath, newPath]
+    // Legacy/malformed snapshots may have registered unapproved candidates.
+    bool m_recoverUnresolvedCandidates = false;
+    bool m_deferPersist = false;
+    bool m_persistPending = false;
     QString m_dir;
 };
