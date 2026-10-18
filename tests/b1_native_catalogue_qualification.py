@@ -130,6 +130,17 @@ def vanished_item(exc):
     return 'NO_SUCH_ITEM' in str(exc)
 
 
+def wait_for_value(read, seconds, interval=0.1):
+    deadline = time.monotonic() + seconds
+    while True:
+        value = read()
+        if value is not None:
+            return value
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(interval)
+
+
 def deep_cover_assessment(cases, probe_rows):
     decoded = {r.get('url') for r in probe_rows if r.get('decodedMs', -1) >= 0}
     checks, missing = [], []
@@ -478,13 +489,25 @@ class Driver:
             matching = [e for e in current_events if e.get('component') == 'remote' and e.get('dataset') == ds and e.get('queryKey') == qkey and e.get('event') == 'result_delivery_end']
             successful = any(e.get('status') == 'success' for e in matching)
             correlations.append({'dataset': ds, 'queryKey': qkey, 'args': args, 'freshDelivery': matching, 'success': successful})
-            # Read only the exact keyed result, never another search entry.
-            for path in self.profile.rglob(ds + '_api_v1.json'):
-                doc = json.loads(path.read_text())
-                entry = doc.get('entries', {}).get(qkey, {})
-                for row in entry.get('result', []) if isinstance(entry.get('result'), list) else []:
-                    native_rows.append({'dataset': ds, **{k: row.get(k) for k in ['id', 'tt', 'mal_id', 'gcdId', 'year', 'title', 'title_english', 'type', 'volumes']}})
-        native = all(c['success'] for c in correlations)
+            # Owner delivery precedes its deferred atomic disk save. Wait for this
+            # exact key; missing persistence is not the same as an empty result.
+            def persisted_entry():
+                for path in self.profile.rglob(ds + '_api_v1.json'):
+                    try:
+                        doc = json.loads(path.read_text())
+                        entry = doc.get('entries', {}).get(qkey)
+                        if entry is not None and entry.get('method') == 'search' and isinstance(entry.get('result'), list):
+                            return entry
+                    except (OSError, ValueError):
+                        pass
+                return None
+            persist_started = time.monotonic_ns()
+            entry = wait_for_value(persisted_entry, 3) if successful else None
+            correlations[-1].update(ownerCacheEntryObserved=entry is not None,
+                                    ownerCacheObservationWaitMs=(time.monotonic_ns() - persist_started) / 1e6)
+            for row in entry['result'] if entry is not None else []:
+                native_rows.append({'dataset': ds, **{k: row.get(k) for k in ['id', 'tt', 'mal_id', 'gcdId', 'year', 'title', 'title_english', 'type', 'volumes']}})
+        native = all(c['success'] and c['ownerCacheEntryObserved'] for c in correlations)
         good = (state.get('lastDispatchedQuery') == query and state.get('searched') and not state.get('searching')
                 and not state.get('searchError') and native
                 and (state.get('resultCount') == 0 if expect_empty else (state.get('resultCount') or 0) > 0))
@@ -521,7 +544,7 @@ class Driver:
         # Read only live, actually visible delegates after the normal wheel animation.
         # A destroyed virtualized item is retried without discarding earlier facts.
         for step in range(min(len(rows) + 3, 130)):
-            for attempt in range(3):
+            for attempt in range(5):
                 time.sleep(0.35)
                 try:
                     nodes = self.tree('readingRoomLibrary')
@@ -548,7 +571,9 @@ class Driver:
                                 values = observed[live[ancestor]]['imageStates']
                                 if im not in values:
                                     values.append(im)
-                    break
+                    pending_images = any(image_status(im.get('status')) in (0, 2) for number in live.values() for im in observed[number]['imageStates'][-1:])
+                    if not pending_images:
+                        break
                 except RuntimeError as exc:
                     if not vanished_item(exc):
                         raise
@@ -590,6 +615,52 @@ class Driver:
                 'factsProvenance': 'Native Tankoban catalogue; countBasis=bookwalker denotes ingested BookWalker-derived facts, not live BookWalker enumeration',
                 'coverNote': 'coveredCount is URL presence, not decoded art; image states/probe and screenshots are separate'}
 
+    def settle_comic_covers(self, nodes, rows):
+        """Normal wheel browsing and read-only image polling before leaving detail."""
+        started = time.monotonic()
+        flick = next((n['handle'] for n in nodes if 'Flickable' in n.get('class', '')), None)
+        root = nodes[0]['handle'] if nodes else None
+        rounds, scrolls, errors, final_geometry = 0, 0, [], {}
+        while time.monotonic() - started < 20 and rounds < 45:
+            rounds += 1
+            loading = False
+            for row in rows:
+                states = []
+                for handle in row.get('_imageHandles', []):
+                    try:
+                        im = self.props(handle, ['source', 'status', 'rung'])
+                        im['visibleInViewport'] = positive_area(self.call('ui-query', {'object': handle}))
+                        row['coverEverVisible'] = row.get('coverEverVisible', False) or im['visibleInViewport']
+                        if str(im.get('source', '')).startswith(('http://', 'https://')):
+                            states.append(im)
+                            loading = loading or image_status(im.get('status')) in (0, 2)
+                    except RuntimeError as exc:
+                        if not vanished_item(exc):
+                            raise
+                        errors.append(str(exc))
+                if states:
+                    row['images'] = states
+            if flick:
+                final_geometry = self.props(flick, ['contentY', 'contentHeight', 'height', 'atYEnd', 'moving'])
+            reached_end = bool(final_geometry.get('atYEnd')) if flick else False
+            if not loading and reached_end and time.monotonic() - started >= 2:
+                break
+            if root and not reached_end and scrolls < 24:
+                self.call('ui-scroll', {'target': root, 'dy': -600, 'xFraction': 0.92, 'yFraction': 0.75})
+                scrolls += 1
+            time.sleep(0.4)
+        counts = {'missing': 0, 'ready': 0, 'loading': 0, 'error': 0, 'unknown': 0}
+        for row in rows:
+            row.pop('_imageHandles', None)
+            states = [image_status(i.get('status')) for i in row.get('images', [])]
+            state = 'ready' if 1 in states else 'error' if 3 in states else 'loading' if 2 in states else 'missing' if not states else 'unknown'
+            row['coverObservedState'] = state
+            counts[state] += 1
+        return {'elapsedObservationMs': (time.monotonic() - started) * 1000,
+                'pollRounds': rounds, 'ordinaryWheelEvents': scrolls, 'finalScrollGeometry': final_geometry,
+                'rowCoverStateCounts': counts, 'transientReadErrors': errors,
+                'scope': 'Bounded in-view settlement and normal scrolling; not universal cover availability or exact paint timing'}
+
     def comics_series(self, label):
         deadline = time.monotonic() + 45
         root = None
@@ -618,10 +689,11 @@ class Driver:
             return {'status': 'FAIL', 'page': page, 'nativeEditions': editions, 'reason': 'Returned editions but no ComicDbLedger'}
         observed = []
         if ledger:
-            nodes = self.tree(ledger['handle'])
+            nodes = tree
+            ledger_depth = ledger['depth']
             # Ledger->Column->format Column->edition Item; Repeater creates siblings.
             for row in nodes:
-                if row.get('depth') != 3 or 'Item' not in row.get('class', ''):
+                if row.get('depth') != ledger_depth + 3 or 'Item' not in row.get('class', ''):
                     continue
                 props = self.props(row['handle'], ['chId', 'hasSource', 'dlState'])
                 if props.get('chId') is None:
@@ -630,7 +702,7 @@ class Driver:
                 for item in nodes:
                     if item.get('parentHandle') in descendants:
                         descendants.add(item['handle'])
-                texts, images = [], []
+                texts, images, image_handles = [], [], []
                 for item in nodes:
                     if item['handle'] not in descendants:
                         continue
@@ -639,8 +711,12 @@ class Driver:
                         if t.get('text'):
                             texts.append(t['text'])
                     if 'Image' in item.get('class', ''):
-                        images.append(self.props(item['handle'], ['source', 'status', 'rung']))
-                observed.append({'chId': props['chId'], 'state': props, 'titleText': texts[0] if texts else '', 'images': [im for im in images if str(im.get('source', '')).startswith(('https://', 'http://'))][:2]})
+                        im = self.props(item['handle'], ['source', 'status', 'rung'])
+                        images.append(im)
+                        if str(im.get('source', '')).startswith(('https://', 'http://')):
+                            image_handles.append(item['handle'])
+                observed.append({'_imageHandles': image_handles, 'chId': props['chId'], 'state': props, 'titleText': texts[0] if texts else '', 'images': [im for im in images if str(im.get('source', '')).startswith(('https://', 'http://'))][:2]})
+        cover_settlement = self.settle_comic_covers(tree, observed)
         # Fresh root handle after tree epoch changes.
         root = self.visible_ref(class_prefix='ComicSeriesPage_')
         self.grab('deep-' + label, root)
@@ -663,7 +739,7 @@ class Driver:
         native_events = [e for e in traces(self.raw_stderr) if e.get('dataset') == 'comics' and e.get('queryKey') == key]
         accepted = native_success(native_events, 'comics', 'curatedSeries') and not page.get('loading') and not page.get('errorMsg')
         return {'status': 'PASS' if accepted and len(observed) == len(editions) and ids == got and not title_mismatches else 'FAIL',
-                'page': page, 'nativeQueryKey': key, 'publication': publication, 'nativeOwnerSuccess': accepted,
+                'page': page, 'nativeQueryKey': key, 'publication': publication, 'nativeOwnerSuccess': accepted, 'coverSettlement': cover_settlement,
                 'nativeReturnedCount': len(editions), 'nativeEditions': editions, 'observedEditionRows': observed,
                 'displayedCount': len(observed), 'expectedDisplayOrder': ids, 'observedDisplayOrder': got, 'titleMismatches': title_mismatches, 'nativeCoverageAggregate': result.get('coverage'),
                 'countClass': 'zero' if not editions else 'single' if len(editions) == 1 else 'multi',
@@ -832,6 +908,7 @@ class Driver:
                         if descendant.get('parentHandle') in descendants:
                             descendants.add(descendant['handle'])
                     values['images'] = []
+                    values['_imageHandles'] = []
                     values['nameText'] = ''
                     for descendant in nodes:
                         if descendant['handle'] not in descendants:
@@ -840,11 +917,13 @@ class Driver:
                             image = self.props(descendant['handle'], ['source', 'status'])
                             if str(image.get('source', '')).startswith(('http://', 'https://')):
                                 values['images'].append(image)
+                                values['_imageHandles'].append(descendant['handle'])
                         if not values['nameText'] and 'Text' in descendant.get('class', ''):
                             text = self.props(descendant['handle'], ['text']).get('text')
                             if text and text != '#':
                                 values['nameText'] = text
                     rows.append(values)
+            cover_settlement = self.settle_comic_covers(nodes, rows)
             current_events = traces(self.raw_stderr)
             delivery = [e for e in current_events if e.get('component') == 'remote' and e.get('dataset') == 'comics'
                         and e.get('queryKey') == key and e.get('event') == 'result_delivery_end']
@@ -859,7 +938,7 @@ class Driver:
                     and any(e.get('status') == 'success' for e in delivery) else 'FAIL',
                     'search': search, 'selectedNativeSearchRow': chosen, 'page': page, 'nativeQueryKey': key,
                     'nativeDeliveryEvents': delivery, 'nativeReturnedCount': len(projection),
-                    'releaseProjection': projection, 'displayedReleaseRows': rows, 'expectedDisplayOrder': expected, 'observedDisplayOrder': observed, 'titleMismatches': title_mismatches,
+                    'releaseProjection': projection, 'displayedReleaseRows': rows, 'coverSettlement': cover_settlement, 'expectedDisplayOrder': expected, 'observedDisplayOrder': observed, 'titleMismatches': title_mismatches,
                     'scope': 'GCD-associated release posts/collections in the same native comics dataset; not canonical individual issue enumeration',
                     'sourceAcquisition': 'NOT_RUN; normal automatic public cover metadata enrichment may occur'}
         finally:
@@ -1096,7 +1175,12 @@ def self_test():
         result = mock.manga_series('unit-only')
         assert len(result['transientDelegateErrors']) == 1 and result['observedVolumeCards']['1']['nameText'] == 'Title'
         assert result['status'] != 'PASS'  # No native delivery fixture may manufacture success.
-    print('40 pure qualification helper checks passed')
+    persisted = iter([None, None, {'method': 'search', 'result': [{'mal_id': 13}]}])
+    assert wait_for_value(lambda: next(persisted), 1, 0) == {'method': 'search', 'result': [{'mal_id': 13}]}
+    assert wait_for_value(lambda: None, 0, 0) is None
+    assert wait_for_value(lambda: {'method': 'search', 'result': []}, 0, 0) == {'method': 'search', 'result': []}
+    assert image_status('Ready') != image_status('Loading') and image_status('Error') == 3
+    print('44 pure qualification helper checks passed')
 
 
 def main():
