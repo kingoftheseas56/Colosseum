@@ -5,41 +5,81 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(P03_DEPENDENCY_LOCK "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/server1/DEPENDENCY-LOCK.json" CACHE FILEPATH
-    "Accepted Server 1.0 dependency lock")
-if(NOT EXISTS "${P03_DEPENDENCY_LOCK}")
-  message(FATAL_ERROR "P03 required dependency lock is unavailable: ${P03_DEPENDENCY_LOCK}")
-endif()
-
-file(READ "${P03_DEPENDENCY_LOCK}" P03_LOCK_JSON)
-string(JSON P03_LIBTORRENT_ROOT GET "${P03_LOCK_JSON}" libtorrent package_root)
-string(JSON P03_LIBTORRENT_ARCHIVE GET "${P03_LOCK_JSON}" libtorrent archive_identity path)
-string(JSON P03_BOOST_ROOT GET "${P03_LOCK_JSON}" boost include_root)
-string(JSON P03_OPENSSL_ROOT GET "${P03_LOCK_JSON}" openssl root)
-string(JSON P03_QT_GLOBAL_HEADER GET "${P03_LOCK_JSON}" external_files 10 path)
-cmake_path(GET P03_QT_GLOBAL_HEADER PARENT_PATH P03_QT_CORE_INCLUDE)
-cmake_path(GET P03_QT_CORE_INCLUDE PARENT_PATH P03_QT_INCLUDE)
-cmake_path(GET P03_QT_INCLUDE PARENT_PATH P03_QT_ROOT)
-
-set(P03_REQUIRED_FILES
-  "${P03_LIBTORRENT_ROOT}/include/libtorrent/version.hpp"
-  "${P03_LIBTORRENT_ARCHIVE}"
-  "${P03_BOOST_ROOT}/boost/version.hpp"
-  "${P03_OPENSSL_ROOT}/include/openssl/opensslv.h"
-  "${P03_OPENSSL_ROOT}/lib/libssl.lib"
-  "${P03_OPENSSL_ROOT}/lib/libcrypto.lib"
-  "${P03_QT_GLOBAL_HEADER}"
-)
-foreach(P03_REQUIRED_FILE IN LISTS P03_REQUIRED_FILES)
-  if(NOT EXISTS "${P03_REQUIRED_FILE}")
-    message(FATAL_ERROR "P03 locked dependency unavailable: ${P03_REQUIRED_FILE}")
+# The accepted Windows dependency lock remains authoritative on Windows.
+# Linux uses an explicitly selected native 2.0.11 package; its provenance is
+# recorded separately and is never represented as the locked MSVC archive.
+if(WIN32)
+  set(P03_DEPENDENCY_LOCK "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/server1/DEPENDENCY-LOCK.json" CACHE FILEPATH
+      "Accepted Server 1.0 dependency lock")
+  if(NOT EXISTS "${P03_DEPENDENCY_LOCK}")
+    message(FATAL_ERROR "P03 required dependency lock is unavailable: ${P03_DEPENDENCY_LOCK}")
   endif()
-endforeach()
 
-list(PREPEND CMAKE_PREFIX_PATH
-  "${P03_QT_ROOT}"
-  "${P03_LIBTORRENT_ROOT}"
-)
+  file(READ "${P03_DEPENDENCY_LOCK}" P03_LOCK_JSON)
+  string(JSON P03_LIBTORRENT_ROOT GET "${P03_LOCK_JSON}" libtorrent package_root)
+  string(JSON P03_LIBTORRENT_ARCHIVE GET "${P03_LOCK_JSON}" libtorrent archive_identity path)
+  string(JSON P03_BOOST_ROOT GET "${P03_LOCK_JSON}" boost include_root)
+  string(JSON P03_OPENSSL_ROOT GET "${P03_LOCK_JSON}" openssl root)
+  string(JSON P03_QT_GLOBAL_HEADER GET "${P03_LOCK_JSON}" external_files 10 path)
+  cmake_path(GET P03_QT_GLOBAL_HEADER PARENT_PATH P03_QT_CORE_INCLUDE)
+  cmake_path(GET P03_QT_CORE_INCLUDE PARENT_PATH P03_QT_INCLUDE)
+  cmake_path(GET P03_QT_INCLUDE PARENT_PATH P03_QT_ROOT)
+
+  set(P03_REQUIRED_FILES
+    "${P03_LIBTORRENT_ROOT}/include/libtorrent/version.hpp"
+    "${P03_LIBTORRENT_ARCHIVE}"
+    "${P03_BOOST_ROOT}/boost/version.hpp"
+    "${P03_OPENSSL_ROOT}/include/openssl/opensslv.h"
+    "${P03_OPENSSL_ROOT}/lib/libssl.lib"
+    "${P03_OPENSSL_ROOT}/lib/libcrypto.lib"
+    "${P03_QT_GLOBAL_HEADER}"
+  )
+  foreach(P03_REQUIRED_FILE IN LISTS P03_REQUIRED_FILES)
+    if(NOT EXISTS "${P03_REQUIRED_FILE}")
+      message(FATAL_ERROR "P03 locked dependency unavailable: ${P03_REQUIRED_FILE}")
+    endif()
+  endforeach()
+
+  list(PREPEND CMAKE_PREFIX_PATH
+    "${P03_QT_ROOT}"
+    "${P03_LIBTORRENT_ROOT}"
+  )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  find_package(LibtorrentRasterbar 2.0.11 EXACT CONFIG REQUIRED)
+  find_package(Threads REQUIRED)
+  get_target_property(SERVER1_LT_TYPE LibtorrentRasterbar::torrent-rasterbar TYPE)
+  if(NOT SERVER1_LT_TYPE STREQUAL "STATIC_LIBRARY")
+    message(FATAL_ERROR
+      "Server 1 requires a static libtorrent 2.0.11 Linux build: the adapter uses "
+      "internal peer symbols hidden by distro shared libraries. Set "
+      "LibtorrentRasterbar_DIR to the qualified static package.")
+  endif()
+  include(CheckCXXSourceCompiles)
+  set(SERVER1_SAVED_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
+  set(SERVER1_SAVED_TRY_COMPILE_TARGET_TYPE "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
+  set(CMAKE_REQUIRED_LIBRARIES LibtorrentRasterbar::torrent-rasterbar)
+  set(CMAKE_TRY_COMPILE_TARGET_TYPE EXECUTABLE)
+  unset(SERVER1_LT_INTERNAL_LINK CACHE)
+  check_cxx_source_compiles("#include <libtorrent/peer_connection.hpp>
+int main(int argc, char **argv) {
+  if (argc == 12345) {
+    auto *peer = reinterpret_cast<libtorrent::peer_connection *>(argv);
+    peer->send_interested(); peer->send_choke(); peer->clear_request_queue();
+  }
+  return 0;
+}" SERVER1_LT_INTERNAL_LINK)
+  set(CMAKE_REQUIRED_LIBRARIES "${SERVER1_SAVED_REQUIRED_LIBRARIES}")
+  if(SERVER1_SAVED_TRY_COMPILE_TARGET_TYPE)
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE "${SERVER1_SAVED_TRY_COMPILE_TARGET_TYPE}")
+  else()
+    unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+  endif()
+  if(NOT SERVER1_LT_INTERNAL_LINK)
+    message(FATAL_ERROR "libtorrent 2.0.11 internal peer link probe failed")
+  endif()
+else()
+  message(FATAL_ERROR "Server 1 build supports the locked Windows kit and native Linux only")
+endif()
 find_package(Qt6 CONFIG REQUIRED COMPONENTS Core)
 
 add_library(server1_runtime INTERFACE)
