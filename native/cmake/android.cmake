@@ -67,6 +67,7 @@ list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
 # Desktop browser/player and local-library worlds are not APK runtime code.
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)Vault[^/]*[.](qml|js)$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)[.][^/]+")
