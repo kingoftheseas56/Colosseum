@@ -18,6 +18,16 @@ ROOT = Path(__file__).resolve().parents[1]
 MAX_BODY = 256 * 1024
 
 
+class _NoAdminRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, destination):
+        # The admin bearer is scoped to the configured endpoint. Even a redirect
+        # on that endpoint is a failed operation, never permission to forward it.
+        return None
+
+
+ADMIN_OPENER = urllib.request.build_opener(_NoAdminRedirect())
+
+
 class PublishError(Exception):
     pass
 
@@ -71,7 +81,7 @@ class Client:
                                         headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json",
                                                  "User-Agent": "ColosseumContentPublisher/1.0 (https://getcolosseum.world)"})
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with ADMIN_OPENER.open(request, timeout=60) as response:
                 result = json.loads(response.read(MAX_BODY + 1))
         except urllib.error.HTTPError as exc:
             try:

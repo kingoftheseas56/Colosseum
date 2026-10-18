@@ -50,6 +50,15 @@ EXPECTED_BASE_URL = "https://colosseum-content-api-staging.colosseum-watchparty-
 ACCOUNT_ID = "69049ce787cd73028c878bf0953946f6"
 
 
+class _NoAdminRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, destination):
+        # Rotation verifies this exact endpoint; never forward either bearer.
+        return None
+
+
+ADMIN_OPENER = urllib.request.build_opener(_NoAdminRedirect())
+
+
 def redact(text: str, *secret_values: str) -> str:
     result = text
     for value in secret_values:
@@ -86,7 +95,7 @@ def status_code(base: str, token: str) -> int:
         headers={"Authorization": "Bearer " + token,
                  "User-Agent": "ColosseumTokenRotation/1.0 (https://getcolosseum.world)"})
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with ADMIN_OPENER.open(request, timeout=30) as response:
             return response.status
     except urllib.error.HTTPError as exc:
         return exc.code

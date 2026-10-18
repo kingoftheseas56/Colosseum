@@ -104,16 +104,16 @@ class PublisherTests(unittest.TestCase):
             if code == 200:
                 response = unittest.mock.MagicMock()
                 response.__enter__.return_value.read.return_value = body
-                context = patch.object(p.urllib.request, "urlopen", return_value=response)
+                context = patch.object(p.ADMIN_OPENER, "open", return_value=response)
             else:
-                context = patch.object(p.urllib.request, "urlopen", side_effect=urllib.error.HTTPError("https://example.com", code, "error", {}, io.BytesIO(body)))
+                context = patch.object(p.ADMIN_OPENER, "open", side_effect=urllib.error.HTTPError("https://example.com", code, "error", {}, io.BytesIO(body)))
             with context, self.assertRaises(error):
                 client.request("POST", "/admin/import", {})
 
     def test_client_identifies_publisher(self):
         response = unittest.mock.MagicMock()
         response.__enter__.return_value.read.return_value = b'{"tables":[],"budget":[]}'
-        with patch.object(p.urllib.request, "urlopen", return_value=response) as fetch:
+        with patch.object(p.ADMIN_OPENER, "open", return_value=response) as fetch:
             p.Client({"baseUrl": "https://example.com", "adminToken": "test"}).request("GET", "/admin/status")
         self.assertEqual(fetch.call_args.args[0].get_header("User-agent"), "ColosseumContentPublisher/1.0 (https://getcolosseum.world)")
 
