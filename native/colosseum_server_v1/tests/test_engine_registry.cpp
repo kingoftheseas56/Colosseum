@@ -1,3 +1,9 @@
+#include "server1/policy/QtEngineTimer.h"
+#include <QCoreApplication>
+#include <QElapsedTimer>
+#include <QEventLoop>
+#include <QThread>
+#include <QEvent>
 #include "server1/policy/EngineRegistry.h"
 #include "server1/policy/TorrentMetadata.h"
 
@@ -1332,6 +1338,208 @@ void swarmCapCreationBinding()
            "K11-01 reuse options rebound the creation-time swarm-cap updater");
 }
 
+void regressionStreamLeaseBatchFailure()
+{
+    const auto torrent=fixture("lease-batch",{{"first.bin",8},{"second.bin",8}});
+    FakeFactory factory; LaneWorker worker;
+    std::vector<std::shared_ptr<ProbeTimer>> timers;
+    auto cancels=std::make_shared<std::size_t>(0);
+    bool injected=false;
+    EngineRegistryConfig config;
+    config.cacheRoot=uniqueRoot("k12-lease-batch");
+    config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+    config.transportFactory=[&](const auto&r){return factory.open(r);};
+    config.after=[&](auto,auto callback)->std::shared_ptr<EngineTimer> {
+        if (!injected) {injected=true;throw std::runtime_error("injected first timer failure");}
+        auto timer=std::make_shared<ProbeTimer>(timers.size()+1,cancels,std::move(callback));
+        timers.push_back(timer);return timer;
+    };
+    EngineRegistry registry(std::move(config));
+    registry.create({torrent.hash,Value::object({{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);ready(factory.at(0),torrent);settle(registry,worker);
+    auto first=registry.openStream(torrent.hash,0);
+    auto second=registry.openStream(torrent.hash,1);
+    first->close();second->close();
+    bool threw=false;
+    try {registry.dispatch();} catch (const std::runtime_error&) {threw=true;}
+    expect(threw && injected,"K12 batch failure was hidden");
+    registry.dispatch();
+    expect(timers.size()==2,"K12 failed first close discarded later queued retirement");
+    auto retryFirst=registry.openStream(torrent.hash,0);
+    auto retrySecond=registry.openStream(torrent.hash,1);
+    retryFirst->close();retrySecond->close();registry.dispatch();
+    expect(timers.size()==5,"K12 failed batch poisoned later file/engine accounting");
+    std::cout<<"K12 batched response retirement preserves siblings on failure PASS\n";
+}
+
+void regressionStreamLeaseRemoval()
+{
+    const auto torrent=fixture("lease-remove.bin",{{"lease-remove.bin",8}});
+    FakeFactory factory; LaneWorker worker;
+    std::vector<EngineEvent> events;
+    std::vector<std::shared_ptr<ProbeTimer>> timers;
+    auto cancels=std::make_shared<std::size_t>(0);
+    EngineRegistry *owner=nullptr;
+    bool removeOnActive=false;
+    EngineRegistryConfig config;
+    config.cacheRoot=uniqueRoot("k12-lease-remove");
+    config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+    config.transportFactory=[&](const auto&r){return factory.open(r);};
+    config.onEvent=[&](const EngineEvent&e){
+        events.push_back(e);
+        if (removeOnActive && e.type==EngineEventType::StreamActive) owner->remove(torrent.hash);
+    };
+    config.after=[&](auto,auto callback){auto t=std::make_shared<ProbeTimer>(timers.size()+1,cancels,std::move(callback));timers.push_back(t);return t;};
+    EngineRegistry registry(std::move(config));owner=&registry;
+    registry.create({torrent.hash,Value::object({{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);ready(factory.at(0),torrent);settle(registry,worker);
+    const auto generation=registry.get(torrent.hash)->generation();
+    events.clear();removeOnActive=true;
+    auto lease=registry.openStream(torrent.hash,0);
+    expect(lease && !registry.get(torrent.hash),"K12 active removal retained operational access");
+    std::vector<EngineEventType> active;
+    for (const auto &event:events) {
+        if (event.type==EngineEventType::StreamActive || event.type==EngineEventType::ScopedStreamActive
+            || event.type==EngineEventType::EngineActive || event.type==EngineEventType::ScopedEngineActive) {
+            active.push_back(event.type);
+            expect(event.generation==generation,"K12 active diagnostic lost acquiring generation");
+        }
+    }
+    expect(active==std::vector<EngineEventType>{EngineEventType::StreamActive,EngineEventType::ScopedStreamActive,
+        EngineEventType::EngineActive,EngineEventType::ScopedEngineActive},"K12 generic/scoped source pairing changed on removal");
+    lease->close();settle(registry,worker);
+    const auto before=events.size();
+    expect(timers.size()==2,"K12 removed response did not retire its counters");
+    timers[0]->fire();timers[1]->fire();
+    expect(events.size()==before,"K12 inactive events escaped missing-engine source guard");
+    std::cout<<"K12 removal pairing/diagnostic attribution/no retired access PASS\n";
+}
+
+void regressionStreamLeaseExceptions()
+{
+    for (int scenario=0; scenario<3; ++scenario) {
+        const auto torrent=fixture("lease-errors.bin",{{"lease-errors.bin",8}});
+        FakeFactory factory; LaneWorker worker;
+        std::vector<std::shared_ptr<ProbeTimer>> timers;
+        auto cancels=std::make_shared<std::size_t>(0);
+        bool injected=false;
+        EngineRegistryConfig config;
+        config.cacheRoot=uniqueRoot("k12-lease-errors");
+        config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+        config.transportFactory=[&](const auto&r){return factory.open(r);};
+        config.onEvent=[&](const EngineEvent&e) {
+            if (!injected && ((scenario==1 && e.type==EngineEventType::StreamActive)
+                || (scenario==2 && e.type==EngineEventType::EngineActive))) {
+                injected=true; throw std::runtime_error("injected active failure");
+            }
+        };
+        config.after=[&](auto,auto callback)->std::shared_ptr<EngineTimer> {
+            if (scenario==0 && !injected) {
+                injected=true; throw std::runtime_error("injected timer failure");
+            }
+            auto timer=std::make_shared<ProbeTimer>(timers.size()+1,cancels,std::move(callback));
+            timers.push_back(timer);return timer;
+        };
+        EngineRegistry registry(std::move(config));
+        registry.create({torrent.hash,Value::object({{"peerSearch",Value::boolean(false)}})});
+        settle(registry,worker);ready(factory.at(0),torrent);settle(registry,worker);
+        bool threw=false;
+        try {
+            auto lease=registry.openStream(torrent.hash,0);
+            lease->close();registry.dispatch();
+        } catch (const std::runtime_error&) {threw=true;}
+        expect(threw && injected,"K12 injected lease failure was not observable");
+        registry.dispatch(); // retire only counter obligations actually acquired
+        expect(timers.size()==(scenario==1 ? 0u : 1u),
+               "K12 lease failure did not retire precisely the acquired counters");
+        const auto before=timers.size();
+        auto recovered=registry.openStream(torrent.hash,0);
+        recovered->close();registry.dispatch();
+        expect(timers.size()==before+2,"K12 lease exception poisoned later balanced acquisition");
+        timers[before]->fire();timers[before+1]->fire();
+    }
+    std::cout<<"K12 lease partial acquisition/dual retirement/recovery PASS\n";
+}
+
+void regressionStreamLeaseTeardown()
+{
+    int argc=1;char name[]="server1-lease";char *argv[]={name,nullptr};
+    QCoreApplication app(argc,argv);QObject context;
+    const auto spin=[] {QElapsedTimer elapsed;elapsed.start();while(elapsed.elapsed()<35) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents,5);
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+        QThread::msleep(1);
+    }};
+    const auto torrent=fixture("lease-teardown.bin",{{"lease-teardown.bin",8}});
+    FakeFactory factory;LaneWorker worker;
+    std::vector<std::string> errors;
+    std::vector<EngineEventType> events;
+    std::unique_ptr<EngineRegistry> registry;
+    bool deleteOnActive=false;
+    auto make=[&] {
+        EngineRegistryConfig config;
+        config.cacheRoot=uniqueRoot("k12-lease-teardown");
+        config.streamTimeoutMs=5;config.engineTimeoutMs=10;
+        config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+        config.transportFactory=[&](const auto&r){return factory.open(r);};
+        config.after=qtEngineAfter(&context,[&](std::exception_ptr error){try{std::rethrow_exception(error);}catch(const std::exception&e){errors.push_back(e.what());}});
+        config.onEvent=[&](const EngineEvent&e){events.push_back(e.type);if(deleteOnActive && e.type==EngineEventType::StreamActive)registry.reset();};
+        registry=std::make_unique<EngineRegistry>(std::move(config));
+        registry->create({torrent.hash,Value::object({{"peerSearch",Value::boolean(false)}})});
+        settle(*registry,worker);ready(factory.at(factory.count()-1),torrent);settle(*registry,worker);
+        events.clear();
+    };
+    make();
+    auto lease=registry->openStream(torrent.hash,0);lease->close();registry->dispatch();
+    std::thread destroyer([&]{registry.reset();});destroyer.join();worker.waitIdle();spin();
+    expect(events.size()==4 && errors.empty(),"K12 foreign registry teardown delivered late timer/error");
+    lease.reset();spin();
+    expect(factory.at(0)->closeCount==1,"K12 foreign registry teardown did not close transport once");
+    make();deleteOnActive=true;
+    auto closedLease=registry->openStream(torrent.hash,0);
+    expect(!registry && closedLease && closedLease->closed(),"K12 active callback destruction did not close lease");
+    worker.waitIdle();spin();
+    expect(events==std::vector<EngineEventType>{EngineEventType::StreamActive} && errors.empty(),"K12 callback destruction leaked subsequent events");
+    expect(factory.at(1)->closeCount==1,"K12 callback destruction leaked transport");
+    std::cout<<"K12 actual Qt registry foreign/reentrant teardown PASS\n";
+}
+
+void regressionStreamLease()
+{
+    const auto torrent = fixture("lease.bin", {{"lease.bin",8}});
+    FakeFactory factory; LaneWorker worker;
+    std::vector<EngineEventType> events;
+    std::vector<std::shared_ptr<ProbeTimer>> timers;
+    auto cancels=std::make_shared<std::size_t>(0);
+    EngineRegistryConfig config;
+    config.cacheRoot=uniqueRoot("k12-lease");
+    config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+    config.transportFactory=[&](const auto&r){return factory.open(r);};
+    config.onEvent=[&](const EngineEvent&e){events.push_back(e.type);};
+    config.after=[&](auto,auto callback){auto t=std::make_shared<ProbeTimer>(timers.size()+1,cancels,std::move(callback));timers.push_back(t);return t;};
+    EngineRegistry registry(std::move(config));
+    registry.create({torrent.hash,Value::object({{"peerSearch",Value::boolean(false)}})});
+    settle(registry,worker);ready(factory.at(0),torrent);settle(registry,worker);
+    events.clear();
+    auto first=registry.openStream(torrent.hash,0);
+    expect(bool(first),"K12 ready stream did not acquire a response lease");
+    expect(registry.get(torrent.hash)->readerCount()==0,"K12 HEAD lease manufactured a reader");
+    auto second=registry.openStream(torrent.hash,0);
+    expect(events==std::vector<EngineEventType>{EngineEventType::StreamActive,EngineEventType::ScopedStreamActive,EngineEventType::EngineActive,EngineEventType::ScopedEngineActive},"K12 active event order/count mismatch");
+    first->close();first->close();registry.dispatch();
+    expect(timers.empty(),"K12 duplicate close or one-of-two close armed timers");
+    second->close();registry.dispatch();
+    expect(timers.size()==2,"K12 last response close must arm file and engine timers");
+    auto reopened=registry.openStream(torrent.hash,0);
+    expect(*cancels==2 && events.size()==4,"K12 grace reopen must cancel without new active events");
+    reopened.reset();registry.dispatch();
+    expect(timers.size()==4,"K12 lease destruction did not close response");
+    timers[2]->fire();timers[3]->fire();
+    expect(events==std::vector<EngineEventType>{EngineEventType::StreamActive,EngineEventType::ScopedStreamActive,EngineEventType::EngineActive,EngineEventType::ScopedEngineActive,EngineEventType::StreamInactive,EngineEventType::ScopedStreamInactive,EngineEventType::EngineInactive,EngineEventType::ScopedEngineInactive},"K12 expiry events mismatch");
+    expect(!registry.openStream(torrent.hash,1),"K12 invalid file acquired a lease");
+    std::cout<<"K12 response leases HEAD/multiple/duplicate/grace/expiry PASS\n";
+}
+
 void regressionInsertionOrder()
 {
     FakeFactory factory;
@@ -2397,6 +2605,11 @@ int main(int argc, char **argv)
         else if (id == "R8") regressionCircularActiveReaders(true);
         else if (id == "R9") regressionCircularActiveReaders(true, 1);
         else if (id == "R10") regressionCircularActiveReaders(true, 2);
+        else if (id == "R22") regressionStreamLeaseBatchFailure();
+        else if (id == "R21") regressionStreamLeaseRemoval();
+        else if (id == "R20") regressionStreamLeaseExceptions();
+        else if (id == "R19") regressionStreamLeaseTeardown();
+        else if (id == "R18") regressionStreamLease();
         else if (id == "R17") regressionInsertionOrder();
         else if (id == "R16") regressionStorageLateStageFailure();
         else if (id == "R15") regressionStorageStageException(true);

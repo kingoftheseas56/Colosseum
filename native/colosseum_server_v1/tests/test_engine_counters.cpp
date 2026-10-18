@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <iostream>
+#include <thread>
 #include <map>
 #include <stdexcept>
 using namespace server1::policy;

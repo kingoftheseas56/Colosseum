@@ -1,6 +1,8 @@
 #pragma once
 
 #include "server1/policy/FileReader.h"
+#include "server1/policy/EngineTiming.h"
+#include <atomic>
 #include "server1/policy/Value.h"
 #include "server1/ports/TorrentTransport.h"
 
@@ -54,6 +56,8 @@ enum class EngineEventType {
     ScopedError,
     Error,
     Destroyed,
+    StreamActive, ScopedStreamActive, StreamInactive, ScopedStreamInactive,
+    EngineActive, ScopedEngineActive, EngineInactive, ScopedEngineInactive,
 };
 
 struct EngineEvent final {
@@ -62,6 +66,7 @@ struct EngineEvent final {
     ports::EngineGeneration generation = 0;
     Value options = Value::missing();
     std::string error;
+    std::optional<std::size_t> fileIndex;
 };
 
 enum class EngineCreateOutcome {
@@ -97,20 +102,6 @@ struct EngineTrace final {
     std::thread::id thread;
 };
 
-using EngineContinuation = std::function<void()>;
-using EnginePost = std::function<bool(EngineContinuation)>;
-using EngineClock = std::function<std::uint64_t()>;
-
-class EngineTimer {
-public:
-    virtual ~EngineTimer() = default;
-    virtual void cancel() noexcept = 0;
-    [[nodiscard]] virtual bool active() const noexcept = 0;
-    [[nodiscard]] virtual std::uint64_t id() const noexcept = 0;
-};
-
-using EngineRepeat = std::function<std::shared_ptr<EngineTimer>(
-    std::uint64_t intervalMs, EngineContinuation)>;
 using BeforeCreateEngine =
     std::function<void(const EngineCreateRequest &, EngineContinuation)>;
 using EngineCreateCallback = std::function<void(EngineCreateResult)>;
@@ -129,6 +120,9 @@ struct EngineRegistryConfig final {
     EnginePost workExecutor;
     EnginePost callbackExecutor;
     EngineRepeat repeat;
+    EngineAfter after;
+    std::uint64_t streamTimeoutMs = 30000;
+    std::uint64_t engineTimeoutMs = 60000;
     EngineClock monotonicClock;
     EngineTraceCallback trace;
 };
@@ -214,6 +208,22 @@ private:
     friend class EngineRegistry;
 };
 
+// Response lifetime, independent of reader/EOF lifetime. close is idempotent
+// and posts retirement to the registry's app lane; dispatch drains that boundary.
+class EngineStreamLease final {
+public:
+    ~EngineStreamLease();
+    EngineStreamLease(const EngineStreamLease &) = delete;
+    EngineStreamLease &operator=(const EngineStreamLease &) = delete;
+    void close();
+    [[nodiscard]] bool closed() const noexcept {return closed_.load();}
+private:
+    explicit EngineStreamLease(EngineContinuation close) : close_(std::move(close)) {}
+    std::atomic_bool closed_{false};
+    EngineContinuation close_;
+    friend class EngineRegistry;
+};
+
 class EngineRegistry final {
 public:
     explicit EngineRegistry(EngineRegistryConfig config = {});
@@ -232,6 +242,7 @@ public:
     bool remove(const std::string &sourceKey,
                 EngineRemoveCallback callback = {});
     [[nodiscard]] std::vector<std::string> list() const;
+    [[nodiscard]] std::shared_ptr<EngineStreamLease> openStream(const std::string &sourceKey, std::size_t fileIndex);
 
     // poll() drains transport mailboxes and translates source observations on
     // the app lane. dispatch() runs the app-lane tasks queued before the call:

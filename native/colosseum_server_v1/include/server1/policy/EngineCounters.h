@@ -1,5 +1,6 @@
 #pragma once
-#include "server1/policy/EngineRegistry.h"
+#include "server1/policy/EngineTiming.h"
+#include <string>
 #include <optional>
 
 namespace server1::policy {
@@ -7,10 +8,9 @@ namespace server1::policy {
 struct CounterEvent final {
     std::string hash;
     std::optional<std::int64_t> index;
+    // Diagnostic attribution only; counter identity remains source hash/index.
+    std::uint64_t generation = 0;
 };
-// Must schedule once, never inline, on the counter's owning app lane.
-using EngineAfter = std::function<std::shared_ptr<EngineTimer>(
-    std::uint64_t delayMs, EngineContinuation)>;
 struct EngineCounterConfig final {
     std::function<std::string(const CounterEvent &)> key;
     std::function<void(const CounterEvent &)> onPositive;

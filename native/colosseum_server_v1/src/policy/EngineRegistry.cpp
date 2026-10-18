@@ -1,10 +1,12 @@
 #include "server1/policy/EngineRegistry.h"
+#include "server1/policy/EngineCounters.h"
 
 #include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <condition_variable>
 #include <deque>
+#include <exception>
 #include <map>
 #include <mutex>
 #include <stdexcept>
@@ -434,10 +436,77 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
 
     void emit(EngineEventType type, const std::string &key,
               ports::EngineGeneration generation, Value options = Value::missing(),
-              std::string error = {})
+              std::string error = {}, std::optional<std::size_t> fileIndex = {})
     {
         if (config.onEvent)
-            config.onEvent({type, key, generation, std::move(options), std::move(error)});
+            config.onEvent({type, key, generation, std::move(options), std::move(error), fileIndex});
+    }
+
+    void lifecyclePair(const CounterEvent &event, bool file, bool active)
+    {
+        if (shutdownRequested.load() || finalized) return;
+        const auto found = entries.find(event.hash);
+        if (!active && found == entries.end()) return;
+        const auto generation = active ? event.generation : found->second.generation;
+        const auto index = file && event.index
+            ? std::optional<std::size_t>(static_cast<std::size_t>(*event.index)) : std::nullopt;
+        const auto generic = file
+            ? (active ? EngineEventType::StreamActive : EngineEventType::StreamInactive)
+            : (active ? EngineEventType::EngineActive : EngineEventType::EngineInactive);
+        const auto scoped = file
+            ? (active ? EngineEventType::ScopedStreamActive : EngineEventType::ScopedStreamInactive)
+            : (active ? EngineEventType::ScopedEngineActive : EngineEventType::ScopedEngineInactive);
+        emit(generic, event.hash, generation, Value::missing(), {}, index);
+        if (shutdownRequested.load() || finalized) return;
+        emit(scoped, event.hash, generation, Value::missing(), {}, index);
+    }
+
+    void initializeStreamCounters()
+    {
+        if (fileCounter) return;
+        if (!config.after) throw std::logic_error("stream lifecycle requires an app-lane one-shot scheduler");
+        std::weak_ptr<Impl> weak = weak_from_this();
+        auto make = [&](bool file) {
+            EngineCounterConfig counter;
+            counter.key = [file](const CounterEvent &event) {
+                return file ? event.hash + ":" + std::to_string(event.index.value_or(-1)) : event.hash;
+            };
+            counter.onPositive = [weak, file](const CounterEvent &event) {
+                if (const auto self = weak.lock()) self->lifecyclePair(event, file, true);
+            };
+            counter.onZero = [weak, file](const CounterEvent &event) {
+                if (const auto self = weak.lock()) self->lifecyclePair(event, file, false);
+            };
+            counter.timeoutMs = [weak, file] {
+                const auto self = weak.lock();
+                return self ? (file ? self->config.streamTimeoutMs : self->config.engineTimeoutMs) : 0;
+            };
+            counter.after = config.after;
+            return std::make_unique<EngineCounter>(std::move(counter));
+        };
+        auto files = make(true);
+        auto engines = make(false);
+        fileCounter = std::move(files);
+        engineCounter = std::move(engines);
+    }
+
+    void closeStream(std::uint64_t token)
+    {
+        const auto found = streamLeases.find(token);
+        if (found == streamLeases.end() || finalized) return;
+        const auto lease = found->second;
+        streamLeases.erase(found); // retire before callbacks or timer factories reenter
+        std::exception_ptr failure;
+        try {
+            if (lease.fileAcquired) fileCounter->decrement(lease.event);
+        } catch (...) { failure = std::current_exception(); }
+        // A rejected file timer must not leak the independent engine obligation.
+        if (!shutdownRequested.load() && !finalized) {
+            try {
+                if (lease.engineAcquired) engineCounter->decrement(lease.event);
+            } catch (...) { if (!failure) failure = std::current_exception(); }
+        }
+        if (failure) std::rethrow_exception(failure);
     }
 
     [[nodiscard]] bool current(const std::string &key, ports::EngineGeneration generation) const
@@ -622,6 +691,9 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
     {
         if (finalized) return;
         finalized = true;
+        if (fileCounter) fileCounter->close();
+        if (engineCounter) engineCounter->close();
+        streamLeases.clear();
         auto engines = std::move(entries);
         entries.clear();
         for (auto &[key, entry] : engines) {
@@ -659,6 +731,15 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
     std::map<std::string, Entry> entries;
     std::map<std::string, std::weak_ptr<Strand>> strands;
     std::vector<Terminal> ledger;
+    std::unique_ptr<EngineCounter> fileCounter;
+    std::unique_ptr<EngineCounter> engineCounter;
+    struct StreamObligations {
+        CounterEvent event;
+        bool fileAcquired = false;
+        bool engineAcquired = false;
+    };
+    std::map<std::uint64_t, StreamObligations> streamLeases;
+    std::uint64_t nextStreamLease = 1;
     EngineRequestToken nextToken = 1;
     ports::EngineGeneration nextGeneration = 1;
     std::size_t constructionCount = 0;
@@ -804,6 +885,38 @@ std::vector<std::string> EngineRegistry::list() const
     return result;
 }
 
+EngineStreamLease::~EngineStreamLease() { close(); }
+void EngineStreamLease::close() {
+    if (closed_.exchange(true)) return;
+    if (close_) close_();
+}
+std::shared_ptr<EngineStreamLease> EngineRegistry::openStream(const std::string &sourceKey, std::size_t fileIndex) {
+    const auto self = impl_;
+    if (std::this_thread::get_id() != self->appThread)
+        throw std::logic_error("openStream requires the registry app lane");
+    if (self->shutdownRequested.load() || self->finalized) return {};
+    const auto key = canonicalKey(sourceKey);
+    const auto found = self->entries.find(key);
+    if (found == self->entries.end() || !found->second.engine->ready()
+        || found->second.engine->closed() || fileIndex >= found->second.engine->fileCount()) return {};
+    self->initializeStreamCounters();
+    const auto token = self->nextStreamLease++;
+    const CounterEvent event{key, static_cast<std::int64_t>(fileIndex), found->second.generation};
+    self->streamLeases.emplace(token, Impl::StreamObligations{event});
+    std::weak_ptr<Impl> weak = self;
+    auto lease = std::shared_ptr<EngineStreamLease>(new EngineStreamLease([weak, token] {
+        if (const auto owner = weak.lock())
+            owner->postApp([token](Impl &state) { state.closeStream(token); });
+    }));
+    self->fileCounter->increment(event);
+    if (self->shutdownRequested.load() || self->finalized) { lease->close(); return lease; }
+    self->streamLeases.at(token).fileAcquired = true;
+    self->engineCounter->increment(event);
+    if (self->shutdownRequested.load() || self->finalized) { lease->close(); return lease; }
+    self->streamLeases.at(token).engineAcquired = true;
+    return lease;
+}
+
 void EngineRegistry::poll()
 {
     std::vector<std::shared_ptr<TorrentEngine>> engines;
@@ -820,8 +933,13 @@ void EngineRegistry::dispatch()
 {
     const auto core = impl_;
     auto tasks = core->app->take();
-    for (auto &task : tasks)
-        if (task) task();
+    std::exception_ptr failure;
+    for (auto &task : tasks) {
+        try { if (task) task(); }
+        catch (...) { if (!failure) failure = std::current_exception(); }
+    }
+    // A failed callback cannot discard unrelated queued cleanup obligations.
+    if (failure) std::rethrow_exception(failure);
 }
 
 std::size_t EngineRegistry::constructionCount() const noexcept

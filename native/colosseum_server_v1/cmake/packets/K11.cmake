@@ -7,6 +7,7 @@ function(server1_register_k11_packet)
   target_include_directories(server1_k11_engine PUBLIC
     "${SERVER1_K11_ROOT}/include")
   target_link_libraries(server1_k11_engine PUBLIC
+    server1_k12_counters
     server1_k01_metadata
     server1_k02_piece_buffer
     server1_k04_scheduler_actions
