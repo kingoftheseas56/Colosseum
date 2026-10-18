@@ -1,7 +1,7 @@
 name: desktop-ci
 
 on:
-  # Temporary trigger for one recoverable three-Tribute capture retry.
+  # Temporary trigger pending fresh approval for one deep One Piece capture.
   push:
     branches:
       - dots/b1-cloud-system-proxy-20261018
@@ -706,7 +706,7 @@ jobs:
             libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev libxkbcommon-dev libxcb-cursor0 \
             libnss3 libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
             libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-xinerama0 \
-            xvfb xauth ffmpeg p7zip-full libarchive-tools
+            xvfb xauth xdotool ffmpeg p7zip-full libarchive-tools
           python -m pip install 'cmake==3.31.6' 'Pillow==12.3.0'
       - name: Install full Qt 6.11.1 SDK
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
@@ -771,7 +771,7 @@ jobs:
           assert not git("status", "--porcelain"), "Qualification source must be clean"
           changed = set(filter(None, git("diff", "--name-only", runtime, "HEAD").splitlines()))
           # Parked component assets are QA only, and are never executed here.
-          allowed = {'tests/capture_native_promos_v2.py', 'tests/test_capture_native_promos_v2.py', 'tests/capture_native_promos.py', 'tests/test_capture_native_promos.py', 'tests/release_qualification/test_universe_observation.py', 'tests/controlled_stream/stream_component.py', 'tests/controlled_stream/fixture/create-options.json', 'tests/release_qualification/universe_journey.py', 'tests/release_qualification/test_universe_geometry.py', 'tests/release_qualification/verify_offline.py', 'tests/controlled_stream/runtime-provenance.json', 'tests/controlled_stream/fixture/loopback_tracker.py', 'tests/release_qualification/native_recovery_controller.py', 'tests/release_qualification/test_recovery_helpers.py', 'tests/release_qualification/build_catalogue.mjs', '.github/workflows/desktop-ci.yml', 'tests/controlled_stream/check_isolation.py', 'tests/controlled_stream/fixture/owned-test-pattern.mp4', 'tests/release_qualification/native_ui.py', 'tests/release_qualification/probe.py', 'tests/release_qualification/test_probe.py', 'tests/controlled_stream/fixture/loopback_seed.cpp', 'tests/controlled_stream/fixture/owned-test-pattern.torrent', 'tests/release_qualification/prepare_content.py', 'tests/release_qualification/test_prepare_content.py', 'tests/controlled_stream/launch_isolated.py', 'tests/controlled_stream/fixture/fixture.json', 'tests/controlled_stream/fixture/SOURCE_SHA256SUMS', 'tests/release_qualification/b1_catalogue_fault_fixture.py', 'tests/release_qualification/expected-catalogue.json'}
+          allowed = {'tests/capture_deep_onepiece_v3.py', 'tests/test_capture_deep_onepiece_v3.py', 'tests/capture_native_promos_v2.py', 'tests/test_capture_native_promos_v2.py', 'tests/capture_native_promos.py', 'tests/test_capture_native_promos.py', 'tests/release_qualification/test_universe_observation.py', 'tests/controlled_stream/stream_component.py', 'tests/controlled_stream/fixture/create-options.json', 'tests/release_qualification/universe_journey.py', 'tests/release_qualification/test_universe_geometry.py', 'tests/release_qualification/verify_offline.py', 'tests/controlled_stream/runtime-provenance.json', 'tests/controlled_stream/fixture/loopback_tracker.py', 'tests/release_qualification/native_recovery_controller.py', 'tests/release_qualification/test_recovery_helpers.py', 'tests/release_qualification/build_catalogue.mjs', '.github/workflows/desktop-ci.yml', 'tests/controlled_stream/check_isolation.py', 'tests/controlled_stream/fixture/owned-test-pattern.mp4', 'tests/release_qualification/native_ui.py', 'tests/release_qualification/probe.py', 'tests/release_qualification/test_probe.py', 'tests/controlled_stream/fixture/loopback_seed.cpp', 'tests/controlled_stream/fixture/owned-test-pattern.torrent', 'tests/release_qualification/prepare_content.py', 'tests/release_qualification/test_prepare_content.py', 'tests/controlled_stream/launch_isolated.py', 'tests/controlled_stream/fixture/fixture.json', 'tests/controlled_stream/fixture/SOURCE_SHA256SUMS', 'tests/release_qualification/b1_catalogue_fault_fixture.py', 'tests/release_qualification/expected-catalogue.json'}
           assert changed <= allowed, sorted(changed - allowed)
           expected = {
               "colosseum": "acb86ce66202531629c137f8706d8d873c3065df8a08867cbeb8bd60eafaa677",
@@ -812,9 +812,9 @@ jobs:
       - name: Check native capture driver without launching app
         run: |
           set -euo pipefail
-          python -m unittest discover -s tests -p test_capture_native_promos_v2.py
-          python -m py_compile tests/capture_native_promos_v2.py tests/test_capture_native_promos_v2.py
-      - name: Retry only three native Tributes; retain prior Universe tour
+          python -m unittest discover -s tests -p test_capture_deep_onepiece_v3.py
+          python -m py_compile tests/capture_deep_onepiece_v3.py tests/test_capture_deep_onepiece_v3.py
+      - name: Capture only deep interactive One Piece journey
         timeout-minutes: 32
         env:
           QT_QPA_PLATFORM: xcb
@@ -824,8 +824,8 @@ jobs:
           ffmpeg -version > "$RUNNER_TEMP/b1-evidence/capture-ffmpeg-version.txt"
           timeout --signal=TERM --kill-after=60s 1800s \
             xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24 -nolisten tcp' \
-            python tests/capture_native_promos_v2.py --source "$GITHUB_WORKSPACE" \
-              --binary "$COLOSSEUM_LINUX_BUILD/colosseum" --output "$RUNNER_TEMP/promo-capture" --clips onepiece starwars dcau
+            python tests/capture_deep_onepiece_v3.py --source "$GITHUB_WORKSPACE" \
+              --binary "$COLOSSEUM_LINUX_BUILD/colosseum" --output "$RUNNER_TEMP/promo-capture" --record
       - name: Record final source status
         if: always()
         run: |
@@ -841,7 +841,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: b1-native-promotion-${{ github.sha }}-${{ github.run_attempt }}
+          name: b1-native-deep-onepiece-${{ github.sha }}-${{ github.run_attempt }}
           retention-days: 7
           if-no-files-found: warn
           path: |
@@ -854,5 +854,5 @@ jobs:
             ${{ runner.temp }}/promo-capture/*/scenes.json
             ${{ runner.temp }}/promo-capture/*/ffprobe.json
             ${{ runner.temp }}/promo-capture/*/*.mp4
-            ${{ runner.temp }}/promo-capture/*/preflight.png
+            ${{ runner.temp }}/promo-capture/*/failure.png
             ${{ runner.temp }}/promo-capture/*/last-frame.png
