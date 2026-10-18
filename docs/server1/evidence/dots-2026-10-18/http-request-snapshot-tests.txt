@@ -1,0 +1,26 @@
+HTTP request fidelity checkpoint, Linux x86_64, 2026-10-18 UTC
+Parent c7493fdcb2da0b0a09c47f1b36c8cac22ae14978
+GCC14.2 / Qt6.11.1 / CMake4.4.3 / Release
+Final build exit0. Final CTest104/104PASS,0FAIL,0SKIP,70.44s.
+Final matching RelWithDebInfo ASan H00 tests9/9PASS,exit0,1.87s.
+ASAN_OPTIONS=detect_leaks=0. No LeakSanitizer or Windows qualification.
+HTTP executable SHA256 82a806ced4640cb9c1c30adcbc95037d182f78d36ab10fc08b73ea4b9ad3e3ff
+
+Before Connection forwarding fix, H00-09 exit1:
+H00 FAIL: native dispatch lost duplicate headers, raw range or binary request bytes
+Before parser control validation, H00-09 exit1:
+H00 FAIL: prohibited header control reached handler or was silently truncated
+After: duplicate Range and priority, exact three-byte NUL body, four invalid
+control values rejected before handler, valid HTAB/obs-text preserved: PASS.
+
+Independent localhost Node22.16.0 parser check (not full source server):
+{"node":"v22.16.0","headerByte":0,"response":"HTTP/1.1 400 Bad Request"}
+{"node":"v22.16.0","headerByte":1,"response":"HTTP/1.1 400 Bad Request"}
+{"node":"v22.16.0","headerByte":31,"response":"HTTP/1.1 400 Bad Request"}
+{"node":"v22.16.0","headerByte":127,"response":"HTTP/1.1 400 Bad Request"}
+{"node":"v22.16.0","headerByte":9,"response":"HTTP/1.1 200 OK"}
+{"node":"v22.16.0","headerByte":128,"response":"HTTP/1.1 200 OK"}
+
+Reproduction commands/limits: ../../DOTS-2026-10-18-HTTP-REQUEST-SNAPSHOT.md
+Preliminary full/ASan runs preceded control-validation additions and are not
+substituted for the final runs above. No deferred/torrent route proof yet.

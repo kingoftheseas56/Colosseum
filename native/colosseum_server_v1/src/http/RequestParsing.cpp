@@ -461,7 +461,14 @@ ParseState tryParse(Parser &parser)
                 return parser.state;
             }
         }
-        request.headers.push_back({lower(rawName), trimOWS(line.substr(colon + 1))});
+        const auto rawValue=line.substr(colon+1);
+        for(const unsigned char character : rawValue) {
+            if((character<32 && character!='\t') || character==127) {
+                fail(parser,400,"invalid header value");
+                return parser.state;
+            }
+        }
+        request.headers.push_back({lower(rawName), trimOWS(rawValue)});
         headerCursor = lineEnd + 2;
     }
 
@@ -642,6 +649,27 @@ const char *server1_http_parser_body(void *opaqueParser)
 {
     return opaqueParser == nullptr ? ""
                                    : static_cast<server1::http::detail::Parser *>(opaqueParser)->request.body.c_str();
+}
+
+std::size_t server1_http_parser_body_size(void *opaqueParser)
+{
+    return opaqueParser ? static_cast<server1::http::detail::Parser *>(opaqueParser)->request.body.size() : 0;
+}
+std::size_t server1_http_parser_header_entry_count(void *opaqueParser)
+{
+    return opaqueParser ? static_cast<server1::http::detail::Parser *>(opaqueParser)->request.headers.size() : 0;
+}
+const char *server1_http_parser_header_entry_name(void *opaqueParser, std::size_t index)
+{
+    if (!opaqueParser) return server1::http::detail::kEmpty;
+    const auto &headers=static_cast<server1::http::detail::Parser *>(opaqueParser)->request.headers;
+    return index<headers.size() ? headers[index].name.c_str() : server1::http::detail::kEmpty;
+}
+const char *server1_http_parser_header_entry_value(void *opaqueParser, std::size_t index)
+{
+    if (!opaqueParser) return server1::http::detail::kEmpty;
+    const auto &headers=static_cast<server1::http::detail::Parser *>(opaqueParser)->request.headers;
+    return index<headers.size() ? headers[index].value.c_str() : server1::http::detail::kEmpty;
 }
 
 int server1_http_parser_body_kind(void *opaqueParser)

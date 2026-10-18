@@ -31,6 +31,10 @@ const char *server1_http_parser_method(void *parser);
 const char *server1_http_parser_target(void *parser);
 const char *server1_http_parser_path(void *parser);
 const char *server1_http_parser_body(void *parser);
+std::size_t server1_http_parser_body_size(void *parser);
+std::size_t server1_http_parser_header_entry_count(void *parser);
+const char *server1_http_parser_header_entry_name(void *parser, std::size_t index);
+const char *server1_http_parser_header_entry_value(void *parser, std::size_t index);
 int server1_http_parser_body_kind(void *parser);
 bool server1_http_parser_keep_alive(void *parser);
 std::size_t server1_http_parser_header_count(void *parser, const char *name);
@@ -57,6 +61,12 @@ const char *server1_http_router_error(void *router);
 void *server1_http_router_dispatch(void *router, const char *method, const char *target,
                                    const char *body);
 
+// Copies a completed parser request, including ordered duplicate headers and
+// exact body length, before entering the synchronous handler chain.
+void *server1_http_router_dispatch_parsed(void *router, void *parser);
+std::size_t server1_http_request_body_size(const void *request);
+std::size_t server1_http_request_header_count(const void *request, const char *name);
+const char *server1_http_request_header_value_at(const void *request, const char *name, std::size_t index);
 const char *server1_http_request_method(const void *request);
 const char *server1_http_request_target(const void *request);
 const char *server1_http_request_path(const void *request);

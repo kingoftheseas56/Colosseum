@@ -26,6 +26,7 @@ struct Request {
     std::string body;
     std::vector<QueryEntry> query;
     std::map<std::string, std::string> params;
+    std::vector<std::pair<std::string,std::string>> headers;
 };
 
 struct Response final {
@@ -412,6 +413,7 @@ struct Router final {
 struct Match final {
     const Route *route = nullptr;
     std::map<std::string, std::string> params;
+    std::vector<std::pair<std::string,std::string>> headers;
     bool invalidEncoding = false;
 };
 
@@ -596,9 +598,10 @@ bool dispatchFrom(Router &router, Request &request, Response &response,
 }
 
 Response dispatch(Router &router, std::string_view method, std::string_view target,
-                  std::string_view body)
+                  std::string_view body, std::vector<std::pair<std::string,std::string>> headers = {})
 {
     Request request;
+    request.headers=std::move(headers);
     request.method = upper(method);
     request.target = target;
     request.body = body;
@@ -726,6 +729,38 @@ void *server1_http_router_dispatch(void *opaqueRouter, const char *method, const
     auto result = server1::http::router_detail::dispatch(
         *static_cast<server1::http::router_detail::Router *>(opaqueRouter), method, target, body);
     return new server1::http::router_detail::Response(std::move(result));
+}
+
+void *server1_http_router_dispatch_parsed(void *opaqueRouter, void *parser)
+{
+    if (!opaqueRouter || !parser) return server1_http_router_dispatch(nullptr,nullptr,nullptr,nullptr);
+    std::vector<std::pair<std::string,std::string>> headers;
+    for(std::size_t i=0;i<server1_http_parser_header_entry_count(parser);++i)
+        headers.emplace_back(server1_http_parser_header_entry_name(parser,i),server1_http_parser_header_entry_value(parser,i));
+    auto result=server1::http::router_detail::dispatch(
+        *static_cast<server1::http::router_detail::Router *>(opaqueRouter),
+        server1_http_parser_method(parser),server1_http_parser_target(parser),
+        std::string_view(server1_http_parser_body(parser),server1_http_parser_body_size(parser)),std::move(headers));
+    return new server1::http::router_detail::Response(std::move(result));
+}
+std::size_t server1_http_request_body_size(const void *opaqueRequest)
+{
+    return opaqueRequest ? static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->body.size() : 0;
+}
+std::size_t server1_http_request_header_count(const void *opaqueRequest,const char *name)
+{
+    if(!opaqueRequest || !name)return 0;
+    const auto wanted=server1::http::router_detail::lower(name);
+    const auto &headers=static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->headers;
+    return static_cast<std::size_t>(std::count_if(headers.begin(),headers.end(),[&](const auto &h){return h.first==wanted;}));
+}
+const char *server1_http_request_header_value_at(const void *opaqueRequest,const char *name,std::size_t index)
+{
+    if(!opaqueRequest || !name)return server1::http::router_detail::kEmpty;
+    const auto wanted=server1::http::router_detail::lower(name);
+    for(const auto &h:static_cast<const server1::http::router_detail::Request *>(opaqueRequest)->headers)
+        if(h.first==wanted){if(index==0)return h.second.c_str();--index;}
+    return server1::http::router_detail::kEmpty;
 }
 
 const char *server1_http_request_method(const void *opaqueRequest)

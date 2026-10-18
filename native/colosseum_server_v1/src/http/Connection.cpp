@@ -240,13 +240,10 @@ private:
         if (closed_ || parser_ == nullptr || responsePending_)
             return;
         const std::string method = server1_http_parser_method(parser_);
-        const std::string target = server1_http_parser_target(parser_);
-        const std::string body = server1_http_parser_body(parser_);
         const bool keepAlive = server1_http_parser_keep_alive(parser_);
         const std::string remaining(server1_http_parser_remaining(parser_),
                                     server1_http_parser_remaining_size(parser_));
-        void *response = server1_http_router_dispatch(server_->router(), method.c_str(), target.c_str(),
-                                                       body.c_str());
+        void *response = server1_http_router_dispatch_parsed(server_->router(), parser_);
         const int status = server1_http_response_status(response);
         const bool responseClose = server1_http_response_close(response) != 0;
         const bool streaming = server1_http_response_has_stream(response) != 0;

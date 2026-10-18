@@ -907,6 +907,51 @@ void caseH00_08()
     std::cout<<"H00-08 finalizer server destruction cap/abort/drain/stop PASS\n";
 }
 
+void caseH00_09()
+{
+    auto handler=+[](const void *request,void *response,server1_http_next_fn,void *,void *context){
+        ++*static_cast<int *>(context);
+        std::string result="range="+std::to_string(server1_http_request_header_count(request,"RaNgE"));
+        result+=";first="+std::string(server1_http_request_header_value_at(request,"range",0));
+        result+=";second="+std::string(server1_http_request_header_value_at(request,"RANGE",1));
+        result+=";prio="+std::string(server1_http_request_header_value_at(request,"enginefs-prio",0));
+        result+=";body="+std::to_string(server1_http_request_body_size(request))+":";
+        result.append(server1_http_request_body(request),server1_http_request_body_size(request));
+        server1_http_response_set_status(response,200);
+        return server1_http_response_set_body(response,result.data(),result.size());
+    };
+    int calls=0;
+    void *router=server1_http_router_create();
+    require(server1_http_router_add_handler(router,0,0,"POST","/headers",handler,&calls,nullptr)==1,"header route");
+    void *server=server1_http_server_create(router,65536);
+    require(server1_http_server_listen(server,0)==1,"header listener");
+    QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+    require(client.waitForConnected(1000),"header client");
+    QByteArray request="POST /headers HTTP/1.1\r\nHost: localhost\r\nRange: bytes=4-\r\nrange: bytes=8-10\r\nEngineFS-Prio: 7\r\nContent-Length: 3\r\nConnection: close\r\n\r\n";
+    request.append("a\0b",3);client.write(request);client.flush();
+    const auto wire=collectUntilDisconnected(client);
+    QByteArray expected="range=2;first=bytes=4-;second=bytes=8-10;prio=7;body=3:";expected.append("a\0b",3);
+    const auto split=wire.indexOf("\r\n\r\n");
+    require(split>=0 && wire.mid(split+4)==expected,"native dispatch lost duplicate headers, raw range or binary request bytes");
+    for(const unsigned char control : {0,1,31,127}) {
+        QTcpSocket bad;bad.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+        require(bad.waitForConnected(1000),"malformed header client");
+        QByteArray input="POST /headers HTTP/1.1\r\nHost: localhost\r\nRange: bytes=4-";
+        input.append(static_cast<char>(control));input.append("junk\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        bad.write(input);bad.flush();const auto rejected=collectUntilDisconnected(bad);
+        require(rejected.startsWith("HTTP/1.1 400 ") && calls==1,"prohibited header control reached handler or was silently truncated");
+    }
+    QTcpSocket valid;valid.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+    require(valid.waitForConnected(1000),"valid header control client");
+    QByteArray positive="POST /headers HTTP/1.1\r\nHost: localhost\r\nRange: \tbytes=2-\t\r\nEngineFS-Prio: a\tb";
+    positive.append(static_cast<char>(0x80));positive.append("\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    valid.write(positive);valid.flush();const auto accepted=collectUntilDisconnected(valid);
+    QByteArray expectedValid="range=1;first=bytes=2-;second=;prio=a\tb";expectedValid.append(static_cast<char>(0x80));expectedValid.append(";body=0:");
+    require(accepted.startsWith("HTTP/1.1 200 ") && accepted.endsWith(expectedValid) && calls==2,"valid tab/obs-text header bytes changed");
+    server1_http_server_destroy(server);server1_http_router_destroy(router);
+    std::cout<<"H00-09 native ordered headers and binary request body PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -970,12 +1015,13 @@ int main(int argc, char **argv)
             caseH00_03();
         if (requested == "all" || requested == "H00-04")
             caseH00_04();
+        if (requested == "all" || requested == "H00-09") caseH00_09();
         if (requested == "all" || requested == "H00-08") caseH00_08();
         if (requested == "all" || requested == "H00-07") caseH00_07();
         if (requested == "all" || requested == "H00-06") caseH00_06();
         if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';
