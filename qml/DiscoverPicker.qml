@@ -57,9 +57,14 @@ Item {
         if (open) {
             pop.positionAtPill()
             pop.open()
-            list.currentIndex = selectedOptionIndex()
-            if (list.currentIndex >= 0) list.positionViewAtIndex(list.currentIndex, ListView.Contain)
-            Qt.callLater(function() { if (picker.open) list.forceActiveFocus(Qt.PopupFocusReason) })
+            // Opening also restores the lazy list model. Select after that model
+            // reset, which otherwise replaces the saved selection with row zero.
+            Qt.callLater(function() {
+                if (!picker.open) return
+                list.currentIndex = picker.selectedOptionIndex()
+                if (list.currentIndex >= 0) list.positionViewAtIndex(list.currentIndex, ListView.Contain)
+                list.forceActiveFocus(Qt.PopupFocusReason)
+            })
         } else {
             pop.close()
         }
