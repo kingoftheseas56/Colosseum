@@ -5,6 +5,8 @@
 #include <atomic>
 #include <cctype>
 #include <condition_variable>
+#include <cmath>
+#include <set>
 #include <deque>
 #include <exception>
 #include <map>
@@ -404,6 +406,15 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
         std::shared_ptr<Completion> completion;
     };
 
+    struct CacheWatch final {
+        TorrentFile file;
+        double denominator = 0;
+        std::set<std::size_t> missing;
+        std::optional<std::string> destination;
+        bool initialized = false;
+        bool completed = false;
+    };
+
     struct Entry final {
         ports::EngineGeneration generation = 0;
         std::shared_ptr<TorrentEngine> engine;
@@ -415,6 +426,7 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
         std::size_t readyRegistrations = 0;
         bool pairsScheduled = false;
         bool terminalDelivered = false;
+        std::map<std::size_t,std::shared_ptr<CacheWatch>> cacheWatches;
     };
 
     explicit Impl(EngineRegistryConfig registryConfig)
@@ -486,8 +498,99 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
         };
         auto files = make(true);
         auto engines = make(false);
+        EngineCounterConfig idle;
+        idle.key=[](const CounterEvent &event){return event.hash;};
+        idle.onPositive=[](const CounterEvent &){};
+        idle.onZero=[weak](const CounterEvent &event){
+            const auto self=weak.lock();
+            if(!self || self->finalized || self->shutdownRequested.load()) return;
+            const auto found=self->entries.find(event.hash);
+            if(found==self->entries.end()) return;
+            const auto generation=found->second.generation;
+            self->emit(EngineEventType::EngineIdle,event.hash,generation);
+            if(self->finalized || self->shutdownRequested.load()) return;
+            self->emit(EngineEventType::ScopedEngineIdle,event.hash,generation);
+        };
+        idle.timeoutMs=[weak]{const auto self=weak.lock();return self ? self->config.streamTimeoutMs : 0;};
+        idle.after=config.after;
+        auto uncached=std::make_unique<EngineCounter>(std::move(idle));
         fileCounter = std::move(files);
         engineCounter = std::move(engines);
+        uncachedCounter = std::move(uncached);
+    }
+
+    bool cacheCurrent(const std::string &key,ports::EngineGeneration generation) const
+    { return !shutdownRequested.load() && !finalized && current(key,generation); }
+
+    void cacheEvent(EngineEventType type,const std::string &key,ports::EngineGeneration generation,
+                    std::size_t index,Value data,std::optional<std::string> path={})
+    {
+        if(config.onEvent) config.onEvent({type,key,generation,Value::missing(),{},index,std::move(data),std::move(path)});
+    }
+
+    static Value cacheFileValue(const TorrentFile &file)
+    {
+        return Value::object({{"name",Value::string(file.name)},{"path",Value::string(file.path)},
+            {"length",Value::number(static_cast<double>(file.length))},
+            {"offset",Value::number(static_cast<double>(file.offset))},{"__cacheEvents",Value::boolean(true)}});
+    }
+
+    void cacheProgress(const std::string &key,ports::EngineGeneration generation,std::size_t index,
+                       const std::shared_ptr<CacheWatch> &watch)
+    {
+        if(!cacheCurrent(key,generation) || finalized || !watch->initialized || watch->completed) return;
+        const auto progress=(watch->denominator-static_cast<double>(watch->missing.size()))/watch->denominator;
+        cacheEvent(EngineEventType::ScopedStreamProgress,key,generation,index,Value::number(progress));
+        if(!cacheCurrent(key,generation) || finalized || watch->completed || !watch->missing.empty()) return;
+        watch->completed=true;
+        const auto file=cacheFileValue(watch->file);
+        cacheEvent(EngineEventType::ScopedStreamCached,key,generation,index,file,watch->destination);
+        if(!cacheCurrent(key,generation) || finalized) return;
+        uncachedCounter->decrement({key,static_cast<std::int64_t>(index),generation});
+        if(!cacheCurrent(key,generation) || finalized) return;
+        cacheEvent(EngineEventType::StreamCached,key,generation,index,file,watch->destination);
+    }
+
+    void beginCacheWatch(const std::string &key,ports::EngineGeneration generation,std::size_t index)
+    {
+        if(!cacheCurrent(key,generation) || finalized) return;
+        auto &entry=entries.at(key);
+        if(entry.cacheWatches.count(index)) return;
+        const auto engine=entry.engine;
+        auto snapshot=engine->fileCacheSnapshot(index);
+        if(!snapshot) return;
+        auto watch=std::make_shared<CacheWatch>();
+        watch->file=snapshot->file;
+        entry.cacheWatches.emplace(index,watch); // source __cacheEvents marker precedes callbacks
+        uncachedCounter->increment({key,static_cast<std::int64_t>(index),generation});
+        cacheEvent(EngineEventType::StreamCreated,key,generation,index,cacheFileValue(watch->file));
+        if(!cacheCurrent(key,generation) || finalized) return;
+        snapshot=engine->fileCacheSnapshot(index); // observers may have advanced committed facts
+        if(!snapshot) return;
+        watch->destination=snapshot->destination;
+        watch->denominator=std::ceil(static_cast<double>(watch->file.length)/snapshot->pieceLength);
+        const auto length=static_cast<std::int64_t>(snapshot->pieceLength);
+        const auto first=watch->file.offset/length;
+        const auto last=(watch->file.offset+watch->file.length-1)/length;
+        const std::set<std::size_t> committed(snapshot->committedPieces.begin(),snapshot->committedPieces.end());
+        for(auto piece=first;piece<=last;++piece)
+            if(!committed.count(static_cast<std::size_t>(piece))) watch->missing.insert(static_cast<std::size_t>(piece));
+        watch->initialized=true;
+        cacheProgress(key,generation,index,watch);
+        if(cacheCurrent(key,generation) && !finalized) engine->selectCacheFile(index);
+    }
+
+    void verified(const std::string &key,ports::EngineGeneration generation,std::size_t piece)
+    {
+        if(!cacheCurrent(key,generation) || finalized) return;
+        // A callback may remove the entry or open another file. Snapshot shared
+        // watchers without retaining a map iterator across external callbacks.
+        const auto watches=entries.at(key).cacheWatches;
+        for(const auto &[index,watch]:watches) {
+            if(!cacheCurrent(key,generation) || finalized) return;
+            if(watch->initialized && !watch->completed && watch->missing.erase(piece))
+                cacheProgress(key,generation,index,watch);
+        }
     }
 
     void closeStream(std::uint64_t token)
@@ -582,6 +685,9 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
             };
             wiring.onFailed = [weak, key, generation] {
                 if (const auto self = weak.lock()) self->engineFailed(key, generation);
+            };
+            wiring.onVerified = [weak,key,generation](std::size_t piece){
+                if(const auto self=weak.lock()) self->verified(key,generation,piece);
             };
             std::shared_ptr<TorrentEngine> engine;
             try {
@@ -693,6 +799,7 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
         finalized = true;
         if (fileCounter) fileCounter->close();
         if (engineCounter) engineCounter->close();
+        if (uncachedCounter) uncachedCounter->close();
         streamLeases.clear();
         auto engines = std::move(entries);
         entries.clear();
@@ -733,6 +840,7 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
     std::vector<Terminal> ledger;
     std::unique_ptr<EngineCounter> fileCounter;
     std::unique_ptr<EngineCounter> engineCounter;
+    std::unique_ptr<EngineCounter> uncachedCounter;
     struct StreamObligations {
         CounterEvent event;
         bool fileAcquired = false;
@@ -908,6 +1016,7 @@ std::shared_ptr<EngineStreamLease> EngineRegistry::openStream(const std::string 
         if (const auto owner = weak.lock())
             owner->postApp([token](Impl &state) { state.closeStream(token); });
     }));
+    self->postApp([key,generation=event.generation,fileIndex](Impl &owner){owner.beginCacheWatch(key,generation,fileIndex);});
     self->fileCounter->increment(event);
     if (self->shutdownRequested.load() || self->finalized) { lease->close(); return lease; }
     self->streamLeases.at(token).fileAcquired = true;

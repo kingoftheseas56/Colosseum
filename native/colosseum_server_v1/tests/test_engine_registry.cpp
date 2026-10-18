@@ -1338,6 +1338,148 @@ void swarmCapCreationBinding()
            "K11-01 reuse options rebound the creation-time swarm-cap updater");
 }
 
+void regressionCacheDeparture()
+{
+    for(int mode=0;mode<3;++mode){
+        const auto torrent=fixture("cache-depart.bin",{{"cache-depart.bin",8}});
+        FakeFactory factory;LaneWorker worker;
+        std::vector<EngineEvent> events;
+        std::deque<EngineContinuation> callbacks;
+        auto cancels=std::make_shared<std::size_t>(0);
+        std::unique_ptr<EngineRegistry> registry;
+        EngineRegistryConfig config;
+        config.cacheRoot=uniqueRoot("k12-cache-departure");
+        config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+        config.transportFactory=[&](const auto&r){return factory.open(r);};
+        config.callbackExecutor=[&](EngineContinuation task){callbacks.push_back(std::move(task));return true;};
+        config.after=[&](auto,auto callback){return std::make_shared<ProbeTimer>(1,cancels,std::move(callback));};
+        config.onEvent=[&](const EngineEvent&e){
+            events.push_back(e);
+            if(e.type==EngineEventType::StreamCreated){
+                if(mode==1)registry->remove(torrent.hash);
+                if(mode==2)registry.reset();
+            }
+        };
+        registry=std::make_unique<EngineRegistry>(std::move(config));
+        auto flush=[&]{for(int turn=0;turn<20;++turn){
+            if(registry)registry->poll();worker.waitIdle();
+            auto batch=std::move(callbacks);callbacks.clear();
+            for(auto &task:batch)task();
+            if(registry)registry->dispatch();
+        }};
+        registry->create({torrent.hash,Value::object({{"peerSearch",Value::boolean(false)}})});
+        flush();ready(factory.at(0),torrent);flush();events.clear();
+        const auto engine=registry->get(torrent.hash);
+        auto lease=registry->openStream(torrent.hash,0);
+        if(mode==0)registry->remove(torrent.hash);
+        flush();
+        expect(countEvents(events,EngineEventType::StreamCreated)==(mode==0?0:1),"K12 stale ready callback initialized watcher");
+        expect(countEvents(events,EngineEventType::ScopedStreamProgress)==0 && engine->selectionCount()==0,
+               "K12 cache callback continued after route/owner departure");
+        expect(engine->closed(),"K12 departing cache callback retained operational engine");
+        lease.reset();flush();
+        expect(factory.at(0)->closeCount==1,"K12 cache departure did not retire transport once");
+    }
+    std::cout<<"K12 deferred cache cancellation/removal/owner destruction PASS\n";
+}
+
+void regressionCacheObservation(bool circular=false)
+{
+    const Bytes payload{0,1,2,3,4,5,6,7,8};
+    const auto torrent=dataFixture("cache-observer",{{"prefix.bin",3},{"cross.bin",2},{"tail.bin",4}},payload,4);
+    FakeFactory factory;LaneWorker worker;
+    std::vector<EngineEvent> events;
+    std::vector<std::shared_ptr<ProbeTimer>> timers;
+    auto cancels=std::make_shared<std::size_t>(0);
+    EngineRegistryConfig config;
+    config.cacheRoot=uniqueRoot("k12-cache-observer");
+    config.workExecutor=[&](EngineContinuation task){return worker.post(std::move(task));};
+    config.transportFactory=[&](const auto&r){return factory.open(r);};
+    config.onEvent=[&](const EngineEvent&e){events.push_back(e);};
+    config.after=[&](auto,auto callback){auto t=std::make_shared<ProbeTimer>(timers.size()+1,cancels,std::move(callback));timers.push_back(t);return t;};
+    EngineRegistry registry(std::move(config));
+    const auto creation=circular ? Value::object({{"peerSearch",Value::boolean(false)},
+        {"circularBuffer",Value::boolean(true)},{"buffer",Value::number(8)}})
+        : Value::object({{"peerSearch",Value::boolean(false)}});
+    registry.create({torrent.hash,creation});
+    settle(registry,worker);const auto state=factory.at(0);ready(state,torrent);settle(registry,worker);
+    const auto engine=registry.get(torrent.hash);events.clear();
+    auto lease=registry.openStream(torrent.hash,1);
+    expect(events.size()==4,"K12 cache init ran before next-turn ready boundary");
+    registry.dispatch();
+    expect(countEvents(events,EngineEventType::StreamCreated)==1,"K12 first open did not initialize cache observation");
+    auto progress=[&]{std::vector<double> values;for(const auto&e:events)
+        if(e.type==EngineEventType::ScopedStreamProgress){expect(!e.filePath,"K12 progress fabricated fpath");values.push_back(e.data.asNumber());}return values;};
+    expect(progress()==std::vector<double>{-1},"K12 cross-boundary initial progress was clamped");
+    expect(engine->readerCount()==0 && (circular ? engine->selectionCount()==0 : engine->selectionCount()>0),
+           "K12 cache selection violates buffer/no-reader policy");
+    std::shared_ptr<FileReader> circularReader;
+    if(circular){circularReader=engine->createReader(1);circularReader->request(2);}
+    observe(state,AvailablePiecesObservation{engine->generation(),41,{0,1,2}});
+    observe(state,PeerObservation{41,false,true,1000.0,0.0,0,0});settle(registry,worker);
+    std::set<std::uint64_t> responded;
+    for(int turn=0;turn<10 && progress().size()<3;++turn){
+        const auto actions=actionsOf<RequestAction>(state);
+        expect(!actions.empty(),"K12 background selection did not demand real transport blocks");
+        for(const auto &request:actions){
+            if(!responded.insert(request.ownership.requestId).second) continue;
+            const auto start=request.block.piece*4+request.block.offset;
+            expect(start+request.block.length<=payload.size(),"K12 background requested outside physical geometry");
+            observe(state,BlockObservation{request.ownership,request.peer,request.block,
+                Bytes(payload.begin()+start,payload.begin()+start+request.block.length),false,false});
+        }
+        settle(registry,worker);
+    }
+    expect(progress()==std::vector<double>({-1,0,1}),"K12 verified piece progress differs from M172");
+    expect(countEvents(events,EngineEventType::ScopedStreamCached)==1 && countEvents(events,EngineEventType::StreamCached)==1,
+           "K12 completion missed cached pair");
+    const auto cached=std::find_if(events.begin(),events.end(),[](const auto&e){return e.type==EngineEventType::StreamCached;});
+    expect(circular ? !cached->filePath : cached->filePath && !cached->filePath->empty(),
+           "K12 cached destination does not match actual store capability");
+    auto second=registry.openStream(torrent.hash,1);registry.dispatch();
+    expect(countEvents(events,EngineEventType::StreamCreated)==1 && progress().size()==3,"K12 repeated open reinitialized cache watcher");
+    lease->close();second->close();registry.dispatch();
+    expect(!timers.empty(),"K12 cached completion did not arm idle timer");
+    timers.front()->fire();
+    expect(countEvents(events,EngineEventType::EngineIdle)==1 && countEvents(events,EngineEventType::ScopedEngineIdle)==1,
+           "K12 cached engine did not emit idle pair");
+    if(circular){
+        Bytes actual;for(const auto &chunk:circularReader->takeData()) actual.insert(actual.end(),chunk.begin(),chunk.end());
+        expect(actual==Bytes({3,4}),"K12 circular reader did not receive verified cross-boundary bytes");
+        circularReader->close();circularReader.reset();
+        auto tail=engine->createReader(2);tail->request(4);
+        for(int turn=0;turn<10;++turn){
+            settle(registry,worker);
+            for(const auto &request:actionsOf<RequestAction>(state)){
+                if(!responded.insert(request.ownership.requestId).second)continue;
+                const auto start=request.block.piece*4+request.block.offset;
+                expect(start+request.block.length<=payload.size(),"K12 circular request outside geometry");
+                observe(state,BlockObservation{request.ownership,request.peer,request.block,
+                    Bytes(payload.begin()+start,payload.begin()+start+request.block.length),false,false});
+            }
+        }
+        settle(registry,worker);
+        const auto facts=engine->fileCacheSnapshot(1);
+        expect(facts && std::find(facts->committedPieces.begin(),facts->committedPieces.end(),0)==facts->committedPieces.end(),
+               "K12 circular fixture did not actually evict its first piece");
+        auto reopened=registry.openStream(torrent.hash,1);registry.dispatch();
+        expect(progress()==std::vector<double>({-1,0,1}) && countEvents(events,EngineEventType::StreamCached)==1,
+               "K12 eviction incorrectly rearmed source monotonic cache events");
+        reopened->close();registry.dispatch();
+        std::cout<<"K12 circular absent destination/reader progress/actual eviction monotonicity PASS\n";
+        return;
+    }
+    registry.remove(torrent.hash);settle(registry,worker);
+    registry.create({torrent.hash,creation});
+    settle(registry,worker);ready(factory.at(1),torrent);settle(registry,worker);events.clear();
+    auto restored=registry.openStream(torrent.hash,1);
+    registry.dispatch();
+    expect(progress()==std::vector<double>{1} && countEvents(events,EngineEventType::StreamCreated)==1
+        && countEvents(events,EngineEventType::StreamCached)==1,"K12 actual restored cache did not publish first-open completion");
+    restored->close();registry.dispatch();
+    std::cout<<"K12 next-turn/cross-boundary/real no-reader demand/cached/reopen/idle/restore PASS\n";
+}
+
 void regressionStreamLeaseBatchFailure()
 {
     const auto torrent=fixture("lease-batch",{{"first.bin",8},{"second.bin",8}});
@@ -1492,7 +1634,9 @@ void regressionStreamLeaseTeardown()
     make();
     auto lease=registry->openStream(torrent.hash,0);lease->close();registry->dispatch();
     std::thread destroyer([&]{registry.reset();});destroyer.join();worker.waitIdle();spin();
-    expect(events.size()==4 && errors.empty(),"K12 foreign registry teardown delivered late timer/error");
+    expect(events==std::vector<EngineEventType>{EngineEventType::StreamActive,EngineEventType::ScopedStreamActive,
+        EngineEventType::EngineActive,EngineEventType::ScopedEngineActive,EngineEventType::StreamCreated,
+        EngineEventType::ScopedStreamProgress} && errors.empty(),"K12 foreign registry teardown delivered late timer/error");
     lease.reset();spin();
     expect(factory.at(0)->closeCount==1,"K12 foreign registry teardown did not close transport once");
     make();deleteOnActive=true;
@@ -1531,11 +1675,11 @@ void regressionStreamLease()
     second->close();registry.dispatch();
     expect(timers.size()==2,"K12 last response close must arm file and engine timers");
     auto reopened=registry.openStream(torrent.hash,0);
-    expect(*cancels==2 && events.size()==4,"K12 grace reopen must cancel without new active events");
+    expect(*cancels==2 && events.size()==6,"K12 grace reopen must cancel without new active events");
     reopened.reset();registry.dispatch();
     expect(timers.size()==4,"K12 lease destruction did not close response");
     timers[2]->fire();timers[3]->fire();
-    expect(events==std::vector<EngineEventType>{EngineEventType::StreamActive,EngineEventType::ScopedStreamActive,EngineEventType::EngineActive,EngineEventType::ScopedEngineActive,EngineEventType::StreamInactive,EngineEventType::ScopedStreamInactive,EngineEventType::EngineInactive,EngineEventType::ScopedEngineInactive},"K12 expiry events mismatch");
+    expect(events==std::vector<EngineEventType>{EngineEventType::StreamActive,EngineEventType::ScopedStreamActive,EngineEventType::EngineActive,EngineEventType::ScopedEngineActive,EngineEventType::StreamCreated,EngineEventType::ScopedStreamProgress,EngineEventType::StreamInactive,EngineEventType::ScopedStreamInactive,EngineEventType::EngineInactive,EngineEventType::ScopedEngineInactive},"K12 expiry events mismatch");
     expect(!registry.openStream(torrent.hash,1),"K12 invalid file acquired a lease");
     std::cout<<"K12 response leases HEAD/multiple/duplicate/grace/expiry PASS\n";
 }
@@ -2605,6 +2749,9 @@ int main(int argc, char **argv)
         else if (id == "R8") regressionCircularActiveReaders(true);
         else if (id == "R9") regressionCircularActiveReaders(true, 1);
         else if (id == "R10") regressionCircularActiveReaders(true, 2);
+        else if (id == "R25") regressionCacheDeparture();
+        else if (id == "R24") regressionCacheObservation(true);
+        else if (id == "R23") regressionCacheObservation();
         else if (id == "R22") regressionStreamLeaseBatchFailure();
         else if (id == "R21") regressionStreamLeaseRemoval();
         else if (id == "R20") regressionStreamLeaseExceptions();

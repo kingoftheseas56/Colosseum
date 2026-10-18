@@ -110,6 +110,7 @@ public:
     virtual std::optional<ByteBuffer> uploadRead(std::size_t piece, std::size_t groupStart,
                                                  std::size_t groupEnd) = 0;
     [[nodiscard]] virtual std::vector<std::size_t> restored(std::size_t count) const = 0;
+    virtual std::optional<std::string> destination(std::size_t) const { return std::nullopt; }
     virtual void close() = 0;
 };
 
@@ -188,6 +189,8 @@ public:
             if (store_.isCommitted(piece)) result.push_back(piece);
         return result;
     }
+    std::optional<std::string> destination(std::size_t index) const override
+    { return store_.destination(index).string(); }
     void close() override { store_.close(); }
 
 private:
@@ -483,6 +486,9 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     TraceSink trace;
     std::function<void()> onReady;
     std::function<void()> onFailed;
+    std::function<void(std::size_t)> onVerified;
+    std::vector<std::optional<std::string>> destinations;
+    std::map<SelectionId, std::pair<std::size_t,std::size_t>> cacheSelectionBounds;
     std::shared_ptr<WorkState> work = std::make_shared<WorkState>();
 
     std::shared_ptr<ports::TorrentTransport> transport;
@@ -718,13 +724,17 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 }
                 state->circular = circular;
                 auto restored = store->restored(parsed->geometry().virtualPieces().size());
+                std::vector<std::optional<std::string>> destinations;
+                for (std::size_t index=0; index<parsed->files().size(); ++index)
+                    destinations.push_back(store->destination(index));
                 sink("metadata-install", 0, 0, parsed->geometry().virtualPieces().size());
                 sink("restore", 0, 0, 0, restored.size());
                 state->store = std::move(store);
                 deliver([weak, metadata = std::move(*parsed), restored = std::move(restored),
-                         circular]() mutable {
+                         circular, destinations = std::move(destinations)]() mutable {
                     if (const auto self = weak.lock())
-                        self->install(std::move(metadata), std::move(restored), circular);
+                        self->install(std::move(metadata), std::move(restored), circular,
+                                      std::move(destinations));
                 });
             } catch (const std::exception &exception) {
                 const std::string message = exception.what();
@@ -741,11 +751,13 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         fail(message);
     }
 
-    void install(TorrentMetadata installed, std::vector<std::size_t> restored, bool isCircular)
+    void install(TorrentMetadata installed, std::vector<std::size_t> restored, bool isCircular,
+                 std::vector<std::optional<std::string>> installedDestinations)
     {
         metadataPending = false;
         if (closed || failed || ready) return;
         metadata = std::move(installed);
+        destinations = std::move(installedDestinations);
         const auto pieces = metadata->geometry().virtualPieces().size();
         scheduler = std::make_unique<Scheduler>(pieces);
         schedulerActions = std::make_unique<SchedulerActionContract>();
@@ -902,9 +914,13 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         const auto stats = transport->statistics();
         std::vector<BufferSelection> selections;
         if (scheduler)
-            for (const auto &selection : scheduler->selections())
+            for (const auto &selection : scheduler->selections()) {
+                // M172 background selections omit readFrom/selectTo. They do
+                // not contribute to the reader-buffer cap calculation.
+                if (cacheSelectionBounds.count(selection.id)) continue;
                 selections.push_back({selection.from, selection.offset,
                                       selection.readFrom, selection.selectTo});
+            }
         setSwarmPaused(SwarmCaps::shouldPause(stats.unchokedPeers, stats.downloadBytesPerSecond,
                                               selections, *swarmCap));
     }
@@ -1182,6 +1198,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                     static_cast<void>(transport->submit(ports::AdvertisePieceAction{
                         generation, static_cast<std::uint32_t>(verification)}));
             }
+            if (onVerified) onVerified(piece);
+            if (closed) return;
             for (auto &weakReader : readers)
                 if (auto reader = weakReader.lock()) reader->notifyPiece(piece);
             if (closed) return;
@@ -1612,6 +1630,7 @@ std::shared_ptr<TorrentEngine> TorrentEngine::make(Wiring wiring)
     impl->trace = TraceSink{std::move(wiring.trace), impl->sourceKey, impl->generation};
     impl->onReady = std::move(wiring.onReady);
     impl->onFailed = std::move(wiring.onFailed);
+    impl->onVerified = std::move(wiring.onVerified);
     std::shared_ptr<TorrentEngine> engine(new TorrentEngine(impl));
     impl->start();
     return engine;
@@ -1633,6 +1652,51 @@ std::vector<TorrentFile> TorrentEngine::files() const
 {
     return impl_->metadata ? impl_->metadata->files() : std::vector<TorrentFile>{};
 }
+std::optional<EngineFileCacheSnapshot> TorrentEngine::fileCacheSnapshot(std::size_t index) const
+{
+    const auto self=impl_;
+    if (self->closed || !self->ready || !self->metadata || index>=self->metadata->files().size()) return {};
+    EngineFileCacheSnapshot result;
+    result.file=self->metadata->files()[index];
+    result.pieceLength=self->metadata->geometry().virtualPieceLength();
+    result.verificationLength=self->metadata->geometry().verificationPieceLength();
+    result.committedPieces.assign(self->committed.begin(),self->committed.end());
+    const auto *buffer=self->creationOptions.find("buffer");
+    result.buffered=buffer && jsTruthy(*buffer);
+    if(index<self->destinations.size()) result.destination=self->destinations[index];
+    return result;
+}
+
+void TorrentEngine::selectCacheFile(std::size_t index)
+{
+    const auto self=impl_;
+    const auto snapshot=fileCacheSnapshot(index);
+    if(!snapshot || snapshot->buffered || !self->scheduler) return;
+    const auto &geometry=self->metadata->geometry();
+    const auto count=geometry.virtualPieces().size();
+    if(count==0) return;
+    const auto verification=static_cast<std::int64_t>(snapshot->verificationLength);
+    const auto ratio=snapshot->verificationLength/snapshot->pieceLength;
+    const auto from=static_cast<std::size_t>(snapshot->file.offset/verification)*ratio;
+    const auto sourceTo=static_cast<std::size_t>((snapshot->file.offset+snapshot->file.length-1)/verification+1)*ratio;
+    if(from>=count) return;
+    const auto to=std::min<std::size_t>(sourceTo,count-1);
+    const auto id=self->scheduler->select(from,to,Value::boolean(false));
+    // Preserve M172's inclusive source endpoint separately from safe physical
+    // demand; the source can expose one-past-final-piece in its selection view.
+    self->cacheSelectionBounds.emplace(id,std::make_pair(from,sourceTo));
+    std::set<std::size_t> groups;
+    for(std::size_t piece=from;piece<=to;++piece)
+        if(!self->committed.count(piece)) groups.insert(geometry.virtualPieces()[piece].verificationIndex.value);
+    for(const auto group:groups) {
+        const auto [start,end]=self->realPieceGroup(group);
+        for(auto piece=start;piece<end;++piece)
+            if(!self->committed.count(piece)) self->demandedPieces.insert(piece);
+        self->ensureGroupSelection(group);
+    }
+    self->pumpRequests();
+}
+
 std::size_t TorrentEngine::readerCount() const noexcept
 {
     return static_cast<std::size_t>(std::count_if(

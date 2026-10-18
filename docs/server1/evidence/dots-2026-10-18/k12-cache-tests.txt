@@ -1,0 +1,459 @@
+K12 cache observation partial integration, Linux, 2026-10-18
+Parent dd86b94a68bbc38d16a2c214bb170254febe8a6c
+Release build exit0. Full CTest99/99 passed0failed0skipped60.53s. ASan8/8passed detect_leaks=0.
+R23-R25:3nativeintegrationcases with actual stores and controlled fake transport; existing real-wire suite separate.
+Oracle7cases are source-only controlled inputs, not7native differential matches.
+CTest oracle Node24.19.0; separate oracle run Node22.16.0.
+Registry Release SHA256 bb658b2687996c3a6feea1cfa190a5989451c160d276cf1980d813c1185cb75e
+
+=== cache-before.log ===
+K12 first open did not initialize cache observation
+
+=== cache-after.log ===
+K12 background selection did not demand real transport blocks
+
+=== cache-focused-tests.log ===
+Test project <owned-cloud-workspace>/server-parity/build-linux
+    Start 84: R18-engine-registry
+1/6 Test #84: R18-engine-registry ..............***Failed    0.01 sec
+K12 grace reopen must cancel without new active events
+
+    Start 85: R19-engine-registry
+2/6 Test #85: R19-engine-registry ..............***Failed    0.04 sec
+K12 foreign registry teardown delivered late timer/error
+
+    Start 86: R20-engine-registry
+3/6 Test #86: R20-engine-registry ..............   Passed    0.01 sec
+    Start 87: R21-engine-registry
+4/6 Test #87: R21-engine-registry ..............   Passed    0.01 sec
+    Start 88: R22-engine-registry
+5/6 Test #88: R22-engine-registry ..............   Passed    0.00 sec
+    Start 89: R23-engine-registry
+6/6 Test #89: R23-engine-registry ..............   Passed    0.01 sec
+
+67% tests passed, 2 tests failed out of 6
+
+Label Time Summary:
+K11        =   0.07 sec*proc (6 tests)
+native     =   0.07 sec*proc (6 tests)
+server1    =   0.07 sec*proc (6 tests)
+
+Total Test time (real) =   0.07 sec
+
+The following tests FAILED:
+	 84 - R18-engine-registry (Failed)                      K11 native server1
+	 85 - R19-engine-registry (Failed)                      K11 native server1
+Errors while running CTest
+
+=== cache-full-tests.log ===
+Test project <owned-cloud-workspace>/server-parity/build-linux
+      Start  1: P03-02-server1-host
+ 1/99 Test  #1: P03-02-server1-host ..........................   Passed    0.00 sec
+      Start  2: K00-01-js-semantics
+ 2/99 Test  #2: K00-01-js-semantics ..........................   Passed    0.00 sec
+      Start  3: K00-02-js-semantics
+ 3/99 Test  #3: K00-02-js-semantics ..........................   Passed    0.00 sec
+      Start  4: K00-03-js-semantics
+ 4/99 Test  #4: K00-03-js-semantics ..........................   Passed    0.00 sec
+      Start  5: K01-01-metadata-geometry
+ 5/99 Test  #5: K01-01-metadata-geometry .....................   Passed    0.00 sec
+      Start  6: K01-02-metadata-geometry
+ 6/99 Test  #6: K01-02-metadata-geometry .....................   Passed    0.00 sec
+      Start  7: K01-03-metadata-geometry
+ 7/99 Test  #7: K01-03-metadata-geometry .....................   Passed    0.00 sec
+      Start  8: K13-01-settings-cache-defaults
+ 8/99 Test  #8: K13-01-settings-cache-defaults ...............   Passed    0.00 sec
+      Start  9: K13-02-cache-policy
+ 9/99 Test  #9: K13-02-cache-policy ..........................   Passed    0.00 sec
+      Start 10: K13-03-cache-convergence
+10/99 Test #10: K13-03-cache-convergence .....................   Passed    0.05 sec
+      Start 11: H00-01-http-contract
+11/99 Test #11: H00-01-http-contract .........................   Passed    0.01 sec
+      Start 12: H00-02-http-contract
+12/99 Test #12: H00-02-http-contract .........................   Passed    0.00 sec
+      Start 13: H00-03-http-contract
+13/99 Test #13: H00-03-http-contract .........................   Passed    1.51 sec
+      Start 14: H00-04-http-contract
+14/99 Test #14: H00-04-http-contract .........................   Passed    0.01 sec
+      Start 15: H00-05-http-contract
+15/99 Test #15: H00-05-http-contract .........................   Passed    0.26 sec
+      Start 16: H00-06-http-contract
+16/99 Test #16: H00-06-http-contract .........................   Passed    0.01 sec
+      Start 17: H00-07-http-contract
+17/99 Test #17: H00-07-http-contract .........................   Passed    0.01 sec
+      Start 18: H00-08-http-contract
+18/99 Test #18: H00-08-http-contract .........................   Passed    0.00 sec
+      Start 19: M00-01-process-discovery
+19/99 Test #19: M00-01-process-discovery .....................   Passed    0.00 sec
+      Start 20: M00-02-process-lifecycle
+20/99 Test #20: M00-02-process-lifecycle .....................   Passed    0.24 sec
+      Start 21: M00-03-remote-driver
+21/99 Test #21: M00-03-remote-driver .........................   Passed    0.04 sec
+      Start 22: K02-01-piece-buffer
+22/99 Test #22: K02-01-piece-buffer ..........................   Passed    0.00 sec
+      Start 23: K02-02-piece-buffer
+23/99 Test #23: K02-02-piece-buffer ..........................   Passed    0.00 sec
+      Start 24: K02-03-piece-buffer
+24/99 Test #24: K02-03-piece-buffer ..........................   Passed    0.00 sec
+      Start 25: K05-01-swarm-metadata
+25/99 Test #25: K05-01-swarm-metadata ........................   Passed    0.00 sec
+      Start 26: K05-02-swarm-metadata
+26/99 Test #26: K05-02-swarm-metadata ........................   Passed    0.00 sec
+      Start 27: K05-03-swarm-metadata
+27/99 Test #27: K05-03-swarm-metadata ........................   Passed    0.00 sec
+      Start 28: K05-A2-peer-lifecycle-counts
+28/99 Test #28: K05-A2-peer-lifecycle-counts .................   Passed    0.00 sec
+      Start 29: K06-01-persistent-store
+29/99 Test #29: K06-01-persistent-store ......................   Passed    0.01 sec
+      Start 30: K06-02-persistent-store
+30/99 Test #30: K06-02-persistent-store ......................   Passed    0.01 sec
+      Start 31: K06-03-persistent-store
+31/99 Test #31: K06-03-persistent-store ......................   Passed    0.01 sec
+      Start 32: K06-F2-persistent-store
+32/99 Test #32: K06-F2-persistent-store ......................   Passed    0.01 sec
+      Start 33: K06-F3-persistent-store
+33/99 Test #33: K06-F3-persistent-store ......................   Passed    0.01 sec
+      Start 34: K03-01-scheduler-selections
+34/99 Test #34: K03-01-scheduler-selections ..................   Passed    0.00 sec
+      Start 35: K03-02-scheduler-selections
+35/99 Test #35: K03-02-scheduler-selections ..................   Passed    0.00 sec
+      Start 36: K03-03-scheduler-selections
+36/99 Test #36: K03-03-scheduler-selections ..................   Passed    0.00 sec
+      Start 37: K07-01-circular-store
+37/99 Test #37: K07-01-circular-store ........................   Passed    0.00 sec
+      Start 38: K07-02-circular-store
+38/99 Test #38: K07-02-circular-store ........................   Passed    0.00 sec
+      Start 39: K07-03-circular-store
+39/99 Test #39: K07-03-circular-store ........................   Passed    0.00 sec
+      Start 40: K09-01-peer-search
+40/99 Test #40: K09-01-peer-search ...........................   Passed    0.00 sec
+      Start 41: K09-02-peer-search
+41/99 Test #41: K09-02-peer-search ...........................   Passed    0.00 sec
+      Start 42: K09-03-peer-search
+42/99 Test #42: K09-03-peer-search ...........................   Passed    0.00 sec
+      Start 43: K04-01-scheduler-actions
+43/99 Test #43: K04-01-scheduler-actions .....................   Passed    0.00 sec
+      Start 44: K04-02-scheduler-actions
+44/99 Test #44: K04-02-scheduler-actions .....................   Passed    0.00 sec
+      Start 45: K04-03-scheduler-actions
+45/99 Test #45: K04-03-scheduler-actions .....................   Passed    0.00 sec
+      Start 46: K08-01-file-reader
+46/99 Test #46: K08-01-file-reader ...........................   Passed    0.00 sec
+      Start 47: K08-02-file-reader
+47/99 Test #47: K08-02-file-reader ...........................   Passed    0.00 sec
+      Start 48: K08-03-file-reader
+48/99 Test #48: K08-03-file-reader ...........................   Passed    0.00 sec
+      Start 49: K08-F2-file-reader
+49/99 Test #49: K08-F2-file-reader ...........................   Passed    0.00 sec
+      Start 50: K10-01-native-transport-real-wire
+50/99 Test #50: K10-01-native-transport-real-wire ............   Passed    2.01 sec
+      Start 51: K10-01-native-transport-submit-after-ready
+51/99 Test #51: K10-01-native-transport-submit-after-ready ...   Passed    1.93 sec
+      Start 52: K10-02-native-transport-sequential-wire
+52/99 Test #52: K10-02-native-transport-sequential-wire ......   Passed    2.88 sec
+      Start 53: K10-02-native-transport-have-wire
+53/99 Test #53: K10-02-native-transport-have-wire ............   Passed    2.93 sec
+      Start 54: K10-02-native-transport-live-reuse
+54/99 Test #54: K10-02-native-transport-live-reuse ...........   Passed    3.95 sec
+      Start 55: K10-02-native-transport-failure-drain
+55/99 Test #55: K10-02-native-transport-failure-drain ........   Passed    2.03 sec
+      Start 56: K10-02-native-transport-cancel-drain
+56/99 Test #56: K10-02-native-transport-cancel-drain .........   Passed    2.96 sec
+      Start 57: K10-02-native-transport
+57/99 Test #57: K10-02-native-transport ......................   Passed    1.11 sec
+      Start 58: K10-03-native-transport
+58/99 Test #58: K10-03-native-transport ......................   Passed    2.94 sec
+      Start 59: K10-02-native-transport-lifecycle
+59/99 Test #59: K10-02-native-transport-lifecycle ............   Passed    3.10 sec
+      Start 60: K10-02-native-transport-inbound-utp
+60/99 Test #60: K10-02-native-transport-inbound-utp ..........   Passed    3.50 sec
+      Start 61: K10-E-transport-source-invalid
+61/99 Test #61: K10-E-transport-source-invalid ...............   Passed    0.01 sec
+      Start 62: K10-E-transport-source-generation
+62/99 Test #62: K10-E-transport-source-generation ............   Passed    0.00 sec
+      Start 63: K10-E-transport-source-cached
+63/99 Test #63: K10-E-transport-source-cached ................   Passed    0.27 sec
+      Start 64: K10-E-transport-source-mismatch
+64/99 Test #64: K10-E-transport-source-mismatch ..............   Passed    0.01 sec
+      Start 65: K10-E-transport-source-infohash
+65/99 Test #65: K10-E-transport-source-infohash ..............   Passed    0.77 sec
+      Start 66: K10-E-transport-source-magnet
+66/99 Test #66: K10-E-transport-source-magnet ................   Passed    0.77 sec
+      Start 67: K10-E-transport-source-close
+67/99 Test #67: K10-E-transport-source-close .................   Passed    0.26 sec
+      Start 68: K10-G-transport-pause-generation
+68/99 Test #68: K10-G-transport-pause-generation .............   Passed    2.90 sec
+      Start 69: K10-H-transport-upload-real-wire
+69/99 Test #69: K10-H-transport-upload-real-wire .............   Passed   17.06 sec
+      Start 70: K11-01-engine-registry
+70/99 Test #70: K11-01-engine-registry .......................   Passed    0.01 sec
+      Start 71: K11-02-engine-registry
+71/99 Test #71: K11-02-engine-registry .......................   Passed    0.02 sec
+      Start 72: K11-03-engine-registry
+72/99 Test #72: K11-03-engine-registry .......................   Passed    0.08 sec
+      Start 73: R7-engine-registry
+73/99 Test #73: R7-engine-registry ...........................   Passed    0.01 sec
+      Start 74: R8-engine-registry
+74/99 Test #74: R8-engine-registry ...........................   Passed    0.01 sec
+      Start 75: R9-engine-registry
+75/99 Test #75: R9-engine-registry ...........................   Passed    0.01 sec
+      Start 76: R10-engine-registry
+76/99 Test #76: R10-engine-registry ..........................   Passed    0.01 sec
+      Start 77: R11-engine-registry
+77/99 Test #77: R11-engine-registry ..........................   Passed    0.01 sec
+      Start 78: R12-engine-registry
+78/99 Test #78: R12-engine-registry ..........................   Passed    0.01 sec
+      Start 79: R13-engine-registry
+79/99 Test #79: R13-engine-registry ..........................   Passed    0.01 sec
+      Start 80: R14-engine-registry
+80/99 Test #80: R14-engine-registry ..........................   Passed    0.01 sec
+      Start 81: R15-engine-registry
+81/99 Test #81: R15-engine-registry ..........................   Passed    0.01 sec
+      Start 82: R16-engine-registry
+82/99 Test #82: R16-engine-registry ..........................   Passed    0.01 sec
+      Start 83: R17-engine-registry
+83/99 Test #83: R17-engine-registry ..........................   Passed    0.00 sec
+      Start 84: R18-engine-registry
+84/99 Test #84: R18-engine-registry ..........................   Passed    0.00 sec
+      Start 85: R19-engine-registry
+85/99 Test #85: R19-engine-registry ..........................   Passed    0.12 sec
+      Start 86: R20-engine-registry
+86/99 Test #86: R20-engine-registry ..........................   Passed    0.01 sec
+      Start 87: R21-engine-registry
+87/99 Test #87: R21-engine-registry ..........................   Passed    0.01 sec
+      Start 88: R22-engine-registry
+88/99 Test #88: R22-engine-registry ..........................   Passed    0.00 sec
+      Start 89: R23-engine-registry
+89/99 Test #89: R23-engine-registry ..........................   Passed    0.01 sec
+      Start 90: R24-engine-registry
+90/99 Test #90: R24-engine-registry ..........................   Passed    0.00 sec
+      Start 91: R25-engine-registry
+91/99 Test #91: R25-engine-registry ..........................   Passed    0.01 sec
+      Start 92: P08-T-torrent-transport-contract
+92/99 Test #92: P08-T-torrent-transport-contract .............   Passed    0.00 sec
+      Start 93: INT-W3-spine-contracts-link
+93/99 Test #93: INT-W3-spine-contracts-link ..................   Passed    0.00 sec
+      Start 94: K12-counter-ownership
+94/99 Test #94: K12-counter-ownership ........................   Passed    0.00 sec
+      Start 95: K12-real-app-lane-timer
+95/99 Test #95: K12-real-app-lane-timer ......................   Passed    0.41 sec
+      Start 96: K12-01-counter-differential
+96/99 Test #96: K12-01-counter-differential ..................   Passed    0.19 sec
+      Start 97: K12-oracle-module-loader
+97/99 Test #97: K12-oracle-module-loader .....................   Passed    1.90 sec
+      Start 98: K12-oracle-registry-order
+98/99 Test #98: K12-oracle-registry-order ....................   Passed    1.96 sec
+      Start 99: K12-oracle-cache-behavior
+99/99 Test #99: K12-oracle-cache-behavior ....................   Passed    2.06 sec
+
+100% tests passed out of 99
+
+Label Time Summary:
+INT-W3     =   0.00 sec*proc (1 test)
+K02        =   0.01 sec*proc (3 tests)
+K03        =   0.00 sec*proc (3 tests)
+K04        =   0.01 sec*proc (3 tests)
+K05        =   0.01 sec*proc (4 tests)
+K06        =   0.04 sec*proc (5 tests)
+K07        =   0.01 sec*proc (3 tests)
+K08        =   0.01 sec*proc (4 tests)
+K09        =   0.01 sec*proc (3 tests)
+K10        =  29.34 sec*proc (11 tests)
+K10-E      =   2.08 sec*proc (7 tests)
+K10-G      =   2.90 sec*proc (1 test)
+K10-H      =  17.06 sec*proc (1 test)
+K11        =   0.34 sec*proc (22 tests)
+K12        =   6.52 sec*proc (6 tests)
+P08-T      =   0.00 sec*proc (1 test)
+http       =   1.81 sec*proc (8 tests)
+native     =  52.32 sec*proc (45 tests)
+oracle     =   5.92 sec*proc (3 tests)
+server1    =  60.14 sec*proc (86 tests)
+unit       =   1.90 sec*proc (38 tests)
+
+Total Test time (real) =  60.53 sec
+
+=== cache-asan-tests.log ===
+Test project <owned-cloud-workspace>/server-parity/build-k12-asan
+    Start 84: R18-engine-registry
+1/8 Test #84: R18-engine-registry ..............   Passed    0.01 sec
+    Start 85: R19-engine-registry
+2/8 Test #85: R19-engine-registry ..............   Passed    0.12 sec
+    Start 86: R20-engine-registry
+3/8 Test #86: R20-engine-registry ..............   Passed    0.02 sec
+    Start 87: R21-engine-registry
+4/8 Test #87: R21-engine-registry ..............   Passed    0.01 sec
+    Start 88: R22-engine-registry
+5/8 Test #88: R22-engine-registry ..............   Passed    0.02 sec
+    Start 89: R23-engine-registry
+6/8 Test #89: R23-engine-registry ..............   Passed    0.02 sec
+    Start 90: R24-engine-registry
+7/8 Test #90: R24-engine-registry ..............   Passed    0.03 sec
+    Start 91: R25-engine-registry
+8/8 Test #91: R25-engine-registry ..............   Passed    0.02 sec
+
+100% tests passed out of 8
+
+Label Time Summary:
+K11        =   0.26 sec*proc (8 tests)
+native     =   0.26 sec*proc (8 tests)
+server1    =   0.26 sec*proc (8 tests)
+
+Total Test time (real) =   0.27 sec
+
+=== cache-oracle-first.log ===
+(node:6) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:6) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+{
+  "oracle": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "node": "v22.16.0",
+  "cases": [
+    {
+      "name": "cross-boundary",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "progress",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        -1,
+        0,
+        1
+      ],
+      "selections": [
+        [
+          0,
+          2,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "already-cached",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        1
+      ],
+      "selections": [
+        [
+          0,
+          1,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "duplicate-irrelevant",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "progress",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        0,
+        0.5,
+        1
+      ],
+      "selections": [
+        [
+          0,
+          2,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "partial",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        0.5,
+        1
+      ],
+      "selections": [
+        [
+          0,
+          2,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "circular",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "progress",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        -1,
+        0,
+        1
+      ],
+      "selections": []
+    },
+    {
+      "name": "buffered-persistent",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        0,
+        1
+      ],
+      "selections": []
+    },
+    {
+      "name": "zero-length",
+      "trace": [
+        "active",
+        "created",
+        "progress",
+        "progress",
+        "scoped-cached",
+        "cached"
+      ],
+      "progress": [
+        "-Infinity",
+        "NaN"
+      ],
+      "selections": [
+        [
+          0,
+          1,
+          false
+        ]
+      ]
+    }
+  ]
+}

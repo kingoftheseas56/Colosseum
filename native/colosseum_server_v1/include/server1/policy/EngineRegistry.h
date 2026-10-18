@@ -58,6 +58,8 @@ enum class EngineEventType {
     Destroyed,
     StreamActive, ScopedStreamActive, StreamInactive, ScopedStreamInactive,
     EngineActive, ScopedEngineActive, EngineInactive, ScopedEngineInactive,
+    StreamCreated, ScopedStreamProgress, ScopedStreamCached, StreamCached,
+    EngineIdle, ScopedEngineIdle,
 };
 
 struct EngineEvent final {
@@ -67,6 +69,8 @@ struct EngineEvent final {
     Value options = Value::missing();
     std::string error;
     std::optional<std::size_t> fileIndex;
+    Value data = Value::missing();
+    std::optional<std::string> filePath;
 };
 
 enum class EngineCreateOutcome {
@@ -137,6 +141,15 @@ struct EnginePeerDiscovery final {
     std::size_t duplicatesSuppressed = 0;
 };
 
+struct EngineFileCacheSnapshot final {
+    TorrentFile file;
+    std::uint64_t pieceLength = 0;
+    std::uint64_t verificationLength = 0;
+    std::vector<std::size_t> committedPieces;
+    bool buffered = false;
+    std::optional<std::string> destination;
+};
+
 class TorrentEngine final {
 public:
     ~TorrentEngine();
@@ -156,6 +169,7 @@ public:
     [[nodiscard]] std::size_t resumeCount() const noexcept;
     [[nodiscard]] std::size_t fileCount() const noexcept;
     [[nodiscard]] std::vector<TorrentFile> files() const;
+    [[nodiscard]] std::optional<EngineFileCacheSnapshot> fileCacheSnapshot(std::size_t index) const;
     [[nodiscard]] std::shared_ptr<FileReader>
     createReader(std::size_t fileIndex, FileReadOptions options = {});
     [[nodiscard]] std::size_t readerCount() const noexcept;
@@ -196,12 +210,14 @@ private:
         EngineTraceCallback trace;
         std::function<void()> onReady;
         std::function<void()> onFailed;
+        std::function<void(std::size_t)> onVerified;
     };
     explicit TorrentEngine(std::shared_ptr<Impl> impl);
     static std::shared_ptr<TorrentEngine> make(Wiring wiring);
 
     void resume(Value options);
     void pollTransport();
+    void selectCacheFile(std::size_t index);
     void close(std::function<void()> onClosed = {});
 
     std::shared_ptr<Impl> impl_;

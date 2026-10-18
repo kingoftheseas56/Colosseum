@@ -30,7 +30,10 @@ function(server1_register_k12_tests)
     add_test(NAME K12-oracle-registry-order COMMAND "${SERVER1_NODE_EXECUTABLE}"
       "${SERVER1_K12_ROOT}/../../tools/server_lab/oracle/k12_registry.cjs"
       "${SERVER1_K12_ORACLE}")
-    set_tests_properties(K12-oracle-module-loader K12-oracle-registry-order
+    add_test(NAME K12-oracle-cache-behavior COMMAND "${SERVER1_NODE_EXECUTABLE}"
+      "${SERVER1_K12_ROOT}/../../tools/server_lab/oracle/k12_cache.cjs"
+      "${SERVER1_K12_ORACLE}")
+    set_tests_properties(K12-oracle-module-loader K12-oracle-registry-order K12-oracle-cache-behavior
       PROPERTIES LABELS "server1;oracle;K12")
   else()
     message(STATUS "K12 differential NOT REGISTERED: supply SERVER1_K12_ORACLE and Node; ownership test remains enabled")
