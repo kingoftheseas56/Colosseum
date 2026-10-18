@@ -1,6 +1,8 @@
-// Deployable feed-only Worker. A narrowly scoped zone route preserves the
+// Deployable release Worker. Two narrowly scoped zone routes preserve the
 // existing Pages website. Pages adapters may still import serveStableFeed.
 // This module does not publish a release.
+import { notesHtml, notesETag } from "./release_notes_119.mjs";
+
 export const stableUpdatePath = "/updates/stable.json";
 export const stableUpdateOrigin =
   "https://gitlab.com/kingoftheseas56/colosseum-site/-/raw/" +
@@ -77,9 +79,26 @@ export async function serveStableFeed(request, fetcher = fetch) {
   }
 }
 
+export function serveReleaseNotes(request) {
+  if (new URL(request.url).pathname !== "/releases/v1.1.9") return null;
+  if (request.method !== "GET" && request.method !== "HEAD")
+    return new Response(null, {status:405, headers:{Allow:"GET, HEAD"}});
+  const headers = {
+    "Content-Type":"text/html; charset=utf-8",
+    "Cache-Control":"public, max-age=300, must-revalidate",
+    "ETag":notesETag,
+    "X-Content-Type-Options":"nosniff",
+    "Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+  };
+  const validators = (request.headers.get("If-None-Match") || "").split(",").map(value => value.trim());
+  if (validators.includes(notesETag) || validators.includes("*"))
+    return new Response(null, {status:304, headers});
+  return new Response(request.method === "HEAD" ? null : notesHtml, {status:200, headers});
+}
+
 export default {
   async fetch(request) {
-    const response = await serveStableFeed(request) || new Response("Not found\n", {
+    const response = serveReleaseNotes(request) || await serveStableFeed(request) || new Response("Not found\n", {
       status: 404,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
