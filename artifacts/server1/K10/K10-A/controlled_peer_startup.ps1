@@ -1,10 +1,12 @@
+$windowOptions = @{}
+if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { $windowOptions.WindowStyle = 'Hidden' }
 # Shared controlled-peer startup checks for the K10 real-wire runners.
 # Dot-source this file; every helper throws so a runner fails at the cause
 # instead of reporting a later readiness timeout.
 
 function Start-ControlledPeer {
     param([string[]]$Arguments, [string]$Log)
-    Start-Process -FilePath python -ArgumentList $Arguments -PassThru -WindowStyle Hidden `
+    Start-Process -FilePath python -ArgumentList $Arguments -PassThru @windowOptions `
         -RedirectStandardError ($Log + '.stderr.txt')
 }
 

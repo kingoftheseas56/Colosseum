@@ -1,0 +1,481 @@
+{
+  "baseline": "849ffca59c3ebd0767838f54940e3df0c1ced8fb",
+  "branch": "feature/colosseum-server-1.0",
+  "qualification": "native component and controlled wire suite; not complete server parity",
+  "os": "Linux-6.18.55-x86_64-with-glibc2.41",
+  "qt": "6.11.1",
+  "compiler": "GCC 14.2.0",
+  "cmake": "4.4.3",
+  "buildType": "Release",
+  "libtorrent": "2.0.11 official unmodified static source build",
+  "powershell": "7.6.7",
+  "environment": {
+    "SERVER1_TEST_FIXED_INTERFACE": "1",
+    "POWERSHELL_TELEMETRY_OPTOUT": "1",
+    "XDG_directories": "disposable writable task profile"
+  },
+  "tests": {
+    "executed": 81,
+    "passed": 81,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeFiles": [
+    {
+      "path": "native/colosseum_server_v1/CMakeLists.txt",
+      "gitBlob": "2cc0a958784cfe68c6a7886c56f8d93ca35d3d47"
+    },
+    {
+      "path": "native/colosseum_server_v1/CMakePresets.json",
+      "gitBlob": "1a2548bd7c4a480a89b42e3348d7419eb28ac3ef"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/H00.cmake",
+      "gitBlob": "16c6f61ac1a0a9b4dde76ab5c7fcb203ecdc740a"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K00.cmake",
+      "gitBlob": "5822a03894cccdb263815ce17863ad344b4297e0"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K01.cmake",
+      "gitBlob": "c8795cda875db5f1f2269344a27d1d5f46e1072b"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K02.cmake",
+      "gitBlob": "a64e8eb625d8fb5f79b10254bf1ba60df327b013"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K03.cmake",
+      "gitBlob": "ef6a4e0f611f9bbfca8387d2ff88357aa7cf908f"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K04.cmake",
+      "gitBlob": "a309620f4f108e4c5df419a2cf0c3aa4b748322b"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K05.cmake",
+      "gitBlob": "fcd96e19f5dfd4366e30c293d203b99903a94302"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K06.cmake",
+      "gitBlob": "bac2c6b37e4689eea31fdbaaabe08da644933790"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K07.cmake",
+      "gitBlob": "8867471bea5e44d4639516d998aa838576c06f4f"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K08.cmake",
+      "gitBlob": "a80816705693749c89d5edb8fec9caa75f8d6580"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K09.cmake",
+      "gitBlob": "972a1ac4dc04b06dfba4c13670ffcb415dfd74a3"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K10.cmake",
+      "gitBlob": "dd547b228c54f795e2dfcd707cc4fb3b96e4a682"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K11.cmake",
+      "gitBlob": "ccaadd6d3525ba2a26d58524ce211a2962fe7e73"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/K13.cmake",
+      "gitBlob": "1a7df12144613546431cb707fa9e372a963c3444"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/M00.cmake",
+      "gitBlob": "168aa21df7f0caeadfdd8b67f9203edae39bb674"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/P03.cmake",
+      "gitBlob": "5bba6d71274f262f61ad64d28344a57713e6c556"
+    },
+    {
+      "path": "native/colosseum_server_v1/cmake/packets/P08.cmake",
+      "gitBlob": "6e2e7acd8e8beec97ab922954635362678586b42"
+    },
+    {
+      "path": "native/colosseum_server_v1/experiments/transport_contract_probe.cpp",
+      "gitBlob": "44c2e16a7a9ce6edf76defb553b5c6e84660865c"
+    },
+    {
+      "path": "native/colosseum_server_v1/experiments/transport_contract_probe.h",
+      "gitBlob": "65c94c07dabc24a19d8fc3ef98fc1d13f092e0eb"
+    },
+    {
+      "path": "native/colosseum_server_v1/host/main.cpp",
+      "gitBlob": "b04d5943e659b7eb704ea9a2369cdbf16d5b7301"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/Runtime.h",
+      "gitBlob": "b41de037914eacadf246f2b62e4705b27d86d4cf"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/discovery/PeerSearch.h",
+      "gitBlob": "8523869ddb732670187e1bece6a42c8179303d3a"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/http/HttpContract.h",
+      "gitBlob": "71cd4ae5d04cf99239b54d908d09bb464e903eb6"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/platform/DiskSpace.h",
+      "gitBlob": "9e1d18bccb4e62bced3fd01ba533fe2c9accd4e1"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/CircularPieceStore.h",
+      "gitBlob": "9932bd39ab67c499f5088c4b02a5e3950a0d75df"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/EngineRegistry.h",
+      "gitBlob": "c17c7ea8a1378a3ee74d329d7722d8f81c42bc3b"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/FileReader.h",
+      "gitBlob": "8b7bd43a72163ce7438d230f70124735f93f65d1"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/MetadataExchange.h",
+      "gitBlob": "13c2b647da4377b6cea59d54af380af0baa25eee"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/PieceBuffer.h",
+      "gitBlob": "cec7d037e3a099827650f4113727da9e7b7730be"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/PieceStore.h",
+      "gitBlob": "8773ad2fc72392fcff8eca3a6d95e8fb1857dd69"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/Scheduler.h",
+      "gitBlob": "05fabe346708038dd7fe8a544e803762e1598ede"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/SchedulerActions.h",
+      "gitBlob": "34413f10fa38cf232d7d4f0a49bd6c7f315c52b2"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/SwarmCaps.h",
+      "gitBlob": "8d136a9d4ae6aea1dd22e53605d795ab4acbe4a0"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/SwarmPolicy.h",
+      "gitBlob": "473c15226f635683ba91f19faf463cfe6a39f2e4"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/TorrentMetadata.h",
+      "gitBlob": "f51516a5bd1135882435a219b0448e98b8a461c3"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/policy/Value.h",
+      "gitBlob": "4b1d173cea6a2c898ce86b56caa3f7976711598e"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/ports/ProcessPort.h",
+      "gitBlob": "594d78c3bce4156b30874de0e60fa2b9c9fd30c4"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/ports/TorrentTransport.h",
+      "gitBlob": "412183477fafdb2f49d3eb1a189ad32a75598796"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "gitBlob": "b168713707eca8d6ad094273b6c8810c134049dd"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+      "gitBlob": "36762d894710269de41c1d787e3759e1482cde76"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/discovery/DhtSource.cpp",
+      "gitBlob": "9e12f6d2186d8478ab3d1ffb94bb66fe25cbb385"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/discovery/PeerSearch.cpp",
+      "gitBlob": "f76c17770f528153c0594806f89d03a71bd87399"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/discovery/TrackerSource.cpp",
+      "gitBlob": "0342c300dd5e272847500c2f4237d1233070aaca"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/http/Connection.cpp",
+      "gitBlob": "b56edfe0a251ca7237e41294983a27433d808429"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/http/RequestParsing.cpp",
+      "gitBlob": "a529f15bb2bf86729ed08f3b6f515ee546e99e66"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/http/Router.cpp",
+      "gitBlob": "c51d26e7c87c75b1f5809fe9b85549fb07a10e01"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/ExecutableLocator.cpp",
+      "gitBlob": "08a2c0b510e9108233fe7132d419388766e4cffc"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/ProcessDriver.cpp",
+      "gitBlob": "7e7ef23202388b25ce804de29c4260d76ade4b7c"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/platform/DiskSpace.cpp",
+      "gitBlob": "c10c1583c1fff56f311cb22e272940dd7d4ae9f0"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/EngineRegistry.cpp",
+      "gitBlob": "7dd05f4e7614982ad711d8fd187760dd79fd518f"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/FileReader.cpp",
+      "gitBlob": "1464c15c1af9bc47b56c554df34d016998b8b86a"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/JsConversions.cpp",
+      "gitBlob": "0e51f5a00cab76f1fd5afd3d47540e4fb02f5eb0"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/MetadataExchange.cpp",
+      "gitBlob": "7bb89ee3f409d2da70800a3a48e310ab200b4629"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/PieceBuffer.cpp",
+      "gitBlob": "bcd82e1f7a9801a6df6d3c929cec99c6377df8e9"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/SchedulerHotswap.cpp",
+      "gitBlob": "58e1ff8e1db18e58913d6383c00695570b73605f"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/SchedulerRequests.cpp",
+      "gitBlob": "abe7ba61cd358244d8b90672e019a10c6190b4fc"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/SchedulerSelections.cpp",
+      "gitBlob": "36c982e855f5dbdef21d59d5b129a2365b781787"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/SwarmCaps.cpp",
+      "gitBlob": "04be94ce179c726a31580c5cf82226a5b482a92d"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/SwarmPolicy.cpp",
+      "gitBlob": "476b6b53ddbcbf9bdfde25885d68c37f8819824e"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/TorrentEngine.cpp",
+      "gitBlob": "b45c0a4efa08c45ed46e1eb89094c2c2cb1ab807"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/TorrentMetadata.cpp",
+      "gitBlob": "5c756a15025da6341e8f235464b5409eb6e79a50"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/Value.cpp",
+      "gitBlob": "4eff213765981e12d75c4bf3fe1083d8d8830fd6"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/policy/VirtualPieceMap.cpp",
+      "gitBlob": "96893bc75379f5c186f835110769aa187d062f11"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/settings/CachePolicy.cpp",
+      "gitBlob": "be4846a97933dd1070e137c04073427003a1618a"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/settings/SettingsStore.cpp",
+      "gitBlob": "65350fec377376d7d15a53dcdb5b0d4eaf3499ec"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/storage/CircularPieceStore.cpp",
+      "gitBlob": "834b443f3278a400cc08a380bc55433ecd74c70d"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/storage/PersistentPieceStore.cpp",
+      "gitBlob": "d298e7dbfc0ca0b260cacc8ab86d76f787dff5f8"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/storage/VerificationBitmap.cpp",
+      "gitBlob": "e0e14b4dce5d8421ccc6d3422cd023e85d9a55fd"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/transport/ActionLedger.cpp",
+      "gitBlob": "f0b4291a7149a4bac712b166d6e1c1dbbe5fe329"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp",
+      "gitBlob": "ccbe1205f4dfffda2c5d8bba6d94dc40b959eae9"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/transport/PeerPlugin.cpp",
+      "gitBlob": "3bebcd40f161c4215c6281088f0bcecdb9cb2c99"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "gitBlob": "2b08eeb282936d3c2f0715a16778332d1995df7b"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/H00.cmake",
+      "gitBlob": "6ac1ce35f882b0d37515f56b8718032d43996b60"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K00.cmake",
+      "gitBlob": "59fdeff6392184de90ca937a7209213dac8a5897"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K01.cmake",
+      "gitBlob": "efa6a3c901b2c4e6b5ca397a3fdbad369001cafe"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K02.cmake",
+      "gitBlob": "2d1fb76a005a9416686fc0bfacf76bc3ed36ba09"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K03.cmake",
+      "gitBlob": "36e5f2138ac95d98626750016bae6baa327f7e37"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K04.cmake",
+      "gitBlob": "e637cd2eb66139bbc011010a4459413088124e22"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K05.cmake",
+      "gitBlob": "5f1e8a2761a2e259b1ac555146dd77ccadd7401e"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K06.cmake",
+      "gitBlob": "20be5849de191fe652740e4b636417d7af0ce7a3"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K07.cmake",
+      "gitBlob": "2ec5df3d2041be7acbdaa3c2e10904ce3fb9053e"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K08.cmake",
+      "gitBlob": "18f6c10a5576206791a543f68459b0c6dfe39986"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K09.cmake",
+      "gitBlob": "900249b5b4cea9a5867c9b320738369b3dc5f0c8"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K10.cmake",
+      "gitBlob": "4e2e8e002c5f9a42b8c7f9ec34157b1cf1128820"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K11.cmake",
+      "gitBlob": "d56ad04b6bbd5c6ca6d864e4200d73169d46be0d"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/K13.cmake",
+      "gitBlob": "8aaf8509edbe45841af823a2ec21aa03ff05868b"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/M00.cmake",
+      "gitBlob": "959df81cdc94d92dae47daec2ea17c4855c92207"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/P08.cmake",
+      "gitBlob": "d4c521c86fabf3aa5c3b2fdcdc69bb4f923eb9f9"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/p03_red_contract.cmake",
+      "gitBlob": "68151fb0cc2f6868eb4ae9f8df45df0f9122b98b"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_circular_store.cpp",
+      "gitBlob": "c44651fbd54e35d8c6a1a12a6deadb9944591de8"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_engine_registry.cpp",
+      "gitBlob": "648feade7b31c82ab298be80849ebc2d1b4f60be"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_file_reader.cpp",
+      "gitBlob": "cc6002f54eb2a2b1182697e7d62c9801b390cdbb"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_http_contract.cpp",
+      "gitBlob": "80fcd33d7895d8b8092e46db27914e2b7cd24d18"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_js_semantics.cpp",
+      "gitBlob": "a9dc3229a43b7418023a79dcbe925201332f4b0d"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_metadata_geometry.cpp",
+      "gitBlob": "130ce4868ee1fe932d224a8a7ccb6fefd9d1f659"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_native_transport.cpp",
+      "gitBlob": "36fe219e4f6e3e243fe1e5f3da1fccdabe8f7093"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_peer_search.cpp",
+      "gitBlob": "386d96ea9e3ea73053faae4dc25420f38f179ead"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_persistent_store.cpp",
+      "gitBlob": "10dbe56194b7a241c2162769ccb5a3a0483b70a0"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_piece_buffer.cpp",
+      "gitBlob": "4c24645567a5d28d9fe295695922a1a0a1a393cd"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_process_driver.cpp",
+      "gitBlob": "e69c4beb77f42743b1894e5eb2d4d80320f30708"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_scheduler_requests.cpp",
+      "gitBlob": "cd9b46c8d3e57d1296a9e12ff7fe25004bf4c2a4"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_scheduler_selections.cpp",
+      "gitBlob": "a81068033e95ab876f650d32b2396683743b1a71"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_settings_cache.cpp",
+      "gitBlob": "551d42df32b13dd0c56141d2701d995057039909"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_spine_contracts.cpp",
+      "gitBlob": "c61f2412a8830841eb793a067efd7b4351d85365"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_swarm_metadata.cpp",
+      "gitBlob": "7104cf73054501b21e06734d1d6ccac7786e7b26"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_torrent_transport_contract.cpp",
+      "gitBlob": "1a07f4c56e67941e6a7c43d17960435125f860d1"
+    }
+  ],
+  "executableSHA256": {
+    "server1_host": "58d5a59921273acb8bb8a51bc48878f0239b371b1d764645e68d1b4c95cfdfbf",
+    "server1_m00_process_tests": "c8ae345b740920cc18c7dd0665a347f300defe7b531d470b655591aefbf4e5e1",
+    "server1_k09_peer_search_test": "6a64fbed89b41825fed88cd8381a55397edd121b73fb858361f6846dd0c66e14",
+    "server1_k08_file_reader_test": "bb8fb696b3c204047b9fd5ef6c610a9ab66c774af8eb3143d257f9f55ce3234f",
+    "server1_h00_http_contract": "e27d92f8f3ec9bdfb27c76384ec1e2e3c7e9f422798c4de04ef79991791636ba",
+    "server1_k05_swarm_metadata_test": "3bf50a32dde2d175f9c02e668f59230fa7083dafef8a279ce9e122cf883625bb",
+    "server1_p08_torrent_transport_contract_test": "9703b5327a50694a43cc1f49fb3ea44b3f1323f8d71d3fc30ceaa4d385de49e2",
+    "server1_k11_engine_registry_test": "be05fbc608003613e1c3f64a370e1a172efd497a475eaf820bc6e4fc17572009",
+    "server1_k02_piece_buffer_test": "ab663c770a26c91874e6fef9e125b447a3b725909b4994a84cf285c882416d99",
+    "server1_k07_circular_store_test": "9e708db385c8adce0d7dca7aa61f666685a40b6f56f7aa6353829ef3fd256e23",
+    "server1_k04_scheduler_actions_test": "88b433926242d69b652bc44bd9f1efe7c8196ae0bc552eea6cb5218059b9b36c",
+    "server1_k13_settings_cache_test": "14640c517d38fe627a040f216cbd1668628ea255332ef52625dc93e96bbc268f",
+    "server1_k03_scheduler_selections_test": "d9d5900e6700db0b1f1864a3ec35296ca8751f25ffcbbda7a076ec1ffc2c2c69",
+    "server1_spine_contracts_link_test": "9c2df972c7a1a131df8c72f4e0b4b62f393cc634654e8a3c46861b3983e08f22",
+    "server1_k10_native_transport_test": "66577f7c443a4ef85c855e8248a9e3d0a3c27ba58ffd0f266990fa3abc8c883a",
+    "server1_k06_persistent_store_test": "396290df3426836031e985d436be43fa0598acacb039ec2193c9f8a592b03288"
+  },
+  "limits": [
+    "Fixed-interface test profile disables optional OS IP-change notifier; default NETLINK path denied.",
+    "Windows not executed.",
+    "Host still prints streaming-ready=NO; K12/H01/H02 and remaining service surface not implemented.",
+    "No assembled player or full parity acceptance."
+  ]
+}

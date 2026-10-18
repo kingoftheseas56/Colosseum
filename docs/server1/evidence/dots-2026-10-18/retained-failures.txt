@@ -1,0 +1,81 @@
+=== storage-commit-red.log ===
+K06 FAIL: failed bitmap persistence published committed state
+
+
+=== R12-red-confirmed.log ===
+STORAGE stage exception left reader pending
+
+
+=== R13-red.log ===
+STORAGE-READ exception left reader pending
+
+
+=== R14-red.log ===
+STORAGE-READ upload exception lost matching abort
+
+
+=== R15-red.log ===
+STORAGE ownership leaked
+
+
+=== R16-red.log ===
+LATE-STAGE old verification failure resurrected demand
+
+
+=== R16-retry-red.log ===
+LATE-STAGE fresh reader could not retry flushed buffer
+
+
+=== process-ready-fixture.log ===
+Test project /workspace/scratch/af0fb5da5f81/server-parity/build-linux
+    Start 15: M00-02-process-lifecycle
+1/1 Test #15: M00-02-process-lifecycle .........***Failed    3.21 sec
+M00 FAIL: owned process teardown must not orphan a grandchild
+
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =   3.21 sec
+
+The following tests FAILED:
+	 15 - M00-02-process-lifecycle (Failed)
+Errors while running CTest
+
+
+=== http-binary-red.log ===
+H00 FAIL: non-stream binary response lost its explicit length
+
+
+=== http-backpressure-red.log ===
+H00-05 paused input bytes=12845056 cap=3211264
+H00 FAIL: deferred pipeline input exceeded one bounded socket buffer
+
+
+=== http-backpressure-green.log ===
+Test project /workspace/scratch/af0fb5da5f81/server-parity/build-linux
+    Start 11: H00-01-http-contract
+1/5 Test #11: H00-01-http-contract .............   Passed    0.01 sec
+    Start 12: H00-02-http-contract
+2/5 Test #12: H00-02-http-contract .............   Passed    0.01 sec
+    Start 13: H00-03-http-contract
+3/5 Test #13: H00-03-http-contract .............   Passed    1.51 sec
+    Start 14: H00-04-http-contract
+4/5 Test #14: H00-04-http-contract .............   Passed    0.01 sec
+    Start 15: H00-05-http-contract
+5/5 Test #15: H00-05-http-contract .............***Failed    2.26 sec
+H00-05 paused input bytes=3211264 cap=3211264
+H00 FAIL: paused input disconnect released owner
+
+
+80% tests passed, 1 tests failed out of 5
+
+Label Time Summary:
+http       =   3.79 sec*proc (5 tests)
+server1    =   3.79 sec*proc (5 tests)
+unit       =   3.79 sec*proc (5 tests)
+
+Total Test time (real) =   3.80 sec
+
+The following tests FAILED:
+	 15 - H00-05-http-contract (Failed)                     http server1 unit
+Errors while running CTest

@@ -1,6 +1,12 @@
 param([string]$BuildDir = (Join-Path $PSScriptRoot 'build'))
 $ErrorActionPreference = 'Stop'
-$exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
+$windowOptions = @{}
+if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { $windowOptions.WindowStyle = 'Hidden' }
+
+$exeLeaf = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+  'server1_k10_native_transport_test.exe'
+} else { 'server1_k10_native_transport_test' }
+$exe = Join-Path $BuildDir $exeLeaf
 if (-not (Test-Path -LiteralPath $exe)) { throw "K10 executable missing: $exe" }
 $run = Join-Path $PSScriptRoot ('raw/inbound-utp-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
@@ -8,7 +14,7 @@ $portFile = Join-Path $run 'listen-port.txt'
 $stopFile = Join-Path $run 'probe-finished.marker'
 $probeLog = Join-Path $run 'probe.log'
 $transcript = Join-Path $run 'candidate.transcript'
-$candidate = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden `
+$candidate = Start-Process -FilePath $exe -PassThru @windowOptions `
   -ArgumentList @('--inbound-utp-serve', (Join-Path $run 'case'), $portFile, $stopFile) `
   -RedirectStandardOutput $transcript -RedirectStandardError ($transcript + '.stderr.txt')
 try {

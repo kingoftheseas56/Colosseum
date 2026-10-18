@@ -6,7 +6,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '../K10-A/controlled_peer_startup.ps1')
-$exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
+$exeLeaf = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+  'server1_k10_native_transport_test.exe'
+} else { 'server1_k10_native_transport_test' }
+$exe = Join-Path $BuildDir $exeLeaf
 $run = Join-Path $PSScriptRoot ('raw/pause-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
 & $exe --prepare $run *> (Join-Path $run 'prepare.transcript')

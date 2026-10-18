@@ -5,7 +5,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'controlled_peer_startup.ps1')
-$exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
+$exeLeaf = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+  'server1_k10_native_transport_test.exe'
+} else { 'server1_k10_native_transport_test' }
+$exe = Join-Path $BuildDir $exeLeaf
 $run = Join-Path $PSScriptRoot ('raw/failure-drain-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
 & $exe --prepare $run *> (Join-Path $run 'prepare.transcript')

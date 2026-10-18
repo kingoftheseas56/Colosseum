@@ -1,7 +1,10 @@
 param([string]$BuildDir = (Join-Path $PSScriptRoot 'build'), [int]$PortA = 49410, [int]$PortB = 49411)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'controlled_peer_startup.ps1')
-$exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
+$exeLeaf = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+  'server1_k10_native_transport_test.exe'
+} else { 'server1_k10_native_transport_test' }
+$exe = Join-Path $BuildDir $exeLeaf
 if (-not (Test-Path -LiteralPath $exe)) { throw "K10 executable missing: $exe" }
 $run = Join-Path $PSScriptRoot ('raw/wire-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null

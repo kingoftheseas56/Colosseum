@@ -1,7 +1,13 @@
 param([string]$BuildDir = (Join-Path $PSScriptRoot 'build'))
 
 $ErrorActionPreference = 'Stop'
-$exe = Join-Path $BuildDir 'server1_k10_native_transport_test.exe'
+$windowOptions = @{}
+if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { $windowOptions.WindowStyle = 'Hidden' }
+
+$exeLeaf = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+  'server1_k10_native_transport_test.exe'
+} else { 'server1_k10_native_transport_test' }
+$exe = Join-Path $BuildDir $exeLeaf
 $run = Join-Path $PSScriptRoot ('raw/upload-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
 $peers = @()
@@ -13,7 +19,7 @@ try {
     $wire = Join-Path $run 'feasibility-wire.log'
     $peer = Start-Process python -ArgumentList @(
         (Join-Path $PSScriptRoot 'upload_peer.py'), '--port', '0', '--info-hash', $hash,
-        '--log', $wire) -PassThru -WindowStyle Hidden
+        '--log', $wire) -PassThru @windowOptions
     $peers += $peer
     $deadline = (Get-Date).AddSeconds(5)
     while ((Get-Date) -lt $deadline -and -not ((Test-Path $wire) -and
@@ -52,7 +58,7 @@ try {
         '--race-monitor-trigger', $raceMonitorTrigger,
         '--race-monitor-ready', $raceMonitorReady,
         '--race-complete-marker', $raceCompleteMarker,
-        '--stale-unchoke-marker', $staleUnchokeMarker) -PassThru -WindowStyle Hidden
+        '--stale-unchoke-marker', $staleUnchokeMarker) -PassThru @windowOptions
     $peers += $pendingPeer
     $deadline = (Get-Date).AddSeconds(5)
     while ((Get-Date) -lt $deadline -and -not ((Test-Path $pendingWire) -and
@@ -89,7 +95,7 @@ try {
             '--info-hash', $hash, '--log', $peerWire, '--tag', ("peer$index"),
             '--requests', $(if ($index -eq 0) {'5'} else {'4'}))
         if ($index -eq 0) { $arguments += @('--duplicate-first', '--invalid-first') }
-        $burst = Start-Process python -ArgumentList $arguments -PassThru -WindowStyle Hidden
+        $burst = Start-Process python -ArgumentList $arguments -PassThru @windowOptions
         $peers += $burst
         $deadline = (Get-Date).AddSeconds(5)
         while ((Get-Date) -lt $deadline -and -not ((Test-Path $peerWire) -and
@@ -124,7 +130,7 @@ try {
             (Join-Path $PSScriptRoot 'upload_lifecycle_peer.py'), '--port', '0',
             '--info-hash', $hash, '--log', $peerWire, '--mode', $modes[$index],
             '--tag', ("life$index"), '--piece', $(if ($index -eq 2) {'1'} else {'0'})) `
-            -PassThru -WindowStyle Hidden
+            -PassThru @windowOptions
         $peers += $lifePeer
         $deadline = (Get-Date).AddSeconds(5)
         while ((Get-Date) -lt $deadline -and -not ((Test-Path $peerWire) -and

@@ -197,6 +197,7 @@ public:
         auto params = sourceParams(request);
         if (params.ti) setPieceSizes(*params.ti);
         lt::settings_pack settings;
+        settings.set_bool(lt::settings_pack::enable_ip_notifier, request.monitorNetworkChanges);
         settings.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
         settings.set_bool(lt::settings_pack::enable_dht, false);
         settings.set_bool(lt::settings_pack::enable_lsd, false);
@@ -1355,7 +1356,7 @@ private:
 }
 
 std::unique_ptr<ports::TorrentTransport> makeLibTorrent2Adapter(
-    const std::string &torrentPath, const std::string &savePath)
+    const std::string &torrentPath, const std::string &savePath, bool monitorNetworkChanges)
 {
     try {
         std::ifstream input(torrentPath, std::ios::binary);
@@ -1366,11 +1367,18 @@ std::unique_ptr<ports::TorrentTransport> makeLibTorrent2Adapter(
         lt::torrent_info info(reinterpret_cast<const char *>(bytes.data()),
                               static_cast<int>(bytes.size()), error);
         if (error) return {};
-        return ports::openTorrentTransport(
-            ports::TorrentOpenRequest{1, v1InfoHash(info),
-                                      ports::MetainfoSource{std::move(bytes)}, savePath});
+        ports::TorrentOpenRequest request{1, v1InfoHash(info),
+            ports::MetainfoSource{std::move(bytes)}, savePath};
+        request.monitorNetworkChanges = monitorNetworkChanges;
+        return ports::openTorrentTransport(request);
     }
     catch (...) { return {}; }
+}
+
+std::unique_ptr<ports::TorrentTransport> makeLibTorrent2Adapter(
+    const std::string &torrentPath, const std::string &savePath)
+{
+    return makeLibTorrent2Adapter(torrentPath, savePath, true);
 }
 
 bool connectPeer(ports::TorrentTransport &transport, ports::PeerHandle peer,

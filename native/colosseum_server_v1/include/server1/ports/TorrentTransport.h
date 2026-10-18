@@ -52,6 +52,9 @@ struct TorrentOpenRequest final {
     V1InfoHash infoHash;
     TorrentSource source;
     std::string savePath;
+    // Optional OS interface-change notifications. Keep enabled for normal
+    // operation; fixed-interface qualification may explicitly disable them.
+    bool monitorNetworkChanges = true;
 };
 
 struct RequestOwnership final {

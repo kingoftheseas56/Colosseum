@@ -69,4 +69,4 @@ not qualify the complete final suite. Broader repairs and requalification contin
 
 The Linux build adaptation is separate from storage behavior. Windows, full
 server composition, actual streaming/player operation and complete differential
-parity remain unqualified. No production merge, release or CI dispatch occurred.
+parity remain unqualified. No production merge, release or manual CI dispatch occurred. Later inspection found that existing branch push triggers did start desktop/code-quality workflows; see the Linux qualification checkpoint.

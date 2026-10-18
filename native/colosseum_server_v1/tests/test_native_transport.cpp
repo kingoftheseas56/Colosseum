@@ -30,7 +30,7 @@ namespace lt = libtorrent;
 
 namespace server1::transport {
 std::unique_ptr<ports::TorrentTransport> makeLibTorrent2Adapter(
-    const std::string &torrentPath, const std::string &savePath);
+    const std::string &torrentPath, const std::string &savePath, bool monitorNetworkChanges);
 bool connectPeer(ports::TorrentTransport &, ports::PeerHandle,
                  const std::string &, std::uint16_t);
 bool forbiddenCrossThreadNativeAccessIsRejected(ports::TorrentTransport &);
@@ -56,6 +56,19 @@ ports::PeerHandle boundEndpointOwner(const ports::TorrentTransport &, const std:
 
 namespace {
 using namespace server1::ports;
+
+std::unique_ptr<TorrentTransport> openTestTransport(TorrentOpenRequest request)
+{
+    if (std::getenv("SERVER1_TEST_FIXED_INTERFACE")) request.monitorNetworkChanges = false;
+    return server1::ports::openTorrentTransport(request);
+}
+
+std::unique_ptr<TorrentTransport> openTestFixture(const std::string &torrentPath,
+                                                const std::string &savePath)
+{
+    return server1::transport::makeLibTorrent2Adapter(torrentPath, savePath,
+        std::getenv("SERVER1_TEST_FIXED_INTERFACE") == nullptr);
+}
 
 [[noreturn]] void fail(const std::string &message)
 {
@@ -138,6 +151,8 @@ public:
             session_.wait_for_alert(std::chrono::milliseconds(100));
             std::vector<lt::alert *> alerts;
             session_.pop_alerts(&alerts);
+            for (const auto *alert : alerts)
+                std::cerr << "K10-E listen diagnostic: " << alert->message() << '\n';
             listening = std::any_of(alerts.begin(), alerts.end(), [](const lt::alert *alert) {
                 return lt::alert_cast<lt::listen_succeeded_alert>(alert) != nullptr;
             });
@@ -163,6 +178,8 @@ private:
     {
         lt::settings_pack result;
         result.set_str(lt::settings_pack::listen_interfaces, "127.0.0.1:0");
+        if (std::getenv("SERVER1_TEST_FIXED_INTERFACE"))
+            result.set_bool(lt::settings_pack::enable_ip_notifier, false);
         result.set_bool(lt::settings_pack::enable_dht, false);
         result.set_bool(lt::settings_pack::enable_lsd, false);
         result.set_bool(lt::settings_pack::enable_upnp, false);
@@ -225,7 +242,7 @@ void waitEndpointOwner(TorrentTransport &transport, const std::string &address,
 
 void caseWire(const fs::path &directory, int portA, int portB)
 {
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "download").string());
     expect(bool(transport), "K10-01 production adapter factory failed");
     expect(transport->configureAutonomy({}), "K10-01 external-control suppression rejected");
@@ -297,7 +314,7 @@ void caseWire(const fs::path &directory, int portA, int portB)
 
 void caseSubmitAfterReady(const fs::path &directory, int port)
 {
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "submit-ready-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-01 submit-ready setup");
     expect(transport->submit(InterestAction{77, true}), "K10-01 submit-ready interest rejected");
@@ -332,7 +349,7 @@ void caseSubmitAfterReady(const fs::path &directory, int port)
 
 void caseSequentialBlocks(const fs::path &directory, int port)
 {
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "sequential-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 sequential setup");
     expect(transport->submit(InterestAction{77, true}), "K10-02 sequential interest rejected");
@@ -370,7 +387,7 @@ void caseSequentialBlocks(const fs::path &directory, int port)
 void caseHaveTransition(const fs::path &directory, int port)
 {
     const auto marker = directory / "send-have.marker";
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "have-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 HAVE setup");
     expect(transport->submit(InterestAction{77, true}), "K10-02 HAVE interest rejected");
@@ -415,7 +432,7 @@ void caseHaveTransition(const fs::path &directory, int port)
 void caseLiveReuse(const fs::path &directory, int port)
 {
     const auto disconnected = directory / "first-disconnected.marker";
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "reuse-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 reuse setup");
     expect(transport->submit(InterestAction{90, true}), "K10-02 first reuse interest rejected");
@@ -468,7 +485,7 @@ void caseAvailability(const fs::path &directory, int port)
     const auto disconnected = directory / "first-disconnected.marker";
     const auto hash = readInfoHash(directory);
     const EngineGeneration generation = 404;
-    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+    auto transport = openTestTransport(TorrentOpenRequest{
         generation, hash, MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "availability-download").string()});
     expect(bool(transport) && transport->configureAutonomy({}), "K10-F availability setup");
@@ -569,7 +586,7 @@ void casePauseAndGenerationOwnership(const fs::path &directory, int activePort, 
     const TorrentOpenRequest open{generation, hash,
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "pause-download").string()};
-    auto transport = server1::ports::openTorrentTransport(open);
+    auto transport = openTestTransport(open);
     expect(bool(transport) && transport->configureAutonomy({}), "K10-G setup");
 
     expect(!transport->submit(PauseAction{0, true})
@@ -682,7 +699,7 @@ void casePauseAndGenerationOwnership(const fs::path &directory, int activePort, 
 
 void caseFailureDrain(const fs::path &directory, int failingPort, int survivingPort)
 {
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "failure-drain-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 failure-drain setup");
     expect(transport->submit(InterestAction{77, true})
@@ -736,7 +753,7 @@ void caseFailureDrain(const fs::path &directory, int failingPort, int survivingP
 
 void caseCancelDrain(const fs::path &directory, int port)
 {
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "cancel-drain-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 cancel-drain setup");
     expect(transport->submit(InterestAction{77, true}), "K10-02 cancel-drain interest rejected");
@@ -779,7 +796,7 @@ void caseLifecycle(const fs::path &directory, int portA, int portB)
 {
     const auto entered = directory / "on-piece.entered";
     const auto release = directory / "on-piece.release";
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "lifecycle-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 lifecycle setup");
     expect(server1::transport::armReceiveCallbackBarrier(*transport, entered.string(), release.string()),
@@ -843,7 +860,7 @@ void caseLedger(const fs::path &directory)
     const auto secondTorrent = directory / "second";
     prepare(firstTorrent, 'K');
     prepare(secondTorrent, 'Z');
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (firstTorrent / "K10-wire.torrent").string(), (directory / "unit-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 setup");
     const RequestAction first{{9, 1, 4}, 80, {0, 0, 0, 16384}};
@@ -862,7 +879,7 @@ void caseLedger(const fs::path &directory)
     expect(transport->statistics().ownedRequestsOutstanding == 1,
            "K10-02 cancellation decrements exactly one active request");
 
-    auto otherInfoHash = server1::transport::makeLibTorrent2Adapter(
+    auto otherInfoHash = openTestFixture(
         (secondTorrent / "K10-wire.torrent").string(), (directory / "second-download").string());
     expect(bool(otherInfoHash) && otherInfoHash->configureAutonomy({}),
            "K10-02 second infohash adapter setup");
@@ -895,7 +912,7 @@ void caseLedger(const fs::path &directory)
                return std::holds_alternative<ClosedObservation>(item);
            }) == 1, "K10-02 close observation is emitted once");
 
-    auto raceTransport = server1::transport::makeLibTorrent2Adapter(
+    auto raceTransport = openTestFixture(
         (firstTorrent / "K10-wire.torrent").string(), (directory / "race-download").string());
     expect(bool(raceTransport) && raceTransport->configureAutonomy({}),
            "K10-02 submit/close race setup");
@@ -927,7 +944,7 @@ void caseLedger(const fs::path &directory)
 
 void caseThreadGuard(const fs::path &directory, int port)
 {
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "guard-download").string());
     expect(bool(transport), "K10-03 setup");
     expect(!transport->configureAutonomy({true, false, false}),
@@ -971,7 +988,7 @@ void caseSourceFailure(const fs::path &directory)
     const TorrentOpenRequest invalid{301,
         V1InfoHash{}, MagnetSource{"magnet:?xt=urn:btih:not-hex"},
         (directory / "invalid-download").string()};
-    auto transport = server1::ports::openTorrentTransport(invalid);
+    auto transport = openTestTransport(invalid);
     expect(bool(transport), "K10-E invalid source factory threw or returned null");
     const auto first = transport->poll();
     expect(std::count_if(first.begin(), first.end(), [](const auto &item) {
@@ -992,7 +1009,7 @@ void caseInvalidGeneration(const fs::path &directory)
 {
     const TorrentOpenRequest invalid{0, V1InfoHash{}, InfoHashSource{},
         (directory / "invalid-generation-download").string()};
-    auto transport = server1::ports::openTorrentTransport(invalid);
+    auto transport = openTestTransport(invalid);
     expect(bool(transport), "K10-E zero-generation factory returned null");
     const auto observations = transport->poll();
     expect(std::count_if(observations.begin(), observations.end(), [](const auto &item) {
@@ -1011,7 +1028,7 @@ void caseCachedMetadata(const fs::path &directory)
     const TorrentOpenRequest request{302, hash,
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "cached-download").string()};
-    auto transport = server1::ports::openTorrentTransport(request);
+    auto transport = openTestTransport(request);
     expect(bool(transport), "K10-E cached source factory failed");
     const auto observations = pollUntil(*transport, [](const auto &items) {
         return std::any_of(items.begin(), items.end(), [](const auto &item) {
@@ -1044,7 +1061,7 @@ void caseHashMismatch(const fs::path &directory)
         V1InfoHash{},
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "mismatch-download").string()};
-    auto transport = server1::ports::openTorrentTransport(request);
+    auto transport = openTestTransport(request);
     expect(bool(transport), "K10-E mismatch source factory returned null");
     const auto observations = transport->poll();
     expect(std::count_if(observations.begin(), observations.end(), [](const auto &item) {
@@ -1068,9 +1085,13 @@ void casePeerMetadata(const fs::path &directory, bool magnet)
         + "&tr=http%3A%2F%2Fmagnet-tracker.invalid%2Fannounce"
         + "&ws=http%3A%2F%2Fmagnet-seed.invalid%2FK10-wire.bin"};
     const EngineGeneration generation = magnet ? 305 : 304;
-    const TorrentOpenRequest request{generation, hash, std::move(source),
+    TorrentOpenRequest request{generation, hash, std::move(source),
         (directory / (magnet ? "magnet-download" : "hash-download")).string()};
-    auto transport = server1::ports::openTorrentTransport(request);
+    if (std::getenv("SERVER1_TEST_FIXED_INTERFACE")) {
+        request.monitorNetworkChanges = false;
+        std::cout << "K10-E qualification: fixed loopback interface; OS change notifications disabled\n";
+    }
+    auto transport = openTestTransport(request);
     expect(bool(transport), "K10-E peer metadata factory failed");
     expect(transport->configureAutonomy({}), "K10-E peer metadata control setup failed");
     expect(transport->poll().empty(), "K10-E peer metadata was synthesized during construction");
@@ -1119,7 +1140,7 @@ void caseCloseSuppressesSource(const fs::path &directory)
     const TorrentOpenRequest request{306, readInfoHash(directory),
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "close-download").string()};
-    auto transport = server1::ports::openTorrentTransport(request);
+    auto transport = openTestTransport(request);
     expect(bool(transport), "K10-E close suppression factory failed");
     transport->close();
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
@@ -1143,7 +1164,7 @@ void caseInboundUtpServe(const fs::path &directory, const fs::path &portFile,
                          const fs::path &stopFile)
 {
     prepare(directory);
-    auto transport = server1::transport::makeLibTorrent2Adapter(
+    auto transport = openTestFixture(
         (directory / "K10-wire.torrent").string(), (directory / "inbound-download").string());
     expect(bool(transport) && transport->configureAutonomy({}), "K10-02 inbound uTP setup");
     int port = 0;
@@ -1175,7 +1196,7 @@ void caseUploadFeasibility(const fs::path &directory, int port)
 {
     constexpr EngineGeneration generation = 707;
     constexpr PeerHandle peer = 301;
-    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+    auto transport = openTestTransport(TorrentOpenRequest{
         generation, readInfoHash(directory),
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "upload-download").string()});
@@ -1245,7 +1266,7 @@ void caseUploadCaps(const fs::path &directory, const std::vector<int> &ports)
 {
     constexpr EngineGeneration generation = 708;
     expect(ports.size() == 6, "K10-H caps port inventory");
-    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+    auto transport = openTestTransport(TorrentOpenRequest{
         generation, readInfoHash(directory),
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "caps-download").string()});
@@ -1358,7 +1379,7 @@ void caseUploadLifecycle(const fs::path &directory, const std::vector<int> &port
 {
     constexpr EngineGeneration generation = 709;
     expect(ports.size() == 3, "K10-H lifecycle port inventory");
-    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+    auto transport = openTestTransport(TorrentOpenRequest{
         generation, readInfoHash(directory),
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "lifecycle-upload-download").string()});
@@ -1460,7 +1481,7 @@ void caseUploadPendingUnchoke(const fs::path &directory, int port)
 {
     constexpr EngineGeneration generation = 710;
     constexpr PeerHandle peer = 601;
-    auto transport = server1::ports::openTorrentTransport(TorrentOpenRequest{
+    auto transport = openTestTransport(TorrentOpenRequest{
         generation, readInfoHash(directory),
         MetainfoSource{readBytes(directory / "K10-wire.torrent")},
         (directory / "pending-unchoke-download").string()});

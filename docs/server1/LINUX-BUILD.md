@@ -44,13 +44,17 @@ encryption=ON, static_runtime=OFF, GCC 14.2.0 and Boost 1.83.0.
 
 ## Qualification boundaries
 
-The packet's twelve PowerShell wire drivers are not yet portable Linux runners.
-Missing driver commands are NOT RUN, never passes. R13/R14 use a disposable
+The twelve PowerShell wire drivers now select the platform executable name and
+apply WindowStyle only on Windows. Install official PowerShell on PATH (tested
+7.6.7). They retain their existing readiness and exact-wire assertions. R13/R14 use a disposable
 self-referential symlink to provoke a real storage read exception; Windows needs
 its own supported fixture qualification.
 
 Restricted environments may allow TCP loopback but prohibit NETLINK. In the
 tested cloud environment a libtorrent metadata seeder reports a session socket
 open error (EPERM), while ordinary HTTP loopback tests pass. Preserve that
-failure; do not infer real transport success from cached-metadata/component tests.
+failure. The explicit SERVER1_TEST_FIXED_INTERFACE=1 test profile disables only
+libtorrent's optional OS IP-change notifier. It does not change host security or
+production defaults. Real wire tests passed in that bounded fixed-interface profile;
+network-interface-change behavior is not thereby qualified.
 The host remains a skeleton until the K12/H01/H02 composition is implemented.
