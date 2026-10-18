@@ -48,6 +48,10 @@ struct FileReader::State final {
     Scheduler *scheduler = nullptr;
     FileReaderSource *source = nullptr;
     Refresh refresh;
+    std::shared_ptr<Refresh> readable;
+    bool readablePending = false;
+    bool readableClosed = false;
+    bool deliveringReady = false;
     SelectionId selectionId = 0;
     std::uint64_t generation = 0;
     std::size_t pieceLength = 0;
@@ -74,6 +78,23 @@ struct FileReader::State final {
     bool eof = false;
     bool closed = false;
     bool destroyed = false;
+
+    void deliverReady()
+    {
+        if (pumping || destroyed || readableClosed || deliveringReady) return;
+        deliveringReady=true;
+        try {
+            while(readablePending && !destroyed && !readableClosed) {
+                readablePending=false;
+                const auto callback=readable;
+                if(callback && *callback)(*callback)();
+            }
+        } catch(...) {
+            deliveringReady=false;
+            throw;
+        }
+        deliveringReady=false;
+    }
 
     [[nodiscard]] DetachedOwnership detachOwnership()
     {
@@ -115,6 +136,8 @@ struct FileReader::State final {
         error = std::move(reason);
         closed = true;
         releaseDetached(detachOwnership());
+        readablePending = true;
+        deliverReady();
     }
 };
 
@@ -172,23 +195,30 @@ FileReader::~FileReader()
     closeState(state, true);
 }
 
+void FileReader::setReadable(Refresh callback)
+{
+    const auto state=state_;
+    if (state->destroyed || state->readableClosed) return;
+    state->readable=callback ? std::make_shared<Refresh>(std::move(callback)) : nullptr;
+    if (!state->deliveringReady && (!state->ready.empty() || state->error || state->eof)) state->readablePending=true;
+    state->deliverReady();
+}
+
 void FileReader::request(std::size_t bytes)
 {
-    if (bytes == 0 || state_->closed || state_->eof || state_->error) {
-        return;
-    }
-    state_->demandBytes = saturatingAdd(state_->demandBytes, bytes);
-    pump(state_);
+    const auto state=state_;
+    if (bytes == 0 || state->closed || state->eof || state->error) return;
+    state->demandBytes = saturatingAdd(state->demandBytes, bytes);
+    pump(state);
 }
 
 void FileReader::notifyPiece(std::size_t piece)
 {
-    if (state_->closed || !state_->waitingPiece || *state_->waitingPiece != piece
-        || !state_->source->hasPiece(piece)) {
-        return;
-    }
-    state_->waitingPiece.reset();
-    pump(state_);
+    const auto state=state_;
+    if (state->closed || !state->waitingPiece || *state->waitingPiece != piece
+        || !state->source->hasPiece(piece)) return;
+    state->waitingPiece.reset();
+    pump(state);
 }
 
 void FileReader::fail(std::string error)
@@ -199,15 +229,16 @@ void FileReader::fail(std::string error)
 
 std::vector<ByteBuffer> FileReader::takeData()
 {
+    const auto state=state_;
     std::vector<ByteBuffer> result;
-    result.swap(state_->ready);
+    result.swap(state->ready);
     std::size_t delivered = 0;
     for (const auto &chunk : result) {
         delivered = saturatingAdd(delivered, chunk.size());
     }
-    state_->reservedBytes -= std::min(state_->reservedBytes, delivered);
-    state_->demandBytes -= std::min(state_->demandBytes, delivered);
-    pump(state_);
+    state->reservedBytes -= std::min(state->reservedBytes, delivered);
+    state->demandBytes -= std::min(state->demandBytes, delivered);
+    pump(state);
     return result;
 }
 
@@ -301,6 +332,7 @@ void FileReader::pump(const std::shared_ptr<State> &state)
             });
     }
     state->pumping = false;
+    state->deliverReady();
 }
 
 void FileReader::complete(const std::shared_ptr<State> &state,
@@ -344,6 +376,7 @@ void FileReader::complete(const std::shared_ptr<State> &state,
                                       + static_cast<std::ptrdiff_t>(offset),
                                   completed->second.bytes.begin()
                                       + static_cast<std::ptrdiff_t>(offset + count));
+        state->readablePending = true;
         state->remaining -= count;
         state->completedReads.erase(completed);
         ++state->nextDeliverPiece;
@@ -351,10 +384,12 @@ void FileReader::complete(const std::shared_ptr<State> &state,
 
     if (state->remaining == 0) {
         state->eof = true;
+        state->readablePending = true;
         if (state->selectionActive) {
-            static_cast<void>(state->scheduler->deselect(state->selectionId));
             state->selectionActive = false;
+            static_cast<void>(state->scheduler->deselect(state->selectionId));
         }
+        state->deliverReady();
         return;
     }
     pump(state);
@@ -362,6 +397,9 @@ void FileReader::complete(const std::shared_ptr<State> &state,
 
 void FileReader::closeState(const std::shared_ptr<State> &state, bool destroyed)
 {
+    state->readableClosed=true;
+    state->readable={};
+    state->readablePending=false;
     if (destroyed) {
         state->destroyed = true;
     }

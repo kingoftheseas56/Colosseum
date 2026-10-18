@@ -60,6 +60,13 @@ public:
     FileReader(FileReader &&) = delete;
     FileReader &operator=(FileReader &&) = delete;
 
+    // Same-lane readiness notification, separate from missing-piece Refresh.
+    // Arm before request(). Already queued data/error/EOF notifies immediately.
+    // The callback may consume data, close or destroy this reader. Explicit
+    // close disables notification; terminal read failure still notifies once.
+    // Notifications never nest. Replacing a callback during notification takes
+    // effect for subsequent state changes, without replaying that same event.
+    void setReadable(Refresh callback);
     void request(std::size_t bytes);
     void notifyPiece(std::size_t piece);
     // Inject an external terminal failure. The first call while active wins; an

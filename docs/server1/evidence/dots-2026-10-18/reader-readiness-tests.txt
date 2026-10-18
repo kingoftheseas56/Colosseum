@@ -1,0 +1,16 @@
+Reader readiness checkpoint, Linux x86_64, 2026-10-18 UTC
+Parent f386b80deeab954df52afcb255d58b47555ce24d
+GCC14.2 / Qt6.11.1 / CMake4.4.3 / Release
+Final build exit0; full CTest105/105PASS,0FAIL,0SKIP,68.87s.
+Matching RelWithDebInfo ASan K08 tests5/5PASS,exit0,0.03s.
+ASAN_OPTIONS=detect_leaks=0. Windows and LeakSanitizer NOT RUN/qualified.
+Reader executable SHA256 4d87ff4d02244a996bb5e1bcbfc3d5af9e383de858a6358c2329af40a3f322e5
+K08-ready twelve controlled component scenarios PASS, including256 immediate
+chunks with callback depth1. Original four registered K08 tests still PASS.
+
+Before no-op notification: exit1, ordered data/EOF readiness missing
+Before explicit-close flag: exit1, explicit close after failure rearmed readiness
+After final implementation: both same assertions PASS.
+
+Commands/limits: ../../DOTS-2026-10-18-READER-READINESS.md
+Controlled sources do not prove live torrent-to-HTTP behavior.

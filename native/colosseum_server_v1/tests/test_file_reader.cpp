@@ -518,6 +518,110 @@ void caseK08F2()
     }
 }
 
+void caseK08Ready()
+{
+    {
+        Scheduler scheduler(2);ControlledPieceSource source;
+        source.pieces={{0,bytes({1,2,3,4})},{1,bytes({5,6,7,8})}};source.available={0,1};
+        FileReader reader(scheduler,source,TorrentFile{"ready","ready",8,0},4);
+        int notifications=0;reader.setReadable([&]{++notifications;});reader.request(8);
+        expect(notifications==0,"readiness fired for pending work");
+        source.complete(1);expect(notifications==0,"out-of-order data reported readable");
+        source.complete(0);expect(notifications==1 && reader.eof(),"ordered data/EOF readiness missing");
+        expect(flatten(reader.takeData())==bytes({1,2,3,4,5,6,7,8}),"readiness changed byte ordering");
+        reader.setReadable([&]{++notifications;});expect(notifications==2,"late EOF subscription lost readiness");
+        reader.close();reader.setReadable([&]{++notifications;});expect(notifications==2,"closed reader rearmed notification");
+    }
+    {
+        Scheduler scheduler(1);ControlledPieceSource source;source.pieces={{0,bytes({1,2,3,4})}};
+        int refresh=0,notifications=0;
+        FileReader reader(scheduler,source,TorrentFile{"missing","missing",4,0},4,{},[&]{++refresh;});
+        reader.setReadable([&]{++notifications;});reader.request(4);
+        expect(refresh==1 && notifications==0,"missing-piece demand confused with readable data");
+        source.available={0};reader.notifyPiece(0);source.complete(0);
+        expect(notifications==1 && reader.eof(),"piece readiness did not resume reader");
+    }
+    {
+        Scheduler scheduler(1);ControlledPieceSource source;source.available={0};
+        FileReader reader(scheduler,source,TorrentFile{"error","error",4,0},4);
+        int notifications=0;reader.setReadable([&]{++notifications;expect(reader.closed(),"error notified before terminal state");});
+        reader.request(4);source.complete(0,"disk failed");
+        expect(notifications==1 && reader.takeError()==std::optional<std::string>{"disk failed"},"failure readiness missing");
+        reader.fail("again");expect(notifications==1,"terminal failure notified twice");
+    }
+    {
+        Scheduler scheduler(1);ControlledPieceSource source;source.available={0};source.pieces={{0,bytes({1,2,3,4})}};
+        auto reader=std::make_unique<FileReader>(scheduler,source,TorrentFile{"destroy","destroy",4,0},4);
+        int notifications=0;reader->setReadable([&]{++notifications;reader.reset();});reader->request(4);source.complete(0);
+        expect(notifications==1 && !reader,"readiness callback destruction failed");
+    }
+    {
+        Scheduler scheduler(2);ControlledPieceSource source;source.available={0,1};source.pieces={{0,bytes({1,2,3,4})},{1,bytes({5,6,7,8})}};
+        FileReader reader(scheduler,source,TorrentFile{"mutable","mutable",8,0},4);
+        std::vector<int> calls;reader.setReadable([n=0,&calls]()mutable{calls.push_back(++n);});
+        reader.request(8);source.complete(0);source.complete(1);
+        expect(calls==std::vector<int>{1,2},"readiness copied mutable callable state");
+    }
+    {
+        Scheduler scheduler(1);ControlledPieceSource source;
+        FileReader reader(scheduler,source,TorrentFile{"failed-close","failed-close",4,0},4);
+        int calls=0;reader.setReadable([&]{++calls;});reader.fail("failure");
+        reader.close();reader.setReadable([&]{++calls;});
+        expect(calls==1 && reader.takeError()==std::optional<std::string>{"failure"},"explicit close after failure rearmed readiness");
+    }
+    struct Immediate final : FileReaderSource {
+        bool hasPiece(std::size_t) const override{return true;}
+        void readPiece(std::uint64_t token,std::size_t piece,Completion callback)override{callback(token,piece,bytes({1,2,3,4}),{});}
+        bool cancelRead(std::uint64_t)override{return true;}
+    };
+    {
+        Scheduler scheduler(1);Immediate source;
+        auto reader=std::make_unique<FileReader>(scheduler,source,TorrentFile{"sync","sync",4,0},4);
+        int notifications=0;ByteBuffer data;
+        reader->setReadable([&]{++notifications;expect(reader->pendingReads()==0 && reader->eof(),"sync readiness exposed partial pump state");data=flatten(reader->takeData());reader.reset();});
+        reader->request(4);expect(!reader && notifications==1 && data==bytes({1,2,3,4}),"sync readiness destruction lost data");
+    }
+    {
+        Scheduler scheduler(1);ControlledPieceSource source;source.available={0};source.pieces={{0,bytes({1,2,3,4})}};
+        FileReader reader(scheduler,source,TorrentFile{"cancel","cancel",4,0},4);
+        int notifications=0;reader.setReadable([&]{++notifications;});reader.request(4);const auto token=source.pending.front().token;
+        reader.close();source.completeCanceled(token);expect(notifications==0,"late canceled read notified");
+    }
+    {
+        Scheduler scheduler(1);Immediate source;
+        FileReader reader(scheduler,source,TorrentFile{"late","late",4,0},4);
+        reader.request(4);int notifications=0;reader.setReadable([&]{++notifications;});
+        expect(notifications==1 && flatten(reader.takeData())==bytes({1,2,3,4}),"late subscription lost queued synchronous data");
+    }
+    {
+        Scheduler scheduler(256);Immediate source;
+        FileReader reader(scheduler,source,TorrentFile{"chain","chain",1024,0},4);
+        int calls=0,depth=0,maxDepth=0;ByteBuffer data;
+        reader.setReadable([&]{++calls;++depth;maxDepth=std::max(maxDepth,depth);
+            auto chunk=flatten(reader.takeData());data.insert(data.end(),chunk.begin(),chunk.end());
+            if(!reader.eof())reader.request(4);--depth;
+        });
+        reader.request(4);expect(calls==256 && maxDepth==1 && data.size()==1024 && reader.eof(),"synchronous readiness recursively nested or lost demand");
+    }
+
+    {
+        Scheduler scheduler(1);Immediate source;
+        FileReader reader(scheduler,source,TorrentFile{"throw","throw",4,0},4);
+        reader.setReadable([]{throw std::runtime_error("consumer failure");});
+        bool caught=false;try{reader.request(4);}catch(const std::runtime_error &){caught=true;}
+        int calls=0;reader.setReadable([&]{++calls;});
+        expect(caught && calls==1 && flatten(reader.takeData())==bytes({1,2,3,4}),"throwing readiness poisoned delivery or lost data");
+    }
+    {
+        Scheduler scheduler(1);Immediate source;
+        FileReader reader(scheduler,source,TorrentFile{"replace","replace",4,0},4);
+        int calls=0;reader.setReadable([&]{++calls;reader.setReadable([&]{++calls;});});
+        reader.request(4);expect(calls==1,"callback replacement replayed current readiness recursively");
+        reader.setReadable([&]{++calls;});expect(calls==2,"explicit later subscription lost readiness");
+    }
+
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -532,6 +636,8 @@ int main(int argc, char **argv)
         caseK0802();
     } else if (id == "K08-03") {
         caseK0803();
+    } else if (id == "K08-ready") {
+        caseK08Ready();
     } else if (id == "K08-F2") {
         caseK08F2();
     } else {
