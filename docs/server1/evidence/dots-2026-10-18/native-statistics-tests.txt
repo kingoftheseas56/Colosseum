@@ -1,0 +1,419 @@
+Native statistics input qualification, Linux, 2026-10-18
+Parent e5c49dadf79c1bd8d0b010e9f6fa293452a2c7f9
+Final Release build exit0. Full CTest101/101passed0failed0skipped66.50s.
+Matching RelWithDebInfo-ASan2/2passed9.39s detect_leaks=0, covering4controlled wire scenarios.
+Earlier Release2tests5repeats each=10executionspassed, prior to unsolicited extension.
+Debug-ASan with Release-only dependency2/2FAILED, retained; Windows NOT RUN; full source speedometer/JSON NOT RUN.
+server1_k10_native_transport_test SHA256 9f7eff8525525c101aab1a6337f0bd81a149d2cf9948a44810d1113d6db040a7
+server1_k11_engine_registry_test SHA256 3acc8cd0f913f03d7ab2a9328e4ff341b4994cfc55a85ecc8cc299bfd0ad1c3d
+
+=== wire-stats-before.log ===
+K10 OWNED_ADD peer=77 request=901/1/1 piece=0 offset=0 length=16384 queued=1
+K12 wire payload counter omitted duplicate/late bytes
+Traceback (most recent call last):
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/run_wire_statistics.py", line 70, in <module>
+    run(parser.parse_args())
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/run_wire_statistics.py", line 47, in run
+    result.check_returncode()
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['<owned-cloud-workspace>/server-parity/build-linux/p03-tests/server1_k10_native_transport_test', '--wire-stats', '<owned-cloud-workspace>/server-parity/test-data/wire-statistics-g83lozfg/normal', '46987', 'normal']' returned non-zero exit status 1.
+
+=== peer-stats-corrected-fixture-before.log ===
+K10 OWNED_ADD peer=77 request=911/1/1 piece=0 offset=0 length=16384 queued=1
+K10 OWNED_ADD peer=78 request=912/1/1 piece=1 offset=0 length=73 queued=1
+K12 peer rate evidence aggregate=14 sum=3290
+K12 aggregate rate is last-peer value instead of sum
+Traceback (most recent call last):
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/run_peer_statistics.py", line 79, in <module>
+    run(parser.parse_args())
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/run_peer_statistics.py", line 56, in run
+    raise RuntimeError(f"native peer-statistics test failed {candidate.returncode}; evidence {root}")
+RuntimeError: native peer-statistics test failed 1; evidence <owned-cloud-workspace>/server-parity/test-data/peer-statistics-whp_b_m_
+
+=== stats-asan-tests.log ===
+Test project <owned-cloud-workspace>/server-parity/build-k12-asan
+    Start 50: K12-wire-statistics-real-wire
+1/2 Test #50: K12-wire-statistics-real-wire ....***Failed    6.65 sec
+K10 OWNED_ADD peer=77 request=901/1/1 piece=0 offset=0 length=16384 queued=1
+K12 wire payload counter omitted duplicate/late bytes
+Traceback (most recent call last):
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/cmake/../../tests/run_wire_statistics.py", line 70, in <module>
+    run(parser.parse_args())
+    ~~~^^^^^^^^^^^^^^^^^^^^^
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/cmake/../../tests/run_wire_statistics.py", line 47, in run
+    result.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "<owned-cloud-workspace>/b1-native/deps/sysroot/usr/lib/python3.13/subprocess.py", line 508, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '['<owned-cloud-workspace>/server-parity/build-k12-asan/p03-tests/server1_k10_native_transport_test', '--wire-stats', '<owned-cloud-workspace>/server-parity/build-k12-asan/p03-tests/wire-statistics-utfbs6v2/normal', '49315', 'normal']' returned non-zero exit status 1.
+
+    Start 51: K12-peer-statistics-real-wire
+2/2 Test #51: K12-peer-statistics-real-wire ....***Failed    5.65 sec
+K10 OWNED_ADD peer=77 request=911/1/1 piece=0 offset=0 length=16384 queued=1
+K12 two requests not framed
+Traceback (most recent call last):
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/cmake/../../tests/run_peer_statistics.py", line 82, in <module>
+    run(parser.parse_args())
+    ~~~^^^^^^^^^^^^^^^^^^^^^
+  File "<owned-cloud-workspace>/server-parity/source/native/colosseum_server_v1/tests/cmake/../../tests/run_peer_statistics.py", line 56, in run
+    raise RuntimeError(f"native peer-statistics test failed {candidate.returncode}; evidence {root}")
+RuntimeError: native peer-statistics test failed 1; evidence <owned-cloud-workspace>/server-parity/build-k12-asan/p03-tests/peer-statistics-u1kzmz7l
+
+
+0% tests passed, 2 tests failed out of 2
+
+Label Time Summary:
+K12        =  12.29 sec*proc (2 tests)
+native     =  12.29 sec*proc (2 tests)
+server1    =  12.29 sec*proc (2 tests)
+wire       =  12.29 sec*proc (2 tests)
+
+Total Test time (real) =  12.29 sec
+
+The following tests FAILED:
+	 50 - K12-wire-statistics-real-wire (Failed)            K12 native server1 wire
+	 51 - K12-peer-statistics-real-wire (Failed)            K12 native server1 wire
+Errors while running CTest
+
+=== stats-final-all-tests.log ===
+Test project <owned-cloud-workspace>/server-parity/build-linux
+        Start   1: P03-02-server1-host
+  1/101 Test   #1: P03-02-server1-host ..........................   Passed    0.00 sec
+        Start   2: K00-01-js-semantics
+  2/101 Test   #2: K00-01-js-semantics ..........................   Passed    0.00 sec
+        Start   3: K00-02-js-semantics
+  3/101 Test   #3: K00-02-js-semantics ..........................   Passed    0.00 sec
+        Start   4: K00-03-js-semantics
+  4/101 Test   #4: K00-03-js-semantics ..........................   Passed    0.00 sec
+        Start   5: K01-01-metadata-geometry
+  5/101 Test   #5: K01-01-metadata-geometry .....................   Passed    0.00 sec
+        Start   6: K01-02-metadata-geometry
+  6/101 Test   #6: K01-02-metadata-geometry .....................   Passed    0.00 sec
+        Start   7: K01-03-metadata-geometry
+  7/101 Test   #7: K01-03-metadata-geometry .....................   Passed    0.00 sec
+        Start   8: K13-01-settings-cache-defaults
+  8/101 Test   #8: K13-01-settings-cache-defaults ...............   Passed    0.00 sec
+        Start   9: K13-02-cache-policy
+  9/101 Test   #9: K13-02-cache-policy ..........................   Passed    0.00 sec
+        Start  10: K13-03-cache-convergence
+ 10/101 Test  #10: K13-03-cache-convergence .....................   Passed    0.05 sec
+        Start  11: H00-01-http-contract
+ 11/101 Test  #11: H00-01-http-contract .........................   Passed    0.01 sec
+        Start  12: H00-02-http-contract
+ 12/101 Test  #12: H00-02-http-contract .........................   Passed    0.00 sec
+        Start  13: H00-03-http-contract
+ 13/101 Test  #13: H00-03-http-contract .........................   Passed    1.51 sec
+        Start  14: H00-04-http-contract
+ 14/101 Test  #14: H00-04-http-contract .........................   Passed    0.01 sec
+        Start  15: H00-05-http-contract
+ 15/101 Test  #15: H00-05-http-contract .........................   Passed    0.26 sec
+        Start  16: H00-06-http-contract
+ 16/101 Test  #16: H00-06-http-contract .........................   Passed    0.01 sec
+        Start  17: H00-07-http-contract
+ 17/101 Test  #17: H00-07-http-contract .........................   Passed    0.01 sec
+        Start  18: H00-08-http-contract
+ 18/101 Test  #18: H00-08-http-contract .........................   Passed    0.01 sec
+        Start  19: M00-01-process-discovery
+ 19/101 Test  #19: M00-01-process-discovery .....................   Passed    0.01 sec
+        Start  20: M00-02-process-lifecycle
+ 20/101 Test  #20: M00-02-process-lifecycle .....................   Passed    0.23 sec
+        Start  21: M00-03-remote-driver
+ 21/101 Test  #21: M00-03-remote-driver .........................   Passed    0.03 sec
+        Start  22: K02-01-piece-buffer
+ 22/101 Test  #22: K02-01-piece-buffer ..........................   Passed    0.00 sec
+        Start  23: K02-02-piece-buffer
+ 23/101 Test  #23: K02-02-piece-buffer ..........................   Passed    0.00 sec
+        Start  24: K02-03-piece-buffer
+ 24/101 Test  #24: K02-03-piece-buffer ..........................   Passed    0.00 sec
+        Start  25: K05-01-swarm-metadata
+ 25/101 Test  #25: K05-01-swarm-metadata ........................   Passed    0.00 sec
+        Start  26: K05-02-swarm-metadata
+ 26/101 Test  #26: K05-02-swarm-metadata ........................   Passed    0.00 sec
+        Start  27: K05-03-swarm-metadata
+ 27/101 Test  #27: K05-03-swarm-metadata ........................   Passed    0.00 sec
+        Start  28: K05-A2-peer-lifecycle-counts
+ 28/101 Test  #28: K05-A2-peer-lifecycle-counts .................   Passed    0.00 sec
+        Start  29: K06-01-persistent-store
+ 29/101 Test  #29: K06-01-persistent-store ......................   Passed    0.01 sec
+        Start  30: K06-02-persistent-store
+ 30/101 Test  #30: K06-02-persistent-store ......................   Passed    0.01 sec
+        Start  31: K06-03-persistent-store
+ 31/101 Test  #31: K06-03-persistent-store ......................   Passed    0.01 sec
+        Start  32: K06-F2-persistent-store
+ 32/101 Test  #32: K06-F2-persistent-store ......................   Passed    0.01 sec
+        Start  33: K06-F3-persistent-store
+ 33/101 Test  #33: K06-F3-persistent-store ......................   Passed    0.00 sec
+        Start  34: K03-01-scheduler-selections
+ 34/101 Test  #34: K03-01-scheduler-selections ..................   Passed    0.00 sec
+        Start  35: K03-02-scheduler-selections
+ 35/101 Test  #35: K03-02-scheduler-selections ..................   Passed    0.00 sec
+        Start  36: K03-03-scheduler-selections
+ 36/101 Test  #36: K03-03-scheduler-selections ..................   Passed    0.00 sec
+        Start  37: K07-01-circular-store
+ 37/101 Test  #37: K07-01-circular-store ........................   Passed    0.00 sec
+        Start  38: K07-02-circular-store
+ 38/101 Test  #38: K07-02-circular-store ........................   Passed    0.00 sec
+        Start  39: K07-03-circular-store
+ 39/101 Test  #39: K07-03-circular-store ........................   Passed    0.00 sec
+        Start  40: K09-01-peer-search
+ 40/101 Test  #40: K09-01-peer-search ...........................   Passed    0.00 sec
+        Start  41: K09-02-peer-search
+ 41/101 Test  #41: K09-02-peer-search ...........................   Passed    0.00 sec
+        Start  42: K09-03-peer-search
+ 42/101 Test  #42: K09-03-peer-search ...........................   Passed    0.00 sec
+        Start  43: K04-01-scheduler-actions
+ 43/101 Test  #43: K04-01-scheduler-actions .....................   Passed    0.00 sec
+        Start  44: K04-02-scheduler-actions
+ 44/101 Test  #44: K04-02-scheduler-actions .....................   Passed    0.00 sec
+        Start  45: K04-03-scheduler-actions
+ 45/101 Test  #45: K04-03-scheduler-actions .....................   Passed    0.00 sec
+        Start  46: K08-01-file-reader
+ 46/101 Test  #46: K08-01-file-reader ...........................   Passed    0.00 sec
+        Start  47: K08-02-file-reader
+ 47/101 Test  #47: K08-02-file-reader ...........................   Passed    0.00 sec
+        Start  48: K08-03-file-reader
+ 48/101 Test  #48: K08-03-file-reader ...........................   Passed    0.00 sec
+        Start  49: K08-F2-file-reader
+ 49/101 Test  #49: K08-F2-file-reader ...........................   Passed    0.00 sec
+        Start  50: K12-wire-statistics-real-wire
+ 50/101 Test  #50: K12-wire-statistics-real-wire ................   Passed    1.79 sec
+        Start  51: K12-peer-statistics-real-wire
+ 51/101 Test  #51: K12-peer-statistics-real-wire ................   Passed    5.63 sec
+        Start  52: K10-01-native-transport-real-wire
+ 52/101 Test  #52: K10-01-native-transport-real-wire ............   Passed    2.00 sec
+        Start  53: K10-01-native-transport-submit-after-ready
+ 53/101 Test  #53: K10-01-native-transport-submit-after-ready ...   Passed    1.96 sec
+        Start  54: K10-02-native-transport-sequential-wire
+ 54/101 Test  #54: K10-02-native-transport-sequential-wire ......   Passed    2.90 sec
+        Start  55: K10-02-native-transport-have-wire
+ 55/101 Test  #55: K10-02-native-transport-have-wire ............   Passed    1.94 sec
+        Start  56: K10-02-native-transport-live-reuse
+ 56/101 Test  #56: K10-02-native-transport-live-reuse ...........   Passed    3.00 sec
+        Start  57: K10-02-native-transport-failure-drain
+ 57/101 Test  #57: K10-02-native-transport-failure-drain ........   Passed    2.96 sec
+        Start  58: K10-02-native-transport-cancel-drain
+ 58/101 Test  #58: K10-02-native-transport-cancel-drain .........   Passed    1.90 sec
+        Start  59: K10-02-native-transport
+ 59/101 Test  #59: K10-02-native-transport ......................   Passed    1.11 sec
+        Start  60: K10-03-native-transport
+ 60/101 Test  #60: K10-03-native-transport ......................   Passed    2.90 sec
+        Start  61: K10-02-native-transport-lifecycle
+ 61/101 Test  #61: K10-02-native-transport-lifecycle ............   Passed    3.04 sec
+        Start  62: K10-02-native-transport-inbound-utp
+ 62/101 Test  #62: K10-02-native-transport-inbound-utp ..........   Passed    3.47 sec
+        Start  63: K10-E-transport-source-invalid
+ 63/101 Test  #63: K10-E-transport-source-invalid ...............   Passed    0.00 sec
+        Start  64: K10-E-transport-source-generation
+ 64/101 Test  #64: K10-E-transport-source-generation ............   Passed    0.00 sec
+        Start  65: K10-E-transport-source-cached
+ 65/101 Test  #65: K10-E-transport-source-cached ................   Passed    0.27 sec
+        Start  66: K10-E-transport-source-mismatch
+ 66/101 Test  #66: K10-E-transport-source-mismatch ..............   Passed    0.00 sec
+        Start  67: K10-E-transport-source-infohash
+ 67/101 Test  #67: K10-E-transport-source-infohash ..............   Passed    0.77 sec
+        Start  68: K10-E-transport-source-magnet
+ 68/101 Test  #68: K10-E-transport-source-magnet ................   Passed    0.77 sec
+        Start  69: K10-E-transport-source-close
+ 69/101 Test  #69: K10-E-transport-source-close .................   Passed    0.26 sec
+        Start  70: K10-G-transport-pause-generation
+ 70/101 Test  #70: K10-G-transport-pause-generation .............   Passed    2.96 sec
+        Start  71: K10-H-transport-upload-real-wire
+ 71/101 Test  #71: K10-H-transport-upload-real-wire .............   Passed   17.00 sec
+        Start  72: K11-01-engine-registry
+ 72/101 Test  #72: K11-01-engine-registry .......................   Passed    0.01 sec
+        Start  73: K11-02-engine-registry
+ 73/101 Test  #73: K11-02-engine-registry .......................   Passed    0.03 sec
+        Start  74: K11-03-engine-registry
+ 74/101 Test  #74: K11-03-engine-registry .......................   Passed    0.08 sec
+        Start  75: R7-engine-registry
+ 75/101 Test  #75: R7-engine-registry ...........................   Passed    0.01 sec
+        Start  76: R8-engine-registry
+ 76/101 Test  #76: R8-engine-registry ...........................   Passed    0.01 sec
+        Start  77: R9-engine-registry
+ 77/101 Test  #77: R9-engine-registry ...........................   Passed    0.01 sec
+        Start  78: R10-engine-registry
+ 78/101 Test  #78: R10-engine-registry ..........................   Passed    0.01 sec
+        Start  79: R11-engine-registry
+ 79/101 Test  #79: R11-engine-registry ..........................   Passed    0.01 sec
+        Start  80: R12-engine-registry
+ 80/101 Test  #80: R12-engine-registry ..........................   Passed    0.01 sec
+        Start  81: R13-engine-registry
+ 81/101 Test  #81: R13-engine-registry ..........................   Passed    0.01 sec
+        Start  82: R14-engine-registry
+ 82/101 Test  #82: R14-engine-registry ..........................   Passed    0.01 sec
+        Start  83: R15-engine-registry
+ 83/101 Test  #83: R15-engine-registry ..........................   Passed    0.01 sec
+        Start  84: R16-engine-registry
+ 84/101 Test  #84: R16-engine-registry ..........................   Passed    0.01 sec
+        Start  85: R17-engine-registry
+ 85/101 Test  #85: R17-engine-registry ..........................   Passed    0.01 sec
+        Start  86: R18-engine-registry
+ 86/101 Test  #86: R18-engine-registry ..........................   Passed    0.01 sec
+        Start  87: R19-engine-registry
+ 87/101 Test  #87: R19-engine-registry ..........................   Passed    0.11 sec
+        Start  88: R20-engine-registry
+ 88/101 Test  #88: R20-engine-registry ..........................   Passed    0.01 sec
+        Start  89: R21-engine-registry
+ 89/101 Test  #89: R21-engine-registry ..........................   Passed    0.01 sec
+        Start  90: R22-engine-registry
+ 90/101 Test  #90: R22-engine-registry ..........................   Passed    0.01 sec
+        Start  91: R23-engine-registry
+ 91/101 Test  #91: R23-engine-registry ..........................   Passed    0.01 sec
+        Start  92: R24-engine-registry
+ 92/101 Test  #92: R24-engine-registry ..........................   Passed    0.01 sec
+        Start  93: R25-engine-registry
+ 93/101 Test  #93: R25-engine-registry ..........................   Passed    0.01 sec
+        Start  94: P08-T-torrent-transport-contract
+ 94/101 Test  #94: P08-T-torrent-transport-contract .............   Passed    0.00 sec
+        Start  95: INT-W3-spine-contracts-link
+ 95/101 Test  #95: INT-W3-spine-contracts-link ..................   Passed    0.00 sec
+        Start  96: K12-counter-ownership
+ 96/101 Test  #96: K12-counter-ownership ........................   Passed    0.00 sec
+        Start  97: K12-real-app-lane-timer
+ 97/101 Test  #97: K12-real-app-lane-timer ......................   Passed    0.41 sec
+        Start  98: K12-01-counter-differential
+ 98/101 Test  #98: K12-01-counter-differential ..................   Passed    0.20 sec
+        Start  99: K12-oracle-module-loader
+ 99/101 Test  #99: K12-oracle-module-loader .....................   Passed    2.05 sec
+        Start 100: K12-oracle-registry-order
+100/101 Test #100: K12-oracle-registry-order ....................   Passed    2.31 sec
+        Start 101: K12-oracle-cache-behavior
+101/101 Test #101: K12-oracle-cache-behavior ....................   Passed    2.26 sec
+
+100% tests passed out of 101
+
+Label Time Summary:
+INT-W3     =   0.00 sec*proc (1 test)
+K02        =   0.01 sec*proc (3 tests)
+K03        =   0.00 sec*proc (3 tests)
+K04        =   0.00 sec*proc (3 tests)
+K05        =   0.01 sec*proc (4 tests)
+K06        =   0.03 sec*proc (5 tests)
+K07        =   0.01 sec*proc (3 tests)
+K08        =   0.01 sec*proc (4 tests)
+K09        =   0.00 sec*proc (3 tests)
+K10        =  27.17 sec*proc (11 tests)
+K10-E      =   2.08 sec*proc (7 tests)
+K10-G      =   2.96 sec*proc (1 test)
+K10-H      =  17.00 sec*proc (1 test)
+K11        =   0.36 sec*proc (22 tests)
+K12        =  14.65 sec*proc (8 tests)
+P08-T      =   0.00 sec*proc (1 test)
+http       =   1.81 sec*proc (8 tests)
+native     =  57.62 sec*proc (47 tests)
+oracle     =   6.62 sec*proc (3 tests)
+server1    =  66.12 sec*proc (88 tests)
+unit       =   1.89 sec*proc (38 tests)
+wire       =   7.42 sec*proc (2 tests)
+
+Total Test time (real) =  66.50 sec
+
+=== stats-final-asan-tests.log ===
+Test project <owned-cloud-workspace>/server-parity/build-k12-asan-rel
+    Start 50: K12-wire-statistics-real-wire
+1/2 Test #50: K12-wire-statistics-real-wire ....   Passed    3.74 sec
+    Start 51: K12-peer-statistics-real-wire
+2/2 Test #51: K12-peer-statistics-real-wire ....   Passed    5.64 sec
+
+100% tests passed out of 2
+
+Label Time Summary:
+K12        =   9.38 sec*proc (2 tests)
+native     =   9.38 sec*proc (2 tests)
+server1    =   9.38 sec*proc (2 tests)
+wire       =   9.38 sec*proc (2 tests)
+
+Total Test time (real) =   9.39 sec
+
+=== Final native statistics stdout ===
+K12 wire payload PASS mode=normal wire=32768 owned=16384 normal_completions=1
+K12 wire payload PASS mode=cancel wire=32768 owned=0 normal_completions=0
+K12 wire payload PASS mode=unsolicited wire=16384 owned=0 normal_completions=0
+K12 wire-statistics fixtures PASS: 3 cases; owned/duplicate/late/unsolicited wire evidence retained
+K12 peer rate evidence aggregate=3290 sum=3290
+K12 peer-statistics fixture PASS; evidence <owned-cloud-workspace>/server-parity/build-linux/p03-tests/peer-statistics-4ik49txp
+
+=== Controlled peer cancel/peer.log ===
+LISTEN label=cancel port=44247 mode=regular
+CONFIG hold_all=1 hold_after_offset=-1 release_file=<owned-cloud-workspace>/server-parity/build-linux/p03-tests/wire-statistics-zfmd8meq/cancel/release duplicate_late=1
+HANDSHAKE connection=1 remote=127.0.0.1:50985 info_hash=d15678c5f0fd359e4702d114fb0eb78936d20152 expected=d15678c5f0fd359e4702d114fb0eb78936d20152 info_hash_match=1
+BITFIELD_SENT pieces=2 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+REQUEST connection=1 piece=0 start=0 length=16384
+MESSAGE connection=1 id=1 bytes=0
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+DUPLICATE_LATE_PIECE connection=1 piece=0 start=0
+MESSAGE connection=1 id=4 bytes=4
+NOT_INTERESTED connection=1
+CLIENT_DISCONNECTED connection=1
+
+=== Controlled peer normal/peer.log ===
+LISTEN label=normal port=39777 mode=regular
+CONFIG hold_all=1 hold_after_offset=-1 release_file=<owned-cloud-workspace>/server-parity/build-linux/p03-tests/wire-statistics-zfmd8meq/normal/release duplicate_late=1
+HANDSHAKE connection=1 remote=127.0.0.1:58789 info_hash=d15678c5f0fd359e4702d114fb0eb78936d20152 expected=d15678c5f0fd359e4702d114fb0eb78936d20152 info_hash_match=1
+BITFIELD_SENT pieces=2 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+REQUEST connection=1 piece=0 start=0 length=16384
+MESSAGE connection=1 id=1 bytes=0
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+DUPLICATE_LATE_PIECE connection=1 piece=0 start=0
+MESSAGE connection=1 id=4 bytes=4
+NOT_INTERESTED connection=1
+CLIENT_DISCONNECTED connection=1
+
+=== Controlled peer unsolicited/peer.log ===
+LISTEN label=unsolicited port=47551 mode=regular
+CONFIG hold_all=1 hold_after_offset=-1 release_file=<owned-cloud-workspace>/server-parity/build-linux/p03-tests/wire-statistics-zfmd8meq/unsolicited/release duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:37319 info_hash=d15678c5f0fd359e4702d114fb0eb78936d20152 expected=d15678c5f0fd359e4702d114fb0eb78936d20152 info_hash_match=1
+BITFIELD_SENT pieces=2 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+UNSOLICITED_SCHEDULED connection=1 piece=0 start=0 length=16384
+INTERESTED connection=1
+MESSAGE connection=1 id=1 bytes=0
+RELEASE_OBSERVED
+PIECE_SENT connection=1 piece=0 start=0 length=16384
+MESSAGE connection=1 id=4 bytes=4
+NOT_INTERESTED connection=1
+CLIENT_DISCONNECTED connection=1
+
+=== Controlled peer peer-a.log ===
+LISTEN label=a port=58229 mode=regular
+CONFIG hold_all=1 hold_after_offset=-1 release_file=<owned-cloud-workspace>/server-parity/build-linux/p03-tests/peer-statistics-4ik49txp/release duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:57505 info_hash=a70b7e5a2a21a8a15d8b5c11a37d9d6d10a574f1 expected=a70b7e5a2a21a8a15d8b5c11a37d9d6d10a574f1 info_hash_match=1
+BITFIELD_SENT pieces=2 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+MESSAGE connection=1 id=1 bytes=0
+REQUEST connection=1 piece=0 start=0 length=16384
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+MESSAGE connection=1 id=4 bytes=4
+NOT_INTERESTED connection=1
+MESSAGE connection=1 id=4 bytes=4
+
+=== Controlled peer peer-b.log ===
+LISTEN label=b port=34875 mode=regular
+CONFIG hold_all=1 hold_after_offset=-1 release_file=<owned-cloud-workspace>/server-parity/build-linux/p03-tests/peer-statistics-4ik49txp/release duplicate_late=0
+HANDSHAKE connection=1 remote=127.0.0.1:57909 info_hash=a70b7e5a2a21a8a15d8b5c11a37d9d6d10a574f1 expected=a70b7e5a2a21a8a15d8b5c11a37d9d6d10a574f1 info_hash_match=1
+BITFIELD_SENT pieces=2 advertised=0,1
+UNCHOKE_SENT connection=1
+INTERESTED_SENT connection=1
+INTERESTED connection=1
+MESSAGE connection=1 id=1 bytes=0
+REQUEST connection=1 piece=1 start=0 length=73
+MESSAGE connection=1 id=4 bytes=4
+NOT_INTERESTED connection=1
+RELEASE_OBSERVED
+LATE_PIECE_SENT_AFTER_RELEASE connection=1
+MESSAGE connection=1 id=4 bytes=4
+CLIENT_DISCONNECTED connection=1

@@ -11,6 +11,7 @@
 #include <libtorrent/version.hpp>
 
 #include <chrono>
+#include <cmath>
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
@@ -312,6 +313,115 @@ void caseWire(const fs::path &directory, int portA, int portB)
               << " queued=1 framed=1 autonomous_mutations=0 replay_rejected=1\n";
 }
 
+void casePeerStatistics(const fs::path &directory,int portA,int portB)
+{
+    auto transport=openTestFixture((directory/"K10-wire.torrent").string(),(directory/"peer-stats-download").string());
+    expect(bool(transport) && transport->configureAutonomy({}),"K12 peer statistics setup");
+    for(const auto peer:{77u,78u})expect(transport->submit(InterestAction{peer,true}),"K12 peer statistics interest");
+    expect(server1::transport::connectPeer(*transport,77,"127.0.0.1",static_cast<std::uint16_t>(portA))
+        && server1::transport::connectPeer(*transport,78,"127.0.0.1",static_cast<std::uint16_t>(portB)),"K12 two statistics peers connect");
+    auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<deadline && transport->statistics().unchokedPeers!=2)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(transport->statistics().unchokedPeers==2,"K12 two statistics peers not ready");
+    // Let initial state notifications settle. Batch progress cannot depend on
+    // a fortuitous later interest/choke callback or completion from peer A.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    expect(transport->submit(RequestAction{{911,1,1},77,{0,0,0,16384}})
+        && transport->submit(RequestAction{{912,1,1},78,{1,0,0,73}}),"K12 two statistics requests");
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<deadline && server1::transport::framedRequestCount(*transport)!=2)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(server1::transport::framedRequestCount(*transport)==2,"K12 two requests not framed");
+    std::ofstream(directory/"release",std::ios::trunc)<<"release\n";
+    TransportStatistics stats;
+    std::vector<TorrentObservation> received;
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(8);
+    while(std::chrono::steady_clock::now()<deadline){
+        auto batch=transport->poll();received.insert(received.end(),batch.begin(),batch.end());
+        stats=transport->statistics();
+        if(stats.peerTransfers.size()==2 && std::all_of(stats.peerTransfers.begin(),stats.peerTransfers.end(),
+            [](const auto&p){return p.downloadBytesPerSecond>0;}))break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    auto finalBatch=transport->poll();received.insert(received.end(),finalBatch.begin(),finalBatch.end());
+    expect(stats.peerTransfers.size()==2 && std::all_of(stats.peerTransfers.begin(),stats.peerTransfers.end(),
+        [](const auto&p){return p.downloadBytesPerSecond>0;}),"K12 idle-independent tick did not sample both native peer rates");
+    double sum=0;for(const auto&p:stats.peerTransfers)sum+=p.downloadBytesPerSecond;
+    std::cout<<"K12 peer rate evidence aggregate="<<stats.downloadBytesPerSecond<<" sum="<<sum<<'\n';
+    expect(std::abs(stats.downloadBytesPerSecond-sum)<0.001,"K12 aggregate rate is last-peer value instead of sum");
+    expect(stats.downloadedBytes==16457 && stats.wirePayloadBytesReceived==16457,"K12 two-peer payload totals incorrect");
+    int completed=0;
+    for(const auto &observation:received)if(const auto *block=std::get_if<BlockObservation>(&observation)){
+        expect(!block->late && !block->duplicate && ((block->peer==77 && block->payload.size()==16384)
+            || (block->peer==78 && block->payload.size()==73)),"K12 two-peer completion identity changed");
+        expect(std::all_of(block->payload.begin(),block->payload.end(),[](auto byte){return byte=='U';}),
+               "K12 two-peer completion bytes changed");++completed;
+    }
+    expect(completed==2,"K12 two-peer payload completion missing");
+    const auto before=stats.wirePayloadBytesReceived;
+    std::ofstream(directory/"drop-peer-a",std::ios::trunc)<<"drop\n";
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<deadline && transport->statistics().connectedPeers!=1)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    stats=transport->statistics();
+    expect(stats.connectedPeers==1 && stats.peerTransfers.size()==1 && stats.peerTransfers[0].peer==78,
+           "K12 departed native sample remains in active aggregate");
+    expect(stats.wirePayloadBytesReceived==before && stats.downloadedBytes==16457,"K12 disconnect rolled back cumulative payload totals");
+    const auto peak=stats.downloadBytesPerSecond;
+    expect(peak>0 && peak==stats.peerTransfers[0].downloadBytesPerSecond,"K12 remaining peer aggregate mismatch");
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(8);
+    while(std::chrono::steady_clock::now()<deadline && transport->statistics().downloadBytesPerSecond>=peak)
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    expect(transport->statistics().downloadBytesPerSecond<peak,"K12 native rate never decayed without state transitions");
+    transport->close();
+    stats=transport->statistics();
+    expect(stats.peerTransfers.empty() && stats.downloadBytesPerSecond==0 && stats.uploadBytesPerSecond==0,
+           "K12 closed transport retained live peer rates");
+    std::cout<<"K12 two-peer aggregate/retirement/idle sampling PASS\n";
+}
+
+void caseWirePayloadStatistics(const fs::path &directory,int port,const std::string &mode)
+{
+    const bool cancelAfterFrame=mode=="cancel", unsolicited=mode=="unsolicited";
+    auto transport=openTestFixture((directory/"K10-wire.torrent").string(),(directory/"wire-stats-download").string());
+    expect(bool(transport) && transport->configureAutonomy({}),"K12 wire statistics setup");
+    expect(transport->submit(InterestAction{77,true}),"K12 wire statistics interest");
+    expect(server1::transport::connectPeer(*transport,77,"127.0.0.1",static_cast<std::uint16_t>(port)),"K12 wire statistics connect");
+    waitReady(*transport,"K12 wire statistics");
+    const RequestAction request{{901,1,1},77,{0,0,0,16384}};
+    if(!unsolicited) {
+    expect(transport->submit(request),"K12 wire statistics request");
+    const auto frameDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<frameDeadline && server1::transport::framedRequestCount(*transport)!=1)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(server1::transport::framedRequestCount(*transport)==1,"K12 wire statistics request never framed");
+    if(cancelAfterFrame)expect(transport->submit(CancelAction{request.ownership,request.peer,request.block,true}),"K12 framed cancel rejected");
+    }
+    const auto expectedWire=unsolicited?16384u:32768u;
+    std::ofstream(directory/"release",std::ios::trunc)<<"release\n";
+    std::vector<TorrentObservation> observations;
+    const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<deadline){
+        auto batch=transport->poll();observations.insert(observations.end(),batch.begin(),batch.end());
+        if(transport->statistics().wirePayloadBytesReceived>=expectedWire)break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    auto batch=transport->poll();observations.insert(observations.end(),batch.begin(),batch.end());
+    const auto stats=transport->statistics();
+    const auto normal=std::count_if(observations.begin(),observations.end(),[](const auto &item){
+        const auto *block=std::get_if<BlockObservation>(&item);return block && !block->late && !block->duplicate;
+    });
+    expect(stats.wirePayloadBytesReceived==expectedWire,"K12 wire payload counter omitted duplicate/late bytes");
+    expect(stats.downloadedBytes==(cancelAfterFrame || unsolicited?0u:16384u),"K12 wire payload changed accepted-owned byte accounting");
+    expect(normal==(cancelAfterFrame || unsolicited?0:1),"K12 duplicate/late payload became a second owned completion");
+    expect(stats.ownedRequestsOutstanding==0,"K12 wire statistics retained completed ownership");
+    expect(server1::transport::framedRequestCount(*transport)==(unsolicited?0u:1u),"K12 unsolicited fixture manufactured a request");
+    transport->close();
+    std::cout<<"K12 wire payload PASS mode="<<mode<<" wire="<<stats.wirePayloadBytesReceived
+             <<" owned="<<stats.downloadedBytes<<" normal_completions="<<normal<<'\n';
+}
+
 void caseSubmitAfterReady(const fs::path &directory, int port)
 {
     auto transport = openTestFixture(
@@ -570,6 +680,8 @@ void caseAvailability(const fs::path &directory, int port)
                && afterStale.unchokedPeers == before.unchokedPeers
                && afterStale.ownedRequestsOutstanding == 1
                && afterStale.downloadedBytes == before.downloadedBytes
+               && afterStale.wirePayloadBytesReceived == before.wirePayloadBytesReceived
+               && afterStale.peerTransfers.size() == before.peerTransfers.size()
                && afterStale.pickerRequestsSuppressed == before.pickerRequestsSuppressed,
            "K10-F stale HAVE/state/authorize/framed/payload mutated live replacement state");
     expect(transport->submit(CancelAction{pending.ownership, pending.peer, pending.block, false}),
@@ -1631,6 +1743,12 @@ int main(int argc, char **argv)
     }
     if (argc == 3 && std::string(argv[1]) == "--prepare-upload-caps") {
         prepare(argv[2], 'C', 98304); return 0;
+    }
+    if (argc == 5 && std::string(argv[1]) == "--peer-stats") {
+        casePeerStatistics(argv[2],std::stoi(argv[3]),std::stoi(argv[4]));return 0;
+    }
+    if (argc == 5 && std::string(argv[1]) == "--wire-stats") {
+        caseWirePayloadStatistics(argv[2],std::stoi(argv[3]),argv[4]);return 0;
     }
     if (argc == 5 && std::string(argv[1]) == "--wire") {
         caseWire(argv[2], std::stoi(argv[3]), std::stoi(argv[4])); return 0;

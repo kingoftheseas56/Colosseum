@@ -5,6 +5,15 @@ function(server1_register_k10_tests)
   target_link_libraries(server1_k10_native_transport_test PRIVATE server1_k10_native_transport)
   target_compile_features(server1_k10_native_transport_test PRIVATE cxx_std_17)
   target_compile_options(server1_k10_native_transport_test PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>")
+  find_program(SERVER1_PYTHON_EXECUTABLE NAMES python3 python REQUIRED)
+  foreach(stats_kind IN ITEMS wire peer)
+    add_test(NAME K12-${stats_kind}-statistics-real-wire
+      COMMAND "${SERVER1_PYTHON_EXECUTABLE}" "${SERVER1_K10_ROOT}/tests/run_${stats_kind}_statistics.py"
+        --executable "$<TARGET_FILE:server1_k10_native_transport_test>"
+        --peer "${SERVER1_K10_ROOT}/../../artifacts/server1/P08/P08-A/tiny_peer.py"
+        --work "${CMAKE_CURRENT_BINARY_DIR}")
+    set_tests_properties(K12-${stats_kind}-statistics-real-wire PROPERTIES LABELS "server1;native;K12;wire" TIMEOUT 60)
+  endforeach()
   set(K10_PACKET_ROOT "${SERVER1_K10_ROOT}/../../artifacts/server1/K10/K10-A")
   add_test(NAME K10-01-native-transport-real-wire
     COMMAND pwsh -NoProfile -File "${K10_PACKET_ROOT}/run_wire.ps1"

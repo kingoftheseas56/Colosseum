@@ -411,6 +411,9 @@ public:
         interestedPeers_.clear(); announcedLocalPieces_.clear();
         localAdvertisedPieces_.clear(); activeUploads_.clear();
         lastDetachedIdentity_.clear(); peerIdentities_.clear();
+        for(const auto &[peer,sample]:peerSamples_){static_cast<void>(peer);retiredNativeUploads_+=sample.uploadedBytes;}
+        peerSamples_.clear();
+        publishNativeSamplesLocked();
         stats_.connectedPeers = 0; stats_.unchokedPeers = 0;
         if (!closedObserved_) { observations_.push_back(ClosedObservation{}); closedObserved_ = true; }
     }
@@ -725,8 +728,77 @@ private:
         drainRequested_ = true;
     }
 
+    struct NativeTransferSample {
+        int payload_down_speed=0, payload_up_speed=0;
+        std::int64_t total_download=0, total_upload=0;
+    };
+
+    static NativeTransferSample readNativeTransfer(const std::shared_ptr<lt::peer_connection> &native)
+    {
+        if(!native)return {};
+        // The same fields get_peer_info exposes, without copying every peer's
+        // complete piece bitfield on each sampling tick. Network lane only.
+        const auto &sample=native->statistics();
+        return {sample.download_payload_rate(),sample.upload_payload_rate(),
+                sample.total_payload_download(),sample.total_payload_upload()};
+    }
+
+    void publishNativeSamplesLocked()
+    {
+        stats_.peerTransfers.clear();
+        stats_.downloadBytesPerSecond=0;
+        stats_.uploadBytesPerSecond=0;
+        stats_.uploadedBytes=retiredNativeUploads_;
+        for(const auto &[peer,sample]:peerSamples_) {
+            static_cast<void>(peer);
+            stats_.peerTransfers.push_back(sample);
+            stats_.downloadBytesPerSecond+=sample.downloadBytesPerSecond;
+            stats_.uploadBytesPerSecond+=sample.uploadBytesPerSecond;
+            stats_.uploadedBytes+=sample.uploadedBytes;
+        }
+        std::sort(stats_.peerTransfers.begin(),stats_.peerTransfers.end(),[](const auto&a,const auto&b){return a.attachmentOrder<b.attachmentOrder;});
+    }
+
+    void nativeSampleLocked(PeerHandle peer,ConnectionIdentity identity,const NativeTransferSample &info,
+                            bool publish=true)
+    {
+        auto found=peerSamples_.find(peer);
+        if(found==peerSamples_.end() || found->second.connectionIdentity!=identity) return;
+        auto &sample=found->second;
+        sample.downloadBytesPerSecond=std::max(0,info.payload_down_speed);
+        sample.uploadBytesPerSecond=std::max(0,info.payload_up_speed);
+        sample.downloadedBytes=std::max(sample.downloadedBytes,static_cast<std::uint64_t>(std::max<std::int64_t>(0,info.total_download)));
+        sample.uploadedBytes=std::max(sample.uploadedBytes,static_cast<std::uint64_t>(std::max<std::int64_t>(0,info.total_upload)));
+        if(publish) publishNativeSamplesLocked();
+    }
+
+    void sampleNativePeers()
+    {
+        struct Pending {
+            PeerHandle peer;
+            ConnectionIdentity identity;
+            std::shared_ptr<lt::peer_connection> native;
+            NativeTransferSample info;
+        };
+        std::vector<Pending> pending;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if(closed_)return;
+            for(const auto &[peer,weak]:peers_)
+                if(auto native=weak.lock()) pending.push_back({peer,peerIdentities_.at(peer),std::move(native),{}});
+        }
+        for(auto &entry:pending) entry.info=readNativeTransfer(entry.native);
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(closed_)return;
+        for(const auto &entry:pending)
+            if(isCurrentIdentityLocked(entry.peer,entry.identity))
+                nativeSampleLocked(entry.peer,entry.identity,entry.info,false);
+        publishNativeSamplesLocked();
+    }
+
     void tickDrain()
     {
+        sampleNativePeers();
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_ || !drainRequested_ || uploadControlHeld_) return;
@@ -864,8 +936,23 @@ private:
                 }
             }
             prepareNative(peer, native);
+            if(const auto old=peerSamples_.find(peer);old==peerSamples_.end() || old->second.connectionIdentity!=identity){
+                if(old!=peerSamples_.end()){
+                    if(const auto previous=peers_.find(peer);previous!=peers_.end())
+                        if(auto previousNative=previous->second.lock()){
+                            const auto finalSample=readNativeTransfer(previousNative);
+                            nativeSampleLocked(peer,old->second.connectionIdentity,finalSample,false);
+                        }
+                    retiredNativeUploads_+=old->second.uploadedBytes;
+                    peerSamples_.erase(old);
+                }
+                peerSamples_.emplace(peer,PeerTransferStatistics{peer,identity,++attachmentSerial_});
+            }
             peers_[peer] = native;
             peerIdentities_[peer] = identity;
+            if(native){const auto initialSample=readNativeTransfer(native);
+                nativeSampleLocked(peer,identity,initialSample,false);}
+            publishNativeSamplesLocked();
             stats_.connectedPeers = static_cast<std::uint32_t>(peers_.size());
             stats_.unchokedPeers = static_cast<std::uint32_t>(unchoked_.size());
             if (pieces) {
@@ -890,7 +977,10 @@ private:
             if (closed_ || pendingRequests_.empty()) return;
             const auto found = std::find_if(pendingRequests_.begin(), pendingRequests_.end(), [&](const auto &r) {
                 const auto available = advertised_.find(r.peer);
-                return available != advertised_.end()
+                const bool ownsInflight=std::any_of(active_.begin(),active_.end(),[&](const auto &owned){
+                    return !owned.terminal && owned.queuedToNative && owned.action.peer==r.peer;
+                });
+                return !ownsInflight && available != advertised_.end()
                     && available->second.count(r.block.piece) != 0 && findActive(r) != active_.end();
             });
             if (found == pendingRequests_.end()) return;
@@ -939,6 +1029,9 @@ private:
         active->queuedToNative = true;
         pendingRequests_.erase(std::remove_if(pendingRequests_.begin(), pendingRequests_.end(),
             [&](const auto &r) { return sameOwnership(r.ownership, request.ownership); }), pendingRequests_.end());
+        // A batch can contain requests for several peers. The first peer need
+        // not finish before the existing network tick services the next owner.
+        if(!pendingRequests_.empty()) requestDrainLocked();
     }
 
     void dispatchControl(PeerHandle peer, std::shared_ptr<lt::peer_connection> native)
@@ -1145,6 +1238,7 @@ private:
                 ++staleCallbacksIgnored_;
                 return;
             }
+            stats_.wirePayloadBytesReceived += static_cast<std::uint64_t>(payload.size());
             const auto active = std::find_if(active_.begin(), active_.end(), [&](const auto &owned) {
                 return !owned.terminal && owned.action.peer == peer && matches(owned.action.block, wire);
             });
@@ -1195,6 +1289,7 @@ private:
                 const std::string &error)
     {
         const auto endpoint = native ? endpointKey(native->remote()) : std::string{};
+        const auto finalSample=readNativeTransfer(native);
         bool removed = false;
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -1206,6 +1301,12 @@ private:
             }
             if (identity != 0) lastDetachedIdentity_.try_emplace(peer, identity);
             cancelUploadsLocked(peer, identity);
+            if(native) nativeSampleLocked(peer,identity,finalSample);
+            if(const auto sample=peerSamples_.find(peer);sample!=peerSamples_.end()){
+                retiredNativeUploads_+=sample->second.uploadedBytes;
+                peerSamples_.erase(sample);
+            }
+            publishNativeSamplesLocked();
             peers_.erase(peer);
             peerIdentities_.erase(peer);
             advertised_.erase(peer);
@@ -1270,8 +1371,7 @@ private:
                 return;
             }
         }
-        lt::peer_info info;
-        if (native) native->get_peer_info(info);
+        const auto info=readNativeTransfer(native);
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_ || !isCurrentIdentityLocked(peer, identity)) {
@@ -1286,9 +1386,7 @@ private:
             observations_.push_back(PeerObservation{peer, choking, interested,
                 static_cast<double>(info.payload_down_speed), static_cast<double>(info.payload_up_speed),
                 outstanding, static_cast<std::uint64_t>(std::max<std::int64_t>(0, info.total_download))});
-            stats_.downloadBytesPerSecond = static_cast<double>(info.payload_down_speed);
-            stats_.uploadBytesPerSecond = static_cast<double>(info.payload_up_speed);
-            stats_.uploadedBytes = static_cast<std::uint64_t>(std::max<std::int64_t>(0, info.total_upload));
+            if(native)nativeSampleLocked(peer,identity,info);
         }
         if (!choking) issueReady(peer);
     }
@@ -1331,6 +1429,9 @@ private:
     std::map<std::string, PeerHandle> endpointPeers_;
     std::map<PeerHandle, std::weak_ptr<lt::peer_connection>> peers_;
     std::map<PeerHandle, ConnectionIdentity> peerIdentities_;
+    std::map<PeerHandle,PeerTransferStatistics> peerSamples_;
+    std::uint64_t retiredNativeUploads_ = 0;
+    std::uint64_t attachmentSerial_ = 0;
     std::map<PeerHandle, ConnectionIdentity> lastDetachedIdentity_;
     std::map<PeerHandle, std::set<std::uint32_t>> advertised_;
     std::set<std::uint32_t> localAdvertisedPieces_;

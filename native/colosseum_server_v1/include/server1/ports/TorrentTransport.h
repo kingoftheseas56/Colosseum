@@ -298,10 +298,23 @@ using TorrentObservation = std::variant<BlockObservation,
                                         UploadRequestObservation,
                                         UploadCancelObservation>;
 
+// Native libtorrent samples, not the source JavaScript speedometer. A single
+// TransportStatistics copy contains coherent per-connection and aggregate rates.
+struct PeerTransferStatistics final {
+    PeerHandle peer = 0;
+    std::uint64_t connectionIdentity = 0;
+    std::uint64_t attachmentOrder = 0;
+    double downloadBytesPerSecond = 0;
+    double uploadBytesPerSecond = 0;
+    std::uint64_t downloadedBytes = 0;
+    std::uint64_t uploadedBytes = 0;
+};
+
 struct TransportStatistics final {
     std::uint32_t connectedPeers = 0;
     std::uint32_t unchokedPeers = 0;
     std::uint32_t ownedRequestsOutstanding = 0;
+    // Existing diagnostic: payload delivered to a matched owned request.
     std::uint64_t downloadedBytes = 0;
     std::uint64_t uploadedBytes = 0;
     double downloadBytesPerSecond = 0.0;
@@ -330,6 +343,10 @@ struct TransportStatistics final {
     std::uint64_t uploadRequestsCancelled = 0;
     std::uint64_t uploadRequestsAborted = 0;
     std::uint64_t uploadActionsRejected = 0;
+    // All piece payload observed on current connections, including duplicate
+    // and late payload. This is separate from accepted-owned delivery.
+    std::uint64_t wirePayloadBytesReceived = 0;
+    std::vector<PeerTransferStatistics> peerTransfers;
 };
 
 class TorrentTransport {

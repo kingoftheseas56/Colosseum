@@ -80,6 +80,7 @@ class TinyPeer:
             int(piece) for piece in args.pieces.split(",") if piece.strip()
         }
         self.duplicate_late = args.duplicate_late
+        self.unsolicited = args.unsolicited
         self.choke_cycle = args.choke_cycle
         self.metadata_path = os.path.abspath(args.metadata_path) if args.metadata_path else None
         self.metadata = b""
@@ -225,6 +226,11 @@ class TinyPeer:
                     self.log(f"UNCHOKE_SENT connection={connection_id}")
                     conn.sendall(self.frame(2))
                     self.log(f"INTERESTED_SENT connection={connection_id}")
+            if self.unsolicited:
+                length = min(self.piece_length, self.file_length)
+                self.log(f"UNSOLICITED_SCHEDULED connection={connection_id} piece=0 start=0 length={length}")
+                threading.Thread(target=self.send_piece,
+                    args=(conn, send_lock, connection_id, 0, 0, length, False), daemon=True).start()
             while not self.stop.is_set():
                 released = self.maybe_release_choke(conn, send_lock, connection_id, released)
                 try:
@@ -322,6 +328,7 @@ def main():
     parser.add_argument("--hold-all", action="store_true")
     parser.add_argument("--pieces")
     parser.add_argument("--duplicate-late", action="store_true")
+    parser.add_argument("--unsolicited", action="store_true")
     parser.add_argument("--choke-cycle", action="store_true")
     parser.add_argument("--metadata-path")
     args = parser.parse_args()
