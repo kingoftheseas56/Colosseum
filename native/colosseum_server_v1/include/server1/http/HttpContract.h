@@ -64,6 +64,11 @@ const char *server1_http_request_body(const void *request);
 const char *server1_http_request_param(const void *request, const char *name);
 const char *server1_http_request_query_value(const void *request, const char *name);
 
+// Transfers one lifetime context on success. The nonthrowing callback runs once
+// when the response is retired (socket drained or aborted), not at reader EOF.
+// Body/stream replacement does not retire it. Failure retains caller ownership.
+int server1_http_response_set_lifetime(void *response, server1_http_context_destroy_fn destroy,
+                                      void *context);
 void server1_http_response_destroy(void *response);
 int server1_http_response_status(void *response);
 const char *server1_http_response_body(void *response);
@@ -86,6 +91,8 @@ std::ptrdiff_t server1_http_response_stream_read(void *response, void *buffer,
                                                  std::size_t capacity);
 
 void *server1_http_server_create(void *router, std::size_t maxQueuedBytes);
+// Invalidates the handle and stops I/O immediately. QObject storage is released through deleteLater; the
+// owning Qt event loop must drain deferred deletes before it is destroyed.
 void server1_http_server_destroy(void *server);
 int server1_http_server_listen(void *server, unsigned short port);
 void server1_http_server_stop(void *server);

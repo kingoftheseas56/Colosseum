@@ -1,6 +1,7 @@
 #include <QtCore/QByteArray>
 #include <QtCore/QMetaObject>
 #include <QtCore/QObject>
+#include <QtCore/QPointer>
 #include <QtNetwork/QHostAddress>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
@@ -100,6 +101,7 @@ public:
 
     int listen(unsigned short port);
     void stop();
+    void requestDestruction();
     void setDrainPaused(bool paused);
     [[nodiscard]] unsigned short port() const;
     [[nodiscard]] const std::string &error() const;
@@ -120,6 +122,7 @@ private:
     void *router_ = nullptr;
     std::size_t maxQueuedBytes_ = kDefaultMaxQueuedBytes;
     bool drainPaused_ = false;
+    bool destructionRequested_ = false;
     std::string error_;
     std::deque<HttpConnection *> connections_;
 
@@ -181,9 +184,11 @@ public:
             return;
         failureHandled_ = true;
         closed_ = true;
+        const QPointer<HttpConnection> guard(this);
         clearQueue();
-        if (socket_ != nullptr)
-            socket_->abort();
+        if (!guard) return;
+        if (socket_ != nullptr) socket_->abort();
+        if (!guard) return;
         releaseConnection();
     }
 
@@ -257,8 +262,6 @@ private:
             const std::string responseBody(server1_http_response_body(response),
                                            server1_http_response_body_size(response));
             wire = makeResponse(status, responseBody, method, keepAlive, responseClose, response);
-            server1_http_response_destroy(response);
-            response = nullptr;
         }
 
         server1_http_parser_destroy(parser_);
@@ -268,21 +271,25 @@ private:
         if (streaming)
             enqueueStream(wire, !keepAlive || responseClose, response, chunked, method == "HEAD");
         else
-            enqueue(wire, !keepAlive || responseClose);
+            enqueue(wire, !keepAlive || responseClose, response);
     }
 
-    void enqueue(const QByteArray &data, bool closeAfter)
+    void enqueue(const QByteArray &data, bool closeAfter, void *response = nullptr)
     {
-        if (closed_)
+        if (closed_) {
+            server1_http_response_destroy(response);
             return;
+        }
         const std::size_t responseBytes = static_cast<std::size_t>(data.size());
         const std::size_t pendingBytes = server_->pendingBytes();
         if (responseBytes > server_->maxQueuedBytes()
             || pendingBytes > server_->maxQueuedBytes() - responseBytes) {
-            handleSocketError();
+            const QPointer<HttpConnection> guard(this);
+            server1_http_response_destroy(response);
+            if (guard) handleSocketError();
             return;
         }
-        queue_.push_back(PendingWrite{data, 0, 0, closeAfter});
+        queue_.push_back(PendingWrite{data, 0, 0, closeAfter, response});
         applicationQueuedBytes_ += responseBytes;
         drain();
     }
@@ -290,15 +297,17 @@ private:
     void enqueueStream(const QByteArray &headers, bool closeAfter, void *response, bool chunked,
                        bool suppressBody)
     {
-        if (closed_)
+        if (closed_) {
+            server1_http_response_destroy(response);
             return;
+        }
         const std::size_t responseBytes = static_cast<std::size_t>(headers.size());
         const std::size_t pendingBytes = server_->pendingBytes();
         if (response == nullptr || responseBytes > server_->maxQueuedBytes()
             || pendingBytes > server_->maxQueuedBytes() - responseBytes) {
-            if (response != nullptr)
-                server1_http_response_destroy(response);
-            handleSocketError();
+            const QPointer<HttpConnection> guard(this);
+            server1_http_response_destroy(response);
+            if (guard) handleSocketError();
             return;
         }
         PendingWrite pending;
@@ -341,8 +350,6 @@ private:
         const std::ptrdiff_t read = server1_http_response_stream_read(
             pending.response, buffer.data(), capacity);
         if (read < 0 || static_cast<std::size_t>(read) > capacity) {
-            server1_http_response_destroy(pending.response);
-            pending.response = nullptr;
             handleSocketError();
             return false;
         }
@@ -367,8 +374,6 @@ private:
                 server1_http_response_stream_content_length(pending.response);
             if (read == 0) {
                 if (pending.streamBytes != contentLength) {
-                    server1_http_response_destroy(pending.response);
-                    pending.response = nullptr;
                     handleSocketError();
                     return false;
                 }
@@ -377,8 +382,6 @@ private:
                 const std::size_t readBytes = static_cast<std::size_t>(read);
                 if (readBytes > contentLength
                     || pending.streamBytes > contentLength - readBytes) {
-                    server1_http_response_destroy(pending.response);
-                    pending.response = nullptr;
                     handleSocketError();
                     return false;
                 }
@@ -396,8 +399,9 @@ private:
     static void destroyPendingResponse(PendingWrite &pending)
     {
         if (pending.response != nullptr) {
-            server1_http_response_destroy(pending.response);
+            void *response = pending.response;
             pending.response = nullptr;
+            server1_http_response_destroy(response);
         }
     }
 
@@ -477,9 +481,11 @@ private:
             return;
 
         if (pending.streaming && !pending.streamFinished) {
-            if (!fillStream(pending)) {
-                if (!closed_)
-                    scheduleDrain();
+            const QPointer<HttpConnection> guard(this);
+            const bool filled = fillStream(pending);
+            if (!guard) return;
+            if (!filled) {
+                if (!closed_) scheduleDrain();
                 return;
             }
             if (!pending.data.isEmpty()) {
@@ -489,13 +495,18 @@ private:
         }
 
         const bool closeAfter = pending.closeAfter;
-        destroyPendingResponse(pending);
+        void *response = pending.response;
+        pending.response = nullptr;
         queue_.pop_front();
+        const QPointer<HttpConnection> guard(this);
+        server1_http_response_destroy(response);
+        if (!guard || closed_ || released_) return;
         if (closeAfter) {
             responsePending_ = false;
             closed_ = true;
             pendingInput_.clear();
             socket_->disconnectFromHost();
+            if (!guard) return;
             if (socket_->state() == QAbstractSocket::UnconnectedState)
                 handleDisconnected();
             return;
@@ -524,8 +535,9 @@ private:
         if (released_)
             return;
         closed_ = true;
+        const QPointer<HttpConnection> guard(this);
         clearQueue();
-        releaseConnection();
+        if (guard) releaseConnection();
     }
 
     void handleSocketError()
@@ -534,20 +546,23 @@ private:
             return;
         failureHandled_ = true;
         closed_ = true;
+        const QPointer<HttpConnection> guard(this);
         clearQueue();
-        if (socket_ != nullptr)
-            socket_->abort();
+        if (!guard) return;
+        if (socket_ != nullptr) socket_->abort();
+        if (!guard) return;
         releaseConnection();
     }
 
     void clearQueue()
     {
-        for (PendingWrite &pending : queue_)
-            destroyPendingResponse(pending);
-        queue_.clear();
+        std::deque<PendingWrite> retired;
+        retired.swap(queue_);
         applicationQueuedBytes_ = 0;
         pendingInput_.clear();
         responsePending_ = false;
+        for (PendingWrite &pending : retired)
+            destroyPendingResponse(pending);
     }
 
     void releaseConnection()
@@ -555,7 +570,9 @@ private:
         if (released_)
             return;
         released_ = true;
+        const QPointer<HttpConnection> guard(this);
         clearQueue();
+        if (!guard) return;
         if (parser_ != nullptr) {
             server1_http_parser_destroy(parser_);
             parser_ = nullptr;
@@ -608,22 +625,35 @@ int HttpServer::listen(unsigned short port)
     return 1;
 }
 
+void HttpServer::requestDestruction()
+{
+    if (destructionRequested_) return;
+    destructionRequested_ = true;
+    stop();
+    deleteLater();
+}
+
 void HttpServer::stop()
 {
     listener_.close();
-    const auto active = connections_;
-    for (HttpConnection *connection : active) {
-        if (connection != nullptr)
-            connection->closeFromServer();
+    const QPointer<HttpServer> guard(this);
+    std::deque<QPointer<HttpConnection>> active;
+    for (auto *connection : connections_) active.emplace_back(connection);
+    for (const auto &connection : active) {
+        if (connection) connection->closeFromServer();
+        if (!guard) return;
     }
 }
 
 void HttpServer::setDrainPaused(bool paused)
 {
     drainPaused_ = paused;
-    for (HttpConnection *connection : connections_) {
-        if (connection != nullptr)
-            connection->setDrainPaused(paused);
+    const QPointer<HttpServer> guard(this);
+    std::deque<QPointer<HttpConnection>> active;
+    for (auto *connection : connections_) active.emplace_back(connection);
+    for (const auto &connection : active) {
+        if (connection) connection->setDrainPaused(paused);
+        if (!guard) return;
     }
 }
 
@@ -725,7 +755,11 @@ void *server1_http_server_create(void *router, std::size_t maxQueuedBytes)
 
 void server1_http_server_destroy(void *opaqueServer)
 {
-    delete static_cast<server1::http::connection_detail::HttpServer *>(opaqueServer);
+    auto *server = static_cast<server1::http::connection_detail::HttpServer *>(opaqueServer);
+    if (!server) return;
+    // A response finalizer may run inside QAbstractSocket's readyRead stack.
+    // Revoke I/O immediately, but let Qt finish notification before freeing it.
+    server->requestDestruction();
 }
 
 int server1_http_server_listen(void *opaqueServer, unsigned short port)

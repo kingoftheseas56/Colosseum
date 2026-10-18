@@ -33,6 +33,7 @@ struct Response final {
     std::string body;
     std::vector<std::pair<std::string, std::string>> headers;
     bool close = false;
+    std::vector<std::pair<server1_http_context_destroy_fn, void *>> lifetimes;
 
     server1_http_stream_read_fn streamRead = nullptr;
     server1_http_stream_destroy_fn streamDestroy = nullptr;
@@ -42,6 +43,9 @@ struct Response final {
     ~Response()
     {
         clearStream();
+        auto callbacks = std::move(lifetimes);
+        lifetimes.clear();
+        for (const auto &entry : callbacks) entry.first(entry.second);
     }
 
     Response() = default;
@@ -53,6 +57,7 @@ struct Response final {
         , body(std::move(other.body))
         , headers(std::move(other.headers))
         , close(other.close)
+        , lifetimes(std::move(other.lifetimes))
         , streamRead(other.streamRead)
         , streamDestroy(other.streamDestroy)
         , streamContext(other.streamContext)
@@ -64,11 +69,15 @@ struct Response final {
         other.streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
     }
 
-    Response &operator=(Response &&other) noexcept
+    Response &operator=(Response &&other)
     {
         if (this == &other)
             return *this;
         clearStream();
+        // Router fall-through can replace the body/status without ending the
+        // logical response lifetime already installed by middleware.
+        lifetimes.insert(lifetimes.end(), other.lifetimes.begin(), other.lifetimes.end());
+        other.lifetimes.clear();
         status = other.status;
         body = std::move(other.body);
         headers = std::move(other.headers);
@@ -86,12 +95,13 @@ struct Response final {
 
     void clearStream()
     {
-        if (streamDestroy != nullptr && streamContext != nullptr)
-            streamDestroy(streamContext);
+        const auto destroy = streamDestroy;
+        void *context = streamContext;
         streamRead = nullptr;
         streamDestroy = nullptr;
         streamContext = nullptr;
         streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
+        if (destroy != nullptr && context != nullptr) destroy(context);
     }
 };
 
@@ -765,6 +775,16 @@ const char *server1_http_request_query_value(const void *opaqueRequest, const ch
     static thread_local std::string result;
     result = value;
     return result.c_str();
+}
+
+int server1_http_response_set_lifetime(void *opaqueResponse,
+                                      server1_http_context_destroy_fn destroy, void *context)
+{
+    if (!opaqueResponse || !destroy) return 0;
+    auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
+    if (!response.lifetimes.empty()) return 0;
+    response.lifetimes.emplace_back(destroy, context);
+    return 1;
 }
 
 void server1_http_response_destroy(void *opaqueResponse)

@@ -779,6 +779,134 @@ void caseH00_05()
     std::cout << "H00-05 input backpressure PASS\n";
 }
 
+void caseH00_06()
+{
+    for (const QByteArray &method : {QByteArray("GET"),QByteArray("HEAD")}) {
+        int retired=0;
+        auto handler=+[](const void *,void *response,server1_http_next_fn,void *,void *context) {
+            require(server1_http_response_set_lifetime(response,+[](void *p){++*static_cast<int *>(p);},context)==1,
+                    "response lifetime installed");
+            require(server1_http_response_set_lifetime(response,+[](void *){},nullptr)==0,
+                    "duplicate lifetime retains caller ownership");
+            server1_http_response_set_status(response,200);
+            return server1_http_response_set_body(response,"ok",2);
+        };
+        void *router=server1_http_router_create();
+        require(server1_http_router_add_handler(router,0,0,"GET","/lease",handler,&retired,nullptr)==1,"lifetime route");
+        void *server=server1_http_server_create(router,65536);
+        require(server1_http_server_listen(server,0)==1,"lifetime listener");
+        server1_http_server_set_drain_paused(server,1);
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));
+        require(client.waitForConnected(1000),"lifetime connected");
+        client.write(method+" /lease HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        pumpUntil([&]{return server1_http_server_queued_bytes(server)>0;},"lifetime queued");
+        require(retired==0,"buffered/HEAD response lifetime ended before drain");
+        server1_http_server_set_drain_paused(server,0);
+        const auto wire=collectUntilDisconnected(client);
+        require(wire.contains("200 OK"),"lifetime response status");
+        pumpUntil([&]{return retired==1;},"lifetime retired after drain");
+        server1_http_server_destroy(server);server1_http_router_destroy(router);
+        require(retired==1,"finish then disconnect double-retired response");
+    }
+    std::cout<<"H00-06 response lifetime GET/HEAD/drain PASS\n";
+}
+
+void caseH00_07()
+{
+    struct Context {int mode;int retired=0;int readerClosed=0;int reads=0;void *server=nullptr;};
+    auto reader=+[](void *opaque,void *buffer,std::size_t capacity)->std::ptrdiff_t {
+        auto &c=*static_cast<Context *>(opaque);++c.reads;
+        if (c.mode==3) return -1;
+        if (c.reads>1) return 0;
+        if (capacity<3) return -1;
+        std::memcpy(buffer,"abc",3);return 3;
+    };
+    auto readerClosed=+[](void *opaque){++static_cast<Context *>(opaque)->readerClosed;};
+    auto retired=+[](void *opaque){auto &c=*static_cast<Context *>(opaque);++c.retired;
+        if(c.mode==5)server1_http_server_stop(c.server);};
+    struct Handler {Context *context;server1_http_stream_read_fn read;server1_http_stream_destroy_fn close;
+        server1_http_context_destroy_fn retire;};
+    auto handler=+[](const void *,void *response,server1_http_next_fn,void *,void *opaque){
+        auto &h=*static_cast<Handler *>(opaque);auto &c=*h.context;
+        require(server1_http_response_set_lifetime(response,h.retire,&c)==1,"adverse lifetime installed");
+        server1_http_response_set_status(response,200);
+        if(c.mode==0 || c.mode==7) return server1_http_response_set_body(response,"abc",3);
+        return server1_http_response_set_stream(response,h.read,h.close,&c,c.mode==4 ? 2 : 3);
+    };
+    for(int mode=0;mode<8;++mode) {
+        Context c{mode};Handler h{&c,reader,readerClosed,retired};
+        void *router=server1_http_router_create();
+        require(server1_http_router_add_handler(router,0,0,"GET","/owned",handler,&h,nullptr)==1,"adverse route");
+        c.server=server1_http_server_create(router,mode>=6 ? 8 : 65536);
+        require(server1_http_server_listen(c.server,0)==1,"adverse listener");
+        if(mode<3)server1_http_server_set_drain_paused(c.server,1);
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(c.server));
+        require(client.waitForConnected(1000),"adverse connected");
+        client.write("GET /owned HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        if(mode<3){
+            pumpUntil([&]{return server1_http_server_queued_bytes(c.server)>0;},"adverse response queued");
+            require(c.retired==0,"adverse response prematurely retired");
+            if(mode==2)server1_http_server_stop(c.server);else client.abort();
+        }else{static_cast<void>(collectUntilDisconnected(client));}
+        pumpUntil([&]{return c.retired==1;},"adverse lifetime retired");
+        require(c.readerClosed==(mode==0 || mode==7 ? 0 : 1),"reader ownership retired incorrectly");
+        server1_http_server_destroy(c.server);server1_http_router_destroy(router);
+        require(c.retired==1,"adverse close double retired lifetime");
+    }
+    // Replacing a body/stream or falling through to a static route must retain
+    // the same logical response obligation, independently of its reader.
+    Context c{9};Handler h{&c,reader,readerClosed,retired};
+    auto middleware=+[](const void *,void *response,server1_http_next_fn next,void *nextContext,void *opaque){
+        auto &h=*static_cast<Handler *>(opaque);
+        require(server1_http_response_set_lifetime(response,h.retire,h.context)==1,"middleware lifetime installed");
+        server1_http_response_set_stream(response,h.read,h.close,h.context,3);
+        server1_http_response_set_body(response,"replacement",11);
+        require(h.context->readerClosed==1 && h.context->retired==0,"body replacement retired response instead of reader");
+        return next(nextContext);
+    };
+    void *router=server1_http_router_create();
+    require(server1_http_router_add_middleware(router,0,"/",middleware,&h,nullptr)==1,"lifetime middleware");
+    require(server1_http_router_add_static(router,0,0,"GET","/next",200,"next")==1,"lifetime static destination");
+    void *response=server1_http_router_dispatch(router,"GET","/next","");
+    require(c.retired==0 && std::string(server1_http_response_body(response))=="next","route replacement lost lifetime");
+    server1_http_response_destroy(response);server1_http_router_destroy(router);
+    require(c.retired==1 && c.readerClosed==1,"replaced response lifetime leaked or double closed");
+    std::cout<<"H00-07 abort/stop/error/cap/reentrant retirement/body replacement PASS\n";
+}
+
+void caseH00_08()
+{
+    struct Context {void *server=nullptr;int retired=0;};
+    for(int mode=0;mode<4;++mode) {
+        Context c;
+        auto handler=+[](const void *,void *response,server1_http_next_fn,void *,void *opaque){
+            server1_http_response_set_lifetime(response,+[](void *opaque){
+                auto &c=*static_cast<Context *>(opaque);++c.retired;
+                void *server=c.server;c.server=nullptr;server1_http_server_destroy(server);
+            },opaque);
+            server1_http_response_set_status(response,200);
+            return server1_http_response_set_body(response,"owned",5);
+        };
+        void *router=server1_http_router_create();
+        require(server1_http_router_add_handler(router,0,0,"GET","/destroy",handler,&c,nullptr)==1,"destroy route");
+        c.server=server1_http_server_create(router,mode==0 ? 8 : 65536);
+        require(server1_http_server_listen(c.server,0)==1,"destroy listener");
+        if(mode==1 || mode==3)server1_http_server_set_drain_paused(c.server,1);
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(c.server));
+        require(client.waitForConnected(1000),"destroy connected");
+        client.write("GET /destroy HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        if(mode==1 || mode==3) {
+            pumpUntil([&]{return server1_http_server_queued_bytes(c.server)>0;},"destroy response queued");
+            if(mode==1)client.abort();else server1_http_server_stop(c.server);
+        }
+        pumpUntil([&]{return c.retired==1;},"destroy callback occurred");
+        require(!c.server,"destroy callback retained server");
+        server1_http_router_destroy(router);
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+    }
+    std::cout<<"H00-08 finalizer server destruction cap/abort/drain/stop PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -842,13 +970,17 @@ int main(int argc, char **argv)
             caseH00_03();
         if (requested == "all" || requested == "H00-04")
             caseH00_04();
+        if (requested == "all" || requested == "H00-08") caseH00_08();
+        if (requested == "all" || requested == "H00-07") caseH00_07();
+        if (requested == "all" || requested == "H00-06") caseH00_06();
         if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';
         return 1;
     }
+    QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
     return 0;
 }
