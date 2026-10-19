@@ -1,3 +1,7 @@
+use skill: colosseum-argon-workspace
+
+Before researching, writing, or saving files, load and follow this skill. Keep the task's subreddit policy restrictions and same-account Google Drive delivery requirements in force.
+
 # Colosseum Reddit campaign: 27 original communities across five Argon accounts
 
 **Status:** FIVE PREPARED TASKS. WRITING + RULE-RESEARCH ONLY. Not posted or sent to Gemini. Source reading snapshot on `argon-source-master` derived from canonical GitHub `master` commit `c059c6238ed8bd2b226a7606fd4a9f2cb039de73` on October 20, 2026. The complete original 27 have been reconciled by exact subreddit name against the August 19 audit.
