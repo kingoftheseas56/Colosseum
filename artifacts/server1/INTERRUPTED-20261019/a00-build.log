@@ -1,0 +1,4 @@
+[ 42%] Built target archive_remote
+[ 57%] Building CXX object CMakeFiles/archive_sources.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/archive/ArchiveKeys.cpp.o
+[ 71%] Linking CXX executable archive_sources
+[100%] Built target archive_sources

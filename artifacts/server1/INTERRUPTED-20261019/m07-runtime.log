@@ -1,0 +1,17 @@
+PASS 32 exact legacy oracle cases
+PASS delayed-probe cancellation, independent concurrent consumers, bounded output, failed child, service teardown
+/file/%2Ftmp%2Fm07-media.mp4/master.m3u8 status=200 bytes=218 PASS
+/file/%2Ftmp%2Fm07-media.mp4/hls.m3u8 status=200 bytes=120 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream-q-240.m3u8 status=200 bytes=179 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream-q-o.m3u8 status=200 bytes=237 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream.m3u8 status=404 bytes=15 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream-1.m3u8 status=404 bytes=15 PASS
+/file/%2Ftmp%2Fm07-media.mp4/subs-eng.m3u8 status=200 bytes=0 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream-q-240/0.ts status=200 bytes=447628 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream-q-240/99.ts status=404 bytes=41 PASS
+/file/%2Ftmp%2Fm07-media.mp4/stream-1/99.ts status=404 bytes=41 PASS
+/file/%2Ftmp%2Fm07-media.mp4/thumb.jpg status=200 bytes=10599 PASS
+/thumb.jpg?from=%2Ftmp%2Fm07-media.mp4&at=1 status=200 bytes=10170 PASS
+/probe?url=file%3A%2F%2F%2Ftmp%2Fm07-media.mp4 status=200 bytes=283 PASS
+/file/%2Ftmp%2Fm07-media.mp4/dlna status=500 bytes=0 PASS
+/file/%2Ftmp%2Fm07-media.avi/dlna status=200 bytes=570204 PASS

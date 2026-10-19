@@ -1,0 +1,1 @@
+{"layer":"exact M814 metadata-ready engine + M818 + M822 + real TCP","sameRemotePeerId":"2d53414d4530302d313233343536373839303132","engineMetadataReady":true,"engineWireRequestListeners":[1,1],"acceptedSockets":2,"remoteHandshakes":2,"wires":2,"connections":2,"tries":2,"rawAddresses":["127.0.0.1:33217","127.0.0.1:033217"],"retained":2,"closed":[false,false]}

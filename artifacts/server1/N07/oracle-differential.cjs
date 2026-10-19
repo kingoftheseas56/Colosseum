@@ -1,0 +1,13 @@
+// Executes only the locked M1284/M1285 functions, with Node builtins and a router adapter.
+const fs=require('fs'),path=require('path'),os=require('os'),vm=require('vm'),{Writable}=require('stream');
+const oracle=process.argv[2],src=fs.readFileSync(oracle,'utf8').split('\n');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'n07-oracle-'));fs.mkdirSync(path.join(root,'downloads'));fs.writeFileSync(path.join(root,'downloads','payload.bin'),'0123456789');
+const record={id:'done',url:'http://127.0.0.1/file',status:'finished',fileName:'payload.bin',total:10,downloaded:10,progress:100,name:'payload.bin',speed:10};
+fs.writeFileSync(path.join(root,'downManager.json'),JSON.stringify({done:record,paused:{...record,id:'paused',status:'paused'},missing:{...record,id:'missing',fileName:'absent'}}));
+class Router {constructor(){this.handlers={}}get(p,cb){this.handlers[p]=cb;return this}}
+let helper;
+const dep=id=>({1:fs,5:path,3:require('stream'),68:{lookup:()=> 'application/octet-stream'},100:Router,194:root,1285:helper,6:require('url'),11:require('http'),20:require('https'),4:require('events')}[id]);
+function load(first,last){const text=src.slice(first-1,last-1).join('\n');const f=vm.runInThisContext('('+text.slice(3)+ '\n})');const m={exports:{}};f(m,m.exports,dep);return m.exports}
+helper=load(108973,109584);const router=load(108725,108973);
+async function request(action,id,range){const req={query:id?{id}:{},headers:range?{range}:{}};const headers={};let code=200,body=[];const res=new Writable({write(chunk,enc,cb){body.push(Buffer.from(chunk));cb()}});Object.defineProperty(res,'statusCode',{get:()=>code,set:v=>code=v});res.setHeader=(k,v)=>headers[k.toLowerCase()]=String(v);res.writeHead=(c,h)=>{code=c;for(const [k,v]of Object.entries(h))res.setHeader(k,v)};let thrown;try{router.handlers['/'+action](req,res)}catch(e){thrown=e.code||e.message;res.end()}await new Promise(r=>res.on('finish',r));return {action,id:id||'',range:range||'',status:code,headers,body:Buffer.concat(body).toString(),...(thrown?{thrown}:{})};}
+(async()=>{let out=[];for(const [action,id,range] of [['getAll'],['get'],['get','absent'],['add'],['pause','absent'],['resume','absent'],['remove','absent'],['stream','absent'],['pause','done'],['resume','done'],['stream','paused'],['stream','done'],['stream','done','bytes=2-5'],['stream','done','bytes=-3'],['stream','done','bytes=8-'],['stream','done','bytes=20-'],['stream','done','bytes=0-20'],['remove','done'],['get','done']])out.push(await request(action,id,range));console.log(JSON.stringify(out,null,2));fs.rmSync(root,{recursive:true,force:true});})().catch(e=>{console.error(e);process.exit(1)});

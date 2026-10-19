@@ -1,0 +1,33 @@
+RangeError [ERR_OUT_OF_RANGE]: The value of "start" is out of range. It must be an integer. Received NaN
+    at new ReadStream (node:internal/fs/streams:208:5)
+    at Object.createReadStream (node:fs:3251:10)
+    at evalmachine.<anonymous>:215:35
+    at evalmachine.<anonymous>:232:11
+    at Layer.handle_request (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#288:33:13)
+    at next (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#609:26:67)
+    at Route.dispatch (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#609:27:11)
+    at server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#100:167:19
+    at Layer.handle_request (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#288:33:13)
+    at server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#100:79:74
+RangeError [ERR_OUT_OF_RANGE]: The value of "start" is out of range. It must be >= 0 && <= 9007199254740991. Received -20
+    at new ReadStream (node:internal/fs/streams:208:5)
+    at Object.createReadStream (node:fs:3251:10)
+    at evalmachine.<anonymous>:215:35
+    at evalmachine.<anonymous>:232:11
+    at Layer.handle_request (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#288:33:13)
+    at next (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#609:26:67)
+    at Route.dispatch (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#609:27:11)
+    at server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#100:167:19
+    at Layer.handle_request (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#288:33:13)
+    at server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#100:79:74
+RangeError [ERR_OUT_OF_RANGE]: The value of "start" is out of range. It must be <= "end" (here: 2). Received 7
+    at new ReadStream (node:internal/fs/streams:220:13)
+    at Object.createReadStream (node:fs:3251:10)
+    at evalmachine.<anonymous>:215:35
+    at evalmachine.<anonymous>:232:11
+    at Layer.handle_request (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#288:33:13)
+    at next (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#609:26:67)
+    at Route.dispatch (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#609:27:11)
+    at server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#100:167:19
+    at Layer.handle_request (server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#288:33:13)
+    at server-parity/locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js#100:79:74

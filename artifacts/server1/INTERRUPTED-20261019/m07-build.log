@@ -1,0 +1,5 @@
+[  9%] Building CXX object CMakeFiles/test_legacy_hls.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/LegacyHlsService.cpp.o
+[ 18%] Building CXX object CMakeFiles/test_legacy_hls.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/LegacyMp4Index.cpp.o
+[ 27%] Building CXX object CMakeFiles/test_legacy_hls.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/LegacyMkvIndex.cpp.o
+[ 36%] Linking CXX executable test_legacy_hls
+[100%] Built target test_legacy_hls

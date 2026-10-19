@@ -1,0 +1,5 @@
+[ 40%] Built target archive_sources
+[ 70%] Built target archive_remote
+[ 80%] Building CXX object CMakeFiles/archive_zip.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/archive/ZipSource.cpp.o
+[ 90%] Linking CXX executable archive_zip
+[100%] Built target archive_zip

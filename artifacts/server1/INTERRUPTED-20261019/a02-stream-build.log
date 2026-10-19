@@ -1,0 +1,6 @@
+[ 23%] Built target archive_remote
+[ 53%] Built target archive_sources
+[ 61%] Building CXX object CMakeFiles/archive_zip_stream.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/archive/ZipEntryReader.cpp.o
+[ 84%] Built target archive_zip
+[ 92%] Linking CXX executable archive_zip_stream
+[100%] Built target archive_zip_stream
