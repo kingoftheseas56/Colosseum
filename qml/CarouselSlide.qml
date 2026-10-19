@@ -37,7 +37,9 @@ Item {
         Image {
             id: artRaw
             anchors.fill: parent
-            source: slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
+            property string readySource: ""
+            onStatusChanged: if (status === Image.Ready) readySource = String(source)
+            source: !slideRoot.isPoster && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
             fillMode: Image.PreserveAspectCrop
             verticalAlignment: Image.AlignTop
@@ -71,7 +73,9 @@ Item {
         // …with the crisp poster stood on the right
         Image {
             visible: slideRoot.isPoster && !slideRoot.narrowLayout
-            source: slideRoot.isPoster && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
+            property string readySource: ""
+            onStatusChanged: if (status === Image.Ready) readySource = String(source)
+            source: slideRoot.isPoster && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
             anchors.right: parent.right; anchors.rightMargin: 56
             anchors.verticalCenter: parent.verticalCenter

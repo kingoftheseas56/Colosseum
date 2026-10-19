@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 var _arcIds = {
     "egghead": true,
@@ -28,13 +29,21 @@ function _clone(value) {
 }
 
 function _badgeSource(id) {
-    return "../assets/universes/one-piece/final-sea/badges/" + id + ".png";
+    var content = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-final-sea") : {};
+    if (content.artByArc && content.artByArc[id]) return ContentApi.resolveAssets(content.artByArc[id]).markerSource;
+    var fallback = "../assets/universes/one-piece/final-sea/badges/" + id + ".png";
+    return typeof ContentApi !== "undefined" ? ContentApi.asset(fallback) : fallback;
 }
 
 function _bannerSource(id) {
-    return "../assets/universes/one-piece/final-sea/banners/" + id + ".png";
+    var content = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-final-sea") : {};
+    if (content.artByArc && content.artByArc[id]) return ContentApi.resolveAssets(content.artByArc[id]).heroSource;
+    var fallback = "../assets/universes/one-piece/final-sea/banners/" + id + ".png";
+    return typeof ContentApi !== "undefined" ? ContentApi.asset(fallback) : fallback;
 }
 function isRoutableArcId(id) {
+    var content = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-final-sea") : {};
+    if (content.story && Array.isArray(content.story.arcs)) return content.story.arcs.some(function(arc) { return arc && arc.id === id; });
     return _owns(_arcIds, id);
 }
 
@@ -79,6 +88,9 @@ function relatedMediaForArc(arc) {
 }
 
 function artForArc(value) {
+    var content = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-final-sea") : {};
+    var key = typeof value === "string" ? value : (value && value.id);
+    if (content.artByArc && content.artByArc[key]) return ContentApi.resolveAssets(content.artByArc[key]);
     var id = typeof value === "string" ? value : value && value.id;
     if (!isRoutableArcId(id)) return null;
     return {

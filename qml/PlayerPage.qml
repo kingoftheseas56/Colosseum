@@ -34,6 +34,9 @@ Item {
     // the app's own truth; the black-screen-buffering failure surfaces as a wait timeout.
     objectName: "player"
     readonly property bool playbackStarted:  !root.starting && !root.errored && mpv.position > 0.25
+    readonly property bool playbackPaused: mpv.pause
+    property bool audioHandoffPaused: false
+    signal playbackRequested()
     readonly property real playbackPosition: mpv.position
     readonly property real playbackDuration: mpv.duration
     readonly property bool playerActive:     root.visible   // player item is the shown surface
@@ -270,6 +273,7 @@ Item {
     property int    subModelRev: 0        // bump to re-evaluate subRows after an add
     property bool   subsLoading: false
     property bool   fileReady: false      // mpv has a file open (needed before sub-add)
+    property bool   playbackEnded: false  // natural EOF unloaded the source; explicit play must reload
     property bool   autoSubDone: false    // auto-load ran for this file
     property bool   userTouchedSubs: false// user picked Off/a track → stop auto-overriding
     property bool   subtitleDropToastOpen: false
@@ -1104,6 +1108,7 @@ Item {
     function reloadActiveDirectSource() {
         if (!root.currentPlaybackUrl.length)
             return false
+        root.playbackEnded = false
         mpv.loadSource(root.currentPlaybackUrl, root.activeDirectHeaders)
         return true
     }
@@ -1115,6 +1120,7 @@ Item {
         var requestHeaders = DirectSourcePolicy.copyHeaders(headers)
         root.currentPlaybackUrl = directUrl
         root.activeDirectHeaders = requestHeaders
+        root.playbackEnded = false
         // Always pass the generation's map, including {}. The neutral backend uses an
         // empty map to clear a previous source's Referer/Cookie/Auth state.
         mpv.loadSource(directUrl, requestHeaders)
@@ -1245,11 +1251,18 @@ Item {
     function detectStubStream() {
         if (!root.fileReady || root.starting || root.errored || mpv.pause)
             return false
+        // The short-source heuristic belongs to the candidate/fallback ladder only.
+        // Local/direct admissions have no candidate; their empty key would be ":0".
+        if (root.mediaLocalPath.length || root.currentStreamIndex < 0
+                || root.currentStreamIndex >= root.streamCandidates.length)
+            return false
+        var c = root.currentStreamCandidate()
+        if (!String(c.infoHash || "").trim().length && !root.directStreamUrl(c).trim().length)
+            return false
         if (root.subStreamId.indexOf("iptv:") === 0 || root.mediaId.indexOf("iptv:") === 0)
             return false
         if (!(mpv.duration > 0 && mpv.duration < root.stubDurationThresholdSec))
             return false
-        var c = root.currentStreamCandidate()
         var key = root.streamCandidateKey(c)
         if (!key.length || root.stubCheckedKey === key)
             return false
@@ -1808,6 +1821,7 @@ Item {
     function jumpToEpisode(ep, startLabel, failLabel) {
         if (!ep || !ep.id)
             return
+        root.requestAudioPlayback()
         root.cancelUpNext()
         root.adjacentResolveGen += 1
         var myGen = root.adjacentResolveGen
@@ -2741,6 +2755,7 @@ Item {
     }
 
     function armPlaybackAfterResumeChoice(label, seekSec) {
+        root.requestAudioPlayback()
         // prepareResumeChoice() deliberately retired the initial start state while UI owned
         // the decision. Re-arm BEFORE the seek so that seek-driven position notifications
         // cannot certify playback as started; only later post-unpause advancement may clear it.
@@ -2772,6 +2787,7 @@ Item {
     }
 
     function stop() {
+        root.playbackEnded = false
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.sendTraktPlayback(false)
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
@@ -2786,6 +2802,18 @@ Item {
 
     // In-app minimize keeps the stream ALIVE (never stop()): pause so we stop consuming,
     // but the mpv host + torrent stay warm for an instant, reload-free resume.
+    function requestAudioPlayback() {
+        root.audioHandoffPaused = false
+        root.playbackRequested()
+    }
+    function suspendForAudioHandoff() {
+        root.audioHandoffPaused = true
+        root.adjacentResolveGen += 1
+        root.autoPausedInactive = false
+        root.closeMenus()
+        root.cancelUpNext()
+        mpv.pause = true
+    }
     function suspendForMinimize() {
         root.closeMenus()
         if (root.fileReady && !mpv.pause) {
@@ -2794,6 +2822,12 @@ Item {
         }
     }
     function resumeFromMinimize() {
+        if (root.replayEndedPlayback())
+            return
+        if (root.audioHandoffPaused) {
+            root.requestAudioPlayback()
+            mpv.pause = false
+        }
         root.wakeChrome()
         root.healAudio()   // same dead-AO guard as the taskbar-restore path
         if (root.autoPausedInactive) {
@@ -3213,12 +3247,40 @@ Item {
             return Math.round(mpv.volume) + "%" + (mpv.mute ? " / muted" : "")
         return "--"
     }
+    // EOF unloads mpv but keeps this page/session alive. Only explicit Play or
+    // activation of that warm session may re-admit it; visibility and handoff never do.
+    function replayEndedPlayback() {
+        // Room-controlled play remains on its existing authoritative command path.
+        if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+            return false
+        if (!root.playbackEnded || root.starting || root.errored || !root.currentPlaybackUrl.length)
+            return false
+        root.requestAudioPlayback()
+        root.cancelUpNext()
+        root.autoPausedInactive = false
+        root.pendingSeekSec = 0
+        root.wakeReconnectPendingSeek = -1
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.resumePromptConsumed = true
+        root.starting = true
+        root.fileReady = false
+        root.statusMsg = "Opening..."
+        root.resetRecoveryWatch()
+        streamWatchdog.restart()
+        root.reloadActiveDirectSource()
+        root.wakeChrome()
+        return true
+    }
     function togglePlayPause() {
         if (!root.starting && !root.errored) {
-            if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+            if (typeof WatchPartySync !== "undefined" && WatchPartySync.active) {
+                if (mpv.pause) root.requestAudioPlayback()
                 WatchPartySync.requestLocalPlayback(mpv.pause, mpv.position)
-            else
+            } else if (!root.replayEndedPlayback()) {
+                if (mpv.pause) root.requestAudioPlayback()
                 mpv.pause = !mpv.pause
+            }
         }
         root.wakeChrome()
     }
@@ -3682,6 +3744,7 @@ Item {
             root.hoverThumbBucket = -1
         }
         onFileStarted: {
+            root.playbackEnded = false
             root.starting = true
             root.statusMsg = "Buffering..."
             root.wakeChrome()
@@ -3700,7 +3763,7 @@ Item {
             root.errored = false
             root.seekPreview = mpv.position
             root.fileReady = true
-            var startupOwnedByUi = false
+            var startupOwnedByUi = root.audioHandoffPaused
             if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
                 // whatever pause state carried (a playing stream resumes, a deliberate pause stays).
@@ -3724,7 +3787,7 @@ Item {
                 root.starting = false
                 root.statusMsg = ""
                 streamWatchdog.stop()
-            } else if (mpv.pause) {
+            } else if (mpv.pause && !root.audioHandoffPaused) {
                 // Fresh play that inherited a STALE pause from a prior deliberate pause (a previous
                 // minimize / sleep-timer / manual pause / dismissed resume). mpv keeps its pause
                 // property across `loadfile replace`, so clear it here so the buffered stream
@@ -3760,7 +3823,7 @@ Item {
             // which owns the recovery ladder. Calling handlePlaybackFailure here too would
             // double-fire the retry (both signals emit on the same error). [Feature 3]
             if (reason === "eof") {
-                if (root.arrivingStreamUrl !== "" && mpv.duration > 0
+                if (!root.audioHandoffPaused && root.arrivingStreamUrl !== "" && mpv.duration > 0
                         && mpv.position < mpv.duration - 5) {
                     // Hit the end of the .part, not the end of the film — the frontier
                     // watcher's predictive handover missed (burst download, deep seek).
@@ -3770,15 +3833,25 @@ Item {
                     root.switchArrivingToStream()
                     return
                 }
+                root.playbackEnded = true
+                root.autoPausedInactive = false
+                streamWatchdog.stop()
+                if (root.audioHandoffPaused) {
+                    mpv.pause = true
+                    return
+                }
                 root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
                 root.sendTraktPlayback(false)
                 root.recordProgress()
+                mpv.pause = true
+                root.wakeChrome()
                 if (root.handleSleepEpisodeEnd())
                     return
                 root.startUpNextCountdown()
             }
         }
         onPauseChanged: {
+            if (root.audioHandoffPaused && !mpv.pause) { mpv.pause = true; return }
             if (mpv.pause) root.sendTraktPlayback(false)
             else if (!root.starting && root.fileReady && mpv.position > 0.25)
                 root.sendTraktPlayback(true)
@@ -3866,6 +3939,7 @@ Item {
             root.seekTo(positionSeconds)
         }
         function onPauseRequested(paused) {
+            if (!paused && root.audioHandoffPaused) return
             if (mpv.pause !== paused)
                 mpv.pause = paused
             root.wakeChrome()
@@ -4038,6 +4112,7 @@ Item {
         interval: 1000
         repeat: true
         onTriggered: {
+            if (root.audioHandoffPaused) return
             root.upNextRemainingSec -= 1
             if (root.upNextRemainingSec <= 0)
                 root.confirmUpNext()

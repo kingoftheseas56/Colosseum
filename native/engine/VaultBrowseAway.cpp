@@ -1,5 +1,6 @@
 #include "VaultBrowseAway.h"
 #include "VaultIndex.h"
+#include "VaultKit.h"
 #include "VaultLocation.h"
 
 #include <QDir>
@@ -79,45 +80,69 @@ QVariantList offlineBrowseAt(VaultIndex* index, const QVariantList& roots, const
 
     const QList<VaultIndex::FileRow> rows = index->rowsForRoot(rootPath);
     QMap<QString, QList<VaultIndex::FileRow>> byChild; // childKey -> its rows
+    QMap<QString, QString> childPaths; // normalized key -> original path spelling
     QStringList childOrder; // insertion order, stable output
     for (const VaultIndex::FileRow& row : rows) {
-        const QString normSub = normPath(row.subtreePath);
+        // subtreePath is the scanner's show/group identity, not necessarily the
+        // file's parent (nested seasons intentionally share one show subtree).
+        const QString parentPath = QDir::cleanPath(QFileInfo(row.path).path());
+        const QString normParent = normPath(parentPath);
         QString childKey;
-        if (normSub == normLevel) {
+        if (normParent == normLevel) {
             childKey = row.path; // a loose file directly at this level: one tile of its own
-        } else if (normSub.startsWith(normLevel + QLatin1Char('/'))) {
-            const QString rest = normSub.mid(normLevel.size() + 1);
+        } else if (normParent.startsWith(normLevel + QLatin1Char('/'))) {
+            const QString rest = parentPath.mid(normLevel.size() + 1);
             const int slash = rest.indexOf(QLatin1Char('/'));
-            childKey = slash >= 0 ? normLevel + QLatin1Char('/') + rest.left(slash) : normSub;
+            childKey = slash >= 0 ? parentPath.left(normLevel.size() + 1 + slash) : parentPath;
         } else {
             continue; // not under this level at all
         }
-        if (!byChild.contains(childKey))
-            childOrder.append(childKey);
-        byChild[childKey].append(row);
+        const QString normalizedKey = normPath(childKey);
+        if (!byChild.contains(normalizedKey)) {
+            childOrder.append(normalizedKey);
+            childPaths.insert(normalizedKey, childKey);
+        }
+        byChild[normalizedKey].append(row);
     }
 
-    for (const QString& key : childOrder) {
-        const QList<VaultIndex::FileRow>& groupRows = byChild.value(key);
+    for (const QString& normalizedKey : childOrder) {
+        const QString key = childPaths.value(normalizedKey);
+        const QList<VaultIndex::FileRow>& groupRows = byChild.value(normalizedKey);
         if (groupRows.isEmpty())
             continue;
         const bool singleFile = groupRows.size() == 1;
+        const auto& first = groupRows.first();
+        const bool directFile = normalizedKey == normPath(first.path);
+        const auto episode = VaultKit::parseEpisodeNumber(QFileInfo(first.path).fileName());
+        const bool seasonFolder = !directFile
+            && VaultKit::isSeasonLikeDirName(QFileInfo(key).fileName());
+        // Keep single-film collapse, but never collapse a season (even one
+        // episode) or a deeper ancestor into its only file.
+        const bool filmFolder = !directFile && !seasonFolder && singleFile
+            && !episode.matched && normPath(QFileInfo(first.path).path()) == normalizedKey;
+        const bool leaf = directFile || filmFolder;
         QVariantMap m;
         m.insert(QStringLiteral("key"), key);
-        // Structural simplification: an offline level cannot re-derive the live walker's
-        // show/season collapse (no directory to classify), so a multi-file group folds to a
-        // plain folder tile instead of a show/season tile — still one tile per held group,
-        // still marked away, still "nothing disappears" (design §4.7); precise offline show
-        // fidelity is the parent ownership arc's business, not this fallback's.
-        m.insert(QStringLiteral("nodeType"),
-                 singleFile ? QStringLiteral("film") : QStringLiteral("folder"));
-        QString title = groupRows.first().identityTitle.isEmpty()
-            ? groupRows.first().groupTitle : groupRows.first().identityTitle;
+        const QString nodeType = directFile && first.kind == QLatin1String("video")
+            ? (episode.matched ? QStringLiteral("episode") : QStringLiteral("clip"))
+            : leaf ? QStringLiteral("film")
+            : seasonFolder ? QStringLiteral("season") : QStringLiteral("folder");
+        m.insert(QStringLiteral("nodeType"), nodeType);
+        QString title = directFile ? first.displayTitle
+            : seasonFolder ? QFileInfo(key).fileName()
+            : first.identityTitle.isEmpty() ? first.groupTitle : first.identityTitle;
         if (title.isEmpty())
             title = QFileInfo(key).fileName();
         m.insert(QStringLiteral("displayTitle"), title);
         m.insert(QStringLiteral("physicalFact"), QString());
-        m.insert(QStringLiteral("path"), singleFile ? groupRows.first().path : key);
+        m.insert(QStringLiteral("path"), leaf ? first.path : key);
+        if (leaf) m.insert(QStringLiteral("id"), first.id);
+        if (directFile && episode.matched) {
+            m.insert(QStringLiteral("episodeNumber"), episode.episode);
+            m.insert(QStringLiteral("seasonNumber"), episode.season);
+        } else if (seasonFolder) {
+            m.insert(QStringLiteral("seasonNumber"), VaultKit::seasonOrdinalFromDirName(QFileInfo(key).fileName()));
+        }
         QVariantMap counts;
         counts.insert(QStringLiteral("items"), groupRows.size());
         m.insert(QStringLiteral("counts"), counts);

@@ -130,8 +130,8 @@ Item {
                     objectName: tabs.tabPrefix + "_" + pill.modelData.key
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
-                    width: (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
-                    height: parent.height
+                    width: parent ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length) : 0
+                    height: parent ? parent.height : 0
                     radius: tabs.compact ? 11 : 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold
                          : (ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12)

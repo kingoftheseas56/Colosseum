@@ -14,11 +14,40 @@
     "release/presentation/artwork/**",
     ".github/workflows/**",
     ".mcp.json",
-    "MEMORY.md"
+    "MEMORY.md",
+    "tests/fixtures/*.png",
+    "tests/fixtures/*.jpg",
+    "tests/fixtures/*.jpeg",
+    "tests/fixtures/*.webp",
+    "tests/fixtures/*.gif",
+    "tests/lanista_fixtures/*.png",
+    "tests/lanista_fixtures/*.jpg",
+    "tests/lanista_fixtures/*.jpeg",
+    "tests/lanista_fixtures/*.webp",
+    "tests/lanista_fixtures/*.gif",
+    "tests/lanista_capture/*.png",
+    "tests/lanista_capture/*.jpg",
+    "tests/lanista_capture/*.jpeg",
+    "tests/lanista_capture/*.webp",
+    "tests/lanista_capture/*.gif"
   ],
-  "always_omit_basenames": ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "MEMORY.md", "CAPABILITIES.md", "CODEX_MODE.md"],
-  "always_omit_prefixes": ["governance/", ".codex/", ".claude/", ".agents/"],
+  "always_omit_basenames": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    "MEMORY.md",
+    "CAPABILITIES.md",
+    "CODEX_MODE.md"
+  ],
+  "always_omit_prefixes": [
+    "governance/",
+    ".codex/",
+    ".claude/",
+    ".agents/"
+  ],
   "retain": "All other tracked regular blobs, including all native/QML/JavaScript/backend/build/test source, all fixtures, fonts, icons, SVGs, reader resources and release presentation JSON. Existing Actions workflows remain in canonical master, not the generated branch.",
-  "sensitive_fixture_allowlist": ["server/watchparty-relay/test/dev-ca.pem"],
-  "generated_branch": "argon-source"
+  "sensitive_fixture_allowlist": [
+    "server/watchparty-relay/test/dev-ca.pem"
+  ],
+  "generated_branch": "argon-source-master"
 }

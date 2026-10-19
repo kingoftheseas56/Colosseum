@@ -24,6 +24,56 @@ Evidence anchors: native/SessionStore.h; native/feria/FeriaAccountStore.* and Fe
 
 Do not introduce parallel session, account, history, restore, download or preference stores. Audit existing ownership before adding a new record. Extend C++ owners for durable rules. Preserve working QML presentation and use a small engine-specific QML shim where Qt requires one; this contract does not require a wholesale QML-to-C++ rewrite.
 
+## Application quit and browser lifetime
+
+`Main.qml` routes shell power actions, Ctrl+Q, and main-window close through
+`requestApplicationQuit()`. It keeps the event loop running while the existing
+loaded `FeriaSessionDeck.startQuiescence(true)` cancels active browser downloads and
+closes the canonical browser sessions. The deck waits for runtime views to reach
+zero before destroying the regular/private profiles, then waits for runtime
+profiles to reach zero. Only its `quiesced` signal permits the final deferred
+`Qt.quit()`; repeated quit requests are ignored while draining. A quiescence
+failure keeps the app open, shows a retry message, and does not force termination.
+This also applies to retained browser sessions while another world is displayed.
+The existing popup adoption/retirement guard remains in effect.
+
+The native updater also queues this shell gate before its installer can continue.
+An absent shell during startup may quit directly; a loaded shell missing the gate
+stays open. The lazy deck receives its required services as `Loader.setSource`
+initial properties, after native service exposure; assigning them in `onLoaded`
+fails construction and cannot establish retained-browser shutdown coverage.
+
+Receiving verification on 2026-10-18 used a fresh standard accounts-capable native
+build: the normal gated cold/warm catalogue journey passed 20 steps. Through an
+owned QML copy with Feria's two Soon controls enabled, real retained regular and
+private YouTube views/profiles drained from two each to zero, and the root/helper
+processes exited naturally. This is offscreen/software evidence; it does not
+qualify GPU presentation, provider accounts/DRM, or a real installer handoff.
+
+`SessionStore` remains an in-memory registry. Its browser app/space projections,
+identity-fenced close attempts, and sanitized recent-close/reopen records do not
+introduce another durable store. Account changes invalidate the prior browser
+epoch and clear recent-close records before retiring those sessions. Persistent
+regular-browser restore metadata remains owned by `FeriaAccountStore`.
+
+Windows runtime verification on 2026-10-17 reproduced the original live-browser
+quit crash (`0xC0000005`). With the shutdown gate, the actual Quit action with a
+live browser and Alt+F4 with both regular and private sessions returned native
+app/helper exit codes of zero, with zero views/profiles before quit and no owned
+process survivors. These runs used the existing full Colosseum executable, the
+custom QtWebEngine 6.11.1 runtime, and the current `Main.qml` through the supported
+developer QML override. They do not establish a fresh complete native build,
+Android behavior, failure-injection coverage, popup independence, or release
+qualification.
+
+The master forward-port retains Android's string-source Feria Loader. Completion
+and failure signals connect through `Connections` to its current `item`; no static
+Feria import is added to the shell. Android and an unloaded deck take a deferred
+quit path without accessing browser services. A loaded desktop deck must finish
+quiescence first. The forward-port's focused function tests cover deferred quit,
+duplicate requests/signals, failure/retry and absent-deck behavior; those checks
+are not a fresh full-app or Android-device runtime qualification.
+
 ## Identity and operation fencing
 
 Preserve the existing identity fields: accountEpoch, profileId, spaceId, pageGeneration, documentGeneration, hostId and hostGeneration. Do not silently rename or change their meaning.

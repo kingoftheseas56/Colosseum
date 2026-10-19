@@ -200,9 +200,17 @@ void CatalogVaultClient::setManagedNames(const QStringList& names)
     m_managedNamesSet = true;
 }
 
+void CatalogVaultClient::setTankobanApiEnabled(bool enabled)
+{
+    m_tankobanApiEnabled = enabled;
+}
+
 QStringList CatalogVaultClient::managedAssetNames() const
 {
-    return m_managedNamesSet ? m_managedNames : knownAssets();
+    QStringList names = m_managedNamesSet ? m_managedNames : knownAssets();
+    if (m_tankobanApiEnabled)
+        names.removeAll(QStringLiteral("tankoban_catalog.db"));
+    return names;
 }
 
 bool CatalogVaultClient::allFourFilesPresent() const
@@ -337,11 +345,12 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
         return;
     }
 
+    const QStringList managedNames = managedAssetNames();
     QHash<QString, AssetInfo> byName;
     for (const QJsonValue& value : root.value(QStringLiteral("assets")).toArray()) {
         const QJsonObject asset = value.toObject();
         const QString name = asset.value(QStringLiteral("name")).toString();
-        if (!knownAssets().contains(name))
+        if (!managedNames.contains(name))
             continue;
         AssetInfo info;
         info.name = name;
@@ -356,7 +365,7 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
 
     QVector<AssetInfo> toDownload;
     QHash<QString, qint64> finalSizes;
-    for (const QString& name : managedAssetNames()) {
+    for (const QString& name : managedNames) {
         const QString path = m_vaultDir + QLatin1Char('/') + name;
         const bool existsLocally = QFile::exists(path);
         finalSizes.insert(name, existsLocally ? QFileInfo(path).size() : 0);

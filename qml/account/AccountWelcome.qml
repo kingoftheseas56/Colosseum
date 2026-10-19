@@ -15,6 +15,9 @@ Item {
         return win && win.androidHost && win.width < 840
     }
 
+    readonly property bool accountEntryAvailable:
+        !welcome.controller || welcome.controller.accountFeaturesAvailable !== false
+
     signal signInRequested()
     signal createAccountRequested()
 
@@ -71,6 +74,7 @@ Item {
 
             AccountChoice {
                 objectName: "accountWelcomeSignIn"
+                visible: welcome.accountEntryAvailable
                 width: parent.width
                 title: "Sign in"
                 detail: "Bring your Colosseum back on this device."
@@ -81,6 +85,7 @@ Item {
 
             AccountChoice {
                 objectName: "accountWelcomeCreateAccount"
+                visible: welcome.accountEntryAvailable
                 width: parent.width
                 title: "Create account"
                 detail: "Start syncing your personal Colosseum."
@@ -91,7 +96,9 @@ Item {
 
             Text {
                 width: parent.width
-                text: "Accounts are optional. Sign in later whenever you want sync."
+                text: welcome.accountEntryAvailable
+                    ? "Accounts are optional. Sign in later whenever you want sync."
+                    : "Colosseum runs completely locally on this device."
                 color: theme.inkDimmer
                 font.family: theme.ui
                 font.pixelSize: 11

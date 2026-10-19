@@ -100,6 +100,12 @@ Item {
     // shelf-less page, never a guess (identity-key vocabulary, plan Standing constraints).
     property int resolvedMalId: 0
     property var catalogRow: ({})   // the mangaById() row backing the masthead facts
+    Timer { id: malSemanticRetry; interval: 75; onTriggered: page.resolve() }
+    Connections {
+        target: page.malCatalogRef
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (Object.keys(page.catalogRow).length === 0) malSemanticRetry.restart() }
+    }
     property string seriesId: ""
     property string seriesUrl: ""
     property string banner: ""
@@ -130,14 +136,32 @@ Item {
     // volumes.length IS the verdict. No toggle, no per-series persistence.
     property bool tankobanMode: volumes.length > 0
     property bool _tankobanPrepared: false
+    // A per-series remote cache never makes the entire local catalogue ready.
+    onResolvedMalIdChanged: page._requestCatalogueSeries()
+    property int _catalogRevision: 0
+    function _requestCatalogueSeries() {
+        var tc = page.tankobanCatalogRef
+        if (page.resolvedMalId > 0 && tc && typeof tc.requestSeries === "function")
+            tc.requestSeries(page.resolvedMalId)
+    }
+    Connections {
+        target: page.tankobanCatalogRef
+        ignoreUnknownSignals: true
+        function onSeriesChanged(malId) {
+            if (malId !== page.resolvedMalId) return
+            page._catalogRevision++
+            page._tankobanPrepared = false
+            page._prepareTankoban()
+        }
+    }
 
     // --- the truthful primary button (Slice 2, amended) ---
     // hasShelf reads the baked, provider-free catalogue count (Slice 1's TankobanCatalog) —
     // the honest "does this series have a known shelf at all" fact, independent of whether
     // any volume has been downloaded yet. Slice 3 owns actually SEEDING the shelf from this
     // source; here it only backs the button truth-table + the masthead scalar.
-    readonly property var _tcInfo: (page.resolvedMalId > 0 && page.tankobanCatalogRef
-                                     && page.tankobanCatalogRef.ready())
+    readonly property var _tcInfo: (page._catalogRevision >= 0 && page.resolvedMalId > 0 && page.tankobanCatalogRef
+                                     && (page.tankobanCatalogRef.ready() || (typeof page.tankobanCatalogRef.hasSeries === "function" && page.tankobanCatalogRef.hasSeries(page.resolvedMalId))))
         ? (page.tankobanCatalogRef.seriesInfo(page.resolvedMalId) || {}) : ({})
     readonly property bool hasShelf: (_tcInfo.volumeCount || 0) > 0
     // vol1Ready reads TankobanVolumes directly (no new wiring — the existing seriesId-keyed
@@ -406,16 +430,16 @@ Item {
     // resets the latch for a reused page instance.
     function _prepareTankoban() {
         if (!page.hasShelf) return                 // no known catalogue count: never seed
-        if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
+        if (!page.tankobanVolumesRef || !page.seriesId.length) return
         if (page._tankobanPrepared) return
         page._tankobanPrepared = true
         var tc = page.tankobanCatalogRef
-        var rows = (tc && tc.ready()) ? (tc.volumes(page.resolvedMalId) || []) : []
+        var rows = tc ? (tc.volumes(page.resolvedMalId) || []) : []
         var vols = []
         for (var i = 0; i < rows.length; i++)
             vols.push({ number: rows[i].number, cover: rows[i].cover || "",
                         title: rows[i].name || "" })
-        TankobanVolumes.prepareSeries({
+        page.tankobanVolumesRef.prepareSeries({
             seriesId: page.seriesId, title: page.seriesTitle,
             author: page.author, aliases: [],
             discoveryTitle: page.sourceSearchTitle,
@@ -849,6 +873,14 @@ Item {
                 // TB-002: silently re-file a legacy title-keyed Collection save under seriesId.
                 page._refileLegacyCollectionEntryIfNeeded()
                 // Catalogue-fed shelf seed (Slice 3) — the sole feed now (purity law).
+                page._prepareTankoban()
+            }
+            else if (Number(page.malId) === id && Number.isInteger(id) && id > 0
+                     && page.tankobanCatalogRef && page.tankobanCatalogRef.remoteEnabled === true) {
+                // Only an explicitly supplied MAL ID may ask for volume facts without
+                // a local MAL row. Title matching and all other namespaces stay unchanged.
+                page.resolvedMalId = id
+                page.seriesId = page.seriesIdOverride.length ? page.seriesIdOverride : ("mal:" + id)
                 page._prepareTankoban()
             }
             // id>0 but no row found (db not ready / id unknown): resolvedMalId/seriesId stay

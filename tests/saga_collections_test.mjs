@@ -3,10 +3,20 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const load = (path, context = {}) => {
-    vm.createContext(context);
+    const env = {
+        ContentApi: {
+            register() {},
+            document() { return {}; },
+            asset(value) { return value; },
+            resolveAssets(value) { return value; }
+        },
+        UniverseExt: { load(_id, done) { done(null); } },
+        ...context
+    };
+    vm.createContext(env);
     vm.runInContext(fs.readFileSync(new URL(path, import.meta.url), 'utf8')
-        .replace(/^\.(?:pragma|import).*$/gm, ''), context);
-    return context;
+        .replace(/^\.(?:pragma|import).*$/gm, ''), env);
+    return env;
 };
 const db = load('../qml/Universes.js');
 const lookups = [];
@@ -54,4 +64,39 @@ const hp = api.sagaCollections(current, db.configFor('Harry Potter'));
 assert.equal(hp.books.length, 7);
 assert.equal(hp.adaptations.length, 8);
 assert.equal(hp.branches.find(branch => branch.title === 'Fantastic Beasts').adaptations.length, 3);
-console.log('Saga collections: provider gaps, upcoming titles, stable order, and all saga branches passed.');
+// Naruto's cross-medium catalogue grows by pinned English novels without changing the
+// manga/anime/film identities or affecting One Piece's explicit five-shelf inventory.
+const naruto = db.configFor('Naruto');
+const narutoSpecs = api.shelfSpecsFor(naruto);
+assert.deepEqual(Array.from(narutoSpecs, shelf => shelf.title), ['Manga', 'Anime', 'Films', 'Novels']);
+assert.deepEqual(Array.from(narutoSpecs, shelf => shelf.runs.reduce((n, run) => n + run.works.length, 0)),
+    [4, 3, 11, 11]);
+const novelIds = [1051140307, 1074095480, 1100454596, 1164244390, 1206630594,
+    1524572355, 1533115240, 1553987642, 1590967444, 1610393822, 6443278687];
+assert.deepEqual(Array.from(narutoSpecs[3].runs[0].works, novel => novel.apple), novelIds,
+    'Books must keep the verified Apple Books trackIds in English-publication order');
+assert.equal(new Set(novelIds).size, novelIds.length, 'No duplicate book editions');
+assert.ok(narutoSpecs[3].runs[0].works.every(book => book.cover && book.author && book.year),
+    'Every pinned novel needs artwork and bibliographic context');
+let narutoRendered = null;
+api.loadShelves('Naruto', value => { narutoRendered = value; });
+assert.deepEqual(Array.from(narutoRendered.shelves, shelf => shelf.title),
+    ['Manga', 'Anime', 'Films', 'Novels']);
+const bookTile = narutoRendered.shelves[3].runs[0].items[0];
+assert.equal(bookTile.medium, 'book');
+assert.equal(bookTile.apple, 1051140307);
+let bookLookupUrl = '', fallbackBook = null;
+const priorRequestJson = api.requestJson;
+api.requestJson = (url, done) => { bookLookupUrl = url; done(null); };
+api.resolveBook(bookTile, book => { fallbackBook = book; });
+api.requestJson = priorRequestJson;
+assert.equal(bookLookupUrl, 'https://itunes.apple.com/lookup?id=1051140307');
+assert.equal(fallbackBook, bookTile, 'Store outage must keep the pinned novel routable');
+const onePieceSpecs = api.shelfSpecsFor(db.configFor('One Piece'));
+assert.deepEqual(Array.from(onePieceSpecs, shelf => shelf.title),
+    ['Manga', 'Series', 'Films', 'Specials', 'Novels']);
+assert.deepEqual(Array.from(onePieceSpecs, shelf => shelf.runs.reduce((n, run) => n + run.works.length, 0)),
+    [15, 5, 15, 17, 4], 'Naruto must not alter One Piece or its totals');
+assert.deepEqual(Array.from(api.shelfSpecsFor(db.configFor('Dragon Ball')), s => s.title),
+    ['Manga', 'Anime', 'Films'], 'Manga-first worlds without novels keep their existing layout');
+console.log('Saga collections: provider gaps, upcoming titles, stable order, all saga branches, and Naruto novel pins passed.');

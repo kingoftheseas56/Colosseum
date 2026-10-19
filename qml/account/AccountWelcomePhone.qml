@@ -9,6 +9,9 @@ Item {
     property var controller: null
     property Item backdrop: null
 
+    readonly property bool accountEntryAvailable:
+        !root.controller || root.controller.accountFeaturesAvailable !== false
+
     signal signInRequested()
     signal createAccountRequested()
 
@@ -177,6 +180,7 @@ Item {
 
                     AccountWelcomeChoice {
                         objectName: "accountWelcomeSignIn"
+                        visible: root.accountEntryAvailable
                         width: parent.width
                         title: "Sign in"
                         detail: "Bring your Colosseum back on this device."
@@ -187,6 +191,7 @@ Item {
 
                     AccountWelcomeChoice {
                         objectName: "accountWelcomeCreateAccount"
+                        visible: root.accountEntryAvailable
                         width: parent.width
                         title: "Create account"
                         detail: "Start syncing your personal Colosseum."

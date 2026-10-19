@@ -53,8 +53,9 @@ Rectangle {
     property Item focusReturnItem: null
     // No Feria section on Android: qml/feria/ is not shipped there, so neither the rail
     // entry nor the feriaContent Loader may reference it (feriaOnly itself is unreachable).
-    readonly property bool feriaSectionAvailable: Qt.platform.os !== "android"
-    readonly property var railSections: feriaOnly ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : feriaSectionAvailable ? [
+    property bool feriaEnabled: false
+    readonly property bool feriaSectionAvailable: Qt.platform.os !== "android" && feriaEnabled
+    readonly property var railSections: feriaOnly && feriaSectionAvailable ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : feriaSectionAvailable ? [
         { id: "profile", label: qsTr("Profile"), glyph: "◌" },
         { id: "feria", label: qsTr("Feria"), glyph: "▣" },
         { id: "security", label: qsTr("Security"), glyph: "◇" },
@@ -133,7 +134,7 @@ Rectangle {
     // Theatre worlds) derives its scope from searchMode.toLowerCase(), and Main.qml only
     // ever sets searchMode to "Tankoban" or "Theatre". No "all"/"home"/"world" scope exists
     // in production use — E2 clears exactly these three, nothing else.
-    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre"]
+    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre", "vinyl"]
 
     // E2: aggregate local search-history clear via the real SearchHistoryStore owner.
     onPrivacyClearSearchHistoryRequested: {
@@ -210,7 +211,7 @@ Rectangle {
     function open(section, invoker, context) {
         if (!root.visible) {
             rememberInvoker(invoker)
-            feriaOnly = context === "feria"
+            feriaOnly = context === "feria" && feriaSectionAvailable
         }
         activeSection = feriaOnly ? "feria"
             : railSections.some(function(row) { return row.id === section }) ? section : "profile"

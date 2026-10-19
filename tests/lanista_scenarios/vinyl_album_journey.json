@@ -1,0 +1,407 @@
+{
+  "name": "vinyl-album-journey",
+  "comment": "NOT RUN here. Receiving Windows replay: lanista session run this.json --qml qml/vinyl/VinylPagesPrototype.qml --tag vinylproto --drive. Fixture state only; no real media/network. Hemanth visual review pending.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Tagged fixture app answers",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "Record tagged data/cache roots and window identity"
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "First frame presented",
+      "payload": {
+        "object": "vinylPrototype",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Freeze fixture clock",
+      "payload": {
+        "target": "vinylDevFreeze"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture clock frozen",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "frozen",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Compact preview geometry",
+      "payload": {
+        "target": "vinylDevSize720"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Play third track",
+      "payload": {
+        "target": "vinylTrackRow_2"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Third track plays from original edition",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "playingIndex",
+        "value": 2,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Reveal album sections with the shared wheel glide",
+      "payload": {
+        "target": "vinylAlbumPage",
+        "dy": -600
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Section index is pinned",
+      "payload": {
+        "object": "vinylRowIndexSidebar",
+        "prop": "automationSidebarPinned",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Jump to Editions",
+      "payload": {
+        "target": "vinylRowIndexRow_editionsAction"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Editions selected",
+      "payload": {
+        "object": "vinylAlbumPage",
+        "prop": "currentSectionKey",
+        "value": "editions",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Choose Thriller 40",
+      "payload": {
+        "target": "vinylEdition_40"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Shown edition changed",
+      "payload": {
+        "object": "vinylAlbumPage",
+        "prop": "shownEditionId",
+        "value": "40",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Edition change returns to top",
+      "payload": {
+        "object": "vinylAlbumPage",
+        "prop": "contentY",
+        "value": 0,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Original narration remains owned by original edition",
+      "payload": {
+        "object": "vinylPageData",
+        "prop": "playingEditionId",
+        "value": "original",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Reveal album sections with the shared wheel glide",
+      "payload": {
+        "target": "vinylAlbumPage",
+        "dy": -600
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Index returns after scrolling",
+      "payload": {
+        "object": "vinylRowIndexSidebar",
+        "prop": "automationSidebarPinned",
+        "value": true,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Jump to Credits",
+      "payload": {
+        "target": "vinylRowIndexRow_creditsAction"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Credits selected",
+      "payload": {
+        "object": "vinylAlbumPage",
+        "prop": "currentSectionKey",
+        "value": "credits",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Expand remaining credits",
+      "payload": {
+        "target": "vinylAllCredits"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "All credit groups visible",
+      "payload": {
+        "object": "vinylCreditsGrid",
+        "prop": "groupCount",
+        "value": 6,
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Jump to Information",
+      "payload": {
+        "target": "vinylRowIndexRow_informationAction"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Information selected",
+      "payload": {
+        "object": "vinylAlbumPage",
+        "prop": "currentSectionKey",
+        "value": "information",
+        "timeout_ms": 10000,
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Observe vinylPlayerBar",
+      "payload": {
+        "object": "vinylPlayerBar",
+        "props": [
+          "toolCount"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    }
+  ]
+}

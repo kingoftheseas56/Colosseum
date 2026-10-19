@@ -6,6 +6,7 @@
 // needs the catalog. (P4 seam 2026-07-18: reads the ComicsCatalog engine/curated_*
 // SQLite tables — no more multi-MB gen.js parse.)
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import "ComicsDb.js" as ComicsDb
 
 Item {

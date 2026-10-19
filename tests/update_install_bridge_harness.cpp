@@ -3,6 +3,8 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QSettings>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include <cstdlib>
@@ -50,6 +52,32 @@ QString argValue(const QStringList &args, const QString &prefix)
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+#ifdef Q_OS_WIN
+    // Opt-in receiving check against a real registered installation. Read-only:
+    // exercise production defaults without replacing the expected install root.
+    if (app.arguments().contains(QStringLiteral("--check-registered-defaults"))) {
+        app.setOrganizationName(QStringLiteral("Brotherhood"));
+        app.setApplicationName(QStringLiteral("Colosseum"));
+        QSettings registration(QStringLiteral(
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Colosseum"),
+            QSettings::NativeFormat);
+        const QString registeredRoot = QDir::cleanPath(
+            registration.value(QStringLiteral("InstallLocation")).toString());
+        const QString expectedRoot = QDir(QStandardPaths::writableLocation(
+            QStandardPaths::GenericDataLocation)).filePath(QStringLiteral("Programs/Colosseum"));
+        require(!registeredRoot.isEmpty()
+                    && registeredRoot.compare(expectedRoot, Qt::CaseInsensitive) == 0,
+                "registered installation uses the shipping NSIS root");
+        UpdateInstallBridge::Paths defaults;
+        defaults.executablePath = QDir(registeredRoot).filePath(
+            QStringLiteral("native/build-msvc/colosseum.exe"));
+        UpdateInstallBridge bridge(defaults);
+        require(bridge.installedBuildEligible(),
+                "production defaults accept the real registered executable");
+        qInfo("UPDATE_INSTALL_BRIDGE_DEFAULTS_OK");
+        return 0;
+    }
+#endif
     QTemporaryDir temp;
     require(temp.isValid(), "temporary layout created");
 

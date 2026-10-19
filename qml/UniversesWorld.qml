@@ -11,11 +11,13 @@
 // or Enter emits universeRequested with the roster entry; Main routes it to that universe's
 // standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import "Universes.js" as Universes
 import "SagaApi.js" as Saga
 
 WorldPage {
     id: universes
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     objectName: "universesWorld"          // automation identity, like theatreWorld
     medium: "Universes"
     // the first D-pad arrow lands the first thing on the page: the Tribute carousel when
@@ -34,15 +36,15 @@ WorldPage {
     // the carousel → the shell: the hand-made art page of an installed universe
     signal tributeRequested(var entry)
 
-    readonly property var tributes: Universes.tributes(universes.installed)
+    readonly property var tributes: (universes.universeContentGeneration, Universes.tributes)(universes.installed)
 
-    readonly property var roster: Universes.worldRoster(universes.installed)
+    readonly property var roster: (universes.universeContentGeneration, Universes.worldRoster)(universes.installed)
     // the filter: "" shows everything; otherwise only universes that hold that form
     property string facet: ""
-    readonly property var facets: Universes.rosterFacets(universes.roster)
+    readonly property var facets: (universes.universeContentGeneration, Universes.rosterFacets)(universes.roster)
     // the strip's tabs: All, then each form some universe holds ("all" stands for the empty filter)
     readonly property var facetTabs: [{ key: "all", label: "All" }].concat(universes.facets)
-    readonly property var shown: Universes.filterRoster(universes.roster, universes.facet)
+    readonly property var shown: (universes.universeContentGeneration, Universes.filterRoster)(universes.roster, universes.facet)
     onShownChanged: {
         universes.hovered = -1
         pile.currentIndex = universes.shown.length > 0 ? 0 : -1
@@ -77,7 +79,7 @@ WorldPage {
     }
     Repeater {
         objectName: "universesWarmer"
-        model: universes.warming.length ? Saga.shelfImageUrls(universes.warming, 8) : []
+        model: universes.visible && universes.warming.length ? Saga.shelfImageUrls(universes.warming, 8) : []
         delegate: Image {
             required property string modelData
             source: modelData
@@ -184,6 +186,20 @@ WorldPage {
                 required property var modelData
                 required property int index
                 entry: bar.modelData
+                // Repeater creates the whole ledger; request art only around the page viewport.
+                property bool artLayoutReady: false
+                Component.onCompleted: Qt.callLater(function() {
+                    if (!bar || !pile) return
+                    pile.forceLayout()
+                    bar.artLayoutReady = true
+                })
+                readonly property real artTop: {
+                    const position = pile.y + bar.y
+                    return bar.mapToItem(universes.pageFlickable.contentItem, 0, 0).y
+                }
+                artActive: bar.artLayoutReady && universes.visible && universes.viewportHeight > 0
+                           && bar.artTop + bar.height >= universes.viewportContentY - bar.height - pile.spacing
+                           && bar.artTop <= universes.viewportContentY + universes.viewportHeight + bar.height + pile.spacing
                 hot: universes.hovered === bar.index
                 keyboardSelected: pile.activeFocus && pile.currentIndex === bar.index
                 onHoverEntered: if (!universes.walking && !ledgerNav.keyboardRecentlyMoved)

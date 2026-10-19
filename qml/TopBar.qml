@@ -21,7 +21,7 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
-    readonly property bool compactChrome: compactBrowserChrome || width < 1000
+    readonly property bool compactChrome: compactBrowserChrome || width < 1100
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -46,6 +46,12 @@ Item {
             || accountController.mode === "offline")
     readonly property bool localDevice: accountController
         && accountController.mode === "localOnly"
+    // No-account edition gate: the account medallion is the only shell entry
+    // point to the account flyout/center, so hiding it removes sign-in,
+    // registration and account-sync surfaces wholesale. Stub controllers
+    // without the property (harness fakes) keep the button for back-compat.
+    readonly property bool accountEntryAvailable: accountController
+        && accountController.accountFeaturesAvailable !== false
     Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal mediumSelected(string medium)
@@ -175,9 +181,9 @@ Item {
         property string label
         property url icon
         property bool comingSoon: false
-        readonly property bool active: bar.activeMedium === pill.label
+        readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 1000 ? 24 : 34)
+        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))
         implicitHeight: 34
 
         Rectangle {
@@ -198,7 +204,7 @@ Item {
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
-            Rectangle {   // "SOON" marker — placeholder mode, no world yet
+            Rectangle {   // Original inline "SOON" marker — no world yet
                 visible: pill.comingSoon
                 anchors.verticalCenter: parent.verticalCenter
                 radius: 4; height: 15; width: soonText.implicitWidth + 10
@@ -214,7 +220,7 @@ Item {
             objectName: "modePillFocus_" + pill.label
             anchors.fill: parent
             enabled: !pill.comingSoon
-            accessibleName: pill.label
+            accessibleName: pill.label + (pill.comingSoon ? ", Coming Soon" : "")
             focusRadius: pill.height / 2
             onTriggered: bar.mediumSelected(pill.label)
         }
@@ -267,9 +273,8 @@ Item {
         visible: !bar.backOnly
         backdrop: bar.backdrop
         anchors.verticalCenter: parent.verticalCenter
-        x: bar.compactChrome
-           ? leftChrome.width + 12 + Math.max(0, (systemChrome.x - leftChrome.width - 24 - width) / 2)
-           : (bar.width - width) / 2
+        x: Math.max(leftChrome.width + 12,
+                    Math.min((bar.width - width) / 2, systemChrome.x - width - 12))
         radius: 999
         width: pillsRow.implicitWidth + 14; height: 46
         Row {
@@ -280,7 +285,13 @@ Item {
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
-            Pill { label: "Feria" }
+            Pill { label: "Feria"; comingSoon: true }
+            Pill {
+                label: "Vinyl"
+                readonly property bool qualificationEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+                comingSoon: !qualificationEnabled
+                objectName: bar.visible && bar.lifecycleActive ? (qualificationEnabled ? "worldPillVinyl" : "modePill_Vinyl") : ""
+            }
         }
     }
 
@@ -295,7 +306,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.compactChrome ? 10 : 20
+        spacing: bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24)
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
@@ -428,6 +439,7 @@ Item {
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
+            visible: bar.accountEntryAvailable
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
                 anchors.fill: parent

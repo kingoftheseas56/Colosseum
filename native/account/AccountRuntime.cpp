@@ -1814,10 +1814,20 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
     m_stremioSync.activateTaggedFixture();
 
     m_qmlPrepared = true;
+#ifdef COLOSSEUM_NO_ACCOUNT_EDITION
+    // No-account edition: never restore a remembered session and never resume
+    // pending account deletion — both would construct account-service traffic
+    // and neither has a UI in this edition. Remembered credentials stay in the
+    // vault untouched for the later account edition; a pending deletion stays
+    // pending for that edition to resume. Settle straight into the local-only
+    // profile so every personal store binds exactly as before.
+    m_controller.continueWithoutAccount();
+#else
     if (m_lifecycleCoordinator.hasPendingDeletion())
         m_lifecycleCoordinator.resumePendingDeletion();
     else
         m_controller.restoreRememberedSession();
+#endif
 }
 
 bool AccountRuntime::applyStremioLibraryItem(

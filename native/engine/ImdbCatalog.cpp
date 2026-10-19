@@ -12,15 +12,51 @@
 
 #include <algorithm>
 
+namespace {
+
+// Single canonical description for remote read, state inspection, and retry.
+// No normalization: the accepted owner hashes exactly these three arguments.
+struct RemoteTitleCatalog {
+    QString method;
+    QVariantList args;
+    QVariantList empty;
+};
+
+RemoteTitleCatalog remoteTitleCatalog(const QVariantMap& query, int offset, int limit)
+{
+    return {QStringLiteral("titleCatalog"),
+            QVariantList{query, offset, limit},
+            QVariantList{}};
+}
+
+// Same canonical triple for the facts read, its state inspection, and its
+// retry. The ordered id vector is hashed verbatim: order, duplicates, and the
+// empty vector each form their own exact key. No filtering or normalization.
+struct RemoteTitleFacts {
+    QString method;
+    QVariantList args;
+    QVariantMap empty;
+};
+
+RemoteTitleFacts remoteTitleFacts(const QStringList& ids)
+{
+    return {QStringLiteral("titleFacts"),
+            QVariantList{QVariant::fromValue(ids)},
+            QVariantMap{}};
+}
+
+} // namespace
+
 bool ImdbCatalog::openAt(const QString& dbPath)
 {
+    if (dbPath.isEmpty()) return false;
     QString path = dbPath;
-    if (!QFileInfo::exists(path)) {
+    if (!QFileInfo(path).isFile()) {
         const QString beside = QCoreApplication::applicationDirPath()
                                + QStringLiteral("/../../") + dbPath;
-        if (QFileInfo::exists(beside)) path = beside;
+        if (QFileInfo(beside).isFile()) path = beside;
     }
-    if (!QFileInfo::exists(path))
+    if (!QFileInfo(path).isFile())
         return false;                    // shelves omit honestly without the index
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
     m_db.setDatabaseName(path);
@@ -31,6 +67,10 @@ bool ImdbCatalog::openAt(const QString& dbPath)
 ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent)
     : QObject(parent), m_conn(QStringLiteral("imdb_catalog"))
 {
+    m_remote = new CatalogRemote(QStringLiteral("imdb"), this);
+    connect(m_remote, &CatalogRemote::changed, this, &ImdbCatalog::revisionChanged);
+    connect(m_remote, &CatalogRemote::failed, this, &ImdbCatalog::requestFailed);
+    connect(m_remote, &CatalogRemote::queryChanged, this, &ImdbCatalog::remoteQueryChanged);
     m_ok = openAt(dbPath);
 }
 
@@ -69,8 +109,40 @@ void ImdbCatalog::closeForSwap()
         emit readyChanged();
 }
 
+QVariantMap ImdbCatalog::titleCatalogState(const QVariantMap& query, int offset, int limit) const
+{
+    if (m_ok) {
+        // Local SQLite is authoritative for this route. Do not make consumers
+        // wait for a remote query key that read() will never queue.
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("error"), QString()},
+                {QStringLiteral("retryable"), false}};
+    }
+    const auto request = remoteTitleCatalog(query, offset, limit);
+    auto state = m_remote->queryState(request.method, request.args, request.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool ImdbCatalog::retryTitleCatalog(const QVariantMap& query, int offset, int limit)
+{
+    if (m_ok) return false;
+    const auto request = remoteTitleCatalog(query, offset, limit);
+    return m_remote->retry(request.method, request.args, request.empty);
+}
+
 QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int limit) const
 {
+    if (!m_ok) {
+        const auto request = remoteTitleCatalog(query, offset, limit);
+        return m_remote->read(request.method, request.args, request.empty).toList();
+    }
     QVariantList out;
     if (!m_ok) return out;
 
@@ -173,6 +245,7 @@ QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int
 
 QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{MediaTitleNormalization::normalizedTitle(title), year}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -217,8 +290,19 @@ QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
     return out;
 }
 
+QVariantMap ImdbCatalog::searchState(const QString& text, int limit) const
+{
+    if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
+        {"status", "success"}, {"pending", false}, {"waiting", false},
+        {"cached", false}, {"error", QString()}, {"retryable", false}};
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{MediaTitleNormalization::normalizedTitle(text), limit}, QVariantList{});
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
 QVariantList ImdbCatalog::search(const QString& text, int limit) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{MediaTitleNormalization::normalizedTitle(text), limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok)
         return out;
@@ -263,6 +347,10 @@ QVariantList ImdbCatalog::search(const QString& text, int limit) const
 
 QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
 {
+    if (!m_ok) {
+        const auto request = remoteTitleFacts(ids);
+        return m_remote->read(request.method, request.args, request.empty).toMap();
+    }
     QVariantMap out;
     if (!m_ok || ids.isEmpty()) return out;
     for (int start = 0; start < ids.size(); start += 100) {
@@ -283,8 +371,37 @@ QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
     return out;
 }
 
+QVariantMap ImdbCatalog::titleFactsState(const QStringList& ids) const
+{
+    if (m_ok) {
+        // Local SQLite is authoritative for this route. Do not make consumers
+        // wait for a remote query key that read() will never queue.
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("error"), QString()},
+                {QStringLiteral("retryable"), false}};
+    }
+    const auto request = remoteTitleFacts(ids);
+    auto state = m_remote->queryState(request.method, request.args, request.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool ImdbCatalog::retryTitleFacts(const QStringList& ids)
+{
+    if (m_ok) return false;
+    const auto request = remoteTitleFacts(ids);
+    return m_remote->retry(request.method, request.args, request.empty);
+}
+
 QVariantMap ImdbCatalog::titlePresentation(const QString& id) const
 {
+    if (!m_ok) return m_remote->read(QStringLiteral("titlePresentation"), QVariantList{id}, QVariantMap{}).toMap();
     if (!m_ok || !id.startsWith(QStringLiteral("tt"))) return {};
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("SELECT title, type FROM title WHERE tt = ?"));

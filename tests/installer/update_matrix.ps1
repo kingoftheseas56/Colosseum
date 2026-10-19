@@ -52,6 +52,12 @@ function Invoke-Installer([string]$path, [string[]]$arguments, [switch]$AllowFai
 
 try {
     New-Item -ItemType Directory -Force -Path $stageN, $stageN1, $stageBroken | Out-Null
+    # The production NSIS UI reads its icon from STAGE, including tiny fixtures.
+    foreach ($stage in @($stageN, $stageN1, $stageBroken)) {
+        $iconDir = Join-Path $stage "assets\icons"
+        New-Item -ItemType Directory -Force -Path $iconDir | Out-Null
+        Copy-Item -LiteralPath (Join-Path $root "assets\icons\colosseum.ico") -Destination $iconDir
+    }
     $exeRel = "native\build-msvc\colosseum.exe"
     Write-Sentinel (Join-Path $stageN $exeRel) "COL SSEUM N"
     Write-Sentinel (Join-Path $stageN "payload.txt") "payload-N"

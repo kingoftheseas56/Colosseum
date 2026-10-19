@@ -1,10 +1,13 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Shapes
 import "OnePieceEastBlueData.js" as EastBlue
 
 Item {
     id: root
+    function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
 
     property bool reducedMotion: false
     property string selectedArcId: "arlong"
@@ -12,7 +15,7 @@ Item {
 
     Theme { id: theme }
 
-    readonly property var selectedArc: EastBlue.arc(selectedArcId)
+    readonly property var selectedArc: (root.universeContentGeneration, EastBlue.arc)(selectedArcId)
     property real focusOriginX: width * selectedArc.focusX
     property real focusOriginY: height * selectedArc.focusY
     property real focusScale: reducedMotion ? 1.0 : 1.035
@@ -48,7 +51,7 @@ Item {
 
         Image {
             anchors.fill: parent
-            source: "../assets/universes/one-piece/east-blue-relief.png"
+            source: root.resolveContentAsset("../assets/universes/one-piece/east-blue-relief.png")
             fillMode: Image.Stretch
             smooth: true
             mipmap: true
@@ -142,7 +145,7 @@ Item {
 
 
     Repeater {
-        model: EastBlue.arcs
+        model: (root.universeContentGeneration, EastBlue.arcs)
         delegate: Rectangle {
             required property var modelData
             z: 5
@@ -177,12 +180,12 @@ Item {
     }
 
     Repeater {
-        model: EastBlue.arcs
+        model: (root.universeContentGeneration, EastBlue.arcs)
         delegate: OnePieceArcMarker {
             required property var modelData
             z: selected ? 9 : 7
             arc: modelData
-            imageSource: Qt.resolvedUrl("../assets/universes/one-piece/east-blue-markers/" + modelData.id + ".png")
+            imageSource: root.resolveContentAsset("../assets/universes/one-piece/east-blue-markers/" + modelData.id + ".png")
             selected: root.selectedArcId === modelData.id
             reducedMotion: root.reducedMotion
             x: root.width * modelData.markerX - width / 2

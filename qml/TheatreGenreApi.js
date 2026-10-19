@@ -6,6 +6,7 @@
 // loadGenre(kind, name, sort, push) → { count, desc, cards, montage }  (count 0 ⇒ page hides it)
 // loadGroups(kind, includeExplicit, done) → GenreIndex-shaped groups [{ group, genres:[tile] }]
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 
 var JIKAN = "https://api.jikan.moe/v4";
 var CINEMETA_CATALOGS = "https://cinemeta-catalogs.strem.io/top";
@@ -223,13 +224,19 @@ function cinemetaToCard(kind, meta, i) {
 // `catalog` is the MalCatalog context object, PASSED IN from the page — this file
 // is a `.pragma library` and cannot see context properties by name (the 2026-07-18
 // bug: the baked catalog never rendered because `MalCatalog` was undefined here).
-function loadGenre(kind, name, sort, push, catalog, showExplicit) {
+function loadGenre(kind, name, sort, push, catalog, showExplicit, semanticDelivered) {
+    if (kind === "anime" && catalog && catalog.remoteEnabled && !semanticDelivered) {
+        return CatalogDelivery.wait(catalog, function() {
+            return {rows: catalog.genreEntries("anime", name, sort === "score" ? "score" : "members", 24),
+                    count: catalog.genreCount("anime", name)};
+        }, function() { loadGenre(kind, name, sort, push, catalog, showExplicit, true); });
+    }
     function fail() { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); }
     if (kind === "anime") {
         // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
         // instantly, offline, in Jikan's own row shape — animeToCard consumes it
         // unchanged. Missing/empty catalog falls through to the live ladder below.
-        if (catalog && catalog.ready()) {
+        if (CatalogDelivery.available(catalog)) {
             var baked = catalog.genreEntries("anime", name,
                                              sort === "score" ? "score" : "members", 24);
             if (baked && baked.length) {

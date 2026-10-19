@@ -103,6 +103,8 @@ Item {
     // viewport, so only rows near the viewport are built. Harnesses leave it null (self-scrolling).
     property Flickable pageFlick: null
     readonly property bool pageFlow: browser.pageFlick !== null
+    property real _outerPreviousY: 0
+    onPageFlickChanged: _outerPreviousY = pageFlick ? pageFlick.contentY : 0
     // (never shorter than the rail wants, so a short wall does not crop the catalogue list)
     readonly property real flowHeight: Math.max(wallHost.y + wallHost.flowContentHeight + 24, sidebar.naturalHeight)
     // Test-only introspection: the actual rendered delegate box, so an offscreen harness can prove
@@ -129,11 +131,37 @@ Item {
     property int adapterRev: 0               // bump to force adapter-derived bindings to re-evaluate
 
     property var items: []
+    // During synchronous acceptance the existing skeleton delegates become real cards.
+    // Hold their current cell capacity until the rows land, instead of briefly creating
+    // a second set of placeholders and immediately removing them on loading=false.
+    property bool _acceptingPage: false
+    property int _acceptingCellFloor: 0
+    // Only a successfully accepted page may claim a native query as its model cause.
+    // Resets, type restores, pin changes and rejected/failed callbacks have no owner.
+    // Tankoban's component name matches analyze_arms.py's pid-scoped QML allowlist.
+    function traceModel(eventName, nativeKey, elapsed, gen, state) {
+        if (typeof CatalogueTraceEnabled === "undefined" || !CatalogueTraceEnabled) return
+        if (!active || (gen !== undefined && gen !== fetchGen)) return
+        if (state && (state.type !== currentType || state.catalogKey !== currentCatalogKey)) return
+        console.info("CATALOGUE_TRACE " + JSON.stringify({
+            event:eventName, epochMs:Date.now(),
+            component:automationPrefix === "tankoban" ? "TankobanDiscoverBrowser" : "DiscoverBrowser",
+            world:automationPrefix, type:state ? state.type : currentType,
+            catalog:state ? state.catalogKey : currentCatalogKey,
+            generation:gen !== undefined ? gen : fetchGen,
+            queryKey:typeof nativeKey === "string" && nativeKey.length ? nativeKey : null,
+            rows:items.length, elapsedMs:elapsed
+        }))
+    }
     property bool loading: false
     property bool exhausted: false
     property string warning: ""
     property string freshness: ""
     property string noticeText: ""           // a missing-catalogue explanation, when any
+    // A page the adapter reported as {failed:true}: rows and cursor stay, scroll paging pauses
+    // until an explicit retry (adapter.retryPage, optional) or a catalogue reload.
+    property bool pageFailed: false
+    property bool pageRetryable: false
     property var pinValue: null
 
     property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
@@ -152,6 +180,8 @@ Item {
     property string textFilterEmpty: "Nothing here matches this filter."
     property string noticeMissingFormat: "%1 is no longer available — showing the built-in catalogue instead."
     property string offlineWarning: "Showing offline catalogue"
+    property string textPageFailed: "Couldn't reach the catalogue."
+    property string textPageRetry: "Couldn't reach the catalogue. Click to try again."
 
     // Data-vault Slice 3 (2026-08-22): world-neutral seam a wrapper sets true when the wall is
     // empty ONLY because its backing catalogue db has not landed yet (CatalogVault still
@@ -272,8 +302,9 @@ Item {
     readonly property string emptyMessage: !currentCatalog ? textNoCatalogue
         : (activeFilterCount > 0 ? textFilterEmpty : textCatalogueEmpty)
     readonly property bool showOfflineNotice: offlineWarning.length > 0 && warning === offlineWarning
-    readonly property string bannerText: showOfflineNotice ? warning : noticeText
-    readonly property bool bannerVisible: showOfflineNotice || noticeText.length > 0
+    readonly property string bannerText: pageFailed ? (pageRetryable ? textPageRetry : textPageFailed)
+        : showOfflineNotice ? warning : noticeText
+    readonly property bool bannerVisible: pageFailed || showOfflineNotice || noticeText.length > 0
 
     // ─────────────────────────────── behaviour ───────────────────────────────
 
@@ -333,6 +364,7 @@ Item {
         // that incomplete request; settled retained state is left untouched.
         if (_pageResumePending || (!items.length && !exhausted)) {
             _pageResumePending = false
+            pageFailed = false
             requestPage()
         }
         if (wall) wall.forceActiveFocus()
@@ -470,7 +502,10 @@ Item {
     function refresh() {
         if (!adapter) return
         adapterRev++                     // force the adapter-derived bindings to re-evaluate
-        if (pinValue) { applyPin(pinValue); return }
+        // A pin is a navigation instruction, not a subscription to catalogue revisions.
+        // applyPin() already runs on entry and on each explicit new shelf shortcut;
+        // replaying it here discards pagination, filters and the user's current source
+        // whenever an asynchronous request publishes a metadata/cache revision.
         var cats = adapter.catalogs(currentType)
         for (var i = 0; i < cats.length; i++)
             if (cats[i].key === currentCatalogKey) return   // still present -> keep the wall as-is
@@ -524,6 +559,7 @@ Item {
         items = st.items; cursor = st.cursor; exhausted = st.exhausted
         warning = st.warning || ""; freshness = st.freshness || ""; noticeText = st.noticeText || ""
         loading = false
+        pageFailed = false
         _pageResumePending = st.pageResumePending === true
         // A type LEFT during its first-page fetch saved {items:[], exhausted:false}: the generation
         // fence dropped that in-flight reply, and onContentYChanged can't re-page an empty wall — so
@@ -543,23 +579,41 @@ Item {
     function reloadForCatalog() {
         cancelPageRequest()
         items = []; cursor = null; exhausted = false; loading = false
-        warning = ""; freshness = ""
+        warning = ""; freshness = ""; pageFailed = false
+        requestPage()
+    }
+
+    function pageState() {
+        var chosen = {}
+        for (var k in filters) chosen[k] = filters[k]
+        return { type: currentType, catalogKey: currentCatalogKey, filters: chosen,
+                 filterGroup: filterGroup, filterKey: filterKey }   // first pair: single-filter adapters
+    }
+
+    // Explicit retry of the failed page only; existing rows and cursor are kept.
+    function retryPage() {
+        if (!pageFailed || loading || !adapter) return
+        if (typeof adapter.retryPage === "function") adapter.retryPage(pageState(), cursor)
+        pageFailed = false
         requestPage()
     }
 
     function requestPage() {
-        if (!active || !adapter || loading || exhausted || currentCatalogKey.length === 0) return
+        if (!active || !adapter || loading || exhausted || pageFailed || currentCatalogKey.length === 0) return
         _pageResumePending = false
         loading = true
         var gen = ++fetchGen
-        var chosen = {}
-        for (var k in filters) chosen[k] = filters[k]
-        var st = { type: currentType, catalogKey: currentCatalogKey, filters: chosen,
-                   filterGroup: filterGroup, filterKey: filterKey }   // first pair: single-filter adapters
+        var st = pageState()
+        // Ephemeral, opt-in callback: time the adapter's actual normalization
+        // without exposing a diagnostic query identity as catalogue state.
+        if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled)
+            st._tracePhase = function(eventName, key, elapsed) {
+                browser.traceModel(eventName, key, elapsed, gen, st)
+            }
         var handle = adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
-            if (!browser.active || replyGen !== browser.fetchGen) return
+            if (!browser.active || replyGen !== gen || replyGen !== browser.fetchGen) return
             browser._pageCancel = null
-            browser.acceptPage(page)
+            browser.acceptPage(page, gen, st)
         })
         if (browser.loading && browser.active && browser.fetchGen === gen)
             browser._pageCancel = (typeof handle === "function") ? handle : null
@@ -573,12 +627,25 @@ Item {
         if (typeof handle === "function") handle()
     }
 
-    function acceptPage(page) {
-        loading = false
-        if (!page) { exhausted = true; return }
+    function acceptPage(page, gen, st) {
+        if (!page) { loading = false; exhausted = true; return }
+        if (page.failed === true) {
+            loading = false
+            // Keep the wall's rows, cursor and exhaustion; a failure is not an empty catalogue.
+            pageFailed = true
+            pageRetryable = page.retryable === true
+            return
+        }
+        var tracing = typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled
+        var key = typeof page._traceQueryKey === "string" ? page._traceQueryKey : null
+        var modelStarted = tracing ? Date.now() : 0
+        if (tracing) traceModel("qml_model_begin", key, 0, gen, st)
+        pageFailed = false
         warning = page.warning || ""
         freshness = page.freshness || ""
         var incoming = page.items || []
+        _acceptingCellFloor = wallCells.count
+        _acceptingPage = true
         if (incoming.length) {
             var merged = items.slice()
             for (var i = 0; i < incoming.length; i++) merged.push(incoming[i])
@@ -586,6 +653,16 @@ Item {
         }
         cursor = (page.nextCursor !== undefined) ? page.nextCursor : null
         if (page.exhausted) exhausted = true
+        // Keep the skeleton cells alive until replacement rows have been inserted.
+        // Otherwise loading=false first drops the model to zero and reconstructs
+        // every visible poster card when items is assigned immediately afterward.
+        loading = false
+        _acceptingPage = false
+        if (tracing) {
+            var elapsed = Date.now() - modelStarted
+            traceModel("qml_model_end", key, elapsed, gen, st)
+            traceModel("qml_model_updated", key, elapsed, gen, st)
+        }
     }
 
 
@@ -937,6 +1014,15 @@ Item {
             color: theme.ink; font.family: theme.ui; font.pixelSize: 13
             elide: Text.ElideRight
         }
+        MouseArea {
+            anchors.fill: parent
+            enabled: browser.pageFailed && browser.pageRetryable
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: browser.retryPage()
+        }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false
+            enabled: browser.pageFailed && browser.pageRetryable
+            accessibleName: "Try again"; focusRadius: 12; onTriggered: browser.retryPage() }
     }
 
     // ─── the wall — full-width Stremio grid (no side pane; a click opens the title) ───
@@ -1038,7 +1124,9 @@ Item {
             // page and every loading flip, so the GridView rebuilt ALL its cards each time
             // (profiled 2026-09-29: 228 card creations, ~2 s). Rows are only appended/removed at
             // the end, so existing cards stay put; each card reads browser.items[index].
-            readonly property int cellTarget: browser.items.length + skelCount
+            readonly property int cellTarget: browser._acceptingPage
+                ? Math.max(browser._acceptingCellFloor, browser.items.length)
+                : browser.items.length + skelCount
             onCellTargetChanged: wall.syncCells()
             Component.onCompleted: wall.syncCells()
             function syncCells() {
@@ -1065,9 +1153,9 @@ Item {
             // Arrow keys park the focused row under the docked tab bar, like the mock.
             onCurrentIndexChanged: if (browser.pageFlow && browser.keyboardMode) browser.revealCell(wall.currentIndex)
             onContentYChanged: {
-                // Deferred: in page flow contentY is pushed from windowTop, and a synchronous
-                // request adds skeleton rows that change windowTop's own inputs (binding loop).
-                if (contentHeight > height
+                // Page flow is admitted by the outer viewport below. Its clamped inner
+                // window can stay at zero, and layout changes must not chain page requests.
+                if (!browser.pageFlow && contentHeight > height
                     && contentY + height >= contentHeight - 2 * cellHeight)
                     Qt.callLater(browser.requestPage)
             }
@@ -1141,7 +1229,7 @@ Item {
             // one quiet downloading line replaces the normal empty copy — same font/color, no
             // other visual change.
             Text {
-                visible: !browser.loading && browser.items.length === 0
+                visible: !browser.loading && !browser.pageFailed && browser.items.length === 0
                 anchors.centerIn: parent
                 text: browser.catalogueDownloading ? browser._downloadingText : browser.emptyMessage
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
@@ -1151,6 +1239,36 @@ Item {
         // Shared wheel controller — unifies the wall's scroll feel with every landing page and
         // the See-all grids (fast accumulator drain, no double-scroll with GridView's wheel).
         ScrollGlide { id: wallGlide; flick: browser.pageFlow ? null : wall }
+    }
+
+    // A short wall can fit its entire inner grid while the outer page still scrolls.
+    // Listen to forward outer movement, not windowTop/content-height changes: adding
+    // skeletons or accepting an empty page must never create an auto-fetch loop.
+    function pageFlowNearEnd() {
+        return pageFlow && wallHost._visibleTop < wallHost.flowContentHeight
+            && wallHost._visibleTop + pageFlick.height > 0
+            && wallHost._visibleTop + pageFlick.height
+                >= wallHost.flowContentHeight - 2 * wall.cellHeight
+    }
+    function requestPageFromOuterScroll() {
+        if (!active || !items.length || loading || exhausted || pageFailed || !pageFlowNearEnd()) return
+        var gen = fetchGen
+        var flick = pageFlick
+        // Defer outside the viewport binding update, but do not carry an old scroll
+        // across catalogue/type changes, deactivation, or another accepted request.
+        Qt.callLater(function() {
+            if (browser.fetchGen === gen && browser.pageFlick === flick
+                && browser.active && browser.items.length && browser.pageFlowNearEnd())
+                browser.requestPage()
+        })
+    }
+    Connections {
+        target: browser.pageFlick
+        function onContentYChanged() {
+            var forward = target.contentY > browser._outerPreviousY
+            browser._outerPreviousY = target.contentY
+            if (forward) browser.requestPageFromOuterScroll()
+        }
     }
 
     NumberAnimation {

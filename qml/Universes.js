@@ -36,6 +36,7 @@
 //
 // Home / universe domain (Agent 5) — kept OUT of the shared, contended Catalog.js on purpose.
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 // The 2026-07-12 expansion (Hemanth commission): every entry below is LIVE in the carousel and
 // opens a real universe page. All ride the generic name/query-driven template except Marvel
@@ -576,6 +577,33 @@ var universes = [
         { t: "Boruto: Two Blue Vortex",         q: "Boruto: Two Blue Vortex",         al: 168468, mal: 160786, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx168468-FEo5x1ZZyWj4.png" },
         { t: "The Seventh Hokage and the Scarlet Spring", q: "Naruto: The Seventh Hokage and the Scarlet Spring", al: 86171, mal: 87866, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86171-MqLAklSEVTI7.jpg" }
       ],
+      // English Naruto prose (VIZ's Naruto Novels; pinned by Apple Books trackId, 2026-10-14).
+      // Vol. 2 of Itachi's Story and the two early English novels are NOT listed here: no
+      // matching Apple Books identity could be confirmed, so do not route them by guesswork.
+      novels: [
+        { t: "Naruto: Kakashi's Story--Lightning in the Frozen Sky", apple: 1051140307, author: "Akira Higashiyama", year: 2015,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication62/v4/20/08/97/2008977f-eed0-9952-61e9-c40ac6b98742/mzm.yjkqwzqe.jpg/400x600bb.jpg" },
+        { t: "Naruto: Shikamaru's Story--A Cloud Drifting in the Silent Dark", apple: 1074095480, author: "Takashi Yano", year: 2016,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication69/v4/e8/70/36/e870369e-7ea2-3bd4-fdcf-948445504bca/9781421589343.jpg/400x600bb.jpg" },
+        { t: "Naruto: Sakura's Story--Love Riding on the Spring Breeze", apple: 1100454596, author: "Tomohito Ohsaki", year: 2016,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication49/v4/e7/1d/8b/e71d8b4e-62a3-5609-a7ee-857bc1fdf118/9781421590318.jpg/400x600bb.jpg" },
+        { t: "Naruto: Itachi's Story, Vol. 1", apple: 1164244390, author: "Takashi Yano", year: 2016,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication62/v4/b7/8c/f9/b78cf9e4-5cf3-8b2f-1d85-25256176c033/9781421593586.jpg/400x600bb.jpg" },
+        { t: "Naruto: Sasuke's Story--Sunrise", apple: 1206630594, author: "Shin Towada", year: 2017,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication111/v4/07/1d/58/071d5872-e743-80e0-6d4d-ddace0d4e55a/9781421596365.jpg/400x600bb.jpg" },
+        { t: "Naruto: Naruto's Story--Family Day", apple: 1524572355, author: "Mirei Miyamoto", year: 2020,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/d7/45/31/d74531a8-6f38-e238-0b62-fb5353574903/9781974718542.jpg/400x600bb.jpg" },
+        { t: "Naruto: Sasuke's Story--Star Pupil", apple: 1533115240, author: "Jun Esaka", year: 2020,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication114/v4/8f/2f/e4/8f2fe431-4bd6-83ee-ae48-0ca2757e25e4/9781974718559.jpg/400x600bb.jpg" },
+        { t: "Naruto: Shikamaru's Story--Mourning Clouds", apple: 1553987642, author: "Takashi Yano", year: 2021,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/99/39/95/9939958b-9bd6-a652-bb3f-e4a8a52d973f/9781974718566.jpg/400x600bb.jpg" },
+        { t: "Naruto: Kakashi's Story—The Sixth Hokage and the Failed Prince", apple: 1590967444, author: "Jun Esaka", year: 2022,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication112/v4/a4/a9/17/a4a917a7-848b-b6ae-7cff-b234e63006a7/9781974733521.jpg/400x600bb.jpg" },
+        { t: "Naruto: Sasuke's Story—The Uchiha and the Heavenly Stardust", apple: 1610393822, author: "Jun Esaka", year: 2022,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/e7/f8/0a/e7f80aa6-2390-6d13-b60c-01abc1a993bc/9781974735686.jpg/400x600bb.jpg" },
+        { t: "Naruto: Naruto's Story—Uzumaki Naruto and the Spiral Destiny", apple: 6443278687, author: "Jun Esaka", year: 2023,
+          cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/b7/68/8e/b7688e3e-55cf-574d-057e-251525a880ac/9781974738144.jpg/400x600bb.jpg" }
+      ],
       firstWatch: { t: "Naruto", id: "tt0409591" },
       // THE STORY GRID (whole works only): the original manga spans Naruto and Shippuden;
       // Boruto's manga rides Boruto's column; Two Blue Vortex has no anime yet; the Scarlet
@@ -586,7 +614,7 @@ var universes = [
                              { short: "Boruto",                  book: 1, shows: [2] },
                              { short: "Boruto: Two Blue Vortex", book: 2 } ],
                   spans: [ { books: 0, from: 1, to: 2 } ] },
-      chips: [ { t: "4 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "11 Films", ic: "movies" } ] },
+      chips: [ { t: "4 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "11 Films", ic: "movies" }, { t: "11 Novels", ic: "books" } ] },
     // ERAS template — THE TIMELINE: the Timmverse in in-universe chronology. Ids pinned
     // where research flagged impostors (Batman Beyond's 2015 web series; Batwoman ranks 8th).
     { name: "DC Animated Universe", c1: "#101622", category: "eras",
@@ -792,7 +820,7 @@ var universes = [
                        "The Book of Boba Fett", "Ahsoka", "The Acolyte", "Skeleton Crew",
                        "clone wars", "tales of the jedi", "tales of the empire",
                        "tales of the underworld", "young jedi adventures" ],
-      chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
+      chips: [ { t: "20 Films", ic: "movies" }, { t: "29 Series", ic: "movies" }, { t: "72 Books", ic: "books" }, { t: "53 Comics", ic: "comics" }, { t: "1 Manga", ic: "manga" } ] },
     { name: "Dune", c1: "#3a2a18", category: "saga",
       wallpaper: "../assets/wallpaper/sagas/dune.jpg",
       sagaBranches: [{ title: "Dune on television", shows: [0, 1, 2] }],
@@ -1174,7 +1202,8 @@ var PRIMARY = {
 
 function markFor(name) {
     var m = MARKS[name];
-    return m ? { logo: "../assets/universes/marks/" + m[0], shape: m[1] } : { logo: "", shape: "" };
+    var rawLogo = m ? ("../assets/universes/marks/" + m[0]) : "";
+    return m ? { logo: /^https:\/\//.test(m[0]) ? m[0] : (typeof ContentApi !== "undefined" ? ContentApi.asset(rawLogo) : rawLogo), shape: m[1] } : { logo: "", shape: "" };
 }
 
 function worldRoster(installed) {
@@ -1188,7 +1217,7 @@ function worldRoster(installed) {
         var cfg = configFor(shelf[i].name);
         var mark = markFor(shelf[i].name);
         var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
-                      banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
+                      banner: cfg.galleryBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(shelf[i].banner || "") : (shelf[i].banner || "")) || cfg.wallpaper || cfg.banner || "",
                       logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
                       primary: PRIMARY[shelf[i].name] || null,
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
@@ -1229,13 +1258,24 @@ var FACETS = [
     { key: "series", label: "Series", match: /show|series/i },
     { key: "comics", label: "Comics", match: /comic|graphic/i }
 ];
+// Older cached roster revisions encoded RegExp as {}; retain their matching rules.
+var _facetMatchers = {};
+for (var _facetIndex = 0; _facetIndex < FACETS.length; ++_facetIndex)
+    _facetMatchers[FACETS[_facetIndex].key] = FACETS[_facetIndex].match;
 function holds(entry, key) {
     if (entry && entry.primary) return entry.primary.indexOf(key) >= 0;
     var chips = (entry && entry.chips) || [];
     for (var f = 0; f < FACETS.length; f++) {
         if (FACETS[f].key !== key) continue;
+        var matcher = FACETS[f].match;
+        if (!matcher || typeof matcher.test !== "function") {
+            try {
+                matcher = matcher && typeof matcher.source === "string"
+                        ? new RegExp(matcher.source, matcher.flags || "") : _facetMatchers[key];
+            } catch (_) { matcher = _facetMatchers[key]; }
+        }
         for (var i = 0; i < chips.length; i++)
-            if (FACETS[f].match.test(String(chips[i].t))) return true;
+            if (matcher && matcher.test(String(chips[i].t))) return true;
     }
     return false;
 }
@@ -1263,7 +1303,7 @@ function tributes(installed) {
             var cfg = configFor(u.name);
             return { extensionId: u.extensionId, name: u.name, at: at,
                      standard: !!(cfg.shelves || cfg.manga || cfg.sagaGrid),
-                     banner: u.banner || cfg.banner || "", blurb: cfg.blurb || "" };
+                     banner: cfg.tributeBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(u.banner || "") : (u.banner || "")) || cfg.banner || "", blurb: cfg.blurb || "" };
         })
         .sort(function(x, y) { return rank(x.name) - rank(y.name) || x.at - y.at; });
 }
@@ -1463,7 +1503,7 @@ var shelfOverlays = {
   "Star Wars": {
     blurb: "Star Wars is an American media franchise created by George Lucas. The space opera saga began with the original Star Wars film (1977) and quickly became a worldwide pop culture phenomenon. It has expanded into various films and other media, including television series, video games, novels, comic books, theme park attractions, and themed areas, comprising an all-encompassing fictional universe. Star Wars is one of the highest-grossing media franchises of all time and has a large following.",
     blurbSource: "Wikipedia — Star Wars",
-    chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" } ],
+    chips: [ { t: "20 Films", ic: "movies" }, { t: "29 Series", ic: "movies" }, { t: "72 Books", ic: "books" }, { t: "53 Comics", ic: "comics" }, { t: "1 Manga", ic: "manga" } ],
     shelves: [
       { title: "Films", kind: "movie",
         runs: [
@@ -1649,3 +1689,20 @@ var shelfOverlays = {
     }
 })();
 // ═══ END GENERATED: THE SHELVES ═══
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    if (typeof ContentApi === "undefined") return;
+    var data = ContentApi.document("universes-roster");
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.universes !== undefined && (Array.isArray(universes) ? Array.isArray(data.universes) : typeof data.universes === typeof universes)) universes = data.universes;
+    if (data.archive !== undefined && (Array.isArray(archive) ? Array.isArray(data.archive) : typeof data.archive === typeof archive)) archive = data.archive;
+    if (data.placeholders !== undefined && (Array.isArray(placeholders) ? Array.isArray(data.placeholders) : typeof data.placeholders === typeof placeholders)) placeholders = data.placeholders;
+    if (data.MARKS !== undefined && (Array.isArray(MARKS) ? Array.isArray(data.MARKS) : typeof data.MARKS === typeof MARKS)) MARKS = data.MARKS;
+    if (data.PRIMARY !== undefined && (Array.isArray(PRIMARY) ? Array.isArray(data.PRIMARY) : typeof data.PRIMARY === typeof PRIMARY)) PRIMARY = data.PRIMARY;
+    if (data.FACETS !== undefined && (Array.isArray(FACETS) ? Array.isArray(data.FACETS) : typeof data.FACETS === typeof FACETS)) FACETS = data.FACETS;
+    if (data.TRIBUTE_ORDER !== undefined && (Array.isArray(TRIBUTE_ORDER) ? Array.isArray(data.TRIBUTE_ORDER) : typeof data.TRIBUTE_ORDER === typeof TRIBUTE_ORDER)) TRIBUTE_ORDER = data.TRIBUTE_ORDER;
+    if (data.shelfOverlays !== undefined && (Array.isArray(shelfOverlays) ? Array.isArray(data.shelfOverlays) : typeof data.shelfOverlays === typeof shelfOverlays)) shelfOverlays = data.shelfOverlays;
+}
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

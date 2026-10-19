@@ -13,6 +13,7 @@
 
 #include <QJsonObject>
 #include <QSignalSpy>
+#include <QPointer>
 #include <QtTest>
 
 #include <memory>
@@ -239,6 +240,9 @@ class tst_watchparty_ui final : public QObject
     Q_OBJECT
 
 private slots:
+    void shared_backend_parent_destroys_player_before_ui();
+    void player_sync_can_be_destroyed_before_ui();
+    void ui_can_be_destroyed_before_player_sync();
     void unsupported_direct_source_cannot_start_room();
     void forged_qml_eligibility_cannot_start_room();
     void eligible_torrent_host_create_uses_existing_identity_transport_seam();
@@ -249,7 +253,46 @@ private slots:
     void signed_in_session_account_identity_changed_closes_authenticated_session();
     void guest_session_account_identity_changed_preserves_guest_session();
     void owned_account_bridge_lifetime_matches_ui_controller();
+    void earlier_created_sibling_sync_can_be_destroyed_first();
+    void retired_sync_cannot_receive_room_actions();
 };
+
+void tst_watchparty_ui::shared_backend_parent_destroys_player_before_ui()
+{
+    // Match main.cpp: PlayerSync is registered with backendServices first.
+    auto backendServices = std::make_unique<QObject>();
+    QPointer<WatchParty::PlayerSyncController> sync =
+        new WatchParty::PlayerSyncController(backendServices.get());
+    QPointer<WatchParty::UiController> ui =
+        new WatchParty::UiController(sync, backendServices.get());
+    QSignalSpy syncDestroyed(sync, &QObject::destroyed);
+    QSignalSpy uiDestroyed(ui, &QObject::destroyed);
+    backendServices.reset();
+    QVERIFY(sync.isNull());
+    QCOMPARE(syncDestroyed.count(), 1);
+    QVERIFY(ui.isNull());
+    QCOMPARE(uiDestroyed.count(), 1);
+}
+
+void tst_watchparty_ui::player_sync_can_be_destroyed_before_ui()
+{
+    WatchParty::FakeTransport transport(false);
+    auto sync = std::make_unique<WatchParty::PlayerSyncController>();
+    auto ui = std::make_unique<WatchParty::UiController>(&transport, sync.get(), nullptr);
+    sync.reset();
+    QCOMPARE(ui->localSyncStatus(), QStringLiteral("inactive"));
+    ui.reset();
+}
+
+void tst_watchparty_ui::ui_can_be_destroyed_before_player_sync()
+{
+    WatchParty::FakeTransport transport(false);
+    WatchParty::PlayerSyncController sync;
+    auto ui = std::make_unique<WatchParty::UiController>(&transport, &sync, nullptr);
+    ui.reset();
+    QVERIFY(!sync.active());
+    sync.deactivate();
+}
 
 void tst_watchparty_ui::unsupported_direct_source_cannot_start_room()
 {
@@ -511,6 +554,36 @@ void tst_watchparty_ui::owned_account_bridge_lifetime_matches_ui_controller()
     }
 
     QCOMPARE(destroyed, 1);
+}
+
+void tst_watchparty_ui::earlier_created_sibling_sync_can_be_destroyed_first()
+{
+    WatchParty::FakeTransport transport(false);
+    QObject owner;
+    auto *sync = new WatchParty::PlayerSyncController(&owner);
+    auto *ui = new WatchParty::UiController(&transport, sync, nullptr, &owner);
+    QSignalSpy destroyed(ui, &QObject::destroyed);
+    // main.cpp creates both app-owned peers in this order. QObject destroys
+    // sync first; the UI must never disconnect or call a retired peer.
+    delete sync;
+    delete ui;
+    QCOMPARE(destroyed.count(), 1);
+}
+
+void tst_watchparty_ui::retired_sync_cannot_receive_room_actions()
+{
+    WatchParty::FakeTransport transport(false);
+    auto sync = std::make_unique<WatchParty::PlayerSyncController>();
+    WatchParty::UiController ui(&transport, sync.get(), nullptr);
+    QVERIFY(ui.configureServiceUrl(QUrl(QStringLiteral("wss://party.example.test/v1"))));
+    QVERIFY(ui.joinRoom(QStringLiteral("room-ui-test"), QStringLiteral("Temporary Guest")));
+    establishRoom(&transport, QStringLiteral("participant-guest"), false,
+                  WatchParty::IdentityKind::Guest);
+    QVERIFY(ui.inRoom());
+    sync.reset();
+    QVERIFY(!ui.catchUp());
+    QVERIFY(ui.leaveParty());
+    QVERIFY(!ui.inRoom());
 }
 
 QTEST_GUILESS_MAIN(tst_watchparty_ui)

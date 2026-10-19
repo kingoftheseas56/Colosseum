@@ -48,8 +48,11 @@ Item {
 
     readonly property bool isHome: variant === "home"
     readonly property string kind: entry.kind !== undefined ? entry.kind : ""
-    readonly property var videoPresentation: VideoPresentation.forEntry(entry,
-        typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
+    readonly property var videoPresentation: {
+        var catalog = typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null;
+        var revision = catalog && catalog.revision !== undefined ? catalog.revision : 0;
+        return VideoPresentation.forEntry(entry, catalog);
+    }
     readonly property string label: (entry.title !== undefined && ("" + entry.title).length)
                                     ? entry.title : (entry.caption !== undefined && ("" + entry.caption).length
                                                      ? entry.caption : videoPresentation.title || "")

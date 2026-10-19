@@ -54,6 +54,9 @@ Item {
     property var factRows: []
     property var castPeople: []
     property var moreLikeCards: []
+    property var _moreLikeCancel: null
+    function cancelMoreLike() { if (typeof _moreLikeCancel === "function") _moreLikeCancel(); _moreLikeCancel = null; }
+    Component.onDestruction: cancelMoreLike()
     property string animeDoor: ""
     // Keyless anime ordering (spec 2026-07-15) sits between the raw provider list
     // and the episode UI. sourceVideos is the untouched provider array; animeOrder
@@ -819,6 +822,7 @@ Item {
     Component.onCompleted: if (currentId().length) resolve()
 
     function resolve() {
+        page.cancelMoreLike();
         loading = true;
         errorMsg = "";
         title = (itemData && itemData.title) ? itemData.title : "";
@@ -884,7 +888,8 @@ Item {
             })
             var mltGenre = (meta.genres && meta.genres.length) ? meta.genres[0] : ""
             var doorForMlt = page.animeDoor
-            TheatreApi.moreLikeThis(page.mediaType, page.animeDoor, page.resolvedId, mltGenre,
+            page.cancelMoreLike();
+            page._moreLikeCancel = TheatreApi.moreLikeThis(page.mediaType, page.animeDoor, page.resolvedId, mltGenre,
                                     (typeof MalCatalog !== "undefined") ? MalCatalog : null,
                                     function(cards) {
                                         if (page.animeDoor !== doorForMlt) return   // stale: a sibling tap moved the page on

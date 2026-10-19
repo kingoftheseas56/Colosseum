@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.21)
+project(DiscoverCorrelationQmlHost LANGUAGES CXX)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
+add_executable(discover_qml_host main.cpp)
+target_link_libraries(discover_qml_host PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+set_target_properties(discover_qml_host PROPERTIES CXX_STANDARD 17 WIN32_EXECUTABLE OFF)

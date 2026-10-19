@@ -1,5 +1,5 @@
 Generated source reading snapshot
 
-Canonical source: kingoftheseas56/Colosseum / master @ 4dc515c558c9a2fb63095f53b3337797ba5546b4
+Canonical source: kingoftheseas56/Colosseum / master @ c059c6238ed8bd2b226a7606fd4a9f2cb039de73
 
-Generated branch is disposable derived state. Submit code changes against canonical source. Never merge this branch into master. Runtime artwork and executable GitHub workflows are omitted. See SOURCE_MANIFEST.json for exact paths and hashes. No automatic Gemini refresh or GitHub writeback is provided.
+Disposable derived branch. Never merge into master. All native/QML/JS source, backend, tests, code and descriptions are retained; runtime Universe imagery, selected non-source test screenshots and CI workflows omitted. Read SOURCE_MANIFEST.json. No automatic Gemini refresh.

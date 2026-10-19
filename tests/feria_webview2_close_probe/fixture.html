@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Feria native close fixture</title>
+<style>
+  body { margin: 0; background: #142938; color: white; }
+  button { position: absolute; left: 8px; top: 8px; width: 300px; height: 64px; }
+  input { position: absolute; left: 8px; top: 90px; }
+  #leaveSite { top: 140px; height: 48px; }
+</style>
+<button id="activate">Create unsaved work</button>
+<input id="draft" value="untouched">
+<button id="leaveSite">Navigate away</button>
+<script>
+const mode = new URL(location).searchParams.get('mode');
+window.documentMarker = crypto.randomUUID();
+window.trustedClicks = 0;
+window.unloadCalls = 0;
+window.snapshot = () => ({
+  marker: documentMarker, value: draft.value, url: location.href,
+  historyLength: history.length, trustedClicks,
+  activated: navigator.userActivation.hasBeenActive
+});
+if (mode !== 'plain') {
+  addEventListener('beforeunload', event => {
+    window.unloadCalls++;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+}
+activate.addEventListener('click', event => {
+  if (event.isTrusted) trustedClicks++;
+  draft.value = 'unsaved work';
+  history.pushState({fixture: true}, '', '#retained');
+});
+leaveSite.addEventListener('click', event => {
+  if (!event.isTrusted) throw new Error('site navigation requires trusted input');
+  location.href = 'fixture.html?mode=plain';
+});
+</script>

@@ -60,7 +60,7 @@ function placeBadges(markers, diameter, areas, focusOutline) {
         var marker = ordered[m], ax = marker.x * 1680, ay = marker.y * 960;
         var point = clear(ax, ay) ? { x: ax, y: ay } : null;
         // Keep each badge associated with its island instead of searching the whole sea.
-        for (var distance = 8; !point && distance <= 128; distance += 8) {
+        for (var distance = 8; !point && distance <= 192; distance += 8) {
             for (var step = 0; step < 32; ++step) {
                 var angle = step * Math.PI / 16;
                 var x = ax + Math.cos(angle) * distance, y = ay + Math.sin(angle) * distance;

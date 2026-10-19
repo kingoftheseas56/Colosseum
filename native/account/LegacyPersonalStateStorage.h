@@ -23,6 +23,7 @@ struct PersonalStateSnapshot {
     QJsonObject historyRecords;
     QJsonObject ratingsReviewsRecords;
     QJsonObject ratingsReviewsTombstones;
+    QJsonObject vinylTaste;
     bool showExplicit = false;
     QString mainSyncProvider;
     // Device-private Stremio continuity. These fields only ride the local

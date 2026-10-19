@@ -15,11 +15,13 @@ import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
+import "UniverseContentApi.js" as UniverseContent
 import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
+import "CatalogDelivery.js" as CatalogDelivery
 import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
@@ -29,6 +31,7 @@ import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
+import "WallpaperApi.js" as Wallpapers
 
 Window {
     id: win
@@ -39,8 +42,133 @@ Window {
     color: "#05060a"
     title: "Colosseum"
 
+    property bool applicationQuitPending: false
+    property bool applicationQuitReady: false
+    property string applicationQuitError: ""
+
+    function completeApplicationQuit() {
+        if (!applicationQuitPending || applicationQuitReady) return
+        applicationQuitReady = true
+        console.info("[quit] Feria drained")
+        Qt.callLater(function() { Qt.quit() })
+    }
+    function failApplicationQuit(reason) {
+        if (!applicationQuitPending) return
+        applicationQuitPending = false
+        applicationQuitError = reason
+        console.warn("[quit] Waiting for Feria: " + reason)
+    }
+    function requestApplicationQuit() {
+        if (applicationQuitPending) return
+        applicationQuitPending = true
+        applicationQuitError = ""
+        // Android never loads the browser deck. Do not instantiate it just to quit.
+        if (!feriaAvailable || !feriaSessionDeck.item) {
+            completeApplicationQuit()
+            return
+        }
+        // Keep the event loop alive until Feria retires its views, then profiles.
+        console.info("[quit] Closing Feria sessions")
+        feriaSessionDeck.item.startQuiescence(true)
+    }
+    onClosing: function(event) {
+        if (applicationQuitReady) return
+        event.accepted = false
+        win.requestApplicationQuit()
+    }
+
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: quitErrorText.implicitHeight + 24
+        z: 1000
+        color: "#321e25"
+        visible: win.applicationQuitError.length > 0
+        Text {
+            id: quitErrorText
+            anchors.centerIn: parent
+            width: parent.width - 32
+            wrapMode: Text.WordWrap
+            color: "#fff2ee"
+            text: "A browser is still closing. Close the dependent page, then try quitting again."
+        }
+    }
+
     property string currentSurface: "Home"
+    readonly property bool feriaComingSoon: true
+    property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
+    property var vinylWorld: null
+    property var pendingVinylResume: null
+    property bool audioHandoffBusy: false
+    property string audioOwner: ""
+    property bool vinylProfileActive: true
+    property int vinylShellGeneration: 0
+    // Arbitration lives at the shell; engines retain their own queues and resume state.
+    function claimAudio(owner) {
+        if (win.audioHandoffBusy) return
+        win.audioHandoffBusy = true
+        try {
+            win.audioOwner = owner
+            if (owner !== "vinyl" && win.vinylWorld)
+                win.vinylWorld.session.suspendPlayback("audio-handoff")
+            if (owner !== "audiobook") audioSession.suspendForAudioHandoff()
+            if (owner !== "theatre") {
+                win.pendingPlayerOpen = null
+                if (playerLayer.item) {
+                    if (playerLayer.item.suspendForAudioHandoff)
+                        playerLayer.item.suspendForAudioHandoff()
+                    else if (playerLayer.item.suspendForMinimize)
+                        playerLayer.item.suspendForMinimize()
+                }
+            }
+        } finally { win.audioHandoffBusy = false }
+    }
+    function requestTheatreAudio() {
+        win.claimAudio("theatre")
+        if (playerLayer.item && playerLayer.item.requestAudioPlayback)
+            playerLayer.item.requestAudioPlayback()
+    }
+    function registerVinylSession() {
+        if (!win.vinylEnabled || !win.vinylProfileActive) return
+        Sessions.openOrSwitch({ appType: "vinyl", contentKind: "music", title: "Vinyl",
+                                target: { id: "vinyl-session" } })
+    }
+    function leaveVinylProfile() {
+        win.vinylProfileActive = false
+        win.vinylShellGeneration++
+        win.pendingVinylResume = null
+        win.pendingPlayerOpen = null
+        win.audioOwner = ""
+        if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("profile-leaving")
+        audioSession.stop()
+        if (playerLayer.item) {
+            if (playerLayer.item.suspendForAudioHandoff) playerLayer.item.suspendForAudioHandoff()
+            playerLayer.item.stop()
+        }
+        win.warmPlayerSessionId = ""
+        win.playerOpen = false
+        var records = Sessions.list()
+        for (var i = 0; i < records.length; i++)
+            if (["music", "movie", "book"].indexOf(records[i].contentKind) >= 0)
+                win.closeSession(records[i].id)
+    }
+    readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    function openVinylResume(entry, play) {
+        if (!vinylEnabled || !vinylProfileActive) return
+        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration }
+        openWorld("Vinyl")
+        applyVinylResume()
+    }
+    function applyVinylResume() {
+        if (!vinylWorld || !pendingVinylResume) return
+        var pending = pendingVinylResume
+        pendingVinylResume = null
+        if (!vinylProfileActive || pending.generation !== vinylShellGeneration) return
+        vinylWorld.session.snapshot()
+        vinylWorld.session.restore(pending.entry)
+        vinylWorld.page = pending.play ? "song" : "album"
+        if (pending.play) vinylWorld.session.paused = false
+    }
     property var feriaReturnSnapshot: null
     // Feria is desktop-only (its deck rides QtWebEngine, which Android does not ship).
     // Every Feria surface below is a string-source Loader gated on this flag, so nothing
@@ -64,7 +192,10 @@ Window {
     readonly property var searchLayerRef: searchLayer
     readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
-    property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    readonly property string defaultWallpaperSource: typeof Content !== "undefined"
+        ? (Content.generation, Wallpapers.imageSource(null, Content)) : ""
+    property string wallpaperSource: win.defaultWallpaperSource
+    onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -159,6 +290,11 @@ Window {
         }
     }
 
+    Connections {
+        target: typeof Content !== "undefined" ? Content : null
+        function onGenerationChanged() { UniverseContent.reload(Content.generation) }
+    }
+
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
     // Shortcut objects below only deliver the physical chord into this registry-backed action.
     KeyboardRegistry {
@@ -223,7 +359,7 @@ Window {
         scope: "application"
         sequences: ["Ctrl+Q"]
         icon: "power.svg"
-        onTriggered: Qt.quit()
+        onTriggered: win.requestApplicationQuit()
     }
     KeyboardCommand {
         id: escapeCommand
@@ -275,6 +411,30 @@ Window {
             postFrameStartupWork.start()
             win.armHomeIntroWidgets()
             win.armHomeContinueRail()
+        }
+    }
+    // Hosted catalogues only: queue Tankoban Discover's first page and filter lists while the
+    // boot splash is up, so the first Manga/Comics Discover open reads the query cache instead
+    // of waiting on two sequential static-shard round trips. Same native calls and arguments
+    // as TankobanDiscoverApi's default view ("popular", no filters, first 24). A local SQLite
+    // catalogue reports source "local" and is skipped, so nothing runs SQL on the GUI thread.
+    function warmTankobanDiscover() {
+        var x = !!contentPreferences.showExplicit
+        function remote(catalog) {
+            return catalog && catalog.remoteEnabled && typeof catalog.discoverPageFilteredState === "function"
+                && catalog.discoverPageFilteredState("popular", [], x, 0, 24).source === "remote"
+        }
+        var mal = typeof MalCatalog !== "undefined" ? MalCatalog : null
+        if (remote(mal)) {
+            mal.cachedDiscoverFilters("genre", x)
+            mal.cachedDiscoverFilters("demographic", x)
+            mal.discoverPageFiltered("popular", [], x, 0, 24)
+        }
+        var comics = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
+        if (remote(comics)) {
+            for (var axis of ["genre", "publisher", "format", "availability"])
+                comics.discoverFilters(axis, x)
+            comics.discoverPageFiltered("popular", [], x, 0, 24)
         }
     }
     function armStartupIdleWork() {
@@ -438,6 +598,7 @@ Window {
     function wallpaperWorldForSession(rec) {
         var appType = rec && rec.appType ? ("" + rec.appType).toLowerCase() : ""
         var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
+        if (contentKind === "music") return "Vinyl"
         if (contentKind === "browser") return "Feria"
         if (appType === "theatre" || contentKind === "movie") return "Theatre"
         if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
@@ -446,7 +607,7 @@ Window {
     }
     function refreshWallpaper() {
         var pick = pickFor(currentSurface)
-        wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/cold-ripple.jpg"
+        wallpaperSource = Wallpapers.imageSource(pick, typeof Content !== "undefined" ? Content : null)
     }
     function setWallpaperPick(world, pick) {
         wallpaperSettings[wallpaperKey(world)] = typeof pick === "string" ? pick : JSON.stringify(pick || {})
@@ -565,8 +726,15 @@ Window {
         // transport off the GUI thread's JS). Installed once, here, because a .pragma library
         // holds one shared instance per QML engine. FIRST in this handler on purpose: the dev
         // harnesses below can `return` early, and a universe with no reader renders empty.
-        if (typeof Extensions !== "undefined")
-            UniverseApi.setReader(function (f) { return Extensions.universePayload(f) })
+        if (typeof Content !== "undefined") {
+            UniverseContent.setAssetResolver(function (path) { return Content.assetUrl(path) })
+            UniverseContent.setReader(function (key) { return Content.document(key) })
+            UniverseContent.reload(Content.generation)
+            UniverseApi.setReader(function (file) { return JSON.stringify(Content.document("universe-" + file)) })
+        } else if (typeof Extensions !== "undefined") {
+            UniverseApi.setReader(function (file) { return Extensions.universePayload(file) })
+        }
+        Qt.callLater(win.warmTankobanDiscover)
         // Efficiency gate: play a given local file through the real player as soon as the shell is
         // up, so both backends can be measured under identical conditions.
         if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
@@ -835,10 +1003,13 @@ Window {
             universeLayer.item.requestEscape()
     }
     function cancelPendingIdentityCeremony() {
+        if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport && win.vinylWorld)
+            win.vinylWorld.session.cancelImportIdentity(true)
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
     function handleEscape() {
+        win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
         case "consume": return
@@ -893,7 +1064,11 @@ Window {
         case "biblioGenreIndex": win.closeBiblioGenreIndex(); return
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
-        case "world": win.closeWorld(); return
+        case "world":
+            if (worldStack.current === "Vinyl" && win.vinylWorld
+                    && win.vinylWorld.goBack && win.vinylWorld.goBack()) return
+            win.closeWorld()
+            return
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
@@ -1060,10 +1235,17 @@ Window {
         { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
     ]
     function worldSourceFor(medium) {
+        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylLiveWorld.qml"
         for (var i = 0; i < win.worldDefinitions.length; ++i)
             if (win.worldDefinitions[i].name === medium)
                 return win.worldDefinitions[i].source
         return "DemoWorld.qml"
+    }
+    function ensureFeriaRuntime() {
+        if (win.feriaComingSoon !== false || !win.feriaAvailable) return false
+        if (!win.feriaRuntimeReady)
+            win.feriaRuntimeReady = true
+        return true
     }
     function parkFeria(preserveSnapshot) {
         var preserve = preserveSnapshot !== false
@@ -1090,9 +1272,12 @@ Window {
         feriaReturnSnapshot = null
         return true
     }
-    function openWorld(medium) {
+    function openWorld(medium) { win.cancelCatalogueRoute();
+        // These worlds are not available in this release, including through indirect callers.
+        var requestedWorld = String(medium || "").trim().toLowerCase()
+        if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
         if (medium === "Feria") { win.openFeriaPage(); return }
-        win.parkFeria(true)
+        if (win.parkFeria) win.parkFeria(true)
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -1127,6 +1312,7 @@ Window {
     }
     function closeWorld() {
         if (win.androidHost) return
+        win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
@@ -1242,16 +1428,30 @@ Window {
             seriesLayer.item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
         }
     }
+    // Only canonical MAL series keys may cross into the remote catalogue seam.
+    // Reject suffixes, other namespaces and out-of-range IDs rather than guessing.
+    function canonicalMalId(seriesId) {
+        var sid = String(seriesId || "")
+        var match = /^mal:([1-9][0-9]*)$/.exec(sid)
+        if (!match || match[0] !== sid) return ""
+        var id = Number(match[1])
+        return Number.isInteger(id) && id <= 2147483647 ? match[1] : ""
+    }
     function restoreSeriesEditionProfile(seriesId) {
         var sid = String(seriesId || "")
-        if (sid !== "mal:13:color") { clearSeriesEditionProfile(); return }
+        if (sid !== "mal:13:color") {
+            var malId = canonicalMalId(sid)
+            if (malId.length) applySeriesEditionProfile(null, malId)
+            else clearSeriesEditionProfile()
+            return
+        }
         applySeriesEditionProfile({
             malId: "13", seriesId: sid, sourceSearchTitle: "One Piece Colored",
             sourceSearchAliases: ["One Piece Digital Colored Comics"],
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile, requestedVolumeNumber) {
+    function openSeries(title, malId, profile, requestedVolumeNumber) { if (win.cancelCatalogueRoute) win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
@@ -1281,7 +1481,7 @@ Window {
     }
 
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
-    function openSeriesAt(title, seriesId, chapterId) {
+    function openSeriesAt(title, seriesId, chapterId) { win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
@@ -1301,7 +1501,33 @@ Window {
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
+    property int _catalogueRouteGeneration: 0
+    property var _catalogueRouteCancel: null
+    function cancelCatalogueRoute() {
+        _catalogueRouteGeneration++;
+        if (typeof _catalogueRouteCancel === "function") _catalogueRouteCancel();
+        _catalogueRouteCancel = null;
+    }
+    function catalogueRouteSnapshot() {
+        return String(currentSurface) + "|" + JSON.stringify(win.shellEscapeState());
+    }
     function openWestern(d) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            var title = (d && d.title) || "";
+            var hit = win.comicsDbHit(title);
+            if (CatalogDelivery.available(catalog)) catalog.exactMatches(title);
+            return hit;
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openWesternReady(d, false);
+        });
+    }
+    function _openWesternReady(d, skipGcd) {
         westernLayer.baked = null
         if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         // DB-first (Hemanth 2026-07-15): the catalog series view is THE series
@@ -1316,7 +1542,7 @@ Window {
         // catalogue redirect (spec 2026-07-17): exactly ONE run bears this title ->
         // its run-scoped page. Multiple same-name runs -> the live shelf keeps the
         // whole-franchise view; never guess a run.
-        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
+        if (!skipGcd && typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)) {
             var ex = ComicsCatalog.exactMatches((d && d.title) || "")
             if (ex.length === 1) {
                 win.openGcdSeries({ gcdId: ex[0].gcdId, title: (d && d.title) || "",
@@ -1338,7 +1564,7 @@ Window {
         if (!westernLayer.tagSlug.length && westernLayer.item) westernLayer.item.resolve()
     }
     // open a western series AND jump straight into the reader (Continue / session resume)
-    function openWesternAt(title, tagSlug, chapterId) {
+    function openWesternAt(title, tagSlug, chapterId) { win.cancelCatalogueRoute();
         westernLayer.baked = null
         if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         westernLayer.title = title || ""
@@ -1351,7 +1577,7 @@ Window {
             westernLayer.item.openChapterId = chapterId || ""
         } else westernLayer.active = true
     }
-    function closeWestern() { westernLayer.active = false }
+    function closeWestern() { win.cancelCatalogueRoute(); westernLayer.active = false }
 
     // ---- catalogue run page: the western shelf in baked mode (spec 2026-07-17).
     //      d: { gcdId, title?, cover?, resumeChapterId? } ----
@@ -1373,6 +1599,7 @@ Window {
             it.bakedReleases = null
             it.seriesTitle = westernLayer.title
             it.poster = westernLayer.baked.cover || ""
+            it.packSeriesId = ""                 // release a previous post/pack identity
             it.gcdId = gcdId
             it.bakedReleases = rel
             it.tagId = 0; it.tagSlug = ""
@@ -1382,16 +1609,31 @@ Window {
     }
 
     function openGcdSeries(d) {
-        if (typeof ComicsCatalog === "undefined" || !ComicsCatalog.ready()) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            if (!CatalogDelivery.available(catalog)) return null;
+            var id = Number((d && d.gcdId) || 0);
+            return { series: catalog.series(id), downloads: catalog.downloadsFor(id) };
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openGcdSeriesReady(d);
+        });
+    }
+    function _openGcdSeriesReady(d) {
+        if (typeof ComicsCatalog === "undefined" || !CatalogDelivery.available(ComicsCatalog)) {
             if (_openPinnedGcdSeries(d)) return
-            if (d && d.title) win.openWestern({ title: d.title })
+            if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
         var gcdId = Number((d && d.gcdId) || 0)
         var s = ComicsCatalog.series(gcdId)
         if (!s || s.gcdId === undefined) {
             if (_openPinnedGcdSeries(d)) return
-            if (d && d.title) win.openWestern({ title: d.title })
+            if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
         var rows = ComicsCatalog.downloadsFor(gcdId)
@@ -1420,6 +1662,7 @@ Window {
             // and the shell's first presentation writes page 1 over the real record.
             // Confirmed via runtime trace 2026-08-06 (save under gcd:119237, restore under
             // gc:). Set identity first; open the reader last, when seriesId is stable.
+            it.packSeriesId = ""                 // release a previous post/pack identity
             it.gcdId = westernLayer.baked.gcdId
             it.bakedReleases = westernLayer.baked.releases   // seriesId now "gcd:<id>" (non-null baked)
             it.tagId = 0; it.tagSlug = ""                    // resolve() guard true (baked non-null), no stray live lookup
@@ -1449,7 +1692,7 @@ Window {
                  packRole: String(r.packRole || ""), packOrder: Number(r.packOrder || 0),
                  packId: String(r.id || ""), pages: Number(r.pages || 0) }
     }
-    function openPackSeries(d) {
+    function openPackSeries(d) { win.cancelCatalogueRoute();
         var seriesId = String((d && d.seriesId) || "")
         if (!seriesId.length) { console.warn("pack: openPackSeries — no seriesId"); return }
         var pv = (typeof Comics !== "undefined") ? Comics.packVolumes(seriesId) : { mains: [], extras: [] }
@@ -1474,22 +1717,30 @@ Window {
         } else westernLayer.active = true
     }
 
-    // ---- a universe's comic row: the entry pins VERIFIED GetComics post IDs, so there is
-    //      no tag to resolve and no catalogue series. Mirrors openGcdSeries' baked injection
+    // ---- a universe's comic row: each entry pins explicit GetComics post IDs and,
+    //      when known, an exact GCD series ID. Mirrors openGcdSeries' baked injection
     //      (Main.qml:578) — an explicit release list, tagSlug/tagId deliberately empty.
     //      `?p=<id>` is GetComics' permalink; ComicSeries.qml:531 feeds it to downloadIssue.
-    //      d: { title, posts:[Number], year? } ----
+    //      d: { title, posts:[Number], year?, gcdId? } ----
     function openUniverseComic(d) {
         var posts = (d && d.posts) || []
         if (!posts.length) { console.warn("universes: openUniverseComic — no posts for", (d && d.title) || "(untitled)"); return }
+        var gcdId = Number((d && d.gcdId) || 0)
+        if (!Number.isInteger(gcdId) || gcdId <= 0) gcdId = 0
+        // GCD is authoritative only for an unambiguous series. An era collection may
+        // contain multiple GCD runs, so use its pinned first GetComics post as a stable
+        // independent identity; never let several collections share "gcd:0".
+        var fallbackId = gcdId ? "" : "gc:posts:" + String(posts[0])
+        var year = parseInt(String((d && d.year) || "").slice(0, 4), 10) || 0
         var rel = []
         for (var i = 0; i < posts.length; i++)
             rel.push({ id: String(posts[i]),
                        url: "https://getcomics.org/?p=" + posts[i],
                        name: d.title || "", cover: "",
-                       year: Number(d.year || 0), sizeMB: 0, synopsis: "",
+                       year: year, sizeMB: 0, synopsis: "",
                        date: "", collection: true })
-        westernLayer.baked = { gcdId: 0, releases: rel, cover: "" }
+        westernLayer.baked = { gcdId: gcdId, packSeriesId: fallbackId,
+                               releases: rel, cover: (d && d.cover) || "" }
         westernLayer.title = (d.title || "") + (d.year ? " (" + d.year + ")" : "")
         westernLayer.tagSlug = ""; westernLayer.tagId = 0
         westernLayer.resumeChapterId = ""
@@ -1498,11 +1749,50 @@ Window {
             it.bakedReleases = null                 // reset first so re-injection repaints
             it.openChapterId = ""
             it.seriesTitle = westernLayer.title
-            it.poster = ""
-            it.gcdId = 0
-            it.bakedReleases = westernLayer.baked.releases   // triggers paint (bakedReleases now non-null)
-            it.tagId = 0; it.tagSlug = ""                    // reset LAST — resolve() guard is true, no stray live lookup
+            it.poster = westernLayer.baked.cover
+            it.packSeriesId = fallbackId           // identity FIRST; also clears stale pack IDs
+            it.gcdId = gcdId
+            it.bakedReleases = rel                  // stable gcd:/gc:posts: identity before mount
+            it.tagId = 0; it.tagSlug = ""           // no name/tag lookup
         } else westernLayer.active = true
+    }
+
+    // A pinned cross-run GetComics collection is not a live tag search. Resolve its
+    // durable first-post key back to the bundled Universe's exact curated post list.
+    function reopenPinnedUniverseComic(id, title, cover) {
+        var match = /^gc:posts:([1-9][0-9]*)$/.exec(String(id || ""))
+        if (!match) return false
+        var stems = ["com.colosseum.universe.onepiece",
+                     "com.colosseum.universe.dcau",
+                     "com.colosseum.universe.starwars"]
+        var matched = false
+        var outstanding = stems.length
+        for (var i = 0; i < stems.length; ++i) {
+            UniverseApi.load(stems[i], function(payload) {
+                if (!matched && payload) {
+                    var sections = payload.sections || []
+                    for (var si = 0; si < sections.length && !matched; ++si) {
+                        if (sections[si].kind !== "comic") continue
+                        var entries = sections[si].entries || []
+                        for (var ei = 0; ei < entries.length; ++ei) {
+                            var entry = entries[ei]
+                            if (String((entry.posts || [])[0] || "") !== match[1]) continue
+                            matched = true
+                            win.openUniverseComic({
+                                title: entry.title || title, year: entry.year || "",
+                                cover: entry.cover || cover, posts: entry.posts,
+                                gcdId: entry.gcdId || 0, gcdIds: entry.gcdIds || []
+                            })
+                            break
+                        }
+                    }
+                }
+                outstanding--
+                if (!outstanding && !matched)
+                    console.warn("Saved universe comic is no longer bundled:", id)
+            })
+        }
+        return true
     }
 
     // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
@@ -1517,6 +1807,20 @@ Window {
     }
 
     function openComicSeries(d) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            if (!CatalogDelivery.available(catalog)) return null;
+            return catalog.curatedSeries(String((d && d.id) || "").replace(/^locg:/, ""));
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openComicSeriesReady(d);
+        });
+    }
+    function _openComicSeriesReady(d) {
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -1529,7 +1833,7 @@ Window {
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
         } else comicSeriesLayer.active = true
     }
-    function closeComicSeries() { comicSeriesLayer.active = false }
+    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -1563,7 +1867,7 @@ Window {
 
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
-    function openTheatreSeries(item) {
+    function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
         if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
         else theatreSeriesLayer.active = true
@@ -1622,9 +1926,11 @@ Window {
             return
         }
         if (p.kind === "direct") {
-            if (win.playerOpen)
+            if (win.playerOpen) {
+                win.requestTheatreAudio()
                 playerLayer.item.playTorrent(p.infoHash, p.fileIdx, p.title, p.backdrop, p.subType, p.subId,
                                              p.candidates || [], p.context || ({}))
+            }
             return
         }
         if (p.kind === "watchParty" && win.playerOpen)
@@ -1820,6 +2126,7 @@ Window {
     Connections {
         target: win
         function onPlayerOpenChanged() {
+            if (win.playerOpen) win.claimAudio("theatre")
             if (win.playerOpen || !win.pendingResolves.length)
                 return
             var p = win.pendingResolves.shift()
@@ -1829,6 +2136,7 @@ Window {
 
     // ---- Feria: streaming world, entered from the shared selector ----
     function openFeriaPage() {
+        if (!win.ensureFeriaRuntime()) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1899,7 +2207,9 @@ Window {
             Qt.callLater(historyStatsLayer.item.takeKeyboardFocus)
     }
     function openYourFeriaPage(section) {
+        if (!win.ensureFeriaRuntime()) return
         if (!feriaLayer.open) win.openFeriaPage()
+        if (!feriaLayer.item) return
         accountCenter.close()
         feriaLayer.item.accountTab = ["history", "highlights", "stats"].indexOf(section) >= 0 ? section : "history"
         yourFeriaLayer.open = true
@@ -1980,7 +2290,7 @@ Window {
         anchors.fill: parent
         z: 58.5
         property bool open: false
-        active: open && feriaLayer.open && feriaLayer.item !== null
+        active: !win.feriaComingSoon && open && feriaLayer.open && feriaLayer.item !== null
         visible: active
         onActiveChanged: if (!active) open = false
         source: "feria/YourFeriaPage.qml"
@@ -2091,6 +2401,8 @@ Window {
             sourceSearchAliases: e.sourceSearchAliases || [],
             sourceRequiredMarkers: e.sourceRequiredMarkers || []
         }, requested)
+        else if (e && e.provider === "anilist" && Number(e.malId) > 0)
+            win.openSeries(e.title || "", String(e.malId), null, requested)
         else win.openSeries((e && e.title) || e || "", "", null, requested)
     }
     function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
@@ -2224,6 +2536,7 @@ Window {
                                       streamCandidates || [], playbackContext || ({}))
             return
         }
+        win.requestTheatreAudio()
         playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId,
                                      streamCandidates || [], playbackContext || ({}))
     }
@@ -2250,6 +2563,7 @@ Window {
             return true
         }
         var candidate = { "infoHash": hash, "fileIdx": fileIdx }
+        win.requestTheatreAudio()
         playerLayer.item.playTorrent(hash, fileIdx, "Watch Party", "", "", "",
                                     [candidate], { "watchPartyJoin": true })
         return true
@@ -2560,7 +2874,7 @@ Window {
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
-    function openBook(b) {
+    function openBook(b) { win.cancelCatalogueRoute();
         win.pendingBookReturn = null
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
@@ -2602,7 +2916,7 @@ Window {
 
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
-    function openSearch() {
+    function openSearch() { win.cancelCatalogueRoute();
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current
@@ -2647,6 +2961,7 @@ Window {
     //  resume (center play/read icon):
     function resumeContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, true); return }
         var r = entry.resume || ({})
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
@@ -2699,6 +3014,7 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, false); return }
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
         var title = entry.title || entry.caption || presentation.title || ""
@@ -2745,8 +3061,9 @@ Window {
         } else if (entry.kind === "tankoban") {
             // detail = the manga series page; Tankoban Mode restores itself from the
             // service's per-series flag once the id resolves.
-            win.openSeries(title)
+            win.openSeries(title, canonicalMalId(entry.id))
         } else if (entry.kind === "manga" || entry.kind === "comic") {
+            if (win.reopenPinnedUniverseComic(entry.id, title, entry.cover || "")) return
             if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
             else if (String(entry.id || "").indexOf("gcd:") === 0)
@@ -2756,7 +3073,7 @@ Window {
                 // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12);
                 // comics open only via the gc: lane, so a stale id never opens the manga page
                 console.log("[route] ignoring unknown comic id:", entry.id)
-            else win.openSeries(title)                                   // manga → the chapter-list series page
+            else win.openSeries(title, canonicalMalId(entry.id))                                   // manga → the chapter-list series page
         } else if (entry.kind === "book") {
             win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
         }
@@ -2764,7 +3081,7 @@ Window {
 
     // A Collection tile always opens the DETAIL surface (saved is a bookmark, not a
     // promise it's downloaded/started). Routes by world + saved snapshot; the gc:/gcd:/
-    // locg: prefixes pick the comics lane; manga reopens BY TITLE.
+    // locg: prefixes pick the comics lane; manga keeps its canonical MAL identity.
     function openCollectionEntry(e) {
         if (!e || !e.world) return
         var id = String(e.id || "")
@@ -2774,7 +3091,8 @@ Window {
         } else if (e.world === "biblio") {
             win.openBook((e.payload && e.payload.book) || e)
         } else if (e.world === "tankoban") {
-            if (e.type === "manga") { win.openSeries(e.title || id); return }
+            if (win.reopenPinnedUniverseComic(id, e.title || "", e.cover || "")) return
+            if (e.type === "manga") { win.openSeries(e.title || id, canonicalMalId(id)); return }
             if (id.indexOf("locg:") === 0) {
                 win.openComicSeries({ "id": id, "title": e.title || "", "cover": e.cover || "",
                                       "locgMeta": (e.payload && e.payload.locgMeta) || null })
@@ -2877,6 +3195,12 @@ Window {
     }
     function decidePendingIdentity(choice) {
         var pending = win.pendingIdentityRoute
+        if (pending && pending.vinylImport) {
+            win.pendingIdentityRoute = null
+            identityCeremonyDialog.close()
+            if (win.vinylWorld) win.vinylWorld.session.decideImportIdentity(pending.relationship || "", choice)
+            return
+        }
         if (!pending || typeof LocalLaunch === "undefined") return
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
@@ -3029,11 +3353,13 @@ Window {
     function activateMovieSession(rec) {
         if (!rec || !rec.id || !playerLayer.item)
             return
+        win.claimAudio("theatre")
         var t = rec.target || ({})
         var st = rec.savedState || ({})
         if (win.warmPlayerSessionId === rec.id) {
             playerLayer.item.resumeFromMinimize()
         } else {
+            win.requestTheatreAudio()
             if (t.localPath && String(t.localPath).length)
                 playerLayer.item.playLocalFile(t)
             else if (t.streamUrl && String(t.streamUrl).length) {
@@ -3063,7 +3389,14 @@ Window {
 
     function activateSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "music") {
+            if (!win.vinylEnabled || !win.vinylProfileActive) return
+            win.openWorld("Vinyl")
+            // The kept-alive Vinyl owner alone restores queue/position; taskbar is presentation.
+            return
+        }
         if (rec.contentKind === "browser") {
+            if (!win.ensureFeriaRuntime()) return
             if (!win.activeBrowserSessionId.length) win.browserReturnToFeria = feriaLayer.open
             win.activeBrowserSessionId = rec.id
             feriaLayer.open = true
@@ -3149,10 +3482,15 @@ Window {
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
                 bookReaderLayer.item.openBook(t.path)
-                if (bookReaderLayer.bookMeta.openAudio)
+                if (bookReaderLayer.bookMeta.openAudio) {
+                    var audioPanelGeneration = win.vinylShellGeneration
+                    var audioPanelSessionId = rec.id
                     Qt.callLater(function() {
-                        if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
+                        if (win.vinylProfileActive && win.vinylShellGeneration === audioPanelGeneration
+                                && Sessions.activeId === audioPanelSessionId && bookReaderLayer.item)
+                            bookReaderLayer.item.openAudioPanel()
                     })
+                }
             } else bookReaderLayer.active = true
             // book precision: the reader restores its own saved position on reopen (resume seam).
         }
@@ -3162,6 +3500,7 @@ Window {
     // capture the live outgoing surface's state (called BEFORE teardown).
     function captureSession(rec) {
         if (!rec || !rec.id) return ({})
+        if (rec.contentKind === "music") return { page: win.vinylWorld ? win.vinylWorld.page : "library" }
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
         if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — capture from whichever is live
@@ -3175,6 +3514,10 @@ Window {
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
     function teardownSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "music") {
+            if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("session-parked")
+            return
+        }
         if (rec.contentKind === "browser") {
             // activeId's property signal already selects the incoming entry.
             // Tear down presentation on the outgoing record, never its sibling.
@@ -3330,7 +3673,7 @@ Window {
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
-        onPowerClicked: Qt.quit()
+        onPowerClicked: win.requestApplicationQuit()
         // Update glyph (home only, takes the retired search slot). Toggle mirrors
         // the taskbar launcher: open when closed, close when already front.
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
@@ -3561,8 +3904,11 @@ Window {
                                 anchors.fill: parent; radius: hero.radius; clip: true
                                 color: "#1a1410"
                                 Image {
+                                    objectName: "homeUniverseBannerArt"
                                     anchors.fill: parent
-                                    source: slide.modelData.banner
+                                    property string readySource: ""
+                                    onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                                    source: page.visible || readySource === String(slide.modelData.banner || "") ? (slide.modelData.banner || "") : ""
                                     asynchronous: true; cache: true
                                     fillMode: Image.PreserveAspectCrop
                                     opacity: status === Image.Ready ? 1 : 0
@@ -3894,9 +4240,15 @@ Window {
                 // (below) builds it hidden ahead of the first click.
                 asynchronous: true
                 Component.onCompleted: {
-                    setSource(win.worldSourceFor(mode), {
+                    // showExplicitContent too: otherwise Tankoban Discover's first page is
+                    // fetched with the WorldPage default and refetched when onLoaded binds it.
+                    var initialProperties = {
                         "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen
-                    })
+                    }
+                    // Vinyl's local catalogue does not expose the WorldPage filter.
+                    if (mode !== "Vinyl")
+                        initialProperties.showExplicitContent = contentPreferences.showExplicit
+                    setSource(win.worldSourceFor(mode), initialProperties)
                     active = true
                 }
                 onLoaded: {
@@ -3909,6 +4261,28 @@ Window {
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
+                    if (mode === "Vinyl") {
+                        item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                            accountFlyout.toggleAt(anchorRight, anchorBottom)
+                        })
+                        win.vinylWorld = item
+                        item.shellDockRight = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0
+                        })
+                        item.shellDockBottomExtent = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.bottomGap + taskbar.closedSize : 0
+                        })
+                        item.minimizeClicked.connect(win.minimizeShell)
+                        item.fullscreenClicked.connect(win.toggleFullscreenShell)
+                        item.powerClicked.connect(function() { win.requestApplicationQuit() })
+                        item.playbackRequested.connect(function() {
+                            if (!win.vinylProfileActive) return
+                            win.claimAudio("vinyl")
+                            win.registerVinylSession()
+                        })
+                        win.applyVinylResume()
+                        return
+                    }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
@@ -3982,7 +4356,7 @@ Window {
                     if (item.libraryRemovalRequested) item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
                     if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
-                    item.powerClicked.connect(function() { Qt.quit() })
+                    item.powerClicked.connect(function() { win.requestApplicationQuit() })
                     if (item.accountClicked) item.accountClicked.connect(function(anchorRight, anchorBottom) {
                         accountFlyout.toggleAt(anchorRight, anchorBottom)
                     })
@@ -4030,7 +4404,7 @@ Window {
             item.backRequested.connect(win.closeGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.seriesRequested.connect(win.openSeries)
             item.exploreRequested.connect(function() { win.closeGenre(); win.openGenreIndex() })
@@ -4052,7 +4426,7 @@ Window {
             item.backRequested.connect(win.closeGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(win.openGenre)
         }
@@ -4073,7 +4447,7 @@ Window {
             item.backRequested.connect(win.closeBiblioGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(win.openBiblioGenre)
         }
@@ -4094,7 +4468,7 @@ Window {
             item.backRequested.connect(win.closeBiblioGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.bookRequested.connect(win.openBook)
             if (item.exploreRequested) item.exploreRequested.connect(function() {
@@ -4120,7 +4494,7 @@ Window {
             item.backRequested.connect(win.closeTheatreGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.itemRequested.connect(win.openTheatreSeries)
             item.exploreRequested.connect(function() {
@@ -4144,7 +4518,7 @@ Window {
             item.backRequested.connect(win.closeTheatreGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(function(name) {
                 win.openTheatreGenre(theatreGenreIndexLayer.mediaKind, name)
@@ -4188,7 +4562,7 @@ Window {
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
@@ -4249,7 +4623,7 @@ Window {
             item.backRequested.connect(win.closeWestern)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
@@ -4277,7 +4651,7 @@ Window {
             item.backRequested.connect(win.closeComicSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
@@ -4322,7 +4696,7 @@ Window {
             item.backRequested.connect(win.closeContinueSeeAll)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.resumeRequested.connect(win.resumeContinue)     // same sinks the rows use
             item.detailRequested.connect(win.detailContinue)
@@ -4346,7 +4720,7 @@ Window {
             item.backRequested.connect(win.closeLocgPublisher)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.seriesRequested.connect(win.openComicSeries)   // tile → LOCG series list (over this grid)
         }
     }
@@ -4364,7 +4738,7 @@ Window {
             item.backRequested.connect(win.closeComicArchiveBoard)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.boxRequested.connect(win.openComicArchive)    // box → existing archive index
         }
     }
@@ -4391,7 +4765,7 @@ Window {
             item.backRequested.connect(win.closeComicArchive)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.westernPicked.connect(win.openWestern)
             item.allReleasesRequested.connect(win.openWestern)
         }
@@ -4412,7 +4786,7 @@ Window {
             item.backRequested.connect(win.closeTheatreSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.playRequested.connect(win.openMovieSession)
             item.playLocalRequested.connect(win.openLocalVideoSession)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
@@ -4475,6 +4849,8 @@ Window {
             console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
                         + "  (booted=" + Player2Available + ")")
             item.backdrop = wall
+            if (item.playbackRequested)
+                item.playbackRequested.connect(function() { win.claimAudio("theatre") })
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -4511,7 +4887,7 @@ Window {
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readRequested.connect(win.openBookSession)
             // (listenRequested retired — the reader carries audiobook playback now)
         }
@@ -4521,7 +4897,29 @@ Window {
     // Loader) so playback survives the reader opening/closing. The READER is the only
     // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
     // and Audio tab both drive this session. ----
-    AudiobookSession { id: audioSession }
+    AudiobookSession {
+        id: audioSession
+        objectName: "vinylHandoffAudiobook"
+        onPlaybackRequested: win.claimAudio("audiobook")
+    }
+
+    Connections {
+        target: win.vinylWorld ? win.vinylWorld.session : null
+        function onIdentityDecisionRequested(ceremony) {
+            if (!win.vinylProfileActive) return
+            win.pendingIdentityRoute = Object.assign({}, ceremony, {vinylImport:true})
+            identityCeremonyDialog.ceremony = ceremony
+            identityCeremonyDialog.open()
+        }
+    }
+    Connections {
+        target: typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null
+        function onProfileLeaving() {
+            if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport) win.cancelPendingIdentityCeremony()
+            win.leaveVinylProfile()
+        }
+        function onProfileEntered() { win.vinylProfileActive = true }
+    }
 
     Loader {
         id: bookReaderLayer
@@ -4598,7 +4996,7 @@ Window {
             item.itemRequested.connect(win.routeWorldSearchItem)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
         }
     }
 
@@ -4617,7 +5015,7 @@ Window {
             item.bookRequested.connect(win.openBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
         }
     }
 
@@ -4672,7 +5070,7 @@ Window {
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             item.openRequested.connect(win.routeDownloadItem)
             item.redownloadRequested.connect(function(downloadItem) {
@@ -4711,7 +5109,7 @@ Window {
             item.viewWorldRequested.connect(win.openVaultIdentity)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
         }
     }
 
@@ -4780,7 +5178,7 @@ Window {
                 item.backRequested.connect(win.closeUniverse)
                 item.minimizeRequested.connect(win.minimizeShell)
                 item.fullscreenRequested.connect(win.toggleFullscreenShell)
-                item.closeRequested.connect(function() { Qt.quit() })
+                item.closeRequested.connect(function() { win.requestApplicationQuit() })
                 if (accountHost.visible) accountHost.focusReturnItem = item
                 item.watchRequested.connect(win.openTheatreSeries)
                 if (item.bookRequested) item.bookRequested.connect(win.openBook)
@@ -4805,7 +5203,7 @@ Window {
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             // If a dev/startup route loads a universe behind account onboarding, remember
             // that universe as the surface onboarding must return focus to when it closes.
             // Normal user navigation never opens a universe through the onboarding cover.
@@ -4860,7 +5258,7 @@ Window {
             item.backRequested.connect(win.closeOnePieceArc)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.watchRequested.connect(win.openTheatreSeries)
             item.seriesRequested.connect(win.routeUniverseSeries)
             item.onePaceRequested.connect(win.openOnePaceArc)
@@ -4873,16 +5271,21 @@ Window {
         objectName: "feriaLayer"
         anchors.fill: parent
         z: 58
+        enabled: win.feriaRuntimeReady
         property bool open: false
         onOpenChanged: {
+            if (open && !win.ensureFeriaRuntime()) {
+                open = false
+                return
+            }
             if (!open && win.currentSurface === "Feria") {
                 win.currentSurface = worldStack.current || "Home"
                 win.refreshWallpaper()
             }
         }
-        active: win.feriaAvailable
-                && (open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0))
-        visible: open
+        active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
+            && (open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0))
+        visible: open && active
         source: "feria/FeriaWorld.qml"
         Binding {
             target: feriaLayer.item
@@ -4908,7 +5311,7 @@ Window {
             item.backdrop = wall
             item.sharedAccount = true
             item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
-                var id = Sessions.openBrowser(descriptor, fresh, navigate)
+                var id = feriaSessionDeck.open(descriptor, fresh, navigate)
                 if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
                 item.activateBrowserRecord(Sessions.get(id))
                 if (navigate) Qt.callLater(function() {
@@ -4936,7 +5339,7 @@ Window {
             item.homeRequested.connect(win.closeFeriaPage)
             item.fullscreenClicked.connect(win.toggleFullscreenShell)
             item.minimizeClicked.connect(win.minimizeShell)
-            item.powerClicked.connect(function() { Qt.quit() })
+            item.powerClicked.connect(function() { win.requestApplicationQuit() })
             item.accountClicked.connect(function(anchorRight, anchorBottom) {
                 accountFlyout.toggleAt(anchorRight, anchorBottom)
             })
@@ -4953,8 +5356,20 @@ Window {
     Loader {
         id: feriaSessionDeck
         objectName: "feriaSessionDeck"
-        active: win.feriaAvailable
-        source: "feria/FeriaSessionDeck.qml"
+        active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
+        // Required properties must exist during construction; onLoaded is too late.
+        // Defer until the native enabledChanged handler has exposed Feria services.
+        function loadBrowserDeck() {
+            if (!active || item) return
+            setSource("feria/FeriaSessionDeck.qml", {
+                sessions: Sessions, accountStore: FeriaAccount, policy: FeriaBrowserPolicy
+            })
+        }
+        onActiveChanged: {
+            if (active) Qt.callLater(loadBrowserDeck)
+            else source = ""
+        }
+        Component.onCompleted: if (active) Qt.callLater(loadBrowserDeck)
         z: 58.5
         readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
                                                         : Qt.rect(0, 160, win.width, win.height - 160)
@@ -4964,6 +5379,9 @@ Window {
         readonly property var embeddedConsent: item ? item.embeddedConsent : false
         readonly property var embeddedDiagnostic: item ? item.embeddedDiagnostic : ""
         readonly property var entries: item ? item.entries : ({})
+        function open(descriptor, fresh, navigate) {
+            return item ? item.open(descriptor, fresh, navigate) : ""
+        }
         function closeTab(id) { if (item) item.closeTab(id) }
         function restoreSession(id) { if (item) item.restoreSession(id) }
         function navigateSession(id, url, position, locator, ctx) { if (item) item.navigateSession(id, url, position, locator, ctx) }
@@ -4980,15 +5398,20 @@ Window {
                 || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
         }
         onLoaded: {
-            item.sessions = Sessions
-            item.accountStore = FeriaAccount
-            item.policy = FeriaBrowserPolicy
             item.fullSizeSurface = feriaFullSizeSurface
             item.message.connect(function(id, text) {
                 if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
             })
             item.attachConsentSurface(feriaConsentSurface)
         }
+    }
+
+    // Connect to the lazy deck before a request starts quiescence (it may finish
+    // synchronously when there are no browser sessions).
+    Connections {
+        target: feriaSessionDeck.item
+        function onQuiesced() { win.completeApplicationQuit() }
+        function onQuiescenceFailed(reason) { win.failApplicationQuit(reason) }
     }
 
     // Permanent hosts outlive the Feria Loader. Max moves the live page here;
@@ -5032,7 +5455,7 @@ Window {
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.searchClicked.connect(win.openSearch)
             if (item.takeKeyboardFocus)
                 Qt.callLater(item.takeKeyboardFocus)
@@ -5105,7 +5528,7 @@ Window {
             item.backRequested.connect(win.closeUpdatePage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             if (item.takeKeyboardFocus)
                 Qt.callLater(item.takeKeyboardFocus)
         }
@@ -5488,7 +5911,7 @@ Window {
             item.closeRequested.connect(win.closeWallpaperSearch)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.quitRequested.connect(function() { Qt.quit() })
+            item.quitRequested.connect(function() { win.requestApplicationQuit() })
             item.applyRequested.connect(function(scope, world, pick) {
                 if (scope === "all") win.setWallpaperEverywhere(pick)
                 else win.setWallpaperPick(world, pick)
@@ -5540,6 +5963,7 @@ Window {
         id: accountCenter
         objectName: "accountCenter"
         feriaController: feriaLayer.item
+        feriaEnabled: win.feriaAvailable && !win.feriaComingSoon
         onFeriaActivityRequested: function(section) { win.openYourFeriaPage(section) }
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null

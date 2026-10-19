@@ -143,6 +143,25 @@ Item {
         }
     }
 
+    // ── fake adapter — deferred pages plus retryPage(); proves a {failed:true} page keeps the
+    //    wall's rows/cursor, pauses scroll paging, and resumes only on explicit retry. ──
+    QtObject {
+        id: failFake
+        property int fetchCount: 0
+        property int retryCount: 0
+        property var retryCursor: null
+        property int capturedGen: -1
+        property var capturedDone: null
+        function types() { return [{key:"manga", label:"Manga"}] }
+        function catalogs(t) { return [{key:"popular", title:"Popular", sourceKind:"builtin", section:"Src", attribution:"Src"}] }
+        function filters(t, c) { return [] }
+        function defaultCatalog(t) { return "popular" }
+        function resolvePin(p) { return {missing:false, type:p.type, catalogKey:p.catalogId, filterGroup:"", filterKey:""} }
+        function fetchPage(s, cursor, gen, done) { fetchCount++; capturedGen = gen; capturedDone = done }
+        function retryPage(s, cursor) { retryCount++; retryCursor = cursor; return true }
+    }
+    UI.DiscoverBrowser { id: browser9; width: 1200; height: 700; adapter: failFake; fallbackType: "manga" }
+
     UI.DiscoverBrowser { id: browser;  width: 1200; height: 700; adapter: fake;         fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser2; width: 1200; height: 700; adapter: deferredFake; fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser3; width: 1200; height: 700; adapter: strandFake;   fallbackType: "manga" }
@@ -376,6 +395,31 @@ Item {
             ok(classicOn === browser7._galleryDelegateWidthForTest,
                "fixedGalleryWidth has zero effect on the classic profile: " + classicOn + " vs " + browser7._galleryDelegateWidthForTest);
             browser7.posterVisualProfile = "gallery";   // restore
+
+            // ── failed page: rows/cursor kept, paging paused, explicit retry only ──
+            function card(id) { return {id:id, type:"manga", title:id, cover:"", year:0, rating:0, format:"", publisher:"", availability:false, explicit:false, raw:{}} }
+            failFake.capturedDone(failFake.capturedGen, {items:[card("a"), card("b")], nextCursor:2, exhausted:false, freshness:"live", warning:""});
+            ok(browser9.items.length === 2 && browser9.cursor === 2, "failed page: first page landed");
+            browser9.requestPage();
+            failFake.capturedDone(failFake.capturedGen, {items:[], nextCursor:2, exhausted:false, freshness:"", warning:"", failed:true, retryable:true, error:"HTTP_503"});
+            ok(browser9.pageFailed === true, "failed page: pageFailed set");
+            ok(browser9.items.length === 2, "failed page: existing rows kept, got " + browser9.items.length);
+            ok(browser9.cursor === 2 && browser9.exhausted === false, "failed page: cursor kept and paging not exhausted");
+            ok(browser9.bannerVisible && browser9.bannerText === browser9.textPageRetry, "failed page: retry notice shown");
+            var fetchesBefore = failFake.fetchCount;
+            browser9.requestPage();
+            ok(failFake.fetchCount === fetchesBefore, "failed page: scroll paging paused until retry");
+            browser9.retryPage();
+            ok(failFake.retryCount === 1 && failFake.retryCursor === 2, "failed page: retry targets the failed cursor");
+            ok(failFake.fetchCount === fetchesBefore + 1 && browser9.pageFailed === false, "failed page: retry re-requests the page");
+            failFake.capturedDone(failFake.capturedGen, {items:[card("c")], nextCursor:null, exhausted:true, freshness:"live", warning:""});
+            ok(browser9.items.length === 3 && !browser9.bannerVisible, "failed page: retried page appends and clears notice");
+            browser9.reloadForCatalog();
+            failFake.capturedDone(failFake.capturedGen, {items:[], nextCursor:null, exhausted:false, freshness:"", warning:"", failed:true, retryable:false, error:"HTTP_503"});
+            ok(browser9.items.length === 0 && browser9.pageFailed && browser9.bannerText === browser9.textPageFailed,
+               "failed first page: non-retryable notice, not the empty-catalogue copy");
+            browser9.reloadForCatalog();
+            ok(browser9.pageFailed === false, "reloadForCatalog clears a failed page");
 
             if (fails.length) console.log("DISCOVER_BROWSER FAILS:\n  " + fails.join("\n  "));
             else console.log("DISCOVER_BROWSER_OK");

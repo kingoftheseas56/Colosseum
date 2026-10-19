@@ -11,12 +11,31 @@
 // Layout authority: Brotherhood/agents/colosseum-universe-shelves-all-mock.html, 1280x720.
 // Data: SagaApi.loadShelves, from the universe's curated `shelves` (or derived for anime).
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "Universes.js" as UDB
+import "UniverseApi.js" as CoverApi
 
 Item {
     id: root
+    onUniverseContentGenerationChanged: reload()
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
+    property bool imageLayoutReady: false
+    function scheduleImageLayout() {
+        root.imageLayoutReady = false
+        if (imageLayoutSettle) imageLayoutSettle.restart()
+    }
+    function settleImageLayout() {
+        if (!root.visible || root.width <= 0 || root.height <= 0) return
+        col.forceLayout()
+        root.imageLayoutReady = true
+    }
+    Timer { id: imageLayoutSettle; interval: 0; repeat: false; onTriggered: root.settleImageLayout() }
+    onUniChanged: scheduleImageLayout()
+    onVisibleChanged: scheduleImageLayout()
+    onWidthChanged: scheduleImageLayout()
+    onHeightChanged: scheduleImageLayout()
     anchors.fill: parent
 
     // shell contract — the same verbs the other template pages speak (Main's template
@@ -31,6 +50,7 @@ Item {
     signal seriesRequested(string title, var malId)   // manga / Read → Tankoban, by its pinned MAL id when curated
     signal seriesEntryRequested(var entry)   // an EDITION manga (provider/seriesId, e.g. the colour edition) → Main's routeUniverseSeries with its whole profile
     signal bookRequested(var book)           // book tile / Read → the Biblio book page
+    signal comicsArchiveRequested(var entry) // curated GetComics posts / GCD run → existing ComicSeries
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
     signal continueDetailRequested(var entry)   // Continue tile → its title page
     signal universeRequested(string name)       // a "More universes" card
@@ -43,7 +63,7 @@ Item {
     readonly property string uiFace: shelfUi.name
     readonly property string displayFace: shelfDisplay.name
     property bool reducedMotion: true
-    readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
+    readonly property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName || root.uni.name)
     readonly property color worldColor: root.uni.color || root.guide.c1 || "#221c30"
     readonly property color paper: theme.ink
     readonly property color hair: Qt.rgba(1, 1, 1, 0.09)
@@ -53,7 +73,7 @@ Item {
     property int loadGeneration: 0
 
     property var uni: ({ name: "", category: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
-                         color: "", shelves: [] })
+                         color: "", shelves: [], catalogueNotice: "" })
 
     // ---- the shelves are data: one panel per non-empty shelf, in entry order ----
     function runWorks(run) { return run ? (run.works || run.items || []) : [] }
@@ -90,11 +110,12 @@ Item {
         return out
     }
     function isManga(item) { return !!item && item.medium === "manga" }
+    function isComic(item) { return !!item && item.medium === "comic" }
     function isBook(item) { return !!item && item.medium === "book" }
     function isScreen(item) { return !!item && (item.medium === "movie" || item.medium === "series"
                                                   || item.type === "movie" || item.type === "series") }
-    function isReading(item) { return root.isManga(item) || root.isBook(item) }
-    readonly property bool hasReadShelf: root.activeShelves.some(function(s) { return s.kind === "book" || s.kind === "manga" })
+    function isReading(item) { return root.isManga(item) || root.isBook(item) || root.isComic(item) }
+    readonly property bool hasReadShelf: root.activeShelves.some(function(s) { return s.kind === "book" || s.kind === "manga" || s.kind === "comic" })
     readonly property bool hasScreenShelf: root.activeShelves.some(function(s) { return s.kind === "movie" || s.kind === "series" })
     // every standard page is a Universe, whatever it holds; only the four hand-made art
     // pages are Tributes (Hemanth 2026-10-05)
@@ -112,7 +133,8 @@ Item {
         if (!root.canOpen(item)) return
         // an edition manga carries its own routing identity (provider tankoban / a durable
         // seriesId) — it must not collapse onto the base series' "title + mal" route
-        if (root.isManga(item) && (item.provider === "tankoban"
+        if (root.isComic(item)) root.comicsArchiveRequested(item)
+        else if (root.isManga(item) && (item.provider === "tankoban"
                                    || (item.seriesId !== undefined && String(item.seriesId).length > 0)))
             root.seriesEntryRequested(item)
         else if (root.isManga(item)) root.seriesRequested(item.query || item.title || "", item.mal || 0)
@@ -136,6 +158,7 @@ Item {
         if (!entry || !root.canOpen(item)) return false
         const kind = String(entry.kind || ""), id = String(entry.id || "")
         if (root.isManga(item)) return kind === "manga" && item.mal && id === "mal:" + item.mal
+        if (root.isComic(item)) return kind === "comic" && item.seriesId && id === item.seriesId
         if (root.isBook(item)) return kind === "book" && item.id !== undefined && id === String(item.id)
         return root.isScreen(item) && kind === "video" && item.id !== undefined && id.split(":")[0] === String(item.id)
     }
@@ -294,7 +317,7 @@ Item {
             if (generation === root.loadGeneration && u) root.uni = u
         })
     }
-    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
+    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason); root.scheduleImageLayout() }
     onUniverseNameChanged: reload()
 
     // selection: which work the hero actions and the shelves last pointed at (by key)
@@ -312,7 +335,7 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/cold-ripple.jpg"
+                source: (root.universeContentGeneration, UniverseContent.asset("../assets/wallpaper/cold-ripple.jpg"))
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Image {
             anchors.fill: parent
@@ -393,6 +416,15 @@ Item {
                                        font.pixelSize: 12; font.weight: Font.Medium }
                             }
                         }
+                    }
+                    Text {
+                        objectName: "shelvesCatalogueNotice"
+                        visible: !!root.uni.catalogueNotice
+                        width: parent.width
+                        text: root.uni.catalogueNotice || ""
+                        color: theme.inkDimmer
+                        font.family: root.uiFace; font.pixelSize: 13
+                        wrapMode: Text.WordWrap
                     }
                     Flow {
                         width: parent.width; spacing: 12
@@ -488,13 +520,26 @@ Item {
                         delegate: Rectangle {
                             id: still
                             required property var modelData
+                            required property int index
+                            readonly property bool nearViewport: {
+                                if (!root.visible || !root.imageLayoutReady) return false
+                                const layoutY = gallerySection.y + still.y
+                                const top = still.mapToItem(page.contentItem, 0, 0).y - page.contentY + layoutY * 0
+                                return top < page.height * 1.5 && top + still.height > -page.height * 0.5
+                            }
+                            property bool requested: false
+                            onNearViewportChanged: if (nearViewport) requested = true
+                            Component.onCompleted: if (nearViewport) requested = true
                             width: (gallerySection.width - 72) / 4; height: Math.round(width * 9 / 16)
                             radius: 8; clip: true
                             color: root.worldColor
                             border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.12)
                             Image {
                                 anchors.fill: parent; anchors.margins: 1
-                                source: still.modelData.art
+                                objectName: "shelvesGalleryArt_" + index
+                                property string readySource: ""
+                                onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                                source: still.requested && (root.visible || readySource === String(still.modelData.art)) ? still.modelData.art : ""
                                 asynchronous: true; cache: true
                                 sourceSize.width: 640
                                 fillMode: Image.PreserveAspectCrop
@@ -637,7 +682,7 @@ Item {
     }).slice(0, 4)
     // the other anime universes with a working page
     readonly property var siblings: {
-        const all = UDB.universes.concat(UDB.archive)
+        const all = (root.universeContentGeneration, UDB.universes).concat((root.universeContentGeneration, UDB.archive))
         return all.filter(function(u) { return (!!u.shelves || !!u.manga) && u.name !== (root.universeName || root.uni.name) })
                   .slice(0, 4)
     }
@@ -954,6 +999,25 @@ Item {
                                             spacing: 0
                                             ShelfTile {
                                                 item: work.modelData
+                                                imageRequestAllowed: {
+                                                    if (!root.visible || !root.imageLayoutReady) return false
+                                                    // mapToItem does not expose ancestor position changes to bindings.
+                                                    const layoutY = medium.y + mediums.y
+                                                    const top = medium.mapToItem(page.contentItem, 0, 0).y - page.contentY + layoutY * 0
+                                                    if (top > page.height * 1.5 || top + medium.height < -page.height * 0.5)
+                                                        return false
+                                                    const layoutX = work.x + run.x + runTiles.x
+                                                    const left = work.mapToItem(runsRow, 0, 0).x + layoutX * 0
+                                                    return left + work.width > shelfFlick.contentX - work.width
+                                                        && left < shelfFlick.contentX + shelfFlick.width + work.width
+                                                }
+                                                // Resolve art only for nearby books/comics, never
+                                                // fan out all 72 books + 53 comic covers at once.
+                                                coverLookupAllowed: {
+                                                    if ((work.modelData.medium !== "book" && work.modelData.medium !== "comic")
+                                                            || work.modelData.cover) return false
+                                                    return imageRequestAllowed
+                                                }
                                                 current: root.selectedKey === root.keyOf(work.modelData)
                                                 keyboardSelected: rowFocus.activeFocus
                                                                  && rowFocus.currentIndex === run.runBase + work.index
@@ -1133,6 +1197,17 @@ Item {
                         readonly property bool keyed: tableFocus.activeFocus && table.currentIndex === line.index
                         readonly property bool hot: lineMouse.containsMouse || line.keyed
                         readonly property real done: root.fraction(line.modelData)
+                        readonly property bool imageNearViewport: {
+                            if (!root.visible || !root.imageLayoutReady) return false
+                            const layoutY = line.y + tableBody.y + table.y + mediums.y
+                            const top = line.mapToItem(page.contentItem, 0, 0).y - page.contentY + layoutY * 0
+                            return top < page.height * 1.5 && top + line.height > -page.height * 0.5
+                        }
+                        readonly property string imageIdentity: root.keyOf(line.modelData)
+                        property bool imageRequested: false
+                        onImageIdentityChanged: { imageRequested = false; if (imageNearViewport) imageRequested = true }
+                        onImageNearViewportChanged: if (imageNearViewport) imageRequested = true
+                        Component.onCompleted: if (imageNearViewport) imageRequested = true
                         objectName: "shelvesTableRow_" + table.key + "_" + line.index
                         x: line.col * (tableBody.colW + table.columnSeam)
                         y: line.place * table.rowH
@@ -1160,8 +1235,11 @@ Item {
                             color: root.worldColor
                             border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.12)
                             Image {
+                                objectName: "shelvesTableCover_" + line.imageIdentity
                                 anchors.fill: parent; anchors.margins: 1
-                                source: line.modelData.cover || ""
+                                property string readySource: ""
+                                onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                                source: line.imageRequested && (root.visible || readySource === String(line.modelData.cover || "")) ? (line.modelData.cover || "") : ""
                                 asynchronous: true; cache: true
                                 sourceSize.width: 160
                                 fillMode: Image.PreserveAspectCrop
@@ -1271,7 +1349,32 @@ Item {
     //      source and its adaptations carry equal weight ----
     component ShelfTile: Rectangle {
         id: tile
+        property bool imageRequestAllowed: false
+        readonly property string imageIdentity: root.keyOf(tile.item)
+        property bool imageRequested: false
+        onImageIdentityChanged: { imageRequested = false; if (imageRequestAllowed) imageRequested = true }
+        onImageRequestAllowedChanged: if (imageRequestAllowed) imageRequested = true
+        Component.onCompleted: if (imageRequestAllowed) imageRequested = true
         property var item: null
+        property bool coverLookupAllowed: false
+        property string resolvedCover: ""
+        function refreshMissingCover() {
+            tile.resolvedCover = ""
+            var entry = tile.item
+            if (!tile.coverLookupAllowed || !entry || entry.cover) return
+            var query = null
+            if (entry.medium === "book" && entry.apple > 0)
+                query = { provider: "applebooks", id: entry.apple, title: entry.title }
+            else if (entry.medium === "comic" && entry.posts && entry.posts.length)
+                query = { provider: "getcomics", posts: entry.posts, title: entry.title }
+            if (!query) return
+            // A delayed provider response cannot paint a different tile.
+            CoverApi.coverFor(query, entry.medium, function(url) {
+                if (tile.item === entry && url) tile.resolvedCover = url
+            })
+        }
+        onItemChanged: refreshMissingCover()
+        onCoverLookupAllowedChanged: if (coverLookupAllowed) refreshMissingCover()
         readonly property string rowLabel: item && item.shelfTitle ? String(item.shelfTitle) : ""
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
@@ -1296,8 +1399,11 @@ Item {
             }
             Image {
                 id: art
+                objectName: "shelvesCover_" + tile.imageIdentity
                 anchors.fill: parent
-                source: tile.item ? (tile.item.cover || "") : ""
+                property string readySource: ""
+                onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                source: tile.imageRequested && tile.item && (root.visible || readySource === String(tile.item.cover || tile.resolvedCover || "")) ? (tile.item.cover || tile.resolvedCover || "") : ""
                 asynchronous: true; cache: true
                 sourceSize.width: 400
                 fillMode: Image.PreserveAspectCrop

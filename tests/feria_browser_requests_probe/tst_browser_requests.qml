@@ -21,6 +21,7 @@ Item {
         signal webAuthUxRequested(var request)
         signal authenticationDialogRequested(var request)
         signal javaScriptDialogRequested(var request)
+        signal fileDialogRequested(var request)
         signal navigationRequested(var request)
         signal windowCloseRequested()
         signal printRequested()
@@ -215,14 +216,63 @@ Item {
             compare(error.rejected, 1); compare(notices.count, 1)
             verify(notices.signalArguments[0][0].indexOf("https://unsafe.example") >= 0)
         }
-        function test_native_auth_js_are_only_blocked_on_inactive_page() {
-            var request = {accepted: false, rejected: 0, dialogReject: function() { this.rejected++ }}
-            browser.authenticationDialogRequested(request)
-            compare(request.accepted, false)
+        // Page dialogs and sign-in are owned by the request queue: Qt's stock
+        // delegate never opens, navigation refuses what is pending, and a
+        // hidden page is refused outright.
+        function test_page_dialogs_and_sign_in_are_owned_fenced_and_refused_when_hidden() {
+            function dialog(type) { return {accepted: false, rejected: 0, answer: null, type: type,
+                message: "Sure?", defaultText: "", securityOrigin: "https://app.example/page",
+                dialogAccept: function(text) { this.answer = text === undefined ? "" : text },
+                dialogReject: function() { this.rejected++ }} }
+            var confirm = dialog(1)
+            browser.javaScriptDialogRequested(confirm)
+            compare(confirm.accepted, true, "the stock delegate must not open")
+            compare(requests.current.kind, "dialog")
+            compare(requests.current.origin, "https://app.example")
+            var stale = requests.current.id
+            browser.navigationRequested({isMainFrame: true})
+            compare(confirm.rejected, 1, "leaving the page refuses its dialog")
+            compare(requests.answer(stale, true), false, "an answer for the old page goes nowhere")
+            compare(confirm.answer, null)
+
+            var signIn = {accepted: false, rejected: 0, user: null, type: 0, url: "https://user:pw@app.example/private",
+                realm: "Members", proxyHost: "",
+                dialogAccept: function(user, password) { this.user = user; this.password = password },
+                dialogReject: function() { this.rejected++ }}
+            browser.authenticationDialogRequested(signIn)
+            compare(signIn.accepted, true)
+            compare(requests.current.kind, "signin")
+            compare(requests.current.origin, "https://app.example", "credentials in the address are not shown")
+            compare(requests.answer(requests.current.id, false), true)
+            compare(signIn.rejected, 1); compare(signIn.user, null)
+
             browser.visible = false
-            browser.authenticationDialogRequested(request)
-            browser.javaScriptDialogRequested(request)
-            compare(request.accepted, true); compare(request.rejected, 2)
+            var hidden = dialog(0)
+            browser.javaScriptDialogRequested(hidden)
+            browser.authenticationDialogRequested(signIn)
+            compare(hidden.accepted, true); compare(hidden.rejected, 1); compare(signIn.rejected, 2)
+            compare(requests.current, null)
+            browser.visible = true
+        }
+        function test_file_chooser_is_owned_and_withdrawn_on_navigation() {
+            var chooser = {accepted: false, rejected: 0, files: null, mode: 0, acceptedMimeTypes: [".png", "image/*", ".JPG"],
+                dialogAccept: function(files) { this.files = files }, dialogReject: function() { this.rejected++ }}
+            compare(requests.fileFilters(chooser.acceptedMimeTypes)[0], "Suggested files (*.png *.jpg)")
+            compare(requests.fileFilters([]).length, 1)
+            browser.fileDialogRequested(chooser)
+            compare(chooser.accepted, true)
+            verify(requests.fileTicket !== null)
+            var second = {accepted: false, rejected: 0, mode: 0, acceptedMimeTypes: [],
+                dialogAccept: function() {}, dialogReject: function() { this.rejected++ }}
+            browser.fileDialogRequested(second)
+            compare(second.rejected, 1, "one chooser at a time")
+            browser.navigationRequested({isMainFrame: true})
+            compare(chooser.rejected, 1)
+            compare(requests.finishFiles(["file:///C:/late.png"]), false)
+            compare(chooser.files, null)
+            browser.fileDialogRequested(chooser)
+            compare(requests.finishFiles(["file:///C:/Users/Reader/My%20Art/page.png"]), true)
+            compare(chooser.files[0], "C:/Users/Reader/My Art/page.png")
         }
         function test_print_destination_is_fenced_after_navigation() {
             browser.printed = ""

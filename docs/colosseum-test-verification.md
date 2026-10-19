@@ -10,6 +10,16 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Discover asynchronous state preservation (2026-10-15)
+
+`colosseum.tankoban_discover_async_preservation` runs the real Tankoban Discover
+QML owners with delayed fake catalogue responses, offscreen with software rendering.
+It covers manga/comics pagination, catalogue/filter/scroll retention across metadata
+revisions and reactivation, explicit new pins, superseded replies and removed-extension
+fallback. It makes no network requests and does not prove physical input or installer
+behaviour. The unmodified refresh owner fails this regression; removing pin replay
+from metadata refresh passes it.
+
 ## Arc 35 Tracker Connections — Slice 5 (2026-09-23)
 
 `colosseum.qttest.tracker_delivery` is the deterministic native delivery-journal

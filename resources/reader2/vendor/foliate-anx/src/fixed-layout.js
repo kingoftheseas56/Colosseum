@@ -222,7 +222,7 @@ export class FixedLayout extends HTMLElement {
     }
     get index() {
         const spread = this.#spreads[this.#index]
-        const section = spread?.center ?? (this.side === 'left'
+        const section = spread?.center ?? (this.#side === 'left'
             ? spread.left ?? spread.right : spread.right ?? spread.left)
         return this.book.sections.indexOf(section)
     }
@@ -242,7 +242,10 @@ export class FixedLayout extends HTMLElement {
     async goToSpread(index, side, reason) {
         if (index < 0 || index > this.#spreads.length - 1) return
         if (index === this.#index) {
-            this.#render(side)
+            // A jump can select the other physical page without changing spreads.
+            this.#side = side
+            this.#render()
+            this.#reportLocation(reason)
             return
         }
         this.#index = index

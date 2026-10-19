@@ -24,9 +24,9 @@ def stage_runtime(directory: Path) -> Path:
     (source / "CMakeLists.txt").write_text(f'''cmake_minimum_required(VERSION 3.21)
 project(AndroidRuntimeStaging VERSION 1.0 LANGUAGES NONE)
 add_custom_target(colosseum)
-set(CMAKE_CURRENT_SOURCE_DIR "{ROOT / 'native'}")
-set(OPENSSL_ROOT_DIR "{directory / 'openssl'}")
-include("{ROOT / 'native/cmake/android.cmake'}")
+set(CMAKE_CURRENT_SOURCE_DIR "{(ROOT / 'native').as_posix()}")
+set(OPENSSL_ROOT_DIR "{(directory / 'openssl').as_posix()}")
+include("{(ROOT / 'native/cmake/android.cmake').as_posix()}")
 set_property(TARGET colosseum PROPERTY SOURCES "")
 ''')
     result = subprocess.run(["cmake", "-S", str(source), "-B", str(build)],
@@ -59,6 +59,10 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
         self.assertTrue((self.runtime / "qml/reader2/AndroidPaper.qml").is_file())
         self.assertEqual((ROOT / "qml/Main.qml").read_bytes(),
                          (self.runtime / "qml/Main.qml").read_bytes())
+
+    def test_coming_soon_desktop_worlds_are_absent(self):
+        self.assertFalse((self.runtime / "qml/vinyl").exists())
+        self.assertFalse((self.runtime / "qml/feria").exists())
 
     def test_staged_manifests_match_exact_file_set_and_bytes(self):
         self.assertEqual([], runtime_manifest_failures(self.files))
@@ -99,6 +103,12 @@ class AndroidRuntimePolicyTest(unittest.TestCase):
                 self.assertTrue(android_java_policy_failures({name: b"Lorg/colosseum/vault/VaultMediaProbe;"}))
         self.assertEqual([], android_java_policy_failures({
             "classes.dex": b"Lorg/colosseum/media/MediaAdmissionProbe;"}))
+
+    def test_vinyl_sources_and_imports_are_rejected(self):
+        files = {QML_PREFIX + "vinyl/World.qml": b"import QtQuick\nItem {}"}
+        self.assertIn("FORBIDDEN_QML_FILE vinyl/World.qml", qml_policy_failures(files))
+        files[QML_PREFIX + "World.qml"] = b'import "vinyl" as Vinyl\nItem {}'
+        self.assertIn("FORBIDDEN_DESKTOP_IMPORT World.qml", qml_policy_failures(files))
 
     def test_missing_quoted_javascript_import_is_rejected(self):
         files = {QML_PREFIX + "World.qml": b'import "Missing.js" as Api\nItem {}'}

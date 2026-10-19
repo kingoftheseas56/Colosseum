@@ -17,7 +17,9 @@ constexpr auto kInstallRegistryKey =
 
 QString localAppDataRoot()
 {
-    QString root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    // NSIS installs beneath the user's Local AppData directory, not beneath
+    // the application-specific Brotherhood/Colosseum data directory.
+    QString root = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     if (root.isEmpty())
         root = qEnvironmentVariable("LOCALAPPDATA");
     return root;

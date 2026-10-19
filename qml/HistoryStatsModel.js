@@ -96,6 +96,7 @@ function worldName(world) {
     if (world === "tankoban") return "Tankoban"
     if (world === "biblio") return "Biblio"
     if (world === "vault") return "Vault"
+    if (world === "vinyl") return "Vinyl"
     return "All worlds"
 }
 
@@ -366,7 +367,7 @@ function highlightCards(projection) {
             label = "Most read book"
             value = Number(row.pagesRead || 0) > 0 ? formatPages(row.pagesRead)
                   : Math.round(Number(row.progressMicros || 0) / 10000) + "%"
-        } else if (role === "audiobook") { label = "Most listened"; value = formatDuration(row.listenSeconds) }
+        } else if (role === "audiobook" || role === "music") { label = "Most listened"; value = formatDuration(row.listenSeconds) }
         else if (role === "completion") { label = "Completed"; value = formatCount(row.completedCount) }
         else if (Number(row.watchSeconds || 0) > 0) value = formatDuration(row.watchSeconds)
         else if (Number(row.listenSeconds || 0) > 0) value = formatDuration(row.listenSeconds)

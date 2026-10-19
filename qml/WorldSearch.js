@@ -4,6 +4,7 @@
 //   • Theatre → Cinemeta (the Theatre world's own source)
 //   • Tankoban → AniList GraphQL (manga) + the local SQLite catalogue (comics)
 .pragma library
+.import "CatalogDelivery.js" as CatalogDelivery
 
 var REQUEST_TIMEOUT_MS = 15000;
 
@@ -219,7 +220,7 @@ function searchManga(query, done) {
 // `engine` is the ComicsCatalog context property, passed in from QML — a .pragma
 // library can't see context properties itself.
 function searchCatalogDb(query, engine) {
-    if (!engine || !engine.ready()) return [];
+    if (!CatalogDelivery.available(engine)) return [];
     var q = String(query || "").trim();
     if (q.length < 2) return [];
     var hits = engine.search(q, 30), out = [];
@@ -255,15 +256,76 @@ function mergeSearchLanes(query, manga, catalogDb) {
 
 function searchTankoban(query, done, catalogEngine) {
     if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
-    // Comics answer synchronously from the local catalogue; only manga is async. The local
-    // rows SURVIVE an AniList outage — the lane failure rides along as the error arg.
-    var catalogDb = searchCatalogDb(query, catalogEngine);
-    return searchManga(query, function(manga, error) {
-        done(mergeSearchLanes(query, manga || [], catalogDb), error || "");
+    var cancelled = false, remaining = 2, mangaRows = [], comicRows = [], mangaError = "";
+    function finish() {
+        remaining--;
+        if (!cancelled && remaining === 0) done(mergeSearchLanes(query, mangaRows, comicRows), mangaError);
+    }
+    var cancelCatalog = CatalogDelivery.wait(catalogEngine, function() {
+        return searchCatalogDb(query, catalogEngine);
+    }, function(rows) { comicRows = rows; finish(); });
+    var cancelManga = searchManga(query, function(rows, error) {
+        mangaRows = rows || []; mangaError = error || ""; finish();
     });
+    return function() { cancelled = true; cancelCatalog(); if (typeof cancelManga === "function") cancelManga(); };
 }
 
-function searchFor(mode, query, done, catalogEngine) {
+// Catalogue builds use the existing native owners. The legacy provider adapters
+// remain available to builds without a configured/local catalogue.
+function nativeDelivery(engine, read, inspect, map, done) {
+    return CatalogDelivery.waitQuery(engine, read, inspect, function(result) {
+        done(result.hasData ? map(result.value || []) : [], result.ok ? "" : PROVIDER_UNAVAILABLE);
+    });
+}
+function mapNativeManga(rows) {
+    return rows.map(function(h) {
+        var title = h.title_english || h.title || "Untitled";
+        return {cover:h.coverUrl || "", title:title, subtitle:h.type || "Manga",
+            meta:h.type || "Manga", synopsis:h.synopsis || "", backdrop:"", group:"Manga",
+            data:{title:title, malId:h.mal_id}};
+    });
+}
+function mapNativeTheatre(rows) {
+    return rows.map(function(h) {
+        var type = h.type === "movie" || h.type === "tvMovie" || h.type === "short" ? "movie" : "series";
+        return mapTheatre({id:h.tt || h.id, name:h.title, type:type,
+            releaseInfo:h.year ? String(h.year) : "", imdbRating:h.rating,
+            description:h.synopsis || "", poster:h.cover || ""});
+    });
+}
+function searchNativeTankoban(query, done, comics, mal) {
+    var q = String(query || "").trim();
+    if (q.length < 2) { done([], ""); return noopCancel; }
+    var stopped = false, remaining = 2, mangaRows = [], comicRows = [], errors = 0, cancels = [];
+    function finish() {
+        remaining--;
+        if (!stopped && remaining === 0)
+            done(mergeSearchLanes(q, mangaRows, comicRows), errors ? PROVIDER_UNAVAILABLE : "");
+    }
+    cancels.push(nativeDelivery(mal, function() { return mal.search(q, 24, "manga"); },
+        function() { return mal.searchState(q, 24, "manga"); }, mapNativeManga,
+        function(rows,error) { mangaRows=rows; if(error) errors++; finish(); }));
+    if (CatalogDelivery.available(comics) && typeof comics.searchState === "function") {
+        cancels.push(nativeDelivery(comics, function() { return searchCatalogDb(q, comics); },
+            function() { return comics.searchState(q, 30); }, function(rows) { return rows; },
+            function(rows,error) { comicRows=rows; if(error) errors++; finish(); }));
+    } else { comicRows=searchCatalogDb(q, comics); finish(); }
+    return function() { stopped=true; cancels.forEach(function(cancel) { if(cancel) cancel(); }); };
+}
+function searchFor(mode, query, done, catalogEngine, owners) {
+    owners = owners || {};
+    if (mode === "Theatre" && CatalogDelivery.available(owners.imdbCatalog)
+            && typeof owners.imdbCatalog.searchState === "function") {
+        var q = String(query || "").trim();
+        if (q.length < 2) { done([], ""); return noopCancel; }
+        var imdb = owners.imdbCatalog;
+        return nativeDelivery(imdb, function() { return imdb.search(q, 40); },
+            function() { return imdb.searchState(q, 40); },
+            function(rows) { return pickTopMatch(q, mapNativeTheatre(rows)); }, done);
+    }
+    if (mode === "Tankoban" && CatalogDelivery.available(owners.malCatalog)
+            && typeof owners.malCatalog.searchState === "function")
+        return searchNativeTankoban(query, done, catalogEngine, owners.malCatalog);
     if (mode === "Theatre") return searchTheatre(query, done);
     if (mode === "Tankoban") return searchTankoban(query, done, catalogEngine);
     done([], "");
@@ -354,7 +416,17 @@ function browseMangaGenre(genre, done) {
     };
 }
 
-function browseGenre(mode, genre, done) {
+function browseGenre(mode, genre, done, owners) {
+    owners = owners || {};
+    var mal = owners.malCatalog, imdb = owners.imdbCatalog;
+    if (mode === "Tankoban" && CatalogDelivery.available(mal) && typeof mal.genreEntriesState === "function")
+        return nativeDelivery(mal, function() { return mal.genreEntries("manga", genre, "members", 30); },
+            function() { return mal.genreEntriesState("manga", genre, "members", 30); }, mapNativeManga, done);
+    if (mode === "Theatre" && CatalogDelivery.available(imdb) && typeof imdb.titleCatalogState === "function") {
+        var query = {genre:genre};
+        return nativeDelivery(imdb, function() { return imdb.titleCatalog(query, 0, 30); },
+            function() { return imdb.titleCatalogState(query, 0, 30); }, mapNativeTheatre, done);
+    }
     if (mode === "Theatre") return browseTheatreGenre(genre, done);
     if (mode === "Tankoban") return browseMangaGenre(genre, done);
     done([], "");
@@ -362,12 +434,12 @@ function browseGenre(mode, genre, done) {
 }
 
 // Surprise me — a random genre, then a random title from its top results → opens that detail.
-function surprise(mode, done) {
+function surprise(mode, done, owners) {
     var gs = genresFor(mode);
     var g = gs[Math.floor(Math.random() * gs.length)];
     return browseGenre(mode, g, function(items, error) {
         if (error) { done(null, error); return; }
         if (!items || items.length === 0) { done(null, ""); return; }
         done(items[Math.floor(Math.random() * Math.min(items.length, 20))], "");
-    });
+    }, owners);
 }

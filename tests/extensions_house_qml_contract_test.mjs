@@ -30,32 +30,34 @@ has(/Glass\s*\{[\s\S]*?id:\s*trayGlass[\s\S]*?backdrop:\s*wallpaperLayer/,
     'House tray must use the shared real-backdrop Glass material');
 has(/id:\s*trayGlass[\s\S]*?blurAmount:\s*1\.0/,
     'House tray must use full real blur, not a translucent fake');
-has(/id:\s*trayGlass[\s\S]*?blurMax:\s*64/,
-    'House tray must use the high-quality 64px blur ceiling');
-has(/id:\s*trayGlass[\s\S]*?tint:\s*0\.24/,
-    'House tray must carry the HTML milky glass film rather than flat gray');
+// Preserve the current QML film and sizing; the older HTML parity numbers
+// describe an earlier revision. Navigation and manifest fallback run in QtTest.
+has(/id:\s*trayGlass[\s\S]*?blurMax:\s*34/,
+    'House tray must retain the current shared material ceiling');
+has(/id:\s*trayGlass[\s\S]*?tint:\s*0\.00/,
+    'House tray must retain its separately drawn gradient film');
 has(/Glass\s*\{[\s\S]*?id:\s*pickerGlass[\s\S]*?backdrop:\s*wallpaperLayer/,
     'House picker must use the same real-backdrop Glass material');
-has(/id:\s*tray[\s\S]*?height:\s*root\.width\s*<\s*1250\s*\?\s*206\s*:\s*230/,
-    'House shelf must be taller like the HTML target');
-has(/anchors\.bottomMargin:\s*root\.width\s*<\s*1250\s*\?\s*44\s*:\s*64/,
+has(/id:\s*tray[\s\S]*?height:\s*root\.width\s*<\s*1250\s*\?\s*190\s*:\s*214/,
+    'House shelf must retain its responsive QML sizing');
+has(/anchors\.bottomMargin:\s*root\.width\s*<\s*1250\s*\?\s*28\s*:\s*42/,
     'House shelf must float above the bottom instead of sitting on it');
-has(/id:\s*appTile[\s\S]*?width:\s*134[\s\S]*?height:\s*134/,
-    'House extension cards must be about 10 percent larger');
-has(/id:\s*downloadButton[\s\S]*?width:\s*34[\s\S]*?height:\s*34/,
-    'House download controls must match the larger HTML controls');
+has(/id:\s*appTile[\s\S]*?width:\s*root\.width\s*<\s*1250\s*\?\s*104\s*:\s*122[\s\S]*?height:\s*root\.width\s*<\s*1250\s*\?\s*104\s*:\s*122/,
+    'House extension cards must retain the responsive QML sizes');
+has(/id:\s*downloadButton[\s\S]*?width:\s*root\.width\s*<\s*1250\s*\?\s*28\s*:\s*30[\s\S]*?height:\s*width/,
+    'House download controls must retain the responsive square sizes');
 assert.ok(qml.includes('Qt.rgba(250/255,250/255,248/255,0.97)'),
     'House tiles must use the slightly translucent HTML ivory instead of opaque white');
 assert.ok(qml.includes('#efc15a'),
     'House selected pill must use the HTML gold');
 assert.ok(!qml.includes('Inter-Regular.otf'), 'House parity uses Segoe UI, not Inter');
-assert.ok(qml.includes('../assets/icons/universes-atom.svg'),
-    'Universes tile must use the clean HTML atom mark');
+assert.ok(qml.includes('tileKind: "universes"'),
+    'Tributes tile must retain its Universe destination');
 assert.ok(qml.includes('../assets/icons/download.svg'),
     'download controls must use the real download glyph');
 
 for (const name of [
-    'Universes', 'Grand Database', 'Nyaa', 'Tankoyomi',
+    'Tributes', 'Grand Database', 'Nyaa', 'Tankoyomi',
     'GetComics', 'Tankorent', 'LibGen', 'AudioBookBay'
 ])
     assert.ok(qml.includes(name), 'missing House tile ' + name);

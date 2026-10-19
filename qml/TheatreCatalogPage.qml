@@ -5,6 +5,7 @@
 // TheatreApi, filter through ExplicitContentPolicy before rendering, and honour per-tab
 // customization (move / hide / rename / reset). Stale-generation callbacks are ignored.
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import "TheatreApi.js" as TheatreApi
 import "TheatreGenreApi.js" as TheatreGenreApi
 import "TheatreCatalogRules.js" as Rules
@@ -30,12 +31,27 @@ Column {
     // TheatreWorld retains this page for fast tab switches, but catalogue transport should wait
     // until the world/tab is active.
     property bool active: true
+    // ListModel inserts instantiate delegates synchronously, before the outer Column
+    // commits their page-local y positions. Gate first rail residency until forceLayout().
+    property bool _constructingMainPresentation: false
     property bool _ready: false
     property bool _loadedOnce: false
     property bool _hasSettled: false
     property var _loadCancel: null
+    property var _factsController: null
 
     property var rawRows: []
+    onRawRowsChanged: {
+        page._scheduleFactsDemand()
+        if (typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled) {
+            var catalog=page.pageKey === "anime" ? page.malCatalog : page.imdbCatalog
+            var state=catalog && typeof catalog.landingState === "function" ? catalog.landingState(page.pageKey) : ({})
+            console.info("CATALOGUE_TRACE " + JSON.stringify({event:"qml_model_updated",epochMs:Date.now(),
+                component:"TheatreCatalogPage",dataset:page.pageKey === "anime" ? "mal" : "imdb",
+                method:"landing",queryKey:state.key || "",tab:page.pageKey,generation:page.generation,
+                shelves:rawRows.length,rows:rawRows.reduce(function(n,r){return n+(r.items||[]).length},0)}))
+        }
+    }
     property bool loading: false
     property string errorText: ""
     property int generation: 0
@@ -44,7 +60,37 @@ Column {
     // ── viewport seam for lazy shelf residency (TheatreWorld converts board coords → page-local) ──
     property real viewportTop: 0
     property real viewportHeight: 0
+    onViewportTopChanged: page._scheduleFactsDemand()
+    onViewportHeightChanged: page._scheduleFactsDemand()
     property string visualProfile: "classic"
+
+    Timer {
+        id: factsDemandTimer
+        interval: 0; repeat: false
+        onTriggered: page._updateFactsDemand()
+    }
+    function _scheduleFactsDemand() {
+        if (page.active && page._factsController) factsDemandTimer.restart()
+    }
+    function _updateFactsDemand() {
+        var controller = page._factsController
+        if (!controller || !page.active || page.pageKey === "anime") return
+        var keys = [], vh = page.viewportHeight
+        for (var i = 0; i < mainShelfRepeater.count; ++i) {
+            var d = mainShelfRepeater.itemAt(i), r = page.mainRows[i]
+            if (!d || !r || r.liveFacts !== true) continue
+            if (vh <= 0) { if (r.key === "top-10") keys.push(r.key); continue }
+            var top = d.y, bottom = top + d.height
+            // Match LazyPosterShelf's one-viewport activation and reserve the
+            // two-viewport margin for demand without waking far-away rows.
+            if (top <= page.viewportTop + 2 * vh &&
+                bottom >= page.viewportTop - vh) keys.push(r.key)
+        }
+        controller.setVisible(keys)
+    }
+    function retryFacts() {
+        return !!(page._factsController && page._factsController.retry())
+    }
 
     signal itemRequested(var item)
     signal genreRequested(string kind, string name)
@@ -127,6 +173,88 @@ Column {
     readonly property var mainKeys: {
         var out = []; for (var i = 0; i < mainRows.length; i++) out.push(mainRows[i].key); return out;
     }
+
+    // A keyed, disposable presentation mirror of mainRows (never a catalogue authority).
+    // A JavaScript-array Repeater recreates every delegate when ANY row changes. Apply
+    // only the affected model operation so other LazyPosterShelf instances keep their
+    // focus, horizontal scroll position, and viewport residency across live-facts pushes.
+    ListModel { id: mainPresentationModel; dynamicRoles: true }
+    property var _presentedKeys: []
+    property var _presentedSignatures: []
+    onMainRowsChanged: page._syncMainPresentation()
+    function _syncMainPresentation() {
+        page._constructingMainPresentation = true
+        var traceSync = typeof CatalogueTraceEnabled !== "undefined" && CatalogueTraceEnabled
+        var traceStart = traceSync ? Date.now() : 0
+        var signatureMs = 0, insertMs = 0, updateMs = 0, moveMs = 0, removeMs = 0
+        var inserted = 0, updated = 0, moved = 0, removed = 0
+        var desired = page.mainRows || []
+        var keys = page._presentedKeys.slice()
+        var signatures = page._presentedSignatures.slice()
+        var wanted = Object.create(null)
+        for (var n = 0; n < desired.length; ++n) wanted[String(desired[n].key)] = true
+
+        // Remove only rows no longer present, backward so the existing indices survive.
+        for (var i = keys.length - 1; i >= 0; --i) {
+            if (wanted[keys[i]]) continue
+            var removeStart = traceSync ? Date.now() : 0
+            mainPresentationModel.remove(i)
+            if (traceSync) { removeMs += Date.now() - removeStart; removed++ }
+            keys.splice(i, 1)
+            signatures.splice(i, 1)
+        }
+        for (var j = 0; j < desired.length; ++j) {
+            var row = desired[j], key = String(row.key)
+            // Page rows are plain data descriptors, with validated facts coming only
+            // from TheatreApi. The signature detects semantically identical new arrays.
+            var signature
+            var signatureStart = traceSync ? Date.now() : 0
+            try { signature = JSON.stringify(row) }
+            catch (error) { signature = null } // unsupported payload: update, never hide a change
+            if (traceSync) signatureMs += Date.now() - signatureStart
+            var at = keys.indexOf(key, j)
+            if (at < 0) {
+                var insertStart = traceSync ? Date.now() : 0
+                mainPresentationModel.insert(j, { rowKey: key, rowData: row })
+                if (traceSync) { insertMs += Date.now() - insertStart; inserted++ }
+                keys.splice(j, 0, key)
+                signatures.splice(j, 0, signature)
+                continue
+            }
+            if (at !== j) {
+                var moveStart = traceSync ? Date.now() : 0
+                mainPresentationModel.move(at, j, 1)
+                if (traceSync) { moveMs += Date.now() - moveStart; moved++ }
+                keys.splice(at, 1)
+                keys.splice(j, 0, key)
+                var movedSignature = signatures.splice(at, 1)[0]
+                signatures.splice(j, 0, movedSignature)
+            }
+            if (signature === null || signature === undefined || signatures[j] !== signature) {
+                var updateStart = traceSync ? Date.now() : 0
+                mainPresentationModel.setProperty(j, "rowData", row)
+                if (traceSync) { updateMs += Date.now() - updateStart; updated++ }
+                signatures[j] = signature
+            }
+        }
+        page._presentedKeys = keys
+        page._presentedSignatures = signatures
+        // Commit the owning Column positions before any first-load viewport decision.
+        // Releasing the gate constructs only genuinely nearby rails, included in sync timing.
+        page.forceLayout()
+        page._constructingMainPresentation = false
+        if (traceSync) {
+            console.info("CATALOGUE_TRACE " + JSON.stringify({event: "qml_presentation_sync",
+                component: "TheatreCatalogPage", epochMs: Date.now(), tab: page.pageKey,
+                generation: page.generation, durationMs: Date.now() - traceStart,
+                signatureMs: signatureMs, insertMs: insertMs, updateMs: updateMs,
+                moveMs: moveMs, removeMs: removeMs, inserted: inserted, updated: updated,
+                moved: moved, removed: removed, shelves: desired.length,
+                viewportHeight: page.viewportHeight, viewportTop: page.viewportTop,
+                pageWidth: page.width, active: page.active}))
+        }
+    }
+
     readonly property var rowIndexRows: {
         page.mainRows
         page.extensionRows
@@ -178,6 +306,33 @@ Column {
         function onChanged() { if (page.active) page.load(); }
     }
 
+    property bool _remoteReloadPending: false
+    function remoteCatalogChanged() {
+        page._remoteReloadPending = true;
+        if (page.active) remoteCatalogueTimer.restart();
+    }
+    Timer {
+        id: remoteCatalogueTimer
+        interval: 75
+        onTriggered: {
+            var catalog = page.pageKey === "anime" ? page.malCatalog : page.imdbCatalog;
+            if (catalog && catalog.remotePending && catalog.remotePending()) return;
+            page._remoteReloadPending = false;
+            page.load();
+        }
+    }
+    Connections {
+        target: page.imdbCatalog
+        ignoreUnknownSignals: true
+        // Only a real owner readiness/source switch warrants a new generation.
+        function onReadyChanged() { if (page.pageKey !== "anime" && page.active) page.load(); }
+    }
+    Connections {
+        target: page.malCatalog
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (page.pageKey === "anime") page.remoteCatalogChanged(); }
+        function onRequestFailed() { if (page.pageKey === "anime") page.remoteCatalogChanged(); }
+    }
     onPageKeyChanged: if (page.active) load()
     Component.onCompleted: {
         page._ready = true
@@ -186,20 +341,23 @@ Column {
     Component.onDestruction: page.cancelLoad()
     onActiveChanged: {
         if (!page.active) {
+            // The native cache persists, but this tab's ephemeral demand
+            // subscription is canceled and must be recreated on return.
+            if (page._factsController) page._hasSettled = false
             page.cancelLoad()
             page.generation += 1
             page.loading = false
             return
         }
-        if (page._ready && !page._hasSettled) page.load()
+        if (page._ready && (!page._hasSettled || page._remoteReloadPending)) { page._remoteReloadPending = false; page.load(); }
     }
 
     function _push(payload) {
         if (!payload || payload.generation !== page.generation) return;   // stale-generation fence
-        if (payload.loading !== true) {
+        if (payload.loading !== true)
             page._hasSettled = true;
-            page._loadCancel = null;
-        }
+        // Keep the cancellation handle after index settlement: active live
+        // facts may finish later, and page leave must still unsubscribe them.
         page.loading = payload.loading === true;
         page.rawRows = payload.rows || [];
         page.errorText = payload.error || "";
@@ -207,6 +365,7 @@ Column {
     function load() {
         if (!page.active) return
         page.cancelLoad()
+        page._factsController = null
         page._loadedOnce = true
         page._hasSettled = false
         page.generation += 1;
@@ -218,16 +377,26 @@ Column {
         var handle = loader(page.pageKey, { malCatalog: page.malCatalog, imdbCatalog: page.imdbCatalog,
                                             showExplicit: page.showExplicit,
                                             generation: gen, explicitFilter: page._explicitFilter,
-                                            nowMs: Date.now() }, page._push);
-        if (page.active && page.loading && page.generation === gen)
+                                            nowMs: Date.now(),
+                                            onFactsController: function(controller) {
+                                                if (!page.active || gen !== page.generation) {
+                                                    controller.cancel(); return;
+                                                }
+                                                page._factsController = controller;
+                                                page._scheduleFactsDemand();
+                                            } }, page._push);
+        if (page.active && page.generation === gen)
             page._loadCancel = (typeof handle === "function") ? handle : null;
         else if (typeof handle === "function")
             handle();
     }
     function cancelLoad() {
-        var handle = page._loadCancel;
-        page._loadCancel = null;
-        if (typeof handle === "function") handle();
+        factsDemandTimer.stop()
+        var handle = page._loadCancel
+        page._loadCancel = null
+        if (typeof handle === "function") handle()
+        if (page._factsController) page._factsController.cancel()
+        page._factsController = null
     }
     function isRenamed(key) {
         var _ = page.prefsRev;
@@ -291,10 +460,10 @@ Column {
     // LazyPosterShelf only around the WorldPage viewport, so a long page's live rails plateau.
     Repeater {
         id: mainShelfRepeater
-        model: page.mainRows
+        model: mainPresentationModel
         delegate: Column {
             id: rowBlock
-            required property var modelData
+            required property var rowData
             required property int index
             width: page.width
             spacing: 8
@@ -304,31 +473,40 @@ Column {
 
             TheatreRowControls {
                 visible: page.editMode
-                rowKey: rowBlock.modelData.key
-                label: rowBlock.modelData.title
-                hidden: rowBlock.modelData.hidden === true
-                renamed: page.isRenamed(rowBlock.modelData.key)
+                rowKey: rowBlock.rowData.key
+                label: rowBlock.rowData.title
+                hidden: rowBlock.rowData.hidden === true
+                renamed: page.isRenamed(rowBlock.rowData.key)
                 canMoveUp: rowBlock.index > 0
                 canMoveDown: rowBlock.index < page.mainRows.length - 1
-                onMoveUpRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.modelData.key, -1)
-                onMoveDownRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.modelData.key, 1)
-                onToggleHiddenRequested: page._prefsStore.toggleHidden(page.pageKey, rowBlock.modelData.key)
-                onRenameRequested: (label) => page._prefsStore.rename(page.pageKey, rowBlock.modelData.key, label)
-                onResetNameRequested: page._prefsStore.rename(page.pageKey, rowBlock.modelData.key, "")
+                onMoveUpRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.rowData.key, -1)
+                onMoveDownRequested: page._prefsStore.move(page.pageKey, page.mainKeys, rowBlock.rowData.key, 1)
+                onToggleHiddenRequested: page._prefsStore.toggleHidden(page.pageKey, rowBlock.rowData.key)
+                onRenameRequested: (label) => page._prefsStore.rename(page.pageKey, rowBlock.rowData.key, label)
+                onResetNameRequested: page._prefsStore.rename(page.pageKey, rowBlock.rowData.key, "")
             }
             LazyPosterShelf {
                 id: rowShelf
                 width: page.width
-                row: rowBlock.modelData
+                row: rowBlock.rowData
                 visualProfile: page.visualProfile
                 // rowBlock.y is page-local; the shelf's own y is rowBlock-local, so pass the viewport
                 // in rowBlock-local coordinates. (No per-frame mapToItem — a single subtraction.)
                 viewportTop: page.viewportTop - rowBlock.y
                 viewportHeight: page.viewportHeight
+                geometryReady: !page._constructingMainPresentation
                 editMode: page.editMode
                 onItemRequested: (item) => page.itemRequested(item)
                 onSeeAllRequested: (pin) => page.seeAllRequested(pin)
-                onRailLoadedChanged: page._liveRev += 1
+                onRailLoadedChanged: { page._liveRev += 1; page._scheduleFactsDemand() }
+            }
+            Item {
+                // Pending live rows occupy the same shelf footprint; no poster
+                // is shown until facts validate the candidate's eligibility.
+                height: rowBlock.rowData.pendingFacts === true && !rowShelf._hasItems
+                        ? (30 + rowShelf._m.headerGap + rowShelf._railListHeight) : 0
+                width: 1
+                visible: height > 0
             }
         }
     }

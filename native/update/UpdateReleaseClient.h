@@ -30,7 +30,6 @@ struct ReleaseCheckResult {
 
 struct ReleaseClientConfig {
     QUrl latestReleaseUrl;
-    QString repository = QStringLiteral("kingoftheseas56/Colosseum");
     QByteArray publicKey;
     bool allowHttpForTests = false;
 #ifdef Q_OS_WIN

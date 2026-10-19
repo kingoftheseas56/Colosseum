@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 var groupingSource = "https://one-piece.com/story/index.html";
 
@@ -139,3 +140,16 @@ function arcsForLocation(id) {
             result.push(arcs[i]);
     return result;
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    if (typeof ContentApi === "undefined") return;
+    var data = ContentApi.document("tribute-one-piece-final-sea").story;
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.groupingSource !== undefined && (Array.isArray(groupingSource) ? Array.isArray(data.groupingSource) : typeof data.groupingSource === typeof groupingSource)) groupingSource = data.groupingSource;
+    if (data.snapshot !== undefined && (Array.isArray(snapshot) ? Array.isArray(data.snapshot) : typeof data.snapshot === typeof snapshot)) snapshot = data.snapshot;
+    if (data.providerSelectors !== undefined && (Array.isArray(providerSelectors) ? Array.isArray(data.providerSelectors) : typeof data.providerSelectors === typeof providerSelectors)) providerSelectors = data.providerSelectors;
+    if (data.arcs !== undefined && (Array.isArray(arcs) ? Array.isArray(data.arcs) : typeof data.arcs === typeof arcs)) arcs = data.arcs;
+}
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

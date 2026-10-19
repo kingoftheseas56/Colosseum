@@ -1,0 +1,144 @@
+import QtQuick
+import QtTest
+import "@@APP_URL@@" as App
+import "." as Probe
+
+Item {
+    width: 1280; height: 720
+    App.ShelvesUniversePage { id: shelves }
+    Probe.BootSplash { id: boot; width: 600; height: 200; visible: false; prefetchEnabled: false; property int completions: 0; onFinished: completions++ }
+    App.CarouselSlide { width: 600; height: 200; visible: false }
+    App.UniverseBanner { id: cancellationBanner; width: 600; height: 200; visible: false }
+    TestCase {
+        name: "ShelvesImageRequests"
+        when: windowShown
+        property var counts: ({})
+        function works(group, medium) {
+            var out = []
+            for (var i = 0; i < 40; ++i) out.push({ key: group + i, id: group + i,
+                title: group + " " + i, medium: medium, type: medium, resolved: true,
+                art: group === "lower" && i < 4 ? "@@BASE_URL@@/gallery/" + i + ".svg" : "",
+                cover: "@@BASE_URL@@/" + group + "/" + i + ".svg" })
+            return out
+        }
+        function readCounts() {
+            var complete = false
+            var request = new XMLHttpRequest()
+            request.onreadystatechange = function() {
+                if (request.readyState !== XMLHttpRequest.DONE) return
+                counts = JSON.parse(request.responseText); complete = true
+            }
+            request.open("GET", "@@BASE_URL@@/counts?at=" + Date.now()); request.send()
+            tryVerify(function() { return complete }, 3000)
+            return counts
+        }
+        function test_bootCompletionCancelsUnfinishedPrefetch() {
+            if (@@BASELINE@@) return
+            boot.prefetchEnabled = true
+            boot.visible = true
+            boot.startPrefetch(["@@BASE_URL@@/cached-boot.svg", "@@BASE_URL@@/slow-boot.svg"])
+            tryVerify(function(){return boot.done === 1 && readCounts()["/slow-boot.svg"] === 1},5000)
+            var aborts = readCounts().aborted || 0
+            boot.visible = false
+            tryVerify(function(){return readCounts().aborted === aborts + 1},3000)
+            boot.visible = true
+            tryVerify(function(){return readCounts()["/slow-boot.svg"] === 2},3000)
+            boot.complete()
+            tryVerify(function(){return readCounts().aborted === aborts + 2},3000)
+            boot.complete()
+            compare(boot.completions,1,"completion signal remains idempotent")
+            boot.startPrefetch(["@@BASE_URL@@/late-boot.svg"])
+            verify(!readCounts()["/late-boot.svg"],"late catalogue callback cannot restart finished boot")
+            boot.visible = false
+            boot.visible = true
+            wait(100)
+            compare(readCounts()["/cached-boot.svg"],1,"finished boot image retained")
+            compare(readCounts()["/slow-boot.svg"],2,"completed boot never resumes abandoned work")
+            boot.visible = false
+        }
+        function test_hiddenPageCancelsAndCachedRevisit() {
+            if (@@BASELINE@@) return
+            cancellationBanner.entry = {banner:"@@BASE_URL@@/slow.svg",logo:""}
+            cancellationBanner.visible = true
+            tryVerify(function(){return readCounts()["/slow.svg"] === 1},3000)
+            var priorAborts = readCounts().aborted || 0
+            cancellationBanner.visible = false
+            tryVerify(function(){return readCounts().aborted === priorAborts + 1},3000)
+            var image = findChild(cancellationBanner,"universeBannerArt")
+            compare(String(image.source),"")
+            cancellationBanner.entry = {banner:"@@BASE_URL@@/cached.svg",logo:""}
+            cancellationBanner.visible = true
+            tryCompare(image,"status",Image.Ready,5000)
+            compare(readCounts()["/cached.svg"],1)
+            cancellationBanner.visible = false
+            compare(image.status, Image.Ready, "completed image remains cached on hidden page")
+            cancellationBanner.visible = true
+            tryCompare(image,"status",Image.Ready,5000)
+            compare(readCounts()["/cached.svg"],1,"revisit reuses existing Qt image cache")
+            cancellationBanner.visible = false
+        }
+        function test_knownCoversWaitForViewportAndRetainPerIdentity() {
+            shelves.uni = { name: "Fixture", color: "#222", banner: "", wallpaper: "", blurb: "", blurbSource: "", shelves: [
+                { title: "Manga", key: "manga", kind: "manga", runs: [{label: "", items: works("row", "manga")}] },
+                { title: "Books", key: "books", kind: "book", form: "table", runs: [{label: "", items: works("table", "book")}] },
+                { title: "Films", key: "films", kind: "movie", runs: [{label: "", items: works("lower", "movie")}] }
+            ] }
+            if (@@BASELINE@@) {
+                var baseline = ({})
+                tryVerify(function() { baseline = readCounts(); return Object.keys(baseline).length === 124 }, 5000)
+                console.log("SHELVES_IMAGE_COUNTS_BASELINE=" + Object.keys(baseline).length + "/124")
+                return
+            }
+            var first = null
+            tryVerify(function() { first = findChild(shelves, "shelvesCover_row0"); return first && first.status === Image.Ready }, 5000)
+            wait(200)
+            var initial = readCounts()
+            compare(initial["/row/0.svg"], 1)
+            verify(!initial["/row/39.svg"], "far horizontal covers must not request")
+            verify(!initial["/table/39.svg"], "far table thumbnails must not request")
+            verify(!initial["/lower/0.svg"], "lower shelf covers must not request")
+            verify(!initial["/gallery/0.svg"], "below-fold Gallery must not precede first covers")
+            verify(Object.keys(initial).filter(function(k){return k.indexOf("/row/")===0 || k.indexOf("/table/")===0 || k.indexOf("/lower/")===0}).length < 30, "cold view must not fan out all 120 image requests")
+            console.log("SHELVES_IMAGE_COUNTS_INITIAL=" + Object.keys(initial).filter(function(k){return /^\/(row|table|lower)\//.test(k)}).length + "/120")
+            var row = findChild(shelves, "shelvesRow_manga")
+            row.contentX = row.contentWidth - row.width
+            var last = findChild(shelves, "shelvesCover_row39")
+            tryCompare(last, "status", Image.Ready, 5000)
+            compare(String(first.source), "@@BASE_URL@@/row/0.svg", "visited covers remain attached outside viewport")
+            // Updating a visited identity keeps it loaded; rebinding to a different
+            // identity outside the viewport must reset its request latch.
+            var tile = first.parent.parent
+            tile.item = {key:"row0",id:"row0",title:"Updated",medium:"manga",cover:"@@BASE_URL@@/row/updated.svg"}
+            tryCompare(first, "status", Image.Ready, 5000)
+            tile.item = {key:"replacement",id:"replacement",title:"Replacement",medium:"manga",cover:"@@BASE_URL@@/row/replacement.svg"}
+            compare(String(first.source), "")
+            verify(!readCounts()["/row/replacement.svg"])
+            row.contentX = 0
+            var replacement = findChild(shelves, "shelvesCover_replacement")
+            tryCompare(replacement, "status", Image.Ready, 5000)
+            compare(readCounts()["/row/replacement.svg"], 1)
+            var page = findChild(shelves, "shelvesScroll")
+            // Reflow a previously distant panel without changing scroll position.
+            var lower = findChild(shelves, "shelvesMedium_films")
+            var lowerArt = findChild(shelves, "shelvesCover_lower0")
+            verify(!readCounts()["/lower/0.svg"])
+            var unchangedScroll = page.contentY
+            lower.y -= lower.mapToItem(page.contentItem, 0, 0).y - page.contentY - 40
+            compare(page.contentY, unchangedScroll)
+            tryCompare(lowerArt, "status", Image.Ready, 5000)
+            var tableRow = findChild(shelves, "shelvesTableRow_books_39")
+            page.contentY = tableRow.mapToItem(page.contentItem, 0, 0).y - page.height / 2
+            var tableArt = findChild(shelves, "shelvesTableCover_table39")
+            tryCompare(tableArt, "status", Image.Ready, 5000)
+            var gallery = findChild(shelves, "shelvesGallery")
+            page.contentY = gallery.mapToItem(page.contentItem, 0, 0).y - 100
+            var galleryArt = findChild(shelves, "shelvesGalleryArt_0")
+            tryCompare(galleryArt, "status", Image.Ready, 5000)
+            compare(readCounts()["/gallery/0.svg"], 1)
+            var after = readCounts()
+            compare(after["/table/39.svg"], 1)
+            compare(after["/row/39.svg"], 1)
+            console.log("SHELVES_IMAGE_COUNTS_AFTER_SCROLL=" + Object.keys(after).filter(function(k){return /^\/(row|table|lower|gallery)\//.test(k)}).length + "/124")
+        }
+    }
+}

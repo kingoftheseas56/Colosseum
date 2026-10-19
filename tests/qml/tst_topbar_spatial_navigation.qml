@@ -33,7 +33,36 @@ TestCase {
         return [{tag: "Tankoban", medium: "Tankoban"},
                 {tag: "Biblio", medium: "Biblio"},
                 {tag: "Theatre", medium: "Theatre"},
+                {tag: "Universes", medium: "Universes"},
                 {tag: "Feria", medium: "Feria"}]
+    }
+    QtObject {
+        id: localAccount
+        property string mode: "localOnly"
+        property string username: ""
+        property bool accountFeaturesAvailable: true
+    }
+    function test_system_controls_have_space_with_local_account_data() {
+        return [{tag:"904", width:904}, {tag:"1040", width:1040},
+                {tag:"1172", width:1172}, {tag:"1500", width:1500}]
+    }
+    function test_system_controls_have_space_with_local_account(data) {
+        bar.width = data.width
+        bar.activeMedium = "Theatre"
+        bar.trackersEnabled = true
+        bar.accountController = localAccount
+        wait(30)
+        var picker = findChild(bar, "topBarWorldPicker")
+        var systems = findChild(bar, "topBarSystemChrome")
+        var left = findChild(bar, "topBarLeftChrome")
+        verify(systems.spacing >= (data.width < 1000 ? 12 : 20),
+               "System controls need breathing room at the active window size")
+        verify(picker.x >= left.x + left.width + 8, "Picker must clear the left controls")
+        verify(picker.x + picker.width + 8 <= systems.x, "Picker must clear the right controls")
+        verify(systems.x >= 0 && systems.x + systems.width <= bar.width + 1)
+        bar.accountController = null
+        bar.trackersEnabled = false
+        bar.width = 1040
     }
     function test_compact_world_picker_does_not_overlap_search(data) {
         bar.width = 904 // 1024px window minus the production side margins
@@ -45,10 +74,15 @@ TestCase {
         verify(picker.x + picker.width + 8 <= systems.x,
                "World picker must leave space before system controls")
         var feria = findChild(bar, "modePillFocus_Feria")
+        var universes = findChild(bar, "modePillFocus_Universes")
+        verify(feria !== null)
+        compare(feria.enabled, false)
         mediumSpy.clear(); searchSpy.clear()
         mouseClick(feria)
+        compare(mediumSpy.count, 0)
+        mouseClick(universes)
         compare(mediumSpy.count, 1)
-        compare(mediumSpy.signalArguments[0][0], "Feria")
+        compare(mediumSpy.signalArguments[0][0], "Universes")
         compare(searchSpy.count, 0)
         bar.width = 1040
         bar.trackersEnabled = false
@@ -137,19 +171,44 @@ TestCase {
         compare(boundarySpy.signalArguments[0][0], Qt.Key_Down)
     }
 
-    function test_feria_is_the_fifth_world_and_keyboard_reachable() {
-        var universes = focusableFace(findChild(bar, "modePill_Universes"))
+    function test_universes_is_the_fourth_world_and_feria_is_non_navigable_while_coming_soon() {
+        var theatre = focusableFace(findChild(bar, "modePill_Theatre"))
+        var universesPill = findChild(bar, "modePill_Universes")
+        var universes = focusableFace(universesPill)
         var feriaPill = findChild(bar, "modePill_Feria")
-        var feria = focusableFace(feriaPill)
-        verify(universes !== null && feria !== null)
-        universes.forceActiveFocus(Qt.OtherFocusReason)
+        var feriaFocus = findChild(bar, "modePillFocus_Feria")
+        var vinylFocus = findChild(bar, "modePillFocus_Vinyl")
+        verify(theatre !== null && universes !== null)
+        verify(feriaPill !== null && feriaFocus !== null && vinylFocus !== null)
+        compare(feriaPill.comingSoon, true)
+        verify(!feriaFocus.enabled)
+        verify(!vinylFocus.enabled)
+        theatre.forceActiveFocus(Qt.OtherFocusReason)
         keyClick(Qt.Key_Right)
-        verify(feria.activeFocus)
+        verify(universes.activeFocus)
         keyClick(Qt.Key_Return)
         compare(mediumSpy.count, 1)
-        compare(mediumSpy.signalArguments[0][0], "Feria")
+        compare(mediumSpy.signalArguments[0][0], "Universes")
+        bar.activeMedium = "Universes"
+        compare(universesPill.active, true)
+        compare(findChild(bar, "modePill_Theatre").active, false)
         bar.activeMedium = "Feria"
-        compare(feriaPill.active, true)
-        compare(findChild(bar, "modePill_Universes").active, false)
+        compare(feriaPill.active, false)
+    }
+
+    function test_wallpaper_and_compact_browser_chrome_flags() {
+        var wall = findChild(bar, "topBarWallpaperButton")
+        verify(wall !== null)
+        compare(wall.visible, true)
+        bar.wallpaperEnabled = false
+        compare(wall.visible, false)
+        bar.wallpaperEnabled = true
+        compare(wall.visible, true)
+        bar.width = 1240
+        compare(bar.compactChrome, false)
+        bar.compactBrowserChrome = true
+        compare(bar.compactChrome, true)
+        bar.compactBrowserChrome = false
+        compare(bar.compactChrome, false)
     }
 }

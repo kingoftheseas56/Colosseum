@@ -17,6 +17,7 @@ Item {
     property bool hovered: false             // drives the cheap depth plates + inset edge accent
     // 0 → use the live Screen.devicePixelRatio; a positive value is a deterministic harness override.
     property real testDevicePixelRatio: 0
+    readonly property bool softwareRendering: root.GraphicsInfo.api === GraphicsInfo.Software
 
     // ── bounded decode (design §5.2): clamp(dpr, 1, 2) × rendered geometry ──
     readonly property real effectiveScale: Math.max(1, Math.min(2,
@@ -67,15 +68,28 @@ Item {
         Behavior on color { ColorAnimation { duration: 260 } }
     }
 
-    // ── the decoded art: a texture provider only, never drawn directly. The rounded pass below
-    //    samples it, so the art can never paint over the inset edge. ──
+    // ShaderEffect is unavailable on the software backend. Keep its existing
+    // bounded decoder/candidate policy, but draw the image directly there.
+    // Only that fallback loses the shader's rounded artwork crop.
+    Rectangle {
+        anchors.fill: parent
+        visible: root.softwareRendering
+        radius: root.radius
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#191b21" }
+            GradientStop { position: 0.5; color: "#101218" }
+            GradientStop { position: 1; color: "#17171b" }
+        }
+    }
+
+    // The shader renderer samples this texture without drawing it directly.
     Image {
         id: art
         // Automation identity (Lanista): the decode-truth surface (status/sourceSize/painted
         // size live HERE, not on the wrapper). Named only when the owner named the wrapper.
         objectName: root.objectName.length > 0 ? root.objectName + "_img" : ""
         anchors.fill: parent
-        visible: false
+        visible: root.softwareRendering
         source: root.activeSource
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
@@ -95,6 +109,7 @@ Item {
     //    ~8 ms per card (QML profile, 2026-09-29). ──
     ShaderEffect {
         id: roundedPass
+        visible: !root.softwareRendering
         anchors.fill: parent
         readonly property real _texW: Math.max(1, art.implicitWidth)
         readonly property real _texH: Math.max(1, art.implicitHeight)

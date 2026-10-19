@@ -67,9 +67,10 @@ TestCase {
     function countCards(wall) {
         var all = []; descendants(wall.contentItem, all)
         var count = 0
+        // Match complete fixture card identities. Artwork and lazy reveal
+        // children share the card's name prefix but are not extra delegates.
         for (var i = 0; i < all.length; ++i)
-            if (String(all[i].objectName || "").indexOf("discoverCard_") === 0
-                    || String(all[i].objectName || "").indexOf("biblioLibraryCard_") === 0)
+            if (/^(discoverCard_card-|biblioLibraryCard_biblio)\d+$/.test(String(all[i].objectName || "")))
                 ++count
         return count
     }

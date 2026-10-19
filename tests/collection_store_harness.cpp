@@ -8,6 +8,7 @@
 #include "CollectionStore.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QTemporaryDir>
 #include <QVariantList>
 #include <QVariantMap>
@@ -17,8 +18,10 @@
 
 namespace {
 
+int checks = 0;
 void require(bool condition, const char *message)
 {
+    ++checks;
     if (!condition) {
         std::cerr << "FAIL: " << message << '\n';
         std::exit(1);
@@ -101,12 +104,76 @@ void runSuite()
             "nested payload int survives reload");
 }
 
+// A catalogue refresh must publish removals and replacements as one owner write.
+void runBatchSuite()
+{
+    QTemporaryDir tmp;
+    require(tmp.isValid(), "batch temporary directory exists");
+    const QString path = tmp.filePath("batch.ini");
+    CollectionStore store(path);
+    require(store.add("Vinyl", entry("old", "album", "Old", 1)), "seed batch old item");
+    require(store.add("theatre", entry("old", "movie", "Other world", 1)), "seed other world");
+    auto replace = [&](const QStringList &removed, const QVariantList &added) {
+        bool result = false;
+        const bool called = QMetaObject::invokeMethod(&store, "replaceItems", Qt::DirectConnection,
+            Q_RETURN_ARG(bool, result), Q_ARG(QString, QStringLiteral("Vinyl")),
+            Q_ARG(QStringList, removed), Q_ARG(QVariantList, added));
+        require(called, "atomic Collection replacement API exists");
+        return result;
+    };
+    const auto before = store.items("Vinyl");
+    const int rev = store.revision();
+    require(!replace({"old"}, {entry("new", "album", "New", 2), entry("", "album", "Invalid", 3)}),
+            "late malformed entry rejects whole batch");
+    require(store.items("Vinyl") == before && store.revision() == rev, "invalid batch leaves old records/revision intact");
+    require(!replace({}, {entry("x", "album", "X", 2), entry("x", "album", "Duplicate", 3)}),
+            "duplicate IDs reject whole batch");
+    require(store.items("Vinyl") == before, "duplicate batch preserves old records");
+    int dirty = 0;
+    QObject::connect(&store, &CollectionStore::syncDirty, [&] { ++dirty; });
+    require(replace({"old"}, {entry("new-a", "album", "A", 2), entry("new-b", "album", "B", 3)}),
+            "valid batch commits removals and additions");
+    require(!store.has("Vinyl", "old") && store.has("Vinyl", "new-a") && store.has("Vinyl", "new-b"),
+            "whole replacement visible");
+    require(store.has("theatre", "old"), "batch keeps other worlds intact");
+    require(store.revision() == rev + 1 && dirty == 1, "batch emits one revision and one sync notification");
+    CollectionStore reload(path);
+    require(reload.items("Vinyl") == store.items("Vinyl"), "batch persisted completely");
+    require(replace({}, {}), "empty batch is no-op success");
+    require(store.revision() == rev + 1 && dirty == 1, "empty batch does not publish a revision");
+
+    const QString folder = tmp.filePath("fault");
+    require(QDir().mkpath(folder), "create fault fixture directory");
+    {
+        CollectionStore fault(folder + "/collection.ini");
+        require(fault.add("Vinyl", entry("kept", "album", "Keep", 1)), "seed durable fault fixture");
+        const auto good = fault.items("Vinyl");
+        const int goodRev = fault.revision();
+        require(QDir().rename(folder, folder + "-backup"), "move owned fixture directory");
+        QFile blocker(folder);
+        require(blocker.open(QIODevice::WriteOnly), "block fixture path with regular file");
+        blocker.close();
+        bool result = true;
+        require(QMetaObject::invokeMethod(&fault, "replaceItems", Qt::DirectConnection,
+            Q_RETURN_ARG(bool, result), Q_ARG(QString, QStringLiteral("Vinyl")),
+            Q_ARG(QStringList, QStringList{"kept"}),
+            Q_ARG(QVariantList, QVariantList{entry("lost", "album", "Must not publish", 2)})), "invoke failed-write batch");
+        require(!result, "filesystem write failure is reported");
+        require(fault.items("Vinyl") == good && fault.revision() == goodRev, "failed write preserves in-memory last good state");
+        require(QFile::remove(folder) && QDir().rename(folder + "-backup", folder), "restore owned fixture path");
+    }
+    CollectionStore recovered(folder + "/collection.ini");
+    require(recovered.has("Vinyl", "kept") && !recovered.has("Vinyl", "lost"),
+            "destructor cannot replay failed pending batch over last good file");
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     runSuite();
-    std::cout << "CollectionStore behavioral tests passed.\n";
+    runBatchSuite();
+    std::cout << "CollectionStore behavioral tests passed: " << checks << " checks.\n";
     return 0;
 }

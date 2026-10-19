@@ -1,7 +1,10 @@
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 
 Item {
     id: root
+    function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? Content.generation : 0
     objectName: "dcauEnvironmentWatchtowerV11"
     property bool reducedMotion: false
 
@@ -10,7 +13,7 @@ Item {
     Image {
         id: watchtowerV11Scene
         anchors.fill: parent
-        source: Qt.resolvedUrl("../assets/universes/dcau/environments/justice-v11-bg.png")
+        source: root.resolveContentAsset("../assets/universes/dcau/environments/justice-v11-bg.png")
         fillMode: Image.Stretch
         sourceSize.width: 1600
         sourceSize.height: 900

@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "colosseum-content-api-staging",
+  "main": "src/index.ts",
+  "account_id": "69049ce787cd73028c878bf0953946f6",
+  "assets": { "directory": "generated/content-v3", "binding": "ASSETS", "run_worker_first": ["/v1/*", "/admin/*", "/healthz", "/internal/*"] },
+  "compatibility_date": "2026-10-06",
+  "workers_dev": true,
+  "preview_urls": false,
+  // Proposed with this candidate; no remote setting is changed until deployment.
+  // Catalogue logs omit args/tokens and distinguish prebuilt/edge/D1 row costs.
+  "observability": { "enabled": true, "head_sampling_rate": 0.1, "redact_query_string": true, "logs": { "invocation_logs": false } },
+  "vars": {
+    "ENVIRONMENT": "staging",
+    "LIBRARY_REVISION": "4ee62650692b3ca915a27478c1da718726ae543c8f31768596c29509d6535b2e",
+    // Guest Tankoban lane (2026-10-14): the semantic client's lease gate.
+    // Requires SESSION_SECRET (>=32 chars) via `wrangler secret put
+    // SESSION_SECRET`; without it the worker still fails closed (503
+    // GUEST_UNAVAILABLE) by code.
+    "TANKOBAN_GUEST_ENABLED": "true"
+  },
+  // Per-IP guest lease issuance bound (Workers rate limiting binding, free
+  // tier). Desktop clients issue one lease per session plus a re-issue on
+  // 401/409 only; 30/min per IP is far above that and blunts abuse. The
+  // limiter is approximate — it applies at individual Cloudflare edge
+  // locations, not as a strict account-wide quota. namespace_id must be an
+  // account-unique positive integer string ("1001"; matches the test
+  // fixture, no other Worker on the account uses a rate-limit namespace).
+  "ratelimits": [
+    {
+      "name": "GUEST_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
+  "d1_databases": [
+    { "binding": "LIBRARY", "database_name": "colosseum-library-staging-4ee626", "database_id": "65fca568-24e4-4ca8-b5e3-ad366577a489" },
+    { "binding": "CATALOG", "database_name": "colosseum-catalog-staging", "database_id": "05a2f058-5df9-4636-a772-34a2672fb655", "migrations_dir": "migrations/catalog" },
+    { "binding": "METADATA", "database_name": "colosseum-metadata-staging", "database_id": "9ea859a1-f800-4c24-b24a-476872eec0e2", "migrations_dir": "migrations/metadata" }
+  ]
+}

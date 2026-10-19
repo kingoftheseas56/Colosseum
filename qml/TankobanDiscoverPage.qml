@@ -21,6 +21,7 @@
 // mangaSeriesRequested(item), comicSeriesRequested(item), currentType, keyboardMode,
 // catalogMenuModel, items, loading.
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import "TankobanDiscoverApi.js" as Api
 
 Item {
@@ -81,11 +82,11 @@ Item {
 
     function _catalogueReadyForType(type) {
         var catalog = type === "comics" ? comicsCatalog : malCatalog
-        return catalog && catalog.ready && catalog.ready()
+        return CatalogDelivery.available(catalog)
     }
 
     function _handleCatalogueReady(type, catalog) {
-        if (!catalog || !catalog.ready || !catalog.ready()) return
+        if (!CatalogDelivery.available(catalog)) return
         if (browser.currentType !== type || browser.items.length !== 0) return
         if (root.active) {
             root._catalogueReloadPending = false
@@ -128,9 +129,12 @@ Item {
         ignoreUnknownSignals: true // QML harness catalogues need not implement the async cache signal.
         function onReadyChanged() { root._handleCatalogueReady("manga", root.malCatalog) }
         function onFilterCacheReady() { if (root.active && root._ready) browser.refresh() }
+        function onRevisionChanged() { if (root.active && root._ready) browser.refresh() }
     }
     Connections {
         target: root.comicsCatalog
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (root.active && root._ready) browser.refresh() }
         function onReadyChanged() { root._handleCatalogueReady("comics", root.comicsCatalog) }
     }
 

@@ -2,6 +2,7 @@
 // CatalogVaultClient — keeps the four Colosseum-Data catalogue databases (mal_catalog.db,
 // tankoban_catalog.db, comics_catalog.db, imdb_catalog.db) fresh in AppData from the public
 // kingoftheseas56/Colosseum-Data GitHub release (data-vault adoption, Slice 1, 2026-08-22).
+// Tankoban API mode excludes tankoban_catalog.db while preserving any existing fallback.
 // Touches nothing outside vaultDir: `<vaultDir>/state.json` ({tag, fetchedAt ISO8601 UTC,
 // assets:{name:{size}}}) plus the four db files themselves. Serial downloads only (one asset
 // in flight at a time — this machine is RAM/IO constrained and parallel 90MB downloads help
@@ -50,9 +51,14 @@ public:
     // Data-vault Slice 2 (2026-08-22): restrict which of the four known assets this
     // client will ever fetch — a catalog whose dev-machine override already resolved to a
     // local `data/*.db` file has no business being vault-managed. Unknown names are
-    // ignored; an empty/never-called call manages all four (the Slice-1 default). Call
+    // ignored; an empty list manages nothing. Never calling it manages all four. Call
     // BEFORE checkAndFetch(); changing it mid-fetch does not affect an in-flight pass.
     Q_INVOKABLE void setManagedNames(const QStringList& names);
+
+    // Set from the validated Tankoban API configuration before checkAndFetch().
+    // API mode never owns or discovers the bulk Tankoban asset, even if API requests
+    // fail. Existing database files remain untouched for the read-only local fallback.
+    void setTankobanApiEnabled(bool enabled);
     void setForegroundPressure(int pressure);
 
 signals:
@@ -96,6 +102,7 @@ private:
     bool m_fetching = false;
     QString m_currentTag;
     QStringList m_managedNames; // meaningful only when m_managedNamesSet is true
+    bool m_tankobanApiEnabled = false;
     bool m_managedNamesSet = false; // false == manage all four (Slice-1 default, setManagedNames never called)
 
     // In-flight download-plan state for the current checkAndFetch() pass.

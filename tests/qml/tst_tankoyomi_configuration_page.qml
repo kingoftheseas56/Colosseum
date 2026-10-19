@@ -221,8 +221,10 @@ TestCase {
         var breadcrumbPos = breadcrumb.mapToItem(header, 0, 0)
         verify(breadcrumbPos.x >= -1 && breadcrumbPos.x + breadcrumb.width <= header.width + 1)
         verify(title !== null && !title.truncated)
-        var titlePos = title.mapToItem(header, 0, 0)
-        verify(titlePos.x >= -1 && titlePos.x + title.width <= header.width + 1)
+        tryVerify(function() {
+            var titlePos = title.mapToItem(header, 0, 0)
+            return titlePos.x >= -1 && titlePos.x + title.width <= header.width + 1
+        }, 1000, "The polished title must fit inside the compact header")
         var masterPos = master.mapToItem(scroll, 0, 0)
         verify(masterPos.x >= -1 && masterPos.x + master.width <= scroll.width + 1)
     }

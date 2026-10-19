@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 // Static atlas geometry and Index payloads. Story/provider metadata remains in
 // OnePieceEastBlueData.js; these records only bind the fitted plate to native UI.
@@ -12,6 +13,8 @@ var canonMarkers = [
 ];
 
 function badgeSource(id) {
+    var data = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-east-blue") : {};
+    if (data.artByArc && data.artByArc[id]) return ContentApi.resolveAssets(data.artByArc[id]).badgeSource;
     for (var i = 0; i < canonMarkers.length; ++i)
         if (canonMarkers[i].id === id)
             return canonMarkers[i].badge;
@@ -19,6 +22,8 @@ function badgeSource(id) {
 }
 
 function bannerSource(id) {
+    var data = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-east-blue") : {};
+    if (data.artByArc && data.artByArc[id]) return ContentApi.resolveAssets(data.artByArc[id]).posterSource;
     for (var i = 0; i < canonMarkers.length; ++i)
         if (canonMarkers[i].id === id)
             return "../assets/universes/one-piece/east-blue/banners/" + id + ".png";
@@ -44,3 +49,14 @@ function nonCanonEntry(id) {
         if (nonCanonEntries[i].id === id) return nonCanonEntries[i];
     return null;
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    if (typeof ContentApi === "undefined") return;
+    var data = ContentApi.document("tribute-one-piece-east-blue").atlas;
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.canonMarkers !== undefined && (Array.isArray(canonMarkers) ? Array.isArray(data.canonMarkers) : typeof data.canonMarkers === typeof canonMarkers)) canonMarkers = data.canonMarkers;
+    if (data.nonCanonEntries !== undefined && (Array.isArray(nonCanonEntries) ? Array.isArray(data.nonCanonEntries) : typeof data.nonCanonEntries === typeof nonCanonEntries)) nonCanonEntries = data.nonCanonEntries;
+}
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

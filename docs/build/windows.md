@@ -33,7 +33,7 @@ $Boost = "$Deps\boost"
 $OpenSsl = "$Deps\openssl"
 ```
 
-Before configuring, verify that those prefixes contain the headers and libraries described above. All dependencies must match the 64-bit MSVC toolchain used by Qt.
+Before configuring, verify that those prefixes contain the headers and libraries described above. All dependencies must match the 64-bit MSVC toolchain used by Qt. Boost headers must also match the version used to build libtorrent: mixing Asio layouts can link successfully and crash during shutdown. The Windows static-library fallback runs a session shutdown ABI probe during configuration and rejects an incompatible pair.
 
 ## Configure
 
@@ -47,6 +47,7 @@ cmake -S native -B native/build-msvc -G Ninja `
   "-DLIBMPV_PREFIX=$LibMpv" `
   "-DLIBTORRENT_ROOT=$Libtorrent" `
   "-DBOOST_ROOT=$Boost" `
+  "-DBOOST_INCLUDE_DIR=$Boost" `
   "-DOPENSSL_MSVC_ROOT=$OpenSsl"
 ```
 If CMake reports a missing package, fix the dependency prefix or toolchain mismatch before building.

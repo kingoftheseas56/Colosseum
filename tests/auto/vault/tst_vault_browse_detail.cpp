@@ -5,6 +5,7 @@
 #include "engine/VaultKit.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
 
@@ -23,6 +24,12 @@ private slots:
     void extrasAreListedOnTheSheetNeverAsAGridNode();
     void twoRootSameIdentityYieldsTwoCopiesOneSheet();
     void staleKeyReturnsFoundFalse();
+    void exactEpisodePathSelectsSecondEpisode();
+    void exactEpisodePathDoesNotMergeSharedShowIdentity();
+    void removedEpisodePathNeverFallsBackToItsSibling();
+    void exactEpisodePathDoesNotClaimShowFolderCompanions();
+    void exactEpisodePathPreservesAwayAndAdmissionFacts_data();
+    void exactEpisodePathPreservesAwayAndAdmissionFacts();
     void groupedExtrasRowsNeverCountAsCopies();
     // ── vault ux uplift S8: the detail sheet tells the truth it already knows ──
     void runtimeFormatsHumanAndIsAbsentWhileUnknown();
@@ -32,6 +39,14 @@ private slots:
     void ratingAndGenresRideIdentifiedRowsOnly();
 
 private:
+    static bool createPhysicalFile(const QString& path)
+    {
+        if (!QDir().mkpath(QFileInfo(path).absolutePath()))
+            return false;
+        QFile file(path);
+        return file.open(QIODevice::WriteOnly) && file.write("indexed fixture") > 0;
+    }
+
     static VaultIndex::FileRow fileRow(const QString& id, const QString& rootPath,
                                        const QString& subtreePath, const QString& path,
                                        const QString& groupTitle)
@@ -193,6 +208,220 @@ void VaultBrowseDetailTest::staleKeyReturnsFoundFalse()
     const QVariantMap detail =
         VaultBrowseDetail::detailFor(&index, QStringLiteral("D:/never-published"));
     QVERIFY(!detail.value(QStringLiteral("found")).toBool());
+}
+
+// Episode/clip keys are files, whereas film keys are groups. Selecting the second leaf
+// must never silently substitute the first episode from the containing show's group.
+void VaultBrowseDetailTest::exactEpisodePathSelectsSecondEpisode()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = vaultDir.filePath(QStringLiteral("Library"));
+    const QString show = root + QStringLiteral("/Example Show");
+    auto first = fileRow(QStringLiteral("vault:episode-1"), root, show,
+        show + QStringLiteral("/Season 01/Example.Show.S01E01.1080p.mkv"),
+        QStringLiteral("Example Show"));
+    first.subfolder = QStringLiteral("Season 01");
+    first.durationSec = 1200.0;
+    first.coverRef = QStringLiteral("first-episode-cover.jpg");
+    auto second = fileRow(QStringLiteral("vault:episode-2"), root, show,
+        show + QStringLiteral("/Season 01/Example.Show.S01E02.720p.mkv"),
+        QStringLiteral("Example Show"));
+    second.subfolder = QStringLiteral("Season 01");
+    second.displayTitle = QStringLiteral("Example Show S01E02");
+    second.durationSec = 2880.0;
+    second.coverRef = QStringLiteral("second-episode-cover.jpg");
+    second.admissionVerdict = QStringLiteral("Admitted");
+    QVERIFY(createPhysicalFile(second.path));
+    QVERIFY(index.publish({first, second}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, second.path);
+    QVERIFY(detail.value(QStringLiteral("found")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("key")).toString(), second.path);
+    QVERIFY(detail.value(QStringLiteral("isFileDetail")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("groupKey")).toString(), second.groupKey);
+    QCOMPARE(detail.value(QStringLiteral("path")).toString(), second.path);
+    QVERIFY(detail.value(QStringLiteral("available")).toBool());
+    QVERIFY(detail.value(QStringLiteral("playable")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("playPath")).toString(), second.path);
+    QCOMPARE(detail.value(QStringLiteral("displayTitle")).toString(), second.displayTitle);
+    QCOMPARE(detail.value(QStringLiteral("runtimeText")).toString(), QStringLiteral("48m"));
+    QCOMPARE(detail.value(QStringLiteral("coverRef")).toString(), second.coverRef);
+    QCOMPARE(detail.value(QStringLiteral("copiesHeld")).toInt(), 1);
+    const QVariantList copies = detail.value(QStringLiteral("copies")).toList();
+    QCOMPARE(copies.size(), 1);
+    QCOMPARE(copies.first().toMap().value(QStringLiteral("path")).toString(), second.path);
+}
+
+void VaultBrowseDetailTest::exactEpisodePathDoesNotMergeSharedShowIdentity()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = vaultDir.filePath(QStringLiteral("Library"));
+    const QString show = root + QStringLiteral("/Example Show");
+    auto first = fileRow(QStringLiteral("vault:identified-episode-1"), root, show,
+        show + QStringLiteral("/Episode 01.mkv"), QStringLiteral("Example Show"));
+    first.identityId = QStringLiteral("imdb:tt0000123");
+    first.identityTitle = QStringLiteral("Example Show");
+    first.identityState = QStringLiteral("adopted");
+    first.identitySource = QStringLiteral("IMDB");
+    auto second = first;
+    second.id = QStringLiteral("vault:identified-episode-2");
+    second.path = show + QStringLiteral("/Episode 02.mkv");
+    second.displayTitle = QStringLiteral("Episode 02");
+    second.realName = QStringLiteral("Episode 02.mkv");
+    second.admissionVerdict = QStringLiteral("Admitted");
+    QVERIFY(createPhysicalFile(second.path));
+    auto otherRootEpisode = first;
+    otherRootEpisode.id = QStringLiteral("vault:other-root-episode-3");
+    otherRootEpisode.rootPath = vaultDir.filePath(QStringLiteral("Other Library"));
+    otherRootEpisode.subtreePath = otherRootEpisode.rootPath + QStringLiteral("/Example Show");
+    otherRootEpisode.groupKey = otherRootEpisode.subtreePath;
+    otherRootEpisode.path = otherRootEpisode.subtreePath + QStringLiteral("/Episode 03.mkv");
+    QVERIFY(index.publish({first, second, otherRootEpisode}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, second.path);
+    QVERIFY(detail.value(QStringLiteral("found")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("displayTitle")).toString(), second.displayTitle);
+    QCOMPARE(detail.value(QStringLiteral("identitySourceId")).toString(), second.identityId);
+    QCOMPARE(detail.value(QStringLiteral("copiesHeld")).toInt(), 1);
+    const QVariantList copies = detail.value(QStringLiteral("copies")).toList();
+    QCOMPARE(copies.size(), 1);
+    QCOMPARE(copies.first().toMap().value(QStringLiteral("path")).toString(), second.path);
+    QCOMPARE(detail.value(QStringLiteral("playPath")).toString(), second.path);
+}
+
+void VaultBrowseDetailTest::removedEpisodePathNeverFallsBackToItsSibling()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = vaultDir.filePath(QStringLiteral("Library"));
+    const QString show = root + QStringLiteral("/Example Show");
+    auto first = fileRow(QStringLiteral("vault:remaining-episode"), root, show,
+        show + QStringLiteral("/Episode 01.mkv"), QStringLiteral("Example Show"));
+    auto removed = fileRow(QStringLiteral("vault:removed-episode"), root, show,
+        show + QStringLiteral("/Episode 02.mkv"), QStringLiteral("Example Show"));
+    QVERIFY(index.publish({first, removed}));
+    QVERIFY(VaultBrowseDetail::detailFor(&index, removed.path).value(QStringLiteral("found")).toBool());
+    QVERIFY(index.publish({first}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, removed.path);
+    QVERIFY(!detail.value(QStringLiteral("found")).toBool());
+    QVERIFY(detail.value(QStringLiteral("playPath")).toString().isEmpty());
+    QVERIFY(detail.value(QStringLiteral("copies")).toList().isEmpty());
+    QVERIFY(!VaultBrowseDetail::detailFor(&index, show + QStringLiteral("/Missing.mkv"))
+        .value(QStringLiteral("found")).toBool());
+}
+
+void VaultBrowseDetailTest::exactEpisodePathDoesNotClaimShowFolderCompanions()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = vaultDir.filePath(QStringLiteral("Library"));
+    const QString show = root + QStringLiteral("/Example Show");
+    QVERIFY(QDir().mkpath(show + QStringLiteral("/Extras")));
+    QFile unrelatedSubtitle(show + QStringLiteral("/Episode 01.srt"));
+    QVERIFY(unrelatedSubtitle.open(QIODevice::WriteOnly));
+    unrelatedSubtitle.close();
+    QFile showExtra(show + QStringLiteral("/Extras/Show Trailer.mp4"));
+    QVERIFY(showExtra.open(QIODevice::WriteOnly));
+    showExtra.close();
+    auto row = fileRow(QStringLiteral("vault:episode-folder-facts"), root, show,
+        show + QStringLiteral("/Episode 02.mkv"), QStringLiteral("Example Show"));
+    QVERIFY(index.publish({row}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, row.path);
+    QVERIFY(detail.value(QStringLiteral("found")).toBool());
+    QVERIFY(detail.value(QStringLiteral("companions")).toStringList().isEmpty());
+    QVERIFY(detail.value(QStringLiteral("extras")).toList().isEmpty());
+    QCOMPARE(detail.value(QStringLiteral("ignoredCount")).toInt(), 0);
+}
+
+void VaultBrowseDetailTest::exactEpisodePathPreservesAwayAndAdmissionFacts_data()
+{
+    QTest::addColumn<bool>("fileExists");
+    QTest::addColumn<bool>("away");
+    QTest::addColumn<QString>("admissionVerdict");
+    QTest::addColumn<QString>("admissionDetail");
+    QTest::addColumn<QString>("errorDetail");
+    QTest::addColumn<QString>("expectedStatus");
+    QTest::addColumn<bool>("expectedPlayable");
+    QTest::newRow("admitted") << true << false << QStringLiteral("Admitted") << QString()
+        << QString() << QString() << true;
+    QTest::newRow("missing") << false << false << QStringLiteral("Admitted") << QString()
+        << QString() << QString() << false;
+    QTest::newRow("away") << true << true << QStringLiteral("Admitted") << QString()
+        << QString() << QString() << false;
+    QTest::newRow("rejected") << true << false << QStringLiteral("RejectedNoVideo")
+        << QStringLiteral("no video track") << QString() << QStringLiteral("no video track") << false;
+    QTest::newRow("rejected-without-detail") << true << false << QStringLiteral("RejectedTimeout")
+        << QString() << QString() << QStringLiteral("RejectedTimeout") << false;
+    QTest::newRow("extraction-error") << true << false << QStringLiteral("Admitted") << QString()
+        << QStringLiteral("cover extract failed") << QStringLiteral("cover extract failed") << false;
+    QTest::newRow("unprobed") << true << false << QString() << QString() << QString()
+        << QString() << false;
+}
+
+void VaultBrowseDetailTest::exactEpisodePathPreservesAwayAndAdmissionFacts()
+{
+    QFETCH(bool, fileExists);
+    QFETCH(bool, away);
+    QFETCH(QString, admissionVerdict);
+    QFETCH(QString, admissionDetail);
+    QFETCH(QString, errorDetail);
+    QFETCH(QString, expectedStatus);
+    QFETCH(bool, expectedPlayable);
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = vaultDir.filePath(QStringLiteral("Library"));
+    const QString show = root + QStringLiteral("/Example Show");
+    auto row = fileRow(QStringLiteral("vault:episode-status"), root, show,
+        show + QStringLiteral("/Episode 02.mkv"), QStringLiteral("Example Show"));
+    row.away = away;
+    row.admissionVerdict = admissionVerdict;
+    row.admissionDetail = admissionDetail;
+    row.errorState = errorDetail.isEmpty() ? QString() : QStringLiteral("corrupt");
+    row.errorDetail = errorDetail;
+    if (fileExists)
+        QVERIFY(createPhysicalFile(row.path));
+    QVERIFY(index.publish({row}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, row.path);
+    QVERIFY(detail.value(QStringLiteral("found")).toBool());
+    const QVariantList copies = detail.value(QStringLiteral("copies")).toList();
+    QCOMPARE(copies.size(), 1);
+    const QVariantMap copy = copies.first().toMap();
+    QCOMPARE(copy.value(QStringLiteral("path")).toString(), row.path);
+    QCOMPARE(copy.value(QStringLiteral("away")).toBool(), away);
+    QCOMPARE(copy.value(QStringLiteral("admissionVerdict")).toString(), admissionVerdict);
+    QCOMPARE(copy.value(QStringLiteral("statusDetail")).toString(), expectedStatus);
+    QCOMPARE(copy.value(QStringLiteral("available")).toBool(), fileExists && !away);
+    QCOMPARE(copy.value(QStringLiteral("playable")).toBool(), expectedPlayable);
+    QVERIFY(detail.value(QStringLiteral("isFileDetail")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("path")).toString(), row.path);
+    QCOMPARE(detail.value(QStringLiteral("groupKey")).toString(), row.groupKey);
+    QCOMPARE(detail.value(QStringLiteral("available")).toBool(), fileExists && !away);
+    QCOMPARE(detail.value(QStringLiteral("playable")).toBool(), expectedPlayable);
+    QCOMPARE(detail.value(QStringLiteral("playPath")).toString(),
+             expectedPlayable ? row.path : QString());
+    QVERIFY(!detail.contains(QStringLiteral("runtimeText")));
+    QVERIFY(!detail.contains(QStringLiteral("ratingText")));
+    QVERIFY(!detail.contains(QStringLiteral("genresLine")));
 }
 
 // Real-shape regression (found live, Lanista replay against the browse-face-smoke fixture):

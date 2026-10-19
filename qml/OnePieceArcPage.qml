@@ -1,9 +1,15 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import "UniverseExtApi.js" as UniverseApi
+import "OnePieceParadiseAdapter.js" as ParadiseAdapter
+import "OnePieceNewWorldAdapter.js" as NewWorldAdapter
+import "OnePieceFinalSeaAdapter.js" as FinalSeaAdapter
 
 Item {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
+    onUniverseContentGenerationChanged: { refreshArcContent(); reload() }
     objectName: "onePieceArcPage"
     anchors.fill: parent
     focus: true
@@ -32,6 +38,27 @@ Item {
     function reload() {
         if (!root.extensionId) { root.payload = null; return }
         UniverseApi.load(root.extensionId, function(p) { root.payload = p })
+    }
+    function refreshArcContent() {
+        if (!root.arc || !root.arc.id || !root.arc.seaId) return
+        var data = UniverseContent.document("tribute-one-piece-" + root.arc.seaId)
+        var records = data.story && data.story.arcs
+        if (!records) return
+        for (var i = 0; i < records.length; ++i) {
+            if (records[i].id !== root.arc.id) continue
+            var record = UniverseContent.resolveAssets(records[i])
+            var updated = root.arc.seaId === "paradise" ? ParadiseAdapter.cataloguePayload(record)
+                        : root.arc.seaId === "new-world" ? NewWorldAdapter.cataloguePayload(record)
+                        : root.arc.seaId === "final-sea" ? FinalSeaAdapter.cataloguePayload(record) : record
+            if (!updated) return
+            if (root.arc.seaId === "east-blue") {
+                updated.seaId = "east-blue"; updated.seaLabel = "East Blue"; updated.sagaLabel = "East Blue"
+                var art = data.artByArc && UniverseContent.resolveAssets(data.artByArc[record.id])
+                if (art) { updated.heroSource = art.posterSource; updated.heroFallbackSource = art.fallbackSource }
+            }
+            root.arc = updated
+            return
+        }
     }
 
     function section(id) {
@@ -62,6 +89,13 @@ Item {
         routed.requestedArc = root.arc
         routed.requestedVolumeNumber = String(volumeNumber || "")
         routed.colorEdition = colorEdition === true
+        if (!colorEdition) {
+            // This arc catalogue is explicitly One Piece (MAL 13). Its universe
+            // payload uses AniList 30013, which must never be treated as a MAL ID.
+            routed.provider = "tankoban"
+            routed.malId = "13"
+            routed.seriesId = "mal:13"
+        }
         root.seriesRequested(routed)
     }
 
@@ -84,7 +118,8 @@ Item {
     function heroSourceForArc() {
         if (root.arc && root.arc.heroSource) return String(root.arc.heroSource)
         var id = root.arc && root.arc.id ? String(root.arc.id) : "romance"
-        return "../assets/universes/one-piece/east-blue-markers/" + id + ".png"
+        root.universeContentGeneration
+        return typeof UniverseContent !== "undefined" ? UniverseContent.asset("../assets/universes/one-piece/east-blue-markers/" + id + ".png") : "../assets/universes/one-piece/east-blue-markers/" + id + ".png"
     }
 
     Item {
@@ -101,6 +136,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
+            sourceSize.width: 1920
             opacity: 0.30
             onStatusChanged: {
                 if (status === Image.Error && !fallbackActive && root.arc && root.arc.heroFallbackSource)

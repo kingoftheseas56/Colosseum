@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 // Match the community arc-index convention used by the Paradise prototype.
 // Official story-page groupings differ at transitions; retain both, not a silent reconciliation.
@@ -147,3 +148,17 @@ function arcsForLocation(id) {
         if (arcs[i].locationId === id || arcs[i].locationIds.indexOf(id) >= 0) result.push(arcs[i]);
     return result;
 }
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    if (typeof ContentApi === "undefined") return;
+    var data = ContentApi.document("tribute-one-piece-new-world").story;
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.groupingSource !== undefined && (Array.isArray(groupingSource) ? Array.isArray(data.groupingSource) : typeof data.groupingSource === typeof groupingSource)) groupingSource = data.groupingSource;
+    if (data.providerSelectors !== undefined && (Array.isArray(providerSelectors) ? Array.isArray(data.providerSelectors) : typeof data.providerSelectors === typeof providerSelectors)) providerSelectors = data.providerSelectors;
+    if (data.onePacePrefixByArc !== undefined && (Array.isArray(onePacePrefixByArc) ? Array.isArray(data.onePacePrefixByArc) : typeof data.onePacePrefixByArc === typeof onePacePrefixByArc)) onePacePrefixByArc = data.onePacePrefixByArc;
+    if (data.arcs !== undefined && (Array.isArray(arcs) ? Array.isArray(data.arcs) : typeof data.arcs === typeof arcs)) arcs = data.arcs;
+    if (data.worldContext !== undefined && (Array.isArray(worldContext) ? Array.isArray(data.worldContext) : typeof data.worldContext === typeof worldContext)) worldContext = data.worldContext;
+}
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

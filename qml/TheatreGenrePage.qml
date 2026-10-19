@@ -5,6 +5,7 @@
 // cards: poster · title · rank · rating; fields the source doesn't have simply don't render).
 // Cards route into the Theatre detail via itemRequested({ id, type, title, cover }).
 import QtQuick
+import "CatalogDelivery.js" as CatalogDelivery
 import QtQuick.Controls
 import QtQuick.Layouts
 import "TheatreGenreApi.js" as Api
@@ -39,14 +40,27 @@ Item {
     property var genreData: ({ count: 0, desc: "", cards: [], montage: [] })
     property bool loading: true
 
+    property int _genreGeneration: 0
+    property var _genreCancel: null
+    Component.onDestruction: { if (typeof _genreCancel === "function") _genreCancel(); }
     function reload() {
+        if (typeof _genreCancel === "function") _genreCancel();
+        _genreCancel = null;
+        var generation = ++_genreGeneration;
         root.loading = true
         // MalCatalog passed IN: the API is a .pragma library and can't see context
         // properties — the page has context access, so it hands the object down.
-        Api.loadGenre(root.mediaKind, root.genreName, root.sortMode, function(p) {
+        _genreCancel = Api.loadGenre(root.mediaKind, root.genreName, root.sortMode, function(p) {
+            if (generation !== _genreGeneration) return;
             if (p) root.genreData = p
             root.loading = false
         }, typeof MalCatalog !== "undefined" ? MalCatalog : null, root.showExplicitContent)
+    }
+    Timer { id: remoteGenreTimer; interval: 75; onTriggered: root.reload() }
+    Connections {
+        target: typeof MalCatalog !== "undefined" ? MalCatalog : null
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { if (root.mediaKind === "anime") remoteGenreTimer.restart() }
     }
     Component.onCompleted: reload()
     onGenreNameChanged: reload()
