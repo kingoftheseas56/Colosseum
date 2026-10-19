@@ -5,7 +5,7 @@ import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
-from distro import paragraphs, source_identity, source_acquire
+from distro import paragraphs, source_identity, source_acquire, binary_files
 from inventory import collect, safe_name
 from upstream import acquire, compare_archive
 
@@ -79,6 +79,42 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(result['matched_git_blobs'], 1)
             self.assertEqual(result['different_git_blobs'], ['changed'])
             self.assertEqual(result['absent_git_paths'], ['absent'])
+
+    def test_archive_doc_symlink_retains_exact_original_host_copyright(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original = root / 'host/usr/share/doc/base/copyright'
+            original.parent.mkdir(parents=True)
+            original.write_bytes(b'original license text')
+            payload = io.BytesIO()
+            with tarfile.open(fileobj=payload, mode='w') as tar:
+                link = tarfile.TarInfo('./usr/share/doc/liba')
+                link.type = tarfile.SYMTYPE
+                link.linkname = 'base'
+                tar.addfile(link)
+            payload.seek(0)
+            process = unittest.mock.Mock(stdout=payload)
+            process.wait.return_value = 0
+            with patch('distro.subprocess.Popen', return_value=process):
+                binary_files(root / 'a.deb', set(), root / 'binary/copyrights', root / 'host')
+            copied = root / 'binary/copyrights/retained-original-host/usr/share/doc/base/copyright'
+            self.assertEqual(copied.read_bytes(), original.read_bytes())
+
+    def test_archive_doc_symlink_escape_cannot_import_other_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = io.BytesIO()
+            with tarfile.open(fileobj=payload, mode='w') as tar:
+                link = tarfile.TarInfo('./usr/share/doc/liba')
+                link.type = tarfile.SYMTYPE
+                link.linkname = '../../../../private'
+                tar.addfile(link)
+            payload.seek(0)
+            process = unittest.mock.Mock(stdout=payload)
+            process.wait.return_value = 0
+            with patch('distro.subprocess.Popen', return_value=process):
+                binary_files(root / 'a.deb', set(), root / 'binary/copyrights', root / 'host')
+            self.assertFalse((root / 'binary/copyrights').exists())
 
 
 if __name__ == '__main__':

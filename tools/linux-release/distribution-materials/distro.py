@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import posixpath
 from pathlib import Path
 import re
 import subprocess
@@ -97,13 +98,29 @@ def source_acquire(name, version, out, commands):
             'files': files, 'trust': 'APT authenticated Ubuntu Sources metadata; hashes compared locally'}
 
 
-def binary_files(archive, requested, notice_dir):
+def binary_files(archive, requested, notice_dir, retained_host=None):
     """Read exact file payloads and notices from a binary archive, not SONAME aliases."""
     found = {}
+    notice_links = []
     process = subprocess.Popen(['dpkg-deb', '--fsys-tarfile', str(archive)], stdout=subprocess.PIPE)
     with tarfile.open(fileobj=process.stdout, mode='r|') as tar:
         for member in tar:
             path = '/' + safe_name(member.name)
+            if member.issym() and path.startswith('/usr/share/doc/'):
+                resolved = posixpath.normpath(posixpath.join(posixpath.dirname(path), member.linkname))
+                record = {'archive_path': path, 'symlink_target': member.linkname,
+                          'resolved_path': resolved, 'status': 'unresolved'}
+                if not resolved.endswith('/copyright'):
+                    resolved += '/copyright'
+                if retained_host and resolved.startswith('/usr/share/doc/'):
+                    original = retained_host / resolved.lstrip('/')
+                    if original.is_file():
+                        target = notice_dir / 'retained-original-host' / resolved.lstrip('/')
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_bytes(original.read_bytes())
+                        record.update(status='retained-original-host-text', sha256=digest(target),
+                                      retained_original_path=str(original), retained_copy=str(target))
+                notice_links.append(record)
             if not member.isfile():
                 continue
             wanted = path in requested
@@ -119,6 +136,7 @@ def binary_files(archive, requested, notice_dir):
                 target.write_bytes(data)
     if process.wait() != 0:
         raise RuntimeError('dpkg-deb archive read failed')
+    write_json(notice_dir.parent / 'notice-links.json', notice_links)
     return found
 
 
@@ -183,7 +201,8 @@ def collect(out):
             source_name, source_version = source_identity(stanza)
             if provenance[name][1:] != [source_name, source_version]:
                 raise ValueError('Source identity disagrees with retained build provenance')
-            data = binary_files(archive, {m['origin'] for m in members}, directory / 'copyrights')
+            data = binary_files(archive, {m['origin'] for m in members}, directory / 'copyrights',
+                                retained / 'licenses/dependency-0-notices/host-copyrights')
             notice_files = [{'path': p.relative_to(out).as_posix(), 'sha256': digest(p)}
                             for p in sorted((directory / 'copyrights').rglob('*')) if p.is_file()]
             for member in members:
