@@ -113,6 +113,17 @@ using server1_http_wake_fn = void (*)(void *context);
 // Callback and destructor must not throw.
 int server1_http_response_bind_wake(void *response, server1_http_wake_fn callback,
     void *context, server1_http_context_destroy_fn destroy);
+// Deferred metadata response, serialized app lane only. Handle is caller-owned,
+// weak, follows response moves, and is invalidated before lifetime teardown.
+// Do not retain the borrowed response pointer across event-loop turns.
+void *server1_http_response_defer(void *response);
+void *server1_http_deferred_response(void *handle);
+int server1_http_deferred_complete(void *handle);
+void server1_http_deferred_destroy(void *handle);
+int server1_http_response_is_deferred(void *response);
+// Internal connection subscription, ownership transfers on success.
+int server1_http_response_bind_deferred(void *response, server1_http_wake_fn callback,
+    void *context, server1_http_context_destroy_fn destroy);
 int server1_http_response_has_stream(void *response);
 std::size_t server1_http_response_stream_content_length(void *response);
 std::ptrdiff_t server1_http_response_stream_read(void *response, void *buffer,

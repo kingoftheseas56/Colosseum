@@ -28,6 +28,10 @@ const char *reasonPhrase(int status)
     switch (status) {
     case 200:
         return "OK";
+    case 206:
+        return "Partial Content";
+    case 416:
+        return "Range Not Satisfiable";
     case 301:
         return "Moved Permanently";
     case 307:
@@ -52,7 +56,7 @@ const char *reasonPhrase(int status)
 }
 
 QByteArray makeResponseHeaders(int status, bool keepAlive, bool closeAfter, void *response,
-                               std::size_t contentLength, bool chunked)
+                               std::size_t contentLength, bool chunked, bool head = false)
 {
     QByteArray wire;
     wire += "HTTP/1.1 ";
@@ -62,7 +66,11 @@ QByteArray makeResponseHeaders(int status, bool keepAlive, bool closeAfter, void
     wire += "\r\n";
     if (response != nullptr) {
         for (std::size_t index = 0; index < server1_http_response_header_count(response); ++index) {
-            wire += server1_http_response_header_name_at(response, index);
+            const QByteArray name=server1_http_response_header_name_at(response,index);
+            if(name.compare("Content-Length",Qt::CaseInsensitive)==0
+               || name.compare("Transfer-Encoding",Qt::CaseInsensitive)==0
+               || name.compare("Connection",Qt::CaseInsensitive)==0)continue;
+            wire += name;
             wire += ": ";
             wire += server1_http_response_header_value_at(response, index);
             wire += "\r\n";
@@ -72,7 +80,11 @@ QByteArray makeResponseHeaders(int status, bool keepAlive, bool closeAfter, void
         wire += "Transfer-Encoding: chunked\r\n";
     } else {
         wire += "Content-Length: ";
-        wire += QByteArray::number(static_cast<qint64>(contentLength));
+        const QByteArray explicitLength=response ? server1_http_response_header(response,"Content-Length") : "";
+        bool valid=false;
+        explicitLength.toULongLong(&valid);
+        valid = valid && !explicitLength.isEmpty() && std::all_of(explicitLength.begin(),explicitLength.end(),[](char c){return c >= '0' && c <= '9';});
+        wire += head && valid ? explicitLength : QByteArray::number(static_cast<qulonglong>(contentLength));
         wire += "\r\n";
     }
     wire += "Connection: ";
@@ -85,7 +97,7 @@ QByteArray makeResponse(int status, const std::string &body, const std::string &
                         bool keepAlive, bool closeAfter, void *response)
 {
     QByteArray wire = makeResponseHeaders(status, keepAlive, closeAfter, response, body.size(),
-                                          false);
+                                          false, method == "HEAD");
     if (method != "HEAD")
         wire += QByteArray::fromStdString(body);
     return wire;
@@ -246,7 +258,33 @@ private:
         const bool keepAlive = server1_http_parser_keep_alive(parser_);
         const std::string remaining(server1_http_parser_remaining(parser_),
                                     server1_http_parser_remaining_size(parser_));
+        const QPointer<HttpConnection> dispatchGuard(this);
         void *response = server1_http_router_dispatch_parsed(server_->router(), parser_);
+        if(!dispatchGuard || closed_ || released_){server1_http_response_destroy(response);return;}
+        server1_http_parser_destroy(parser_);
+        parser_ = server1_http_parser_create(kDefaultMaxBodyBytes);
+        pendingInput_ = remaining;
+        responsePending_ = true;
+        if(server1_http_response_is_deferred(response)){
+            deferredResponse_=response;
+            deferredMethod_=method;
+            deferredKeepAlive_=keepAlive;
+            auto *context=new QPointer<HttpConnection>(this);
+            if(!server1_http_response_bind_deferred(response,+[](void *opaque){
+                const auto connection=*static_cast<QPointer<HttpConnection> *>(opaque);
+                if(connection)QMetaObject::invokeMethod(connection,[connection]{
+                    if(!connection || connection->closed_ || !connection->deferredResponse_)return;
+                    auto *response=connection->deferredResponse_;connection->deferredResponse_=nullptr;
+                    connection->serializeResponse(response,connection->deferredMethod_,connection->deferredKeepAlive_);
+                },Qt::QueuedConnection);
+            },context,+[](void *opaque){delete static_cast<QPointer<HttpConnection> *>(opaque);})){delete context;handleSocketError();}
+            return;
+        }
+        serializeResponse(response,method,keepAlive);
+    }
+
+    void serializeResponse(void *response,const std::string &method,bool keepAlive)
+    {
         const int status = server1_http_response_status(response);
         const bool responseClose = server1_http_response_close(response) != 0;
         const bool streaming = server1_http_response_has_stream(response) != 0;
@@ -257,17 +295,13 @@ private:
                 server1_http_response_stream_content_length(response);
             chunked = contentLength == SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
             wire = makeResponseHeaders(status, keepAlive, responseClose, response, contentLength,
-                                       chunked);
+                                       chunked, method == "HEAD");
         } else {
             const std::string responseBody(server1_http_response_body(response),
                                            server1_http_response_body_size(response));
             wire = makeResponse(status, responseBody, method, keepAlive, responseClose, response);
         }
 
-        server1_http_parser_destroy(parser_);
-        parser_ = server1_http_parser_create(kDefaultMaxBodyBytes);
-        pendingInput_ = remaining;
-        responsePending_ = true;
         if (streaming)
             enqueueStream(wire, !keepAlive || responseClose, response, chunked, method == "HEAD");
         else
@@ -585,11 +619,14 @@ private:
 
     void clearQueue()
     {
+        void *deferred=deferredResponse_;
+        deferredResponse_=nullptr;
         std::deque<PendingWrite> retired;
         retired.swap(queue_);
         applicationQueuedBytes_ = 0;
         pendingInput_.clear();
         responsePending_ = false;
+        server1_http_response_destroy(deferred);
         for (PendingWrite &pending : retired)
             destroyPendingResponse(pending);
     }
@@ -616,6 +653,9 @@ private:
     QTcpSocket *socket_ = nullptr;
     void *parser_ = nullptr;
     std::deque<PendingWrite> queue_;
+    void *deferredResponse_=nullptr;
+    std::string deferredMethod_;
+    bool deferredKeepAlive_=false;
     std::size_t applicationQueuedBytes_ = 0;
     std::string pendingInput_;
     std::uint64_t nextResponseIdentity_=0;

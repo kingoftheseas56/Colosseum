@@ -1032,6 +1032,90 @@ void caseH00_10()
     std::cout<<"H00-10 async stream wake, ownership, coalescing, teardown, HEAD and legacy error PASS\n";
 }
 
+void caseH00_11()
+{
+    struct State {void *handle=nullptr; int retired=0; int calls=0; void *server=nullptr; bool reentrant=false;};
+    auto handler=+[](const void *,void *response,server1_http_next_fn,void *,void *opaque){
+        auto &state=*static_cast<State *>(opaque);++state.calls;
+        state.handle=server1_http_response_defer(response);
+        require(state.handle!=nullptr,"defer succeeds");
+        server1_http_response_set_lifetime(response,+[](void *opaque){auto &s=*static_cast<State *>(opaque);++s.retired;if(s.reentrant && s.server){auto *server=s.server;s.server=nullptr;server1_http_server_destroy(server);}},opaque);
+        return 1;
+    };
+    // Dispatch returns a moved response: the weak handle must follow it.
+    {
+        State state;void *router=server1_http_router_create();
+        server1_http_router_add_handler(router,0,0,"GET","/wait",handler,&state,nullptr);
+        void *response=server1_http_router_dispatch(router,"GET","/wait","");
+        require(server1_http_deferred_response(state.handle)==response,"handle follows response moves");
+        require(server1_http_deferred_complete(state.handle)==1,"complete first time");
+        require(!server1_http_deferred_response(state.handle) && !server1_http_deferred_complete(state.handle),"completion revokes mutation and repeats");
+        server1_http_response_destroy(response);require(state.retired==1,"retired once");
+        server1_http_deferred_destroy(state.handle);server1_http_router_destroy(router);
+    }
+    // Completion callbacks may retire the response and their own handle.
+    {
+        State state;void *router=server1_http_router_create();
+        server1_http_router_add_handler(router,0,0,"GET","/wait",handler,&state,nullptr);
+        void *response=server1_http_router_dispatch(router,"GET","/wait","");
+        struct Context {void *response;State *state;int *destroyed;};int destroyed=0;
+        auto *context=new Context{response,&state,&destroyed};
+        require(server1_http_response_bind_deferred(response,+[](void *opaque){
+            auto &context=*static_cast<Context *>(opaque);
+            server1_http_response_destroy(context.response);
+            server1_http_deferred_destroy(context.state->handle);context.state->handle=nullptr;
+            require(*context.destroyed==0,"subscription stays alive through callback");
+        },context,+[](void *opaque){auto *context=static_cast<Context *>(opaque);++*context->destroyed;delete context;})==1,"bind reentrant completion");
+        require(server1_http_deferred_complete(state.handle)==1 && state.retired==1 && destroyed==1,"reentrant complete safely retires once");
+        server1_http_router_destroy(router);
+    }
+    for(int mode=0;mode<6;++mode){
+        State state;state.reentrant=mode==4;void *router=server1_http_router_create();
+        server1_http_router_add_handler(router,0,0,"GET","/wait",handler,&state,nullptr);
+        server1_http_router_add_static(router,0,0,"GET","/next",200,"SECOND");
+        state.server=server1_http_server_create(router,65536);require(server1_http_server_listen(state.server,0)==1,"deferred listen");
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(state.server));require(client.waitForConnected(1000),"deferred connect");
+        client.write("GET /wait HTTP/1.1\r\nHost: localhost\r\n\r\nGET /next HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        pumpUntil([&]{return state.handle!=nullptr;},"deferred dispatch");
+        for(int i=0;i<10;++i)QCoreApplication::processEvents();
+        require(client.bytesAvailable()==0 && state.retired==0,"no premature headers or retirement");
+        if(mode==0){
+            auto *response=server1_http_deferred_response(state.handle);require(response,"pending response live");
+            server1_http_response_set_status(response,206);server1_http_response_set_body(response,"FIRST",5);
+            require(server1_http_deferred_complete(state.handle)==1,"network complete");
+            const auto wire=collectUntilDisconnected(client);
+            require(wire.startsWith("HTTP/1.1 206 Partial Content\r\n") && wire.indexOf("FIRST")<wire.indexOf("SECOND") && wire.contains("SECOND"),"deferred pipeline order");
+        }else if(mode==5){server1_http_deferred_complete(state.handle);server1_http_server_stop(state.server);}
+        else if(mode==1){client.abort();}
+        else if(mode==2){server1_http_server_stop(state.server);}
+        else {auto *server=state.server;if(mode==3)state.server=nullptr;server1_http_server_destroy(server);}
+        pumpUntil([&]{return state.retired==1;},"deferred abort retires lifetime");
+        require(!server1_http_deferred_response(state.handle) && !server1_http_deferred_complete(state.handle),"abort revokes handle");
+        server1_http_deferred_destroy(state.handle);
+        if(state.server)server1_http_server_destroy(state.server);
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);server1_http_router_destroy(router);
+    }
+    // HEAD advertises the selected representation length exactly once, with no body.
+    {
+        void *router=server1_http_router_create();
+        server1_http_router_add_handler(router,0,0,"GET","/head",+[](const void *,void *response,server1_http_next_fn,void *,void *){
+            server1_http_response_set_status(response,206);
+            server1_http_response_set_body(response,"",0);
+            server1_http_response_set_header(response,"Content-Length","123");
+            auto *handle=server1_http_response_defer(response);
+            require(server1_http_deferred_complete(handle)==1,"inline complete");
+            server1_http_deferred_destroy(handle);return 1;
+        },nullptr,nullptr);
+        void *server=server1_http_server_create(router,65536);require(server1_http_server_listen(server,0)==1,"HEAD listen");
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(server));require(client.waitForConnected(1000),"HEAD connect");
+        client.write("HEAD /head HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        const auto wire=collectUntilDisconnected(client);
+        require(wire.contains("Content-Length: 123\r\n") && wire.count("Content-Length:")==1 && wire.endsWith("\r\n\r\n"),"HEAD metadata length without duplicate or body");
+        server1_http_server_destroy(server);QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);server1_http_router_destroy(router);
+    }
+    std::cout<<"H00-11 deferred response moves, pipeline, disconnect, stop, destroy, reentrant PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -1095,6 +1179,7 @@ int main(int argc, char **argv)
             caseH00_03();
         if (requested == "all" || requested == "H00-04")
             caseH00_04();
+        if (requested == "all" || requested == "H00-11") caseH00_11();
         if (requested == "all" || requested == "H00-10") caseH00_10();
         if (requested == "all" || requested == "H00-09") caseH00_09();
         if (requested == "all" || requested == "H00-08") caseH00_08();
@@ -1102,7 +1187,7 @@ int main(int argc, char **argv)
         if (requested == "all" || requested == "H00-06") caseH00_06();
         if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10" && requested != "H00-11")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';

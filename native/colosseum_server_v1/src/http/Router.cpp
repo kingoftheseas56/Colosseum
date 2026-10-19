@@ -51,7 +51,16 @@ struct LifetimeOwner final {
     ~LifetimeOwner(){auto retiring=std::move(callbacks);for(const auto &entry:retiring)entry.first(entry.second);}
 };
 
+struct Response;
+struct DeferredState final {
+    Response *response=nullptr;
+    bool completed=false;
+    std::shared_ptr<WakeCallback> callback;
+};
+struct DeferredHandle final {std::weak_ptr<DeferredState> state;};
+
 struct Response final {
+    std::shared_ptr<DeferredState> deferred;
     int status = 404;
     std::string body;
     std::vector<std::pair<std::string, std::string>> headers;
@@ -67,6 +76,7 @@ struct Response final {
 
     ~Response()
     {
+        clearDeferred();
         clearStream();
         lifetimes.reset();
     }
@@ -76,7 +86,8 @@ struct Response final {
     Response &operator=(const Response &) = delete;
 
     Response(Response &&other) noexcept
-        : status(other.status)
+        : deferred(std::move(other.deferred))
+        , status(other.status)
         , body(std::move(other.body))
         , headers(std::move(other.headers))
         , close(other.close)
@@ -88,6 +99,7 @@ struct Response final {
         , streamContext(other.streamContext)
         , streamContentLength(other.streamContentLength)
     {
+        if(deferred)deferred->response=this;
         other.streamRead = nullptr;
         other.streamDestroy = nullptr;
         other.streamContext = nullptr;
@@ -98,6 +110,9 @@ struct Response final {
     {
         if (this == &other)
             return *this;
+        clearDeferred();
+        deferred=std::move(other.deferred);
+        if(deferred)deferred->response=this;
         clearStream();
         // Router fall-through can replace the body/status without ending the
         // logical response lifetime already installed by middleware.
@@ -121,6 +136,11 @@ struct Response final {
         other.streamContext = nullptr;
         other.streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
         return *this;
+    }
+
+    void clearDeferred()
+    {
+        if(deferred){auto state=std::move(deferred);state->response=nullptr;state->callback.reset();}
     }
 
     void clearStream()
@@ -993,6 +1013,49 @@ int server1_http_response_bind_wake(void *response,server1_http_wake_fn callback
     auto owned=std::make_shared<server1::http::router_detail::WakeCallback>();
     owned->callback=callback;owned->context=context;owned->destroy=destroy;state->callback=owned;
     if(state->pending){state->pending=false;callback(context);}
+    return 1;
+}
+
+void *server1_http_response_defer(void *opaque)
+{
+    if(!opaque)return nullptr;
+    auto &response=*static_cast<server1::http::router_detail::Response *>(opaque);
+    if(response.deferred)return nullptr;
+    response.deferred=std::make_shared<server1::http::router_detail::DeferredState>();
+    response.deferred->response=&response;
+    return new server1::http::router_detail::DeferredHandle{response.deferred};
+}
+void *server1_http_deferred_response(void *handle)
+{
+    if(!handle)return nullptr;
+    const auto state=static_cast<server1::http::router_detail::DeferredHandle *>(handle)->state.lock();
+    return state && !state->completed ? state->response : nullptr;
+}
+int server1_http_deferred_complete(void *handle)
+{
+    if(!handle)return 0;
+    const auto state=static_cast<server1::http::router_detail::DeferredHandle *>(handle)->state.lock();
+    if(!state || !state->response || state->completed)return 0;
+    state->completed=true;
+    const auto callback=state->callback;
+    if(callback)callback->callback(callback->context);
+    return 1;
+}
+void server1_http_deferred_destroy(void *handle){delete static_cast<server1::http::router_detail::DeferredHandle *>(handle);}
+int server1_http_response_is_deferred(void *opaque)
+{
+    if(!opaque)return 0;
+    const auto &state=static_cast<server1::http::router_detail::Response *>(opaque)->deferred;
+    return state && !state->completed;
+}
+int server1_http_response_bind_deferred(void *opaque,server1_http_wake_fn callback,void *context,server1_http_context_destroy_fn destroy)
+{
+    if(!opaque || !callback)return 0;
+    const auto state=static_cast<server1::http::router_detail::Response *>(opaque)->deferred;
+    if(!state || state->callback)return 0;
+    auto owned=std::make_shared<server1::http::router_detail::WakeCallback>();
+    owned->callback=callback;owned->context=context;owned->destroy=destroy;state->callback=owned;
+    if(state->completed)callback(context);
     return 1;
 }
 
