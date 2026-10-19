@@ -118,6 +118,8 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr)
         info=subprocess.check_output(['dpkg-deb','--field',str(out),'Package','Version','Architecture'],text=True)
         self.assertIn('Package: colosseum',info);self.assertIn('Version: 1.1.9',info);self.assertIn('Architecture: amd64',info)
+        depends=subprocess.check_output(['dpkg-deb','--field',str(out),'Depends'],text=True)
+        self.assertIn('libopengl0',[entry.strip() for entry in depends.split(',')])
         extracted=self.p/'deb-extracted';subprocess.run(['dpkg-deb','--extract',str(out),str(extracted)],check=True)
         self.assertEqual((extracted/'opt/colosseum/usr/bin/colosseum').read_bytes(),(self.stage/'usr/bin/colosseum').read_bytes())
         self.assertTrue((extracted/'usr/share/applications/colosseum.desktop').is_file())

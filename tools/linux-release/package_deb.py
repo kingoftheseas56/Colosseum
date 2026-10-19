@@ -66,7 +66,7 @@ def main():
         control.write_text(f'Package: colosseum\nVersion: {version}\nArchitecture: amd64\n'
                            'Maintainer: Colosseum Project\nSection: video\nPriority: optional\n'
                            f'Installed-Size: {(size + 1023) // 1024}\n'
-                           'Depends: libc6 (>= 2.39), libgl1, libegl1, libglx0, libglvnd0, '
+                           'Depends: libc6 (>= 2.39), libgl1, libegl1, libglx0, libglvnd0, libopengl0, '
                            'libdrm2, libgbm1, libvulkan1, libva2, libva-drm2, libva-x11-2, '
                            'libasound2-data, fontconfig, fonts-dejavu-core, xdg-utils\n'
                            'Homepage: https://getcolosseum.world\n'
