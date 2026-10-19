@@ -1,0 +1,62 @@
+name: Linux 1.1.9 candidate distribution review
+on:
+  push:
+    branches: [codex/119-linux-distribution-closure-20261019]
+    paths: [.github/workflows/linux-distribution-review-119.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check focused tooling and unpack prepared evidence
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/linux-release/distribution-materials -p 'test_*.py' -v
+          python3 -m unittest discover -s tools/linux-release/distribution-closure-119 -p 'test_*.py' -v
+          mkdir materials
+          tar -xzf tools/linux-release/distribution-closure-119/materials.tar.gz -C materials
+          python3 tools/linux-release/distribution-closure-119/verify_packet.py materials
+      - name: Receive and verify exact inputs without recollection or rebuild
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir prior candidate review-packet
+          gh api repos/kingoftheseas56/Colosseum/actions/artifacts/12189108534/zip > sources.zip
+          gh api repos/kingoftheseas56/Colosseum/actions/artifacts/12189013706/zip > review.zip
+          gh api repos/kingoftheseas56/Colosseum/actions/artifacts/12189220850/zip > candidate.zip
+          echo '0ef75bd1de3b0a45c6f9f77b18b47716a7562152febf565b78b85419b5753c57  sources.zip' | sha256sum -c -
+          echo 'b2f7ca892914b9516cdaad70e9c4904af66b442566a329b47d8c9c9ed5efeeb5  review.zip' | sha256sum -c -
+          echo '9a97f768da2d015cdb48537b1961bbefdaaf0a6372ad72cf1e1c75c298ec1fa2  candidate.zip' | sha256sum -c -
+          unzip -q sources.zip -d prior
+          unzip -p review.zip review-materials.tar.gz > received-review-materials.tar.gz
+          tar -xzf received-review-materials.tar.gz -C prior
+          unzip -q candidate.zip -d candidate
+          python3 tools/linux-release/distribution-materials/verify_cache.py --output prior | tee review-packet/reused-verification.txt
+          python3 tools/linux-release/distribution-materials/reconcile_candidate.py --package candidate/Colosseum-1.1.9-linux-amd64.deb --prior prior --output review-packet/candidate | tee review-packet/candidate-verification.txt
+          git fetch --depth=1 origin 7792bd1d9b3a41185cea522a9984ecd6586e3b44
+          git show 7792bd1d9b3a41185cea522a9984ecd6586e3b44:.github/workflows/release-linux-deb.yml > review-packet/candidate/current-build-workflow.yml
+          cmp prior/recipes/accepted-build-workflow.yml review-packet/candidate/current-build-workflow.yml
+      - name: Assemble safe receiving review, not source publication
+        run: |
+          set -euo pipefail
+          cp -a materials review-packet/materials
+          printf '%s\n' "$GITHUB_SHA" > review-packet/preparation-commit.txt
+          printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > review-packet/preparation-run.txt
+          printf '%s\n' 'Switzer source scope remains unresolved. Neither raw source option is uploaded. Candidate unchanged.' > review-packet/REMAINING-GATE.txt
+          tar --sort=name --mtime='2026-10-19 00:00:00Z' --owner=0 --group=0 --numeric-owner -cf - review-packet | gzip -1n > colosseum-1.1.9-7792bd1d9-review.tar.gz
+          sha256sum colosseum-1.1.9-7792bd1d9-review.tar.gz > review-SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-distribution-review-safe
+          path: |
+            colosseum-1.1.9-7792bd1d9-review.tar.gz
+            review-SHA256SUMS
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
