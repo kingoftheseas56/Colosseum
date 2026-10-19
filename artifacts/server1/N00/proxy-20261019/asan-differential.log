@@ -1,0 +1,28 @@
+PASS source HTTP rejection
+PASS upstream connection error
+PASS GET cookie
+PASS GET bytes
+PASS GET missing
+PASS GET bytes%2520space
+PASS GET bytes?x=1
+PASS HEAD bytes
+PASS GET playlist.m3u8
+PASS GET long.m3u8
+PASS GET gzip.m3u8
+PASS GET deflate.m3u8
+PASS GET raw.m3u8
+PASS GET br.m3u8
+PASS GET redirect-http
+PASS GET redirect/2
+PASS GET redirect/5
+PASS GET relative/start
+PASS HEAD gzip.m3u8
+PASS GET edge-gzip-concat.m3u8
+PASS GET edge-gzip-truncated.m3u8
+PASS GET edge-gzip-empty.m3u8
+PASS GET edge-gzip-trailing.m3u8 stalled during 1s observation; source headers=undefined, native headers=undefined
+PASS GET edge-deflate-truncated.m3u8 stalled during 1s observation; source headers=200, native headers=200
+PASS GET edge-deflate-empty.m3u8 stalled during 1s observation; source headers=undefined, native headers=undefined
+PASS GET edge-br-truncated.m3u8 stalled during 1s observation; source headers=200, native headers=200
+PASS GET edge-br-empty.m3u8 stalled during 1s observation; source headers=undefined, native headers=undefined
+PASS GET edge-malformed.m3u8 stalled during 1s observation; source headers=undefined, native headers=undefined

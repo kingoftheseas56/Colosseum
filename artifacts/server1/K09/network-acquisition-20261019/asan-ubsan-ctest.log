@@ -1,0 +1,23 @@
+Test project /tmp/tracker-asan
+    Start 2: dht_network
+    Start 8: pinned_duplicate_trace
+1/9 Test #8: pinned_duplicate_trace ...........   Passed    2.38 sec
+    Start 1: tracker_network
+2/9 Test #2: dht_network ......................   Passed    3.14 sec
+    Start 9: pinned_dht_trace
+3/9 Test #1: tracker_network ..................   Passed    2.16 sec
+    Start 3: dht_service
+4/9 Test #9: pinned_dht_trace .................   Passed    3.62 sec
+    Start 4: discovery_network
+5/9 Test #4: discovery_network ................   Passed    0.03 sec
+    Start 6: K09-02
+6/9 Test #6: K09-02 ...........................   Passed    0.01 sec
+    Start 7: K09-03
+7/9 Test #7: K09-03 ...........................   Passed    0.01 sec
+    Start 5: K09-01
+8/9 Test #5: K09-01 ...........................   Passed    0.01 sec
+9/9 Test #3: dht_service ......................   Passed    2.82 sec
+
+100% tests passed out of 9
+
+Total Test time (real) =   7.36 sec

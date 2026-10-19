@@ -1,0 +1,23 @@
+Test project /tmp/tracker-build
+    Start 2: dht_network
+    Start 8: pinned_duplicate_trace
+1/9 Test #8: pinned_duplicate_trace ...........   Passed    2.63 sec
+    Start 1: tracker_network
+2/9 Test #2: dht_network ......................   Passed    3.07 sec
+    Start 9: pinned_dht_trace
+3/9 Test #1: tracker_network ..................   Passed    1.95 sec
+    Start 3: dht_service
+4/9 Test #9: pinned_dht_trace .................   Passed    1.64 sec
+    Start 4: discovery_network
+5/9 Test #4: discovery_network ................   Passed    0.02 sec
+    Start 7: K09-03
+6/9 Test #7: K09-03 ...........................   Passed    0.00 sec
+    Start 5: K09-01
+7/9 Test #5: K09-01 ...........................   Passed    0.00 sec
+    Start 6: K09-02
+8/9 Test #6: K09-02 ...........................   Passed    0.00 sec
+9/9 Test #3: dht_service ......................   Passed    0.83 sec
+
+100% tests passed out of 9
+
+Total Test time (real) =   5.41 sec
