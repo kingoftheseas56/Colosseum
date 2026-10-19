@@ -33,6 +33,7 @@ jobs:
           run-id: '39244501311'
           github-token: ${{ github.token }}
           path: accepted
+          merge-multiple: true
       - name: Stream pinned package and retain its evidence
         run: |
           python3 tools/linux-release/distribution-materials/inventory.py \
@@ -45,7 +46,8 @@ jobs:
           git archive --format=tar.gz --prefix="colosseum-$ACCEPTED_COMMIT/" \
             --output="evidence/recipes/colosseum-$ACCEPTED_COMMIT.tar.gz" "$ACCEPTED_COMMIT"
           cp tools/linux-release/distribution-materials/README.md evidence/recipes/ACQUISITION-AND-BUILD.md
-          cp -r tools/linux-release/distribution-materials evidence/recipes/collector
+          mkdir evidence/recipes/collector
+          cp tools/linux-release/distribution-materials/*.py tools/linux-release/distribution-materials/README.md evidence/recipes/collector/
           printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
           printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
       - name: Enable authenticated Ubuntu source metadata and ownership tools
