@@ -2,6 +2,7 @@
 #include <QtCore/QMetaObject>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
+#include <QtCore/QTimer>
 #include <QtNetwork/QHostAddress>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
@@ -152,9 +153,11 @@ public:
     {
         socket_->setParent(this);
         socket_->setReadBufferSize(static_cast<qint64>(kDefaultMaxBodyBytes + 64U * 1024U));
-        QObject::connect(socket_, &QTcpSocket::readyRead, this, [this] { readAvailable(); });
+        inactivity_.setSingleShot(true);
+        QObject::connect(&inactivity_,&QTimer::timeout,this,[this]{closeFromServer();});
+        QObject::connect(socket_, &QTcpSocket::readyRead, this, [this] { refreshInactivity();readAvailable(); });
         QObject::connect(socket_, &QTcpSocket::bytesWritten, this,
-                         [this](qint64 bytes) { acknowledgeWritten(bytes); });
+                         [this](qint64 bytes) { if(bytes>0)refreshInactivity();acknowledgeWritten(bytes); });
         QObject::connect(socket_, &QTcpSocket::disconnected, this,
                          [this] { handleDisconnected(); });
         QObject::connect(socket_, &QAbstractSocket::errorOccurred, this,
@@ -196,6 +199,7 @@ public:
         if (released_)
             return;
         failureHandled_ = true;
+        inactivity_.stop();
         closed_ = true;
         const QPointer<HttpConnection> guard(this);
         clearQueue();
@@ -219,6 +223,8 @@ private:
         bool streamFinished = false;
         std::size_t streamBytes = 0;
     };
+
+    void refreshInactivity(){if(inactivity_.isActive())inactivity_.start();}
 
     void readAvailable()
     {
@@ -285,6 +291,8 @@ private:
 
     void serializeResponse(void *response,const std::string &method,bool keepAlive)
     {
+        const auto timeout=server1_http_response_socket_timeout(response);
+        if(timeout>=0){inactivity_.stop();if(timeout>0)inactivity_.start(timeout);}
         const int status = server1_http_response_status(response);
         const bool responseClose = server1_http_response_close(response) != 0;
         const bool streaming = server1_http_response_has_stream(response) != 0;
@@ -608,6 +616,7 @@ private:
         if (released_ || failureHandled_)
             return;
         failureHandled_ = true;
+        inactivity_.stop();
         closed_ = true;
         const QPointer<HttpConnection> guard(this);
         clearQueue();
@@ -651,6 +660,7 @@ private:
 
     HttpServer *server_ = nullptr;
     QTcpSocket *socket_ = nullptr;
+    QTimer inactivity_;
     void *parser_ = nullptr;
     std::deque<PendingWrite> queue_;
     void *deferredResponse_=nullptr;

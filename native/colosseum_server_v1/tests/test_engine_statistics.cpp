@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <algorithm>
 using namespace server1::policy;
 using namespace server1::ports;
 namespace {
@@ -27,13 +28,13 @@ EngineStatisticsSnapshot fixture() {
         {"downSpeed",Value::number(0)},{"upSpeed",Value::number(0)}})});
     return s;
 }
-struct State { std::mutex mutex; TransportStatistics stats; };
+struct State { std::mutex mutex; TransportStatistics stats; std::vector<TorrentAction> actions; std::vector<TorrentObservation> observations; };
 class Transport final:public TorrentTransport {
     std::shared_ptr<State> state_;
 public:
     explicit Transport(std::shared_ptr<State> s):state_(std::move(s)){}
-    bool submit(const TorrentAction &) override{return true;}
-    std::vector<TorrentObservation> poll()override{return {};}
+    bool submit(const TorrentAction &action) override{std::lock_guard<std::mutex> lock(state_->mutex);state_->actions.push_back(action);return true;}
+    std::vector<TorrentObservation> poll()override{std::lock_guard<std::mutex> lock(state_->mutex);auto result=std::move(state_->observations);state_->observations.clear();return result;}
     TransportStatistics statistics()const override{std::lock_guard<std::mutex> lock(state_->mutex);return state_->stats;}
     void close()override{}
 protected:bool applyAutonomySuppression()override{return true;}
@@ -47,6 +48,50 @@ public:
     std::uint64_t id()const noexcept override{return 75;}
 private:std::shared_ptr<int> cancels_;bool active_=true;
 };
+void lifecycleTest() {
+    auto state=std::make_shared<State>();std::uint64_t now=0;
+    EngineRegistryConfig config;config.monotonicClock=[&]{return now;};
+    config.speedometerTick=[] {return std::uint16_t{0};};
+    config.transportFactory=[state](const auto&){return std::make_unique<Transport>(state);};
+    EngineRegistry registry(config);const std::string hash(40,'c');
+    registry.create({hash,Value::object({{"peerSearch",Value::boolean(false)},{"connections",Value::number(1)}})});
+    for(int i=0;i<100;++i){registry.dispatch();registry.poll();std::this_thread::sleep_for(std::chrono::milliseconds(1));}
+    auto engine=registry.get(hash);check(bool(engine),"lifecycle engine missing");
+    auto settle=[&]{for(int i=0;i<10;++i){registry.dispatch();registry.poll();std::this_thread::sleep_for(std::chrono::milliseconds(1));}};
+    auto event=[&](PeerHandle peer,std::uint64_t identity,PeerLifecycleKind kind,EngineGeneration generation=0){
+        {std::lock_guard<std::mutex> lock(state->mutex);state->observations.emplace_back(PeerLifecycleObservation{generation?generation:engine->generation(),peer,identity,kind});}settle();
+    };
+    auto expectCounts=[&](int queued,int unique,int tries,int connections){
+        auto value=registry.statistics(hash);
+        check(value.find("queued")->asNumber()==queued,"source lifecycle queue mismatch");
+        check(value.find("unique")->asNumber()==unique,"source retained endpoint mismatch");
+        check(value.find("connectionTries")->asNumber()==tries,"source admission attempts mismatch");
+        check(value.find("swarmConnections")->asNumber()==connections,"source active connection mismatch");
+    };
+    check(engine->connectSourcePeer(1,"127.0.0.1",101),"first source admission");
+    check(engine->connectSourcePeer(2,"127.0.0.1",102),"second source admission");
+    check(engine->connectSourcePeer(3,"127.0.0.1",103),"third source admission");settle();
+    expectCounts(2,3,1,1);
+    event(1,11,PeerLifecycleKind::Started);event(1,11,PeerLifecycleKind::Connected);event(1,11,PeerLifecycleKind::Ready);
+    event(1,11,PeerLifecycleKind::Disconnected);expectCounts(1,3,2,1);
+    check(!engine->connectSourcePeer(4,"127.0.0.1",101),"retry-retained endpoint duplicate admitted");
+    event(2,22,PeerLifecycleKind::Started);event(2,22,PeerLifecycleKind::Connected);
+    now=4000;settle();expectCounts(2,3,2,1);
+    event(2,22,PeerLifecycleKind::Disconnected);expectCounts(1,2,3,1);
+    check(engine->connectSourcePeer(4,"127.0.0.1",102),"failed unhandshaken endpoint could not be rediscovered");
+    expectCounts(2,3,3,1);
+    event(3,33,PeerLifecycleKind::Started);
+    event(3,33,PeerLifecycleKind::Disconnected,engine->generation()+1);expectCounts(2,3,3,1);
+    now=6999;settle();
+    auto disconnectCount=[&]{std::lock_guard<std::mutex> lock(state->mutex);return std::count_if(state->actions.begin(),state->actions.end(),[](const auto&a){return std::holds_alternative<DisconnectAction>(a);});};
+    check(disconnectCount()==0,"connect timeout fired before 3000ms");
+    now=7000;settle();check(disconnectCount()==1,"source timeout did not submit native disconnect");
+    event(3,999,PeerLifecycleKind::Disconnected);expectCounts(2,3,3,1);
+    event(3,33,PeerLifecycleKind::Disconnected);expectCounts(1,2,4,1);
+    {std::lock_guard<std::mutex> lock(state->mutex);const auto &action=*std::find_if(state->actions.begin(),state->actions.end(),[](const auto&a){return std::holds_alternative<DisconnectAction>(a);});check(std::get<DisconnectAction>(action).connectionIdentity==33,"timeout not identity-bound");}
+    registry.remove(hash);registry.dispatch();now=100000;settle();
+    check(registry.statistics(hash).isNull(),"removed source lifecycle survived teardown");
+}
 void clockTest() {
     auto cancels=std::make_shared<int>(0);std::vector<std::uint64_t> intervals;
     EngineRegistryConfig config;
@@ -86,8 +131,8 @@ void liveTest() {
     check(result.find("uploaded")->asNumber()==31,"native upload count missing");
     check(result.find("downloadSpeed")->asNumber()==120,"source speedometer must not use native 900 rate");
     check(result.find("uploadSpeed")->asNumber()==120,"M172 uploadSpeed oddity lost");
-    check(result.find("connectionTries")->asNumber()==6,"real native connection counter missing");
-    check(result.find("queued")->asNumber()==3,"real queued native connects missing");
+    check(result.find("connectionTries")->asNumber()==0,"native retry counter must not masquerade as source admissions");
+    check(result.find("queued")->asNumber()==0,"native deferred queue must not masquerade as source queue");
     check(result.find("name")->isNull()&&result.find("files")->isNull(),"pre-metadata nulls lost");
     check(jsonStringify(result).find("peerSearchRunning")==std::string::npos,"absent peer search must be omitted");
     const auto &w=result.find("wires")->asArray().at(0);
@@ -119,5 +164,5 @@ int main(int argc,char **argv){try{
     check(!projectEngineStatistics(s,Value::string("01")).find("streamLen"),"array key 01 must not coerce");
     check(!projectEngineStatistics(s,Value::null()).find("streamLen"),"array key null must not coerce");
     check(jsonStringify(projectEngineStatistics(s,Value::number(2))).find("\"streamProgress\":null")!=std::string::npos,"zero length nonfinite progress must serialize null");
-    clockTest();liveTest();std::cout<<"K12 statistics projection and live snapshot passed\n";
+    clockTest();liveTest();lifecycleTest();std::cout<<"K12 statistics projection and live snapshot passed\n";
 }catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -1,6 +1,9 @@
 #include "server1/ServerComposition.h"
+#include "server1/discovery/QtDiscoveryNetwork.h"
 #include "server1/http/HttpContract.h"
 #include "server1/http/TorrentRoutes.h"
+#include "server1/network/ProxyService.h"
+#include "server1/media/SubtitleRoutes.h"
 #include "server1/policy/QtEngineTimer.h"
 #include <QObject>
 #include <QTimer>
@@ -18,9 +21,10 @@ struct ServerComposition::Impl final {
         auto onError=[this](std::exception_ptr){failure="engine timer callback failed";};
         if(!config.repeat)config.repeat=policy::qtEngineRepeat(&lane,onError);
         if(!config.after)config.after=policy::qtEngineAfter(&lane,onError);
+        if(!config.discoveryNetworkFactory)config.discoveryNetworkFactory=[] {return std::make_shared<discovery::QtDiscoveryNetwork>();};
         registry=std::make_unique<policy::EngineRegistry>(std::move(config));
         router=server1_http_router_create();
-        if(!http::installTorrentRoutes(router,*registry)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("torrent route installation failed");}
+        if(!network::registerProxyRoutes(router) || !media::installSubtitleRoutes(router,&lane) || !http::installTorrentRoutes(router,*registry)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("torrent route installation failed");}
         server=server1_http_server_create(router,1024*1024);
         QObject::connect(&poll,&QTimer::timeout,&lane,[this]{registry->poll();registry->dispatch();});
         poll.start(5);

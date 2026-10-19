@@ -150,9 +150,15 @@ int torrent(const void *request,void *response,server1_http_next_fn,void *,void 
     const auto download=query.queryItemValue("download",QUrl::FullyDecoded);
     const auto external=query.queryItemValue("external",QUrl::FullyDecoded);
     const auto subtitles=query.queryItemValue("subtitles",QUrl::FullyDecoded);
+    const auto trackers=query.allQueryItemValues("tr",QUrl::FullyDecoded);
+    Value createOptions=Value::object({});
+    if(trackers.size()>1 || (trackers.size()==1 && !trackers.front().isEmpty())){
+        Value::Array sources;for(const auto &tracker:trackers)sources.push_back(Value::string(tracker.toStdString()));
+        createOptions=Value::object({{"peerSearch",Value::object({{"min",Value::number(40)},{"max",Value::number(200)},{"sources",Value::array(std::move(sources))}})}});
+    }
     empty(response,200);
     auto deferred=std::make_shared<Deferred>(response);
-    registry.create({hash,Value::object({})},[deferred,&registry,index,range,priority,method,download,external,subtitles](EngineCreateResult result){
+    registry.create({hash,std::move(createOptions)},[deferred,&registry,index,range,priority,method,download,external,subtitles](EngineCreateResult result){
         auto *response=deferred->response();if(!response)return;
         if(result.outcome!=EngineCreateOutcome::Ready || !result.engine){empty(response,500);deferred->complete();return;}
         const auto engine=result.engine;const auto files=engine->files();
@@ -173,6 +179,7 @@ int torrent(const void *request,void *response,server1_http_next_fn,void *,void 
         }
         const auto safeValue=[](const std::string &value){return std::none_of(value.begin(),value.end(),[](unsigned char c){return (c<0x20 && c!='\t') || c==0x7f;});};
         if((!download.isEmpty() && !safeValue(file.name)) || (!subtitles.isEmpty() && !safeValue(subtitles.toStdString()))){empty(response,500);deferred->complete();return;}
+        server1_http_response_set_socket_timeout(response,86400000);
         auto lifetime=std::make_shared<StreamLifetime>(StreamLifetime{engine,registry.openStream(engine->sourceKey(),*selected)});
         auto *owned=new std::shared_ptr<StreamLifetime>(lifetime);
         if(!server1_http_response_set_lifetime(response,+[](void *p){delete static_cast<std::shared_ptr<StreamLifetime> *>(p);},owned)){delete owned;empty(response,500);deferred->complete();return;}

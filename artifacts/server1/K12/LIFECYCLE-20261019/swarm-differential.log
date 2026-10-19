@@ -1,0 +1,7 @@
+(node:14) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{
+  "result": "PASS",
+  "sourceTransitions": 25,
+  "scope": "M818 capacity, one-step drain, pause/resume, retained peer retry 4/8/12s, failed removal, rediscovery and teardown"
+}

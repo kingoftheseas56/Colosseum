@@ -1,0 +1,99 @@
+{
+  "packet": "M02",
+  "status": "implemented_native_verified_source_differentials_passed_pending_parent_review",
+  "source_frozen_utc": "2026-10-19T04:43:50Z",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "tests": {
+    "core_unit_exit": 0,
+    "parser_hash_tracks_cases": 19,
+    "charset_cases": 1220,
+    "lifecycle_cases": 41,
+    "native_ubsan_lifecycle_cases": 24,
+    "exact_io_cases": 17,
+    "ubsan_unit_and_differential_exit": 0
+  },
+  "files": [
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/SubtitleFetch.h",
+      "sha256": "00b33200e376c4e969d67875f4a4a5c93c2cc041c6392004d765138aabc13c81"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/SubtitleHash.h",
+      "sha256": "9a021652e87d6540d7feb0f72fca4defd64eb764966dc16be554dcf9693cef58"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/SubtitleRoutes.h",
+      "sha256": "fdcbaf6a91e6344e8a522ae9e4227a9091d5bc620bafbd17da0cba6c75734426"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/TrackExtraction.h",
+      "sha256": "5182c7df1a58ab23d79451b42925d223f852a0053c19d1bc98da59e4f5f72d8b"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SubtitleCharset.cpp",
+      "sha256": "ec6b7eec04f5d6145f08d2961eef94473c06563067d15446a821a052056b9abb"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SubtitleCharsetTables.inc",
+      "sha256": "7cafe0dcfa819921a6db91145c57591966c224db4e15ce9d94a9fe8f27107214"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SubtitleDecodeTables.inc",
+      "sha256": "3033761750b8846c0a1ff17099e2e25cc5929a958feb674565c98aecb573ef30"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SubtitleFetch.cpp",
+      "sha256": "ee97a4e5e9bfda32936d0123c56e5a78621ebcdb2c90bce4b231324a657f8204"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SubtitleHash.cpp",
+      "sha256": "d5d95aac369fa47c8616c898165b48c47bbc26ca699f55e913c888d511234ce4"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SubtitleRoutes.cpp",
+      "sha256": "f4fa470566b1fc26b7d9e0b2aa28290269fc5b5dd87fa1bdf36d47069df091f4"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/TrackExtraction.cpp",
+      "sha256": "6f2398cdc4d92a10acb7c4a88c84846bcec59079bad2bc88d0088627aa543d15"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/generate_subtitle_charset_tables.cjs",
+      "sha256": "633cb37010dff7ed56f911470a2646a953233a96fa119d340e80e077df3f8337"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_subtitle_charset_oracle.cjs",
+      "sha256": "dd032263b2e38044a0d2216c8ceb9ddad15f58bd9ae3c9b501fd349ffb7fadd3"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_subtitles_lifecycle.py",
+      "sha256": "00045b3016040dc03fef2776397f691d947645f6d16c6d250cd558f29c77bf50"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_subtitles_oracle.cjs",
+      "sha256": "eab91eebfba54b9f79804dfb702825ec57f719663cd95c5f09e2fb53a428e738"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/subtitles_oracle_cli.cjs",
+      "sha256": "2e8e3511fd264c091089c87e9a5c001f3a67e37ad265057315c41c1284830809"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_subtitles_lifecycle.cpp",
+      "sha256": "34b82543d5f90550aac6d4c1bb3a086601126f5a5459a2cae5c13ebb0245e92e"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_subtitles_tracks.cpp",
+      "sha256": "9c96e208f0ab3a4a51369ed6ce893461dd199695d19b4a27fae1c315c163a3d3"
+    }
+  ],
+  "limits": [
+    "No production integration or parent packet acceptance claimed.",
+    "Source-specific OS/network error metadata/string equality remains unqualified outside the exercised controlled error cases.",
+    "Malformed inputs on which the source hangs or throws out-of-callback are safely returned as native errors; short file hash below65535bytes is one such source exception.",
+    "Charset detector/order and SBCS tables are exact ports; multibyte conversion uses native Iconv and is qualified by preserved fixtures, not every possible invalid byte sequence.",
+    "Node22 evidence runtime readableHighWaterMark64KiB retained; older Node16KiB behavior is not selected."
+  ],
+  "build": "isolated ../build-m02; no shared build-linux-recovered edits",
+  "shared_files_edited": false,
+  "commits_or_pushes": false
+}

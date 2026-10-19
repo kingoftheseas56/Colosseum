@@ -1132,6 +1132,32 @@ void caseH00_12()
     std::cout<<"H00-12 header field validation PASS\n";
 }
 
+void caseH00_13()
+{
+    int retired=0;
+    auto *router=server1_http_router_create();
+    server1_http_router_add_handler(router,0,0,"GET","/timeout",
+        +[](const void *,void *response,server1_http_next_fn,void *,void *opaque){
+            require(server1_http_response_set_socket_timeout(response,120)==1,"set timeout");
+            server1_http_response_set_status(response,200);
+            server1_http_response_set_async_stream(response,+[](void *,void *,std::size_t)->std::ptrdiff_t{return SERVER1_HTTP_WOULD_BLOCK;},+[](void *p){++*static_cast<int *>(p);},opaque,1);
+            return 1;
+        },&retired,nullptr);
+    auto *server=server1_http_server_create(router,4096);
+    require(server1_http_server_listen(server,0)==1,"timeout listen");
+    QTcpSocket socket;socket.connectToHost(QHostAddress::LocalHost,server1_http_server_port(server));
+    pumpUntil([&]{return socket.state()==QAbstractSocket::ConnectedState;},"timeout connect");
+    socket.write("GET /timeout HTTP/1.1\r\nHost: localhost\r\n\r\n");socket.flush();
+    pumpUntil([&]{return socket.bytesAvailable()>0;},"timeout response headers");socket.readAll();
+    auto wait=[](int ms){QElapsedTimer timer;timer.start();while(timer.elapsed()<ms)QCoreApplication::processEvents(QEventLoop::AllEvents,5);};
+    wait(75);socket.write("G");socket.flush();wait(75);
+    require(socket.state()==QAbstractSocket::ConnectedState,"inbound activity refreshes inactivity deadline, not absolute timeout");
+    pumpUntil([&]{return socket.state()==QAbstractSocket::UnconnectedState;},"idle socket closes");
+    require(retired==1,"timeout cancels pending stream once");
+    server1_http_server_destroy(server);server1_http_router_destroy(router);
+    std::cout<<"H00-13 socket inactivity timeout PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -1195,6 +1221,7 @@ int main(int argc, char **argv)
             caseH00_03();
         if (requested == "all" || requested == "H00-04")
             caseH00_04();
+        if (requested == "all" || requested == "H00-13") caseH00_13();
         if (requested == "all" || requested == "H00-12") caseH00_12();
         if (requested == "all" || requested == "H00-11") caseH00_11();
         if (requested == "all" || requested == "H00-10") caseH00_10();
@@ -1204,7 +1231,7 @@ int main(int argc, char **argv)
         if (requested == "all" || requested == "H00-06") caseH00_06();
         if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10" && requested != "H00-11" && requested != "H00-12")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10" && requested != "H00-11" && requested != "H00-12" && requested != "H00-13")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';

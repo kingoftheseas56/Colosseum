@@ -96,6 +96,10 @@ int server1_http_response_set_status(void *response, int status);
 int server1_http_response_set_body(void *response, const void *data, std::size_t size);
 int server1_http_response_set_header(void *response, const char *name, const char *value);
 int server1_http_response_set_close(void *response, int closeAfter);
+// Socket inactivity timeout. -1 means unchanged; 0 disables an existing timeout.
+// Applied when this response becomes ready; persists across keep-alive requests.
+int server1_http_response_set_socket_timeout(void *response, int milliseconds);
+int server1_http_response_socket_timeout(void *response);
 int server1_http_response_set_stream(void *response, server1_http_stream_read_fn read,
                                      server1_http_stream_destroy_fn destroy, void *context,
                                      std::size_t contentLength);

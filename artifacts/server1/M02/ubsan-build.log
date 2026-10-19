@@ -1,0 +1,31 @@
+[  7%] Building CXX object CMakeFiles/m02.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp.o
+[ 14%] Building CXX object CMakeFiles/m02.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleCharset.cpp.o
+[ 21%] Building CXX object CMakeFiles/http.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/http/Connection.cpp.o
+[ 28%] Building CXX object CMakeFiles/m02.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleRoutes.cpp.o
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp: In lambda function:
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp:328:44: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+  328 |       return QDateTime::fromMSecsSinceEpoch(n.toDouble() + offset, Qt::UTC)
+      |              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qcborvalue.h:11,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qjsonvalue.h:8,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qjsonarray.h:8,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/QJsonArray:1,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/m02-build-src/../source/native/colosseum_server_v1/include/server1/media/SubtitleFetch.h:2,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp:1:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[ 35%] Building CXX object CMakeFiles/http.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/http/Router.cpp.o
+[ 42%] Building CXX object CMakeFiles/m02.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/SubtitleHash.cpp.o
+[ 50%] Building CXX object CMakeFiles/m02.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/TrackExtraction.cpp.o
+[ 57%] Building CXX object CMakeFiles/http.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/http/RequestParsing.cpp.o
+[ 64%] Linking CXX static library libm02.a
+[ 64%] Built target m02
+[ 71%] Building CXX object CMakeFiles/m02_test.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_subtitles_tracks.cpp.o
+[ 78%] Linking CXX static library libhttp.a
+[ 78%] Built target http
+[ 85%] Building CXX object CMakeFiles/m02_lifecycle.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_subtitles_lifecycle.cpp.o
+[ 92%] Linking CXX executable m02_test
+[ 92%] Built target m02_test
+[100%] Linking CXX executable m02_lifecycle
+[100%] Built target m02_lifecycle

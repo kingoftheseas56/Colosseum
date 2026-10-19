@@ -169,6 +169,8 @@ struct UploadAbortAction final {
     BlockSpan block;
 };
 
+struct DisconnectAction final { EngineGeneration generation=0; PeerHandle peer=0; std::uint64_t connectionIdentity=0; };
+
 using TorrentAction = std::variant<RequestAction,
                                    CancelAction,
                                    InterestAction,
@@ -177,7 +179,8 @@ using TorrentAction = std::variant<RequestAction,
                                    PauseAction,
                                    AdvertisePieceAction,
                                    UploadResponseAction,
-                                   UploadAbortAction>;
+                                   UploadAbortAction,
+                                   DisconnectAction>;
 
 [[nodiscard]] inline std::optional<TorrentAction>
 toTorrentAction(const policy::SchedulerAction &action)
@@ -288,6 +291,16 @@ struct UploadCancelObservation final {
     BlockSpan block;
 };
 
+// Connection-bound lifecycle from actual native callbacks, including a failed
+// connection that never completed a handshake. Stale identities emit nothing.
+enum class PeerLifecycleKind { Started, Connected, Ready, Disconnected };
+struct PeerLifecycleObservation final {
+    EngineGeneration generation=0;
+    PeerHandle peer=0;
+    std::uint64_t connectionIdentity=0;
+    PeerLifecycleKind kind=PeerLifecycleKind::Ready;
+};
+
 using TorrentObservation = std::variant<BlockObservation,
                                         PeerObservation,
                                         FailureObservation,
@@ -296,7 +309,8 @@ using TorrentObservation = std::variant<BlockObservation,
                                         SourceFailureObservation,
                                         AvailablePiecesObservation,
                                         UploadRequestObservation,
-                                        UploadCancelObservation>;
+                                        UploadCancelObservation,
+                                        PeerLifecycleObservation>;
 
 // Native libtorrent samples, not the source JavaScript speedometer. A single
 // TransportStatistics copy contains coherent per-connection and aggregate rates.

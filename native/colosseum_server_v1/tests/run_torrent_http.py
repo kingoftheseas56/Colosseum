@@ -11,11 +11,13 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 
 p=argparse.ArgumentParser()
 p.add_argument('--host',required=True)
 p.add_argument('--peer',required=True)
 p.add_argument('--work',required=True)
+p.add_argument('--discovery',action='store_true')
 a=p.parse_args()
 root=Path(tempfile.mkdtemp(prefix='torrent-http-',dir=a.work))
 payload=b'K'*16384+b'L'*16384
@@ -28,13 +30,25 @@ with socket.socket() as reserve:
 peer_log=(root/'peer-process.log').open('w')
 peer=subprocess.Popen([sys.executable,a.peer,'--port',str(peer_port),'--label','http','--info-hash',ih,'--log',str(root/'peer.log'),'--file-length','32768','--piece-length','16384','--split-offset','16384','--first-byte','K','--second-byte','L','--hold-all','--release-file',str(root/'release')],stdout=peer_log,stderr=subprocess.STDOUT)
 host=None
+tracker=None
+tracker_requests=[]
+if a.discovery:
+    class Tracker(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            tracker_requests.append(self.path)
+            (root/'tracker.log').write_text("\n".join(tracker_requests))
+            raw=b'd8:intervali1800e5:peers6:'+socket.inet_aton('127.0.0.1')+peer_port.to_bytes(2,'big')+b'e'
+            self.send_response(200);self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+        def log_message(self,*args):pass
+    tracker=http.server.ThreadingHTTPServer(('127.0.0.1',0),Tracker)
+    threading.Thread(target=tracker.serve_forever,daemon=True).start()
 host_log=(root/'host.log').open('w')
 try:
     deadline=time.monotonic()+5
     while not (root/'peer.log').exists() or 'LISTEN ' not in (root/'peer.log').read_text():
         assert peer.poll() is None and time.monotonic()<deadline, 'peer startup failed'
         time.sleep(.01)
-    host=subprocess.Popen([a.host,'--serve','--port','0','--cache',str(root/'cache'),'--torrent',str(root/'fixture.torrent'),'--peer',f'127.0.0.1:{peer_port}','--fixed-interface','--quit-after-ms','6000'],stdout=host_log,stderr=subprocess.STDOUT)
+    host=subprocess.Popen([a.host,'--serve','--port','0','--cache',str(root/'cache'),'--torrent',str(root/'fixture.torrent'),*(['--tracker',f'http://127.0.0.1:{tracker.server_port}/announce'] if a.discovery else ['--no-discovery','--peer',f'127.0.0.1:{peer_port}']),'--fixed-interface','--quit-after-ms','6000'],stdout=host_log,stderr=subprocess.STDOUT)
     deadline=time.monotonic()+10
     while 'LISTEN ' not in (root/'host.log').read_text():
         assert host.poll() is None and time.monotonic()<deadline, 'production host does not expose listening torrent composition: '+(root/'host.log').read_text()
@@ -98,14 +112,20 @@ try:
     status,headers,body=get(path='/'+ih+'/remove');assert status==200 and json.loads(body)=={}
     ledger=(root/'peer.log').read_text()
     assert 'REQUEST ' in ledger, 'HTTP bypassed native wire transport'
+    if a.discovery:assert tracker_requests, 'no real tracker announce'
     pending=socket.create_connection(('127.0.0.1',port),timeout=1)
-    pending.sendall(b'GET /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/0 HTTP/1.1\r\nHost: localhost\r\n\r\n')
+    query='?tr='+urllib.parse.quote(f'tracker:http://127.0.0.1:{tracker.server_port}/announce',safe='') if a.discovery else ''
+    pending.sendall(('GET /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/0'+query+' HTTP/1.1\r\nHost: localhost\r\n\r\n').encode())
     pending.settimeout(.1)
     try:
         premature=pending.recv(4096)
         assert False, ('metadata wait emitted bytes or closed early',premature)
     except socket.timeout:
         pass
+    if a.discovery:
+        deadline=time.monotonic()+1
+        while len(tracker_requests)<2 and time.monotonic()<deadline:time.sleep(.01)
+        assert any('%AA'*20 in path.upper() for path in tracker_requests), tracker_requests
     abandoned=socket.create_connection(('127.0.0.1',port),timeout=1)
     abandoned.sendall(b'GET /1111111111111111111111111111111111111111/0 HTTP/1.1\r\nHost: localhost\r\n\r\n')
     abandoned.close()
@@ -113,6 +133,7 @@ try:
     pending.settimeout(1);assert pending.recv(4096)==b'';pending.close()
     print('PASS: real native torrent HTTP full/range/HEAD/fallback/error/abort-sibling/graceful-shutdown cases; evidence '+str(root))
 finally:
+    if tracker:tracker.shutdown();tracker.server_close()
     for process in [host,peer]:
         if process is not None and process.poll() is None:
             process.terminate()

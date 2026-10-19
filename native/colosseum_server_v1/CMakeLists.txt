@@ -61,10 +61,15 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CMAKE_TRY_COMPILE_TARGET_TYPE EXECUTABLE)
   unset(SERVER1_LT_INTERNAL_LINK CACHE)
   check_cxx_source_compiles("#include <libtorrent/peer_connection.hpp>
+#include <libtorrent/torrent.hpp>
+#include <libtorrent/peer_info.hpp>
 int main(int argc, char **argv) {
   if (argc == 12345) {
     auto *peer = reinterpret_cast<libtorrent::peer_connection *>(argv);
     peer->send_interested(); peer->send_choke(); peer->clear_request_queue();
+    auto *torrent = reinterpret_cast<libtorrent::torrent *>(argv);
+    auto *candidate = torrent->add_peer(libtorrent::tcp::endpoint{}, libtorrent::peer_info::tracker, libtorrent::pex_flags_t{});
+    torrent->connect_to_peer(candidate, true);
   }
   return 0;
 }" SERVER1_LT_INTERNAL_LINK)
@@ -150,7 +155,7 @@ add_library(colosseum_server_v1 STATIC src/ServerComposition.cpp src/http/Torren
 target_include_directories(colosseum_server_v1 PUBLIC include)
 target_link_libraries(colosseum_server_v1 PUBLIC server1_h01_reader_stream server1_k11_engine Qt6::Network Qt6::Concurrent)
 target_link_libraries(server1_host PRIVATE colosseum_server_v1)
-target_sources(server1_k11_engine PRIVATE src/policy/EngineStatistics.cpp)
+target_sources(server1_k11_engine PRIVATE src/policy/EngineStatistics.cpp src/policy/SwarmConnections.cpp)
 if(BUILD_TESTING)
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_test(NAME H01-native-torrent-http COMMAND "${Python3_EXECUTABLE}"
@@ -162,4 +167,78 @@ if(BUILD_TESTING)
   add_executable(server1_engine_statistics_test tests/test_engine_statistics.cpp)
   target_link_libraries(server1_engine_statistics_test PRIVATE server1_k11_engine)
   add_test(NAME K12-engine-statistics COMMAND server1_engine_statistics_test)
+endif()
+
+# Source-owned network discovery runs on the composition's Qt application lane.
+target_sources(server1_k09_peer_search PRIVATE src/discovery/TrackerNetwork.cpp src/discovery/DhtLookup.cpp src/discovery/QtDiscoveryNetwork.cpp)
+target_link_libraries(server1_k09_peer_search PUBLIC Qt6::Network)
+if(BUILD_TESTING)
+  foreach(component tracker_network dht_network dht_service discovery_network)
+    add_executable(server1_${component}_test tests/test_${component}.cpp)
+    target_link_libraries(server1_${component}_test PRIVATE server1_k09_peer_search)
+    add_test(NAME K09-${component} COMMAND server1_${component}_test)
+  endforeach()
+  add_test(NAME H01-tracker-torrent-http COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_torrent_http.py"
+    --host "$<TARGET_FILE:server1_host>"
+    --peer "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/P08/P08-A/tiny_peer.py"
+    --work "${CMAKE_CURRENT_BINARY_DIR}" --discovery)
+  set_tests_properties(H01-tracker-torrent-http PROPERTIES TIMEOUT 45 LABELS "server1;native;http;wire;discovery")
+endif()
+if(BUILD_TESTING AND SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+  add_test(NAME K09-peer-duplicates-differential COMMAND "${SERVER1_NODE_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/compare_peer_search_duplicates.cjs"
+    "${SERVER1_K12_ORACLE}" "$<TARGET_FILE:server1_k09_peer_search_test>")
+  add_test(NAME K09-dht-differential COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_dht_differential.py"
+    --oracle "${SERVER1_K12_ORACLE}" --candidate "$<TARGET_FILE:server1_dht_service_test>"
+    --node "${SERVER1_NODE_EXECUTABLE}")
+endif()
+
+find_package(ZLIB REQUIRED)
+find_library(SERVER1_BROTLI_DECODER NAMES brotlidec REQUIRED)
+add_library(server1_n00_proxy STATIC src/network/ProxyService.cpp src/network/ProxyRoutes.cpp)
+target_include_directories(server1_n00_proxy PUBLIC include)
+target_link_libraries(server1_n00_proxy PUBLIC server1_h00_http Qt6::Network ZLIB::ZLIB "${SERVER1_BROTLI_DECODER}")
+target_link_libraries(colosseum_server_v1 PUBLIC server1_n00_proxy)
+if(BUILD_TESTING)
+  add_executable(server1_proxy_test tests/test_proxy_streaming.cpp)
+  target_link_libraries(server1_proxy_test PRIVATE server1_n00_proxy)
+  add_test(NAME N00-streaming-proxy COMMAND server1_proxy_test)
+  add_executable(server1_k12_swarm_connections_test tests/test_swarm_connections.cpp)
+  target_link_libraries(server1_k12_swarm_connections_test PRIVATE server1_k11_engine)
+  add_test(NAME K12-source-swarm-connections COMMAND server1_k12_swarm_connections_test)
+  if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+    add_test(NAME N00-proxy-differential COMMAND "${SERVER1_NODE_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_proxy_differential.cjs"
+      "${SERVER1_K12_ORACLE}" "$<TARGET_FILE:server1_proxy_test>")
+    set_tests_properties(N00-proxy-differential PROPERTIES TIMEOUT 60)
+    add_test(NAME K12-source-swarm-differential COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/server_lab/check_swarm_connections.py"
+      --oracle "${SERVER1_K12_ORACLE}" --candidate "$<TARGET_FILE:server1_k12_swarm_connections_test>")
+  endif()
+endif()
+
+find_package(Iconv REQUIRED)
+add_library(server1_m02_subtitles STATIC
+  src/media/SubtitleFetch.cpp src/media/SubtitleCharset.cpp src/media/SubtitleHash.cpp
+  src/media/TrackExtraction.cpp src/media/SubtitleRoutes.cpp)
+target_include_directories(server1_m02_subtitles PUBLIC include)
+target_link_libraries(server1_m02_subtitles PUBLIC server1_h00_http Qt6::Network ZLIB::ZLIB Iconv::Iconv)
+target_link_libraries(colosseum_server_v1 PUBLIC server1_m02_subtitles)
+if(BUILD_TESTING)
+  add_executable(server1_m02_subtitles_tracks_tests tests/test_subtitles_tracks.cpp)
+  add_executable(server1_m02_subtitles_lifecycle_tests tests/test_subtitles_lifecycle.cpp)
+  target_link_libraries(server1_m02_subtitles_tracks_tests PRIVATE server1_m02_subtitles)
+  target_link_libraries(server1_m02_subtitles_lifecycle_tests PRIVATE server1_m02_subtitles)
+  foreach(cases oracle-cases charset-cases)
+    add_test(NAME M02-${cases} COMMAND server1_m02_subtitles_tracks_tests --cases
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/M02/${cases}.json")
+  endforeach()
+  add_test(NAME M02-lifecycle COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_subtitles_lifecycle.py"
+    "$<TARGET_FILE:server1_m02_subtitles_lifecycle_tests>"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/M01/media"
+    "${CMAKE_CURRENT_BINARY_DIR}/m02-evidence" "${SERVER1_K12_ORACLE}")
+  set_tests_properties(M02-lifecycle PROPERTIES TIMEOUT 180)
 endif()

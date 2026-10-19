@@ -65,6 +65,7 @@ struct Response final {
     std::string body;
     std::vector<std::pair<std::string, std::string>> headers;
     bool close = false;
+    int socketTimeout = -1;
     std::shared_ptr<LifetimeOwner> lifetimes=std::make_shared<LifetimeOwner>();
 
     std::shared_ptr<StreamWake> wake;
@@ -91,6 +92,7 @@ struct Response final {
         , body(std::move(other.body))
         , headers(std::move(other.headers))
         , close(other.close)
+        , socketTimeout(other.socketTimeout)
         , lifetimes(std::move(other.lifetimes))
         , wake(std::move(other.wake))
         , streamOwner(std::move(other.streamOwner))
@@ -125,6 +127,7 @@ struct Response final {
         body = std::move(other.body);
         headers = std::move(other.headers);
         close = other.close;
+        socketTimeout = other.socketTimeout;
         wake=std::move(other.wake);
         streamOwner=std::move(other.streamOwner);
         streamRead = other.streamRead;
@@ -966,6 +969,17 @@ int server1_http_response_set_close(void *opaqueResponse, int closeAfter)
         return 0;
     static_cast<server1::http::router_detail::Response *>(opaqueResponse)->close = closeAfter != 0;
     return 1;
+}
+
+int server1_http_response_set_socket_timeout(void *opaqueResponse, int milliseconds)
+{
+    if(!opaqueResponse || milliseconds < -1)return 0;
+    static_cast<server1::http::router_detail::Response *>(opaqueResponse)->socketTimeout=milliseconds;
+    return 1;
+}
+int server1_http_response_socket_timeout(void *opaqueResponse)
+{
+    return opaqueResponse?static_cast<server1::http::router_detail::Response *>(opaqueResponse)->socketTimeout:-1;
 }
 
 int server1_http_response_set_stream(void *opaqueResponse, server1_http_stream_read_fn read,

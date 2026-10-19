@@ -10,6 +10,7 @@
 #include "server1/policy/SchedulerActions.h"
 #include "server1/policy/SwarmCaps.h"
 #include "server1/policy/SwarmPolicy.h"
+#include "server1/policy/SwarmConnections.h"
 #include "server1/policy/TorrentMetadata.h"
 
 #include <algorithm>
@@ -529,8 +530,9 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     std::set<ports::PeerHandle> interestedPeers;
     std::vector<ports::TorrentObservation> deferred;
     std::vector<ports::ConnectAction> pendingConnects;
-    std::map<std::string, ports::PeerHandle> discoveredAddresses;
-    std::set<ports::PeerHandle> queuedPeers;
+    SwarmConnections connections;
+    std::map<ports::PeerHandle,std::uint64_t> connectionIdentities;
+    std::set<ports::PeerHandle> connectionTimeouts;
     ports::PeerHandle nextPeerHandle = kFirstDiscoveredPeer;
     EnginePeerDiscovery discovery;
     std::optional<bool> submittedPause;
@@ -578,6 +580,11 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             swarmCap = parsed;
         }
         uploadSlotCount = uploadSlots(creationOptions);
+        auto capacity=optionNumber(creationOptions,"connections");
+        if(!capacity || *capacity==0) capacity=optionNumber(creationOptions,"size");
+        auto handshake=optionNumber(creationOptions,"handshakeTimeout");
+        connections=SwarmConnections(capacity && *capacity!=0 ? *capacity : 100,3000,
+            handshake && *handshake>0 ? static_cast<std::uint64_t>(*handshake) : 25000);
         const auto *peerSearchOption = creationOptions.find("peerSearch");
         if (peerSearchOption && jsTruthy(*peerSearchOption)) {
             // M172 uses the parsed torrent's announce list when the torrent option
@@ -673,7 +680,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             meter.uploaded=wire.uploadedBytes;
         }
         for(auto it=peerMeters.begin();it!=peerMeters.end();)
-            if(!active.count(it->first)) it=peerMeters.erase(it); else ++it;
+            if(!active.count(it->first) && std::none_of(connectionIdentities.begin(),connectionIdentities.end(),
+                [&](const auto &entry){return entry.second==it->first;})) it=peerMeters.erase(it); else ++it;
     }
 
     void pollTransport()
@@ -688,6 +696,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
             if (closed) return;
             route(std::move(observation));
         }
+        connections.advance(now());
+        drainConnections();
         if (peerSearch && !closed && !peerSearch->closed()) {
             peerSearch->tick(now());
             drainPeerAdds();
@@ -704,6 +714,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 fail(failure->error);
         } else if (std::holds_alternative<ports::ClosedObservation>(observation)) {
             if (!ready) fail("torrent transport closed before metadata");
+        } else if (const auto *life = std::get_if<ports::PeerLifecycleObservation>(&observation)) {
+            acceptLifecycle(*life);
         } else if (const auto *peer = std::get_if<ports::PeerObservation>(&observation)) {
             acceptPeer(*peer);
         } else if (failed) {
@@ -849,8 +861,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     {
         const bool newWire = peers.find(observation.peer) == peers.end();
         peers[observation.peer] = observation;
-        if (queuedPeers.erase(observation.peer) != 0)
-            discovery.queued = queuedPeers.size();
+        connections.handshake(observation.peer);
         rechokeUpsert(observation.peer);
         if (newWire) {
             // M612's update and M172's swarm-cap updater both listen on "wire",
@@ -946,7 +957,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     void peerSearchUpdate()
     {
         if (peerSearch && !peerSearch->closed())
-            peerSearch->onSwarmState(queuedPeers.size(), swarmPaused, now());
+            peerSearch->onSwarmState(connections.queued(), swarmPaused, now());
     }
 
     void updateSwarmCap()
@@ -962,7 +973,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 selections.push_back({selection.from, selection.offset,
                                       selection.readFrom, selection.selectTo});
             }
-        setSwarmPaused(SwarmCaps::shouldPause(stats.unchokedPeers, stats.downloadBytesPerSecond,
+        setSwarmPaused(SwarmCaps::shouldPause(stats.unchokedPeers, downloadMeter ? downloadMeter->sample() : 0,
                                               selections, *swarmCap));
     }
 
@@ -970,9 +981,11 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     {
         if (closed) return;
         swarmPaused = paused;
+        if(paused) connections.pause(); else connections.resume(now());
         if (transport && submittedPause.value_or(false) != paused
             && transport->submit(ports::PauseAction{generation, paused}))
             submittedPause = paused;
+        drainConnections();
         // pws emits "pause"/"resume"; M612 listens on both.
         peerSearchUpdate();
     }
@@ -986,17 +999,56 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 ++discovery.malformedRejected;
                 continue;
             }
-            const auto key = parsed->first + "|" + std::to_string(parsed->second);
-            if (discoveredAddresses.count(key) != 0) {
+            if (connections.find(parsed->first,parsed->second)) {
                 ++discovery.duplicatesSuppressed;
                 continue;
             }
             const auto peer = nextPeerHandle++;
-            discoveredAddresses.emplace(key, peer);
-            queuedPeers.insert(peer);
-            discovery.queued = queuedPeers.size();
-            submitConnect(ports::ConnectAction{generation, peer, parsed->first, parsed->second});
+            connections.add(ports::ConnectAction{generation, peer, parsed->first, parsed->second},now());
+            drainConnections();
         }
+    }
+
+    void drainConnections()
+    {
+        if(closed) return;
+        discovery.queued=connections.queued();
+        for(auto &action:connections.takeConnects()) submitConnect(std::move(action));
+        for(auto peer:connections.takeDisconnects()) connectionTimeouts.insert(peer);
+        if(transport) for(auto it=connectionTimeouts.begin();it!=connectionTimeouts.end();) {
+            const auto identity=connectionIdentities.find(*it);
+            if(identity==connectionIdentities.end()) {++it;continue;}
+            transport->submit(ports::DisconnectAction{generation,*it,identity->second});
+            it=connectionTimeouts.erase(it);
+        }
+    }
+
+    void acceptLifecycle(const ports::PeerLifecycleObservation &event)
+    {
+        if(closed || event.generation!=generation) return;
+        if(event.kind==ports::PeerLifecycleKind::Started) {
+            connectionIdentities[event.peer]=event.connectionIdentity;
+            auto &meter=peerMeters[event.connectionIdentity];
+            meter.down=std::make_unique<EngineSpeedometer>(speedometerTick);
+            meter.up=std::make_unique<EngineSpeedometer>(speedometerTick);
+        } else {
+            const auto current=connectionIdentities.find(event.peer);
+            if(current==connectionIdentities.end() && event.connectionIdentity==0 && event.kind==ports::PeerLifecycleKind::Disconnected) {
+                connections.disconnected(event.peer,now());connectionTimeouts.erase(event.peer);drainConnections();return;
+            }
+            if(current==connectionIdentities.end() || current->second!=event.connectionIdentity) return;
+            if(event.kind==ports::PeerLifecycleKind::Connected) connections.connected(event.peer);
+            else if(event.kind==ports::PeerLifecycleKind::Ready) connections.handshake(event.peer);
+            else {
+                connections.disconnected(event.peer,now());
+                connectionIdentities.erase(current);connectionTimeouts.erase(event.peer);
+                peerMeters.erase(event.connectionIdentity);
+                peers.erase(event.peer);available.erase(event.peer);advertisedByPeer.erase(event.peer);
+                peerDownloaded.erase(event.peer);interestedPeers.erase(event.peer);
+                if(rechoke) rechoke->removePeer(std::to_string(event.peer));
+            }
+        }
+        drainConnections();
     }
 
     void submitConnect(ports::ConnectAction action)
@@ -1023,8 +1075,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     void connectRejected(ports::PeerHandle peer)
     {
         ++discovery.connectsRejected;
-        if (queuedPeers.erase(peer) != 0)
-            discovery.queued = queuedPeers.size();
+        connections.disconnected(peer,now());
+        drainConnections();
     }
 
     void processSchedulerEvents()
@@ -1613,7 +1665,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         readers.clear();
         if (peerSearch) peerSearch->close();
         pendingConnects.clear();
-        queuedPeers.clear();
+        connections.close();
+        connectionIdentities.clear();connectionTimeouts.clear();
         discovery.queued = 0;
         transport.reset();
         deferred.clear();
@@ -1815,10 +1868,9 @@ bool TorrentEngine::connectSourcePeer(ports::PeerHandle peer,
 {
     if (impl_->closed || peer == 0 || port == 0 || address.empty())
         return false;
-    impl_->queuedPeers.insert(peer);
-    impl_->discovery.queued = impl_->queuedPeers.size();
-    impl_->submitConnect(ports::ConnectAction{impl_->generation, peer, std::move(address), port});
-    return true;
+    const bool added=impl_->connections.add(ports::ConnectAction{impl_->generation,peer,std::move(address),port},impl_->now());
+    impl_->drainConnections();
+    return added;
 }
 
 bool TorrentEngine::discoverPeer(std::size_t sourceIndex, std::string address)
@@ -1866,10 +1918,10 @@ Value TorrentEngine::statistics(Value index) const
     impl_->sampleStatistics(stats);
     snapshot.peers=stats.connectedPeers;
     snapshot.unchoked=stats.unchokedPeers;
-    snapshot.queued=stats.queuedConnections+self.pendingConnects.size();
-    snapshot.unique=stats.knownPeerEndpoints;
-    snapshot.connectionTries=stats.connectionAttempts;
-    snapshot.swarmConnections=stats.connectedPeers;
+    snapshot.queued=self.connections.queued();
+    snapshot.unique=self.connections.unique();
+    snapshot.connectionTries=self.connections.tries();
+    snapshot.swarmConnections=self.connections.connections();
     snapshot.downloaded=stats.wirePayloadBytesReceived;
     snapshot.uploaded=stats.uploadedBytes;
     snapshot.downloadSpeed=self.downloadMeter ? self.downloadMeter->sample() : 0;

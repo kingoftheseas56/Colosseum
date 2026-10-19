@@ -1,0 +1,20 @@
+find_package(Qt6 CONFIG REQUIRED COMPONENTS Core Network)
+find_package(ZLIB REQUIRED)
+find_package(Iconv REQUIRED)
+add_library(server1_m02_subtitles STATIC
+  src/media/SubtitleFetch.cpp
+  src/media/SubtitleCharset.cpp
+  src/media/SubtitleHash.cpp
+  src/media/TrackExtraction.cpp
+  src/media/SubtitleRoutes.cpp)
+target_include_directories(server1_m02_subtitles PUBLIC include)
+target_compile_features(server1_m02_subtitles PUBLIC cxx_std_17)
+target_link_libraries(server1_m02_subtitles PUBLIC Qt6::Core Qt6::Network ZLIB::ZLIB Iconv::Iconv server1_h00_http)
+add_executable(server1_m02_subtitles_tracks_tests tests/test_subtitles_tracks.cpp)
+target_link_libraries(server1_m02_subtitles_tracks_tests PRIVATE server1_m02_subtitles)
+add_executable(server1_m02_subtitles_lifecycle_tests tests/test_subtitles_lifecycle.cpp)
+target_link_libraries(server1_m02_subtitles_lifecycle_tests PRIVATE server1_m02_subtitles)
+
+Composition: include server1/media/SubtitleRoutes.h and call
+server1::media::installSubtitleRoutes(router, laneQObject)
+before broad fallback routes. Router owns its configuration; response lifetime owns jobs.

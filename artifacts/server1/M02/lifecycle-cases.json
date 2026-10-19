@@ -1,0 +1,1298 @@
+[
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/plain.srt",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/compressed.gz",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/compressed.gz",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/concat.gz",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/concat.gz",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/archive.zip",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/archive.zip",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/redirect",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/redirect",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/no.zip",
+    "args": [],
+    "result": {
+      "error": "no srt found in zip file http://127.0.0.1:45981/no.zip",
+      "text": "",
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/no.zip",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/bad.gz",
+    "args": [],
+    "result": {
+      "error": "incorrect header check",
+      "text": "",
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/bad.gz",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/loop",
+    "args": [],
+    "result": {
+      "error": "Too many redirects",
+      "text": "",
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/loop",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/plain.srt",
+    "args": [
+      "bad-charset"
+    ],
+    "result": {
+      "error": "Encoding not recognized: 'bad-charset' (searched as: 'badcharset')",
+      "text": "",
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "agent",
+    "url": "http://127.0.0.1:45981/plain.srt",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "hash",
+    "url": "http://127.0.0.1:45981/movie",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "5f1fe09f602309f0",
+        "size": 150000
+      }
+    },
+    "requests": [
+      {
+        "method": "HEAD",
+        "path": "/movie",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=0-65535",
+        "prio": "10"
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=84464-149999",
+        "prio": "10"
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/tiny.mp4",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": [
+        {
+          "codec": "MP4V",
+          "id": 1,
+          "label": null,
+          "lang": null,
+          "type": "video"
+        },
+        {
+          "codec": "MP4A",
+          "id": 2,
+          "label": null,
+          "lang": null,
+          "type": "audio"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/tiny.mkv",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": [
+        {
+          "codec": "MPEG4/ISO/ASP",
+          "id": 1,
+          "label": null,
+          "lang": null,
+          "type": "video"
+        },
+        {
+          "codec": "AAC",
+          "id": 2,
+          "label": null,
+          "lang": null,
+          "type": "audio"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mkv",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/late.mp4",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": [
+        {
+          "codec": "MP4V",
+          "id": 1,
+          "label": null,
+          "lang": null,
+          "type": "video"
+        },
+        {
+          "codec": "MP4A",
+          "id": 2,
+          "label": null,
+          "lang": null,
+          "type": "audio"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=100028-101700",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/empty.mp4",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/empty.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/truncated.mp4",
+    "args": [],
+    "result": {
+      "error": "Incomplete media metadata",
+      "incomplete": true,
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/truncated.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/truncated.mp4",
+        "range": "bytes=28-35",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/bad.bin",
+    "args": [],
+    "result": {
+      "error": "This file type is not supported",
+      "incomplete": false,
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/bad.bin",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/tiny.mp4",
+    "args": [
+      "1"
+    ],
+    "result": {
+      "error": "Reached maxBytesLimit of 1",
+      "incomplete": true,
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "cancel",
+    "url": "http://127.0.0.1:45981/tiny.mp4",
+    "args": [],
+    "result": {
+      "cancelled": true
+    },
+    "requests": []
+  },
+  {
+    "mode": "route",
+    "url": "/subtitlesTracks?subsUrl=http%3A%2F%2F127.0.0.1%3A45981%2Fplain.srt",
+    "args": [],
+    "result": {
+      "body": "{\"error\":null,\"result\":{\"tracks\":[{\"endTime\":2300,\"number\":0,\"startTime\":1000,\"text\":\"Hello & world\"}],\"url\":\"http://127.0.0.1:45981/plain.srt\"}}",
+      "status": 200
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "route",
+    "url": "/subtitles.vtt?from=http%3A%2F%2F127.0.0.1%3A45981%2Fplain.srt&offset=1000",
+    "args": [],
+    "result": {
+      "body": "WEBVTT\n\n0\n00:00:02.000 --> 00:00:03.300\nHello &amp; world\n\n",
+      "status": 200
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "route",
+    "url": "/opensubHash?videoUrl=http%3A%2F%2F127.0.0.1%3A45981%2Fmovie",
+    "args": [],
+    "result": {
+      "body": "{\"error\":null,\"result\":{\"hash\":\"5f1fe09f602309f0\",\"size\":150000}}",
+      "status": 200
+    },
+    "requests": [
+      {
+        "method": "HEAD",
+        "path": "/movie",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=0-65535",
+        "prio": "10"
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=84464-149999",
+        "prio": "10"
+      }
+    ]
+  },
+  {
+    "mode": "route",
+    "url": "/tracks/http%3A%2F%2F127.0.0.1%3A45981%2Flate.mp4",
+    "args": [],
+    "result": {
+      "body": "[{\"codec\":\"MP4V\",\"id\":1,\"label\":null,\"lang\":null,\"type\":\"video\"},{\"codec\":\"MP4A\",\"id\":2,\"label\":null,\"lang\":null,\"type\":\"audio\"}]",
+      "status": 200
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=100028-101700",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "route-abort",
+    "url": "/subtitlesTracks?subsUrl=http%3A%2F%2F127.0.0.1%3A45981%2Fplain.srt",
+    "args": [],
+    "result": {
+      "cancelled": true
+    },
+    "requests": []
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/plain.srt",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "number": 0,
+          "startTime": 1000,
+          "endTime": 2300,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/compressed.gz",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/compressed.gz",
+        "range": null,
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "number": 0,
+          "startTime": 1000,
+          "endTime": 2300,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/compressed.gz",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/concat.gz",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/concat.gz",
+        "range": null,
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "number": 0,
+          "startTime": 1000,
+          "endTime": 2300,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/concat.gz",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/archive.zip",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/archive.zip",
+        "range": null,
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "number": 0,
+          "startTime": 1000,
+          "endTime": 2300,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/archive.zip",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/no.zip",
+    "args": [],
+    "result": {
+      "error": "no srt found in zip file http://127.0.0.1:45981/no.zip",
+      "text": "",
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/no.zip",
+        "range": null,
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "error": "no srt found in zip file http://127.0.0.1:45981/no.zip",
+      "text": "",
+      "tracks": []
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/no.zip",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "fetch",
+    "url": "http://127.0.0.1:45981/redirect",
+    "args": [],
+    "result": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "endTime": 2300,
+          "number": 0,
+          "startTime": 1000,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/redirect",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "error": "",
+      "text": "1\n00:00:01,000 --> 00:00:02,300\nHello & world\n\n",
+      "tracks": [
+        {
+          "number": 0,
+          "startTime": 1000,
+          "endTime": 2300,
+          "text": "Hello & world"
+        }
+      ]
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/redirect",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/plain.srt",
+        "range": null,
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "hash",
+    "url": "http://127.0.0.1:45981/movie",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "5f1fe09f602309f0",
+        "size": 150000
+      }
+    },
+    "requests": [
+      {
+        "method": "HEAD",
+        "path": "/movie",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=0-65535",
+        "prio": "10"
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=84464-149999",
+        "prio": "10"
+      }
+    ],
+    "oracle": {
+      "result": {
+        "size": 150000,
+        "hash": "5f1fe09f602309f0"
+      },
+      "error": ""
+    },
+    "oracleRequests": [
+      {
+        "method": "HEAD",
+        "path": "/movie",
+        "range": null,
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=0-65535",
+        "prio": "10"
+      },
+      {
+        "method": "GET",
+        "path": "/movie",
+        "range": "bytes=84464-149999",
+        "prio": "10"
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/tiny.mp4",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": [
+        {
+          "codec": "MP4V",
+          "id": 1,
+          "label": null,
+          "lang": null,
+          "type": "video"
+        },
+        {
+          "codec": "MP4A",
+          "id": 2,
+          "label": null,
+          "lang": null,
+          "type": "audio"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "tracks": [
+        {
+          "id": 1,
+          "type": "video",
+          "lang": null,
+          "label": null,
+          "codec": "MP4V"
+        },
+        {
+          "id": 2,
+          "type": "audio",
+          "lang": null,
+          "label": null,
+          "codec": "MP4A"
+        }
+      ],
+      "error": "",
+      "incomplete": false
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/tiny.mkv",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": [
+        {
+          "codec": "MPEG4/ISO/ASP",
+          "id": 1,
+          "label": null,
+          "lang": null,
+          "type": "video"
+        },
+        {
+          "codec": "AAC",
+          "id": 2,
+          "label": null,
+          "lang": null,
+          "type": "audio"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mkv",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "tracks": [
+        {
+          "id": 1,
+          "type": "video",
+          "lang": null,
+          "label": null,
+          "codec": "MPEG4/ISO/ASP"
+        },
+        {
+          "id": 2,
+          "type": "audio",
+          "lang": null,
+          "label": null,
+          "codec": "AAC"
+        }
+      ],
+      "error": "",
+      "incomplete": false
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/tiny.mkv",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/late.mp4",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": [
+        {
+          "codec": "MP4V",
+          "id": 1,
+          "label": null,
+          "lang": null,
+          "type": "video"
+        },
+        {
+          "codec": "MP4A",
+          "id": 2,
+          "label": null,
+          "lang": null,
+          "type": "audio"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=100028-101700",
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "tracks": [
+        {
+          "id": 1,
+          "type": "video",
+          "lang": null,
+          "label": null,
+          "codec": "MP4V"
+        },
+        {
+          "id": 2,
+          "type": "audio",
+          "lang": null,
+          "label": null,
+          "codec": "MP4A"
+        }
+      ],
+      "error": "",
+      "incomplete": false
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      },
+      {
+        "method": "GET",
+        "path": "/late.mp4",
+        "range": "bytes=100028-101700",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "tracks",
+    "url": "http://127.0.0.1:45981/empty.mp4",
+    "args": [],
+    "result": {
+      "error": "",
+      "incomplete": false,
+      "tracks": []
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/empty.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ],
+    "oracle": {
+      "tracks": [],
+      "error": "",
+      "incomplete": false
+    },
+    "oracleRequests": [
+      {
+        "method": "GET",
+        "path": "/empty.mp4",
+        "range": "bytes=0-65535",
+        "prio": null
+      }
+    ]
+  },
+  {
+    "mode": "hash",
+    "url": "file:///tmp/m02-hashes-8r2k4ypn/65535",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "6b1fe09f6021bfff",
+        "size": 65535
+      }
+    },
+    "requests": [],
+    "oracle": {
+      "result": {
+        "size": 65535,
+        "hash": "6b1fe09f6021bfff"
+      },
+      "error": ""
+    }
+  },
+  {
+    "mode": "hash",
+    "url": "file:///tmp/m02-hashes-8r2k4ypn/65536",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "5f1fe09f6021c000",
+        "size": 65536
+      }
+    },
+    "requests": [],
+    "oracle": {
+      "result": {
+        "size": 65536,
+        "hash": "5f1fe09f6021c000"
+      },
+      "error": ""
+    }
+  },
+  {
+    "mode": "hash",
+    "url": "file:///tmp/m02-hashes-8r2k4ypn/65537",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "ffbf803fffc16001",
+        "size": 65537
+      }
+    },
+    "requests": [],
+    "oracle": {
+      "result": {
+        "size": 65537,
+        "hash": "ffbf803fffc16001"
+      },
+      "error": ""
+    }
+  },
+  {
+    "mode": "hash",
+    "url": "file:///tmp/m02-hashes-8r2k4ypn/131071",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "bf803fffc0821fff",
+        "size": 131071
+      }
+    },
+    "requests": [],
+    "oracle": {
+      "result": {
+        "size": 131071,
+        "hash": "bf803fffc0821fff"
+      },
+      "error": ""
+    }
+  },
+  {
+    "mode": "hash",
+    "url": "file:///tmp/m02-hashes-8r2k4ypn/131072",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "5f1fe09f6022c000",
+        "size": 131072
+      }
+    },
+    "requests": [],
+    "oracle": {
+      "result": {
+        "size": 131072,
+        "hash": "5f1fe09f6022c000"
+      },
+      "error": ""
+    }
+  },
+  {
+    "mode": "hash",
+    "url": "file:///tmp/m02-hashes-8r2k4ypn/131073",
+    "args": [],
+    "result": {
+      "error": "",
+      "result": {
+        "hash": "ffbf803fffc26001",
+        "size": 131073
+      }
+    },
+    "requests": [],
+    "oracle": {
+      "result": {
+        "size": 131073,
+        "hash": "ffbf803fffc26001"
+      },
+      "error": ""
+    }
+  }
+]

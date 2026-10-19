@@ -822,8 +822,10 @@ void regressionPeerSearch()
     config.transportFactory = [&](const auto &request) { return factory.open(request); };
     std::uint64_t now = 1000;
     config.monotonicClock = [&] { return now; };
+    config.speedometerTick=[] {return std::uint16_t{1};};
     EngineRegistry registry(std::move(config));
     const Value creation = Value::object({
+        {"connections", Value::number(1)},
         {"peerSearch", Value::object({{"min", Value::number(1)}, {"max", Value::number(2)},
                                       {"sources", Value::array({Value::string("tracker:udp://one"),
                                                                 Value::string("dht:" + torrent.hash)})}})},
@@ -871,30 +873,42 @@ void regressionPeerSearch()
         engine->discoverPeer(0, address);
     settle(registry, worker);
     connects = actionsOf<ConnectAction>(state);
-    expect(connects.size() == 4 && engine->peerDiscovery().queued == 4,
-           "K11-PEERS queued peer accounting drifted");
-    observe(state, PeerObservation{connects[0].peer, true, false, 0.0, 0.0, 0, 0});
-    settle(registry, worker);
+    expect(connects.size() == 1 && engine->peerDiscovery().queued == 3,
+           "K11-PEERS source queue must exclude the admitted dial at capacity one");
+    auto wire=[&](const ConnectAction &action) {
+        observe(state,PeerLifecycleObservation{engine->generation(),action.peer,action.peer,PeerLifecycleKind::Started});
+        observe(state,PeerLifecycleObservation{engine->generation(),action.peer,action.peer,PeerLifecycleKind::Ready});
+        observe(state,PeerObservation{action.peer,true,false,0.0,0.0,0,0});
+        settle(registry,worker);
+    };
+    wire(connects.back());
     expect(engine->peerDiscovery().queued == 3 && !engine->peerSearchRunning(),
            "K11-PEERS queued above max did not pause search on a wire event");
-    for (std::size_t index = 1; index < connects.size(); ++index)
-        observe(state, PeerObservation{connects[index].peer, true, false, 0.0, 0.0, 0, 0});
-    settle(registry, worker);
-    expect(engine->peerDiscovery().queued == 0 && engine->peerSearchRunning(),
-           "K11-PEERS queued below min did not resume search");
+    for(int n=0;n<3;++n) {
+        const auto previous=actionsOf<ConnectAction>(state).back();
+        observe(state,PeerLifecycleObservation{engine->generation(),previous.peer,previous.peer,PeerLifecycleKind::Disconnected});
+        settle(registry,worker);
+        wire(actionsOf<ConnectAction>(state).back());
+    }
+    connects=actionsOf<ConnectAction>(state);
+    expect(connects.size()==4 && engine->peerDiscovery().queued == 0 && engine->peerSearchRunning(),
+           "K11-PEERS draining actual queue below min did not resume search");
 
     {
         std::lock_guard<std::mutex> lock(state->mutex);
         state->statistics.unchokedPeers = 1;
         state->statistics.downloadBytesPerSecond = 100.0;
+        state->statistics.wirePayloadBytesReceived = 100;
     }
     // A state change on an existing wire is not a source "wire" event.
-    observe(state, PeerObservation{connects[0].peer, false, false, 100.0, 0.0, 0, 0});
+    observe(state, PeerObservation{connects.back().peer, false, false, 100.0, 0.0, 0, 0});
     settle(registry, worker);
     expect(actionsOf<PauseAction>(state).empty() && engine->peerSearchRunning(),
            "K11-PEERS swarm cap reacted to a non-wire peer state change");
     engine->discoverPeer(0, "10.0.0.6:1");
     settle(registry, worker);
+    observe(state,PeerLifecycleObservation{engine->generation(),connects.back().peer,connects.back().peer,PeerLifecycleKind::Disconnected});
+    settle(registry,worker);
     const auto sixth = actionsOf<ConnectAction>(state).back();
     observe(state, PeerObservation{sixth.peer, false, false, 100.0, 0.0, 0, 0});
     settle(registry, worker);
@@ -937,6 +951,7 @@ void regressionPeerSearch()
     // must still follow wire events.
     const auto plain = fixture("plain-peers.bin", {{"plain-peers.bin", 8}});
     registry.create({plain.hash, Value::object({
+        {"connections",Value::number(1)},
         {"peerSearch", Value::object({{"min", Value::number(1)}, {"max", Value::number(1)},
                                       {"sources", Value::array({Value::string("dht:plain")})}})}})});
     settle(registry, worker);
@@ -946,7 +961,7 @@ void regressionPeerSearch()
         plainEngine->discoverPeer(0, address);
     settle(registry, worker);
     const auto plainConnects = actionsOf<ConnectAction>(plainState);
-    expect(plainConnects.size() == 3 && plainEngine->peerSearchRunning(),
+    expect(plainConnects.size() == 1 && plainEngine->peerSearchRunning(),
            "K11-PEERS plain engine did not connect its discovered peers");
     observe(plainState, PeerObservation{plainConnects[0].peer, true, false, 0.0, 0.0, 0, 0});
     settle(registry, worker);
@@ -1326,6 +1341,7 @@ void swarmCapCreationBinding()
     config.cacheRoot = uniqueRoot("k11-cap");
     config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
     config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    config.speedometerTick=[] {return std::uint16_t{1};};
     EngineRegistry registry(std::move(config));
     registry.create({torrent.hash, Value::object({
         {"peerSearch", Value::boolean(false)},
@@ -1338,6 +1354,7 @@ void swarmCapCreationBinding()
         std::lock_guard<std::mutex> lock(state->mutex);
         state->statistics.unchokedPeers = 2;
         state->statistics.downloadBytesPerSecond = 100.0;
+        state->statistics.wirePayloadBytesReceived = 100;
     }
     observe(state, PeerObservation{61, false, false, 100.0, 0.0, 0, 0});
     settle(registry, worker);

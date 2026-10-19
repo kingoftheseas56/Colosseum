@@ -18,6 +18,7 @@ class SwarmPolicy final {
 public:
     SwarmPolicy(std::size_t capacity, std::size_t uploads);
     void addPeer(PeerState peer);
+    void removePeer(const std::string &id) { peers_.erase(id); }
     [[nodiscard]] const PeerState &peer(const std::string &id) const;
     void onChoke(const std::string &id, std::uint64_t nowMs);
     void onUnchoke(const std::string &id);

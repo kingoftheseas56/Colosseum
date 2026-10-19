@@ -368,6 +368,14 @@ void casePeerStatistics(const fs::path &directory,int portA,int portB)
                "K12 two-peer completion bytes changed");++completed;
     }
     expect(completed==2,"K12 two-peer payload completion missing");
+    for(const auto peer:{77u,78u}) {
+        std::vector<PeerLifecycleKind> kinds;
+        for(const auto &observation:received) if(const auto* life=std::get_if<PeerLifecycleObservation>(&observation))
+            if(life->peer==peer) kinds.push_back(life->kind);
+        expect(kinds==std::vector<PeerLifecycleKind>{PeerLifecycleKind::Started,PeerLifecycleKind::Connected,PeerLifecycleKind::Ready},
+               "K12 native lifecycle not ordered started/connected/handshake");
+    }
+
     const auto before=stats.wirePayloadBytesReceived;
     std::ofstream(directory/"drop-peer-a",std::ios::trunc)<<"drop\n";
     deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
@@ -383,6 +391,20 @@ void casePeerStatistics(const fs::path &directory,int portA,int portB)
     while(std::chrono::steady_clock::now()<deadline && transport->statistics().downloadBytesPerSecond>=peak)
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
     expect(transport->statistics().downloadBytesPerSecond<peak,"K12 native rate never decayed without state transitions");
+    const auto remaining=transport->statistics().peerTransfers.at(0);
+    expect(transport->submit(DisconnectAction{1,remaining.peer,remaining.connectionIdentity+999}),"K12 stale timeout submission");
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    expect(transport->statistics().connectedPeers==1,"K12 stale timeout disconnected replacement identity");
+    expect(transport->submit(DisconnectAction{1,remaining.peer,remaining.connectionIdentity}),"K12 source timeout submission");
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+    while(std::chrono::steady_clock::now()<deadline && transport->statistics().connectedPeers!=0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(transport->statistics().connectedPeers==0,"K12 source timeout did not disconnect native wire");
+    auto closes=transport->poll();
+    for(const auto peer:{77u,78u}) expect(std::count_if(closes.begin(),closes.end(),[&](const auto &observation){
+        const auto* life=std::get_if<PeerLifecycleObservation>(&observation);
+        return life && life->peer==peer && life->kind==PeerLifecycleKind::Disconnected;
+    })==1,"K12 native lifecycle missing exactly-once close");
     transport->close();
     stats=transport->statistics();
     expect(stats.peerTransfers.empty() && stats.downloadBytesPerSecond==0 && stats.uploadBytesPerSecond==0,

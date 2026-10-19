@@ -6,6 +6,7 @@
 #include <libtorrent/magnet_uri.hpp>
 #include <libtorrent/peer_connection.hpp>
 #include <libtorrent/peer_info.hpp>
+#include <libtorrent/torrent_peer.hpp>
 #include <libtorrent/piece_block.hpp>
 #include <libtorrent/session.hpp>
 #include <libtorrent/settings_pack.hpp>
@@ -37,6 +38,7 @@ bool sameOwnership(const ports::RequestOwnership &, const ports::RequestOwnershi
 bool sameBlock(const ports::BlockSpan &, const ports::BlockSpan &) noexcept;
 using ConnectionIdentity = std::uint64_t;
 using IdentifyPeer = std::function<ports::PeerHandle(const lt::tcp::endpoint &)>;
+using PeerStarted = std::function<void(ports::PeerHandle, ConnectionIdentity, std::shared_ptr<lt::peer_connection>, ports::PeerLifecycleKind)>;
 using PeerInbound = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const lt::bitfield *)>;
 using DetachPeer = std::function<void(ports::PeerHandle,
@@ -56,7 +58,7 @@ using UploadCancel = std::function<void(ports::PeerHandle, ConnectionIdentity,
     const lt::peer_request &)>;
 using NetworkTick = std::function<void()>;
 std::shared_ptr<lt::torrent_plugin> makeProductionPeerPlugin(
-    IdentifyPeer, PeerInbound, DetachPeer, AuthorizeRequest, SentRequest, ReceivePiece, PeerState,
+    IdentifyPeer, PeerStarted, PeerInbound, DetachPeer, AuthorizeRequest, SentRequest, ReceivePiece, PeerState,
     PeerHave, UploadRequest, UploadCancel, NetworkTick);
 
 namespace {
@@ -212,6 +214,8 @@ public:
         settings.set_bool(lt::settings_pack::allow_multiple_connections_per_ip, true);
         settings.set_bool(lt::settings_pack::close_redundant_connections, false);
         settings.set_int(lt::settings_pack::min_reconnect_time, 0);
+        // M818 owns admission and retry timing; disable the autonomous dial loop.
+        settings.set_int(lt::settings_pack::connection_speed, 0);
         settings.set_int(lt::settings_pack::choking_algorithm,
                          lt::settings_pack::fixed_slots_choker);
         settings.set_int(lt::settings_pack::unchoke_slots_limit, 0);
@@ -223,6 +227,15 @@ public:
         session_->add_extension([this](const lt::torrent_handle &, lt::client_data_t) {
             return makeProductionPeerPlugin(
                 [this](const auto &ep) { return identify(ep); },
+                [this](PeerHandle peer,ConnectionIdentity id,std::shared_ptr<lt::peer_connection> native,PeerLifecycleKind kind) {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    if(closed_) return;
+                    if(kind==PeerLifecycleKind::Started) {
+                        connectingIdentities_[peer]=id;
+                        connectingNatives_[peer]=native;
+                    } else if(connectingIdentities_[peer]!=id) return;
+                    observations_.push_back(PeerLifecycleObservation{generation_,peer,id,kind});
+                },
                 [this](PeerHandle p, auto n, ConnectionIdentity id, const auto *b) {
                     inbound(p, std::move(n), id, b);
                 },
@@ -258,6 +271,8 @@ public:
     bool submit(const TorrentAction &action) override
     {
         collectSourceAlerts();
+        if (const auto *disconnectAction = std::get_if<DisconnectAction>(&action))
+            return disconnect(*disconnectAction);
         if (const auto *pauseAction = std::get_if<PauseAction>(&action))
             return setPaused(*pauseAction);
         if (const auto *connectAction = std::get_if<ConnectAction>(&action))
@@ -428,6 +443,8 @@ public:
         lastDetachedIdentity_.clear(); peerIdentities_.clear();
         for(const auto &[peer,sample]:peerSamples_){static_cast<void>(peer);retiredNativeUploads_+=sample.uploadedBytes;}
         peerSamples_.clear();
+        connectingIdentities_.clear();
+        connectingNatives_.clear();
         publishNativeSamplesLocked();
         stats_.connectedPeers = 0; stats_.unchokedPeers = 0;
         if (!closedObserved_) { observations_.push_back(ClosedObservation{}); closedObserved_ = true; }
@@ -454,14 +471,37 @@ public:
                 return true;
             }
             handle = torrent_;
-            ++stats_.connectionAttempts;
+
         }
         // A disconnect callback precedes libtorrent's final peer-list cleanup.
         // This exported synchronous handle call is an event-loop barrier; a
         // replacement connect posted afterward cannot race the old connection.
         try {
             (void)handle.status();
-            handle.connect_peer(endpoint, lt::peer_info::tracker, lt::pex_flags_t{});
+            std::lock_guard<std::mutex> lock(mutex_);
+            if(closed_ || !session_) return false;
+            lt::post(session_->get_context(), [this,handle,endpoint,action] {
+                {
+                    std::lock_guard<std::mutex> guard(mutex_);
+                    if(closed_ || action.generation!=generation_) return;
+                    const auto owner=endpointPeers_.find(endpointKey(endpoint));
+                    if(owner==endpointPeers_.end() || owner->second!=action.peer) return;
+                    if(stats_.paused) { deferredConnects_.push_back(action); endpointPeers_.erase(owner); return; }
+                }
+                auto reject=[&] {
+                    std::lock_guard<std::mutex> guard(mutex_);
+                    const auto owner=endpointPeers_.find(endpointKey(endpoint));
+                    if(owner!=endpointPeers_.end() && owner->second==action.peer) endpointPeers_.erase(owner);
+                    observations_.push_back(PeerLifecycleObservation{generation_,action.peer,0,PeerLifecycleKind::Disconnected});
+                };
+                auto native=handle.native_handle();
+                if(!native) {reject();return;}
+                auto* peer=native->add_peer(endpoint,lt::peer_info::tracker,lt::pex_flags_t{});
+                if(!peer || peer->connection) {reject();return;}
+                { std::lock_guard<std::mutex> guard(mutex_); ++stats_.connectionAttempts; }
+                // Version-pinned internal API; this callback runs on libtorrent's IO lane.
+                if(!native->connect_to_peer(peer,true)) reject();
+            });
             return true;
         } catch (...) {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -469,6 +509,24 @@ public:
             if (found != endpointPeers_.end() && found->second == action.peer) endpointPeers_.erase(found);
             return false;
         }
+    }
+
+    bool disconnect(const DisconnectAction &action)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(closed_ || !session_ || action.generation!=generation_) return false;
+        lt::post(session_->get_context(),[this,action] {
+            std::shared_ptr<lt::peer_connection> native;
+            {
+                std::lock_guard<std::mutex> guard(mutex_);
+                if(closed_ || action.generation!=generation_) return;
+                if(const auto id=connectingIdentities_.find(action.peer);id!=connectingIdentities_.end() && id->second==action.connectionIdentity)
+                    native=connectingNatives_[action.peer].lock();
+                else if(isCurrentIdentityLocked(action.peer,action.connectionIdentity)) native=peers_[action.peer].lock();
+            }
+            if(native) native->disconnect(lt::errors::timed_out,lt::operation_t::bittorrent);
+        });
+        return true;
     }
 
     bool setPaused(const PauseAction &action)
@@ -950,6 +1008,9 @@ private:
                 return;
             }
             if (!pieces) {
+                connectingIdentities_.erase(peer);
+                connectingNatives_.erase(peer);
+                observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Ready});
                 const auto current = peerIdentities_.find(peer);
                 if (current != peerIdentities_.end() && current->second != identity) {
                     cancelUploadsLocked(peer, current->second);
@@ -1321,12 +1382,24 @@ private:
         {
             std::lock_guard<std::mutex> lock(mutex_);
             const auto current = peers_.find(peer);
-            if (current == peers_.end()) return;
+            if (current == peers_.end()) {
+                const auto pending=connectingIdentities_.find(peer);
+                if(pending==connectingIdentities_.end() || pending->second!=identity) return;
+                connectingIdentities_.erase(pending);
+                connectingNatives_.erase(peer);
+                if(!endpoint.empty()) {
+                    const auto owner=endpointPeers_.find(endpoint);
+                    if(owner!=endpointPeers_.end() && owner->second==peer) endpointPeers_.erase(owner);
+                }
+                observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Disconnected});
+                return;
+            }
             if (identity != 0 && isStaleIdentityLocked(peer, identity)) {
                 ++staleDisconnectsIgnored_;
                 return;
             }
             if (identity != 0) lastDetachedIdentity_.try_emplace(peer, identity);
+            observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Disconnected});
             cancelUploadsLocked(peer, identity);
             if(native) nativeSampleLocked(peer,identity,finalSample);
             if(const auto sample=peerSamples_.find(peer);sample!=peerSamples_.end()){
@@ -1456,6 +1529,8 @@ private:
     std::map<std::string, PeerHandle> endpointPeers_;
     std::map<PeerHandle, std::weak_ptr<lt::peer_connection>> peers_;
     std::map<PeerHandle, ConnectionIdentity> peerIdentities_;
+    std::map<PeerHandle,std::weak_ptr<lt::peer_connection>> connectingNatives_;
+    std::map<PeerHandle,ConnectionIdentity> connectingIdentities_;
     std::map<PeerHandle,PeerTransferStatistics> peerSamples_;
     std::uint64_t retiredNativeUploads_ = 0;
     std::uint64_t attachmentSerial_ = 0;

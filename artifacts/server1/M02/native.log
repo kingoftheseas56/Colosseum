@@ -1,0 +1,6 @@
+M02 unit checks passed
+19 parser/hash/container factory fixtures: exit0
+1220 charset factory fixtures: exit0
+{"cases": 41, "passed": true}
+UBSan unit+both fixture sets: exit0
+{"cases": 24, "passed": true}
