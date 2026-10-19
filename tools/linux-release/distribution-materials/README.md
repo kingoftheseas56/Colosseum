@@ -26,6 +26,11 @@ the exact version, and all source files must match authenticated Sources SHA256
 and size. The source index retains actual APT acquisition URIs. An unavailable
 old version, absent owner, notice, hash or source metadata stays unresolved.
 Host package lists and SONAME-name guesses are never sufficient evidence.
+The accepted runner image supplied AppArmor .8, superseded before the package
+build. CI adds official Ubuntu snapshot 20261001T000000Z noble-updates/main
+metadata to acquire that exact version; historical validity checking is disabled
+only for that archived repository, with archive signature verification retained.
+The signed historical indices and configuration are part of review evidence.
 
 Qt is separate from Ubuntu: its own original SPDX/CycloneDX documents are
 retained. Upstream collection acquires Qt release module archives, verifies

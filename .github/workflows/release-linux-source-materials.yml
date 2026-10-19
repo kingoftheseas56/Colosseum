@@ -53,13 +53,27 @@ jobs:
       - name: Enable authenticated Ubuntu source metadata and ownership tools
         run: |
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          # The runner image bundled AppArmor .8, superseded before packaging.
+          # Its original publication was verified in Launchpad binarypub250376920.
+          # Add historical signed metadata rather than substitute today's .deb.
+          sudo tee /etc/apt/sources.list.d/colosseum-source-snapshot.sources > /dev/null <<'EOF'
+          Types: deb deb-src
+          URIs: https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/
+          Suites: noble-updates
+          Components: main
+          Architectures: amd64
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          Check-Valid-Until: no
+          EOF
           sudo apt-get update 2>&1 | tee apt-update.txt
           sudo apt-get install -y --no-install-recommends \
             dpkg-dev patchelf p7zip-full libmpv-dev libtorrent-rasterbar-dev libboost-all-dev \
             libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev \
-            libxkbcommon-dev libxcb-cursor0 ffmpeg 2>&1 | tee apt-install.txt
+            libxkbcommon-dev libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 \
+            libxcb-keysyms1 libxcb-xkb1 ffmpeg 2>&1 | tee apt-install.txt
           mkdir -p evidence/apt-trust/lists
           cp apt-update.txt apt-install.txt /etc/apt/sources.list.d/ubuntu.sources evidence/apt-trust/
+          cp /etc/apt/sources.list.d/colosseum-source-snapshot.sources evidence/apt-trust/
           cp /usr/share/keyrings/ubuntu-archive-keyring.gpg evidence/apt-trust/
           # Retain authenticated indices, not merely a list of package names.
           find /var/lib/apt/lists -maxdepth 1 -type f -name '*ubuntu*' -exec cp '{}' evidence/apt-trust/lists/ ';'
