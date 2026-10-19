@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <limits>
 #include <string>
@@ -199,6 +200,8 @@ private:
         qsizetype delivered = 0;
         bool closeAfter = false;
         void *response = nullptr;
+        std::uint64_t identity=0;
+        bool streamBlocked=false;
         bool streaming = false;
         bool chunked = false;
         bool streamFinished = false;
@@ -311,12 +314,35 @@ private:
         pending.data = headers;
         pending.closeAfter = closeAfter;
         pending.response = response;
+        pending.identity=++nextResponseIdentity_;
         pending.streaming = true;
         pending.chunked = chunked;
         pending.streamFinished = suppressBody;
+        const auto identity=pending.identity;
+        if(server1_http_response_stream_can_wait(response)) {
+            struct WakeContext {QPointer<HttpConnection> connection;std::uint64_t identity;};
+            auto *context=new WakeContext{this,identity};
+            const int bound=server1_http_response_bind_wake(response,+[](void *opaque){
+                const auto &context=*static_cast<WakeContext *>(opaque);
+                if(context.connection)context.connection->scheduleStreamWake(context.identity);
+            },context,+[](void *opaque){delete static_cast<WakeContext *>(opaque);});
+            if(!bound){delete context;const QPointer<HttpConnection> guard(this);server1_http_response_destroy(response);if(guard)handleSocketError();return;}
+        }
         queue_.push_back(std::move(pending));
         applicationQueuedBytes_ += responseBytes;
         drain();
+    }
+
+    void scheduleStreamWake(std::uint64_t identity)
+    {
+        if(closed_ || released_ || wakeQueuedIdentity_==identity)return;
+        wakeQueuedIdentity_=identity;
+        QMetaObject::invokeMethod(this,[this,identity]{
+            if(wakeQueuedIdentity_==identity)wakeQueuedIdentity_=0;
+            if(closed_ || released_ || queue_.empty() || queue_.front().identity!=identity)return;
+            queue_.front().streamBlocked=false;
+            drain();
+        },Qt::QueuedConnection);
     }
 
     bool fillStream(PendingWrite &pending)
@@ -344,8 +370,13 @@ private:
             return false;
 
         QByteArray buffer(static_cast<qsizetype>(capacity), '\0');
+        const auto identity=pending.identity;
+        const bool canWait=server1_http_response_stream_can_wait(pending.response)!=0;
+        const QPointer<HttpConnection> guard(this);
         const std::ptrdiff_t read = server1_http_response_stream_read(
             pending.response, buffer.data(), capacity);
+        if(!guard || closed_ || released_ || queue_.empty() || queue_.front().identity!=identity)return false;
+        if(canWait && read==SERVER1_HTTP_WOULD_BLOCK){pending.streamBlocked=true;return false;}
         if (read < 0 || static_cast<std::size_t>(read) > capacity) {
             handleSocketError();
             return false;
@@ -478,11 +509,12 @@ private:
             return;
 
         if (pending.streaming && !pending.streamFinished) {
+            if(pending.streamBlocked)return;
             const QPointer<HttpConnection> guard(this);
             const bool filled = fillStream(pending);
             if (!guard) return;
             if (!filled) {
-                if (!closed_) scheduleDrain();
+                if (!closed_ && !released_ && !queue_.empty() && !queue_.front().streamBlocked) scheduleDrain();
                 return;
             }
             if (!pending.data.isEmpty()) {
@@ -586,6 +618,8 @@ private:
     std::deque<PendingWrite> queue_;
     std::size_t applicationQueuedBytes_ = 0;
     std::string pendingInput_;
+    std::uint64_t nextResponseIdentity_=0;
+    std::uint64_t wakeQueuedIdentity_=0;
     bool responsePending_ = false;
     bool drainPaused_ = false;
     bool closed_ = false;

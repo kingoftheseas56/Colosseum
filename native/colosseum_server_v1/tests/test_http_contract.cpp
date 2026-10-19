@@ -952,6 +952,86 @@ void caseH00_09()
     std::cout<<"H00-09 native ordered headers and binary request body PASS\n";
 }
 
+void caseH00_10()
+{
+    struct Context {int mode=0,reads=0,closed=0,retired=0;bool ready=false;void *wake=nullptr,*server=nullptr;std::size_t offset=0;};
+    for(int mode=0;mode<9;++mode) {
+        Context c;c.mode=mode;
+        auto read=+[](void *opaque,void *buffer,std::size_t capacity)->std::ptrdiff_t{
+            auto &c=*static_cast<Context *>(opaque);++c.reads;
+            if(c.mode==4){void *server=c.server;c.server=nullptr;server1_http_server_destroy(server);return 1;}
+            if(c.mode==5)return SERVER1_HTTP_WOULD_BLOCK;
+            if(!c.ready){
+                if(c.mode==1){c.ready=true;server1_http_stream_wake_notify(c.wake);}
+                return SERVER1_HTTP_WOULD_BLOCK;
+            }
+            const auto n=std::min<std::size_t>(capacity,3-c.offset);
+            const char bytes[3]={'a','\0','b'};std::memcpy(buffer,bytes+c.offset,n);c.offset+=n;return static_cast<std::ptrdiff_t>(n);
+        };
+        struct Handler{Context *c;server1_http_stream_read_fn read;};Handler h{&c,read};
+        auto handler=+[](const void *,void *response,server1_http_next_fn,void *,void *opaque){
+            auto &h=*static_cast<Handler *>(opaque);auto &c=*h.c;
+            server1_http_response_set_status(response,200);
+            server1_http_response_set_lifetime(response,+[](void *p){++static_cast<Context *>(p)->retired;},&c);
+            auto destroy=+[](void *p){++static_cast<Context *>(p)->closed;};
+            const int result=c.mode==5 ? server1_http_response_set_stream(response,h.read,destroy,&c,3)
+                : server1_http_response_set_async_stream(response,h.read,destroy,&c,c.mode==8 ? SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH : 3);
+            c.wake=server1_http_response_stream_wake_handle(response);
+            if(c.mode==7)server1_http_stream_wake_notify(c.wake);
+            return result;
+        };
+        void *router=server1_http_router_create();require(server1_http_router_add_handler(router,0,0,"GET","/async",handler,&h,nullptr)==1,"async route");
+        c.server=server1_http_server_create(router,65536);require(server1_http_server_listen(c.server,0)==1,"async listen");
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(c.server));require(client.waitForConnected(1000),"async connect");
+        client.write(mode==6 ? "HEAD /async HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" : "GET /async HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        if(mode==0 || mode==2 || mode==3 || mode==7 || mode==8) {
+            pumpUntil([&]{return c.reads>0;},"async first read");
+            QElapsedTimer wait;wait.start();while(wait.elapsed()<60)QCoreApplication::processEvents(QEventLoop::AllEvents,5);
+            const auto reads=c.reads;require(reads<3 && c.retired==0 && client.state()==QAbstractSocket::ConnectedState,"would-block spun or retired response");
+            for(int n=0;n<100;++n)require(server1_http_stream_wake_notify(c.wake)==1,"live wake rejected");
+            pumpUntil([&]{return c.reads==reads+1;},"coalesced wake read");
+            wait.restart();while(wait.elapsed()<30)QCoreApplication::processEvents(QEventLoop::AllEvents,5);
+            require(c.reads==reads+1,"wake storm accumulated polls");
+            if(mode==2){server1_http_stream_wake_notify(c.wake);client.abort();}
+            else if(mode==3)server1_http_server_stop(c.server);
+            else{c.ready=true;server1_http_stream_wake_notify(c.wake);}
+        }
+        const auto wire=client.isOpen() ? collectUntilDisconnected(client) : QByteArray{};
+        pumpUntil([&]{return c.retired==1 && c.closed==1;},"async ownership retired");
+        if(mode==0 || mode==1 || mode==7)require(wire.endsWith(QByteArray("a\0b",3)),"async body changed");
+        if(mode==8)require(wire.endsWith(QByteArray("3\r\na\0b\r\n0\r\n\r\n",13)),"async chunked stream framing changed");
+        if(mode==6)require(c.reads==0 && wire.endsWith("\r\n\r\n"),"HEAD async stream read body");
+        if(mode==5)require(c.reads==1 && !c.wake,"legacy negative read gained wait semantics");
+        require(server1_http_stream_wake_notify(c.wake)==0,"retired wake remained live");
+        server1_http_stream_wake_destroy(c.wake);c.wake=nullptr;
+        if(c.server)server1_http_server_destroy(c.server);server1_http_router_destroy(router);
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+    }
+    {
+        struct Root {void *server=nullptr;int destroyed=0,readCompleted=0,retired=0;};Root root;
+        struct Heap {Root *root;int marker=123;};
+        auto handler=+[](const void *,void *response,server1_http_next_fn,void *,void *opaque){
+            auto *heap=new Heap{static_cast<Root *>(opaque)};
+            server1_http_response_set_lifetime(response,+[](void *opaque){++static_cast<Root *>(opaque)->retired;},opaque);
+            server1_http_response_set_status(response,200);
+            return server1_http_response_set_async_stream(response,+[](void *opaque,void *,std::size_t)->std::ptrdiff_t{
+                auto *heap=static_cast<Heap *>(opaque);auto *root=heap->root;
+                void *server=root->server;root->server=nullptr;server1_http_server_destroy(server);
+                require(heap->marker==123 && root->destroyed==0 && root->retired==0,"stream context or response lease retired during active read");
+                ++root->readCompleted;return 1;
+            },+[](void *opaque){auto *heap=static_cast<Heap *>(opaque);++heap->root->destroyed;delete heap;},heap,1);
+        };
+        void *router=server1_http_router_create();require(server1_http_router_add_handler(router,0,0,"GET","/heap",handler,&root,nullptr)==1,"heap stream route");
+        root.server=server1_http_server_create(router,65536);require(server1_http_server_listen(root.server,0)==1,"heap stream listen");
+        QTcpSocket client;client.connectToHost(QStringLiteral("127.0.0.1"),server1_http_server_port(root.server));require(client.waitForConnected(1000),"heap stream connect");
+        client.write("GET /heap HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");client.flush();
+        static_cast<void>(collectUntilDisconnected(client));
+        require(root.readCompleted==1 && root.destroyed==1 && root.retired==1 && !root.server,"active read lifetime did not retire once after callback");
+        server1_http_router_destroy(router);QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+    }
+    std::cout<<"H00-10 async stream wake, ownership, coalescing, teardown, HEAD and legacy error PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -1015,13 +1095,14 @@ int main(int argc, char **argv)
             caseH00_03();
         if (requested == "all" || requested == "H00-04")
             caseH00_04();
+        if (requested == "all" || requested == "H00-10") caseH00_10();
         if (requested == "all" || requested == "H00-09") caseH00_09();
         if (requested == "all" || requested == "H00-08") caseH00_08();
         if (requested == "all" || requested == "H00-07") caseH00_07();
         if (requested == "all" || requested == "H00-06") caseH00_06();
         if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';

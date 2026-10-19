@@ -29,13 +29,37 @@ struct Request {
     std::vector<std::pair<std::string,std::string>> headers;
 };
 
+struct WakeCallback final {
+    server1_http_wake_fn callback=nullptr;
+    void *context=nullptr;
+    server1_http_context_destroy_fn destroy=nullptr;
+    ~WakeCallback(){if(destroy)destroy(context);}
+};
+struct StreamWake final {
+    bool active=true;
+    bool pending=false;
+    std::shared_ptr<WakeCallback> callback;
+};
+struct WakeHandle final {std::weak_ptr<StreamWake> state;};
+struct StreamOwner final {
+    server1_http_stream_destroy_fn destroy=nullptr;
+    void *context=nullptr;
+    ~StreamOwner(){if(destroy && context)destroy(context);}
+};
+struct LifetimeOwner final {
+    std::vector<std::pair<server1_http_context_destroy_fn,void *>> callbacks;
+    ~LifetimeOwner(){auto retiring=std::move(callbacks);for(const auto &entry:retiring)entry.first(entry.second);}
+};
+
 struct Response final {
     int status = 404;
     std::string body;
     std::vector<std::pair<std::string, std::string>> headers;
     bool close = false;
-    std::vector<std::pair<server1_http_context_destroy_fn, void *>> lifetimes;
+    std::shared_ptr<LifetimeOwner> lifetimes=std::make_shared<LifetimeOwner>();
 
+    std::shared_ptr<StreamWake> wake;
+    std::shared_ptr<StreamOwner> streamOwner;
     server1_http_stream_read_fn streamRead = nullptr;
     server1_http_stream_destroy_fn streamDestroy = nullptr;
     void *streamContext = nullptr;
@@ -44,9 +68,7 @@ struct Response final {
     ~Response()
     {
         clearStream();
-        auto callbacks = std::move(lifetimes);
-        lifetimes.clear();
-        for (const auto &entry : callbacks) entry.first(entry.second);
+        lifetimes.reset();
     }
 
     Response() = default;
@@ -59,6 +81,8 @@ struct Response final {
         , headers(std::move(other.headers))
         , close(other.close)
         , lifetimes(std::move(other.lifetimes))
+        , wake(std::move(other.wake))
+        , streamOwner(std::move(other.streamOwner))
         , streamRead(other.streamRead)
         , streamDestroy(other.streamDestroy)
         , streamContext(other.streamContext)
@@ -77,12 +101,17 @@ struct Response final {
         clearStream();
         // Router fall-through can replace the body/status without ending the
         // logical response lifetime already installed by middleware.
-        lifetimes.insert(lifetimes.end(), other.lifetimes.begin(), other.lifetimes.end());
-        other.lifetimes.clear();
+        if(!lifetimes)lifetimes=std::make_shared<LifetimeOwner>();
+        if(other.lifetimes){
+            lifetimes->callbacks.insert(lifetimes->callbacks.end(),other.lifetimes->callbacks.begin(),other.lifetimes->callbacks.end());
+            other.lifetimes->callbacks.clear();
+        }
         status = other.status;
         body = std::move(other.body);
         headers = std::move(other.headers);
         close = other.close;
+        wake=std::move(other.wake);
+        streamOwner=std::move(other.streamOwner);
         streamRead = other.streamRead;
         streamDestroy = other.streamDestroy;
         streamContext = other.streamContext;
@@ -96,13 +125,13 @@ struct Response final {
 
     void clearStream()
     {
-        const auto destroy = streamDestroy;
-        void *context = streamContext;
+        const auto owner=std::move(streamOwner);
         streamRead = nullptr;
         streamDestroy = nullptr;
         streamContext = nullptr;
         streamContentLength = SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH;
-        if (destroy != nullptr && context != nullptr) destroy(context);
+        if(wake){auto retired=std::move(wake);retired->active=false;retired->callback.reset();}
+        // Active reads retain owner until their callback unwinds.
     }
 };
 
@@ -817,8 +846,8 @@ int server1_http_response_set_lifetime(void *opaqueResponse,
 {
     if (!opaqueResponse || !destroy) return 0;
     auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
-    if (!response.lifetimes.empty()) return 0;
-    response.lifetimes.emplace_back(destroy, context);
+    if (!response.lifetimes->callbacks.empty()) return 0;
+    response.lifetimes->callbacks.emplace_back(destroy, context);
     return 1;
 }
 
@@ -916,12 +945,54 @@ int server1_http_response_set_stream(void *opaqueResponse, server1_http_stream_r
     if (opaqueResponse == nullptr || read == nullptr)
         return 0;
     auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
+    auto owner=std::make_shared<server1::http::router_detail::StreamOwner>();
+    owner->destroy=destroy;owner->context=context;
     response.clearStream();
+    response.streamOwner=std::move(owner);
     response.body.clear();
     response.streamRead = read;
     response.streamDestroy = destroy;
     response.streamContext = context;
     response.streamContentLength = contentLength;
+    return 1;
+}
+
+int server1_http_response_set_async_stream(void *response,server1_http_stream_read_fn read,
+    server1_http_stream_destroy_fn destroy,void *context,std::size_t length)
+{
+    if(!server1_http_response_set_stream(response,read,destroy,context,length))return 0;
+    static_cast<server1::http::router_detail::Response *>(response)->wake=std::make_shared<server1::http::router_detail::StreamWake>();
+    return 1;
+}
+int server1_http_response_stream_can_wait(void *response)
+{
+    if(!response)return 0;
+    const auto &wake=static_cast<server1::http::router_detail::Response *>(response)->wake;
+    return wake && wake->active;
+}
+void *server1_http_response_stream_wake_handle(void *response)
+{
+    if(!server1_http_response_stream_can_wait(response))return nullptr;
+    return new server1::http::router_detail::WakeHandle{static_cast<server1::http::router_detail::Response *>(response)->wake};
+}
+int server1_http_stream_wake_notify(void *handle)
+{
+    if(!handle)return 0;
+    auto state=static_cast<server1::http::router_detail::WakeHandle *>(handle)->state.lock();
+    if(!state || !state->active)return 0;
+    const auto callback=state->callback;
+    if(callback)callback->callback(callback->context);else state->pending=true;
+    return 1;
+}
+void server1_http_stream_wake_destroy(void *handle){delete static_cast<server1::http::router_detail::WakeHandle *>(handle);}
+int server1_http_response_bind_wake(void *response,server1_http_wake_fn callback,void *context,server1_http_context_destroy_fn destroy)
+{
+    if(!callback || !server1_http_response_stream_can_wait(response))return 0;
+    const auto state=static_cast<server1::http::router_detail::Response *>(response)->wake;
+    if(state->callback)return 0;
+    auto owned=std::make_shared<server1::http::router_detail::WakeCallback>();
+    owned->callback=callback;owned->context=context;owned->destroy=destroy;state->callback=owned;
+    if(state->pending){state->pending=false;callback(context);}
     return 1;
 }
 
@@ -947,7 +1018,11 @@ std::ptrdiff_t server1_http_response_stream_read(void *opaqueResponse, void *buf
     auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
     if (response.streamRead == nullptr)
         return -1;
-    return response.streamRead(response.streamContext, buffer, capacity);
+    // Reverse destruction releases stream context before response leases.
+    const auto lifetimes=response.lifetimes;
+    const auto owner=response.streamOwner;
+    const auto read=response.streamRead;
+    return read(owner ? owner->context : response.streamContext,buffer,capacity);
 }
 
 std::size_t server1_http_response_header_count(void *opaqueResponse)

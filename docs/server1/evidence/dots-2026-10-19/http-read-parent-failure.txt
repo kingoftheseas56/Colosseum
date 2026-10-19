@@ -1,0 +1,115 @@
+=================================================================
+==107==ERROR: AddressSanitizer: heap-use-after-free on address 0x502000000958 at pc 0x562c412c7278 bp 0x7fff5a2e0170 sp 0x7fff5a2e0168
+READ of size 4 at 0x502000000958 thread T0
+    #0 0x562c412c7277 in operator() <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:20
+    #1 0x562c412c7277 in _FUN <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:22
+    #2 0x562c412e0903 in server1::http::connection_detail::HttpConnection::fillStream(server1::http::connection_detail::HttpConnection::PendingWrite&) <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:347
+    #3 0x562c412e56a6 in server1::http::connection_detail::HttpConnection::completeFrontIfDrained() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:482
+    #4 0x562c412e44b8 in server1::http::connection_detail::HttpConnection::drain() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:435
+    #5 0x562c412e6ecc in server1::http::connection_detail::HttpConnection::acknowledgeWritten(long long) <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:453
+    #6 0x562c412e6ecc in server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}::operator()(long long) const <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:144
+    #7 0x562c412e6ecc in QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**)::{lambda()#1}::operator()() const <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:117
+    #8 0x562c412e6ecc in void QtPrivate::FunctorCallBase::call_internal<void, QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**)::{lambda()#1}>(void**, QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**)::{lambda()#1}&&) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:66
+    #9 0x562c412e6ecc in QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:116
+    #10 0x562c412e6ecc in void QtPrivate::FunctorCallable<server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}, long long>::call<QtPrivate::List<long long>, void>(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void*, void**) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:338
+    #11 0x562c412e6ecc in QtPrivate::QCallableObject<server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}, QtPrivate::List<long long>, void>::impl(int, QtPrivate::QSlotObjectBase*, QObject*, void**, bool*) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:548
+    #12 0x7f0b365c11f9  (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x1f31f9) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #13 0x7f0b365181d5 in QIODevice::bytesWritten(long long) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x14a1d5) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #14 0x7f0b36bd8b28 in QAbstractSocketPrivate::emitBytesWritten(long long, int) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Network.so.6+0xcfb28) (BuildId: d7275d7cfc7620ed636a433e73b476bc5e49116a)
+    #15 0x7f0b36bdca79 in QAbstractSocketPrivate::writeToSocket() (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Network.so.6+0xd3a79) (BuildId: d7275d7cfc7620ed636a433e73b476bc5e49116a)
+    #16 0x7f0b36be1f7e  (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Network.so.6+0xd8f7e) (BuildId: d7275d7cfc7620ed636a433e73b476bc5e49116a)
+    #17 0x7f0b3655a0f2 in QCoreApplication::notifyInternal2(QObject*, QEvent*) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x18c0f2) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #18 0x7f0b368678e2  (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x4998e2) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #19 0x7f0b337ff484  (/lib/x86_64-linux-gnu/libglib-2.0.so.0+0x5c484) (BuildId: 4b881c2eb20a863a8c8f695345453dd32248ffb4)
+    #20 0x7f0b338016b6  (/lib/x86_64-linux-gnu/libglib-2.0.so.0+0x5e6b6) (BuildId: 4b881c2eb20a863a8c8f695345453dd32248ffb4)
+    #21 0x7f0b33801e1f in g_main_context_iteration (/lib/x86_64-linux-gnu/libglib-2.0.so.0+0x5ee1f) (BuildId: 4b881c2eb20a863a8c8f695345453dd32248ffb4)
+    #22 0x7f0b368666fb in QEventDispatcherGlib::processEvents(QFlags<QEventLoop::ProcessEventsFlag>) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x4986fb) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #23 0x7f0b3655a26f in QCoreApplication::processEvents(QFlags<QEventLoop::ProcessEventsFlag>, QDeadlineTimer) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x18c26f) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #24 0x7f0b3655a2da in QCoreApplication::processEvents(QFlags<QEventLoop::ProcessEventsFlag>, int) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x18c2da) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #25 0x562c412c6cf2 in main <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:29
+    #26 0x7f0b35e7eca7  (/lib/x86_64-linux-gnu/libc.so.6+0x29ca7) (BuildId: 5e5b51f4c39af9ac589408c1dc432ba390a273cc)
+    #27 0x7f0b35e7ed64 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x29d64) (BuildId: 5e5b51f4c39af9ac589408c1dc432ba390a273cc)
+    #28 0x562c412c6fb0 in _start (<WORKSPACE>/server-parity/build-read-before/repro+0xffb0) (BuildId: 5afcca31e9c9b0231d8324ec67939d78182ebf1e)
+
+0x502000000958 is located 8 bytes inside of 16-byte region [0x502000000950,0x502000000960)
+freed by thread T0 here:
+    #0 0x7f0b36e0c678 in operator delete(void*, unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:164
+    #1 0x562c4130c701 in server1::http::router_detail::Response::clearStream() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:105
+    #2 0x562c4130c701 in server1::http::router_detail::Response::~Response() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:46
+    #3 0x562c412eee65 in server1_http_response_destroy <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:827
+    #4 0x562c412d6576 in server1::http::connection_detail::HttpConnection::destroyPendingResponse(server1::http::connection_detail::HttpConnection::PendingWrite&) <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:401
+    #5 0x562c412d6576 in server1::http::connection_detail::HttpConnection::clearQueue() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:562
+    #6 0x562c412cea57 in server1::http::connection_detail::HttpConnection::closeFromServer() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:188
+    #7 0x562c412cea57 in server1::http::connection_detail::HttpServer::stop() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:640
+    #8 0x562c412cf60b in server1::http::connection_detail::HttpServer::requestDestruction() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:629
+    #9 0x562c412cf60b in server1::http::connection_detail::HttpServer::requestDestruction() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:625
+    #10 0x562c412c7203 in operator() <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:19
+    #11 0x562c412c7203 in _FUN <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:22
+    #12 0x562c412e0903 in server1::http::connection_detail::HttpConnection::fillStream(server1::http::connection_detail::HttpConnection::PendingWrite&) <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:347
+    #13 0x562c412e56a6 in server1::http::connection_detail::HttpConnection::completeFrontIfDrained() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:482
+    #14 0x562c412e44b8 in server1::http::connection_detail::HttpConnection::drain() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:435
+    #15 0x562c412e6ecc in server1::http::connection_detail::HttpConnection::acknowledgeWritten(long long) <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:453
+    #16 0x562c412e6ecc in server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}::operator()(long long) const <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:144
+    #17 0x562c412e6ecc in QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**)::{lambda()#1}::operator()() const <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:117
+    #18 0x562c412e6ecc in void QtPrivate::FunctorCallBase::call_internal<void, QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**)::{lambda()#1}>(void**, QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**)::{lambda()#1}&&) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:66
+    #19 0x562c412e6ecc in QtPrivate::FunctorCall<std::integer_sequence<unsigned long, 0ul>, QtPrivate::List<long long>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void**) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:116
+    #20 0x562c412e6ecc in void QtPrivate::FunctorCallable<server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}, long long>::call<QtPrivate::List<long long>, void>(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}&, void*, void**) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:338
+    #21 0x562c412e6ecc in QtPrivate::QCallableObject<server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda(long long)#1}, QtPrivate::List<long long>, void>::impl(int, QtPrivate::QSlotObjectBase*, QObject*, void**, bool*) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:548
+    #22 0x7f0b365c11f9  (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x1f31f9) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #23 0x7f0b365181d5 in QIODevice::bytesWritten(long long) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x14a1d5) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+
+previously allocated by thread T0 here:
+    #0 0x7f0b36e0b778 in operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95
+    #1 0x562c412c70cc in operator() <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:14
+    #2 0x562c412c70cc in _FUN <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:23
+    #3 0x562c412f9f00 in invokeRoute <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:562
+    #4 0x562c412f9f00 in dispatchFrom <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:593
+    #5 0x562c412fb8ce in dispatchFrom <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:597
+    #6 0x562c412fe4a9 in dispatch <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:615
+    #7 0x562c41302e6d in server1_http_router_dispatch_parsed <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Router.cpp:743
+    #8 0x562c412e1d49 in server1::http::connection_detail::HttpConnection::dispatchParsedRequest() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:246
+    #9 0x562c412e2f92 in server1::http::connection_detail::HttpConnection::feed(char const*, unsigned long) <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:235
+    #10 0x562c412e7273 in server1::http::connection_detail::HttpConnection::readAvailable() <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:215
+    #11 0x562c412e7273 in server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}::operator()() const <WORKSPACE>/server-parity/recovery-20261018/baseline-http/src/http/Connection.cpp:142
+    #12 0x562c412e7273 in QtPrivate::FunctorCall<std::integer_sequence<unsigned long>, QtPrivate::List<>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}&, void**)::{lambda()#1}::operator()() const <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:117
+    #13 0x562c412e7273 in void QtPrivate::FunctorCallBase::call_internal<void, QtPrivate::FunctorCall<std::integer_sequence<unsigned long>, QtPrivate::List<>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}&, void**)::{lambda()#1}>(void**, QtPrivate::FunctorCall<std::integer_sequence<unsigned long>, QtPrivate::List<>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}&, void**)::{lambda()#1}&&) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:66
+    #14 0x562c412e7273 in QtPrivate::FunctorCall<std::integer_sequence<unsigned long>, QtPrivate::List<>, void, server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}>::call(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}&, void**) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:116
+    #15 0x562c412e7273 in void QtPrivate::FunctorCallable<server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}>::call<QtPrivate::List<>, void>(server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}&, void*, void**) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:338
+    #16 0x562c412e7273 in QtPrivate::QCallableObject<server1::http::connection_detail::HttpConnection::HttpConnection(server1::http::connection_detail::HttpServer*, QTcpSocket*)::{lambda()#1}, QtPrivate::List<>, void>::impl(int, QtPrivate::QSlotObjectBase*, QObject*, void**, bool*) <WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qobjectdefs_impl.h:548
+    #17 0x7f0b365c11f9  (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Core.so.6+0x1f31f9) (BuildId: aec36f0b2ce8b42428a041c92d510b897349d4c8)
+    #18 0x7f0b36bd8ab3 in QAbstractSocketPrivate::emitReadyRead(int) (<WORKSPACE>/server-parity/deps/Qt/6.11.1/gcc_64/lib/libQt6Network.so.6+0xcfab3) (BuildId: d7275d7cfc7620ed636a433e73b476bc5e49116a)
+
+SUMMARY: AddressSanitizer: heap-use-after-free <WORKSPACE>/server-parity/recovery-20261018/read-lifetime-driver/repro.cpp:20 in operator()
+Shadow bytes around the buggy address:
+  0x502000000680: fa fa fd fd fa fa 00 fa fa fa 00 00 fa fa 00 fa
+  0x502000000700: fa fa 00 fa fa fa 00 fa fa fa 00 00 fa fa fd fd
+  0x502000000780: fa fa fd fd fa fa 00 00 fa fa 00 00 fa fa fd fd
+  0x502000000800: fa fa fd fd fa fa 00 00 fa fa 00 00 fa fa 00 00
+  0x502000000880: fa fa 00 00 fa fa 00 00 fa fa 00 00 fa fa fd fd
+=>0x502000000900: fa fa fd fd fa fa fd fd fa fa fd[fd]fa fa fd fd
+  0x502000000980: fa fa fd fd fa fa fd fd fa fa 00 00 fa fa 00 00
+  0x502000000a00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x502000000a80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x502000000b00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x502000000b80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==107==ABORTING
+EXIT=1

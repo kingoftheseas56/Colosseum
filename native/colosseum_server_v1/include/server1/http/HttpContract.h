@@ -8,6 +8,8 @@
 
 inline constexpr std::size_t SERVER1_HTTP_UNKNOWN_CONTENT_LENGTH = static_cast<std::size_t>(-1);
 
+inline constexpr std::ptrdiff_t SERVER1_HTTP_WOULD_BLOCK = -2;
+
 extern "C" {
 
 using server1_http_stream_read_fn = std::ptrdiff_t (*)(void *context, void *buffer,
@@ -76,6 +78,8 @@ const char *server1_http_request_query_value(const void *request, const char *na
 
 // Transfers one lifetime context on success. The nonthrowing callback runs once
 // when the response is retired (socket drained or aborted), not at reader EOF.
+// Active producer reads retain stream context and lifetime through callback
+// unwind, retiring stream ownership before response lifetime callbacks.
 // Body/stream replacement does not retire it. Failure retains caller ownership.
 int server1_http_response_set_lifetime(void *response, server1_http_context_destroy_fn destroy,
                                       void *context);
@@ -95,6 +99,20 @@ int server1_http_response_set_close(void *response, int closeAfter);
 int server1_http_response_set_stream(void *response, server1_http_stream_read_fn read,
                                      server1_http_stream_destroy_fn destroy, void *context,
                                      std::size_t contentLength);
+// Opt-in async stream. All wake operations use the serialized app lane.
+// Legacy negative reads remain errors. Wake handles are caller-owned weak
+// references; notify after response retirement returns 0. Destroy each once.
+int server1_http_response_set_async_stream(void *response, server1_http_stream_read_fn read,
+    server1_http_stream_destroy_fn destroy, void *context, std::size_t contentLength);
+int server1_http_response_stream_can_wait(void *response);
+void *server1_http_response_stream_wake_handle(void *response);
+int server1_http_stream_wake_notify(void *handle);
+void server1_http_stream_wake_destroy(void *handle);
+using server1_http_wake_fn = void (*)(void *context);
+// One connection subscription per stream; context transfers only on success.
+// Callback and destructor must not throw.
+int server1_http_response_bind_wake(void *response, server1_http_wake_fn callback,
+    void *context, server1_http_context_destroy_fn destroy);
 int server1_http_response_has_stream(void *response);
 std::size_t server1_http_response_stream_content_length(void *response);
 std::ptrdiff_t server1_http_response_stream_read(void *response, void *buffer,

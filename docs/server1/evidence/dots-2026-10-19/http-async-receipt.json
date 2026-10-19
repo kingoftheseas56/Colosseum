@@ -1,0 +1,29 @@
+{
+  "parent": "a184d25c4b4f45b22eb6551418e506c3948e8891",
+  "scope": "HTTP controlled socket/component checkpoint; not complete server parity",
+  "fullSuite": {
+    "passed": 106,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 74.65,
+    "exit": 0
+  },
+  "asanHttp": {
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 2.4,
+    "exit": 0,
+    "detect_leaks": 0
+  },
+  "executables": {
+    "release-http": "1a6b1eb3ec0431cd8b418922b48d0d5d086fe08ceb680ef38c2a72818893cd70",
+    "asan-http": "07fdf106de7123adae54728a4ee0a84e9390206c5964ab72c5bf2bbecd998e5a"
+  },
+  "qtArchives": {
+    "qtbaseSha256": "1d6d82d765987d657d0df136fb347e98d6e29e99ef8d1cb433abf9f15c86ab6f",
+    "icuSha256": "6ea4a612560b6eb39173bcfaa35abc08904fc124e4c0f93e1b39dd22368c33c8"
+  },
+  "oracleSha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "libtorrentStaticSha256": "f0e033e56b7e068d756dd6255111263b54b37e423e1c66ab24643c83c5855855"
+}

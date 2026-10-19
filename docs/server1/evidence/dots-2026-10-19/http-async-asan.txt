@@ -1,0 +1,25 @@
+Test project <WORKSPACE>/server-parity/build-http-recovered-asan
+      Start  1: H00-01
+ 1/10 Test  #1: H00-01 ...........................   Passed    0.02 sec
+      Start  2: H00-02
+ 2/10 Test  #2: H00-02 ...........................   Passed    0.02 sec
+      Start  3: H00-03
+ 3/10 Test  #3: H00-03 ...........................   Passed    1.52 sec
+      Start  4: H00-04
+ 4/10 Test  #4: H00-04 ...........................   Passed    0.02 sec
+      Start  5: H00-05
+ 5/10 Test  #5: H00-05 ...........................   Passed    0.28 sec
+      Start  6: H00-06
+ 6/10 Test  #6: H00-06 ...........................   Passed    0.01 sec
+      Start  7: H00-07
+ 7/10 Test  #7: H00-07 ...........................   Passed    0.02 sec
+      Start  8: H00-08
+ 8/10 Test  #8: H00-08 ...........................   Passed    0.01 sec
+      Start  9: H00-09
+ 9/10 Test  #9: H00-09 ...........................   Passed    0.02 sec
+      Start 10: H00-10
+10/10 Test #10: H00-10 ...........................   Passed    0.47 sec
+
+100% tests passed out of 10
+
+Total Test time (real) =   2.40 sec
