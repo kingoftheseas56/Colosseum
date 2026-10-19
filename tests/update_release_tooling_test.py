@@ -70,7 +70,7 @@ class UpdateReleaseToolingTests(unittest.TestCase):
             data = json.loads(manifest.read_text(encoding="utf-8"))
             self.assertEqual(data["version"], "1.1.9")
             self.assertEqual(data["tag"], "v1.1.9")
-            self.assertEqual(len(data["highlights"]), 6)
+            self.assertEqual(len(data["highlights"]), 7)
             mutated = Path(temp) / "mutated.json"
             marker = b'"version":"1.1.9"'
             self.assertEqual(manifest.read_bytes().count(marker), 1)
