@@ -997,6 +997,7 @@ Only `audited` communities should proceed into Task 3/Task 4 of the approved mar
 # Appendix B — Deeper Second-Wave Research
 
 # Colosseum Second-Wave Subreddit Selection & Policy Audit
+
 **Research date:** 2026-08-24  
 **Campaign stage:** Second-wave target discovery  
 **Excluded because already targeted:** `r/windowsapps`, `r/SideProject`, `r/foss`, `r/coolgithubprojects`  
@@ -1996,7 +1997,8 @@ Only communities that have passed the policy gate appear here. Conditional and r
       "audit_file": "marketing/audits/imadethis.md",
       "post_file": "marketing/posts/imadethis.md",
       "status": "audited",
-      "confidence": "high",      "reason": "The community explicitly exists for people to show what they built, including open-source projects, and supports native video/GIF showcases."
+      "confidence": "high",
+      "reason": "The community explicitly exists for people to show what they built, including open-source projects, and supports native video/GIF showcases."
     },
     {
       "route": "general",
@@ -2996,6 +2998,7 @@ This is a better long-term marketing loop than repeatedly finding unrelated “s
 ---
 
 # Priority human-review queue
+
 These are **not publication approvals**. They are the communities worth resolving next.
 
 ```json
