@@ -12,7 +12,7 @@
 | [Account 04](./ACCOUNT-04-TASK.md) | **5** | r/foss, r/StremioAddons, r/animepiracy, r/Stremio, r/kodi |
 | [Account 05](./ACCOUNT-05-TASK.md) | **5** | r/coolgithubprojects, r/IMadeThis, r/Piracy, r/Plex, r/jellyfin |
 
-Each account owns **only** its numbered task linked above. One task per Gemini/Argon account. No ZIPs and no cross-account overwrites; save each set of outputs to its own account's Drive if that is writable, otherwise return full Markdown in the Task.
+Each account owns **only** its numbered task linked above. One task per Gemini/Argon account. **Verified saving to that account's own Google Drive is mandatory**, not optional. No ZIPs, cross-account overwrites, shared Drive substitution or public link-sharing. A Task response without verified Drive-backed individual files is blocked, not complete.
 
 ## Authoritative reading order
 
@@ -64,6 +64,16 @@ Each account owns **only** its numbered task linked above. One task per Gemini/A
 The campaign is about Colosseum as a real open-source Qt/C++/QML desktop media environment; avoid piracy-provider advertising. Current worlds: Tankoban, Biblio, Theatre, Universes (fourth), Vault (fifth, local files). Tributes are separate handcrafted interactive experiences, not user/community-uploaded Universes. Do not invent screenshots, users, metrics, implementation evidence or features. Vinyl and Feria are NOT part of released 1.1.9 functionality. No 2.0+ teases. Release-day language may refer to the already-published October 19, 2026 Windows/Linux release, but must remain faithful to its actual assets, limitations and verified functionality.
 
 Every account returns **one individually labeled Markdown document per assigned community** (draft, gated candidate, human-only outline, or no-post policy card as appropriate) plus a brief account index. Drafts should sound like a human indie builder and be genuinely different in emphasis and phrasing; include an authentic screenshot/GIF **placeholder**, not generated app art. No Reddit logins, posting, moderator messages or republishing. Review and approval remain with Hemanth.
+
+## Mandatory per-account Google Drive delivery
+
+All **five Argon accounts** must follow the same rule independently, including Account 01 even if its prompt was dispatched earlier.
+
+- Each account writes only to the **Google Drive connected to that same Gemini account**. Its folder must be named `Colosseum-Reddit-1.1.9-Argon-Account-XX` (replace XX with `01` through `05`). Do not use another account's Drive or assume connected Drive permissions are shared.
+- Inside that folder, write **one separate editable `.md` file per assigned subreddit** and one `ACCOUNT-XX-RETURN.md` index. Deliverable status can be a draft, gated draft, human-only factual outline, or no-post policy card. Do not omit blocked targets or combine everything into one document. No ZIP archives.
+- **Open/read the saved files after writing them** to confirm they exist with complete contents. In the final Gemini Task response provide the **actual folder URL plus individual file URLs**, matched to the assigned subreddits. Do not fabricate links or claim persistence based on an intention to upload.
+- Keep the output private to that account by default. Do not change sharing permissions or share publicly without Hemanth's authorization. State when a link requires access to the same Google account.
+- If writable Google Drive is unavailable, return `STATUS: DRIVE DELIVERY BLOCKED`, explain the obstacle and include full Markdown as recovery text, but **do not** report completion until the files have really been saved and verified in the respective Google Drive.
 
 ## Relationship to earlier five-target task
 
