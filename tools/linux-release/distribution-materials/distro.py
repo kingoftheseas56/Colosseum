@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import tarfile
+import tempfile
 from inventory import digest, safe_name, write_json
 
 
@@ -68,8 +69,11 @@ def source_acquire(name, version, out, commands):
         raise ValueError(f'Exact authenticated Sources stanza unavailable: {name}={version}')
     text, stanza = found[0]
     (directory / 'Sources-stanza.txt').write_text(text + '\n', encoding='utf-8')
-    uris = commands.run(['apt-get', '--print-uris', 'source', '--download-only',
-                         '--only-source', name + '=' + version], cwd=directory)
+    # APT suppresses URIs for files already present in cwd. Query in a fresh
+    # empty directory so resume preserves a complete authoritative URL index.
+    with tempfile.TemporaryDirectory(prefix='uri-query-', dir=directory) as query:
+        uris = commands.run(['apt-get', '--print-uris', 'source', '--download-only',
+                             '--only-source', name + '=' + version], cwd=Path(query))
     (directory / 'acquisition-uris.txt').write_text(uris, encoding='utf-8')
     commands.run(['apt-get', '-o', 'Acquire::Retries=3', '-o', 'Acquire::https::Timeout=30',
                   'source', '--download-only', '--only-source',

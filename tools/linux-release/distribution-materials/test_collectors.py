@@ -135,6 +135,30 @@ class CollectorTests(unittest.TestCase):
             (root / 'commands/0012.txt').write_text('original evidence')
             self.assertEqual(Commands(root).sequence, 12)
 
+    def test_cached_source_still_gets_complete_authenticated_uri_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            directory = root / 'sources/a_1'
+            directory.mkdir(parents=True)
+            data = {'a.orig.tar.xz': b'archive', 'a.dsc': b'control'}
+            (directory / 'a.orig.tar.xz').write_bytes(data['a.orig.tar.xz'])
+            stanza = 'Package: a\nVersion: 1\nChecksums-Sha256:\n' + ''.join(
+                ' ' + hashlib.sha256(body).hexdigest() + ' ' + str(len(body)) + ' ' + name + '\n'
+                for name, body in data.items())
+            commands = unittest.mock.Mock()
+            def run(argv, cwd=None):
+                if argv[0] == 'apt-cache':
+                    return stanza
+                if '--print-uris' in argv:
+                    return ''.join("'https://archive.ubuntu.com/" + name + "' " + name + ' 7 SHA256:metadata\n'
+                                   for name in data if not (cwd / name).exists())
+                for name, body in data.items():
+                    (directory / name).write_bytes(body)
+                return ''
+            commands.run.side_effect = run
+            result = source_acquire('a', '1', root, commands)
+            self.assertEqual(len(result['files']), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

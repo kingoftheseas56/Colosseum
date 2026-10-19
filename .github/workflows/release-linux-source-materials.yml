@@ -59,8 +59,8 @@ jobs:
         if: ${{ !inputs.full_collection }}
         uses: actions/download-artifact@v4
         with:
-          artifact-ids: '12189575033'
-          run-id: '39255498115'
+          artifact-ids: '12190145167'
+          run-id: '39258916821'
           github-token: ${{ github.token }}
           path: prior-review
           merge-multiple: true
@@ -68,8 +68,8 @@ jobs:
         if: ${{ !inputs.full_collection }}
         uses: actions/download-artifact@v4
         with:
-          artifact-ids: '12189290476'
-          run-id: '39255498115'
+          artifact-ids: '12189870457'
+          run-id: '39258916821'
           github-token: ${{ github.token }}
           path: evidence
           merge-multiple: true
@@ -80,7 +80,7 @@ jobs:
           python3 tools/linux-release/distribution-materials/verify_cache.py --output evidence
           cp evidence/SHA256-INDEX.json evidence/recipes/REUSED-INPUT-SHA256-INDEX.json
           cp evidence/recipes/collector-commit.txt evidence/recipes/reused-collector-commit.txt
-          printf '%s\n' '39255498115; review artifact 12189575033; source artifact 12189290476' > evidence/recipes/reused-ci-inputs.txt
+          printf '%s\n' '39258916821; review artifact 12190145167; source artifact 12189870457' > evidence/recipes/reused-ci-inputs.txt
           cp tools/linux-release/distribution-materials/*.py tools/linux-release/distribution-materials/README.md evidence/recipes/collector/
           printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
           printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
@@ -100,11 +100,13 @@ jobs:
           Check-Valid-Until: no
           EOF
           sudo apt-get update 2>&1 | tee apt-update.txt
-          sudo apt-get install -y --no-install-recommends \
-            dpkg-dev patchelf p7zip-full libmpv-dev libtorrent-rasterbar-dev libboost-all-dev \
-            libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev \
-            libxkbcommon-dev libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 \
-            libxcb-keysyms1 libxcb-xkb1 ffmpeg 2>&1 | tee apt-install.txt
+          packages=(dpkg-dev patchelf p7zip-full)
+          if [[ '${{ inputs.full_collection }}' == 'true' ]]; then
+            packages+=(libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev
+              libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libxkbcommon-x11-0
+              libxcb-icccm4 libxcb-keysyms1 libxcb-xkb1 ffmpeg)
+          fi
+          sudo apt-get install -y --no-install-recommends "${packages[@]}" 2>&1 | tee apt-install.txt
           mkdir -p evidence/apt-trust/lists
           cp apt-update.txt apt-install.txt /etc/apt/sources.list.d/ubuntu.sources evidence/apt-trust/
           cp /etc/apt/sources.list.d/zz-colosseum-source-snapshot.sources evidence/apt-trust/
@@ -122,10 +124,8 @@ jobs:
         if: ${{ inputs.full_collection }}
         run: python3 tools/linux-release/distribution-materials/upstream.py --output evidence
       - name: Verify Qt SDK binary archive ownership and acquire ICU candidate source
-        run: |
-          args=()
-          if [[ '${{ inputs.full_collection }}' != 'true' ]]; then args+=(--webengine-only); fi
-          python3 tools/linux-release/distribution-materials/sdk.py --output evidence "${args[@]}"
+        if: ${{ inputs.full_collection }}
+        run: python3 tools/linux-release/distribution-materials/sdk.py --output evidence
       - name: Generate explicit review inventory and checksums
         if: always()
         run: |

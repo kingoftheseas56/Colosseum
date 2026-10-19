@@ -1,11 +1,12 @@
 # Exact Linux candidate source acquisition
 
-The default run resumes pinned collection39255498115 by downloading review
-artifact12189575033 and source artifact12189290476 on CI. Before reuse, every
+The default run resumes pinned collection39258916821 by downloading review
+artifact12190145167 and source artifact12189870457 on CI. Before reuse, every
 file is verified against that collection's complete SHA256 index. The accepted
 Debian input is independently streamed again. The final receipts distinguish
-reused proofs from the four retried source acquisitions and newly verified
-WebEngine extension archive. Current Ubuntu archives precede the historical
+reused proofs (including all207 SDK files) from the two repaired source URL
+index entries. APT's URL query runs in an empty temporary directory because it
+otherwise suppresses URIs for already cached files. Current Ubuntu archives precede the historical
 snapshot; downloads use bounded retries for transient network errors. The exact
 Qt WebEngine extension repository comes from the accepted pinned aqt installer
 layout. Existing command logs are preserved and new receipts append after them.
