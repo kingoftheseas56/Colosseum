@@ -61,4 +61,15 @@ For **NO_POST**: provide a short policy/fit card with the blocker, current sourc
 
 All four categories need an evidence/date note. Verify facts against pinned source and distinguish older rules from present rules. Disclose the actual developer relationship wherever a post could later be approved. No fake personal experiences, generic marketing slogans, fabricated claims, acquisition-provider promotion, illegal content access guidance, or repeated copy. Use natural first-person voice only for permitted writing candidates. No em-dashes, no obvious AI sales style. Include no 2.0+ teasers, no fake app UI/AI images.
 
-Return **one clearly named Markdown file per target plus an account-level index** (`ACCOUNT-03-RETURN.md`) stating what was drafted, held, human-only, or rejected. Deliver individual files via this Gemini account's own Drive if available, otherwise paste full Markdown in the Task. No ZIP, no Reddit publication.
+## Required Google Drive delivery (MANDATORY)
+
+**Save everything into the Google Drive belonging to the same Gemini/Argon account executing this assignment.** Do not save to Hemanth's other Google Drives, another Argon account's Drive, a generic shared workspace, or GitHub. This is not an optional handoff method.
+
+1. Create or reuse a **dedicated folder in this account's own Drive** named `Colosseum-Reddit-1.1.9-Argon-Account-03`. Never overwrite unrelated existing files or another account's deliverables.
+2. Save **one separate editable Markdown (.md) file for each of your 5 assigned subreddits**, using a safe, descriptive filename such as `reddit-sideproject.md`. Every assigned target needs its required form: draft, approval-gated candidate, human-only research outline, or no-post policy card.
+3. Save `ACCOUNT-03-RETURN.md` in that **same folder** as an index containing each target's status, file name, rule-check date, and outstanding gate. No ZIPs, archive folders, or combined-only document.
+4. **Verify persistence**: reopen or independently retrieve each saved file from this account's Google Drive and check that the actual contents survived. Return the **real Drive folder link and direct link for every individual file** in the final Gemini Task response. Never invent a link or claim a successful upload without evidence.
+5. Keep files private to the owning account by default; **do not change sharing permissions, send public links, or copy contents into another Google account without authorization**. If a returned link requires signing into the same account, say so.
+6. **Google Drive delivery is an acceptance requirement.** If your account cannot write to its Google Drive or verify the files, mark `STATUS: DRIVE DELIVERY BLOCKED`, explain the exact obstacle, and include the complete Markdown in your Task reply as a recovery copy. **Do not report the assignment complete or substitute an imaginary Drive link.**
+
+Return **one verified Drive-backed Markdown document per assigned subreddit plus the account-level index**. No Reddit publication, moderator contact, product-repository edits, or unapproved external sharing.
