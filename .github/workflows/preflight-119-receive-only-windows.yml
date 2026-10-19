@@ -1,0 +1,74 @@
+name: preflight-119-receive-only-windows
+on:
+  push:
+    branches:
+      - codex/119-production-updater-qualification-20261019
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: preflight-119-production-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    name: ${{ matrix.gate }}
+    runs-on: windows-2025
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [manual_migration, real_nsis_restart]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Assert exact source basis and bounded helper-only diff
+        shell: pwsh
+        run: |
+          $base='7792bd1d9b3a41185cea522a9984ecd6586e3b44'
+          git merge-base --is-ancestor $base HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'qualification code is not based on exact pinned source' }
+          $allowed=@('.github/workflows/preflight-119-receive-only-windows.yml','tests/installer/qualify_119_manual_migration.ps1','tests/installer/qualify_119_real_nsis_restart.ps1')
+          $changed=@(git diff --name-only $base HEAD)
+          foreach($file in $changed) { if ($file -notin $allowed) { throw "unexpected source difference: $file" } }
+          if ($changed.Count -ne $allowed.Count) { throw "expected exactly $($allowed.Count) bounded helper/workflow changes; found $($changed.Count)" }
+      - name: Receive exact successful existing 1.1.9 installer, never rebuild
+        uses: actions/download-artifact@v4
+        with:
+          name: Colosseum-1.1.9-setup
+          repository: kingoftheseas56/Colosseum
+          run-id: 39257011737
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/received
+      - name: Fetch published prior 1.1.8 installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/prior" | Out-Null
+          gh release download v1.1.8 --repo kingoftheseas56/Colosseum --pattern Colosseum-1.1.8-setup.exe --dir "$env:RUNNER_TEMP/prior"
+          if ($LASTEXITCODE -ne 0) { throw "published 1.1.8 download exit $LASTEXITCODE" }
+      - name: Qualify the selected bounded Windows component
+        shell: pwsh
+        env:
+          GATE: ${{ matrix.gate }}
+        run: |
+          $args = @{ PreviousInstaller="$env:RUNNER_TEMP/prior/Colosseum-1.1.8-setup.exe"; Installer="$env:RUNNER_TEMP/received/Colosseum-1.1.9-setup.exe" }
+          if ($env:GATE -eq 'manual_migration') {
+            & ./tests/installer/qualify_119_manual_migration.ps1 @args
+          } elseif ($env:GATE -eq 'real_nsis_restart') {
+            & ./tests/installer/qualify_119_real_nsis_restart.ps1 @args
+          } else { throw "invalid gate $env:GATE" }
+          if (-not $?) { throw "qualified gate failed: $env:GATE" }
+      - name: Retain bounded hosted process/installer logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preflight-119-${{ matrix.gate }}-logs
+          path: ${{ runner.temp }}/*.log
+          if-no-files-found: warn
+          retention-days: 3
