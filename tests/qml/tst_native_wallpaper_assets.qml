@@ -3,6 +3,8 @@ import QtTest
 import "../../qml/update" as Updates
 import "../../qml/vinyl" as Vinyl
 import "../../qml/WallpaperApi.js" as Wallpapers
+import "../../qml" as App
+import "../../qml/account" as Accounts
 
 TestCase {
     id: testCase
@@ -29,6 +31,20 @@ TestCase {
     Component {
         id: backdrop
         Vinyl.VinylBackdrop {
+            width: 960; height: 540
+            contentStore: content
+        }
+    }
+    Component {
+        id: sagaPage
+        App.SagaUniversePage {
+            width: 960; height: 540
+            contentStore: content
+        }
+    }
+    Component {
+        id: accountFrame
+        Accounts.AccountPageFrame {
             width: 960; height: 540
             contentStore: content
         }
@@ -66,5 +82,26 @@ TestCase {
         content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
         content.generation++
         compare(Wallpapers.imageSource(null, content), blueImage)
+    }
+    function test_page_fallbacks_follow_the_content_publication() {
+        for (const component of [sagaPage, accountFrame]) {
+            view = component.createObject(testCase)
+            verify(view !== null)
+            compare(view.fallbackWallpaperSource, redImage)
+            const image = findChild(view, "fallbackWallpaperImage")
+            verify(image !== null)
+            tryCompare(image, "status", Image.Ready)
+            content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+            content.assets["assets/wallpaper/captured-motion.jpg"] = blueImage
+            content.generation++
+            tryCompare(view, "fallbackWallpaperSource", blueImage)
+            tryCompare(image, "source", Qt.resolvedUrl(blueImage))
+            tryCompare(image, "status", Image.Ready)
+            view.contentStore = null
+            compare(view.fallbackWallpaperSource, "")
+            view.destroy()
+            view = null
+            init()
+        }
     }
 }
