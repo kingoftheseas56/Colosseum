@@ -1,3 +1,7 @@
+use skill: colosseum-argon-workspace
+
+Before researching, writing, or saving files, load and follow this skill. Keep the task's subreddit policy restrictions and same-account Google Drive delivery requirements in force.
+
 # Argon ACCOUNT-02: Maker origin and manga/comics
 
 **27-target campaign, batch 2 of 5. Assigned 6 distinct targets.** Research and writing only. Absolutely no Reddit submissions, comments, modmail, logins, account manipulation, or GitHub product changes. This is a standalone assignment for ONE Gemini account. Do not write another account's targets.
