@@ -1,3 +1,5 @@
+use skill: colosseum-argon-workspace
+
 # Argon ACCOUNT-05: GitHub showcase and media ecosystem gates
 
 **27-target campaign, batch 5 of 5. Assigned 5 distinct targets.** Research and writing only. Absolutely no Reddit submissions, comments, modmail, logins, account manipulation, or GitHub product changes. This is a standalone assignment for ONE Gemini account. Do not write another account's targets.
