@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9"><img src="https://img.shields.io/badge/Linux-Ubuntu%2024.04%20amd64-111111?style=flat-square" alt="Linux Ubuntu 24.04 amd64" /></a>
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><img src="https://img.shields.io/github/v/release/kingoftheseas56/Colosseum?display_name=tag&sort=semver&style=flat-square&label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
@@ -24,7 +25,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><strong>Download latest</strong></a> &nbsp;|&nbsp;
+  <a href="https://getcolosseum.world/"><strong>Official website</strong></a> &nbsp;|&nbsp;
+  <a href="https://getcolosseum.world/#next"><strong>Explore 1.1.9 &amp; Tributes</strong></a> &nbsp;|&nbsp;
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9"><strong>Download 1.1.9</strong></a> &nbsp;|&nbsp;
   <a href="docs/README.md">Docs</a> &nbsp;|&nbsp;
   Source builds: <a href="docs/build/windows.md">Windows</a> &middot;
   <a href="docs/build/macos.md">macOS</a> &middot;
@@ -37,27 +40,28 @@
 
 ## What Colosseum is
 
-Colosseum is a native Qt desktop app for keeping different kinds of media in one place. Tankoban handles manga and western comics, Biblio handles ebooks and audiobooks, Theatre handles movies, shows, and anime, and Vault indexes files you already have on your machine.
+Colosseum is a native Qt desktop app that brings different kinds of media together. Tankoban handles manga and western comics, Biblio handles ebooks and audiobooks, and Theatre handles movies, shows, and anime. Universes connects stories across media through franchise-specific experiences, while Vault indexes files you already have on your machine.
 
-Those parts share Home, Continue, Collection, Downloads, settings, and open sessions, but each medium keeps its own reader or player. Comics use the comic reader, books use Reader2 with audiobook support, and Theatre uses the mpv-based player. Downloaded media stays local, and Vault does not move the files it indexes.
+These five worlds share Home, Continue, Collection, Downloads, settings, and open sessions, but each medium keeps its own reader or player. Comics use the comic reader, books use Reader2 with audiobook support, and Theatre uses the mpv-based player. Downloaded media stays local, and Vault does not move the files it indexes.
 
 > [!IMPORTANT]
-> Colosseum 1.1.8 is the current stable Windows 10/11 release.
+> **Colosseum 1.1.9 is the current published release**, with installers for Windows 10/11 and Linux amd64. [Download 1.1.9](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9).
 >
-> If you are upgrading from 1.1.5 or earlier, install 1.1.8 manually once from [Releases](https://github.com/kingoftheseas56/Colosseum/releases). 1.1.6 moved to a new Ed25519 update-signing trust root, so older versions cannot authenticate newer releases.
+> Upgrading from 1.1.8 currently requires a **manual installation**. The full automatic signed-update chain has not yet been qualified end to end. Use the published release assets and checksums.
 
-## What's in 1.1.8
+## What's new in 1.1.9
 
-**Direct tracker connections** let you connect your Trakt, SIMKL or MyAnimeList account directly, without a Stremio account. Trakt and SIMKL use device-code sign-in; MyAnimeList opens its login page in the app with an external-browser fallback. The Stremio-linked Trakt path remains available.
+<p align="center">
+  <a href="https://getcolosseum.world/#next"><img src="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.9/Colosseum-1.1.9-01-universes.png" alt="Colosseum 1.1.9: interactive Universes" width="840" /></a>
+</p>
 
-Also new:
+- **Universes:** A dedicated fourth world for exploring connected stories across books, comics, films, and series. Franchise collections include One Piece, Star Wars, DCAU, Marvel, and more. One Piece has interactive atlases spanning East Blue, Paradise, New World, and Final Sea.
+- **Cloudflare Workers-powered catalogues:** Native catalogue content, Universe definitions, and project-owned artwork can be delivered and updated online without rebuilding the desktop app. Prepared shelves and caching reduce the need to load whole catalogue databases.
+- **Tributes:** Bespoke, interactive franchise showcases distinct from the structured Universe pages. Explore [Star Wars](https://getcolosseum.world/tributes/star-wars/), [Cosmere](https://getcolosseum.world/tributes/stormlight/), and [One Piece](https://getcolosseum.world/tributes/one-piece/) on the website.
+- **Desktop improvements:** Refined Vault browsing and native Extensions House, fixes for local comic Continue and Reader2 PDF search, plus playback, progress, and Linux packaging improvements.
+- **One standard edition:** Local reading, playback, and library use do not require a Colosseum account; accounts are optional.
 
-- A Discover sidebar indexes add-on catalogue rows, with shared row sidebars.
-- Smoother scrolling, glass surfaces, keyboard navigation, and a docked tab bar.
-- In-app setup for configurable add-ons.
-- Tankoban opens series without volume data in Chapter Mode.
-
-Full release notes: [docs/release-notes/v1.1.8.md](docs/release-notes/v1.1.8.md).
+[Explore the 1.1.9 website and interactive demos](https://getcolosseum.world/#next) · [Read the release announcement](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9) · [Full release notes](https://getcolosseum.world/releases/v1.1.9)
 
 ## Screenshots
 
@@ -82,17 +86,23 @@ Full release notes: [docs/release-notes/v1.1.8.md](docs/release-notes/v1.1.8.md)
 <!-- VIDEO EMBEDS: drag 01-hero-home.mp4, 02-theatre-discover.mp4, 05-tankoban-discover.mp4
      into this section in the GitHub editor; each becomes a playable embed. -->
 
-## The three worlds
+## The five worlds
 
 | World | For | Built-in sources |
 |---|---|---|
 | **Tankoban** | manga and western comics | local/managed MAL + Tankoban catalogues; AniList metadata; Tankoyomi chapter providers; Nyaa volume source (off by default); GetComics + local comic catalog |
 | **Biblio** | ebooks and audiobooks | Apple Books + Open Library discovery, LibGen, AudioBookBay |
 | **Theatre** | movies, shows, anime | Cinemeta + offline IMDb catalogue, Jikan/AniList/Kitsu; installed Stremio extensions |
+| **Universes** | interconnected franchise stories across media | curated cross-media catalogues and online Universe definitions |
+| **Vault** | media already on your device | indexed local folders, embedded metadata, and cached artwork |
 
 ## Universes
 
-Colosseum has custom Universe pages for franchises that cross media. The 1.1.6 release window added or restored routes for the DC Animated Universe, One Piece East Blue, Star Wars, and Cosmere. One Piece uses its East Blue atlas, Star Wars has a galaxy view, Cosmere opens into the Cognitive Atlas, and DCAU has its own portal-driven page.
+Introduced as Colosseum's fourth world in 1.1.9, Universes are structured, cross-media franchise spaces with curated shelves, banners, categories, and keyboard navigation. They bring related manga, comics, books, films, and shows together rather than separating a franchise by medium. The catalogue includes One Piece, Star Wars, the DC Animated Universe, Marvel, Star Trek, and other collections.
+
+One Piece has interactive East Blue, Paradise, New World, and Final Sea atlases with island markers, arc previews, and sea navigation. Universe definitions and project-owned artwork can receive compatible online updates through the Colosseum content service.
+
+**Tributes are different from Universes.** They are handcrafted, visually distinctive experiences that celebrate individual franchises. The [official website](https://getcolosseum.world/) lets you explore interactive [Star Wars](https://getcolosseum.world/tributes/star-wars/), [Cosmere](https://getcolosseum.world/tributes/stormlight/), and [One Piece](https://getcolosseum.world/tributes/one-piece/) tributes.
 
 ## Vault
 
@@ -137,7 +147,7 @@ Tankoban and Biblio can use compatible extension catalogues for discovery, while
 
 ## Accounts and sync
 
-Colosseum 1.1.8 contains the desktop account client and uses an app-owned account-service endpoint by default. `COLOSSEUM_ACCOUNT_SERVICE_URL` can override it at runtime, and source builds can provide `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>` when they need a different service. The Go service lives at [`server/account-service`](server/account-service), with its deployment contract in [`server/account-service/DEPLOYMENT.md`](server/account-service/DEPLOYMENT.md).
+Colosseum 1.1.9 is one standard edition with optional accounts. It contains the desktop account client and uses an app-owned account-service endpoint by default. `COLOSSEUM_ACCOUNT_SERVICE_URL` can override it at runtime, and source builds can provide `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>` when they need a different service. The Go service lives at [`server/account-service`](server/account-service), with its deployment contract in [`server/account-service/DEPLOYMENT.md`](server/account-service/DEPLOYMENT.md).
 
 An account is optional for local use. Vault, local media, readers, playback, and the rest of the on-device library still work without one. Hosted account features depend on the service being reachable; the repository does not treat provider-side deployment state as something the desktop build can prove. For local account testing, run [`tests/mock-account-service`](tests/mock-account-service) and point `COLOSSEUM_ACCOUNT_SERVICE_URL` at it.
 
@@ -147,7 +157,7 @@ Portable sync covers Collection, Continue/progress, ordinary history, and profil
 
 ## Development on `master`
 
-Source builds can differ from the stable 1.1.8 installer.
+Source builds on `master` can differ from the published 1.1.9 installers.
 
 ## Wallpapers
 
@@ -176,15 +186,25 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ### Windows installer
 
-Download `Colosseum-1.1.8-setup.exe` from [Releases](https://github.com/kingoftheseas56/Colosseum/releases). It installs per user on Windows 10/11 and does not need administrator access.
+Download [`Colosseum-1.1.9-setup.exe`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.9/Colosseum-1.1.9-setup.exe) from the [v1.1.9 release](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9). Close Colosseum and run the installer. Windows 10/11 installation is per-user and does not require administrator access.
 
-If you are on 1.1.5 or earlier, install 1.1.8 manually once because the update-signing trust root changed in 1.1.6.
+**Upgrading from 1.1.8 to 1.1.9 is manual.** Versions 1.1.5 and earlier also require a manual install because the 1.1.6 update-signing trust root changed. The 1.1.9 updater moves discovery to Colosseum's first-party update feed while retaining signed update validation, but full end-to-end automatic-update qualification is still outstanding. Do not rely on automatic updating for this upgrade.
 
-The updater checks the stable GitHub Releases channel. When a newer signed release is available, the Home top bar shows an Update control. The update page downloads into a resumable cache, verifies the signed manifest and installer hash, and then launches the installer. Drafts, prereleases, malformed manifests, unsigned assets, wrong hashes, and unsafe URLs are rejected. Source-tree development launches do not perform normal automatic update checks.
+The release includes `SHA256SUMS`, an update manifest, and its production Ed25519 signature.
+
+### Linux installer
+
+Download [`Colosseum-1.1.9-linux-amd64-notices.deb`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.9/Colosseum-1.1.9-linux-amd64-notices.deb) from the same release. For an Ubuntu 24.04 amd64 system, install the package with:
+
+```sh
+sudo apt install ./Colosseum-1.1.9-linux-amd64-notices.deb
+```
+
+This is one directly installable Debian package with third-party notices included. Linux updates are manual. Ubuntu 24.04 amd64 is the qualified environment; other distributions and hardware have not been universally qualified. Use `LINUX-SHA256SUMS` to verify the download.
 
 ### Build from source
 
-The published 1.1.8 installer is Windows-only. Source-build guides are maintained for Windows, macOS, and Linux. Linux has a separate Ubuntu 24.04 x86_64 X11 alpha tester release; direct trackers are Windows-only for now.
+The 1.1.9 release provides Windows and Linux installers. Source-build guides are maintained for Windows, macOS, and Linux; macOS does not have a 1.1.9 installer. The Linux package is qualified on Ubuntu 24.04 amd64, and direct trackers are Windows-only for now.
 
 Windows builds use Visual Studio 2022 C++ Build Tools, CMake/Ninja, Qt 6.11.1 MSVC 2022 64-bit, MpvQt/libmpv, and libtorrent/Boost/OpenSSL. Pass your dependency locations explicitly when configuring the build.
 
@@ -201,7 +221,7 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 ## First run
 
 1. Launch Colosseum. It opens fullscreen on Home.
-2. Pick Tankoban, Biblio, or Theatre and browse or search inside that world.
+2. Pick Tankoban, Biblio, or Theatre to browse a medium, or open Universes for cross-media franchise collections.
 3. Open a series, book, or title. Read and Watch open media immediately when the source is ready; download actions send media to Downloads for offline use.
 4. Add folders to Vault if you want Colosseum to index media already on your machine without moving it.
 5. Anything you start can appear in Continue, and open readers or players stay available as taskbar sessions.
@@ -209,6 +229,8 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 
 ## Known boundaries
 
+- Known 1.1.9 issues include comics loading speed/alignment and unexpected Vault visibility during One Piece tribute navigation.
+- Linux updates are currently manual, and the full automatic signed-update flow has not been qualified end to end.
 - Home does not have one cross-world search yet. Search is per world.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a few seconds before recovering.
 - Tankoban and Biblio can use compatible extension catalogues for discovery, but their native acquisition paths are not generic Stremio stream consumers. Theatre handles generic torrent and direct-stream playback from compatible add-ons.
@@ -216,7 +238,7 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 - Watch Party can share exact torrent identity, but generic direct URLs are deliberately excluded. Public signed-in hosting also depends on bearer-authority wiring in the hosted relay.
 - The calendar implementation exists in the repository but has no live navigation route.
 - Player 2 is opt-in and Windows/D3D11-oriented. MpvQt/libmpv remains the default.
-- Vinyl is visible as a coming-soon world and is not implemented yet.
+- Feria and Vinyl are not available in 1.1.9. Their development source does not make them part of this release.
 - Catalogue databases such as `data/comics_catalog.db`, `data/mal_catalog.db`, `data/tankoban_catalog.db`, and `data/imdb_catalog.db` are deployment artifacts and stay out of normal Git source. Source builds prefer local copies and otherwise use the catalogue vault to fetch published databases into AppData.
 - Casting and live TV/DVR are still under development.
 
