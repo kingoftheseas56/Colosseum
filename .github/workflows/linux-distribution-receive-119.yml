@@ -1,0 +1,75 @@
+name: Linux 1.1.9 bounded source receiving
+on:
+  push:
+    branches: [codex/119-linux-distribution-closure-20261019]
+    paths: [.github/workflows/linux-distribution-receive-119.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  receive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Receive exact prior archives without recollection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p transfer evidence
+          gh api repos/kingoftheseas56/Colosseum/actions/artifacts/12189108534/zip > transfer/acquired-sources.zip
+          gh api repos/kingoftheseas56/Colosseum/actions/artifacts/12189013706/zip > transfer/review.zip
+          echo '0ef75bd1de3b0a45c6f9f77b18b47716a7562152febf565b78b85419b5753c57  transfer/acquired-sources.zip' | sha256sum -c -
+          echo 'b2f7ca892914b9516cdaad70e9c4904af66b442566a329b47d8c9c9ed5efeeb5  transfer/review.zip' | sha256sum -c -
+          unzip -q transfer/acquired-sources.zip -d evidence
+          unzip -p transfer/review.zip review-materials.tar.gz | tar -xz -C evidence
+          python3 evidence/recipes/collector/verify_cache.py --output evidence | tee transfer/verification.txt
+          split -b 400M -d -a 2 transfer/acquired-sources.zip transfer/source.zip.part-
+          cd transfer
+          sha256sum acquired-sources.zip source.zip.part-* > SHA256SUMS
+          stat -c '%n %s' acquired-sources.zip source.zip.part-* > BYTES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-transfer-part-00
+          path: transfer/source.zip.part-00
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-transfer-part-01
+          path: transfer/source.zip.part-01
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-transfer-part-02
+          path: transfer/source.zip.part-02
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-transfer-part-03
+          path: transfer/source.zip.part-03
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-transfer-part-04
+          path: transfer/source.zip.part-04
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-transfer-receipts
+          path: |
+            transfer/SHA256SUMS
+            transfer/BYTES.txt
+            transfer/verification.txt
+          retention-days: 14
+          if-no-files-found: error
