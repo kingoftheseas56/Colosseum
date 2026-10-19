@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -7,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("linux_assemble", ROOT / "tools/linux-release/assemble.py")
 assembly = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(assembly)
+SMOKE_SPEC = importlib.util.spec_from_file_location("linux_smoke", ROOT / "tools/linux-release/smoke_installed.py")
+smoke = importlib.util.module_from_spec(SMOKE_SPEC)
+SMOKE_SPEC.loader.exec_module(smoke)
 
 
 class LinuxReleasePolicyTests(unittest.TestCase):
@@ -16,6 +20,50 @@ class LinuxReleasePolicyTests(unittest.TestCase):
         self.assertIn("qtpositioning", modules.split())
         self.assertIn("qtserialport", modules.split())
         self.assertNotIn("--exclude-plugin position/", workflow)
+
+    def test_package_declares_the_system_ca_trust_dependency(self):
+        packaging = (ROOT / "tools/linux-release/package_deb.py").read_text()
+        # The Depends statement is a multi-line concatenated literal in the
+        # source; join its fragments before reading the declared entries.
+        literal = re.search(r"'Depends:(.*?)\\n'", packaging, re.S).group(1)
+        depends = re.sub(r"'\s*'", "", literal)
+        self.assertIn("ca-certificates", [entry.strip() for entry in depends.split(",")])
+
+    def test_clean_install_proves_the_trust_dependency(self):
+        workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
+        install = next(line for line in workflow.splitlines() if "./Colosseum-1.1.9-linux-amd64.deb" in line)
+        # A recommendation or a preinstalled store would mask a missing Depends
+        # entry, so the clean container must install with recommendations off.
+        self.assertIn("--no-install-recommends", install)
+        self.assertIn("ca-certificates-before.txt", workflow)
+        self.assertIn("ca-certificates-after.txt", workflow)
+        self.assertIn("'ii '", workflow)
+
+    def test_installed_smoke_requires_online_tls_content(self):
+        source = (ROOT / "tools/linux-release/smoke_installed.py").read_text()
+        self.assertIn("SSL handshake failed", source)
+        self.assertIn("'outcome') != 'prepared'", source)
+        self.assertIn("networkBytes", source)
+        self.assertIn("homeUniverseBannerArt", source)
+        self.assertIn("readySource", source)
+
+    def test_catalogue_log_parsing_reads_real_records(self):
+        broken_bundle = ('colosseum.catalogue.static: {"bucketAdmissions":0,"dataset":"content",'
+                         '"method":"bundle","networkBytes":0,"networkFiles":1,"outcome":"failure"}\n'
+                         'file:///opt/colosseum/qml/Main.qml:3906:33: QML QQuickImage*: SSL handshake failed: '
+                         'The issuer certificate of a locally looked up certificate could not be found\n')
+        records = smoke.parse_catalogue_records(broken_bundle)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["dataset"], "content")
+        self.assertEqual(smoke.content_bundle_records(records)[0]["outcome"], "failure")
+        self.assertEqual(smoke.count_ssl_handshake_failures(broken_bundle), 1)
+        prepared = ('colosseum.catalogue.static: {"dataset":"content","method":"bundle",'
+                    '"networkBytes":4096,"networkFiles":2,"outcome":"prepared"}\n')
+        records = smoke.parse_catalogue_records(prepared)
+        bundle = smoke.content_bundle_records(records)[-1]
+        self.assertEqual(bundle["outcome"], "prepared")
+        self.assertEqual(smoke.count_ssl_handshake_failures(prepared), 0)
+        self.assertEqual(smoke.parse_catalogue_records("not a catalogue line\n"), [])
 
     def test_version_comes_from_the_compiled_project(self):
         with tempfile.TemporaryDirectory() as directory:

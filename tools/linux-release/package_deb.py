@@ -63,12 +63,16 @@ def main():
         control = root / 'DEBIAN/control'
         control.parent.mkdir()
         size = sum(p.stat().st_size for p in root.rglob('*') if p.is_file())
+        # Qt Network (OpenSSL) and WebEngine verify HTTPS against the distro CA
+        # store, which only ca-certificates provides. A hard dependency, never a
+        # recommendation and never a bundled copy: distro trust-root updates must
+        # keep reaching installed systems.
         control.write_text(f'Package: colosseum\nVersion: {version}\nArchitecture: amd64\n'
                            'Maintainer: Colosseum Project\nSection: video\nPriority: optional\n'
                            f'Installed-Size: {(size + 1023) // 1024}\n'
                            'Depends: libc6 (>= 2.39), libgl1, libegl1, libglx0, libglvnd0, libopengl0, '
                            'libdrm2, libgbm1, libvulkan1, libva2, libva-drm2, libva-x11-2, '
-                           'libasound2-data, fontconfig, fonts-dejavu-core, xdg-utils\n'
+                           'libasound2-data, fontconfig, fonts-dejavu-core, xdg-utils, ca-certificates\n'
                            'Homepage: https://getcolosseum.world\n'
                            'Description: Colosseum native media application\n'
                            ' Manga, comics, books and Theatre with optional accounts.\n'

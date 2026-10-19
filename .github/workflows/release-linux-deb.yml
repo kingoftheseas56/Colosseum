@@ -145,9 +145,17 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0
+          # Trust-prerequisite probe: record whether the clean container has any
+          # system CA store before the package installs, so the after-install
+          # state proves the Debian dependency (not a recommendation) supplied it.
+          mkdir -p /tmp/installed-receipts
+          dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/ca-certificates-before.txt
           cd package
           sha256sum --check --strict Colosseum-1.1.9-linux-amd64.deb.sha256
           apt-get install -y --no-install-recommends ./Colosseum-1.1.9-linux-amd64.deb
+          dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-after.txt
+          test "$(cat /tmp/installed-receipts/ca-certificates-after.txt)" = 'ii '
+          test -s /etc/ssl/certs/ca-certificates.crt
           desktop-file-validate /usr/share/applications/colosseum.desktop
           test "$(/usr/bin/colosseum --version)" = 'Colosseum 1.1.9'
       - name: Start and quit installed UI as a normal user
