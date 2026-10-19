@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(colosseum_server_v1 LANGUAGES CXX)
+project(colosseum_server_v1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,6 +53,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       "Server 1 requires a static libtorrent 2.0.11 Linux build: the adapter uses "
       "internal peer symbols hidden by distro shared libraries. Set "
       "LibtorrentRasterbar_DIR to the qualified static package.")
+  endif()
+  get_target_property(SERVER1_LT_CONFIGURATIONS LibtorrentRasterbar::torrent-rasterbar IMPORTED_CONFIGURATIONS)
+  string(TOUPPER "${CMAKE_BUILD_TYPE};${CMAKE_CONFIGURATION_TYPES}" SERVER1_CONSUMER_CONFIGURATIONS)
+  if(SERVER1_LT_CONFIGURATIONS STREQUAL "RELEASE" AND "DEBUG" IN_LIST SERVER1_CONSUMER_CONFIGURATIONS)
+    message(FATAL_ERROR "Pinned libtorrent 2.0.11 provides only a Release ABI; Debug enables TORRENT_USE_ASSERTS and is incompatible. Select Release.")
   endif()
   include(CheckCXXSourceCompiles)
   set(SERVER1_SAVED_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
@@ -235,10 +240,170 @@ if(BUILD_TESTING)
     add_test(NAME M02-${cases} COMMAND server1_m02_subtitles_tracks_tests --cases
       "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/M02/${cases}.json")
   endforeach()
+  set(SERVER1_M02_OPTIONAL_ORACLE)
+  if(SERVER1_K12_ORACLE)
+    list(APPEND SERVER1_M02_OPTIONAL_ORACLE "${SERVER1_K12_ORACLE}")
+  endif()
   add_test(NAME M02-lifecycle COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_subtitles_lifecycle.py"
     "$<TARGET_FILE:server1_m02_subtitles_lifecycle_tests>"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/M01/media"
-    "${CMAKE_CURRENT_BINARY_DIR}/m02-evidence" "${SERVER1_K12_ORACLE}")
+    "${CMAKE_CURRENT_BINARY_DIR}/m02-evidence" ${SERVER1_M02_OPTIONAL_ORACLE})
   set_tests_properties(M02-lifecycle PROPERTIES TIMEOUT 180)
+endif()
+
+# M03/M04 native media indexing, playlists and fragmented MP4 timelines.
+target_sources(colosseum_server_v1 PRIVATE
+  src/media/KeyframeIndex.cpp src/media/Mp4Samples.cpp src/media/MkvSamples.cpp
+  src/media/HlsPlaylist.cpp src/media/SegmentLayout.cpp src/media/Mp4Timeline.cpp
+  src/media/VttTimeline.cpp)
+if(WIN32)
+  target_include_directories(colosseum_server_v1 PRIVATE "${P03_BOOST_ROOT}")
+else()
+  target_include_directories(colosseum_server_v1 PRIVATE "${Boost_INCLUDE_DIR}")
+endif()
+if(BUILD_TESTING)
+  add_executable(server1_test_samples tests/test_samples.cpp)
+  target_link_libraries(server1_test_samples PRIVATE colosseum_server_v1)
+  add_executable(server1_m04_timeline_tests tests/test_segment_timeline.cpp)
+  target_link_libraries(server1_m04_timeline_tests PRIVATE colosseum_server_v1)
+  add_test(NAME M04-segment-timeline COMMAND server1_m04_timeline_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/segment-timeline.json")
+  if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+    foreach(mode differential ranges fallback)
+      add_test(NAME M03-samples-${mode} COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_samples_${mode}.py"
+        --candidate "$<TARGET_FILE:server1_test_samples>" --oracle "${SERVER1_K12_ORACLE}"
+        --out "${CMAKE_CURRENT_BINARY_DIR}/m03-evidence")
+      set_tests_properties(M03-samples-${mode} PROPERTIES TIMEOUT 180)
+    endforeach()
+    set_tests_properties(M03-samples-differential PROPERTIES FIXTURES_SETUP M03SamplesCorpus)
+    set_tests_properties(M03-samples-ranges M03-samples-fallback PROPERTIES FIXTURES_REQUIRED M03SamplesCorpus)
+  endif()
+  add_test(NAME K12-incoming-lifecycle COMMAND server1_k10_native_transport_test
+    --incoming-lifecycle "${CMAKE_CURRENT_BINARY_DIR}/k12-incoming")
+  set_tests_properties(K12-incoming-lifecycle PROPERTIES TIMEOUT 45
+    ENVIRONMENT "SERVER1_TEST_FIXED_INTERFACE=1" LABELS "server1;native;wire")
+endif()
+
+# Standalone ECMAScript regex C library: deliberately no JS runtime/interpreter.
+add_library(server1_ecmascript_regex STATIC
+  third_party/ecmascript_regex/libregexp.c third_party/ecmascript_regex/libunicode.c
+  third_party/ecmascript_regex/cutils.c)
+target_include_directories(server1_ecmascript_regex PUBLIC third_party/ecmascript_regex)
+set_target_properties(server1_ecmascript_regex PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES)
+if(MSVC)
+  target_compile_options(server1_ecmascript_regex PRIVATE "/FI${CMAKE_CURRENT_SOURCE_DIR}/third_party/ecmascript_regex/MsvcCompat.h")
+endif()
+add_library(server1_safe_file_regex STATIC src/http/SafeFileRegex.cpp)
+target_include_directories(server1_safe_file_regex PUBLIC include)
+target_link_libraries(server1_safe_file_regex PUBLIC Qt6::Core PRIVATE server1_ecmascript_regex)
+target_link_libraries(colosseum_server_v1 PUBLIC server1_safe_file_regex)
+if(BUILD_TESTING)
+  add_executable(server1_safe_file_regex_test tests/test_safe_file_regex.cpp)
+  target_link_libraries(server1_safe_file_regex_test PRIVATE server1_safe_file_regex)
+  if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+    get_filename_component(SERVER1_ORACLE_DIRECTORY "${SERVER1_K12_ORACLE}" DIRECTORY)
+    add_test(NAME H01-safe-regex-differential COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_safe_file_regex.py"
+      --candidate "$<TARGET_FILE:server1_safe_file_regex_test>" --oracle "${SERVER1_K12_ORACLE}"
+      --index "${SERVER1_ORACLE_DIRECTORY}/../../../MODULE-INDEX.json" --node "${SERVER1_NODE_EXECUTABLE}")
+    set_tests_properties(H01-safe-regex-differential PROPERTIES TIMEOUT 45)
+  endif()
+endif()
+
+# Local HLS conversion and the external-router origin policy.
+target_sources(colosseum_server_v1 PRIVATE src/media/FfmpegArguments.cpp
+  src/media/TrackConverter.cpp src/media/HlsV2Service.cpp src/http/HlsV2Routes.cpp
+  src/http/ExternalCors.cpp)
+target_link_libraries(colosseum_server_v1 PUBLIC server1_m00_process server1_m01_probe)
+if(BUILD_TESTING)
+  foreach(name track_converter track_converter_lifecycle track_converter_backpressure)
+    add_executable(server1_${name}_tests tests/test_${name}.cpp)
+    target_link_libraries(server1_${name}_tests PRIVATE colosseum_server_v1)
+  endforeach()
+  add_test(NAME M05-arguments COMMAND server1_track_converter_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/track-converter.json")
+  add_test(NAME M05-lifecycle COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_track_converter_lifecycle.py"
+    "$<TARGET_FILE:server1_track_converter_lifecycle_tests>"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/track-converter-lifecycle.json")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_test(NAME M05-owned-pipe-backpressure COMMAND server1_track_converter_backpressure_tests)
+    set_tests_properties(M05-owned-pipe-backpressure PROPERTIES TIMEOUT 45)
+  endif()
+  add_executable(server1_m06_hlsv2_tests tests/test_hlsv2_service.cpp)
+  target_link_libraries(server1_m06_hlsv2_tests PRIVATE colosseum_server_v1)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/M06.cmake")
+  server1_register_m06_tests()
+  add_executable(server1_external_cors_tests tests/test_external_cors.cpp)
+  target_link_libraries(server1_external_cors_tests PRIVATE colosseum_server_v1)
+  add_test(NAME M06-external-cors COMMAND server1_external_cors_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/external-cors.json")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_test(NAME H01-torrent-hls-http COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_torrent_hls.py"
+      --host "$<TARGET_FILE:server1_host>"
+      --peer "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/P08/P08-A/tiny_peer.py"
+      --media "${CMAKE_CURRENT_SOURCE_DIR}/../../artifacts/server1/M01/media/tiny.mp4"
+      --work "${CMAKE_CURRENT_BINARY_DIR}")
+    set_tests_properties(H01-torrent-hls-http PROPERTIES TIMEOUT 60)
+  endif()
+endif()
+
+# Node's system-statistics primitive uses these exact native libuv APIs.
+include(FetchContent)
+set(LIBUV_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(LIBUV_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LIBUV_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(server1_libuv
+  URL https://dist.libuv.org/dist/v1.52.1/libuv-v1.52.1.tar.gz
+  URL_HASH SHA256=66d511b9e6e334c0e62279eb234fbfb2b3110b1479c09b95b44c7afca8cff9e7
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(server1_libuv)
+add_library(server1_system_statistics STATIC src/http/SystemStatistics.cpp)
+target_include_directories(server1_system_statistics PUBLIC include)
+target_link_libraries(server1_system_statistics PUBLIC server1_k00_policy PRIVATE uv_a)
+target_link_libraries(colosseum_server_v1 PRIVATE server1_system_statistics)
+if(BUILD_TESTING)
+  add_executable(server1_system_statistics_test tests/test_system_statistics.cpp)
+  target_link_libraries(server1_system_statistics_test PRIVATE server1_system_statistics uv_a)
+  add_executable(server1_system_statistics_backend_test tests/test_system_statistics_backend.cpp src/http/SystemStatistics.cpp)
+  target_include_directories(server1_system_statistics_backend_test PRIVATE "${server1_libuv_SOURCE_DIR}/include")
+  target_link_libraries(server1_system_statistics_backend_test PRIVATE server1_k00_policy)
+  add_test(NAME H01-system-statistics-live COMMAND server1_system_statistics_test)
+  add_test(NAME H01-system-statistics-backend COMMAND server1_system_statistics_backend_test)
+  if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+    add_test(NAME H01-system-statistics-differential COMMAND "${SERVER1_NODE_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_system_statistics.cjs" "${SERVER1_K12_ORACLE}"
+      "$<TARGET_FILE:server1_system_statistics_test>" "$<TARGET_FILE:server1_system_statistics_backend_test>")
+  endif()
+endif()
+
+add_library(server1_guess_file_index STATIC src/http/GuessFileIndex.cpp)
+target_include_directories(server1_guess_file_index PUBLIC include)
+target_link_libraries(server1_guess_file_index PUBLIC server1_k00_policy Qt6::Core)
+target_link_libraries(colosseum_server_v1 PUBLIC server1_guess_file_index)
+target_sources(server1_k11_engine PRIVATE src/policy/SourcePeerAddress.cpp)
+if(BUILD_TESTING)
+  add_executable(server1_guess_file_index_test tests/test_guess_file_index.cpp)
+  target_link_libraries(server1_guess_file_index_test PRIVATE server1_guess_file_index)
+  add_test(NAME H01-guess-file-index COMMAND server1_guess_file_index_test --self-test)
+  add_executable(server1_k12_source_peer_address_test tests/test_source_peer_address.cpp)
+  target_link_libraries(server1_k12_source_peer_address_test PRIVATE server1_k11_engine)
+  add_test(NAME K12-source-peer-address COMMAND server1_k12_source_peer_address_test)
+  add_test(NAME K12-dns-close-lifecycle COMMAND server1_k10_native_transport_test
+    --dns-close "${CMAKE_CURRENT_BINARY_DIR}/k12-dns-close")
+  set_tests_properties(K12-dns-close-lifecycle PROPERTIES TIMEOUT 60 ENVIRONMENT "SERVER1_TEST_FIXED_INTERFACE=1")
+  if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+    get_filename_component(SERVER1_GUESS_ORACLE_DIR "${SERVER1_K12_ORACLE}" DIRECTORY)
+    add_test(NAME H01-guess-file-index-differential COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_guess_file_index.py"
+      --candidate "$<TARGET_FILE:server1_guess_file_index_test>" --oracle "${SERVER1_K12_ORACLE}"
+      --index "${SERVER1_GUESS_ORACLE_DIR}/../../../MODULE-INDEX.json" --node "${SERVER1_NODE_EXECUTABLE}")
+    set_tests_properties(H01-guess-file-index-differential PROPERTIES TIMEOUT 150)
+    add_test(NAME K12-source-peer-address-differential COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/server_lab/check_source_peer_address.py"
+      --oracle "${SERVER1_K12_ORACLE}" --candidate "$<TARGET_FILE:server1_k12_source_peer_address_test>")
+  endif()
 endif()

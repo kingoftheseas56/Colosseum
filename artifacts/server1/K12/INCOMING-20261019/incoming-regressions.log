@@ -1,0 +1,18 @@
+Test project /tmp/engine-stats-build/server
+    Start 73: K12-wire-statistics-real-wire
+1/3 Test #73: K12-wire-statistics-real-wire ......   Passed    0.40 sec
+    Start 74: K12-peer-statistics-real-wire
+2/3 Test #74: K12-peer-statistics-real-wire ......   Passed    4.71 sec
+    Start 93: K10-G-transport-pause-generation
+3/3 Test #93: K10-G-transport-pause-generation ...   Passed    3.09 sec
+
+100% tests passed out of 3
+
+Label Time Summary:
+K10-G      =   3.09 sec*proc (1 test)
+K12        =   5.11 sec*proc (2 tests)
+native     =   8.20 sec*proc (3 tests)
+server1    =   8.20 sec*proc (3 tests)
+wire       =   5.11 sec*proc (2 tests)
+
+Total Test time (real) =   8.20 sec

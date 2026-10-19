@@ -114,6 +114,11 @@ struct ConnectAction final {
     PeerHandle peer = 0;
     std::string address;
     std::uint16_t port = 0;
+    std::string rawAddress, rawPort;
+    // Nonzero means the source owner already admitted this dial. A later pause
+    // cannot suspend its DNS or connection; zero retains direct adapter gating.
+    std::uint64_t attempt = 0;
+    bool invalidSourcePort = false;
 };
 
 // Generation-bound scheduler pressure signal. Only the current open
@@ -169,7 +174,7 @@ struct UploadAbortAction final {
     BlockSpan block;
 };
 
-struct DisconnectAction final { EngineGeneration generation=0; PeerHandle peer=0; std::uint64_t connectionIdentity=0; };
+struct DisconnectAction final { EngineGeneration generation=0; PeerHandle peer=0; std::uint64_t connectionIdentity=0; std::uint64_t attempt=0; };
 
 using TorrentAction = std::variant<RequestAction,
                                    CancelAction,
@@ -299,6 +304,7 @@ struct PeerLifecycleObservation final {
     PeerHandle peer=0;
     std::uint64_t connectionIdentity=0;
     PeerLifecycleKind kind=PeerLifecycleKind::Ready;
+    std::uint64_t attempt=0;
 };
 
 using TorrentObservation = std::variant<BlockObservation,
@@ -327,6 +333,8 @@ struct PeerTransferStatistics final {
     bool amInterested = false;
     bool isSeeder = false;
     std::uint32_t requests = 0;
+    // M818 incoming wire.peerAddress uses the local listener, not remote().
+    std::string sourceAddress;
 };
 
 struct TransportStatistics final {

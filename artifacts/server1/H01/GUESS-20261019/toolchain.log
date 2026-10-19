@@ -1,0 +1,7 @@
+2026-10-19T05:39:54Z
+feature/colosseum-server-1.0
+g++ (Debian 14.2.0-19) 14.2.0
+Qt header: #define QT_VERSION_STR "6.11.1"
+Default oracle runtime: v24.19.0
+Explicit portable oracle runtime: v22.16.0
+Python 3.12.14

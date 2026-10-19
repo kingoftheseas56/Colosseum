@@ -1,0 +1,5 @@
+gmake: jobserver mkfifo: /tmp/GMfifo10: File exists
+[ 14%] Building CXX object CMakeFiles/test_segment_timeline.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/KeyframeIndex.cpp.o
+[ 28%] Building CXX object CMakeFiles/test_segment_timeline.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/VttTimeline.cpp.o
+[ 42%] Linking CXX executable test_segment_timeline
+[100%] Built target test_segment_timeline

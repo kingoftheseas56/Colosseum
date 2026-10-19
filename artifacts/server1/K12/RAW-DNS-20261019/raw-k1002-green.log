@@ -1,0 +1,12 @@
+Test project /tmp/raw-integration-build/server
+    Start 84: K10-02-native-transport
+1/1 Test #84: K10-02-native-transport ..........   Passed    1.12 sec
+
+100% tests passed out of 1
+
+Label Time Summary:
+K10        =   1.12 sec*proc (1 test)
+native     =   1.12 sec*proc (1 test)
+server1    =   1.12 sec*proc (1 test)
+
+Total Test time (real) =   1.12 sec

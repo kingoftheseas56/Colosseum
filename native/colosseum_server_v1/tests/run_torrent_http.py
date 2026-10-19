@@ -70,6 +70,16 @@ try:
     status=live_response.status;headers=dict(live_response.getheaders());body=live_response.read();live.close()
     assert status==200 and body==payload,(status,len(body),headers)
     assert headers['Content-Type']=='video/x-matroska',headers
+    status,headers,body=get(path='/'+ih);assert status==200 and body==payload,(status,len(body))
+    status,headers,body=get(path='/'+ih+'/999?f='+urllib.parse.quote('/MOVIE/i',safe=''));assert status==200 and body==payload,(status,len(body))
+    for query,expected in [('hello+world','hello world'),('hello%2Bworld','hello+world')]:
+        status,headers,body=get(path='/'+ih+'/0?subtitles='+query)
+        assert status==200 and headers['CaptionInfo.sec']==expected,(status,headers)
+    status,headers,body=get(path='/favicon.ico');assert status==404 and headers['Content-Type']=='application/json' and not body
+    for query,has_sys in [('?sys=1',True),('?not_sys=10',True),('?sys=0',False)]:
+        status,headers,body=get(path='/stats.json'+query);all_stats=json.loads(body)
+        assert status==200 and ('sys' in all_stats)==has_sys,all_stats
+        if has_sys:assert len(all_stats['sys']['loadavg'])==3 and isinstance(all_stats['sys']['cpus'],list),all_stats
     for header,start,end in [('bytes=0-0',0,0),('bytes=16000-17000',16000,17000),('bytes=-23',32745,32767),('bytes=30000-',30000,32767),('bytes=99-10,2-5',2,5)]:
         status,headers,body=get(range_=header)
         assert status==206 and body==payload[start:end+1],(header,status,len(body))
@@ -82,10 +92,15 @@ try:
     status,headers,body=get(path='/'+ih+'/999');assert status==500 and body==b'',(status,body)
     for target in ['/'+ih+'/create','/create']:
         conn=http.client.HTTPConnection('127.0.0.1',port,timeout=10)
-        data={} if target!='/create' else {'blob':(root/'fixture.torrent').read_bytes().hex()}
+        data={'fileMustInclude':['/MOVIE/i']} if target!='/create' else {'blob':(root/'fixture.torrent').read_bytes().hex()}
         conn.request('POST',target,json.dumps(data),{'Content-Type':'application/json'})
         response=conn.getresponse();created=json.loads(response.read());conn.close()
         assert response.status==200 and created['infoHash']==ih,created
+        if target!='/create':assert created['guessedFileIdx']==0,created
+    conn=http.client.HTTPConnection('127.0.0.1',port,timeout=10)
+    conn.request('POST','/'+ih+'/create',json.dumps({'guessFileIdx':{}}),{'Content-Type':'application/json'})
+    response=conn.getresponse();assert response.status==200,(response.status,response.read())
+    assert json.loads(response.read())['guessedFileIdx']==0;conn.close()
     class TorrentSource(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             raw=(root/'fixture.torrent').read_bytes()

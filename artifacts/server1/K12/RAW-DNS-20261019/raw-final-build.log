@@ -1,0 +1,218 @@
+[  1%] Built target server1_k00_policy
+[  2%] Built target server1_k07_circular_store
+[  5%] Built target server1_k12_counters
+[ 10%] Built target server1_k09_peer_search
+[ 11%] Building C object server/CMakeFiles/server1_ecmascript_regex.dir/third_party/ecmascript_regex/libregexp.c.o
+[ 12%] Built target server1_k02_piece_buffer
+[ 13%] Building CXX object server/CMakeFiles/server1_h00_http.dir/src/http/Connection.cpp.o
+[ 14%] Built target server1_k05_swarm_metadata
+[ 15%] Building CXX object server/CMakeFiles/server1_k00_js_semantics.dir/tests/test_js_semantics.cpp.o
+[ 16%] Building CXX object server/CMakeFiles/server1_k13_settings_cache.dir/src/settings/SettingsStore.cpp.o
+[ 17%] Building C object server/CMakeFiles/server1_ecmascript_regex.dir/third_party/ecmascript_regex/libunicode.c.o
+[ 18%] Linking CXX executable server1_k00_js_semantics
+[ 18%] Built target server1_k00_js_semantics
+[ 19%] Building CXX object server/CMakeFiles/server1_m00_process.dir/src/media/ExecutableLocator.cpp.o
+[ 19%] Building C object server/CMakeFiles/server1_ecmascript_regex.dir/third_party/ecmascript_regex/cutils.c.o
+[ 20%] Building CXX object server/CMakeFiles/server1_k13_settings_cache.dir/src/settings/CachePolicy.cpp.o
+[ 21%] Linking C static library libserver1_ecmascript_regex.a
+[ 21%] Built target server1_ecmascript_regex
+[ 22%] Building CXX object server/CMakeFiles/server1_tracker_network_test.dir/tests/test_tracker_network.cpp.o
+[ 22%] Building CXX object server/CMakeFiles/server1_h00_http.dir/src/http/Router.cpp.o
+[ 22%] Building CXX object server/CMakeFiles/server1_m00_process.dir/src/media/ProcessDriver.cpp.o
+[ 22%] Building CXX object server/CMakeFiles/server1_k13_settings_cache.dir/src/platform/DiskSpace.cpp.o
+[ 22%] Linking CXX executable server1_tracker_network_test
+[ 23%] Linking CXX static library libserver1_k13_settings_cache.a
+[ 23%] Built target server1_k13_settings_cache
+[ 23%] Building CXX object server/CMakeFiles/server1_dht_network_test.dir/tests/test_dht_network.cpp.o
+[ 23%] Built target server1_tracker_network_test
+[ 24%] Building CXX object server/CMakeFiles/server1_dht_service_test.dir/tests/test_dht_service.cpp.o
+[ 25%] Linking CXX static library libserver1_m00_process.a
+[ 25%] Built target server1_m00_process
+[ 26%] Building CXX object server/CMakeFiles/server1_discovery_network_test.dir/tests/test_discovery_network.cpp.o
+[ 27%] Linking CXX executable server1_dht_network_test
+[ 27%] Built target server1_dht_network_test
+[ 28%] Building CXX object server/p03-tests/CMakeFiles/server1_k13_settings_cache_test.dir/test_settings_cache.cpp.o
+[ 29%] Building CXX object server/CMakeFiles/server1_h00_http.dir/src/http/RequestParsing.cpp.o
+[ 29%] Linking CXX executable server1_dht_service_test
+[ 29%] Built target server1_dht_service_test
+[ 29%] Building CXX object server/p03-tests/CMakeFiles/server1_k02_piece_buffer_test.dir/test_piece_buffer.cpp.o
+[ 29%] Linking CXX executable server1_discovery_network_test
+[ 29%] Linking CXX executable server1_k13_settings_cache_test
+[ 29%] Built target server1_k13_settings_cache_test
+[ 30%] Building CXX object server/p03-tests/CMakeFiles/server1_k05_swarm_metadata_test.dir/test_swarm_metadata.cpp.o
+[ 31%] Linking CXX executable server1_k02_piece_buffer_test
+[ 31%] Built target server1_discovery_network_test
+[ 32%] Building CXX object server/p03-tests/CMakeFiles/server1_k07_circular_store_test.dir/test_circular_store.cpp.o
+[ 32%] Built target server1_k02_piece_buffer_test
+[ 32%] Building CXX object server/p03-tests/CMakeFiles/server1_k09_peer_search_test.dir/test_peer_search.cpp.o
+[ 33%] Linking CXX static library libserver1_h00_http.a
+[ 33%] Built target server1_h00_http
+[ 33%] Building CXX object server/p03-tests/CMakeFiles/server1_p08_torrent_transport_contract_test.dir/test_torrent_transport_contract.cpp.o
+[ 34%] Linking CXX executable server1_k09_peer_search_test
+[ 34%] Built target server1_k09_peer_search_test
+[ 34%] Linking CXX executable server1_k07_circular_store_test
+[ 35%] Building CXX object server/p03-tests/CMakeFiles/server1_k12_counter_test.dir/test_engine_counters.cpp.o
+[ 36%] Linking CXX executable server1_k05_swarm_metadata_test
+[ 36%] Built target server1_k07_circular_store_test
+[ 37%] Building CXX object server/p03-tests/CMakeFiles/server1_k12_timer_test.dir/test_engine_timer.cpp.o
+[ 37%] Built target server1_k05_swarm_metadata_test
+[ 37%] Building CXX object server/p03-tests/CMakeFiles/server1_k12_speedometer_test.dir/test_engine_speedometer.cpp.o
+[ 38%] Linking CXX executable server1_p08_torrent_transport_contract_test
+[ 38%] Built target server1_p08_torrent_transport_contract_test
+[ 39%] Built target server1_k03_scheduler_selections
+[ 39%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/LibTorrent2Adapter.cpp.o
+[ 39%] Linking CXX executable server1_k12_timer_test
+[ 40%] Linking CXX executable server1_k12_counter_test
+[ 41%] Linking CXX executable server1_k12_speedometer_test
+[ 41%] Built target server1_k12_counter_test
+[ 43%] Built target server1_k01_metadata
+[ 44%] Built target server1_k06_persistent_store
+[ 45%] Building CXX object server/CMakeFiles/server1_safe_file_regex.dir/src/http/SafeFileRegex.cpp.o
+[ 45%] Built target server1_k12_timer_test
+[ 45%] Building CXX object server/CMakeFiles/server1_n00_proxy.dir/src/network/ProxyService.cpp.o
+[ 45%] Built target server1_k12_speedometer_test
+[ 46%] Building CXX object server/CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleFetch.cpp.o
+[ 46%] Linking CXX static library libserver1_safe_file_regex.a
+[ 46%] Built target server1_safe_file_regex
+[ 47%] Building CXX object server/CMakeFiles/server1_k01_metadata_geometry.dir/tests/test_metadata_geometry.cpp.o
+/tmp/raw-integration/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp: In lambda function:
+/tmp/raw-integration/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp:328:44: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+  328 |       return QDateTime::fromMSecsSinceEpoch(n.toDouble() + offset, Qt::UTC)
+      |              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qcborvalue.h:11,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qjsonvalue.h:8,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qjsonarray.h:8,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/QJsonArray:1,
+                 from /tmp/raw-integration/source/native/colosseum_server_v1/include/server1/media/SubtitleFetch.h:2,
+                 from /tmp/raw-integration/source/native/colosseum_server_v1/src/media/SubtitleFetch.cpp:1:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[ 48%] Linking CXX executable server1_k01_metadata_geometry
+[ 48%] Built target server1_k01_metadata_geometry
+[ 49%] Building CXX object server/CMakeFiles/server1_m00_process_tests.dir/tests/test_process_driver.cpp.o
+[ 50%] Building CXX object server/CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleCharset.cpp.o
+/tmp/raw-integration/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp: In member function ‘void server1::transport::{anonymous}::LibTorrent2Adapter::emitMetadataReady(const libtorrent::torrent_handle&, const std::shared_ptr<const libtorrent::torrent_info>&)’:
+/tmp/raw-integration/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:805:50: warning: ‘std::vector<std::__cxx11::basic_string<char> > libtorrent::torrent_info::url_seeds() const’ is deprecated [-Wdeprecated-declarations]
+  805 |         const auto infoUrlSeeds = info->url_seeds();
+      |                                   ~~~~~~~~~~~~~~~^~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/torrent_handle.hpp:66,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/alert_types.hpp:50,
+                 from /tmp/raw-integration/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:4:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/torrent_info.hpp:317:42: note: declared here
+  317 |                 std::vector<std::string> url_seeds() const;
+      |                                          ^~~~~~~~~
+[ 51%] Building CXX object server/CMakeFiles/server1_n00_proxy.dir/src/network/ProxyRoutes.cpp.o
+[ 51%] Building CXX object server/CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleHash.cpp.o
+[ 52%] Linking CXX static library libserver1_n00_proxy.a
+[ 52%] Built target server1_n00_proxy
+[ 53%] Building CXX object server/CMakeFiles/server1_m01_probe.dir/src/media/Probe.cpp.o
+[ 53%] Linking CXX executable server1_m00_process_tests
+[ 53%] Built target server1_m00_process_tests
+[ 54%] Building CXX object server/CMakeFiles/server1_m02_subtitles.dir/src/media/TrackExtraction.cpp.o
+[ 55%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/PeerPlugin.cpp.o
+[ 56%] Building CXX object server/CMakeFiles/server1_m01_probe.dir/src/media/LegacyProbe.cpp.o
+[ 56%] Building CXX object server/CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleRoutes.cpp.o
+[ 56%] Linking CXX static library libserver1_m01_probe.a
+[ 56%] Built target server1_m01_probe
+[ 56%] Building CXX object server/CMakeFiles/server1_proxy_test.dir/tests/test_proxy_streaming.cpp.o
+[ 57%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/ActionLedger.cpp.o
+[ 58%] Building CXX object server/CMakeFiles/server1_safe_file_regex_test.dir/tests/test_safe_file_regex.cpp.o
+[ 59%] Linking CXX static library libserver1_m02_subtitles.a
+[ 59%] Built target server1_m02_subtitles
+[ 59%] Building CXX object server/p03-tests/CMakeFiles/server1_h00_http_contract.dir/test_http_contract.cpp.o
+[ 59%] Linking CXX static library libserver1_k10_native_transport.a
+[ 59%] Built target server1_k10_native_transport
+[ 60%] Building CXX object server/p03-tests/CMakeFiles/server1_k06_persistent_store_test.dir/test_persistent_store.cpp.o
+[ 61%] Linking CXX executable server1_proxy_test
+[ 61%] Built target server1_proxy_test
+[ 62%] Building CXX object server/p03-tests/CMakeFiles/server1_k03_scheduler_selections_test.dir/test_scheduler_selections.cpp.o
+[ 63%] Linking CXX executable server1_safe_file_regex_test
+[ 63%] Built target server1_safe_file_regex_test
+[ 64%] Building CXX object server/p03-tests/CMakeFiles/server1_k10_native_transport_test.dir/test_native_transport.cpp.o
+[ 65%] Linking CXX executable server1_k06_persistent_store_test
+[ 65%] Linking CXX executable server1_k03_scheduler_selections_test
+[ 65%] Built target server1_k06_persistent_store_test
+[ 67%] Built target server1_k04_scheduler_actions
+[ 68%] Built target server1_k08_file_reader
+[ 69%] Building CXX object server/CMakeFiles/server1_m01_probe_tests.dir/tests/test_probe.cpp.o
+[ 69%] Built target server1_k03_scheduler_selections_test
+[ 70%] Building CXX object server/CMakeFiles/server1_m02_subtitles_tracks_tests.dir/tests/test_subtitles_tracks.cpp.o
+[ 71%] Linking CXX executable server1_h00_http_contract
+[ 71%] Built target server1_h00_http_contract
+[ 72%] Building CXX object server/CMakeFiles/server1_m02_subtitles_lifecycle_tests.dir/tests/test_subtitles_lifecycle.cpp.o
+[ 73%] Linking CXX executable server1_m02_subtitles_tracks_tests
+[ 73%] Built target server1_m02_subtitles_tracks_tests
+[ 74%] Building CXX object server/p03-tests/CMakeFiles/server1_k04_scheduler_actions_test.dir/test_scheduler_requests.cpp.o
+[ 74%] Linking CXX executable server1_m01_probe_tests
+[ 74%] Built target server1_m01_probe_tests
+[ 75%] Building CXX object server/p03-tests/CMakeFiles/server1_k08_file_reader_test.dir/test_file_reader.cpp.o
+[ 76%] Linking CXX executable server1_k04_scheduler_actions_test
+[ 76%] Built target server1_k04_scheduler_actions_test
+[ 76%] Building CXX object server/CMakeFiles/server1_k11_engine.dir/src/policy/TorrentEngine.cpp.o
+[ 76%] Linking CXX executable server1_m02_subtitles_lifecycle_tests
+[ 76%] Built target server1_m02_subtitles_lifecycle_tests
+[ 77%] Building CXX object server/CMakeFiles/server1_h01_reader_stream.dir/src/http/FileReaderStream.cpp.o
+[ 77%] Building CXX object server/CMakeFiles/server1_h01_reader_stream.dir/src/http/TorrentRange.cpp.o
+[ 78%] Linking CXX static library libserver1_h01_reader_stream.a
+[ 78%] Built target server1_h01_reader_stream
+[ 78%] Building CXX object server/CMakeFiles/server1_h01_reader_stream_test.dir/tests/test_http_file_reader.cpp.o
+/tmp/raw-integration/source/native/colosseum_server_v1/src/policy/TorrentEngine.cpp: In member function ‘server1::policy::Value server1::policy::TorrentEngine::statistics(server1::policy::Value) const’:
+/tmp/raw-integration/source/native/colosseum_server_v1/src/policy/TorrentEngine.cpp:1922:72: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+ 1922 |             {"lastStarted",Value::string(QDateTime::fromMSecsSinceEpoch(
+      |                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+ 1923 |                 self.epochOffsetMs+static_cast<std::int64_t>(source.lastStartedMs),Qt::UTC)
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/QDateTime:1,
+                 from /tmp/raw-integration/source/native/colosseum_server_v1/src/policy/TorrentEngine.cpp:3:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[ 79%] Linking CXX executable server1_k08_file_reader_test
+[ 79%] Built target server1_k08_file_reader_test
+[ 79%] Building CXX object server/CMakeFiles/server1_h01_range_test.dir/tests/test_torrent_range.cpp.o
+[ 80%] Linking CXX executable server1_h01_range_test
+[ 80%] Built target server1_h01_range_test
+[ 81%] Building CXX object server/CMakeFiles/server1_k11_engine.dir/src/policy/EngineRegistry.cpp.o
+[ 82%] Linking CXX executable server1_h01_reader_stream_test
+[ 82%] Built target server1_h01_reader_stream_test
+[ 83%] Building CXX object server/CMakeFiles/server1_k11_engine.dir/src/policy/SwarmConnections.cpp.o
+[ 84%] Linking CXX executable server1_k10_native_transport_test
+[ 84%] Built target server1_k10_native_transport_test
+[ 84%] Linking CXX static library libserver1_k11_engine.a
+[ 85%] Built target server1_k11_engine
+[ 85%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/ServerComposition.cpp.o
+[ 86%] Building CXX object server/CMakeFiles/server1_k12_swarm_connections_test.dir/tests/test_swarm_connections.cpp.o
+[ 86%] Building CXX object server/CMakeFiles/server1_engine_statistics_test.dir/tests/test_engine_statistics.cpp.o
+[ 87%] Building CXX object CMakeFiles/statistics_check.dir/tmp/raw-integration/source/native/colosseum_server_v1/tests/test_engine_statistics.cpp.o
+[ 87%] Linking CXX executable server1_k12_swarm_connections_test
+[ 87%] Built target server1_k12_swarm_connections_test
+[ 88%] Building CXX object server/p03-tests/CMakeFiles/server1_k11_engine_registry_test.dir/test_engine_registry.cpp.o
+[ 89%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/http/TorrentRoutes.cpp.o
+[ 90%] Linking CXX executable server1_engine_statistics_test
+[ 91%] Linking CXX executable statistics_check
+[ 91%] Built target server1_engine_statistics_test
+[ 91%] Building CXX object server/p03-tests/CMakeFiles/server1_spine_contracts_link_test.dir/test_spine_contracts.cpp.o
+[ 91%] Built target statistics_check
+[ 91%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/KeyframeIndex.cpp.o
+[ 92%] Linking CXX executable server1_spine_contracts_link_test
+[ 92%] Built target server1_spine_contracts_link_test
+[ 93%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/Mp4Samples.cpp.o
+[ 94%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/MkvSamples.cpp.o
+[ 94%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/HlsPlaylist.cpp.o
+[ 95%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/SegmentLayout.cpp.o
+[ 95%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/Mp4Timeline.cpp.o
+[ 96%] Building CXX object server/CMakeFiles/colosseum_server_v1.dir/src/media/VttTimeline.cpp.o
+[ 97%] Linking CXX static library libcolosseum_server_v1.a
+[ 97%] Built target colosseum_server_v1
+[ 97%] Building CXX object server/CMakeFiles/server1_test_samples.dir/tests/test_samples.cpp.o
+[ 98%] Building CXX object server/CMakeFiles/server1_host.dir/host/main.cpp.o
+[ 98%] Building CXX object server/CMakeFiles/server1_m04_timeline_tests.dir/tests/test_segment_timeline.cpp.o
+[ 98%] Linking CXX executable server1_k11_engine_registry_test
+[ 98%] Built target server1_k11_engine_registry_test
+[ 99%] Linking CXX executable server1_test_samples
+[ 99%] Built target server1_test_samples
+[100%] Linking CXX executable server1_m04_timeline_tests
+[100%] Built target server1_m04_timeline_tests
+[100%] Linking CXX executable server1_host
+[100%] Built target server1_host

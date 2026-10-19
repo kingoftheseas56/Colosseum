@@ -1,0 +1,4 @@
+[  4%] Building CXX object CMakeFiles/test_hlsv2.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/http/HlsV2Routes.cpp.o
+[  8%] Building CXX object CMakeFiles/test_hlsv2.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_hlsv2_service.cpp.o
+[ 12%] Linking CXX executable test_hlsv2
+[100%] Built target test_hlsv2

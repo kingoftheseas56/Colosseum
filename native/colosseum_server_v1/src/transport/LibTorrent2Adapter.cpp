@@ -37,7 +37,7 @@ namespace server1::transport {
 bool sameOwnership(const ports::RequestOwnership &, const ports::RequestOwnership &) noexcept;
 bool sameBlock(const ports::BlockSpan &, const ports::BlockSpan &) noexcept;
 using ConnectionIdentity = std::uint64_t;
-using IdentifyPeer = std::function<ports::PeerHandle(const lt::tcp::endpoint &)>;
+using IdentifyPeer = std::function<ports::PeerHandle(const lt::tcp::endpoint &, bool)>;
 using PeerStarted = std::function<void(ports::PeerHandle, ConnectionIdentity, std::shared_ptr<lt::peer_connection>, ports::PeerLifecycleKind)>;
 using PeerInbound = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const lt::bitfield *)>;
@@ -226,7 +226,7 @@ public:
         session_ = std::make_unique<lt::session>(settings);
         session_->add_extension([this](const lt::torrent_handle &, lt::client_data_t) {
             return makeProductionPeerPlugin(
-                [this](const auto &ep) { return identify(ep); },
+                [this](const auto &ep,bool incoming) { return identify(ep,incoming); },
                 [this](PeerHandle peer,ConnectionIdentity id,std::shared_ptr<lt::peer_connection> native,PeerLifecycleKind kind) {
                     std::lock_guard<std::mutex> lock(mutex_);
                     if(closed_) return;
@@ -234,7 +234,7 @@ public:
                         connectingIdentities_[peer]=id;
                         connectingNatives_[peer]=native;
                     } else if(connectingIdentities_[peer]!=id) return;
-                    observations_.push_back(PeerLifecycleObservation{generation_,peer,id,kind});
+                    observations_.push_back(PeerLifecycleObservation{generation_,peer,id,kind,admittedAttempts_[peer]});
                 },
                 [this](PeerHandle p, auto n, ConnectionIdentity id, const auto *b) {
                     inbound(p, std::move(n), id, b);
@@ -407,6 +407,7 @@ public:
 
     void close() override
     {
+        std::vector<std::shared_ptr<lt::tcp::resolver>> resolving;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_) return;
@@ -424,6 +425,8 @@ public:
             pendingRequests_.clear(); pendingControl_.clear(); permits_.clear();
             pendingUploadActions_.clear();
             pendingConnects_.clear(); deferredConnects_.clear();
+            for(auto &entry:resolutions_)resolving.push_back(std::move(entry.second.second));
+            resolutions_.clear();
             observations_.erase(std::remove_if(observations_.begin(), observations_.end(),
                 [](const auto &observation) {
                     return std::holds_alternative<MetadataReadyObservation>(observation)
@@ -432,6 +435,7 @@ public:
         }
         std::lock_guard<std::mutex> alertLock(alertMutex_);
         if (session_) {
+            lt::post(session_->get_context(),[resolving=std::move(resolving)] {for(const auto &resolver:resolving)resolver->cancel();});
             if (torrent_.is_valid()) session_->remove_torrent(torrent_);
             session_.reset();
         }
@@ -445,86 +449,124 @@ public:
         peerSamples_.clear();
         connectingIdentities_.clear();
         connectingNatives_.clear();
+        admittedAttempts_.clear();canceledAttempts_.clear();sourcePeerAddresses_.clear();
         publishNativeSamplesLocked();
         stats_.connectedPeers = 0; stats_.unchokedPeers = 0;
         if (!closedObserved_) { observations_.push_back(ClosedObservation{}); closedObserved_ = true; }
     }
 
+    void rejectDial(const ConnectAction &action)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(closed_ || action.generation!=generation_ || admittedAttempts_[action.peer]!=action.attempt) return;
+        for(auto it=endpointPeers_.begin();it!=endpointPeers_.end();)
+            if(it->second==action.peer)it=endpointPeers_.erase(it);else ++it;
+        sourcePeerAddresses_.erase(action.peer);
+        observations_.push_back(PeerLifecycleObservation{generation_,action.peer,0,PeerLifecycleKind::Disconnected,action.attempt});
+    }
+
+    void dialOnNetwork(const lt::torrent_handle &handle,const ConnectAction &action,const lt::tcp::endpoint &endpoint)
+    {
+        bool collision=false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if(closed_ || action.generation!=generation_ || admittedAttempts_[action.peer]!=action.attempt
+                || (action.attempt && canceledAttempts_[action.peer]>=action.attempt)) return;
+            if(stats_.paused && action.attempt==0){deferredConnects_.push_back(action);return;}
+            const auto existing=endpointPeers_.find(endpointKey(endpoint));
+            collision=existing!=endpointPeers_.end() && existing->second!=action.peer;
+            if(!collision){endpointPeers_[endpointKey(endpoint)]=action.peer;
+                sourcePeerAddresses_[action.peer]=action.rawAddress.empty() ? action.address+":"+std::to_string(action.port) : action.rawAddress;}
+        }
+        if(collision){rejectDial(action);return;}
+        auto native=handle.native_handle();
+        if(!native){rejectDial(action);return;}
+        auto* peer=native->add_peer(endpoint,lt::peer_info::tracker,lt::pex_flags_t{});
+        if(!peer || peer->connection){rejectDial(action);return;}
+        {std::lock_guard<std::mutex> lock(mutex_);++stats_.connectionAttempts;}
+        if(!native->connect_to_peer(peer,true))rejectDial(action);
+    }
+
     bool connect(const ConnectAction &action)
     {
-        lt::error_code error;
-        const auto parsed = lt::make_address(action.address, error);
-        if (error || action.port == 0) return false;
-        const lt::tcp::endpoint endpoint{parsed, action.port};
+        if(action.port==0 || action.invalidSourcePort)return false;
         lt::torrent_handle handle;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (closed_ || !controlled_ || action.generation != generation_ || action.peer == 0)
-                return false;
-            if (stats_.paused) {
-                deferredConnects_.push_back(action);
-                return true;
-            }
-            endpointPeers_[endpointKey(endpoint)] = action.peer;
-            if (!torrent_.is_valid()) {
-                pendingConnects_.push_back(action);
-                return true;
-            }
-            handle = torrent_;
-
+            if(closed_ || !controlled_ || action.generation!=generation_ || action.peer==0)return false;
+            if(action.attempt && (admittedAttempts_[action.peer]>action.attempt || canceledAttempts_[action.peer]>=action.attempt))return false;
+            admittedAttempts_[action.peer]=action.attempt;
+            if(stats_.paused && action.attempt==0){deferredConnects_.push_back(action);return true;}
+            if(!torrent_.is_valid()){pendingConnects_.push_back(action);return true;}
+            handle=torrent_;
         }
-        // A disconnect callback precedes libtorrent's final peer-list cleanup.
-        // This exported synchronous handle call is an event-loop barrier; a
-        // replacement connect posted afterward cannot race the old connection.
         try {
+            // Barrier keeps replacement admission after prior native cleanup.
             (void)handle.status();
             std::lock_guard<std::mutex> lock(mutex_);
-            if(closed_ || !session_) return false;
-            lt::post(session_->get_context(), [this,handle,endpoint,action] {
+            if(closed_ || !session_)return false;
+            lt::post(session_->get_context(),[this,handle,action,context=&session_->get_context()] {
                 {
                     std::lock_guard<std::mutex> guard(mutex_);
-                    if(closed_ || action.generation!=generation_) return;
-                    const auto owner=endpointPeers_.find(endpointKey(endpoint));
-                    if(owner==endpointPeers_.end() || owner->second!=action.peer) return;
-                    if(stats_.paused) { deferredConnects_.push_back(action); endpointPeers_.erase(owner); return; }
+                    if(closed_ || action.generation!=generation_ || admittedAttempts_[action.peer]!=action.attempt
+                        || (action.attempt && canceledAttempts_[action.peer]>=action.attempt))return;
+                    if(stats_.paused && action.attempt==0){deferredConnects_.push_back(action);return;}
                 }
-                auto reject=[&] {
+                lt::error_code error;const auto address=lt::make_address(action.address,error);
+                if(!error){dialOnNetwork(handle,action,{address,action.port});return;}
+                auto resolver=std::make_shared<lt::tcp::resolver>(*context);
+                {
                     std::lock_guard<std::mutex> guard(mutex_);
-                    const auto owner=endpointPeers_.find(endpointKey(endpoint));
-                    if(owner!=endpointPeers_.end() && owner->second==action.peer) endpointPeers_.erase(owner);
-                    observations_.push_back(PeerLifecycleObservation{generation_,action.peer,0,PeerLifecycleKind::Disconnected});
-                };
-                auto native=handle.native_handle();
-                if(!native) {reject();return;}
-                auto* peer=native->add_peer(endpoint,lt::peer_info::tracker,lt::pex_flags_t{});
-                if(!peer || peer->connection) {reject();return;}
-                { std::lock_guard<std::mutex> guard(mutex_); ++stats_.connectionAttempts; }
-                // Version-pinned internal API; this callback runs on libtorrent's IO lane.
-                if(!native->connect_to_peer(peer,true)) reject();
+                    if(closed_ || action.generation!=generation_)return;
+                    resolutions_[action.peer]={action.attempt,resolver};
+                }
+                resolver->async_resolve(action.address.empty()?"localhost":action.address,std::to_string(action.port),
+                    [this,handle,action,resolver](const lt::error_code &error,const lt::tcp::resolver::results_type &results) {
+                        {
+                            std::lock_guard<std::mutex> guard(mutex_);
+                            const auto current=resolutions_.find(action.peer);
+                            if(closed_ || action.generation!=generation_ || current==resolutions_.end()
+                                || current->second.first!=action.attempt || current->second.second!=resolver)return;
+                            resolutions_.erase(current);
+                        }
+                        if(error || results.empty()){rejectDial(action);return;}
+                        dialOnNetwork(handle,action,results.begin()->endpoint());
+                    });
             });
             return true;
-        } catch (...) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            const auto found = endpointPeers_.find(endpointKey(endpoint));
-            if (found != endpointPeers_.end() && found->second == action.peer) endpointPeers_.erase(found);
-            return false;
-        }
+        }catch(...){return false;}
     }
 
     bool disconnect(const DisconnectAction &action)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if(closed_ || !session_ || action.generation!=generation_) return false;
+        if(closed_ || !session_ || action.generation!=generation_)return false;
         lt::post(session_->get_context(),[this,action] {
             std::shared_ptr<lt::peer_connection> native;
+            bool canceled=false;
             {
                 std::lock_guard<std::mutex> guard(mutex_);
-                if(closed_ || action.generation!=generation_) return;
-                if(const auto id=connectingIdentities_.find(action.peer);id!=connectingIdentities_.end() && id->second==action.connectionIdentity)
+                if(closed_ || action.generation!=generation_)return;
+                if(action.attempt && (admittedAttempts_[action.peer]>action.attempt
+                    || (action.connectionIdentity && admittedAttempts_[action.peer]!=action.attempt)))return;
+                if(action.connectionIdentity==0 && action.attempt) {
+                    admittedAttempts_[action.peer]=action.attempt;
+                    canceledAttempts_[action.peer]=std::max(canceledAttempts_[action.peer],action.attempt);
+                    const auto resolution=resolutions_.find(action.peer);
+                    if(resolution!=resolutions_.end() && resolution->second.first==action.attempt){
+                        resolution->second.second->cancel();resolutions_.erase(resolution);
+                    }
+                    auto remove=[&](auto &queue){queue.erase(std::remove_if(queue.begin(),queue.end(),[&](const auto &pending){return pending.peer==action.peer&&pending.attempt==action.attempt;}),queue.end());};
+                    remove(pendingConnects_);remove(deferredConnects_);
+                    if(auto it=connectingNatives_.find(action.peer);it!=connectingNatives_.end())native=it->second.lock();
+                    else if(auto it=peers_.find(action.peer);it!=peers_.end())native=it->second.lock();
+                    canceled=true;
+                }else if(const auto id=connectingIdentities_.find(action.peer);id!=connectingIdentities_.end() && id->second==action.connectionIdentity)
                     native=connectingNatives_[action.peer].lock();
-                else if(isCurrentIdentityLocked(action.peer,action.connectionIdentity)) native=peers_[action.peer].lock();
+                else if(isCurrentIdentityLocked(action.peer,action.connectionIdentity))native=peers_[action.peer].lock();
             }
-            if(native) native->disconnect(lt::errors::timed_out,lt::operation_t::bittorrent);
+            if(native)native->disconnect(lt::errors::timed_out,lt::operation_t::bittorrent);
+            else if(canceled)rejectDial(ConnectAction{action.generation,action.peer,"",0,"","",action.attempt});
         });
         return true;
     }
@@ -807,6 +849,7 @@ private:
         std::int64_t total_download=0, total_upload=0;
         std::string address;
         bool peerChoking=true, amInterested=false, isSeeder=false;
+        std::string sourceAddress;
     };
 
     static NativeTransferSample readNativeTransfer(const std::shared_ptr<lt::peer_connection> &native)
@@ -818,7 +861,8 @@ private:
         return {sample.download_payload_rate(),sample.upload_payload_rate(),
                 sample.total_payload_download(),sample.total_payload_upload(),
                 native->remote().address().to_string()+":"+std::to_string(native->remote().port()),
-                native->has_peer_choked(),native->is_interesting(),native->is_seed()};
+                native->has_peer_choked(),native->is_interesting(),native->is_seed(),
+                endpointKey(native->is_outgoing() ? native->remote() : native->local_endpoint())};
     }
 
     void publishNativeSamplesLocked()
@@ -847,6 +891,8 @@ private:
         if(found==peerSamples_.end() || found->second.connectionIdentity!=identity) return;
         auto &sample=found->second;
         sample.address=info.address;
+        const auto source=sourcePeerAddresses_.find(peer);
+        sample.sourceAddress=source==sourcePeerAddresses_.end()?info.sourceAddress:source->second;
         sample.peerChoking=info.peerChoking;
         sample.amInterested=info.amInterested;
         sample.isSeeder=info.isSeeder;
@@ -974,11 +1020,17 @@ private:
         }
     }
 
-    PeerHandle identify(const lt::tcp::endpoint &endpoint)
+    PeerHandle identify(const lt::tcp::endpoint &endpoint,bool incoming)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         const auto found = endpointPeers_.find(endpointKey(endpoint));
-        return found == endpointPeers_.end() ? 0 : found->second;
+        if(found!=endpointPeers_.end()) return found->second;
+        if(closed_ || !incoming) return 0;
+        // Incoming handshakes are associated with this torrent by libtorrent.
+        // They are connections/wires, but never outbound retained _peers.
+        const auto peer=nextIncomingPeer_++;
+        endpointPeers_[endpointKey(endpoint)]=peer;
+        return peer;
     }
 
     void prepareNative(PeerHandle peer, const std::shared_ptr<lt::peer_connection> &native)
@@ -1010,7 +1062,7 @@ private:
             if (!pieces) {
                 connectingIdentities_.erase(peer);
                 connectingNatives_.erase(peer);
-                observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Ready});
+                observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Ready,admittedAttempts_[peer]});
                 const auto current = peerIdentities_.find(peer);
                 if (current != peerIdentities_.end() && current->second != identity) {
                     cancelUploadsLocked(peer, current->second);
@@ -1391,7 +1443,7 @@ private:
                     const auto owner=endpointPeers_.find(endpoint);
                     if(owner!=endpointPeers_.end() && owner->second==peer) endpointPeers_.erase(owner);
                 }
-                observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Disconnected});
+                observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Disconnected,admittedAttempts_[peer]});
                 return;
             }
             if (identity != 0 && isStaleIdentityLocked(peer, identity)) {
@@ -1399,7 +1451,7 @@ private:
                 return;
             }
             if (identity != 0) lastDetachedIdentity_.try_emplace(peer, identity);
-            observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Disconnected});
+            observations_.push_back(PeerLifecycleObservation{generation_,peer,identity,PeerLifecycleKind::Disconnected,admittedAttempts_[peer]});
             cancelUploadsLocked(peer, identity);
             if(native) nativeSampleLocked(peer,identity,finalSample);
             if(const auto sample=peerSamples_.find(peer);sample!=peerSamples_.end()){
@@ -1530,6 +1582,10 @@ private:
     std::map<PeerHandle, std::weak_ptr<lt::peer_connection>> peers_;
     std::map<PeerHandle, ConnectionIdentity> peerIdentities_;
     std::map<PeerHandle,std::weak_ptr<lt::peer_connection>> connectingNatives_;
+    PeerHandle nextIncomingPeer_=PeerHandle{1}<<63U;
+    std::map<PeerHandle,std::uint64_t> admittedAttempts_,canceledAttempts_;
+    std::map<PeerHandle,std::pair<std::uint64_t,std::shared_ptr<lt::tcp::resolver>>> resolutions_;
+    std::map<PeerHandle,std::string> sourcePeerAddresses_;
     std::map<PeerHandle,ConnectionIdentity> connectingIdentities_;
     std::map<PeerHandle,PeerTransferStatistics> peerSamples_;
     std::uint64_t retiredNativeUploads_ = 0;

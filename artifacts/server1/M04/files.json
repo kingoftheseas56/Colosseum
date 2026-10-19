@@ -1,0 +1,52 @@
+{
+  "frozen_files": [
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/HlsPlaylist.h",
+      "sha256": "d6686902dd9c798edff3efe60d91fd745142218711d808bbdbdb908da116d344"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/SegmentLayout.h",
+      "sha256": "eadb599031c63551d8fb4f331369b347cb801e8561fea162e3b24f3fa5b01f08"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/Mp4Timeline.h",
+      "sha256": "72f69a054db2883889176a39b7779146f6e8acb69b1cde2ad8281b25293c996a"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/media/VttTimeline.h",
+      "sha256": "ed070e0d6b0673d0775dceb6febc9fa7b1865e9aba804396f879cdb4226f4900"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/HlsPlaylist.cpp",
+      "sha256": "913369bde389e3c6e95ed40b268e8a756ea8fd0ced2558cc90d11170c92337be"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/SegmentLayout.cpp",
+      "sha256": "553b704de6de7d1a4bde533a7d9f614ea59e350729784b83f915825fe777cca4"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/Mp4Timeline.cpp",
+      "sha256": "95cb58ab55b89a347d96360ad396fd1e9064c7298117f4f879edf4208899ccfb"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/VttTimeline.cpp",
+      "sha256": "95e3133fd937b2084b01bd62e4bc1e438b39b82f8fbece85feccc913d7c174a6"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_segment_timeline.cpp",
+      "sha256": "23399915d1e3b5853fe0d1c8bb387d0e3a6062af7804e6442615479606819985"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_segment_timeline_oracle.cjs",
+      "sha256": "e07c4354fee7223e5f0eab986d790bb91d1fb061fc82f5855b6874314b8fd23f"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/fixtures/segment-timeline.json",
+      "sha256": "a7158b0353c398a00900b5c88e63eeb6b58992bf8a866f56bc28b11e082fee13"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_mp4_reader_oracle.cjs",
+      "sha256": "9fc1b81e71aaa68faaf324ac5ec95ee45801b8daf3ca69202c0c1c3434d48bc0"
+    }
+  ]
+}

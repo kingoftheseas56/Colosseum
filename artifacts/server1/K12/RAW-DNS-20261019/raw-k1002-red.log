@@ -1,0 +1,18 @@
+Test project /tmp/raw-integration-build/server
+    Start 84: K10-02-native-transport
+1/1 Test #84: K10-02-native-transport ..........***Failed    0.01 sec
+K10-02 reused endpoint retained stale peer ownership
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+K10        =   0.01 sec*proc (1 test)
+native     =   0.01 sec*proc (1 test)
+server1    =   0.01 sec*proc (1 test)
+
+Total Test time (real) =   0.02 sec
+
+The following tests FAILED:
+	 84 - K10-02-native-transport (Failed)                  K10 native server1
+Errors while running CTest

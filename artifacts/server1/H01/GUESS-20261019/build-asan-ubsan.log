@@ -1,0 +1,3 @@
+Command: g++ -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer COMMON SOURCES -o BUILD_DIR/guess_file_index_asan LINK
+Exact array expansions are defined in run-receipt.sh.
+PASS ASan/UBSan compilation

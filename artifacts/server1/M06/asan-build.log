@@ -1,0 +1,20 @@
+[  4%] Building CXX object CMakeFiles/test_hlsv2.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/http/HlsV2Routes.cpp.o
+[  8%] Building CXX object CMakeFiles/test_hlsv2.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/HlsV2Service.cpp.o
+[ 12%] Building CXX object CMakeFiles/test_hlsv2.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/TrackConverter.cpp.o
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/HlsV2Service.cpp: In lambda function:
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/HlsV2Service.cpp:589:53: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+  589 |           {"touched", QDateTime::fromMSecsSinceEpoch(e.touched, Qt::UTC)
+      |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qcborvalue.h:11,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qjsonvalue.h:8,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qjsonobject.h:8,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/QJsonObject:1,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/m06-build-src/../source/native/colosseum_server_v1/include/server1/media/TrackConverter.h:3,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/m06-build-src/../source/native/colosseum_server_v1/include/server1/media/HlsV2Service.h:2,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/HlsV2Service.cpp:1:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[ 16%] Building CXX object CMakeFiles/test_hlsv2.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_hlsv2_service.cpp.o
+[ 20%] Linking CXX executable test_hlsv2
+[100%] Built target test_hlsv2

@@ -22,6 +22,7 @@ public:
     void disconnected(ports::PeerHandle peer,std::uint64_t nowMs);
     void advance(std::uint64_t nowMs);
     void close();
+    [[nodiscard]] std::optional<ports::PeerHandle> findRaw(const std::string &raw)const;
     [[nodiscard]] bool contains(ports::PeerHandle peer)const;
     [[nodiscard]] std::optional<ports::PeerHandle> find(const std::string &address,std::uint16_t port)const;
     [[nodiscard]] std::size_t queued()const noexcept{return queue_.size();}

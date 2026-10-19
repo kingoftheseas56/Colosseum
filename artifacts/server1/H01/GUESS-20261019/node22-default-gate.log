@@ -1,0 +1,2 @@
+Oracle requires Node 24; Node 22 needs --allow-portable-node22 (found v22.16.0)
+exit_status=1

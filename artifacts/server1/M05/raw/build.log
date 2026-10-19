@@ -1,0 +1,57 @@
+[  4%] Building CXX object CMakeFiles/m05.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_track_converter.cpp.o
+[ 16%] Built target m05pressure
+[ 32%] Built target m00
+[ 36%] Building CXX object CMakeFiles/m05life.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp.o
+[ 56%] Built target m01
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp: In instantiation of ‘main(int, char**)::<lambda(auto:80)> [with auto:80 = server1::media::TrackConversionResult]’:
+/usr/include/c++/14/type_traits:2655:26:   required by substitution of ‘template<class _Fn, class ... _Args> static std::__result_of_success<decltype (declval<_Fn>()((declval<_Args>)()...)), std::__invoke_other> std::__result_of_other_impl::_S_test(int) [with _Fn = main(int, char**)::<lambda(auto:80)>&; _Args = {const server1::media::TrackConversionResult&}]’
+ 2655 |       std::declval<_Fn>()(std::declval<_Args>()...)
+      |       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/14/type_traits:2666:60:   required from ‘struct std::__result_of_impl<false, false, main(int, char**)::<lambda(auto:80)>&, const server1::media::TrackConversionResult&>’
+ 2666 |       using type = decltype(_S_test<_Functor, _ArgTypes...>(0));
+      |                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+/usr/include/c++/14/bits/std_function.h:348:9:   recursively required by substitution of ‘template<class _Result, class _Ret> struct std::__is_invocable_impl<_Result, _Ret, true, std::__void_t<typename _CTp::type> > [with _Result = std::__invoke_result<main(int, char**)::<lambda(auto:80)>&, const server1::media::TrackConversionResult&>; _Ret = void]’
+  348 |         struct _Callable
+      |                ^~~~~~~~~
+/usr/include/c++/14/bits/std_function.h:348:9:   required from ‘struct std::function<void(const server1::media::TrackConversionResult&)>::_Callable<main(int, char**)::<lambda(auto:80)>, main(int, char**)::<lambda(auto:80)>, std::__invoke_result<main(int, char**)::<lambda(auto:80)>&, const server1::media::TrackConversionResult&> >’
+/usr/include/c++/14/bits/std_function.h:353:41:   required by substitution of ‘template<class _Res, class ... _ArgTypes> template<class _Cond, class _Tp> using std::function<_Res(_ArgTypes ...)>::_Requires = std::__enable_if_t<((bool)_Cond::value), _Tp> [with _Cond = std::function<void(const server1::media::TrackConversionResult&)>::_Callable<main(int, char**)::<lambda(auto:80)>, main(int, char**)::<lambda(auto:80)>, std::__invoke_result<main(int, char**)::<lambda(auto:80)>&, const server1::media::TrackConversionResult&> >; _Tp = void; _Res = void; _ArgTypes = {const server1::media::TrackConversionResult&}]’
+  353 |         using _Requires = __enable_if_t<_Cond::value, _Tp>;
+      |                                                ^~~~~
+/usr/include/c++/14/bits/std_function.h:434:9:   required by substitution of ‘template<class _Functor, class _Constraints> std::function<void(const server1::media::TrackConversionResult&)>::function(_Functor&&) [with _Functor = main(int, char**)::<lambda(auto:80)>; _Constraints = <missing>]’
+  434 |                typename _Constraints = _Requires<_Callable<_Functor>>>
+      |                ^~~~~~~~
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp:233:19:   required from here
+  233 |     c.mediaSegment(1, [&](auto r) {
+      |     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+  234 |       if (!r.ok())
+      |       ~~~~~~~~~~~~ 
+  235 |         std::cerr << r.error.toStdString() << '\n';
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  236 |       check(r.ok() && !r.data.isEmpty(), "real FFmpeg first segment");
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  237 |       QFile out("/tmp/m05-real-output.m4s");
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  238 |       out.open(QIODevice::WriteOnly);
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  239 |       c.initSegment([&](auto initResult) { out.write(initResult.data); });
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  240 |       out.write(r.data);
+      |       ~~~~~~~~~~~~~~~~~~
+  241 |       done = true;
+      |       ~~~~~~~~~~~~ 
+  242 |       loop.quit();
+      |       ~~~~~~~~~~~~ 
+  243 |     });
+      |     ~~             
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp:238:15: warning: ignoring return value of ‘virtual bool QFile::open(QIODeviceBase::OpenMode)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  238 |       out.open(QIODevice::WriteOnly);
+      |       ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/QFile:1,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp:4:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qfile.h:264:32: note: declared here
+  264 |     QFILE_MAYBE_NODISCARD bool open(OpenMode flags) override;
+      |                                ^~~~
+[ 60%] Linking CXX executable m05
+[ 64%] Built target m05
+[ 68%] Linking CXX executable m05life
+[100%] Built target m05life

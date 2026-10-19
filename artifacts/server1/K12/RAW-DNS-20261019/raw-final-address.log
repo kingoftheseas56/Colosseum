@@ -1,0 +1,5 @@
+{
+  "result": "PASS",
+  "cases": 23,
+  "scope": "M818 raw address add gate only; native DNS, aliases and throwing ports require integration tests"
+}

@@ -1,0 +1,41 @@
+{
+  "packet": "M03",
+  "status": "implemented_and_isolated_verified_receiving_review_required",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "files": [
+    "native/colosseum_server_v1/include/server1/media/KeyframeIndex.h",
+    "native/colosseum_server_v1/src/media/KeyframeIndex.cpp",
+    "native/colosseum_server_v1/src/media/Mp4Samples.cpp",
+    "native/colosseum_server_v1/src/media/MkvSamples.cpp",
+    "native/colosseum_server_v1/tests/test_samples.cpp",
+    "native/colosseum_server_v1/tests/run_samples_oracle.cjs",
+    "native/colosseum_server_v1/tests/run_samples_differential.py",
+    "native/colosseum_server_v1/tests/run_samples_ranges.py",
+    "native/colosseum_server_v1/tests/run_samples_fallback.py",
+    "native/colosseum_server_v1/tests/cmake/M03.cmake"
+  ],
+  "file_hashes": "candidate-hashes.json",
+  "differential_cases": 40,
+  "differential_passed": 40,
+  "http_range_cases": 11,
+  "http_range_passed": 11,
+  "delayed_cancellation_cases": 2,
+  "delayed_cancellation_passed": 2,
+  "bounded_fallback_checks": 3,
+  "source_liveness_deviations": 2,
+  "build": "/tmp/m03-build/test_samples",
+  "build_exit": 0,
+  "comparison_exit": 0,
+  "range_exit": 0,
+  "fallback_exit": 0,
+  "shared_build_run": false,
+  "committed": false,
+  "pushed": false,
+  "integration": "tests/cmake/M03.cmake snippet; caller must connect SamplesResult into converter best-effort flow",
+  "limitations": [
+    "Empty and absent-moov sources leave source readChunk promise unresolved at EOF. Candidate returns unavailable/max seeks exceeded after four stream opens. Explicit receiving acceptance required.",
+    "Resource caps reject metadata above256MiB, sample tables above10million and selected EBML traversal above1million; not source limits.",
+    "Controlled HTTP first-chunk delivery is4096bytes. Arbitrary OS/transport first-read boundaries can affect seek traces in source and candidate; no claim of universal chunk-boundary independence.",
+    "No shared full-suite predecessor regressions or converter composition validation was run by this worker."
+  ]
+}

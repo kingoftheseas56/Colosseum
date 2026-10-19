@@ -15,7 +15,7 @@ const req=id=>({819:{},39:net,821:fifo,35:fn=>{let done=false;return(...x)=>{if(
 const module={exports:{}};(function(module,exports,__webpack_require__){
 '''+s[start:end]+'''
 })(module,module.exports,req);
-const s=new module.exports('a'.repeat(40),'b'.repeat(20),{size:2});
+let s=new module.exports('a'.repeat(40),'b'.repeat(20),{size:2});
 const addr=id=>'127.0.0.1:'+(1000+id);
 const out=()=>{advance(now);console.log(JSON.stringify({queued:s.queued,unique:Object.keys(s._peers).length,tries:s.tries,connections:s.connections.length,paused:s.paused}));};
 const add=id=>{s.add(addr(id));out();};
@@ -24,9 +24,17 @@ const hs=id=>{s._peers[addr(id)].wire.emit('handshake',Buffer.from('a'.repeat(40
 out();add(1);add(2);add(3);add(1);s.pause();out();drop(1);s.resume();out();hs(2);drop(2);add(4);
 advance(4000);out();drop(3);drop(2);drop(4);advance(11999);out();advance(12000);out();drop(2);
 advance(24000);out();drop(2);add(2);hs(2);drop(2);s.destroy();out();advance(28000);out();
+s=new module.exports('a'.repeat(40),'b'.repeat(20),{size:2});s.pause();out();
+const incoming=new Conn();incoming.address=()=>({address:'127.0.0.1',port:4321});
+const incomingWire=new Wire();s._onincoming(incoming,incomingWire);out();
+if(incomingWire.peerAddress!=='127.0.0.1:4321')throw Error('incoming local address changed');
+add(1);incoming.destroy();out();s.resume();out();
+s=new module.exports('a'.repeat(40),'b'.repeat(20),{size:1});s.pause();out();
+s.add('127.0.0.1:01');out();s.add('127.0.0.1:1');out();s.resume();out();
+s.add('127.0.0.1:01');out();s._peers['127.0.0.1:01'].wire.conn.destroy();out();
 '''
 ref=[json.loads(x)for x in subprocess.check_output(['node','-e',js],text=True).splitlines()]
 got=[json.loads(x)for x in subprocess.check_output([a.candidate],text=True).splitlines()]
 assert len(ref)==len(got),(len(ref),len(got))
 for i,(r,g)in enumerate(zip(ref,got)):assert r==g,(i,r,g)
-print(json.dumps({'result':'PASS','sourceTransitions':len(ref),'scope':'M818 capacity, one-step drain, pause/resume, retained peer retry 4/8/12s, failed removal, rediscovery and teardown'},indent=2))
+print(json.dumps({'result':'PASS','sourceTransitions':len(ref),'scope':'M818 capacity, one-step drain, pause/resume, retained peer retry 4/8/12s, failed removal, rediscovery, teardown and incoming distinction and raw alias identity'},indent=2))

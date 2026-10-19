@@ -1,0 +1,24 @@
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Configuring done (0.5s)
+CMake Error at CMakeLists.txt:6 (add_executable):
+  Cannot find source file:
+
+    /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/Mp4Samples.cpp
+
+
+CMake Error at CMakeLists.txt:6 (add_executable):
+  No SOURCES given to target: test_samples
+
+
+CMake Generate step failed.  Build files cannot be regenerated correctly.

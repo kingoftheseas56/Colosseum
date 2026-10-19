@@ -11,6 +11,7 @@
 #include "server1/policy/SwarmCaps.h"
 #include "server1/policy/SwarmPolicy.h"
 #include "server1/policy/SwarmConnections.h"
+#include "server1/policy/SourcePeerAddress.h"
 #include "server1/policy/TorrentMetadata.h"
 
 #include <algorithm>
@@ -363,64 +364,6 @@ std::string hashHex(const ports::V1InfoHash &hash)
     return result;
 }
 
-bool validIpv4(const std::string &host)
-{
-    std::size_t octets = 0;
-    std::size_t position = 0;
-    while (position <= host.size()) {
-        const auto dot = host.find('.', position);
-        const auto part = host.substr(position, dot == std::string::npos ? std::string::npos
-                                                                          : dot - position);
-        if (part.empty() || part.size() > 3
-            || !std::all_of(part.begin(), part.end(), [](char c) { return c >= '0' && c <= '9'; })
-            || std::stoi(part) > 255)
-            return false;
-        ++octets;
-        if (dot == std::string::npos) break;
-        position = dot + 1;
-    }
-    return octets == 4;
-}
-
-bool validIpv6(const std::string &host)
-{
-    return !host.empty() && host.size() <= 45
-        && std::count(host.begin(), host.end(), ':') >= 2
-        && std::all_of(host.begin(), host.end(), [](char c) {
-               return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
-                   || (c >= 'A' && c <= 'F') || c == ':' || c == '.';
-           });
-}
-
-// M612 sources emit "host:port" (IPv6 hosts may be bracketed). Anything that is
-// not a literal address with a port in 1..65535 is rejected before it can reach
-// the transport.
-std::optional<std::pair<std::string, std::uint16_t>> parsePeerAddress(const std::string &address)
-{
-    std::string host;
-    std::string port;
-    if (!address.empty() && address.front() == '[') {
-        const auto close = address.find(']');
-        if (close == std::string::npos || close + 1 >= address.size() || address[close + 1] != ':')
-            return std::nullopt;
-        host = address.substr(1, close - 1);
-        port = address.substr(close + 2);
-        if (!validIpv6(host)) return std::nullopt;
-    } else {
-        const auto colon = address.rfind(':');
-        if (colon == std::string::npos) return std::nullopt;
-        host = address.substr(0, colon);
-        port = address.substr(colon + 1);
-        if (!validIpv4(host) && !validIpv6(host)) return std::nullopt;
-    }
-    if (port.empty() || port.size() > 5
-        || !std::all_of(port.begin(), port.end(), [](char c) { return c >= '0' && c <= '9'; }))
-        return std::nullopt;
-    const auto number = std::stoul(port);
-    if (number == 0 || number > 65535) return std::nullopt;
-    return std::make_pair(host, static_cast<std::uint16_t>(number));
-}
-
 // Work-lane state. Only tasks on the engine's serialized work lane touch the
 // transport handle and store here. The app lane also admits/cancels read
 // reservations under readMutex; it never accesses the store.
@@ -494,6 +437,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         std::uint64_t downloaded=0, uploaded=0;
     };
     std::map<std::uint64_t,PeerMeter> peerMeters;
+    std::map<ports::PeerHandle,PeerMeter> dialingMeters;
     std::uint64_t measuredDownloaded=0;
     std::int64_t epochOffsetMs=0;
 
@@ -532,6 +476,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     std::vector<ports::ConnectAction> pendingConnects;
     SwarmConnections connections;
     std::map<ports::PeerHandle,std::uint64_t> connectionIdentities;
+    std::map<ports::PeerHandle,std::uint64_t> admittedAttempts;
     std::set<ports::PeerHandle> connectionTimeouts;
     ports::PeerHandle nextPeerHandle = kFirstDiscoveredPeer;
     EnginePeerDiscovery discovery;
@@ -994,17 +939,17 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     {
         if (!peerSearch) return;
         for (auto &address : peerSearch->takePeerAdds()) {
-            const auto parsed = parsePeerAddress(address);
+            const auto parsed = parseSourcePeerAddress(address);
             if (!parsed) {
                 ++discovery.malformedRejected;
                 continue;
             }
-            if (connections.find(parsed->first,parsed->second)) {
+            if (connections.findRaw(address)) {
                 ++discovery.duplicatesSuppressed;
                 continue;
             }
             const auto peer = nextPeerHandle++;
-            connections.add(ports::ConnectAction{generation, peer, parsed->first, parsed->second},now());
+            connections.add(ports::ConnectAction{generation, peer, parsed->host, static_cast<std::uint16_t>(parsed->portNumber),parsed->raw,parsed->portText,0,std::floor(parsed->portNumber)!=parsed->portNumber},now());
             drainConnections();
         }
     }
@@ -1013,12 +958,17 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     {
         if(closed) return;
         discovery.queued=connections.queued();
-        for(auto &action:connections.takeConnects()) submitConnect(std::move(action));
+        for(auto &action:connections.takeConnects()) {
+            admittedAttempts[action.peer]=action.attempt;
+            auto &meter=dialingMeters[action.peer];
+            meter.down=std::make_unique<EngineSpeedometer>(speedometerTick);
+            meter.up=std::make_unique<EngineSpeedometer>(speedometerTick);
+            submitConnect(std::move(action));
+        }
         for(auto peer:connections.takeDisconnects()) connectionTimeouts.insert(peer);
         if(transport) for(auto it=connectionTimeouts.begin();it!=connectionTimeouts.end();) {
             const auto identity=connectionIdentities.find(*it);
-            if(identity==connectionIdentities.end()) {++it;continue;}
-            transport->submit(ports::DisconnectAction{generation,*it,identity->second});
+            transport->submit(ports::DisconnectAction{generation,*it,identity==connectionIdentities.end()?0:identity->second,admittedAttempts[*it]});
             it=connectionTimeouts.erase(it);
         }
     }
@@ -1026,15 +976,20 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     void acceptLifecycle(const ports::PeerLifecycleObservation &event)
     {
         if(closed || event.generation!=generation) return;
+        if(event.attempt && admittedAttempts[event.peer]!=event.attempt) return;
         if(event.kind==ports::PeerLifecycleKind::Started) {
             connectionIdentities[event.peer]=event.connectionIdentity;
             auto &meter=peerMeters[event.connectionIdentity];
-            meter.down=std::make_unique<EngineSpeedometer>(speedometerTick);
-            meter.up=std::make_unique<EngineSpeedometer>(speedometerTick);
+            const auto dialing=dialingMeters.find(event.peer);
+            if(dialing!=dialingMeters.end()){meter=std::move(dialing->second);dialingMeters.erase(dialing);}
+            else {
+                meter.down=std::make_unique<EngineSpeedometer>(speedometerTick);
+                meter.up=std::make_unique<EngineSpeedometer>(speedometerTick);
+            }
         } else {
             const auto current=connectionIdentities.find(event.peer);
             if(current==connectionIdentities.end() && event.connectionIdentity==0 && event.kind==ports::PeerLifecycleKind::Disconnected) {
-                connections.disconnected(event.peer,now());connectionTimeouts.erase(event.peer);drainConnections();return;
+                connections.disconnected(event.peer,now());connectionTimeouts.erase(event.peer);dialingMeters.erase(event.peer);drainConnections();return;
             }
             if(current==connectionIdentities.end() || current->second!=event.connectionIdentity) return;
             if(event.kind==ports::PeerLifecycleKind::Connected) connections.connected(event.peer);
@@ -1061,7 +1016,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         ++discovery.connectsSubmitted;
         auto state = work;
         auto sink = trace;
-        auto rejected = onApp([peer = action.peer](Impl &self) { self.connectRejected(peer); });
+        auto rejected = onApp([peer = action.peer, attempt=action.attempt](Impl &self) { self.connectRejected(peer,attempt); });
         auto app = appPost;
         // ConnectAction blocks on a native event-loop barrier, so it is peer work.
         post([state, action = std::move(action), sink, rejected, app]() {
@@ -1072,8 +1027,10 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         });
     }
 
-    void connectRejected(ports::PeerHandle peer)
+    void connectRejected(ports::PeerHandle peer,std::uint64_t attempt)
     {
+        if(admittedAttempts[peer]!=attempt) return;
+        dialingMeters.erase(peer);
         ++discovery.connectsRejected;
         connections.disconnected(peer,now());
         drainConnections();
@@ -1666,7 +1623,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         if (peerSearch) peerSearch->close();
         pendingConnects.clear();
         connections.close();
-        connectionIdentities.clear();connectionTimeouts.clear();
+        connectionIdentities.clear();connectionTimeouts.clear();admittedAttempts.clear();dialingMeters.clear();
         discovery.queued = 0;
         transport.reset();
         deferred.clear();
@@ -1946,8 +1903,9 @@ Value TorrentEngine::statistics(Value index) const
     Value::Array wires;
     for(const auto &wire:stats.peerTransfers) if(!wire.peerChoking) {
         const auto meter=self.peerMeters.find(wire.connectionIdentity);
+        const auto &address=wire.sourceAddress.empty() ? wire.address : wire.sourceAddress;
         wires.push_back(Value::object({{"requests",Value::number(wire.requests)},
-            {"address",wire.address.empty() ? Value::null() : Value::string(wire.address)},
+            {"address",address.empty() ? Value::null() : Value::string(address)},
             {"amInterested",Value::boolean(wire.amInterested)},
             {"isSeeder",self.metadata ? Value::boolean(wire.isSeeder) : Value::missing()},
             {"downSpeed",Value::number(meter->second.down->sample())},

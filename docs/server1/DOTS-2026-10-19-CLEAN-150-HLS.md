@@ -1,0 +1,7 @@
+# Clean Release HLS integration checkpoint
+
+Parent independently ran the fresh Release build test suite:150/150 passed,90.82 seconds, explicit fixed-interface/PowerShell/HOME/XDG profile. No reused object files in the build. The previous incremental148/150 run exposed a stale ProcessDriver object with an old double-erase cancellation implementation; unchanged current source regenerated a byte-identical passing object to the independently built component. This was a stale-build artifact, not an invented new source fix.
+
+Integrated HLSv2 local conversion, bounded Linux process output, filtered external CORS and actual listener-port aliases, system statistics, source file guessing, asynchronous source-address DNS/admission identities and existing native torrent/discovery/proxy/subtitle pipeline. Parent separately reproduced real tracker-acquired peer -> verified native torrent bytes -> HTTP -> FFprobe/FFmpeg -> HLS init/segment -> successful decode.
+
+Full Stremio parity remains unfinished. Legacy HLS/download/archive work was in progress when the execution service reported a preview usage limit. Remaining ancillary services, exact raw-alias/native peer handling, intended-runtime fingerprint, Windows bounded pipe, remote conversion, application embedding and broader qualification remain open. Known safe-malformed-input/TLS/resource-bound deviations are explicitly documented in packet receipts. No production merge or release.

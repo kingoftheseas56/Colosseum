@@ -1,0 +1,13 @@
+large64.mp4 True ['bytes=0-', 'bytes=4294967424-'] ['bytes=0-', 'bytes=4294967424-'] bytes 7846
+fast.mp4 True ['bytes=0-'] ['bytes=0-'] bytes 4096
+tail.mp4 True ['bytes=0-', 'bytes=49214-'] ['bytes=0-', 'bytes=49214-'] bytes 7846
+fragmented.mp4 True ['bytes=0-'] ['bytes=0-'] bytes 4096
+real_mkv.mkv True [None, 'bytes=51582-'] [None, 'bytes=51582-'] bytes 4160
+mkv_cues_after.mkv True [None, 'bytes=100163-'] [None, 'bytes=100163-'] bytes 4157
+mkv_cues_before.mkv True [None] [None] bytes 4096
+mkv_unknown_duration.mkv True [None] [None] bytes 4096
+mkv_truncated_128.mkv True [None] [None] bytes 128
+mkv_truncated_512.mkv True [None] [None] bytes 512
+mkv_truncated_50000.mkv True [None, 'bytes=51582-'] [None, 'bytes=51582-'] bytes 4096
+cancel_mp4 True
+cancel_mkv True

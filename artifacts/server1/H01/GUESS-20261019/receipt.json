@@ -1,0 +1,69 @@
+{
+  "completed_at_utc": "2026-10-19T05:40:47.049843+00:00",
+  "scope": "Native default-options M304 metadata and M663 file-index selection",
+  "oracle_bundle": {
+    "path": "../locked-inputs/execution-v2.1/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "module_index": {
+    "path": "../locked-inputs/execution-v2.1/MODULE-INDEX.json",
+    "sha256": "e4488e9fddfd78a83ebd956a94b690a7c78acbbdccb0c21e789fa0f566cf9bbe"
+  },
+  "modules": [
+    {
+      "id": 304,
+      "start_byte": 1594285,
+      "end_byte": 1601547,
+      "sha256": "83b3a52ffac8663b219db8e4e85de77182fbb8cf7412bfe27978fd0968793c0a",
+      "dependencies": []
+    },
+    {
+      "id": 663,
+      "start_byte": 3425721,
+      "end_byte": 3427009,
+      "sha256": "4953bf2e5b17300fc3e5d51f2c874b1e24ba18e3076a36f2cbfdcba9dd90288d",
+      "dependencies": [
+        304
+      ]
+    }
+  ],
+  "tested_binaries": {
+    "guess_file_index": "70ab318c517268e6e71603124f5851dd9f6371d47795a7e40f66d19b34065427",
+    "guess_file_index_asan": "7bec57dc4250689bec6362e8f325bec1dee5d8dc7c3dc880dce4ccd4b4527902"
+  },
+  "gates": {
+    "optimized_node24": {
+      "status": "pass",
+      "golden_cases": 24,
+      "differential_cases": 92892,
+      "metadata_cases": 44361,
+      "selection_cases": 48531
+    },
+    "asan_ubsan_node24": {
+      "status": "pass",
+      "golden_cases": 24,
+      "differential_cases": 21080,
+      "metadata_cases": 8455,
+      "selection_cases": 12625,
+      "detect_leaks": false
+    },
+    "asan_ubsan_node22_portable": {
+      "status": "pass",
+      "differential_cases": 21080,
+      "explicit_portable_flag": true,
+      "detect_leaks": false
+    },
+    "node22_without_portable_flag": {
+      "status": "rejected_as_expected"
+    },
+    "leak_sanitizer": {
+      "status": "blocked_by_executor_ptrace"
+    }
+  },
+  "not_qualified_here": [
+    "Parent route/full-host integration",
+    "Windows compilation/runtime",
+    "M304 alternate options not used by M663",
+    "JavaScript getters/functions/proxies outside policy::Value"
+  ]
+}

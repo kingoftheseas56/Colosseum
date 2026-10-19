@@ -1,0 +1,208 @@
+[
+  {
+    "name": "tail",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/tail.mp4"
+  },
+  {
+    "name": "fast",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/fast.mp4"
+  },
+  {
+    "name": "fragmented",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/fragmented.mp4"
+  },
+  {
+    "name": "real_mkv",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/real_mkv.mkv"
+  },
+  {
+    "name": "mkv_truncated_128",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_truncated_128.mkv"
+  },
+  {
+    "name": "mkv_truncated_512",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_truncated_512.mkv"
+  },
+  {
+    "name": "mkv_truncated_50000",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_truncated_50000.mkv"
+  },
+  {
+    "name": "moov_only",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/moov_only.mp4"
+  },
+  {
+    "name": "filter_audio",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/filter_audio.mp4",
+    "indexes": [
+      1
+    ]
+  },
+  {
+    "name": "filter_absent",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/filter_absent.mp4",
+    "indexes": [
+      99
+    ]
+  },
+  {
+    "name": "no_mvhd",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/no_mvhd.mp4"
+  },
+  {
+    "name": "no_mdhd",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/no_mdhd.mp4"
+  },
+  {
+    "name": "no_hdlr",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/no_hdlr.mp4"
+  },
+  {
+    "name": "no_stts",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/no_stts.mp4"
+  },
+  {
+    "name": "all_sync",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/all_sync.mp4"
+  },
+  {
+    "name": "no_sync",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/no_sync.mp4"
+  },
+  {
+    "name": "truncated_stts",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/truncated_stts.mp4"
+  },
+  {
+    "name": "negative_ctts",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/negative_ctts.mp4"
+  },
+  {
+    "name": "large_moov",
+    "mode": "mp4",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/large_moov.mp4"
+  },
+  {
+    "name": "mkv_invalid_seek",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_invalid_seek.mkv"
+  },
+  {
+    "name": "mkv_cues_after",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_cues_after.mkv"
+  },
+  {
+    "name": "mkv_cues_before",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_cues_before.mkv"
+  },
+  {
+    "name": "mkv_unknown_duration",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_unknown_duration.mkv"
+  },
+  {
+    "name": "mkv_empty_cues",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_empty_cues.mkv"
+  },
+  {
+    "name": "mkv_missing_scale",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_missing_scale.mkv"
+  },
+  {
+    "name": "mkv_text_first",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_text_first.mkv"
+  },
+  {
+    "name": "mkv_no_seekhead",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_no_seekhead.mkv"
+  },
+  {
+    "name": "mkv_missing_segment",
+    "mode": "mkv",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/mkv_missing_segment.mkv"
+  },
+  {
+    "name": "group_video_28",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_video_28.json"
+  },
+  {
+    "name": "group_video_29",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_video_29.json"
+  },
+  {
+    "name": "group_video_30",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_video_30.json"
+  },
+  {
+    "name": "group_video_31",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_video_31.json"
+  },
+  {
+    "name": "group_audio_32",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_audio_32.json"
+  },
+  {
+    "name": "group_audio_33",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_audio_33.json"
+  },
+  {
+    "name": "group_audio_34",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_audio_34.json"
+  },
+  {
+    "name": "group_audio_35",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_audio_35.json"
+  },
+  {
+    "name": "group_nullable_None",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_nullable_None.json"
+  },
+  {
+    "name": "group_nullable_40",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_nullable_40.json"
+  },
+  {
+    "name": "group_nullable_missing",
+    "mode": "group",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/group_nullable_missing.json"
+  },
+  {
+    "name": "bundled_codec_samples",
+    "mode": "bundled",
+    "file": "/workspace/scratch/af0fb5da5f81/server-parity/source/artifacts/server1/M03/fixtures/bundled_codec_samples.bundled"
+  }
+]

@@ -1,0 +1,2 @@
+{"raw":"127.0.0.1:1.5","error":{"code":"ERR_SOCKET_BAD_PORT","name":"RangeError"},"tries":1,"retained":1,"queued":0,"connections":0}
+{"raw":"127.0.0.1:0.5","error":{"code":"ERR_SOCKET_BAD_PORT","name":"RangeError"},"tries":1,"retained":1,"queued":0,"connections":0}

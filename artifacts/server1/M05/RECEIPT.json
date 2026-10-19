@@ -1,0 +1,52 @@
+{
+  "packet": "M05",
+  "status": "local_linux_qualified_cross_platform_and_remote_open",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "frozen_at_utc": "2026-10-19T05:02:40.175346+00:00",
+  "source_files": {
+    "native/colosseum_server_v1/include/server1/media/FfmpegArguments.h": "f186cfb2c3d5daf43c248464bfb935a9928dbb573acfe0b9fe2be5bcbe40d373",
+    "native/colosseum_server_v1/include/server1/media/TrackConverter.h": "d120c127bcf9783952e2956cc9bc7873ac28b889c94387670e7e2cf515a723e3",
+    "native/colosseum_server_v1/src/media/FfmpegArguments.cpp": "77281071e093aec8be1b22ee17b160a121c5b0dc0dbac072d1ef4a8357b9dfaa",
+    "native/colosseum_server_v1/src/media/TrackConverter.cpp": "1985b9b20f0cb97e36d2be8b138d65e72b306485a8603d1968a506b095c9d6a9",
+    "native/colosseum_server_v1/include/server1/ports/ProcessPort.h": "ab365aaf7c2cdce78bea3f8245d2f4a572fbfa3936ba249159fd9c2ebc1599c8",
+    "native/colosseum_server_v1/src/media/ProcessDriver.cpp": "cdf33467f04c39258b7f5c28cadab4f7f19a13199a818a335426ff64ed07f55b",
+    "native/colosseum_server_v1/tests/test_track_converter.cpp": "d9a8f5e0d87fa3f6c25ef81f5345536ead3562e28cb496a9ce4a474aaf32176e",
+    "native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp": "8f327bc7f0df96df2e4c25bec3b9ba43af80ecc7d4f7af255fda1650f9467b1f",
+    "native/colosseum_server_v1/tests/test_track_converter_backpressure.cpp": "d6af6d2afa49f3e5933f6d8db73c70f097143b190adba5e750ffa5ab3876db89",
+    "native/colosseum_server_v1/tests/run_track_converter_oracle.cjs": "459d219e3d8cbae05d9c1539b860598382a69d67a682b5fe60080b407d23fff9",
+    "native/colosseum_server_v1/tests/run_track_converter_lifecycle_oracle.cjs": "5dfee69cd38bf4250e7f0ba412c4be218078b94f2b7f96a16d73b16844c37556",
+    "native/colosseum_server_v1/tests/fixtures/track-converter.json": "7f787d4f29dd50f8b1e89f82a3e0ef5526e4b92987684e55dbddc7c50f3510c0",
+    "native/colosseum_server_v1/tests/fixtures/track-converter-lifecycle.json": "6a340ebdf9346b62c93e91f971951178b3a61d71a495c1915144d6abf7b255d1"
+  },
+  "policy_cases": 227,
+  "lifecycle_differential": {
+    "initialSpawnCount": 2,
+    "cacheReuses": true,
+    "sequentialReuses": true,
+    "displacedError": "SegmentCanceledError",
+    "retryBlank": true,
+    "retrySpawnCount": 3,
+    "failedRetryMessage": "stream ended",
+    "failedRetrySpawnCount": 3,
+    "destroyActiveError": "SegmentCanceledError"
+  },
+  "runtime": [
+    "generated H264 4.000000s first segment and decode",
+    "generated AAC mono 48000Hz 4.096000s first segment and decode",
+    "11520000-byte long FFmpeg output pause/resume",
+    "paused EOF, cancel, callback owner destruction, descendant termination"
+  ],
+  "regressions": [
+    "M00 3/3",
+    "M01 14 normalization + process/cache/failure/timeout/cancel/destruction/remote/legacy/EOF owner-deletion"
+  ],
+  "sanitizers": "ASan+UBSan pass; LeakSanitizer unavailable under ptrace, disabled explicitly",
+  "open_boundaries": [
+    "Windows opt-in bounded stdout explicitly unsupported",
+    "HLSV2_REMOTE native adapter explicitly unsupported until continuous remote stream backend",
+    "hardware profiles exact argv only, not runtime hardware availability",
+    "parent integrated qualification required"
+  ],
+  "committed": false,
+  "pushed": false
+}

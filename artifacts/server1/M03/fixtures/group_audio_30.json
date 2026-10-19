@@ -1,0 +1,1 @@
+{"stream": {"track": "audio", "timescale": 1000}, "format": {"duration": 10}, "timescale": 90000, "segmentDuration": 2, "sampleDuration": 40, "samples": [{"pts": 0, "key": true}, {"pts": 5, "key": true}, {"pts": 10, "key": true}, {"pts": 15, "key": true}, {"pts": 2000, "key": true}, {"pts": 9999, "key": false}]}

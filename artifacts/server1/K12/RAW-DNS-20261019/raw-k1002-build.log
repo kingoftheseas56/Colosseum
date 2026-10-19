@@ -1,0 +1,5 @@
+[ 55%] Built target server1_k09_peer_search
+[ 77%] Built target server1_k10_native_transport
+[ 88%] Building CXX object server/p03-tests/CMakeFiles/server1_k10_native_transport_test.dir/test_native_transport.cpp.o
+[100%] Linking CXX executable server1_k10_native_transport_test
+[100%] Built target server1_k10_native_transport_test

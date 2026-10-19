@@ -12,7 +12,7 @@ namespace lt = libtorrent;
 
 namespace server1::transport {
 using ConnectionIdentity = std::uint64_t;
-using IdentifyPeer = std::function<ports::PeerHandle(const lt::tcp::endpoint &)>;
+using IdentifyPeer = std::function<ports::PeerHandle(const lt::tcp::endpoint &, bool)>;
 using PeerStarted = std::function<void(ports::PeerHandle, ConnectionIdentity, std::shared_ptr<lt::peer_connection>, ports::PeerLifecycleKind)>;
 using PeerInbound = std::function<void(ports::PeerHandle,
     std::shared_ptr<lt::peer_connection>, ConnectionIdentity, const lt::bitfield *)>;
@@ -104,7 +104,7 @@ public:
           tick_(std::move(tick)) {}
     std::shared_ptr<lt::peer_plugin> new_connection(const lt::peer_connection_handle &peer) override
     {
-        const auto handle = identify_(peer.remote());
+        const auto handle = identify_(peer.remote(), !peer.native_handle()->is_outgoing());
         if (handle == 0) return {};
         const auto identity = nextIdentity_++;
         started_(handle,identity,peer.native_handle(),ports::PeerLifecycleKind::Started);

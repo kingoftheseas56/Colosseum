@@ -16,6 +16,15 @@ int main(){
     s.disconnected(2,12000);out();s.advance(24000);out();s.disconnected(2,24000);out();
     add(2);s.handshake(2);out();s.disconnected(2,24000);out();s.close();out();s.advance(28000);out();
     if(s.connections()||s.unique()||s.queued())throw std::runtime_error("close leaked ownership");
+    s=SwarmConnections(2);s.pause();paused=true;out();
+    s.handshake(99);out();add(1);s.disconnected(99,28000);out();s.resume(28000);paused=false;out();
+    s=SwarmConnections(1);s.pause();paused=true;out();
+    s.add({1,1,"127.0.0.1",1,"127.0.0.1:01","01"});out();
+    s.add({1,2,"127.0.0.1",1,"127.0.0.1:1","1"});out();
+    s.resume();paused=false;out();auto first=s.takeConnects();
+    s.add({1,3,"127.0.0.1",1,"127.0.0.1:01","01"});out();
+    s.disconnected(1,0);out();auto second=s.takeConnects();
+    if(first.size()!=1||second.size()!=1||first[0].attempt!=1||second[0].attempt!=2)throw std::runtime_error("source attempt tokens not monotonic");
     SwarmConnections timed(1);
     timed.add({1,11,"127.0.0.1",1011},100);
     timed.advance(3099);if(!timed.takeDisconnects().empty())throw std::runtime_error("early connect timeout");

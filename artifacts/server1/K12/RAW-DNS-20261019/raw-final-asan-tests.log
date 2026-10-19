@@ -1,0 +1,67 @@
+Test project /tmp/raw-asan-build/server
+      Start  11: K12-source-swarm-connections
+ 1/27 Test  #11: K12-source-swarm-connections .......   Passed    0.01 sec
+      Start  16: K12-incoming-lifecycle
+ 2/27 Test  #16: K12-incoming-lifecycle .............   Passed    0.05 sec
+      Start  75: K12-wire-statistics-real-wire
+ 3/27 Test  #75: K12-wire-statistics-real-wire ......   Passed    1.35 sec
+      Start  76: K12-peer-statistics-real-wire
+ 4/27 Test  #76: K12-peer-statistics-real-wire ......   Passed    4.74 sec
+      Start  95: K10-G-transport-pause-generation
+ 5/27 Test  #95: K10-G-transport-pause-generation ...   Passed    3.18 sec
+      Start  97: K11-01-engine-registry
+ 6/27 Test  #97: K11-01-engine-registry .............   Passed    0.03 sec
+      Start  98: K11-02-engine-registry
+ 7/27 Test  #98: K11-02-engine-registry .............   Passed    0.11 sec
+      Start  99: K11-03-engine-registry
+ 8/27 Test  #99: K11-03-engine-registry .............   Passed    0.11 sec
+      Start 100: R7-engine-registry
+ 9/27 Test #100: R7-engine-registry .................   Passed    0.03 sec
+      Start 101: R8-engine-registry
+10/27 Test #101: R8-engine-registry .................   Passed    0.02 sec
+      Start 102: R9-engine-registry
+11/27 Test #102: R9-engine-registry .................   Passed    0.02 sec
+      Start 103: R10-engine-registry
+12/27 Test #103: R10-engine-registry ................   Passed    0.02 sec
+      Start 104: R11-engine-registry
+13/27 Test #104: R11-engine-registry ................   Passed    0.02 sec
+      Start 105: R12-engine-registry
+14/27 Test #105: R12-engine-registry ................   Passed    0.02 sec
+      Start 106: R13-engine-registry
+15/27 Test #106: R13-engine-registry ................   Passed    0.02 sec
+      Start 107: R14-engine-registry
+16/27 Test #107: R14-engine-registry ................   Passed    0.02 sec
+      Start 108: R15-engine-registry
+17/27 Test #108: R15-engine-registry ................   Passed    0.02 sec
+      Start 109: R16-engine-registry
+18/27 Test #109: R16-engine-registry ................   Passed    0.03 sec
+      Start 110: R17-engine-registry
+19/27 Test #110: R17-engine-registry ................   Passed    0.02 sec
+      Start 111: R18-engine-registry
+20/27 Test #111: R18-engine-registry ................   Passed    0.02 sec
+      Start 112: R19-engine-registry
+21/27 Test #112: R19-engine-registry ................   Passed    0.13 sec
+      Start 113: R20-engine-registry
+22/27 Test #113: R20-engine-registry ................   Passed    0.03 sec
+      Start 114: R21-engine-registry
+23/27 Test #114: R21-engine-registry ................   Passed    0.02 sec
+      Start 115: R22-engine-registry
+24/27 Test #115: R22-engine-registry ................   Passed    0.02 sec
+      Start 116: R23-engine-registry
+25/27 Test #116: R23-engine-registry ................   Passed    0.03 sec
+      Start 117: R24-engine-registry
+26/27 Test #117: R24-engine-registry ................   Passed    0.04 sec
+      Start 118: R25-engine-registry
+27/27 Test #118: R25-engine-registry ................   Passed    0.03 sec
+
+100% tests passed out of 27
+
+Label Time Summary:
+K10-G      =   3.18 sec*proc (1 test)
+K11        =   0.82 sec*proc (22 tests)
+K12        =   6.09 sec*proc (2 tests)
+native     =  10.13 sec*proc (26 tests)
+server1    =  10.13 sec*proc (26 tests)
+wire       =   6.14 sec*proc (3 tests)
+
+Total Test time (real) =  10.16 sec

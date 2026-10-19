@@ -46,6 +46,8 @@ struct ProcessSpec final {
     QString program;
     QStringList arguments;
     QProcessEnvironment environment;
+    // Opt-in bounded OS-pipe delivery; unsupported platforms reject explicitly.
+    bool backpressuredOutput = false;
 
     ProcessSpec();
     ProcessSpec(QString program, QStringList arguments,
@@ -87,6 +89,8 @@ public:
     [[nodiscard]] quint64 start(const ProcessSpec &spec, ProcessCallbacks callbacks = {});
     [[nodiscard]] bool requestStop(quint64 id, int gracefulTimeoutMs = 250);
     [[nodiscard]] bool cancel(quint64 id);
+    [[nodiscard]] bool pauseOutput(quint64 id);
+    [[nodiscard]] bool resumeOutput(quint64 id);
     [[nodiscard]] bool owns(quint64 id) const;
     [[nodiscard]] bool running(quint64 id) const;
     [[nodiscard]] qsizetype activeCount() const noexcept;
@@ -140,6 +144,8 @@ public:
     [[nodiscard]] quint64 start(const DriverSpec &spec, ProcessCallbacks callbacks = {});
     [[nodiscard]] bool disconnect(quint64 id);
     [[nodiscard]] bool cancel(quint64 id);
+    [[nodiscard]] bool pauseOutput(quint64 id);
+    [[nodiscard]] bool resumeOutput(quint64 id);
     [[nodiscard]] bool running(quint64 id) const;
     [[nodiscard]] quint16 port(quint64 id) const;
     [[nodiscard]] QString remoteUrl(quint64 id) const;

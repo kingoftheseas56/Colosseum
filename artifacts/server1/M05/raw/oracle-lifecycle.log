@@ -1,0 +1,11 @@
+{
+  initialSpawnCount: 2,
+  cacheReuses: true,
+  sequentialReuses: true,
+  displacedError: 'SegmentCanceledError',
+  retryBlank: true,
+  retrySpawnCount: 3,
+  failedRetryMessage: 'stream ended',
+  failedRetrySpawnCount: 3,
+  destroyActiveError: 'SegmentCanceledError'
+}

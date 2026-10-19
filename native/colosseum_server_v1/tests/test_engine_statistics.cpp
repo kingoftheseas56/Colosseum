@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <algorithm>
+#include <cmath>
 using namespace server1::policy;
 using namespace server1::ports;
 namespace {
@@ -49,9 +50,9 @@ public:
 private:std::shared_ptr<int> cancels_;bool active_=true;
 };
 void lifecycleTest() {
-    auto state=std::make_shared<State>();std::uint64_t now=0;
+    auto state=std::make_shared<State>();std::uint64_t now=0;std::uint16_t tick=0;
     EngineRegistryConfig config;config.monotonicClock=[&]{return now;};
-    config.speedometerTick=[] {return std::uint16_t{0};};
+    config.speedometerTick=[&] {return tick;};
     config.transportFactory=[state](const auto&){return std::make_unique<Transport>(state);};
     EngineRegistry registry(config);const std::string hash(40,'c');
     registry.create({hash,Value::object({{"peerSearch",Value::boolean(false)},{"connections",Value::number(1)}})});
@@ -72,7 +73,13 @@ void lifecycleTest() {
     check(engine->connectSourcePeer(2,"127.0.0.1",102),"second source admission");
     check(engine->connectSourcePeer(3,"127.0.0.1",103),"third source admission");settle();
     expectCounts(2,3,1,1);
+    tick=8;
+    {std::lock_guard<std::mutex> lock(state->mutex);PeerTransferStatistics wire;wire.peer=1;wire.connectionIdentity=11;wire.peerChoking=false;wire.downloadedBytes=100;state->stats.peerTransfers={wire};}
     event(1,11,PeerLifecycleKind::Started);event(1,11,PeerLifecycleKind::Connected);event(1,11,PeerLifecycleKind::Ready);
+    const auto delayed=registry.statistics(hash).find("wires")->asArray().at(0).find("downSpeed")->asNumber();
+    check(std::abs(delayed-40.0)<0.000001,"source wire meter must start at admission, before DNS/handshake delay");
+    {std::lock_guard<std::mutex> lock(state->mutex);state->stats.peerTransfers.clear();}
+
     event(1,11,PeerLifecycleKind::Disconnected);expectCounts(1,3,2,1);
     check(!engine->connectSourcePeer(4,"127.0.0.1",101),"retry-retained endpoint duplicate admitted");
     event(2,22,PeerLifecycleKind::Started);event(2,22,PeerLifecycleKind::Connected);
@@ -89,6 +96,8 @@ void lifecycleTest() {
     event(3,999,PeerLifecycleKind::Disconnected);expectCounts(2,3,3,1);
     event(3,33,PeerLifecycleKind::Disconnected);expectCounts(1,2,4,1);
     {std::lock_guard<std::mutex> lock(state->mutex);const auto &action=*std::find_if(state->actions.begin(),state->actions.end(),[](const auto&a){return std::holds_alternative<DisconnectAction>(a);});check(std::get<DisconnectAction>(action).connectionIdentity==33,"timeout not identity-bound");}
+    event(99,99,PeerLifecycleKind::Started);event(99,99,PeerLifecycleKind::Ready);expectCounts(1,2,4,2);
+    event(99,99,PeerLifecycleKind::Disconnected);expectCounts(1,2,4,1);
     registry.remove(hash);registry.dispatch();now=100000;settle();
     check(registry.statistics(hash).isNull(),"removed source lifecycle survived teardown");
 }
@@ -110,7 +119,7 @@ void liveTest() {
     state->stats.connectionAttempts=6;state->stats.queuedConnections=3;state->stats.knownPeerEndpoints=8;
     PeerTransferStatistics wire;wire.peer=4;wire.connectionIdentity=8;wire.attachmentOrder=1;
     wire.downloadedBytes=100;wire.uploadedBytes=25;wire.address="127.0.0.1:1234";
-    wire.peerChoking=false;wire.amInterested=true;wire.requests=2;
+    wire.peerChoking=false;wire.amInterested=true;wire.requests=2;wire.sourceAddress="127.0.0.1:4321";
     state->stats.peerTransfers={wire};
     std::uint16_t tick=1;
     EngineRegistryConfig c;c.speedometerTick=[&]{return tick;};
@@ -137,6 +146,7 @@ void liveTest() {
     check(jsonStringify(result).find("peerSearchRunning")==std::string::npos,"absent peer search must be omitted");
     const auto &w=result.find("wires")->asArray().at(0);
     check(w.find("downSpeed")->asNumber()==100 && w.find("upSpeed")->asNumber()==25,"wire source meter totals wrong");
+    check(w.find("address")->asString()=="127.0.0.1:4321","incoming source address must not use native remote diagnostic");
     check(w.find("isSeeder")->isMissing(),"isSeeder absent before ontorrent");
     check(registry.statistics(hash,Value::string("bad")).find("wires")->isNull(),"present invalid index still nulls wires");
     tick=30;result=registry.statistics(hash);

@@ -1,0 +1,4 @@
+==85==LeakSanitizer has encountered a fatal error.
+==85==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1
+==85==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)
+exit_status=1

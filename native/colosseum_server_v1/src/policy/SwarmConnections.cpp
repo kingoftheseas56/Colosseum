@@ -5,22 +5,27 @@ namespace server1::policy {
 bool SwarmConnections::add(ports::ConnectAction action,std::uint64_t nowMs)
 {
     now_=nowMs;
-    if(closed_ || peers_.count(action.peer) || find(action.address,action.port)) return false;
+    if(closed_ || peers_.count(action.peer) || findRaw(action.rawAddress.empty() ? action.address+":"+std::to_string(action.port) : action.rawAddress)) return false;
     const auto peer=action.peer;
     peers_.emplace(peer,Peer{std::move(action)});queue_.push_back(peer);drain();return true;
 }
 std::optional<ports::PeerHandle> SwarmConnections::find(const std::string &address,std::uint16_t port)const
 {
-    for(const auto &[id,peer]:peers_)if(peer.action.address==address && peer.action.port==port)return id;
+    return findRaw(address+":"+std::to_string(port));
+}
+std::optional<ports::PeerHandle> SwarmConnections::findRaw(const std::string &raw)const
+{
+    for(const auto &[id,peer]:peers_)if((peer.action.rawAddress.empty() ? peer.action.address+":"+std::to_string(peer.action.port) : peer.action.rawAddress)==raw)return id;
     return {};
 }
+
 bool SwarmConnections::contains(ports::PeerHandle peer)const{return peers_.count(peer)!=0;}
 void SwarmConnections::drain()
 {
     if(closed_ || paused_ || static_cast<double>(connections_)>=capacity_ || queue_.empty())return;
     const auto id=queue_.front();queue_.pop_front();const auto found=peers_.find(id);
     if(found==peers_.end())return;
-    auto &peer=found->second;peer.active=true;peer.retryAt.reset();++connections_;++tries_;
+    auto &peer=found->second;peer.active=true;peer.retryAt.reset();++connections_;peer.action.attempt=++tries_;
     const auto deadline=[&](std::uint64_t delay){return now_>std::numeric_limits<std::uint64_t>::max()-delay
         ? std::numeric_limits<std::uint64_t>::max() : now_+delay;};
     peer.connectAt=deadline(connectTimeout_);peer.connectOrder=++timerOrder_;

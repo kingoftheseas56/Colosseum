@@ -9,6 +9,7 @@
 #include <libtorrent/torrent_info.hpp>
 #include <libtorrent/torrent_flags.hpp>
 #include <libtorrent/version.hpp>
+#include <boost/asio.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -317,13 +318,25 @@ void casePeerStatistics(const fs::path &directory,int portA,int portB)
 {
     auto transport=openTestFixture((directory/"K10-wire.torrent").string(),(directory/"peer-stats-download").string());
     expect(bool(transport) && transport->configureAutonomy({}),"K12 peer statistics setup");
+    expect(transport->submit(DisconnectAction{1,77,0,41}),"K12 pre-native attempt cancel");
+    (void)transport->submit(ConnectAction{1,77,"127.1",static_cast<std::uint16_t>(portA),"127.1:"+std::to_string(portA),std::to_string(portA),41});
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    expect(transport->statistics().connectionAttempts==0,"K12 canceled DNS admission opened a socket");
+    (void)transport->poll();
     for(const auto peer:{77u,78u})expect(transport->submit(InterestAction{peer,true}),"K12 peer statistics interest");
-    expect(server1::transport::connectPeer(*transport,77,"127.0.0.1",static_cast<std::uint16_t>(portA))
-        && server1::transport::connectPeer(*transport,78,"127.0.0.1",static_cast<std::uint16_t>(portB)),"K12 two statistics peers connect");
+    expect(transport->submit(PauseAction{1,true}),"K12 already-admitted DNS pause fixture");
+    expect(transport->submit(ConnectAction{1,77,"127.1",static_cast<std::uint16_t>(portA),"127.1:"+std::to_string(portA),std::to_string(portA),42}),"K12 admitted DNS connect");
+    auto admittedDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<admittedDeadline && transport->statistics().connectedPeers!=1)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    expect(transport->statistics().connectedPeers==1 && transport->statistics().paused,"K12 pause incorrectly stopped an already admitted source DNS dial");
+    expect(transport->submit(PauseAction{1,false}) && server1::transport::connectPeer(*transport,78,"127.0.0.1",static_cast<std::uint16_t>(portB)),"K12 two statistics peers connect");
     auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
     while(std::chrono::steady_clock::now()<deadline && transport->statistics().unchokedPeers!=2)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     expect(transport->statistics().unchokedPeers==2,"K12 two statistics peers not ready");
+    expect(transport->submit(DisconnectAction{1,77,0,41}),"K12 stale admission timeout");
+    expect(transport->submit(ConnectAction{1,79,"127.0.0.1",static_cast<std::uint16_t>(portA),"127.0.0.1:"+std::to_string(portA),std::to_string(portA),43}),"K12 raw alias collision submission");
     // Let initial state notifications settle. Batch progress cannot depend on
     // a fortuitous later interest/choke callback or completion from peer A.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -347,12 +360,15 @@ void casePeerStatistics(const fs::path &directory,int portA,int portB)
     auto finalBatch=transport->poll();received.insert(received.end(),finalBatch.begin(),finalBatch.end());
     expect(stats.peerTransfers.size()==2 && std::all_of(stats.peerTransfers.begin(),stats.peerTransfers.end(),
         [](const auto&p){return p.downloadBytesPerSecond>0;}),"K12 idle-independent tick did not sample both native peer rates");
+    expect(server1::transport::boundEndpointOwner(*transport,"127.0.0.1",static_cast<std::uint16_t>(portA))==77,"K12 raw alias collision stole canonical native endpoint ownership");
+    expect(std::any_of(received.begin(),received.end(),[](const auto &observation){const auto* life=std::get_if<PeerLifecycleObservation>(&observation);return life&&life->peer==79&&life->attempt==43&&life->kind==PeerLifecycleKind::Disconnected;}),"K12 unsupported native raw alias must report rejection, not invent another connection");
     expect(stats.connectionAttempts==2 && stats.knownPeerEndpoints==2 && stats.queuedConnections==0,
            "K12 native connection statistics not tied to admitted actions");
     for(const auto &wire:stats.peerTransfers) {
         const auto expectedPort=wire.peer==77 ? portA : portB;
         expect(wire.address=="127.0.0.1:"+std::to_string(expectedPort),
                "K12 wire address not measured from native endpoint");
+        expect(wire.sourceAddress==(wire.peer==77?"127.1:":"127.0.0.1:")+std::to_string(expectedPort),"K12 source raw address lost after DNS resolution");
         expect(!wire.peerChoking && wire.requests==0,
                "K12 native wire state snapshot missing or stale");
     }
@@ -1032,12 +1048,41 @@ void caseLedger(const fs::path &directory)
                && transport->statistics().ownedRequestsOutstanding == 1,
            "K10-02 multi-infohash counters remain isolated");
 
-    constexpr std::uint16_t reusedPort = 65530;
-    expect(server1::transport::connectPeer(*transport, 90, "127.0.0.1", reusedPort)
-               && server1::transport::connectPeer(*transport, 91, "127.0.0.1", reusedPort),
-           "K10-02 reused endpoint must accept a replacement peer identity");
-    expect(server1::transport::boundEndpointOwner(*transport, "127.0.0.1", reusedPort) == 91,
-           "K10-02 reused endpoint retained stale peer ownership");
+    // Ownership follows actual native connections, not synchronous submission.
+    // A live collision must not steal the first peer's identity. Reuse is valid
+    // after its real socket closes and native lifecycle cleanup has completed.
+    boost::asio::io_context endpointIo;
+    using Tcp = boost::asio::ip::tcp;
+    Tcp::acceptor endpointServer(endpointIo, {boost::asio::ip::address_v4::loopback(), 0});
+    endpointServer.non_blocking(true);
+    const auto reusedPort = endpointServer.local_endpoint().port();
+    auto acceptPeer = [&](PeerHandle peer) {
+        expect(server1::transport::connectPeer(*transport, peer, "127.0.0.1", reusedPort),
+               "K10-02 reused endpoint connect submission");
+        Tcp::socket socket(endpointIo);
+        boost::system::error_code error;
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        do {
+            endpointServer.accept(socket, error);
+            if (!error) break;
+            expect(error == boost::asio::error::would_block || error == boost::asio::error::try_again,
+                   "K10-02 reused endpoint accept failed");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        } while (std::chrono::steady_clock::now() < deadline);
+        expect(!error, "K10-02 reused endpoint never connected");
+        expect(server1::transport::boundEndpointOwner(*transport, "127.0.0.1", reusedPort) == peer,
+               "K10-02 native endpoint owner differs from connected peer");
+        return socket;
+    };
+    auto oldSocket = acceptPeer(90);
+    oldSocket.close();
+    const auto detachDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (server1::transport::boundEndpointOwner(*transport, "127.0.0.1", reusedPort) != 0
+           && std::chrono::steady_clock::now() < detachDeadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    expect(server1::transport::boundEndpointOwner(*transport, "127.0.0.1", reusedPort) == 0,
+           "K10-02 disconnected endpoint retained stale peer ownership");
+    auto replacementSocket = acceptPeer(91);
     otherInfoHash->close();
     const auto otherClosed = otherInfoHash->poll();
     expect(std::count_if(otherClosed.begin(), otherClosed.end(), [](const auto &item) {
@@ -1303,6 +1348,73 @@ void caseCloseSuppressesSource(const fs::path &directory)
 // The source swarm opens only a TCP peer listener (M818 creates a uTP server
 // only when utp is set, and M814 sets utp:false). This mode keeps one adapter
 // listening so run_inbound_utp.ps1 can probe it from outside the process.
+void caseDnsClose(const fs::path &directory)
+{
+    prepare(directory);
+    for(int round=0;round<20;++round) {
+        auto transport=openTestFixture((directory/"K10-wire.torrent").string(),(directory/("dns-close-"+std::to_string(round))).string());
+        expect(bool(transport)&&transport->configureAutonomy({}),"DNS close fixture");
+        auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);bool ready=false;
+        while(!ready && std::chrono::steady_clock::now()<deadline) {
+            for(const auto &observation:transport->poll())ready|=std::holds_alternative<MetadataReadyObservation>(observation);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        expect(ready,"DNS close metadata barrier");
+        expect(transport->submit(ConnectAction{1,77,"127.1",9,"127.1:9","9",1}),"DNS close admission");
+        if(round%2)std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        transport->close();
+        expect(transport->statistics().connectedPeers==0 && !transport->submit(ConnectAction{1,78,"127.1",9,"127.1:9","9",2}),"DNS close retained native activity");
+    }
+    std::cout<<"K12 DNS resolve/close ownership PASS\n";
+}
+
+void caseIncomingLifecycle(const fs::path &directory)
+{
+    prepare(directory);
+    auto transport=openTestFixture((directory/"K10-wire.torrent").string(),(directory/"incoming-download").string());
+    expect(bool(transport)&&transport->configureAutonomy({}),"incoming lifecycle setup");
+    int port=0;auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(!port && std::chrono::steady_clock::now()<deadline) {
+        transport->poll();port=server1::transport::nativeListenPort(*transport);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    expect(port>0,"incoming listener missing");
+    expect(transport->submit(PauseAction{1,true}),"incoming pause gate setup");
+    boost::asio::io_context io;boost::asio::ip::tcp::socket socket(io);
+    socket.connect({boost::asio::ip::make_address("127.0.0.1"),static_cast<unsigned short>(port)});
+    const auto remotePort=socket.local_endpoint().port();
+    lt::torrent_info torrent((directory/"K10-wire.torrent").string());
+    const auto hash=torrent.info_hashes().v1;
+    std::string handshake(1,19);handshake+="BitTorrent protocol";handshake.append(8,'\0');
+    handshake.append(hash.data(),20);handshake+="-IN0001-abcdefghijkl";
+    boost::asio::write(socket,boost::asio::buffer(handshake));
+    std::vector<TorrentObservation> received;
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<deadline) {
+        auto batch=transport->poll();received.insert(received.end(),batch.begin(),batch.end());
+        if(transport->statistics().connectedPeers==1) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    auto stats=transport->statistics();
+    expect(stats.connectedPeers==1 && stats.connectionAttempts==0,"incoming handshake not accepted independently of outbound pause/admission");
+    expect(stats.peerTransfers.size()==1,"incoming native transfer sample missing");
+    const auto wire=stats.peerTransfers.front();
+    expect(wire.address=="127.0.0.1:"+std::to_string(remotePort),"incoming native remote address false");
+    expect(wire.sourceAddress=="127.0.0.1:"+std::to_string(port),"incoming source local-listener address oddity lost");
+    std::vector<PeerLifecycleKind> kinds;
+    for(const auto &observation:received)if(const auto* life=std::get_if<PeerLifecycleObservation>(&observation))kinds.push_back(life->kind);
+    expect(kinds==std::vector<PeerLifecycleKind>{PeerLifecycleKind::Started,PeerLifecycleKind::Ready},"incoming lifecycle must not invent outgoing TCP connect callback");
+    socket.close();deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
+    bool closed=false;
+    while(std::chrono::steady_clock::now()<deadline&&!closed) {
+        for(const auto &observation:transport->poll())if(const auto* life=std::get_if<PeerLifecycleObservation>(&observation))
+            closed|=life->peer==wire.peer && life->kind==PeerLifecycleKind::Disconnected;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    expect(closed && transport->statistics().connectedPeers==0,"incoming native close not retired");
+    transport->close();std::cout<<"K12 incoming native lifecycle/source address PASS\n";
+}
+
 void caseInboundUtpServe(const fs::path &directory, const fs::path &portFile,
                          const fs::path &stopFile)
 {
@@ -1833,6 +1945,8 @@ int main(int argc, char **argv)
     if (argc == 3 && std::string(argv[1]) == "--source-magnet") {
         casePeerMetadata(argv[2], true); return 0;
     }
+    if(argc==3 && std::string(argv[1])=="--dns-close") {caseDnsClose(argv[2]);return 0;}
+    if(argc==3 && std::string(argv[1])=="--incoming-lifecycle") {caseIncomingLifecycle(argv[2]);return 0;}
     if (argc == 5 && std::string(argv[1]) == "--inbound-utp-serve") {
         caseInboundUtpServe(argv[2], argv[3], argv[4]); return 0;
     }

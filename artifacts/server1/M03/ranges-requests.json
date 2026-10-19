@@ -1,0 +1,172 @@
+[
+  {
+    "label": "oracle",
+    "name": "large64.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "oracle",
+    "name": "large64.mp4",
+    "range": "bytes=4294967424-"
+  },
+  {
+    "label": "oracle",
+    "name": "fast.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "oracle",
+    "name": "tail.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "oracle",
+    "name": "tail.mp4",
+    "range": "bytes=49214-"
+  },
+  {
+    "label": "oracle",
+    "name": "fragmented.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "oracle",
+    "name": "real_mkv.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "real_mkv.mkv",
+    "range": "bytes=51582-"
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_cues_after.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_cues_after.mkv",
+    "range": "bytes=100163-"
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_cues_before.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_unknown_duration.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_truncated_128.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_truncated_512.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_truncated_50000.mkv",
+    "range": null
+  },
+  {
+    "label": "oracle",
+    "name": "mkv_truncated_50000.mkv",
+    "range": "bytes=51582-"
+  },
+  {
+    "label": "candidate",
+    "name": "large64.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "candidate",
+    "name": "large64.mp4",
+    "range": "bytes=4294967424-"
+  },
+  {
+    "label": "candidate",
+    "name": "fast.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "candidate",
+    "name": "tail.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "candidate",
+    "name": "tail.mp4",
+    "range": "bytes=49214-"
+  },
+  {
+    "label": "candidate",
+    "name": "fragmented.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "candidate",
+    "name": "real_mkv.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "real_mkv.mkv",
+    "range": "bytes=51582-"
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_cues_after.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_cues_after.mkv",
+    "range": "bytes=100163-"
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_cues_before.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_unknown_duration.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_truncated_128.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_truncated_512.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_truncated_50000.mkv",
+    "range": null
+  },
+  {
+    "label": "candidate",
+    "name": "mkv_truncated_50000.mkv",
+    "range": "bytes=51582-"
+  },
+  {
+    "label": "delay",
+    "name": "tail.mp4",
+    "range": "bytes=0-"
+  },
+  {
+    "label": "delay",
+    "name": "real_mkv.mkv",
+    "range": null
+  }
+]

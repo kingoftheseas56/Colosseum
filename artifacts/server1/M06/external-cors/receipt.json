@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "source_oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "differential_cases": 126,
+  "build_exit": 0,
+  "test_exit": 0,
+  "files": {
+    "native/colosseum_server_v1/include/server1/http/ExternalCors.h": "faf18d2cbce6ff5ad2657ed3a6f0939afc5b8ef50fd099ecfdcb8118894dc54e",
+    "native/colosseum_server_v1/src/http/ExternalCors.cpp": "49b97f92a2b7575eef9bf897b5376d87693d514e3e8e9302d985af13f0a2b752",
+    "native/colosseum_server_v1/tests/test_external_cors.cpp": "91425f8fee365faea4e3825d13f245fb5e097bca1cfa24c40739decc450ed0d9",
+    "native/colosseum_server_v1/tests/run_external_cors_oracle.cjs": "5cba8c57ffaa046e78c8262cf49a27758b4bf362e24baffe296f4ae2d5042829",
+    "native/colosseum_server_v1/tests/fixtures/external-cors.json": "506e196dbbb64ea3f93cfa284672870e4c40c0e304fd9ac4f80994bc61a5295a"
+  },
+  "notes": [
+    "Exact extracted source predicate and sendCORSHeaders helper compared through real HTTP parser/router.",
+    "Preserves unescaped-dot and substring origin matching. NO_CORS nonempty bypasses filter, does not suppress CORS.",
+    "Existing frozen M06 production files unchanged.",
+    "Existing static router responses discard middleware headers; test uses actual handler semantics like HLS."
+  ]
+}

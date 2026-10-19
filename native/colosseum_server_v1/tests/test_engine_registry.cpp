@@ -844,8 +844,8 @@ void regressionPeerSearch()
 
     expect(engine->discoverPeer(0, "10.0.0.1:6881") && engine->discoverPeer(1, "10.0.0.1:6881"),
            "K11-PEERS source peer result was not accepted");
-    for (const auto *malformed : {"bad", "10.0.0.2:0", "10.0.0.3:70000", "999.1.1.1:5",
-                                  "10.0.0.4:5x", ":6881", "10.0.0.5:"})
+    for (const auto *malformed : {"bad", "10.0.0.2:0", "10.0.0.3:70000", "10.0.0.6:65535",
+                                  "10.0.0.4:5x", "[::1]:6881", "10.0.0.5:"})
         engine->discoverPeer(0, malformed);
     settle(registry, worker);
     auto connects = actionsOf<ConnectAction>(state);

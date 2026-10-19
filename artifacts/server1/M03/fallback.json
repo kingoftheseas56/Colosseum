@@ -1,0 +1,48 @@
+[
+  {
+    "name": "empty",
+    "source_exit": 0,
+    "source_stdout": "",
+    "source_completion_observed": false,
+    "candidate": {
+      "available": false,
+      "bytesFetched": 0,
+      "error": "max seeks exceeded",
+      "sourceOffsets": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "tracks": {}
+    },
+    "classification": "documented liveness deviation"
+  },
+  {
+    "name": "absent_moov",
+    "source_exit": 0,
+    "source_stdout": "",
+    "source_completion_observed": false,
+    "candidate": {
+      "available": false,
+      "bytesFetched": 108,
+      "error": "max seeks exceeded",
+      "sourceOffsets": [
+        0,
+        108,
+        108,
+        108
+      ],
+      "tracks": {}
+    },
+    "classification": "documented liveness deviation"
+  },
+  {
+    "name": "empty_index_predicts",
+    "candidate": {
+      "predicted": true,
+      "segmentDuration": 2,
+      "segments": []
+    }
+  }
+]

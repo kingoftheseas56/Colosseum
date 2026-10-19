@@ -1,0 +1,4 @@
+gmake: jobserver mkfifo: /tmp/GMfifo7: File exists
+[ 20%] Building CXX object CMakeFiles/test_samples.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/media/KeyframeIndex.cpp.o
+[ 40%] Linking CXX executable test_samples
+[100%] Built target test_samples

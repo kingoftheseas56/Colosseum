@@ -1,0 +1,32 @@
+[  6%] Built target server1_k00_policy
+[ 18%] Built target server1_k12_counters
+[ 21%] Built target server1_k02_piece_buffer
+[ 28%] Built target server1_k05_swarm_metadata
+[ 31%] Built target server1_k03_scheduler_selections
+[ 34%] Built target server1_k07_circular_store
+[ 50%] Built target server1_k09_peer_search
+[ 59%] Built target server1_k04_scheduler_actions
+[ 62%] Built target server1_k08_file_reader
+[ 68%] Built target server1_k01_metadata
+[ 78%] Built target server1_k10_native_transport
+[ 84%] Built target server1_k06_persistent_store
+[ 93%] Built target server1_k11_engine
+[ 96%] Building CXX object CMakeFiles/statistics_check.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_engine_statistics.cpp.o
+[100%] Linking CXX executable statistics_check
+[100%] Built target statistics_check
+[  6%] Built target server1_k00_policy
+[ 18%] Built target server1_k12_counters
+[ 21%] Built target server1_k02_piece_buffer
+[ 28%] Built target server1_k05_swarm_metadata
+[ 31%] Built target server1_k03_scheduler_selections
+[ 34%] Built target server1_k07_circular_store
+[ 43%] Built target server1_k04_scheduler_actions
+[ 59%] Built target server1_k09_peer_search
+[ 62%] Built target server1_k08_file_reader
+[ 68%] Built target server1_k01_metadata
+[ 75%] Built target server1_k06_persistent_store
+[ 84%] Built target server1_k10_native_transport
+[ 93%] Built target server1_k11_engine
+[ 96%] Building CXX object server/CMakeFiles/server1_k12_swarm_connections_test.dir/tests/test_swarm_connections.cpp.o
+[100%] Linking CXX executable server1_k12_swarm_connections_test
+[100%] Built target server1_k12_swarm_connections_test

@@ -1,0 +1,3 @@
+Real FFmpeg media segment PASS
+{"cacheReuses":true,"destroyActiveError":"SegmentCanceledError","displacedError":"SegmentCanceledError","failedRetryMessage":"stream ended","failedRetrySpawnCount":3,"initialSpawnCount":2,"retryBlank":true,"retrySpawnCount":3,"sequentialReuses":true}
+Track converter lifecycle PASS

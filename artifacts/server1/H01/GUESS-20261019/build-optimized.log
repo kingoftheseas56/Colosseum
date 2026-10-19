@@ -1,0 +1,3 @@
+Command: g++ -O2 COMMON SOURCES -o BUILD_DIR/guess_file_index LINK
+Exact array expansions are defined in run-receipt.sh.
+PASS optimized compilation

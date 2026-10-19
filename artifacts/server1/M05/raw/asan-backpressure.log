@@ -1,0 +1,2 @@
+FFmpeg 60s PCM: 11520000 bytes, paused 24576, max chunk 65536 PASS
+Owned pipe lifecycle PASS

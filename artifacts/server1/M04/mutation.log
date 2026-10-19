@@ -1,0 +1,14 @@
+native split-box/overflow/truncation/VTT boundary checks passed
+case 180 {
+    "expected": "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-STREAM-INF:BANDWIDTH=164000,NAME=\"Main\"\n",
+    "input": {
+        "query": "",
+        "streams": [
+        ]
+    },
+    "kind": "master"
+}
+ actual [
+    "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-STREAM-INF:BANDWIDTH=164000,NAME=\"Main\""
+]
+ error 

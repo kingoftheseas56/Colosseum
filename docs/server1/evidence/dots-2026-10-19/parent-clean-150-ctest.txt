@@ -1,0 +1,330 @@
+Test project /workspace/scratch/af0fb5da5f81/server-parity/build-linux-hls-clean
+        Start  20: M03-samples-differential
+        Start  18: M02-lifecycle
+  1/150 Test  #20: M03-samples-differential .....................   Passed    4.04 sec
+        Start  67: M01-03-legacy-timeout
+  2/150 Test  #67: M01-03-legacy-timeout ........................   Passed   20.38 sec
+        Start  14: N00-proxy-differential
+  3/150 Test  #14: N00-proxy-differential .......................   Passed   15.88 sec
+        Start 118: K10-H-transport-upload-real-wire
+  4/150 Test  #18: M02-lifecycle ................................   Passed   42.61 sec
+        Start   9: H01-tracker-torrent-http
+  5/150 Test   #9: H01-tracker-torrent-http .....................   Passed    5.99 sec
+        Start   3: H01-native-torrent-http
+  6/150 Test #118: K10-H-transport-upload-real-wire .............   Passed   10.56 sec
+        Start  22: M03-samples-fallback
+  7/150 Test   #3: H01-native-torrent-http ......................   Passed    5.85 sec
+        Start  98: K12-peer-statistics-real-wire
+  8/150 Test  #22: M03-samples-fallback .........................   Passed    4.79 sec
+        Start  30: H01-torrent-hls-http
+  9/150 Test  #98: K12-peer-statistics-real-wire ................   Passed    4.71 sec
+        Start  21: M03-samples-ranges
+ 10/150 Test  #30: H01-torrent-hls-http .........................   Passed    4.13 sec
+        Start 109: K10-02-native-transport-inbound-utp
+ 11/150 Test  #21: M03-samples-ranges ...........................   Passed    3.80 sec
+        Start  24: H01-safe-regex-differential
+ 12/150 Test #109: K10-02-native-transport-inbound-utp ..........   Passed    3.65 sec
+        Start   6: K09-dht_network
+ 13/150 Test  #24: H01-safe-regex-differential ..................   Passed    3.06 sec
+        Start 101: K10-02-native-transport-sequential-wire
+ 14/150 Test   #6: K09-dht_network ..............................   Passed    3.07 sec
+        Start 150: K12-oracle-cache-behavior
+ 15/150 Test #101: K10-02-native-transport-sequential-wire ......   Passed    2.07 sec
+        Start 149: K12-oracle-registry-order
+ 16/150 Test #150: K12-oracle-cache-behavior ....................   Passed    2.56 sec
+        Start 148: K12-oracle-module-loader
+ 17/150 Test #149: K12-oracle-registry-order ....................   Passed    2.69 sec
+        Start  10: K09-peer-duplicates-differential
+ 18/150 Test #148: K12-oracle-module-loader .....................   Passed    2.74 sec
+        Start 107: K10-03-native-transport
+ 19/150 Test  #10: K09-peer-duplicates-differential .............   Passed    2.60 sec
+        Start 117: K10-G-transport-pause-generation
+ 20/150 Test #107: K10-03-native-transport ......................   Passed    2.13 sec
+        Start 102: K10-02-native-transport-have-wire
+ 21/150 Test #117: K10-G-transport-pause-generation .............   Passed    2.02 sec
+        Start 103: K10-02-native-transport-live-reuse
+ 22/150 Test #102: K10-02-native-transport-have-wire ............   Passed    2.02 sec
+        Start   5: K09-tracker_network
+ 23/150 Test #103: K10-02-native-transport-live-reuse ...........   Passed    1.82 sec
+        Start 108: K10-02-native-transport-lifecycle
+ 24/150 Test   #5: K09-tracker_network ..........................   Passed    1.97 sec
+        Start  37: H01-guess-file-index-differential
+ 25/150 Test #108: K10-02-native-transport-lifecycle ............   Passed    1.83 sec
+        Start 105: K10-02-native-transport-cancel-drain
+ 26/150 Test  #37: H01-guess-file-index-differential ............   Passed    1.93 sec
+        Start 104: K10-02-native-transport-failure-drain
+ 27/150 Test #105: K10-02-native-transport-cancel-drain .........   Passed    1.73 sec
+        Start  99: K10-01-native-transport-real-wire
+ 28/150 Test #104: K10-02-native-transport-failure-drain ........   Passed    2.22 sec
+        Start  27: M05-owned-pipe-backpressure
+ 29/150 Test  #99: K10-01-native-transport-real-wire ............   Passed    1.70 sec
+        Start 100: K10-01-native-transport-submit-after-ready
+ 30/150 Test  #27: M05-owned-pipe-backpressure ..................   Passed    1.62 sec
+        Start  51: H00-03-http-contract
+ 31/150 Test #100: K10-01-native-transport-submit-after-ready ...   Passed    1.65 sec
+        Start  11: K09-dht-differential
+ 32/150 Test  #51: H00-03-http-contract .........................   Passed    1.51 sec
+        Start 144: K12-real-app-lane-timer
+ 33/150 Test  #11: K09-dht-differential .........................   Passed    1.83 sec
+        Start 106: K10-02-native-transport
+ 34/150 Test #144: K12-real-app-lane-timer ......................   Passed    1.25 sec
+        Start  28: M06-factory-registry-routes-media
+ 35/150 Test #106: K10-02-native-transport ......................   Passed    1.13 sec
+        Start  66: M01-02-probe-process
+ 36/150 Test  #28: M06-factory-registry-routes-media ............   Passed    0.82 sec
+        Start   7: K09-dht_service
+ 37/150 Test   #7: K09-dht_service ..............................   Passed    0.62 sec
+        Start  58: H00-10-http-contract
+ 38/150 Test  #66: M01-02-probe-process .........................   Passed    0.88 sec
+        Start  97: K12-wire-statistics-real-wire
+ 39/150 Test  #58: H00-10-http-contract .........................   Passed    0.46 sec
+        Start  12: N00-streaming-proxy
+ 40/150 Test  #97: K12-wire-statistics-real-wire ................   Passed    0.43 sec
+        Start   4: K12-engine-statistics
+ 41/150 Test   #4: K12-engine-statistics ........................   Passed    0.33 sec
+        Start 115: K10-E-transport-source-magnet
+ 42/150 Test  #12: N00-streaming-proxy ..........................   Passed    0.40 sec
+        Start 114: K10-E-transport-source-infohash
+ 43/150 Test #115: K10-E-transport-source-magnet ................   Passed    0.29 sec
+        Start  63: M00-02-process-lifecycle
+ 44/150 Test #114: K10-E-transport-source-infohash ..............   Passed    0.29 sec
+        Start 112: K10-E-transport-source-cached
+ 45/150 Test  #63: M00-02-process-lifecycle .....................   Passed    0.31 sec
+        Start 146: K12-01-counter-differential
+ 46/150 Test #112: K10-E-transport-source-cached ................   Passed    0.28 sec
+        Start  53: H00-05-http-contract
+ 47/150 Test  #53: H00-05-http-contract .........................   Passed    0.27 sec
+        Start 116: K10-E-transport-source-close
+ 48/150 Test #146: K12-01-counter-differential ..................   Passed    0.30 sec
+        Start  33: H01-system-statistics-differential
+ 49/150 Test  #33: H01-system-statistics-differential ...........   Passed    0.18 sec
+        Start  61: H00-13-http-contract
+ 50/150 Test #116: K10-E-transport-source-close .................   Passed    0.26 sec
+        Start  38: K12-source-peer-address-differential
+ 51/150 Test  #61: H00-13-http-contract .........................   Passed    0.21 sec
+        Start  15: K12-source-swarm-differential
+ 52/150 Test  #38: K12-source-peer-address-differential .........   Passed    0.18 sec
+        Start 147: K12-speedometer-differential
+ 53/150 Test #147: K12-speedometer-differential .................   Passed    0.14 sec
+        Start 134: R19-engine-registry
+ 54/150 Test  #15: K12-source-swarm-differential ................   Passed    0.18 sec
+        Start  36: K12-dns-close-lifecycle
+ 55/150 Test  #36: K12-dns-close-lifecycle ......................   Passed    0.10 sec
+        Start 121: K11-03-engine-registry
+ 56/150 Test #134: R19-engine-registry ..........................   Passed    0.12 sec
+        Start  17: M02-charset-cases
+ 57/150 Test  #17: M02-charset-cases ............................   Passed    0.07 sec
+        Start  48: K13-03-cache-convergence
+ 58/150 Test #121: K11-03-engine-registry .......................   Passed    0.09 sec
+        Start 120: K11-02-engine-registry
+ 59/150 Test #120: K11-02-engine-registry .......................   Passed    0.03 sec
+        Start  26: M05-lifecycle
+ 60/150 Test  #48: K13-03-cache-convergence .....................   Passed    0.05 sec
+        Start  64: M00-03-remote-driver
+ 61/150 Test  #26: M05-lifecycle ................................   Passed    0.05 sec
+        Start  23: K12-incoming-lifecycle
+ 62/150 Test  #64: M00-03-remote-driver .........................   Passed    0.04 sec
+        Start  19: M04-segment-timeline
+ 63/150 Test  #23: K12-incoming-lifecycle .......................   Passed    0.03 sec
+        Start   1: H01-reader-stream
+ 64/150 Test  #19: M04-segment-timeline .........................   Passed    0.04 sec
+        Start  77: K06-03-persistent-store
+ 65/150 Test  #77: K06-03-persistent-store ......................   Passed    0.02 sec
+        Start 139: R24-engine-registry
+ 66/150 Test   #1: H01-reader-stream ............................   Passed    0.03 sec
+        Start  78: K06-F2-persistent-store
+ 67/150 Test #139: R24-engine-registry ..........................   Passed    0.01 sec
+        Start  25: M05-arguments
+ 68/150 Test  #78: K06-F2-persistent-store ......................   Passed    0.02 sec
+        Start  75: K06-01-persistent-store
+ 69/150 Test  #25: M05-arguments ................................   Passed    0.02 sec
+        Start   8: K09-discovery_network
+ 70/150 Test  #75: K06-01-persistent-store ......................   Passed    0.01 sec
+        Start 129: R14-engine-registry
+ 71/150 Test   #8: K09-discovery_network ........................   Passed    0.02 sec
+        Start 122: R7-engine-registry
+ 72/150 Test #129: R14-engine-registry ..........................   Passed    0.01 sec
+        Start 119: K11-01-engine-registry
+ 73/150 Test #122: R7-engine-registry ...........................   Passed    0.01 sec
+        Start  29: M06-external-cors
+ 74/150 Test #119: K11-01-engine-registry .......................   Passed    0.01 sec
+        Start  16: M02-oracle-cases
+ 75/150 Test  #29: M06-external-cors ............................   Passed    0.01 sec
+        Start  76: K06-02-persistent-store
+ 76/150 Test  #16: M02-oracle-cases .............................   Passed    0.01 sec
+        Start 126: R11-engine-registry
+ 77/150 Test  #76: K06-02-persistent-store ......................   Passed    0.01 sec
+        Start 131: R16-engine-registry
+ 78/150 Test #126: R11-engine-registry ..........................   Passed    0.01 sec
+        Start 135: R20-engine-registry
+ 79/150 Test #131: R16-engine-registry ..........................   Passed    0.01 sec
+        Start  39: P03-02-server1-host
+ 80/150 Test #135: R20-engine-registry ..........................   Passed    0.01 sec
+        Start 127: R12-engine-registry
+ 81/150 Test  #39: P03-02-server1-host ..........................   Passed    0.01 sec
+        Start 138: R23-engine-registry
+ 82/150 Test #127: R12-engine-registry ..........................   Passed    0.01 sec
+        Start 124: R9-engine-registry
+ 83/150 Test #138: R23-engine-registry ..........................   Passed    0.01 sec
+        Start 130: R15-engine-registry
+ 84/150 Test #124: R9-engine-registry ...........................   Passed    0.01 sec
+        Start 140: R25-engine-registry
+ 85/150 Test #130: R15-engine-registry ..........................   Passed    0.01 sec
+        Start 137: R22-engine-registry
+ 86/150 Test #140: R25-engine-registry ..........................   Passed    0.01 sec
+        Start  49: H00-01-http-contract
+ 87/150 Test #137: R22-engine-registry ..........................   Passed    0.01 sec
+        Start 136: R21-engine-registry
+ 88/150 Test  #49: H00-01-http-contract .........................   Passed    0.01 sec
+        Start  62: M00-01-process-discovery
+ 89/150 Test #136: R21-engine-registry ..........................   Passed    0.01 sec
+        Start 123: R8-engine-registry
+ 90/150 Test #123: R8-engine-registry ...........................   Passed    0.01 sec
+        Start  55: H00-07-http-contract
+ 91/150 Test  #62: M00-01-process-discovery .....................   Passed    0.02 sec
+        Start 143: K12-counter-ownership
+ 92/150 Test #143: K12-counter-ownership ........................   Passed    0.01 sec
+        Start  59: H00-11-http-contract
+ 93/150 Test  #55: H00-07-http-contract .........................   Passed    0.01 sec
+        Start  54: H00-06-http-contract
+ 94/150 Test  #54: H00-06-http-contract .........................   Passed    0.01 sec
+        Start 128: R13-engine-registry
+ 95/150 Test  #59: H00-11-http-contract .........................   Passed    0.01 sec
+        Start  50: H00-02-http-contract
+ 96/150 Test  #50: H00-02-http-contract .........................   Passed    0.00 sec
+        Start 125: R10-engine-registry
+ 97/150 Test #128: R13-engine-registry ..........................   Passed    0.01 sec
+        Start 132: R17-engine-registry
+ 98/150 Test #125: R10-engine-registry ..........................   Passed    0.01 sec
+        Start 133: R18-engine-registry
+ 99/150 Test #132: R17-engine-registry ..........................   Passed    0.01 sec
+        Start  52: H00-04-http-contract
+100/150 Test #133: R18-engine-registry ..........................   Passed    0.01 sec
+        Start  65: M01-01-probe-normalization
+101/150 Test  #52: H00-04-http-contract .........................   Passed    0.01 sec
+        Start  57: H00-09-http-contract
+102/150 Test  #65: M01-01-probe-normalization ...................   Passed    0.01 sec
+        Start 113: K10-E-transport-source-mismatch
+103/150 Test  #57: H00-09-http-contract .........................   Passed    0.01 sec
+        Start  79: K06-F3-persistent-store
+104/150 Test #113: K10-E-transport-source-mismatch ..............   Passed    0.01 sec
+105/150 Test  #79: K06-F3-persistent-store ......................   Passed    0.01 sec
+        Start 110: K10-E-transport-source-invalid
+        Start 111: K10-E-transport-source-generation
+106/150 Test #110: K10-E-transport-source-invalid ...............   Passed    0.01 sec
+        Start  34: H01-guess-file-index
+107/150 Test #111: K10-E-transport-source-generation ............   Passed    0.01 sec
+        Start  56: H00-08-http-contract
+108/150 Test  #34: H01-guess-file-index .........................   Passed    0.01 sec
+        Start  82: K03-03-scheduler-selections
+109/150 Test  #56: H00-08-http-contract .........................   Passed    0.01 sec
+        Start  73: K05-03-swarm-metadata
+110/150 Test  #82: K03-03-scheduler-selections ..................   Passed    0.00 sec
+        Start  60: H00-12-http-contract
+111/150 Test  #73: K05-03-swarm-metadata ........................   Passed    0.00 sec
+        Start 141: P08-T-torrent-transport-contract
+112/150 Test #141: P08-T-torrent-transport-contract .............   Passed    0.00 sec
+        Start  46: K13-01-settings-cache-defaults
+113/150 Test  #60: H00-12-http-contract .........................   Passed    0.01 sec
+        Start  71: K05-01-swarm-metadata
+114/150 Test  #46: K13-01-settings-cache-defaults ...............   Passed    0.00 sec
+        Start 145: K12-speedometer-ownership
+115/150 Test  #71: K05-01-swarm-metadata ........................   Passed    0.00 sec
+        Start 142: INT-W3-spine-contracts-link
+116/150 Test #145: K12-speedometer-ownership ....................   Passed    0.00 sec
+        Start  31: H01-system-statistics-live
+117/150 Test #142: INT-W3-spine-contracts-link ..................   Passed    0.00 sec
+        Start  74: K05-A2-peer-lifecycle-counts
+118/150 Test  #31: H01-system-statistics-live ...................   Passed    0.00 sec
+        Start  72: K05-02-swarm-metadata
+119/150 Test  #74: K05-A2-peer-lifecycle-counts .................   Passed    0.00 sec
+        Start  35: K12-source-peer-address
+120/150 Test  #72: K05-02-swarm-metadata ........................   Passed    0.00 sec
+        Start  85: K07-03-circular-store
+121/150 Test  #35: K12-source-peer-address ......................   Passed    0.00 sec
+        Start  47: K13-02-cache-policy
+122/150 Test  #85: K07-03-circular-store ........................   Passed    0.00 sec
+        Start  83: K07-01-circular-store
+123/150 Test  #47: K13-02-cache-policy ..........................   Passed    0.00 sec
+        Start  88: K09-03-peer-search
+124/150 Test  #83: K07-01-circular-store ........................   Passed    0.00 sec
+        Start  84: K07-02-circular-store
+125/150 Test  #88: K09-03-peer-search ...........................   Passed    0.00 sec
+        Start  69: K02-02-piece-buffer
+126/150 Test  #69: K02-02-piece-buffer ..........................   Passed    0.00 sec
+        Start  41: K00-02-js-semantics
+127/150 Test  #84: K07-02-circular-store ........................   Passed    0.00 sec
+        Start  42: K00-03-js-semantics
+128/150 Test  #41: K00-02-js-semantics ..........................   Passed    0.00 sec
+        Start  81: K03-02-scheduler-selections
+129/150 Test  #42: K00-03-js-semantics ..........................   Passed    0.00 sec
+        Start  90: K04-02-scheduler-actions
+130/150 Test  #81: K03-02-scheduler-selections ..................   Passed    0.00 sec
+        Start  68: K02-01-piece-buffer
+131/150 Test  #90: K04-02-scheduler-actions .....................   Passed    0.00 sec
+        Start  40: K00-01-js-semantics
+132/150 Test  #68: K02-01-piece-buffer ..........................   Passed    0.00 sec
+        Start  70: K02-03-piece-buffer
+133/150 Test  #40: K00-01-js-semantics ..........................   Passed    0.00 sec
+        Start  45: K01-03-metadata-geometry
+134/150 Test  #70: K02-03-piece-buffer ..........................   Passed    0.00 sec
+        Start  44: K01-02-metadata-geometry
+135/150 Test  #45: K01-03-metadata-geometry .....................   Passed    0.00 sec
+        Start   2: H01-torrent-range
+136/150 Test  #44: K01-02-metadata-geometry .....................   Passed    0.00 sec
+        Start  80: K03-01-scheduler-selections
+137/150 Test   #2: H01-torrent-range ............................   Passed    0.00 sec
+        Start  32: H01-system-statistics-backend
+138/150 Test  #80: K03-01-scheduler-selections ..................   Passed    0.00 sec
+        Start  89: K04-01-scheduler-actions
+139/150 Test  #32: H01-system-statistics-backend ................   Passed    0.00 sec
+        Start  43: K01-01-metadata-geometry
+140/150 Test  #89: K04-01-scheduler-actions .....................   Passed    0.00 sec
+        Start  13: K12-source-swarm-connections
+141/150 Test  #43: K01-01-metadata-geometry .....................   Passed    0.00 sec
+        Start  92: K08-01-file-reader
+142/150 Test  #13: K12-source-swarm-connections .................   Passed    0.00 sec
+        Start  96: K08-ready-file-reader
+143/150 Test  #92: K08-01-file-reader ...........................   Passed    0.00 sec
+        Start  87: K09-02-peer-search
+144/150 Test  #96: K08-ready-file-reader ........................   Passed    0.00 sec
+        Start  86: K09-01-peer-search
+145/150 Test  #87: K09-02-peer-search ...........................   Passed    0.00 sec
+        Start  95: K08-F2-file-reader
+146/150 Test  #86: K09-01-peer-search ...........................   Passed    0.00 sec
+        Start  93: K08-02-file-reader
+147/150 Test  #95: K08-F2-file-reader ...........................   Passed    0.00 sec
+        Start  91: K04-03-scheduler-actions
+148/150 Test  #93: K08-02-file-reader ...........................   Passed    0.00 sec
+        Start  94: K08-03-file-reader
+149/150 Test  #91: K04-03-scheduler-actions .....................   Passed    0.00 sec
+150/150 Test  #94: K08-03-file-reader ...........................   Passed    0.00 sec
+
+100% tests passed out of 150
+
+Label Time Summary:
+INT-W3       =   0.00 sec*proc (1 test)
+K02          =   0.01 sec*proc (3 tests)
+K03          =   0.01 sec*proc (3 tests)
+K04          =   0.01 sec*proc (3 tests)
+K05          =   0.02 sec*proc (4 tests)
+K06          =   0.07 sec*proc (5 tests)
+K07          =   0.01 sec*proc (3 tests)
+K08          =   0.01 sec*proc (5 tests)
+K09          =   0.01 sec*proc (3 tests)
+K10          =  21.94 sec*proc (11 tests)
+K10-E        =   1.14 sec*proc (7 tests)
+K10-G        =   2.02 sec*proc (1 test)
+K10-H        =  10.56 sec*proc (1 test)
+K11          =   0.40 sec*proc (22 tests)
+K12          =  14.83 sec*proc (10 tests)
+P08-T        =   0.00 sec*proc (1 test)
+discovery    =   5.99 sec*proc (1 test)
+http         =  14.37 sec*proc (15 tests)
+native       =  54.78 sec*proc (52 tests)
+oracle       =   8.13 sec*proc (4 tests)
+server1      =  65.44 sec*proc (99 tests)
+unit         =   2.67 sec*proc (44 tests)
+wire         =  17.02 sec*proc (5 tests)
+
+Total Test time (real) =  90.82 sec

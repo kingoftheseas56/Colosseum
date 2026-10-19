@@ -1,0 +1,69 @@
+{
+  "packet": "M06",
+  "status": "local_linux_qualified_remote_and_platform_gates_open",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "files": {
+    "native/colosseum_server_v1/include/server1/media/HlsV2Service.h": "e158759bd308aa8ebaf721faf756a46633ba555fe8e99195dd391c072ef81da1",
+    "native/colosseum_server_v1/include/server1/http/HlsV2Routes.h": "fad741bc45b005a5611e6efff6ddd85c429ad4413624336136e9dbe847dd1624",
+    "native/colosseum_server_v1/src/media/HlsV2Service.cpp": "60ca626dc8401fbf8990944756604213098684b8a4fa1a32e6b326c0394400a2",
+    "native/colosseum_server_v1/src/http/HlsV2Routes.cpp": "9bc34ca4cc90c5463e52caf6a386b161c2a3c4aa4f9ac6e4502826818d57734a",
+    "native/colosseum_server_v1/tests/test_hlsv2_service.cpp": "dddb42e0b2c555cedbbcf72bd38d5c5e5740ee699bde67250046dbb0891b0002",
+    "native/colosseum_server_v1/tests/run_hlsv2_oracle.cjs": "d523ac7a7609f3c51cf55f3073efc4bb23bfde931c0441bc5ca4283389905b1b",
+    "native/colosseum_server_v1/tests/hlsv2_probe_fixture.py": "a514cdada55f64fb3dc2af0c16ec9998fb0a1525b60114257928c6524b9d68b3",
+    "native/colosseum_server_v1/tests/fixtures/hlsv2-factory.json": "3f81e370f52a79ed6a80400fbbed0de17f996607f9eb51f3b682cab64338b4b7",
+    "native/colosseum_server_v1/tests/fixtures/hlsv2-converters.json": "a14da386c56975e440fd9fa03f439346a225664b5945238f07e489f502817161",
+    "native/colosseum_server_v1/tests/fixtures/hlsv2-routes.json": "28f133ac89a26f926e36a18472c13d807ff2ea5a3f3755b2898cea867e89f3c4",
+    "native/colosseum_server_v1/tests/cmake/M06.cmake": "dfc0d61410d3a94dacb7021a38692593da7b00c68e6574f2234657d2c8fe080a"
+  },
+  "commands": [
+    {
+      "command": "c++ -fsyntax-only native/colosseum_server_v1/tests/test_hlsv2_service.cpp (initial RED before header existed)",
+      "exit": 1,
+      "result": "HlsV2Service.h missing"
+    },
+    {
+      "command": "node native/colosseum_server_v1/tests/run_hlsv2_oracle.cjs LOCKED_SERVER_JS native/colosseum_server_v1/tests/fixtures/hlsv2-factory.json",
+      "exit": 0
+    },
+    {
+      "command": "cmake --build server-parity/build-m06 -j3",
+      "exit": 0
+    },
+    {
+      "command": "LD_LIBRARY_PATH=server-parity/deps/Qt/6.11.1/gcc_64/lib server-parity/build-m06/test_hlsv2 server-parity/source/native/colosseum_server_v1/tests/fixtures/hlsv2-factory.json server-parity/source/artifacts/server1/M01/media/tiny.mp4",
+      "exit": 0
+    },
+    {
+      "command": "ASAN_OPTIONS=detect_leaks=0 [same test using build-m06-asan]",
+      "exit": 0
+    }
+  ],
+  "sanitizer_note": "ASan+UBSan passed. LeakSanitizer detect_leaks=1 failed because LSan does not support this ptrace environment; not a leak-clean claim.",
+  "gaps": [
+    "remote FFmpeg bridge streaming/backpressure wiring",
+    "Windows qualification",
+    "broader playback corpus",
+    "additional real subtitle-media/burn route playback"
+  ],
+  "no_commit_or_push": true,
+  "dependencies_as_of_freeze": {
+    "src/media/TrackConverter.cpp": "1985b9b20f0cb97e36d2be8b138d65e72b306485a8603d1968a506b095c9d6a9",
+    "src/media/FfmpegArguments.cpp": "77281071e093aec8be1b22ee17b160a121c5b0dc0dbac072d1ef4a8357b9dfaa",
+    "include/server1/media/TrackConverter.h": "d120c127bcf9783952e2956cc9bc7873ac28b889c94387670e7e2cf515a723e3",
+    "src/media/ProcessDriver.cpp": "cdf33467f04c39258b7f5c28cadab4f7f19a13199a818a335426ff64ed07f55b",
+    "src/media/Probe.cpp": "4823a9122052ffb82d0de682a2aaf5b349cdafd9694f8b8835df9f0c16dfa4a2",
+    "src/media/HlsPlaylist.cpp": "913369bde389e3c6e95ed40b268e8a756ea8fd0ced2558cc90d11170c92337be",
+    "src/media/SegmentLayout.cpp": "553b704de6de7d1a4bde533a7d9f614ea59e350729784b83f915825fe777cca4",
+    "src/media/Mp4Timeline.cpp": "95cb58ab55b89a347d96360ad396fd1e9064c7298117f4f879edf4208899ccfb",
+    "src/media/VttTimeline.cpp": "95e3133fd937b2084b01bd62e4bc1e438b39b82f8fbece85feccc913d7c174a6",
+    "src/media/Mp4Samples.cpp": "f4fd712c66083ce57a7f17336ed13ea0d0c3a7ef5cc24cd20f186058013b673c",
+    "src/media/MkvSamples.cpp": "3a76da112a9f780dc9f369e063cf7ead18743a48b8e359b509d2a0229de7bef5",
+    "src/http/Router.cpp": "3d5d92c05f0f85a9bab670c58d5eea5066f59474b06cfc263f2714b77029732b",
+    "src/http/Connection.cpp": "0678bfdb8d1875657f25c945aee7c0669de8a71d8d1bc0fc6f6e551746e960e9"
+  },
+  "test_counts": {
+    "factory_queries": 13,
+    "converter_actions": 24,
+    "route_factory_actions": 9
+  }
+}

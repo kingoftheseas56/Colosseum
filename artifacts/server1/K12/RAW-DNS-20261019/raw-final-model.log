@@ -1,0 +1,5 @@
+{
+  "result": "PASS",
+  "sourceTransitions": 36,
+  "scope": "M818 capacity, one-step drain, pause/resume, retained peer retry 4/8/12s, failed removal, rediscovery, teardown and incoming distinction and raw alias identity"
+}

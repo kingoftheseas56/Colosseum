@@ -4,6 +4,7 @@
 #include <QHostAddress>
 #include <QTcpServer>
 #include <QTimer>
+#include <QSocketNotifier>
 #include <QPointer>
 
 #include <algorithm>
@@ -16,6 +17,8 @@
 #include <signal.h>
 #include <cerrno>
 #include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
 #elif defined(Q_OS_WIN)
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -37,6 +40,17 @@ struct Child final {
     ProcessResult result;
     bool finished = false;
     qint64 ownedProcessGroup = 0;
+    bool boundedOutput = false, outputPaused = false, pipeEof = false, processExited = false;
+    int readFd = -1, writeFd = -1, terminalCode = -1;
+    QProcess::ExitStatus terminalStatus = QProcess::NormalExit;
+    std::unique_ptr<QSocketNotifier> outputNotifier;
+    ~Child() {
+#ifdef Q_OS_UNIX
+        outputNotifier.reset();
+        if(readFd >= 0) ::close(readFd);
+        if(writeFd >= 0) ::close(writeFd);
+#endif
+    }
 };
 
 void killRemainingOwnedGroup(Child &child)
@@ -157,8 +171,37 @@ struct ProcessPort::Impl final {
         return it == children.end() ? nullptr : it->second.get();
     }
 
+    void readBounded(quint64 id)
+    {
+#ifdef Q_OS_UNIX
+        auto* current=child(id);
+        if(!current || current->outputPaused || current->pipeEof)return;
+        char buffer[65536];
+        const auto count=::read(current->readFd,buffer,sizeof(buffer));
+        if(count>0){
+            const QByteArray bytes(buffer,count);
+            appendRetained(current->result.stdoutData,bytes);
+            const auto callback=current->callbacks.onStdout;
+            if(callback)callback(bytes);
+            return;
+        }
+        if(count<0&&(errno==EAGAIN||errno==EWOULDBLOCK||errno==EINTR))return;
+        current->pipeEof=true;
+        current->outputNotifier->setEnabled(false);
+        auto closed=current->callbacks.onOutputClosed;
+        QPointer<ProcessPort> guard(owner);
+        if(closed)closed();
+        if(!guard)return;
+        current=child(id);
+        if(current&&current->processExited)finish(id,current->terminalCode,current->terminalStatus);
+#else
+        Q_UNUSED(id);
+#endif
+    }
+
     void readStdout(Child &child)
     {
+        if(child.boundedOutput)return;
         const QByteArray bytes = child.process.readAllStandardOutput();
         if (bytes.isEmpty())
             return;
@@ -183,6 +226,13 @@ struct ProcessPort::Impl final {
         if (!current || current->finished)
             return;
 
+        if(current->boundedOutput && !current->pipeEof && !current->result.terminationRequested && current->result.started){
+            current->processExited=true;
+            current->terminalCode=exitCode;
+            current->terminalStatus=exitStatus;
+            readBounded(id);
+            return;
+        }
         // Output callbacks may destroy the owner or run a nested event loop.
         // Claim terminal delivery before invoking them, then recheck ownership.
         current->finished = true;
@@ -265,6 +315,9 @@ quint64 ProcessPort::start(const ProcessSpec &spec, ProcessCallbacks callbacks)
         if (!current)
             return;
         current->result.started = true;
+#ifdef Q_OS_UNIX
+        if(current->writeFd>=0){::close(current->writeFd);current->writeFd=-1;}
+#endif
         current->ownedProcessGroup = current->process.processId();
         QTimer::singleShot(0, this, [this, id] {
             if (auto *owned = impl_->child(id)) {
@@ -293,6 +346,7 @@ quint64 ProcessPort::start(const ProcessSpec &spec, ProcessCallbacks callbacks)
         if (!guard) return;
         current = impl_->child(id);
         if (!current) return;
+        if(current->boundedOutput)return;
         const auto closed = current->callbacks.onOutputClosed;
         if (closed) closed();
     }, Qt::QueuedConnection);
@@ -317,6 +371,31 @@ quint64 ProcessPort::start(const ProcessSpec &spec, ProcessCallbacks callbacks)
     childPtr->process.setProcessEnvironment(spec.environment);
     childPtr->process.setProcessChannelMode(QProcess::SeparateChannels);
     configureOwnedProcess(childPtr->process);
+    if(spec.backpressuredOutput){
+#ifdef Q_OS_UNIX
+        int fds[2];
+        if(::pipe(fds)!=0){
+            childPtr->result.errorString=QStringLiteral("Cannot create bounded output pipe");
+            QTimer::singleShot(0,this,[this,id]{impl_->finish(id,-1,QProcess::NormalExit);});
+            return id;
+        }
+        childPtr->boundedOutput=true;childPtr->readFd=fds[0];childPtr->writeFd=fds[1];
+        ::fcntl(fds[0],F_SETFL,::fcntl(fds[0],F_GETFL)|O_NONBLOCK);
+        ::fcntl(fds[0],F_SETFD,FD_CLOEXEC);::fcntl(fds[1],F_SETFD,FD_CLOEXEC);
+        childPtr->outputNotifier=std::make_unique<QSocketNotifier>(fds[0],QSocketNotifier::Read);
+        QObject::connect(childPtr->outputNotifier.get(),&QSocketNotifier::activated,this,[this,id]{impl_->readBounded(id);});
+        auto* process=&childPtr->process;
+        process->setChildProcessModifier([process,readFd=fds[0],writeFd=fds[1]]{
+            if(::setpgid(0,0)!=0)process->failChildProcessModifier("setpgid",errno);
+            if(::dup2(writeFd,STDOUT_FILENO)<0)process->failChildProcessModifier("dup2 stdout",errno);
+            ::close(readFd);if(writeFd!=STDOUT_FILENO)::close(writeFd);
+        });
+#else
+        childPtr->result.errorString=QStringLiteral("Bounded process output is unsupported on this platform");
+        QTimer::singleShot(0,this,[this,id]{impl_->finish(id,-1,QProcess::NormalExit);});
+        return id;
+#endif
+    }
     childPtr->process.start(spec.program, spec.arguments);
     return id;
 }
@@ -343,9 +422,9 @@ bool ProcessPort::requestStop(quint64 id, int gracefulTimeoutMs)
 bool ProcessPort::cancel(quint64 id)
 {
     Child *child = impl_->child(id);
-    if (!child || child->process.state() == QProcess::NotRunning)
-        return false;
-
+    if (!child)return false;
+    if(child->boundedOutput&&child->processExited){child->result.canceled=true;child->result.terminationRequested=true;impl_->finish(id,child->terminalCode,child->terminalStatus);return true;}
+    if(child->process.state()==QProcess::NotRunning)return false;
     child->result.canceled = true;
     child->result.terminationRequested = true;
     child->result.forceKilled = true;
@@ -353,6 +432,9 @@ bool ProcessPort::cancel(quint64 id)
     killOwnedProcessTree(child->process);
     return true;
 }
+
+bool ProcessPort::pauseOutput(quint64 id){auto* c=impl_->child(id);if(!c||!c->boundedOutput)return false;c->outputPaused=true;if(c->outputNotifier)c->outputNotifier->setEnabled(false);return true;}
+bool ProcessPort::resumeOutput(quint64 id){auto* c=impl_->child(id);if(!c||!c->boundedOutput)return false;c->outputPaused=false;if(c->outputNotifier&&!c->pipeEof)c->outputNotifier->setEnabled(true);return true;}
 
 bool ProcessPort::owns(quint64 id) const
 {
@@ -644,9 +726,9 @@ quint64 ProcessDriver::start(const DriverSpec &spec, ProcessCallbacks callbacks)
 bool ProcessDriver::disconnect(quint64 id)
 {
     if (const auto local = impl_->localProcessIds.find(id); local != impl_->localProcessIds.end()) {
-        const bool canceled = impl_->port->cancel(local->second);
+        const auto processId = local->second;
         impl_->localProcessIds.erase(local);
-        return canceled;
+        return impl_->port->cancel(processId);
     }
 
     RemoteChild *remoteChild = impl_->remote(id);
@@ -687,5 +769,8 @@ QString ProcessDriver::remoteUrl(quint64 id) const
     const auto remoteChild = impl_->remotes.find(id);
     return remoteChild == impl_->remotes.end() ? QString() : remoteChild->second->url;
 }
+
+bool ProcessDriver::pauseOutput(quint64 id){auto it=impl_->localProcessIds.find(id);return it!=impl_->localProcessIds.end()&&impl_->port->pauseOutput(it->second);}
+bool ProcessDriver::resumeOutput(quint64 id){auto it=impl_->localProcessIds.find(id);return it!=impl_->localProcessIds.end()&&impl_->port->resumeOutput(it->second);}
 
 } // namespace server1::media
