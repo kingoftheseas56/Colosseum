@@ -1,3 +1,5 @@
+use skill: colosseum-argon-workspace
+
 # Argon ACCOUNT-03: General software and C++ engineering
 
 **27-target campaign, batch 3 of 5. Assigned 5 distinct targets.** Research and writing only. Absolutely no Reddit submissions, comments, modmail, logins, account manipulation, or GitHub product changes. This is a standalone assignment for ONE Gemini account. Do not write another account's targets.
