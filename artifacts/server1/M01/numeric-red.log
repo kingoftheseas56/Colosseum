@@ -1,0 +1,63 @@
+{
+    "format": {
+        "duration": 1e+20,
+        "name": "unknown"
+    },
+    "streams": [
+        {
+            "bps": 0,
+            "codec": "unknown",
+            "formatBitRate": 0,
+            "formatDuration": 1e+20,
+            "formatMaxBitRate": 0,
+            "frameRate": null,
+            "hasBFrames": false,
+            "height": 9,
+            "id": 0,
+            "index": -1,
+            "isDoVi": false,
+            "isHdr": false,
+            "numberOfBytes": 0,
+            "numberOfFrames": null,
+            "startTime": null,
+            "startTimeTs": null,
+            "streamBitRate": 1,
+            "streamMaxBitRate": 0,
+            "timescale": 1,
+            "track": "video",
+            "width": 1
+        }
+    ]
+}
+expected {
+    "format": {
+        "duration": 1e+20,
+        "name": "unknown"
+    },
+    "streams": [
+        {
+            "bps": 0,
+            "codec": "unknown",
+            "formatBitRate": 0,
+            "formatDuration": 1e+20,
+            "formatMaxBitRate": 0,
+            "frameRate": null,
+            "hasBFrames": false,
+            "height": 0,
+            "id": 0,
+            "index": -1,
+            "isDoVi": false,
+            "isHdr": false,
+            "numberOfBytes": 0,
+            "numberOfFrames": null,
+            "startTime": null,
+            "startTimeTs": null,
+            "streamBitRate": 1,
+            "streamMaxBitRate": 0,
+            "timescale": 1,
+            "track": "video",
+            "width": 1e+20
+        }
+    ]
+}
+oracle mismatch

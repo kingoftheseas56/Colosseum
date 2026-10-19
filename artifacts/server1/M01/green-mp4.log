@@ -1,0 +1,6 @@
+normalization fixtures: 14 PASS
+process/cache/failure/timeout/cancel/destruction: PASS
+remote probe bridge: PASS
+legacy stderr-before-exit/missing executable: PASS
+output EOF callback owner deletion: PASS
+{"format":{"duration":0.4,"name":"mov,mp4,m4a,3gp,3g2,mj2"},"streams":[{"bps":0,"codec":"mpeg4","formatBitRate":124520,"formatDuration":0.4,"formatMaxBitRate":0,"frameRate":25,"hasBFrames":false,"height":120,"id":0,"index":0,"isDoVi":false,"isHdr":false,"numberOfBytes":0,"numberOfFrames":10,"startTime":0,"startTimeTs":0,"streamBitRate":15120,"streamMaxBitRate":0,"timescale":12800,"track":"video","width":160},{"channelLayout":"mono","channels":1,"codec":"aac","id":0,"index":1,"language":"und","sampleRate":44100,"startTime":0,"startTimeTs":0,"streamBitRate":70941,"streamMaxBitRate":0,"timescale":44100,"title":null,"track":"audio"}]}

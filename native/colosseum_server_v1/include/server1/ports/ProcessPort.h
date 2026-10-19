@@ -73,6 +73,8 @@ struct ProcessCallbacks final {
     std::function<void(const QByteArray &)> onStderr;
     std::function<void(const ProcessResult &)> onFinished;
     std::function<void(quint16 port, const QString &url)> onRemoteReady;
+    // Output pipe EOF is observably earlier than process completion for legacy probes.
+    std::function<void()> onOutputClosed;
 };
 
 class ProcessPort : public QObject {

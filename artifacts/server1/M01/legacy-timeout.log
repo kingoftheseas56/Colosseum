@@ -1,0 +1,6 @@
+normalization fixtures: 14 PASS
+process/cache/failure/timeout/cancel/destruction: PASS
+remote probe bridge: PASS
+legacy stderr-before-exit/missing executable: PASS
+output EOF callback owner deletion: PASS
+legacy 20000ms timeout: PASS

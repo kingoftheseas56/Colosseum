@@ -1,0 +1,27 @@
+{
+  "cache": "FIFO 3; cache hits do not refresh",
+  "cacheSpawnCount": 5,
+  "firstJsonValue": {
+    "format": {
+      "name": "unknown",
+      "duration": 1
+    },
+    "streams": []
+  },
+  "errors": {
+    "fail": "Probe process exited with code: 7",
+    "malformed": "Probe process failed",
+    "invalid": "Probe process failed",
+    "slow": "Probe process has been terminated with signal: SIGKILL"
+  },
+  "legacyMissingInput": {
+    "streams": []
+  },
+  "args": [
+    "-show_entries",
+    "stream=index,bit_rate,max_bit_rate,codec_type,codec_name,start_time,start_pts,r_frame_rate,sample_rate,channels,channel_layout,time_base,has_b_frames,nb_frames,width,height,color_space,color_transfer,color_primaries,codec_tag_string : stream_tags=title,language,duration,bps,number_of_bytes : format=format_name,duration,bit_rate,max_bit_rate",
+    "-print_format",
+    "json",
+    "fixture:a"
+  ]
+}

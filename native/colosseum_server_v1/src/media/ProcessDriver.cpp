@@ -281,6 +281,21 @@ quint64 ProcessPort::start(const ProcessSpec &spec, ProcessCallbacks callbacks)
         if (Child *current = impl_->child(id))
             impl_->readStderr(*current);
     }, Qt::QueuedConnection);
+    QObject::connect(&childPtr->process, &QProcess::readChannelFinished, this, [this, id] {
+        QPointer<ProcessPort> guard(this);
+        Child *current = impl_->child(id);
+        if (!current) return;
+        impl_->readStdout(*current);
+        if (!guard) return;
+        current = impl_->child(id);
+        if (!current) return;
+        impl_->readStderr(*current);
+        if (!guard) return;
+        current = impl_->child(id);
+        if (!current) return;
+        const auto closed = current->callbacks.onOutputClosed;
+        if (closed) closed();
+    }, Qt::QueuedConnection);
     QObject::connect(&childPtr->process, &QProcess::errorOccurred, this,
                      [this, id](QProcess::ProcessError error) {
                          Child *current = impl_->child(id);
@@ -534,6 +549,10 @@ quint64 ProcessDriver::start(const DriverSpec &spec, ProcessCallbacks callbacks)
                 return;
             if (ready)
                 ready(port, url);
+        };
+        localCallbacks.onOutputClosed = [weak, closed = std::move(callbacks.onOutputClosed)] {
+            const auto impl = weak.lock();
+            if (impl && impl->alive.load() && closed) closed();
         };
         localCallbacks.onFinished = [weak, driverId,
                                      finished = std::move(callbacks.onFinished)](
