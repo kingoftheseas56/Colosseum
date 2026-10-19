@@ -38,6 +38,38 @@
 #include <memory>
 
 namespace {
+// Exercise a failed atomic receipt replacement on each filesystem: Windows
+// denies replacing an open QFile, while POSIX requires a non-writable parent.
+// Restore permissions even if an assertion ends the test early.
+class ReceiptWriteBlocker {
+public:
+    bool block(const QString &path) {
+#ifdef Q_OS_WIN
+        m_file.setFileName(path);
+        return m_file.open(QIODevice::ReadOnly);
+#else
+        m_parent = QFileInfo(path).absolutePath();
+        m_originalPermissions = QFile::permissions(m_parent);
+        const auto writes = QFileDevice::WriteOwner | QFileDevice::WriteUser
+            | QFileDevice::WriteGroup | QFileDevice::WriteOther;
+        m_restorePermissions = QFile::setPermissions(
+            m_parent, m_originalPermissions & ~writes);
+        return m_restorePermissions;
+#endif
+    }
+
+    ~ReceiptWriteBlocker() {
+        if (m_restorePermissions)
+            QFile::setPermissions(m_parent, m_originalPermissions);
+    }
+
+private:
+    QFile m_file;
+    QString m_parent;
+    QFileDevice::Permissions m_originalPermissions;
+    bool m_restorePermissions = false;
+};
+
 constexpr auto kAccountA =
     "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 constexpr auto kDeviceA =
@@ -3227,10 +3259,10 @@ void tst_account_attachment_coordinator::
             return true;
         });
 
-    // Lock the receipt file the moment retirement starts. On Windows a
-    // read handle without FILE_SHARE_DELETE blocks the QSaveFile replace,
-    // so the retire write fails before any clear can remove the file.
-    std::unique_ptr<QFile> receiptLock;
+    // Block receipt replacement the moment retirement starts, before any
+    // clear can remove the file.
+    std::unique_ptr<ReceiptWriteBlocker> receiptLock;
+    bool receiptBlocked = false;
     QObject::connect(
         &coordinator,
         &AccountAttachmentCoordinator::
@@ -3242,15 +3274,9 @@ void tst_account_attachment_coordinator::
                         State::Retiring
                 && !receiptLock) {
                 receiptLock =
-                    std::make_unique<
-                        QFile>(
-                        profile
-                            .cloudAttachmentReceiptPath());
-                const bool lockHeld =
-                    receiptLock->open(
-                        QIODevice::
-                            ReadOnly);
-                Q_UNUSED(lockHeld)
+                    std::make_unique<ReceiptWriteBlocker>();
+                receiptBlocked = receiptLock->block(
+                    profile.cloudAttachmentReceiptPath());
             }
         });
 
@@ -3271,6 +3297,7 @@ void tst_account_attachment_coordinator::
     // The server committed and the flow reached retirement, but the
     // retire write failed closed: the receipt survives with the source
     // unretired, proving retirement precedes the clear.
+    QVERIFY(receiptBlocked);
     QVERIFY(
         !recording.succeeded);
     QCOMPARE(
@@ -3347,7 +3374,7 @@ void tst_account_attachment_coordinator::
 
     bool sourcePresent = true;
     bool historicalActivityDigestObserved = false;
-    std::unique_ptr<QFile> receiptLock;
+    std::unique_ptr<ReceiptWriteBlocker> receiptLock;
 
     {
         SyntheticAdapter adapter;
@@ -3375,9 +3402,8 @@ void tst_account_attachment_coordinator::
             },
             [&](const AccountAttachmentReceiptData &, QString *error) {
                 sourcePresent = false;
-                receiptLock = std::make_unique<QFile>(
-                    profile.cloudAttachmentReceiptPath());
-                if (!receiptLock->open(QIODevice::ReadOnly)) {
+                receiptLock = std::make_unique<ReceiptWriteBlocker>();
+                if (!receiptLock->block(profile.cloudAttachmentReceiptPath())) {
                     if (error)
                         *error = QStringLiteral(
                             "The receipt lock could not be acquired after source clear.");
