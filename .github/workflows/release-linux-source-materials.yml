@@ -55,7 +55,7 @@ jobs:
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update 2>&1 | tee apt-update.txt
           sudo apt-get install -y --no-install-recommends \
-            dpkg-dev patchelf libmpv-dev libtorrent-rasterbar-dev libboost-all-dev \
+            dpkg-dev patchelf p7zip-full libmpv-dev libtorrent-rasterbar-dev libboost-all-dev \
             libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev \
             libxkbcommon-dev libxcb-cursor0 ffmpeg 2>&1 | tee apt-install.txt
           mkdir -p evidence/apt-trust/lists
@@ -69,6 +69,8 @@ jobs:
         run: python3 tools/linux-release/distribution-materials/distro.py --output evidence
       - name: Acquire Qt SDK families and rebuilt TIFF and KDE source inputs
         run: python3 tools/linux-release/distribution-materials/upstream.py --output evidence
+      - name: Verify Qt SDK binary archive ownership and acquire ICU candidate source
+        run: python3 tools/linux-release/distribution-materials/sdk.py --output evidence
       - name: Generate explicit review inventory and checksums
         if: always()
         run: |
@@ -97,6 +99,7 @@ jobs:
             evidence/sources/**
             evidence/upstream/**/*.tar.xz
             evidence/upstream/**/*.tar.gz
+            evidence/upstream/**/*.tgz
             evidence/recipes/colosseum-*.tar.gz
             evidence/SHA256-INDEX.json
           compression-level: 0

@@ -11,7 +11,7 @@ def bundle(output, archive):
             relative = path.relative_to(output)
             if not path.is_file() or 'git' in relative.parts or '.git' in relative.parts:
                 continue
-            if path.name.endswith(('.tar.xz', '.tar.gz', '.tar.bz2', '.deb', '.diff.gz')):
+            if path.name.endswith(('.tar.xz', '.tar.gz', '.tar.bz2', '.tgz', '.deb', '.diff.gz')):
                 continue
             tar.add(path, arcname=relative.as_posix(), recursive=False)
 

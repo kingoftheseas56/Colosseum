@@ -14,6 +14,8 @@ def generate(out):
     build = read('retained/payload/opt/colosseum/BUILD-IDENTITY.json', {})
     proofs = read('ubuntu-file-proofs.json', [])
     proof_by_file = {p['payload']: p for p in proofs}
+    sdk_proofs = read('qt-sdk-file-proofs.json', [])
+    sdk_by_file = {p['payload']: p for p in sdk_proofs}
     sbom_dir = out / 'retained/payload/opt/colosseum/licenses/Qt-SBOM'
     sbom_paths = {}
     module_packages = []
@@ -54,17 +56,21 @@ def generate(out):
                     row.update(family='Qt SDK', origin=origin,
                                reason='SDK origin recorded; no exact retained SPDX file path declaration')
         rows.append(row)
+        if path in sdk_by_file:
+            row.update(family='Qt SDK', status='verified-sdk-file', sdk_proof=sdk_by_file[path])
     write_json(out / 'elf-provenance-inventory.json', rows)
     upstream = read('upstream-source-index.json', [])
     sources = read('ubuntu-source-index.json', [])
     unresolved = [{'path': r['path'], 'reason': r.get('reason', 'No verified file mapping')} for r in rows if r['status'] == 'unresolved']
     unresolved += read('ubuntu-unresolved.json', [])
+    unresolved += read('ubuntu-notice-unresolved.json', [])
     unresolved += read('upstream-unresolved.json', [])
+    unresolved += read('qt-sdk-unresolved.json', [])
+    unresolved += [r for r in read('qt-sdk-archive-index.json', []) if r['status'] == 'unresolved']
     unresolved += [r for r in sources + upstream if r['status'] == 'unresolved']
     # Whole SDK proof and license-specific delivery review must not be inferred
     # from a library path/SBOM version match or from successful downloads.
     unresolved += [
-        {'component': 'Qt SDK file verification', 'reason': 'SBOM path attribution is retained publisher metadata, not a replayed SDK build or byte verification of every original SDK file.'},
         {'component': 'Public source delivery and notices acceptance', 'reason': 'Artifacts are CI review artifacts with finite retention. Durable hosting, complete source/notice review and release authorization remain required.'},
         {'component': 'Relink/build materials review', 'reason': 'Exact application/SDK dependency build recipes and dynamic-link configuration retained; sufficient license-specific relinking/build delivery is not certified by this collector.'}]
     write_json(out / 'unresolved.json', unresolved)
@@ -85,6 +91,8 @@ def generate(out):
         'Actual shipped ELF inventory: elf-provenance-inventory.json.',
         'Verified Ubuntu package/source index: ubuntu-file-proofs.json and ubuntu-source-index.json.',
         'Exact Ubuntu binary copyright texts: binary-verification/<binary-package>/copyrights/.',
+        'Verified Qt SDK file-to-installer-archive ownership: qt-sdk-file-proofs.json and qt-sdk-archive-index.json.',
+        'ICU upstream source candidate and its precise correspondence limitation: icu-candidate-source.json.',
         'Qt and other acquired source inputs: upstream-source-index.json; unchanged source notices under upstream/*/notices/.',
         'Qt license fields are publisher declarations retained verbatim in qt-sbom-package-declarations.json.',
         'NOASSERTION and unknown entries remain unknown; no default license classification is applied.',

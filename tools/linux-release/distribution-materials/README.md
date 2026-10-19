@@ -33,9 +33,16 @@ official download.qt.io SHA256 metadata and retains source notices. Module Git
 snapshots use full commits from retained SBOMs where present, otherwise the
 upstream v6.11.1 tag with its resolved commit recorded. Archive files are compared
 with Git blob identities; missing/different paths and gitlinks remain visible.
-SDK path attribution is explicitly weaker than byte/build equivalence. ICU73.2
+sdk.py additionally verifies original Qt installer archive checksums, locates
+exact file members, checks retained pre-relocation hashes where present and
+replays RPATH edits against shipped SHA256. The original installer archives are
+temporary CI inputs, not claimed to be source. Archive checksums and the exact
+Qt Updates.xml metadata remain in review evidence. SBOM path attribution by
+itself is explicitly weaker than this file verification. ICU73.2
 has NOASSERTION source location in the retained SDK SBOM and remains unresolved
-until exact SDK source/build provenance is supplied. QtWebEngine source archives
+until exact SDK source/build provenance is supplied. The Unicode73.2 source
+archive is acquired against official Unicode SHA512 metadata as a candidate,
+with this correspondence limitation recorded. QtWebEngine source archives
 contain Chromium, but transitive source closure and SDK configuration must be
 reviewed against the retained Chromium SBOMs and recorded gitlinks.
 

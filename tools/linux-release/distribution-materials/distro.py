@@ -181,9 +181,11 @@ def collect(out):
             if digest(archive) != stanza['SHA256'] or archive.stat().st_size != int(stanza['Size']):
                 raise ValueError('Binary archive hash/size mismatch')
             source_name, source_version = source_identity(stanza)
-            if any(provenance[name][1:] != [source_name, source_version] for _ in [0]):
+            if provenance[name][1:] != [source_name, source_version]:
                 raise ValueError('Source identity disagrees with retained build provenance')
             data = binary_files(archive, {m['origin'] for m in members}, directory / 'copyrights')
+            notice_files = [{'path': p.relative_to(out).as_posix(), 'sha256': digest(p)}
+                            for p in sorted((directory / 'copyrights').rglob('*')) if p.is_file()]
             for member in members:
                 try:
                     original = data[member['origin']]
@@ -203,6 +205,7 @@ def collect(out):
                                    'archive_file_path': member['origin'], 'original_sha256': before,
                                    'shipped_sha256': transformed, 'source_package': source_name,
                                    'source_version': source_version,
+                                   'binary_copyright_texts': notice_files,
                                    'metadata': (directory / 'Packages-stanza.txt').relative_to(out).as_posix()})
                 except Exception as exc:
                     gaps.append({**member, 'reason': str(exc)})
@@ -223,6 +226,9 @@ def collect(out):
     write_json(out / 'ubuntu-summary.json', {'targets': len(targets), 'verified': len(proofs),
                'unresolved_files': len(gaps), 'source_sets': len(sources),
                'unresolved_sources': sum(s['status'] != 'verified-acquired' for s in sources.values())})
+    write_json(out / 'ubuntu-notice-unresolved.json',
+               [{'package': name, 'reason': 'Exact binary archive has no regular copyright text; inspect retained host notices, documentation symlinks and matching source debian/copyright before notice acceptance.'}
+                for name in sorted({p['binary_package'] for p in proofs if not p['binary_copyright_texts']})])
 
 
 if __name__ == '__main__':
