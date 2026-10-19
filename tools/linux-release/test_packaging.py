@@ -50,6 +50,31 @@ class PackageTests(unittest.TestCase):
         subprocess.run([PATCH,'--set-rpath','/tmp/nonportable',str(self.stage/'usr/libexec/QtWebEngineProcess')],check=True);self.assertNotEqual(self.check()[0],0)
     def reassemble(self, extra):
         return subprocess.run(['python3',str(HERE/'assemble.py'),'--source',str(self.p/'source'),'--build',str(self.p/'build'),'--qt',str(self.p/'qt'),'--stage',str(self.p/'second'),'--commit','a'*40,'--patchelf',PATCH,'--dep-lib',str(self.p/'deps')]+extra,capture_output=True,text=True)
+    def positioning_fixture(self):
+        qt=self.p/'qt';plugin=qt/'plugins/position/libqtposition_nmea.so'
+        plugin.parent.mkdir()
+        dependency=qt/'lib/libQt6SerialPort.so.6'
+        subprocess.run(['cc','-shared','-fPIC',str(self.p/'dep.c'),'-Wl,-soname,libQt6SerialPort.so.6','-o',str(dependency)],check=True)
+        subprocess.run(['cc','-shared','-fPIC',str(self.p/'app.c'),'-L'+str(qt/'lib'),'-l:libQt6SerialPort.so.6','-o',str(plugin)],check=True)
+        return dependency
+    def test_positioning_dependency_bundled_from_sdk(self):
+        dependency=self.positioning_fixture()
+        r=self.reassemble([]);self.assertEqual(r.returncode,0,r.stderr)
+        stage=self.p/'second';bundled=stage/'usr/lib/libQt6SerialPort.so.6'
+        self.assertTrue(bundled.is_file())
+        identity=json.loads((stage/'BUILD-IDENTITY.json').read_text())
+        self.assertEqual(identity['bundled_dependency_origins'][bundled.name]['origin'],str(dependency))
+        self.assertEqual(identity['qt_plugin_selection']['excluded'],[])
+        shutil.rmtree(self.p/'qt')
+        loaded=subprocess.run(['ldd',str(stage/'usr/plugins/position/libqtposition_nmea.so')],capture_output=True,text=True)
+        self.assertEqual(loaded.returncode,0,loaded.stderr)
+        resolved=next(line.split('=>',1)[1].split()[0] for line in loaded.stdout.splitlines() if 'libQt6SerialPort.so.6 =>' in line)
+        self.assertEqual(Path(resolved).resolve(),bundled);self.assertNotIn('not found',loaded.stdout)
+    def test_positioning_missing_dependency_still_rejected(self):
+        self.positioning_fixture().unlink()
+        r=self.reassemble([]);self.assertNotEqual(r.returncode,0)
+        self.assertIn('Unresolved dependency',r.stderr)
+        self.assertIn('libQt6SerialPort.so.6 => not found',r.stderr)
     def test_unused_plugin_exclusion_recorded(self):
         shutil.copy2('/bin/true',self.p/'qt/plugins/unused.so')
         r=self.reassemble(['--exclude-plugin','unused.so']);self.assertEqual(r.returncode,0,r.stderr)

@@ -10,6 +10,13 @@ SPEC.loader.exec_module(assembly)
 
 
 class LinuxReleasePolicyTests(unittest.TestCase):
+    def test_positioning_keeps_its_matching_serialport_sdk_dependency(self):
+        workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
+        modules = next(line for line in workflow.splitlines() if "modules:" in line)
+        self.assertIn("qtpositioning", modules.split())
+        self.assertIn("qtserialport", modules.split())
+        self.assertNotIn("--exclude-plugin position/", workflow)
+
     def test_version_comes_from_the_compiled_project(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory)

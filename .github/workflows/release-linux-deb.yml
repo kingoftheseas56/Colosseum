@@ -45,7 +45,7 @@ jobs:
           host: linux
           target: desktop
           arch: linux_gcc_64
-          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats'
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
           cache: true
       - name: Build pinned ECM and MpvQt
@@ -102,9 +102,8 @@ jobs:
           for plugin in "$QT_ROOT_DIR"/plugins/sqldrivers/*.so; do
             [[ "$(basename "$plugin")" == libqsqlite.so ]] || args+=(--exclude-plugin "sqldrivers/$(basename "$plugin")")
           done
-          if [[ -f "$QT_ROOT_DIR/plugins/position/libqtposition_serialnmea.so" ]]; then
-            args+=(--exclude-plugin position/libqtposition_serialnmea.so)
-          fi
+          # Preserve positioning backends for WebEngine geolocation; qtserialport
+          # supplies the matching SDK dependency of libqtposition_nmea.so.
           if [[ -d "$QT_ROOT_DIR/qml/QtQuick3D" ]]; then
             args+=(--exclude-qml-module QtQuick3D)
           fi
