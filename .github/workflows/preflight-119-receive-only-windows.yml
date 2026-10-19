@@ -2,7 +2,7 @@ name: preflight-119-receive-only-windows
 on:
   push:
     branches:
-      - codex/119-production-updater-qualification-20261019
+      - codex/119-state-preservation-codex-20261019
 
 permissions:
   actions: read

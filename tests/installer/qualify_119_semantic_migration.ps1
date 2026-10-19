@@ -230,12 +230,20 @@ function Start-InstalledWithProbe([string]$qml,[string]$name) {
     $err = Join-Path $env:RUNNER_TEMP "preflight-119-$name.stderr.log"
     return Start-Process -FilePath $exe -WorkingDirectory $installRoot -ArgumentList ('"'+$qml+'"') -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
 }
-function Stop-InstalledNormally([System.Diagnostics.Process]$process,[string]$stage) {
+function Stop-InstalledNormally([System.Diagnostics.Process]$process,[string]$stage,[bool]$legacyDiagnostic = $false) {
     $process.Refresh()
     Require (!$process.HasExited) "$stage application vanished before orderly close"
     Require ($process.CloseMainWindow()) "$stage had no closable main QQuickWindow"
     Require ($process.WaitForExit(20000)) "$stage app failed to exit on ordinary window-close"
-    Require ($process.ExitCode -eq 0) "$stage graceful app exit=$($process.ExitCode)"
+    $exitRecord = @{stage=$stage; exitCode=$process.ExitCode; legacyDiagnostic=$legacyDiagnostic}
+    $exitRecord | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP "preflight-119-semantic-$stage-exit.json") -Encoding utf8
+    if ($legacyDiagnostic -and $process.ExitCode -eq -1073741819) {
+        # Published 1.1.8 crashes when this diagnostic root closes. Keep the
+        # failure visible; a fresh old-app read below must prove persistence.
+        Write-Warning "$stage diagnostic close access violation 0xC0000005; NOT graceful-shutdown evidence"
+    } else {
+        Require ($process.ExitCode -eq 0) "$stage graceful app exit=$($process.ExitCode)"
+    }
 }
 try {
     New-OfflineEpub
@@ -253,7 +261,19 @@ try {
     $beforePath = Join-Path $env:RUNNER_TEMP 'preflight-119-semantic-before.json'
     $before | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath $beforePath -Encoding utf8
     Write-Host ('PREFLIGHT_SEMANTIC_BEFORE '+(ConvertTo-Json -InputObject $before -Compress -Depth 9))
-    Stop-InstalledNormally $old 'old-1.1.8'
+    # Progress persistence is debounced. Allow the old app's normal disk writer
+    # to run before closing the diagnostic root; no direct store-file seeding.
+    Start-Sleep -Seconds 6
+    Stop-InstalledNormally $old 'old-1.1.8' $true
+    $oldReadQml = Join-Path $env:RUNNER_TEMP 'preflight-119-old-read.qml'
+    New-ProbeQml $false $oldReadQml
+    $old = Start-InstalledWithProbe $oldReadQml 'old-reopened'
+    $oldPersisted = Read-RenderedSnapshot $old
+    Assert-OwnerSnapshot $oldPersisted 'old-1.1.8-reopened'
+    Require ((ConvertTo-Json -InputObject $oldPersisted -Compress -Depth 9) -eq (ConvertTo-Json -InputObject $before -Compress -Depth 9)) 'old-app restart did not restore seeded owner state'
+    $oldPersisted | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'preflight-119-semantic-old-reopened.json') -Encoding utf8
+    Write-Host ('PREFLIGHT_SEMANTIC_OLD_REOPENED '+(ConvertTo-Json -InputObject $oldPersisted -Compress -Depth 9))
+    Stop-InstalledNormally $old 'old-1.1.8-reopened' $true
     Require (Test-Path (Join-Path $profile 'collection-store.ini')) 'old application did not write Collection owner data'
     Require (Test-Path (Join-Path $profile 'progress-store.ini')) 'old application did not persist Progress owner data'
     $collectionShaBefore = Sha (Join-Path $profile 'collection-store.ini')
