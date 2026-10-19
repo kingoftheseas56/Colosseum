@@ -1,0 +1,12 @@
+Test project /tmp/engine-stats-build/server
+    Start 79: K10-G-transport-pause-generation
+1/1 Test #79: K10-G-transport-pause-generation ...   Passed    4.27 sec
+
+100% tests passed out of 1
+
+Label Time Summary:
+K10-G      =   4.27 sec*proc (1 test)
+native     =   4.27 sec*proc (1 test)
+server1    =   4.27 sec*proc (1 test)
+
+Total Test time (real) =   4.28 sec

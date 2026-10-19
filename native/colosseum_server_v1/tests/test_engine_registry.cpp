@@ -5,6 +5,7 @@
 #include <QThread>
 #include <QEvent>
 #include "server1/policy/EngineRegistry.h"
+#include "server1/discovery/DiscoveryNetwork.h"
 #include "server1/policy/TorrentMetadata.h"
 
 #include <QCryptographicHash>
@@ -722,7 +723,10 @@ void regressionTimer()
     std::shared_ptr<ProbeTimer> timer;
     EngineRegistryConfig config;
     config.cacheRoot = uniqueRoot("k11-timer");
+    // This regression owns only the per-engine M814 timer. M416 is an
+    // independent application clock and is tested by the statistics suite.
     config.transportFactory = [&](const auto &request) { return factory.open(request); };
+    config.speedometerTick = [] { return std::uint16_t{1}; };
     config.repeat = [&](std::uint64_t interval, EngineContinuation callback) {
         intervals.push_back(interval);
         captured = callback;
@@ -799,6 +803,21 @@ void regressionPeerSearch()
     LaneWorker worker;
     EngineRegistryConfig config;
     config.cacheRoot = uniqueRoot("k11-peers");
+    class Network final : public server1::discovery::DiscoveryNetwork {
+    public:
+        std::string announcedHash;
+        void tracker(std::size_t,const std::string&,const std::string &hash) override {announcedHash=hash;}
+        void lookup(std::size_t,const std::string&) override {}
+        void pauseDht(std::size_t,std::uint64_t) override {}
+        void advance(std::uint64_t) override {}
+        std::vector<server1::discovery::DiscoveredPeer> takePeers() override {return {};}
+        void close() noexcept override {}
+    };
+    auto network=std::make_shared<Network>();
+    const auto appThread=std::this_thread::get_id();
+    std::size_t factoryCalls=0;
+    config.discoveryNetworkFactory=[&]{expect(std::this_thread::get_id()==appThread,"discovery factory must run on app lane");++factoryCalls;return network;};
+
     config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
     config.transportFactory = [&](const auto &request) { return factory.open(request); };
     std::uint64_t now = 1000;
@@ -813,6 +832,7 @@ void regressionPeerSearch()
     settle(registry, worker);
     const auto engine = registry.get(torrent.hash);
     const auto state = factory.at(0);
+    expect(factoryCalls==1 && network->announcedHash==torrent.hash,"discovery factory and infohash must reach PeerSearch");
     expect(engine->hasPeerSearch() && engine->peerSearchRunning(),
            "K11-PEERS PeerSearch was not constructed and running at isNew create");
     const auto stats = engine->peerSearchStats();
@@ -832,10 +852,11 @@ void regressionPeerSearch()
            "K11-PEERS valid discovered peer did not become one generation-owned ConnectAction");
     const auto discovery = engine->peerDiscovery();
     // M612 counts every source result; uniqueness spans sources. The engine, not
-    // PeerSearch, rejects malformed results before they reach the transport.
+    // PeerSearch, rejects malformed results and suppresses retained duplicate
+    // endpoints before they reach the transport.
     const auto counted = engine->peerSearchStats();
     expect(discovery.malformedRejected == 7 && discovery.connectsSubmitted == 1
-               && discovery.duplicatesSuppressed == 0
+               && discovery.duplicatesSuppressed == 1
                && counted[0].numFound == 8 && counted[0].numFoundUniq == 8
                && counted[1].numFound == 1 && counted[1].numFoundUniq == 0,
            "K11-PEERS deduplication or malformed-result rejection drifted");
@@ -1168,6 +1189,7 @@ std::string runM814Scenario()
     config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
     config.transportFactory = [&](const auto &request) { return factory.open(request); };
     config.trace = traces.sink();
+    config.speedometerTick = [] { return std::uint16_t{1}; };
     config.repeat = [&](std::uint64_t interval, EngineContinuation callback) {
         intervals.push_back(interval);
         timerCallback = callback;

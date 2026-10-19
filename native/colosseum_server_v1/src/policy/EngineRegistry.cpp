@@ -1,3 +1,4 @@
+#include "server1/policy/EngineSpeedometerClock.h"
 #include "server1/policy/EngineRegistry.h"
 #include "server1/policy/EngineCounters.h"
 
@@ -434,7 +435,23 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
           appThread(std::this_thread::get_id()),
           app(std::make_shared<AppLane>(config.callbackExecutor)),
           workers(std::make_shared<WorkerHolder>())
-    {}
+    {
+        if (!config.speedometerTick && config.repeat)
+            config.speedometerTick = engineSpeedometerClock(config.repeat);
+        if (!config.speedometerTick) {
+            // Non-event-loop callers have an injectable clock. Production uses
+            // the shared delivered-tick timer above, never per-engine timers.
+            const auto start=std::chrono::steady_clock::now();
+            const auto clock=config.monotonicClock;
+            const auto origin=clock ? clock() : 0;
+            config.speedometerTick=[clock,origin,start] {
+                const auto ms=clock ? clock()-origin : static_cast<std::uint64_t>(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now()-start).count());
+                return static_cast<std::uint16_t>(1+ms/250);
+            };
+        }
+    }
 
     template <typename Function>
     void postApp(Function function)
@@ -675,9 +692,11 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
             wiring.infoHash = hashBytes(key);
             wiring.source = sourceFor(options);
             wiring.transportFactory = config.transportFactory;
+            wiring.discoveryNetworkFactory = config.discoveryNetworkFactory;
             wiring.workPost = [strand](EngineContinuation task) { return strand->post(std::move(task)); };
             wiring.appPost = [lane](EngineContinuation task) { return lane->post(std::move(task)); };
             wiring.repeat = config.repeat;
+            wiring.speedometerTick = config.speedometerTick;
             wiring.clock = config.monotonicClock;
             wiring.trace = config.trace;
             wiring.onReady = [weak, key, generation] {
@@ -1054,6 +1073,20 @@ void EngineRegistry::dispatch()
 std::size_t EngineRegistry::constructionCount() const noexcept
 {
     return impl_->constructionCount;
+}
+
+Value EngineRegistry::statistics(const std::string &sourceKey, Value index) const
+{
+    const auto engine=get(sourceKey);
+    return engine ? engine->statistics(std::move(index)) : Value::null();
+}
+
+bool EngineRegistry::prewarmStream(const std::string &sourceKey, std::size_t fileIndex)
+{
+    const auto engine=get(sourceKey);
+    if(!engine || !engine->ready() || engine->closed() || fileIndex>=engine->fileCount()) return false;
+    engine->selectCacheFile(fileIndex);
+    return true;
 }
 
 } // namespace server1::policy

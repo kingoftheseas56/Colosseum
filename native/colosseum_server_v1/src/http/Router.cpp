@@ -938,6 +938,16 @@ int server1_http_response_set_header(void *opaqueResponse, const char *name, con
 {
     if (opaqueResponse == nullptr || name == nullptr || value == nullptr || *name == '\0')
         return 0;
+    // Node rejects invalid header tokens and field-value controls before writing
+    // any bytes. This C ABI reports rejection without throwing across callers.
+    for (const unsigned char *p = reinterpret_cast<const unsigned char *>(name); *p; ++p) {
+        const bool alpha = (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z');
+        const bool digit = *p >= '0' && *p <= '9';
+        if (!alpha && !digit && std::string_view("!#$%&'*+-.^_`|~").find(*p) == std::string_view::npos)
+            return 0;
+    }
+    for (const unsigned char *p = reinterpret_cast<const unsigned char *>(value); *p; ++p)
+        if ((*p < 0x20 && *p != '\t') || *p == 0x7f) return 0;
     auto &response = *static_cast<server1::http::router_detail::Response *>(opaqueResponse);
     const std::string wanted = server1::http::router_detail::lower(name);
     for (auto &header : response.headers) {

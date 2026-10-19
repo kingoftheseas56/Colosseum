@@ -1,6 +1,6 @@
 add_test(NAME P03-02-server1-host COMMAND server1_host)
 set_tests_properties(P03-02-server1-host PROPERTIES
-  PASS_REGULAR_EXPRESSION "server1 skeleton initialized; streaming-ready=NO"
+  PASS_REGULAR_EXPRESSION "server1 composition initialized; listening=YES"
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
 )
 
@@ -14,6 +14,8 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/H00.cmake")
 server1_register_h00_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/M00.cmake")
 server1_register_m00_tests()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/M01.cmake")
+server1_register_m01_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K02.cmake")
 server1_register_k02_tests()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/K05.cmake")

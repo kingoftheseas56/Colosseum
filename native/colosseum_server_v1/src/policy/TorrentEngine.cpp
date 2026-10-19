@@ -1,4 +1,6 @@
 #include "server1/policy/EngineRegistry.h"
+#include "server1/policy/EngineStatistics.h"
+#include <QDateTime>
 
 #include "server1/discovery/PeerSearch.h"
 #include "server1/policy/CircularPieceStore.h"
@@ -479,10 +481,21 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     ports::V1InfoHash infoHash{};
     ports::TorrentSource source;
     EngineTransportFactory transportFactory;
+    std::function<std::shared_ptr<discovery::DiscoveryNetwork>()> discoveryNetworkFactory;
     EnginePost workPost;
     EnginePost appPost;
     EngineRepeat repeat;
     EngineClock clock;
+    EngineSpeedometer::Tick speedometerTick;
+    std::unique_ptr<EngineSpeedometer> downloadMeter;
+    struct PeerMeter final {
+        std::unique_ptr<EngineSpeedometer> down, up;
+        std::uint64_t downloaded=0, uploaded=0;
+    };
+    std::map<std::uint64_t,PeerMeter> peerMeters;
+    std::uint64_t measuredDownloaded=0;
+    std::int64_t epochOffsetMs=0;
+
     TraceSink trace;
     std::function<void()> onReady;
     std::function<void()> onFailed;
@@ -524,7 +537,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
     bool swarmPaused = false;
     std::string sourceError;
     std::size_t resumeCount = 0;
-    std::size_t slots = 5;
+    std::size_t uploadSlotCount = 5;
     bool metadataPending = false;
     bool ready = false;
     bool failed = false;
@@ -564,7 +577,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 parsed.minPeers = static_cast<std::size_t>(*min);
             swarmCap = parsed;
         }
-        slots = uploadSlots(creationOptions);
+        uploadSlotCount = uploadSlots(creationOptions);
         const auto *peerSearchOption = creationOptions.find("peerSearch");
         if (peerSearchOption && jsTruthy(*peerSearchOption)) {
             // M172 uses the parsed torrent's announce list when the torrent option
@@ -578,7 +591,8 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
                 discovery::PeerSearch::selectSources(announce, configuredPeerSources(creationOptions),
                                                      sourceKey),
                 configuredBound(creationOptions, "min"), configuredBound(creationOptions, "max"),
-                now());
+                now(), discovery::AutonomyPolicy{},
+                discoveryNetworkFactory ? discoveryNetworkFactory() : nullptr, sourceKey);
         }
 
         const ports::TorrentOpenRequest request(generation, infoHash, source, cachePath.string());
@@ -636,9 +650,36 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         if (onFailed) onFailed();
     }
 
+    void sampleStatistics(const ports::TransportStatistics &stats)
+    {
+        if (downloadMeter) {
+            if (stats.wirePayloadBytesReceived>=measuredDownloaded)
+                downloadMeter->sample(static_cast<double>(stats.wirePayloadBytesReceived-measuredDownloaded));
+            measuredDownloaded=stats.wirePayloadBytesReceived;
+        }
+        std::set<std::uint64_t> active;
+        for(const auto &wire:stats.peerTransfers) {
+            active.insert(wire.connectionIdentity);
+            auto &meter=peerMeters[wire.connectionIdentity];
+            if(!meter.down) {
+                meter.down=std::make_unique<EngineSpeedometer>(speedometerTick);
+                meter.up=std::make_unique<EngineSpeedometer>(speedometerTick);
+            }
+            if(wire.downloadedBytes>=meter.downloaded)
+                meter.down->sample(static_cast<double>(wire.downloadedBytes-meter.downloaded));
+            if(wire.uploadedBytes>=meter.uploaded)
+                meter.up->sample(static_cast<double>(wire.uploadedBytes-meter.uploaded));
+            meter.downloaded=wire.downloadedBytes;
+            meter.uploaded=wire.uploadedBytes;
+        }
+        for(auto it=peerMeters.begin();it!=peerMeters.end();)
+            if(!active.count(it->first)) it=peerMeters.erase(it); else ++it;
+    }
+
     void pollTransport()
     {
         if (closed || !transport) return;
+        sampleStatistics(transport->statistics());
         if (ready) {
             pruneCanceledRequests();
             pumpRequests();
@@ -763,7 +804,7 @@ struct TorrentEngine::Impl final : std::enable_shared_from_this<TorrentEngine::I
         schedulerActions = std::make_unique<SchedulerActionContract>();
         readerSource = std::make_unique<ReaderSource>(*this);
         circular = isCircular;
-        rechoke = std::make_unique<SwarmPolicy>(0, slots);
+        rechoke = std::make_unique<SwarmPolicy>(0, uploadSlotCount);
         std::weak_ptr<Impl> weak = weak_from_this();
         auto app = appPost;
         auto tick = [weak, app] {
@@ -1620,13 +1661,17 @@ std::shared_ptr<TorrentEngine> TorrentEngine::make(Wiring wiring)
     impl->infoHash = wiring.infoHash;
     impl->source = std::move(wiring.source);
     impl->transportFactory = std::move(wiring.transportFactory);
+    impl->discoveryNetworkFactory = std::move(wiring.discoveryNetworkFactory);
     impl->workPost = std::move(wiring.workPost);
     impl->appPost = std::move(wiring.appPost);
     impl->repeat = std::move(wiring.repeat);
+    impl->speedometerTick=std::move(wiring.speedometerTick);
+    impl->downloadMeter=std::make_unique<EngineSpeedometer>(impl->speedometerTick);
     impl->clock = wiring.clock ? std::move(wiring.clock) : EngineClock([] {
         return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()).count());
     });
+    impl->epochOffsetMs=QDateTime::currentMSecsSinceEpoch()-static_cast<std::int64_t>(impl->now());
     impl->trace = TraceSink{std::move(wiring.trace), impl->sourceKey, impl->generation};
     impl->onReady = std::move(wiring.onReady);
     impl->onFailed = std::move(wiring.onFailed);
@@ -1799,6 +1844,78 @@ void TorrentEngine::pollTransport()
 void TorrentEngine::close(std::function<void()> onClosed)
 {
     impl_->close(std::move(onClosed));
+}
+
+Value TorrentEngine::statistics(Value index) const
+{
+    const auto &self=*impl_;
+    EngineStatisticsSnapshot snapshot;
+    snapshot.infoHash=self.sourceKey;
+    snapshot.options=self.options;
+    snapshot.swarmPaused=self.swarmPaused;
+    const auto *size=self.creationOptions.find("connections");
+    if(!size || !jsTruthy(*size)) size=self.creationOptions.find("size");
+    if(size && jsTruthy(*size)) snapshot.swarmSize=*size;
+    if(self.metadata) {
+        snapshot.name=self.metadata->name();
+        snapshot.files=self.metadata->files();
+        snapshot.pieceLength=self.metadata->geometry().virtualPieceLength();
+        snapshot.availablePieces=self.committed;
+    }
+    const auto stats=transportStatistics();
+    impl_->sampleStatistics(stats);
+    snapshot.peers=stats.connectedPeers;
+    snapshot.unchoked=stats.unchokedPeers;
+    snapshot.queued=stats.queuedConnections+self.pendingConnects.size();
+    snapshot.unique=stats.knownPeerEndpoints;
+    snapshot.connectionTries=stats.connectionAttempts;
+    snapshot.swarmConnections=stats.connectedPeers;
+    snapshot.downloaded=stats.wirePayloadBytesReceived;
+    snapshot.uploaded=stats.uploadedBytes;
+    snapshot.downloadSpeed=self.downloadMeter ? self.downloadMeter->sample() : 0;
+    Value::Array selections;
+    if(self.scheduler) for(const auto &selection:self.scheduler->selections()) {
+        // Internal verification-group scheduling has no JavaScript selection.
+        if(std::any_of(self.groupSelections.begin(),self.groupSelections.end(),
+            [&](const auto &entry){return entry.second==selection.id;})) continue;
+        Value::Object entry{{"from",Value::number(selection.from)},
+            {"to",Value::number(selection.to)},{"offset",Value::number(selection.offset)},
+            {"priority",Value::number(selection.priority)}};
+        bool buffered=false;
+        for(const auto &weak:self.readers) if(auto reader=weak.lock())
+            if(reader->selectionId()==selection.id && reader->bufferPieces()) buffered=true;
+        if(buffered) {
+            entry.emplace_back("selectTo",Value::number(selection.selectTo));
+            entry.emplace_back("readFrom",Value::number(selection.readFrom));
+        }
+        selections.push_back(Value::object(std::move(entry)));
+    }
+    snapshot.selections=Value::array(std::move(selections));
+    Value::Array wires;
+    for(const auto &wire:stats.peerTransfers) if(!wire.peerChoking) {
+        const auto meter=self.peerMeters.find(wire.connectionIdentity);
+        wires.push_back(Value::object({{"requests",Value::number(wire.requests)},
+            {"address",wire.address.empty() ? Value::null() : Value::string(wire.address)},
+            {"amInterested",Value::boolean(wire.amInterested)},
+            {"isSeeder",self.metadata ? Value::boolean(wire.isSeeder) : Value::missing()},
+            {"downSpeed",Value::number(meter->second.down->sample())},
+            {"upSpeed",Value::number(meter->second.up->sample())}}));
+    }
+    snapshot.wires=Value::array(std::move(wires));
+    if(self.peerSearch) {
+        Value::Array sources;
+        for(const auto &source:self.peerSearch->stats()) sources.push_back(Value::object({
+            {"numFound",Value::number(source.numFound)},
+            {"numFoundUniq",Value::number(source.numFoundUniq)},
+            {"numRequests",Value::number(source.numRequests)},
+            {"url",Value::string(source.url)},
+            {"lastStarted",Value::string(QDateTime::fromMSecsSinceEpoch(
+                self.epochOffsetMs+static_cast<std::int64_t>(source.lastStartedMs),Qt::UTC)
+                .toString(Qt::ISODateWithMs).toStdString())}}));
+        snapshot.sources=Value::array(std::move(sources));
+        snapshot.peerSearchRunning=Value::boolean(self.peerSearch->isRunning());
+    }
+    return projectEngineStatistics(snapshot,index);
 }
 
 } // namespace server1::policy

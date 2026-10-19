@@ -1116,6 +1116,22 @@ void caseH00_11()
     std::cout<<"H00-11 deferred response moves, pipeline, disconnect, stop, destroy, reentrant PASS\n";
 }
 
+void caseH00_12()
+{
+    void *router=server1_http_router_create();
+    void *response=server1_http_router_dispatch(router,"GET","/","");
+    require(server1_http_response_set_header(response,"X-Safe","retained")==1,"valid header");
+    require(server1_http_response_set_header(response,"X-Safe","bad\r\nInjected: true")==0,"CRLF value must be rejected");
+    require(std::string(server1_http_response_header(response,"X-Safe"))=="retained","rejected value must not replace header");
+    for(const char *name:{"Bad Name","Bad:Name","Bad\nName","Bad\tName"})
+        require(server1_http_response_set_header(response,name,"value")==0,"invalid token header name");
+    for(const char *value:{"bad\nvalue","bad\rvalue","bad\x01value","bad\x7fvalue"})
+        require(server1_http_response_set_header(response,"X-New",value)==0,"invalid header value control");
+    require(server1_http_response_set_header(response,"X-New","tab\tallowed")==1,"HTAB allowed in field value");
+    server1_http_response_destroy(response);server1_http_router_destroy(router);
+    std::cout<<"H00-12 header field validation PASS\n";
+}
+
 void emitTrace()
 {
     void *parser = server1_http_parser_create(3U * 1024U * 1024U);
@@ -1179,6 +1195,7 @@ int main(int argc, char **argv)
             caseH00_03();
         if (requested == "all" || requested == "H00-04")
             caseH00_04();
+        if (requested == "all" || requested == "H00-12") caseH00_12();
         if (requested == "all" || requested == "H00-11") caseH00_11();
         if (requested == "all" || requested == "H00-10") caseH00_10();
         if (requested == "all" || requested == "H00-09") caseH00_09();
@@ -1187,7 +1204,7 @@ int main(int argc, char **argv)
         if (requested == "all" || requested == "H00-06") caseH00_06();
         if (requested == "all" || requested == "H00-05") caseH00_05();
         if (requested != "all" && requested != "H00-01" && requested != "H00-02"
-            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10" && requested != "H00-11")
+            && requested != "H00-03" && requested != "H00-04" && requested != "H00-05" && requested != "H00-06" && requested != "H00-07" && requested != "H00-08" && requested != "H00-09" && requested != "H00-10" && requested != "H00-11" && requested != "H00-12")
             throw std::runtime_error("unknown H00 case");
     } catch (const std::exception &error) {
         std::cerr << "H00 FAIL: " << error.what() << '\n';

@@ -308,6 +308,11 @@ struct PeerTransferStatistics final {
     double uploadBytesPerSecond = 0;
     std::uint64_t downloadedBytes = 0;
     std::uint64_t uploadedBytes = 0;
+    std::string address;
+    bool peerChoking = true;
+    bool amInterested = false;
+    bool isSeeder = false;
+    std::uint32_t requests = 0;
 };
 
 struct TransportStatistics final {
@@ -347,6 +352,11 @@ struct TransportStatistics final {
     // and late payload. This is separate from accepted-owned delivery.
     std::uint64_t wirePayloadBytesReceived = 0;
     std::vector<PeerTransferStatistics> peerTransfers;
+    // Honest native connection admission counters, not pws retry emulation.
+    std::uint64_t connectionAttempts = 0;
+    std::uint64_t queuedConnections = 0;
+    std::uint64_t knownPeerEndpoints = 0;
+
 };
 
 class TorrentTransport {

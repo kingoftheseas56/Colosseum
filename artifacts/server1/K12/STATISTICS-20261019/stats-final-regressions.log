@@ -1,0 +1,67 @@
+Test project /tmp/engine-stats-build/server
+      Start  58: K12-wire-statistics-real-wire
+ 1/24 Test  #58: K12-wire-statistics-real-wire ....   Passed    2.82 sec
+      Start  59: K12-peer-statistics-real-wire
+ 2/24 Test  #59: K12-peer-statistics-real-wire ....   Passed    5.69 sec
+      Start  80: K11-01-engine-registry
+ 3/24 Test  #80: K11-01-engine-registry ...........   Passed    0.01 sec
+      Start  81: K11-02-engine-registry
+ 4/24 Test  #81: K11-02-engine-registry ...........   Passed    0.03 sec
+      Start  82: K11-03-engine-registry
+ 5/24 Test  #82: K11-03-engine-registry ...........***Failed    0.07 sec
+K11-TIMER M814 rechoke interval/cancel/post-close PASS
+K11-PEERS deduplication or malformed-result rejection drifted
+
+      Start  83: R7-engine-registry
+ 6/24 Test  #83: R7-engine-registry ...............   Passed    0.01 sec
+      Start  84: R8-engine-registry
+ 7/24 Test  #84: R8-engine-registry ...............   Passed    0.01 sec
+      Start  85: R9-engine-registry
+ 8/24 Test  #85: R9-engine-registry ...............   Passed    0.01 sec
+      Start  86: R10-engine-registry
+ 9/24 Test  #86: R10-engine-registry ..............   Passed    0.01 sec
+      Start  87: R11-engine-registry
+10/24 Test  #87: R11-engine-registry ..............   Passed    0.01 sec
+      Start  88: R12-engine-registry
+11/24 Test  #88: R12-engine-registry ..............   Passed    0.01 sec
+      Start  89: R13-engine-registry
+12/24 Test  #89: R13-engine-registry ..............   Passed    0.01 sec
+      Start  90: R14-engine-registry
+13/24 Test  #90: R14-engine-registry ..............   Passed    0.01 sec
+      Start  91: R15-engine-registry
+14/24 Test  #91: R15-engine-registry ..............   Passed    0.01 sec
+      Start  92: R16-engine-registry
+15/24 Test  #92: R16-engine-registry ..............   Passed    0.01 sec
+      Start  93: R17-engine-registry
+16/24 Test  #93: R17-engine-registry ..............   Passed    0.01 sec
+      Start  94: R18-engine-registry
+17/24 Test  #94: R18-engine-registry ..............   Passed    0.01 sec
+      Start  95: R19-engine-registry
+18/24 Test  #95: R19-engine-registry ..............   Passed    0.12 sec
+      Start  96: R20-engine-registry
+19/24 Test  #96: R20-engine-registry ..............   Passed    0.01 sec
+      Start  97: R21-engine-registry
+20/24 Test  #97: R21-engine-registry ..............   Passed    0.01 sec
+      Start  98: R22-engine-registry
+21/24 Test  #98: R22-engine-registry ..............   Passed    0.01 sec
+      Start  99: R23-engine-registry
+22/24 Test  #99: R23-engine-registry ..............   Passed    0.01 sec
+      Start 100: R24-engine-registry
+23/24 Test #100: R24-engine-registry ..............   Passed    0.01 sec
+      Start 101: R25-engine-registry
+24/24 Test #101: R25-engine-registry ..............   Passed    0.01 sec
+
+96% tests passed, 1 tests failed out of 24
+
+Label Time Summary:
+K11        =   0.36 sec*proc (22 tests)
+K12        =   8.51 sec*proc (2 tests)
+native     =   8.88 sec*proc (24 tests)
+server1    =   8.88 sec*proc (24 tests)
+wire       =   8.51 sec*proc (2 tests)
+
+Total Test time (real) =   8.89 sec
+
+The following tests FAILED:
+	 82 - K11-03-engine-registry (Failed)                   K11 native server1
+Errors while running CTest

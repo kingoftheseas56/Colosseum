@@ -1,0 +1,48 @@
+[  7%] Built target server1_k00_policy
+[ 12%] Built target server1_k02_piece_buffer
+[ 25%] Built target server1_k03_scheduler_selections
+[ 25%] Built target server1_k05_swarm_metadata
+[ 37%] Built target server1_k09_peer_search
+[ 40%] Built target server1_k07_circular_store
+[ 45%] Built target server1_k08_file_reader
+[ 50%] Built target server1_k04_scheduler_actions
+[ 62%] Built target server1_k12_counters
+[ 67%] Built target server1_k01_metadata
+[ 70%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/LibTorrent2Adapter.cpp.o
+[ 77%] Built target server1_k06_persistent_store
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp: In member function ‘void server1::transport::{anonymous}::LibTorrent2Adapter::emitMetadataReady(const libtorrent::torrent_handle&, const std::shared_ptr<const libtorrent::torrent_info>&)’:
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:698:50: warning: ‘std::vector<std::__cxx11::basic_string<char> > libtorrent::torrent_info::url_seeds() const’ is deprecated [-Wdeprecated-declarations]
+  698 |         const auto infoUrlSeeds = info->url_seeds();
+      |                                   ~~~~~~~~~~~~~~~^~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/torrent_handle.hpp:66,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/alert_types.hpp:50,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:4:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/torrent_info.hpp:317:42: note: declared here
+  317 |                 std::vector<std::string> url_seeds() const;
+      |                                          ^~~~~~~~~
+[ 97%] Linking CXX static library libserver1_k10_native_transport.a
+[ 97%] Built target server1_k10_native_transport
+[ 97%] Built target server1_k11_engine
+[100%] Linking CXX executable statistics_check
+[102%] Built target statistics_check
+[  5%] Built target server1_k02_piece_buffer
+[ 12%] Built target server1_k00_policy
+[ 20%] Built target server1_k05_swarm_metadata
+[ 27%] Built target server1_k06_persistent_store
+[ 32%] Built target server1_k03_scheduler_selections
+[ 35%] Built target server1_k07_circular_store
+[ 47%] Built target server1_k09_peer_search
+[ 52%] Built target server1_k04_scheduler_actions
+[ 57%] Built target server1_k08_file_reader
+[ 70%] Built target server1_k12_counters
+[ 75%] Built target server1_k01_metadata
+[ 85%] Built target server1_k10_native_transport
+[ 95%] Built target server1_k11_engine
+[ 97%] Building CXX object server/p03-tests/CMakeFiles/server1_k11_engine_registry_test.dir/test_engine_registry.cpp.o
+[100%] Linking CXX executable server1_k11_engine_registry_test
+[109%] Built target server1_k11_engine_registry_test
+[ 45%] Built target server1_k09_peer_search
+[ 81%] Built target server1_k10_native_transport
+[ 90%] Building CXX object server/p03-tests/CMakeFiles/server1_k10_native_transport_test.dir/test_native_transport.cpp.o
+Linking CXX executable server1_k10_native_transport_test
+Built target server1_k10_native_transport_test

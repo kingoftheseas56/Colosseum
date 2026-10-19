@@ -347,6 +347,15 @@ void casePeerStatistics(const fs::path &directory,int portA,int portB)
     auto finalBatch=transport->poll();received.insert(received.end(),finalBatch.begin(),finalBatch.end());
     expect(stats.peerTransfers.size()==2 && std::all_of(stats.peerTransfers.begin(),stats.peerTransfers.end(),
         [](const auto&p){return p.downloadBytesPerSecond>0;}),"K12 idle-independent tick did not sample both native peer rates");
+    expect(stats.connectionAttempts==2 && stats.knownPeerEndpoints==2 && stats.queuedConnections==0,
+           "K12 native connection statistics not tied to admitted actions");
+    for(const auto &wire:stats.peerTransfers) {
+        const auto expectedPort=wire.peer==77 ? portA : portB;
+        expect(wire.address=="127.0.0.1:"+std::to_string(expectedPort),
+               "K12 wire address not measured from native endpoint");
+        expect(!wire.peerChoking && wire.requests==0,
+               "K12 native wire state snapshot missing or stale");
+    }
     double sum=0;for(const auto&p:stats.peerTransfers)sum+=p.downloadBytesPerSecond;
     std::cout<<"K12 peer rate evidence aggregate="<<stats.downloadBytesPerSecond<<" sum="<<sum<<'\n';
     expect(std::abs(stats.downloadBytesPerSecond-sum)<0.001,"K12 aggregate rate is last-peer value instead of sum");

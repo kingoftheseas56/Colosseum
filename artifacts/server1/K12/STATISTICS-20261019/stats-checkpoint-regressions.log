@@ -1,0 +1,84 @@
+Test project /tmp/engine-stats-build/server
+      Start  59: K12-wire-statistics-real-wire
+ 1/25 Test  #59: K12-wire-statistics-real-wire ......   Passed    2.89 sec
+      Start  60: K12-peer-statistics-real-wire
+ 2/25 Test  #60: K12-peer-statistics-real-wire ......   Passed    5.66 sec
+      Start  79: K10-G-transport-pause-generation
+Could not find executable pwsh
+Looked in the following places:
+pwsh
+pwsh
+Release/pwsh
+Release/pwsh
+Debug/pwsh
+Debug/pwsh
+MinSizeRel/pwsh
+MinSizeRel/pwsh
+RelWithDebInfo/pwsh
+RelWithDebInfo/pwsh
+Deployment/pwsh
+Deployment/pwsh
+Development/pwsh
+Development/pwsh
+Unable to find executable: pwsh
+ 3/25 Test  #79: K10-G-transport-pause-generation ...***Not Run   0.00 sec
+      Start  81: K11-01-engine-registry
+ 4/25 Test  #81: K11-01-engine-registry .............   Passed    0.01 sec
+      Start  82: K11-02-engine-registry
+ 5/25 Test  #82: K11-02-engine-registry .............   Passed    0.04 sec
+      Start  83: K11-03-engine-registry
+ 6/25 Test  #83: K11-03-engine-registry .............   Passed    0.08 sec
+      Start  84: R7-engine-registry
+ 7/25 Test  #84: R7-engine-registry .................   Passed    0.01 sec
+      Start  85: R8-engine-registry
+ 8/25 Test  #85: R8-engine-registry .................   Passed    0.01 sec
+      Start  86: R9-engine-registry
+ 9/25 Test  #86: R9-engine-registry .................   Passed    0.01 sec
+      Start  87: R10-engine-registry
+10/25 Test  #87: R10-engine-registry ................   Passed    0.01 sec
+      Start  88: R11-engine-registry
+11/25 Test  #88: R11-engine-registry ................   Passed    0.01 sec
+      Start  89: R12-engine-registry
+12/25 Test  #89: R12-engine-registry ................   Passed    0.01 sec
+      Start  90: R13-engine-registry
+13/25 Test  #90: R13-engine-registry ................   Passed    0.01 sec
+      Start  91: R14-engine-registry
+14/25 Test  #91: R14-engine-registry ................   Passed    0.01 sec
+      Start  92: R15-engine-registry
+15/25 Test  #92: R15-engine-registry ................   Passed    0.01 sec
+      Start  93: R16-engine-registry
+16/25 Test  #93: R16-engine-registry ................   Passed    0.01 sec
+      Start  94: R17-engine-registry
+17/25 Test  #94: R17-engine-registry ................   Passed    0.01 sec
+      Start  95: R18-engine-registry
+18/25 Test  #95: R18-engine-registry ................   Passed    0.01 sec
+      Start  96: R19-engine-registry
+19/25 Test  #96: R19-engine-registry ................   Passed    0.12 sec
+      Start  97: R20-engine-registry
+20/25 Test  #97: R20-engine-registry ................   Passed    0.01 sec
+      Start  98: R21-engine-registry
+21/25 Test  #98: R21-engine-registry ................   Passed    0.01 sec
+      Start  99: R22-engine-registry
+22/25 Test  #99: R22-engine-registry ................   Passed    0.01 sec
+      Start 100: R23-engine-registry
+23/25 Test #100: R23-engine-registry ................   Passed    0.01 sec
+      Start 101: R24-engine-registry
+24/25 Test #101: R24-engine-registry ................   Passed    0.01 sec
+      Start 102: R25-engine-registry
+25/25 Test #102: R25-engine-registry ................   Passed    0.01 sec
+
+96% tests passed, 1 tests failed out of 25
+
+Label Time Summary:
+K10-G      =   0.00 sec*proc (1 test)
+K11        =   0.42 sec*proc (22 tests)
+K12        =   8.55 sec*proc (2 tests)
+native     =   8.97 sec*proc (25 tests)
+server1    =   8.97 sec*proc (25 tests)
+wire       =   8.55 sec*proc (2 tests)
+
+Total Test time (real) =   8.98 sec
+
+The following tests FAILED:
+	 79 - K10-G-transport-pause-generation (Not Run)        K10-G native server1
+Errors while running CTest

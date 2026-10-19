@@ -1,0 +1,104 @@
+CMake Warning (policy) at /tmp/server-build-tools/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:93 (find_package):
+  Policy CMP0144 is not set: find_package uses upper-case <PACKAGENAME>_ROOT
+  variables.  Run "cmake --help-policy CMP0144" for policy details.  Use the
+  cmake_policy command to set the policy and suppress this warning.
+
+  CMake variable BOOST_ROOT is set to:
+
+    /workspace/scratch/af0fb5da5f81/server-parity/deps/boost_1_83_0
+
+  For compatibility, find_package is ignoring the variable, but code in a
+  .cmake module might still use it.
+Call Stack (most recent call first):
+  /tmp/server-build-tools/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)
+  /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake:16 (find_dependency)
+  /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/CMakeLists.txt:48 (find_package)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at /tmp/server-build-tools/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:93 (find_package):
+  Policy CMP0167 is not set: The FindBoost module is removed.  Run "cmake
+  --help-policy CMP0167" for policy details.  Use the cmake_policy command to
+  set the policy and suppress this warning.
+Call Stack (most recent call first):
+  /tmp/server-build-tools/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)
+  /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake:16 (find_dependency)
+  /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/CMakeLists.txt:48 (find_package)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+-- Performing Test SERVER1_LT_INTERNAL_LINK
+-- Performing Test SERVER1_LT_INTERNAL_LINK - Success
+-- K12 differential NOT REGISTERED: supply SERVER1_K12_ORACLE and Node; ownership test remains enabled
+-- Configuring done (5.4s)
+-- Generating done (0.1s)
+-- Build files have been written to: /tmp/engine-stats-build
+[  5%] Built target server1_k02_piece_buffer
+[ 12%] Built target server1_k00_policy
+[ 20%] Built target server1_k05_swarm_metadata
+[ 27%] Built target server1_k06_persistent_store
+[ 32%] Built target server1_k03_scheduler_selections
+[ 35%] Built target server1_k07_circular_store
+[ 37%] Building CXX object server/CMakeFiles/server1_k09_peer_search.dir/src/discovery/PeerSearch.cpp.o
+[ 42%] Built target server1_k04_scheduler_actions
+[ 47%] Built target server1_k08_file_reader
+[ 60%] Built target server1_k12_counters
+[ 65%] Built target server1_k01_metadata
+[ 67%] Building CXX object server/CMakeFiles/server1_k09_peer_search.dir/src/discovery/TrackerSource.cpp.o
+[ 70%] Building CXX object server/CMakeFiles/server1_k09_peer_search.dir/src/discovery/DhtSource.cpp.o
+[ 72%] Linking CXX static library libserver1_k09_peer_search.a
+[ 75%] Built target server1_k09_peer_search
+[ 77%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/LibTorrent2Adapter.cpp.o
+[ 80%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/PeerPlugin.cpp.o
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp: In member function ‘void server1::transport::{anonymous}::LibTorrent2Adapter::emitMetadataReady(const libtorrent::torrent_handle&, const std::shared_ptr<const libtorrent::torrent_info>&)’:
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:705:50: warning: ‘std::vector<std::__cxx11::basic_string<char> > libtorrent::torrent_info::url_seeds() const’ is deprecated [-Wdeprecated-declarations]
+  705 |         const auto infoUrlSeeds = info->url_seeds();
+      |                                   ~~~~~~~~~~~~~~~^~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/torrent_handle.hpp:66,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/alert_types.hpp:50,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:4:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/libtorrent-static/include/libtorrent/torrent_info.hpp:317:42: note: declared here
+  317 |                 std::vector<std::string> url_seeds() const;
+      |                                          ^~~~~~~~~
+[ 82%] Building CXX object server/CMakeFiles/server1_k10_native_transport.dir/src/transport/ActionLedger.cpp.o
+[ 85%] Linking CXX static library libserver1_k10_native_transport.a
+[ 85%] Built target server1_k10_native_transport
+[ 87%] Building CXX object server/CMakeFiles/server1_k11_engine.dir/src/policy/TorrentEngine.cpp.o
+[ 90%] Building CXX object server/CMakeFiles/server1_k11_engine.dir/src/policy/EngineRegistry.cpp.o
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/policy/TorrentEngine.cpp: In member function ‘server1::policy::Value server1::policy::TorrentEngine::statistics(server1::policy::Value) const’:
+/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/policy/TorrentEngine.cpp:1909:72: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+ 1909 |             {"lastStarted",Value::string(QDateTime::fromMSecsSinceEpoch(
+      |                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+ 1910 |                 self.epochOffsetMs+static_cast<std::int64_t>(source.lastStartedMs),Qt::UTC)
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/QDateTime:1,
+                 from /workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/src/policy/TorrentEngine.cpp:3:
+/workspace/scratch/af0fb5da5f81/server-parity/deps/Qt/6.11.1/gcc_64/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[ 92%] Linking CXX static library libserver1_k11_engine.a
+[ 95%] Built target server1_k11_engine
+[ 97%] Building CXX object CMakeFiles/statistics_check.dir/workspace/scratch/af0fb5da5f81/server-parity/source/native/colosseum_server_v1/tests/test_engine_statistics.cpp.o
+[100%] Linking CXX executable statistics_check
+[100%] Built target statistics_check
+[  5%] Built target server1_k02_piece_buffer
+[ 12%] Built target server1_k00_policy
+[ 20%] Built target server1_k05_swarm_metadata
+[ 27%] Built target server1_k06_persistent_store
+[ 32%] Built target server1_k03_scheduler_selections
+[ 35%] Built target server1_k07_circular_store
+[ 47%] Built target server1_k09_peer_search
+[ 52%] Built target server1_k04_scheduler_actions
+[ 57%] Built target server1_k08_file_reader
+[ 70%] Built target server1_k12_counters
+[ 75%] Built target server1_k01_metadata
+[ 85%] Built target server1_k10_native_transport
+[ 95%] Built target server1_k11_engine
+[ 97%] Building CXX object server/p03-tests/CMakeFiles/server1_k11_engine_registry_test.dir/test_engine_registry.cpp.o
+[100%] Linking CXX executable server1_k11_engine_registry_test
+[100%] Built target server1_k11_engine_registry_test
+[ 45%] Built target server1_k09_peer_search
+[ 81%] Built target server1_k10_native_transport
+[ 90%] Building CXX object server/p03-tests/CMakeFiles/server1_k10_native_transport_test.dir/test_native_transport.cpp.o
+[100%] Linking CXX executable server1_k10_native_transport_test
+[100%] Built target server1_k10_native_transport_test

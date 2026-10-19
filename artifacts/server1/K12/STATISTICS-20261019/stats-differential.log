@@ -1,0 +1,8 @@
+(node:258) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{
+  "oracleSha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "projectionCases": 13,
+  "result": "PASS",
+  "scope": "Controlled M172 projection only; not live swarm lifecycle parity"
+}

@@ -2,6 +2,7 @@
 
 #include "server1/policy/FileReader.h"
 #include "server1/policy/EngineTiming.h"
+#include "server1/policy/EngineSpeedometer.h"
 #include <atomic>
 #include "server1/policy/Value.h"
 #include "server1/ports/TorrentTransport.h"
@@ -15,6 +16,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+namespace server1::discovery { class DiscoveryNetwork; }
 
 namespace server1::policy {
 
@@ -121,6 +124,8 @@ struct EngineRegistryConfig final {
     BeforeCreateEngine beforeCreate;
     EngineEventCallback onEvent;
     EngineTransportFactory transportFactory;
+    // Invoked on the app lane once per PeerSearch; null preserves pure policy use.
+    std::function<std::shared_ptr<discovery::DiscoveryNetwork>()> discoveryNetworkFactory;
     EnginePost workExecutor;
     EnginePost callbackExecutor;
     EngineRepeat repeat;
@@ -128,6 +133,7 @@ struct EngineRegistryConfig final {
     std::uint64_t streamTimeoutMs = 30000;
     std::uint64_t engineTimeoutMs = 60000;
     EngineClock monotonicClock;
+    EngineSpeedometer::Tick speedometerTick;
     EngineTraceCallback trace;
 };
 
@@ -182,6 +188,7 @@ public:
     [[nodiscard]] EnginePeerDiscovery peerDiscovery() const noexcept;
     [[nodiscard]] std::uint64_t timerOwner() const noexcept;
     [[nodiscard]] ports::TransportStatistics transportStatistics() const;
+    [[nodiscard]] Value statistics(Value index = Value::missing()) const;
     // Admits a caller-owned connect to the work lane. Returns false when the
     // engine is closed or the endpoint is invalid.
     [[nodiscard]] bool connectSourcePeer(ports::PeerHandle peer,
@@ -203,10 +210,12 @@ private:
         ports::V1InfoHash infoHash{};
         ports::TorrentSource source;
         EngineTransportFactory transportFactory;
+        std::function<std::shared_ptr<discovery::DiscoveryNetwork>()> discoveryNetworkFactory;
         EnginePost workPost;
         EnginePost appPost;
         EngineRepeat repeat;
         EngineClock clock;
+        EngineSpeedometer::Tick speedometerTick;
         EngineTraceCallback trace;
         std::function<void()> onReady;
         std::function<void()> onFailed;
@@ -258,6 +267,8 @@ public:
     bool remove(const std::string &sourceKey,
                 EngineRemoveCallback callback = {});
     [[nodiscard]] std::vector<std::string> list() const;
+    [[nodiscard]] Value statistics(const std::string &sourceKey, Value index = Value::missing()) const;
+    bool prewarmStream(const std::string &sourceKey, std::size_t fileIndex);
     [[nodiscard]] std::shared_ptr<EngineStreamLease> openStream(const std::string &sourceKey, std::size_t fileIndex);
 
     // poll() drains transport mailboxes and translates source observations on

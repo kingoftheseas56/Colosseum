@@ -372,7 +372,22 @@ public:
     {
         const_cast<LibTorrent2Adapter *>(this)->collectSourceAlerts();
         std::lock_guard<std::mutex> lock(mutex_);
-        return stats_;
+        auto result=stats_;
+        result.queuedConnections=pendingConnects_.size()+deferredConnects_.size();
+        std::set<std::string> known;
+        for(const auto &endpoint:endpointPeers_) known.insert(endpoint.first);
+        for(const auto &pending:deferredConnects_) {
+            lt::error_code error;
+            const auto address=lt::make_address(pending.address,error);
+            if(!error) known.insert(endpointKey(lt::tcp::endpoint(address,pending.port)));
+        }
+        result.knownPeerEndpoints=known.size();
+        for(auto &wire:result.peerTransfers) {
+            wire.peerChoking=unchoked_.count(wire.peer)==0;
+            wire.requests=static_cast<std::uint32_t>(std::count_if(active_.begin(),active_.end(),
+                [&](const auto &owned){ return !owned.terminal && owned.action.peer==wire.peer; }));
+        }
+        return result;
     }
 
     void close() override
@@ -439,6 +454,7 @@ public:
                 return true;
             }
             handle = torrent_;
+            ++stats_.connectionAttempts;
         }
         // A disconnect callback precedes libtorrent's final peer-list cleanup.
         // This exported synchronous handle call is an event-loop barrier; a
@@ -731,6 +747,8 @@ private:
     struct NativeTransferSample {
         int payload_down_speed=0, payload_up_speed=0;
         std::int64_t total_download=0, total_upload=0;
+        std::string address;
+        bool peerChoking=true, amInterested=false, isSeeder=false;
     };
 
     static NativeTransferSample readNativeTransfer(const std::shared_ptr<lt::peer_connection> &native)
@@ -740,7 +758,9 @@ private:
         // complete piece bitfield on each sampling tick. Network lane only.
         const auto &sample=native->statistics();
         return {sample.download_payload_rate(),sample.upload_payload_rate(),
-                sample.total_payload_download(),sample.total_payload_upload()};
+                sample.total_payload_download(),sample.total_payload_upload(),
+                native->remote().address().to_string()+":"+std::to_string(native->remote().port()),
+                native->has_peer_choked(),native->is_interesting(),native->is_seed()};
     }
 
     void publishNativeSamplesLocked()
@@ -751,7 +771,10 @@ private:
         stats_.uploadedBytes=retiredNativeUploads_;
         for(const auto &[peer,sample]:peerSamples_) {
             static_cast<void>(peer);
-            stats_.peerTransfers.push_back(sample);
+            auto current=sample;
+            current.requests=static_cast<std::uint32_t>(std::count_if(active_.begin(),active_.end(),
+                [peer](const auto &owned){ return !owned.terminal && owned.action.peer==peer; }));
+            stats_.peerTransfers.push_back(std::move(current));
             stats_.downloadBytesPerSecond+=sample.downloadBytesPerSecond;
             stats_.uploadBytesPerSecond+=sample.uploadBytesPerSecond;
             stats_.uploadedBytes+=sample.uploadedBytes;
@@ -765,6 +788,10 @@ private:
         auto found=peerSamples_.find(peer);
         if(found==peerSamples_.end() || found->second.connectionIdentity!=identity) return;
         auto &sample=found->second;
+        sample.address=info.address;
+        sample.peerChoking=info.peerChoking;
+        sample.amInterested=info.amInterested;
+        sample.isSeeder=info.isSeeder;
         sample.downloadBytesPerSecond=std::max(0,info.payload_down_speed);
         sample.uploadBytesPerSecond=std::max(0,info.payload_up_speed);
         sample.downloadedBytes=std::max(sample.downloadedBytes,static_cast<std::uint64_t>(std::max<std::int64_t>(0,info.total_download)));
