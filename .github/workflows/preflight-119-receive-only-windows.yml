@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [manual_migration, real_nsis_restart]
+        gate: [semantic_migration]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,7 +32,7 @@ jobs:
           $base='7792bd1d9b3a41185cea522a9984ecd6586e3b44'
           git merge-base --is-ancestor $base HEAD
           if ($LASTEXITCODE -ne 0) { throw 'qualification code is not based on exact pinned source' }
-          $allowed=@('.github/workflows/preflight-119-receive-only-windows.yml','tests/installer/qualify_119_manual_migration.ps1','tests/installer/qualify_119_real_nsis_restart.ps1')
+          $allowed=@('.github/workflows/preflight-119-receive-only-windows.yml','tests/installer/qualify_119_manual_migration.ps1','tests/installer/qualify_119_real_nsis_restart.ps1','tests/installer/qualify_119_semantic_migration.ps1')
           $changed=@(git diff --name-only $base HEAD)
           foreach($file in $changed) { if ($file -notin $allowed) { throw "unexpected source difference: $file" } }
           if ($changed.Count -ne $allowed.Count) { throw "expected exactly $($allowed.Count) bounded helper/workflow changes; found $($changed.Count)" }
@@ -62,6 +62,8 @@ jobs:
             & ./tests/installer/qualify_119_manual_migration.ps1 @args
           } elseif ($env:GATE -eq 'real_nsis_restart') {
             & ./tests/installer/qualify_119_real_nsis_restart.ps1 @args
+          } elseif ($env:GATE -eq 'semantic_migration') {
+            & ./tests/installer/qualify_119_semantic_migration.ps1 @args
           } else { throw "invalid gate $env:GATE" }
           if (-not $?) { throw "qualified gate failed: $env:GATE" }
       - name: Retain bounded hosted process/installer logs
@@ -69,6 +71,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: preflight-119-${{ matrix.gate }}-logs
-          path: ${{ runner.temp }}/*.log
+          path: |
+            ${{ runner.temp }}/*.log
+            ${{ runner.temp }}/preflight-119-semantic-*.json
           if-no-files-found: warn
           retention-days: 3
