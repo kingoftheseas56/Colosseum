@@ -12,15 +12,21 @@ from inventory import digest, safe_name, write_json
 from upstream import download, retain_notices
 
 REPOSITORY = 'https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6111/qt6_6111/'
+WEBENGINE_REPOSITORY = 'https://download.qt.io/online/qtsdkrepository/linux_x64/extensions/qtwebengine/6111/x86_64/'
 
 
-def collect(out):
+def collect(out, webengine_only=False):
     root = out / 'sdk-verification'
     root.mkdir(parents=True, exist_ok=True)
     commands = Commands(root)
     metadata = root / 'Updates.xml'
     download(REPOSITORY + 'Updates.xml', metadata)
     packages = ET.parse(metadata).findall('PackageUpdate')
+    extension_metadata = root / 'WebEngine-Updates.xml'
+    download(WEBENGINE_REPOSITORY + 'Updates.xml', extension_metadata)
+    extension_packages = ET.parse(extension_metadata).findall('PackageUpdate')
+    extension_names = {p.findtext('Name') for p in extension_packages}
+    packages += extension_packages
     build = json.loads((out / 'retained/payload/opt/colosseum/BUILD-IDENTITY.json').read_text())
     inventory = json.loads((out / 'payload-inventory.json').read_text())
     origins = build['bundled_dependency_origins']
@@ -38,10 +44,13 @@ def collect(out):
         if path == 'opt/colosseum/usr/plugins/imageformats/libqtiff.so':
             continue  # Rebuilt from source, not the SDK copy.
         targets[relative] = {'payload': path, 'shipped_sha256': item['sha256'], **original}
-    modules = ['qtimageformats', 'qtpositioning', 'qtserialport', 'qtwebchannel', 'qtwebengine', 'qtwebsockets']
+    modules = ['qtimageformats', 'qtpositioning', 'qtserialport', 'qtwebchannel', 'qtwebsockets']
     names = ['qt.qt6.6111.linux_gcc_64'] + ['qt.qt6.6111.addons.' + m + '.linux_gcc_64' for m in modules]
-    proofs = []
-    receipts = []
+    names += ['extensions.qtwebengine.6111.linux_gcc_64']
+    proofs = json.loads((out / 'qt-sdk-file-proofs.json').read_text()) if webengine_only else []
+    receipts = json.loads((out / 'qt-sdk-archive-index.json').read_text()) if webengine_only else []
+    if webengine_only:
+        names = ['extensions.qtwebengine.6111.linux_gcc_64']
     errors = []
     for name in names:
         package = next((p for p in packages if p.findtext('Name') == name), None)
@@ -55,7 +64,8 @@ def collect(out):
             try:
                 if safe_name(filename) != Path(filename).name or '/' in version:
                     raise ValueError('Invalid installer metadata path')
-                url = REPOSITORY + name + '/' + version + filename
+                repository = WEBENGINE_REPOSITORY if name in extension_names else REPOSITORY
+                url = repository + name + '/' + version + filename
                 checksum_file = root / 'archive-checksums' / (filename + '.sha1')
                 download(url + '.sha1', checksum_file)
                 checksum = checksum_file.read_text().strip().split()[0]
@@ -126,6 +136,8 @@ def collect(out):
     errors += [{**t, 'reason': 'No exact matching official SDK archive file verified'}
                for t in targets.values() if t['payload'] not in proven]
     write_json(out / 'qt-sdk-unresolved.json', errors)
+    if webengine_only:
+        return  # The authenticated cache already contains the ICU candidate inputs.
 
     # Acquire upstream ICU source as a candidate input, without treating a
     # version match as proof of Qt's private prebuilt build/patch configuration.
@@ -161,4 +173,6 @@ def collect(out):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
-    collect(parser.parse_args().output.resolve())
+    parser.add_argument('--webengine-only', action='store_true')
+    args = parser.parse_args()
+    collect(args.output.resolve(), args.webengine_only)

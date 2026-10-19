@@ -2,6 +2,11 @@ name: Linux source materials proof
 
 on:
   workflow_dispatch:
+    inputs:
+      full_collection:
+        description: 'Collect everything again instead of resuming the pinned verified collection'
+        type: boolean
+        default: false
   push:
     branches: ['codex/119-linux-source-proof-20261019']
     paths:
@@ -50,13 +55,42 @@ jobs:
           cp tools/linux-release/distribution-materials/*.py tools/linux-release/distribution-materials/README.md evidence/recipes/collector/
           printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
           printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
+      - name: Download pinned prior review inputs
+        if: ${{ !inputs.full_collection }}
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '12189575033'
+          run-id: '39255498115'
+          github-token: ${{ github.token }}
+          path: prior-review
+          merge-multiple: true
+      - name: Download pinned prior source inputs on CI
+        if: ${{ !inputs.full_collection }}
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '12189290476'
+          run-id: '39255498115'
+          github-token: ${{ github.token }}
+          path: evidence
+          merge-multiple: true
+      - name: Verify every cached input before resuming
+        if: ${{ !inputs.full_collection }}
+        run: |
+          tar -xzf prior-review/review-materials.tar.gz -C evidence
+          python3 tools/linux-release/distribution-materials/verify_cache.py --output evidence
+          cp evidence/SHA256-INDEX.json evidence/recipes/REUSED-INPUT-SHA256-INDEX.json
+          cp evidence/recipes/collector-commit.txt evidence/recipes/reused-collector-commit.txt
+          printf '%s\n' '39255498115; review artifact 12189575033; source artifact 12189290476' > evidence/recipes/reused-ci-inputs.txt
+          cp tools/linux-release/distribution-materials/*.py tools/linux-release/distribution-materials/README.md evidence/recipes/collector/
+          printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
+          printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
       - name: Enable authenticated Ubuntu source metadata and ownership tools
         run: |
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
           # The runner image bundled AppArmor .8, superseded before packaging.
           # Its original publication was verified in Launchpad binarypub250376920.
           # Add historical signed metadata rather than substitute today's .deb.
-          sudo tee /etc/apt/sources.list.d/colosseum-source-snapshot.sources > /dev/null <<'EOF'
+          sudo tee /etc/apt/sources.list.d/zz-colosseum-source-snapshot.sources > /dev/null <<'EOF'
           Types: deb deb-src
           URIs: https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/
           Suites: noble-updates
@@ -73,18 +107,25 @@ jobs:
             libxcb-keysyms1 libxcb-xkb1 ffmpeg 2>&1 | tee apt-install.txt
           mkdir -p evidence/apt-trust/lists
           cp apt-update.txt apt-install.txt /etc/apt/sources.list.d/ubuntu.sources evidence/apt-trust/
-          cp /etc/apt/sources.list.d/colosseum-source-snapshot.sources evidence/apt-trust/
+          cp /etc/apt/sources.list.d/zz-colosseum-source-snapshot.sources evidence/apt-trust/
           cp /usr/share/keyrings/ubuntu-archive-keyring.gpg evidence/apt-trust/
           # Retain authenticated indices, not merely a list of package names.
           find /var/lib/apt/lists -maxdepth 1 -type f -name '*ubuntu*' -exec cp '{}' evidence/apt-trust/lists/ ';'
           dpkg-query -W -f='${Package}\t${Version}\t${source:Package}\t${source:Version}\n' > evidence/apt-trust/collector-host-packages.tsv
           patchelf --version > evidence/apt-trust/patchelf-version.txt
       - name: Verify exact distro files and acquire corresponding source inputs
-        run: python3 tools/linux-release/distribution-materials/distro.py --output evidence
+        run: |
+          args=()
+          if [[ '${{ inputs.full_collection }}' != 'true' ]]; then args+=(--resume-sources); fi
+          python3 tools/linux-release/distribution-materials/distro.py --output evidence "${args[@]}"
       - name: Acquire Qt SDK families and rebuilt TIFF and KDE source inputs
+        if: ${{ inputs.full_collection }}
         run: python3 tools/linux-release/distribution-materials/upstream.py --output evidence
       - name: Verify Qt SDK binary archive ownership and acquire ICU candidate source
-        run: python3 tools/linux-release/distribution-materials/sdk.py --output evidence
+        run: |
+          args=()
+          if [[ '${{ inputs.full_collection }}' != 'true' ]]; then args+=(--webengine-only); fi
+          python3 tools/linux-release/distribution-materials/sdk.py --output evidence "${args[@]}"
       - name: Generate explicit review inventory and checksums
         if: always()
         run: |

@@ -16,7 +16,7 @@ class Commands:
     def __init__(self, output):
         self.root = output / 'commands'
         self.root.mkdir(parents=True, exist_ok=True)
-        self.sequence = 0
+        self.sequence = max((int(p.stem) for p in self.root.glob('*.txt') if p.stem.isdigit()), default=0)
 
     def run(self, argv, cwd=None, check=True):
         self.sequence += 1
@@ -71,7 +71,8 @@ def source_acquire(name, version, out, commands):
     uris = commands.run(['apt-get', '--print-uris', 'source', '--download-only',
                          '--only-source', name + '=' + version], cwd=directory)
     (directory / 'acquisition-uris.txt').write_text(uris, encoding='utf-8')
-    commands.run(['apt-get', 'source', '--download-only', '--only-source',
+    commands.run(['apt-get', '-o', 'Acquire::Retries=3', '-o', 'Acquire::https::Timeout=30',
+                  'source', '--download-only', '--only-source',
                   name + '=' + version], cwd=directory)
     files = []
     for line in stanza.get('Checksums-Sha256', '').splitlines():
@@ -250,7 +251,26 @@ def collect(out):
                 for name in sorted({p['binary_package'] for p in proofs if not p['binary_copyright_texts']})])
 
 
+def resume_sources(out):
+    commands = Commands(out)
+    index = json.loads((out / 'ubuntu-source-index.json').read_text())
+    for i, row in enumerate(index):
+        if row['status'] == 'verified-acquired':
+            continue
+        try:
+            index[i] = source_acquire(row['source_package'], row['source_version'], out, commands)
+        except Exception as exc:
+            row['reason'] = str(exc)
+        write_json(out / 'ubuntu-source-index.json', index)
+    summary = json.loads((out / 'ubuntu-summary.json').read_text())
+    summary['unresolved_sources'] = sum(r['status'] != 'verified-acquired' for r in index)
+    write_json(out / 'ubuntu-summary.json', summary)
+    print(json.dumps(summary))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
-    collect(parser.parse_args().output.resolve())
+    parser.add_argument('--resume-sources', action='store_true')
+    args = parser.parse_args()
+    (resume_sources if args.resume_sources else collect)(args.output.resolve())

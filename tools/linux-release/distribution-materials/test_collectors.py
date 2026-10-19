@@ -8,6 +8,8 @@ from unittest.mock import patch
 from distro import paragraphs, source_identity, source_acquire, binary_files
 from inventory import collect, safe_name
 from upstream import acquire, compare_archive
+from verify_cache import verify
+from inventory import PACKAGE_SHA256, write_json
 
 
 class CollectorTests(unittest.TestCase):
@@ -115,6 +117,23 @@ class CollectorTests(unittest.TestCase):
             with patch('distro.subprocess.Popen', return_value=process):
                 binary_files(root / 'a.deb', set(), root / 'binary/copyrights', root / 'host')
             self.assertFalse((root / 'binary/copyrights').exists())
+
+    def test_cached_input_hash_mismatch_is_fatal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / 'package-identity.json', {'sha256': PACKAGE_SHA256})
+            (root / 'source').write_bytes(b'changed')
+            write_json(root / 'SHA256-INDEX.json', [{'path': 'source', 'bytes': 7, 'sha256': '0' * 64}])
+            with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+                verify(root)
+
+    def test_command_receipts_resume_without_overwriting(self):
+        from distro import Commands
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'commands').mkdir()
+            (root / 'commands/0012.txt').write_text('original evidence')
+            self.assertEqual(Commands(root).sequence, 12)
 
 
 if __name__ == '__main__':
