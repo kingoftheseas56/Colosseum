@@ -26,7 +26,7 @@ OPENSSL = shutil.which("openssl") or "C:/Program Files/Git/usr/bin/openssl.exe"
 class FakeGitHub:
     """Models the GitHub release endpoints the publisher touches. Crucially, a
     draft is discoverable only through the /releases *list* endpoint, never through
-    /releases/tags/{tag} — matching real GitHub, where drafts have no tag ref."""
+    /releases/tags/{tag} â€” matching real GitHub, where drafts have no tag ref."""
 
     def __init__(self, published: bool = False, has_draft: bool = False):
         self.published = published
@@ -70,7 +70,7 @@ class UpdateReleaseToolingTests(unittest.TestCase):
             data = json.loads(manifest.read_text(encoding="utf-8"))
             self.assertEqual(data["version"], "1.1.9")
             self.assertEqual(data["tag"], "v1.1.9")
-            self.assertEqual(len(data["highlights"]), 6)
+            self.assertEqual(len(data["highlights"]), 7)
             mutated = Path(temp) / "mutated.json"
             marker = b'"version":"1.1.9"'
             self.assertEqual(manifest.read_bytes().count(marker), 1)
@@ -295,7 +295,7 @@ class UpdateReleaseToolingTests(unittest.TestCase):
 class InstalledChronicleGeneratorTests(unittest.TestCase):
     """Slice 1: the bundled installed-chronicle generator reuses the exact manifest +
     signing trust path, copies all five verified screenshots, and rejects missing
-    artwork references. Uses a throwaway test key — the production-signed artifacts
+    artwork references. Uses a throwaway test key â€” the production-signed artifacts
     are produced by a maintainer run, not by this test."""
 
     PRESENTATION = ROOT / "release/presentation/1.1.0.json"

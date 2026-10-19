@@ -13,14 +13,27 @@ on:
         default: "1.1.9"
         type: string
 
+      receive_run_id:
+        description: Existing installer run to qualify without rebuilding (empty builds normally)
+        required: false
+        default: ""
+        type: string
+      receive_sha256:
+        description: Required exact installer SHA256 in receive-only mode
+        required: false
+        default: ""
+        type: string
+
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: release-installer-smoke-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   build-installer:
+    if: inputs.receive_run_id == ''
     runs-on: windows-2025
     timeout-minutes: 120
     env:
@@ -243,3 +256,43 @@ jobs:
             -Installer $installer.FullName `
             -ExpectedSha256 "${{ needs.build-installer.outputs.sha256 }}" `
             -ExpectedVersion $env:VERSION
+
+  receive-windows-upgrade:
+    if: inputs.receive_run_id != ''
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Receive exact rebuilt installer
+        uses: actions/download-artifact@v4
+        with:
+          name: Colosseum-1.1.9-setup
+          path: ${{ runner.temp }}/received
+          run-id: ${{ inputs.receive_run_id }}
+          github-token: ${{ github.token }}
+      - name: Fingerprint, fresh install and uninstall
+        shell: pwsh
+        env:
+          EXPECTED_SHA256: ${{ inputs.receive_sha256 }}
+        run: |
+          if ($env:EXPECTED_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'exact digest required' }
+          & ./tests/installer/release_installer_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-1.1.9-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -ExpectedVersion '1.1.9'
+      - name: Receive published 1.1.8 and qualify real upgrade
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA256: ${{ inputs.receive_sha256 }}
+        run: |
+          gh release download v1.1.8 --repo kingoftheseas56/Colosseum --pattern Colosseum-1.1.8-setup.exe --dir "$env:RUNNER_TEMP/prior"
+          if ($LASTEXITCODE -ne 0) { throw 'prior installer download failed' }
+          & ./tests/installer/release_upgrade_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-1.1.9-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -PreviousInstaller "$env:RUNNER_TEMP/prior/Colosseum-1.1.8-setup.exe"
+      - name: Preserve acceptance logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-received-upgrade-logs
+          path: |
+            ${{ runner.temp }}/*.log
+          retention-days: 3
