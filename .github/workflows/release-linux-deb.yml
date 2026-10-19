@@ -8,6 +8,7 @@ on:
       - '.github/workflows/release-linux-deb.yml'
       - 'tools/linux-release/**'
       - 'scripts/stage_api_content.py'
+      - '.gitattributes'
       - 'tests/test_linux_release_policy.py'
       - 'tests/test_stage_api_content.py'
 
