@@ -1,3 +1,5 @@
+use skill: colosseum-argon-workspace
+
 # Argon ACCOUNT-04: FOSS, Theatre compatibility and anime
 
 **27-target campaign, batch 4 of 5. Assigned 5 distinct targets.** Research and writing only. Absolutely no Reddit submissions, comments, modmail, logins, account manipulation, or GitHub product changes. This is a standalone assignment for ONE Gemini account. Do not write another account's targets.
