@@ -1,0 +1,102 @@
+name: Linux source materials proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/119-linux-source-proof-20261019']
+    paths:
+      - '.github/workflows/release-linux-source-materials.yml'
+      - 'tools/linux-release/distribution-materials/**'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      ACCEPTED_COMMIT: fa08d3a43c842b5b3eb19023b74e4d716e63a6e5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/workflows
+            tools/linux-release
+      - name: Focused collector checks
+        run: python3 -m unittest discover -s tools/linux-release/distribution-materials -p 'test_*.py' -v
+      - name: Download exact accepted artifact without rebuilding
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '12182359609'
+          run-id: '39244501311'
+          github-token: ${{ github.token }}
+          path: accepted
+      - name: Stream pinned package and retain its evidence
+        run: |
+          python3 tools/linux-release/distribution-materials/inventory.py \
+            --package accepted/Colosseum-1.1.9-linux-amd64.deb --output evidence
+          mkdir -p evidence/recipes
+          cp accepted/BUILD-IDENTITY.json accepted/package-check.json evidence/recipes/
+          git fetch --depth=1 origin "$ACCEPTED_COMMIT"
+          test "$(git rev-parse FETCH_HEAD)" = "$ACCEPTED_COMMIT"
+          git show "$ACCEPTED_COMMIT:.github/workflows/release-linux-deb.yml" > evidence/recipes/accepted-build-workflow.yml
+          git archive --format=tar.gz --prefix="colosseum-$ACCEPTED_COMMIT/" \
+            --output="evidence/recipes/colosseum-$ACCEPTED_COMMIT.tar.gz" "$ACCEPTED_COMMIT"
+          cp tools/linux-release/distribution-materials/README.md evidence/recipes/ACQUISITION-AND-BUILD.md
+          cp -r tools/linux-release/distribution-materials evidence/recipes/collector
+          printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
+          printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
+      - name: Enable authenticated Ubuntu source metadata and ownership tools
+        run: |
+          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update 2>&1 | tee apt-update.txt
+          sudo apt-get install -y --no-install-recommends \
+            dpkg-dev patchelf libmpv-dev libtorrent-rasterbar-dev libboost-all-dev \
+            libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libxkbcommon-dev libxcb-cursor0 ffmpeg 2>&1 | tee apt-install.txt
+          mkdir -p evidence/apt-trust/lists
+          cp apt-update.txt apt-install.txt /etc/apt/sources.list.d/ubuntu.sources evidence/apt-trust/
+          cp /usr/share/keyrings/ubuntu-archive-keyring.gpg evidence/apt-trust/
+          # Retain authenticated indices, not merely a list of package names.
+          find /var/lib/apt/lists -maxdepth 1 -type f -name '*ubuntu*' -exec cp '{}' evidence/apt-trust/lists/ ';'
+          dpkg-query -W -f='${Package}\t${Version}\t${source:Package}\t${source:Version}\n' > evidence/apt-trust/collector-host-packages.tsv
+          patchelf --version > evidence/apt-trust/patchelf-version.txt
+      - name: Verify exact distro files and acquire corresponding source inputs
+        run: python3 tools/linux-release/distribution-materials/distro.py --output evidence
+      - name: Acquire Qt SDK families and rebuilt TIFF and KDE source inputs
+        run: python3 tools/linux-release/distribution-materials/upstream.py --output evidence
+      - name: Generate explicit review inventory and checksums
+        if: always()
+        run: |
+          if test -f evidence/payload-inventory.json; then
+            python3 tools/linux-release/distribution-materials/report.py --output evidence
+            python3 tools/linux-release/distribution-materials/bundle.py --output evidence --archive review-materials.tar.gz
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-source-proof-review
+          path: |
+            review-materials.tar.gz
+            evidence/SUMMARY.json
+            evidence/unresolved.json
+            evidence/ubuntu-summary.json
+            evidence/ubuntu-unresolved.json
+            evidence/upstream-source-index.json
+          retention-days: 14
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-source-proof-acquired-sources
+          path: |
+            evidence/sources/**
+            evidence/upstream/**/*.tar.xz
+            evidence/upstream/**/*.tar.gz
+            evidence/recipes/colosseum-*.tar.gz
+            evidence/SHA256-INDEX.json
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: warn
