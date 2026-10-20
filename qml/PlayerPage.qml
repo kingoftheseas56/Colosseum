@@ -333,6 +333,9 @@ Item {
     property string streamRouteHash: ""
     property int streamRouteFileIdx: 0
     property bool streamRouteRestorePending: false
+    // Pre-background position for that re-demand. Kept apart from the
+    // wake-reconnect seek, which recovery retries reset.
+    property real streamRouteRestoreSec: -1
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -1700,7 +1703,7 @@ Item {
         if (root.streamRouteRestorePending)
             return true
         root.streamRouteRestorePending = true
-        root.wakeReconnectPendingSeek = mpv.position > 1 ? mpv.position : -1
+        root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position : -1
         root.resetRecoveryWatch()
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
@@ -2826,6 +2829,7 @@ Item {
         mpv.stopPlayback()
         root.streamRouteUrl = ""
         root.streamRouteRestorePending = false
+        root.streamRouteRestoreSec = -1
         // A real close ends the stream's demand; minimize never reaches here.
         if (typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3753,7 +3757,14 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = false
-            if (root.wakeReconnectPendingSeek > 1) {
+            if (root.streamRouteRestoreSec > 1) {
+                // Re-demanded after the background quiesce: reopen where it was.
+                var restoreSec = root.streamRouteRestoreSec
+                root.streamRouteRestoreSec = -1
+                root.wakeReconnectPendingSeek = -1
+                mpv.seekExact(restoreSec)
+                startupOwnedByUi = true
+            } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
                 // whatever pause state carried (a playing stream resumes, a deliberate pause stays).
                 var pos = root.wakeReconnectPendingSeek
