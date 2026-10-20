@@ -12,6 +12,7 @@
 #include <QMetaMethod>
 #include <QLoggingCategory>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QUrl>
 #include <QUuid>
 #include <chrono>
@@ -20,6 +21,14 @@
 
 using namespace vinyl;
 Q_LOGGING_CATEGORY(vinylActivityLog,"colosseum.vinyl.activity",QtWarningMsg)
+
+namespace {
+QString musicIdentity(QString text) {
+    text=text.normalized(QString::NormalizationForm_C).toCaseFolded();
+    text.replace(QRegularExpression("[._]+")," ");
+    return text.simplified();
+}
+}
 
 struct VinylBackendSession::Backend {
     struct Ports : ColosseumMpvPlayerPort, PlaybackLoadInputProvider {
@@ -61,8 +70,16 @@ VinylBackendSession::VinylBackendSession(QObject *parent)
     m_deadline.setInterval(100);
     connect(&m_deadline,&QTimer::timeout,this,[this] {
         if(auto expired=m_backend->seeks.expire(monotonicMs())) {
+            const auto target=position();
             m_backend->callbacks.seekFailed(*expired,"Seek acknowledgement timed out.");
-            m_backend->physicalSeek.reset();fail("The seek did not complete. Retry this track.");
+            m_backend->physicalSeek.reset();
+            if(!tryFallback("Torrent audio seek did not complete.",target))fail("The seek did not complete. Retry this track.");
+        }
+        const auto now=monotonicMs();
+        if(m_sourceKind=="torrent"&&m_loaded&&m_state=="playing") {
+            const auto at=position();
+            if(m_paused||seekPending()||at>m_lastProgress+0.05){m_lastProgress=at;m_lastProgressMs=now;}
+            else if(now-m_lastProgressMs>15000)tryFallback("Torrent audio stalled.");
         }
     });
     m_deadline.start();
@@ -185,6 +202,7 @@ void VinylBackendSession::moveQueue(int from,int to) {
 void VinylBackendSession::clearQueue() {
     if(m_shutdown||!m_profileActive)return;
     emit playbackEnding(false);cancelResolution();m_backend->coordinator.clear();m_rows.clear();
+    m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
     m_resume=0;m_duration=0;m_paused=true;m_state="idle";m_error.clear();emit queueChanged();publishState();
 }
 void VinylBackendSession::setShuffle(bool enabled) {
@@ -199,10 +217,12 @@ void VinylBackendSession::cycleRepeat() {
     m_backend->coordinator.setRepeatMode(m_repeat=="all"?CoordinatorRepeatMode::Queue:CoordinatorRepeatMode::Off);
     publishState();
 }
-void VinylBackendSession::beginActive(double seconds,bool play) {
+void VinylBackendSession::beginActive(double seconds,bool play,bool fallback) {
     if(m_shutdown||!m_profileActive||!m_backend->queue.activeOccurrence())return;
     m_resume=seconds;m_duration=activeRow().value("seconds").toDouble();m_paused=!play;
     m_error.clear();m_state="finding";m_backend->input.reset();
+    m_forceFallback=fallback;
+    if(!fallback){m_fallbackAttempted=false;m_sourceKind.clear();m_fallbackReason.clear();}
     emit playbackRequested();
     const auto result=m_backend->coordinator.awaitInput(*m_backend->queue.activeOccurrenceId(),play);
     if(!result.ok){fail("The queue could not start playback.");return;}
@@ -219,19 +239,28 @@ std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurr
         const auto track=activeRow().value("trackId").toString();
         if(activeRow().value("track").toMap().value("available",true)==false){fail("This track is unavailable.");return;}
         int result=-1;
-        const auto method=m_source->metaObject()->indexOfMethod("request(QString,QString,QString)");
+        auto method=m_source->metaObject()->indexOfMethod("request(QString,QString,QString,QVariantMap)");
+        const bool contextual=method>=0;
+        if(!contextual)method=m_source->metaObject()->indexOfMethod("request(QString,QString,QString)");
         if(method<0){fail("The audio source cannot resolve tracks.");return;}
         auto request=m_source->metaObject()->method(method);
+        const auto edition=activeRow().value("edition").toMap();
+        QVariantMap options;
+        if(edition.value("origin","local").toString()!="local"){
+            const auto browseId=edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
+            if(!browseId.isEmpty())options.insert("browseId",browseId);
+        }
+        const QString lane="play",operation=m_forceFallback?"resolveFallback":"resolve";
+        const QGenericArgument laneArg("QString",&lane),operationArg("QString",&operation),trackArg("QString",&track);
+        const QGenericArgument extra=contextual?QGenericArgument("QVariantMap",&options):QGenericArgument();
         if(request.returnMetaType().id()==QMetaType::QVariant){
             QVariant value;
-            request.invoke(m_source,Qt::DirectConnection,Q_RETURN_ARG(QVariant,value),
-                Q_ARG(QString,QString("play")),Q_ARG(QString,QString("resolve")),Q_ARG(QString,track));
+            request.invoke(m_source,Qt::DirectConnection,QGenericReturnArgument("QVariant",&value),laneArg,operationArg,trackArg,extra);
             result=value.toInt();
-        }else request.invoke(m_source,Qt::DirectConnection,Q_RETURN_ARG(int,result),
-                Q_ARG(QString,QString("play")),Q_ARG(QString,QString("resolve")),Q_ARG(QString,track));
+        }else request.invoke(m_source,Qt::DirectConnection,QGenericReturnArgument("int",&result),laneArg,operationArg,trackArg,extra);
         m_request=result;
         if(result<0)fail("The audio source could not be requested.");
-        else QTimer::singleShot(30000,this,[this,generation,result] {
+        else QTimer::singleShot(120000,this,[this,generation,result] {
             if(!m_shutdown&&generation==m_epoch&&m_request==result) {
                 cancelResolution();fail("The audio source did not respond. Retry this track.");
             }
@@ -253,6 +282,9 @@ void VinylBackendSession::sourceCompleted(const QString &lane,int request,const 
     auto input=PlaybackLoadInput::create(result.value("url").toString(),headers);
     if(!input.ok()){fail("The audio source is invalid.");return;}
     m_backend->input=*input.value;m_quality=result.value("qualityLabel","Local audio").toString();
+    m_sourceKind=result.value("provider",QUrl(result.value("url").toString()).isLocalFile()?"local":"youtube").toString();
+    if(!result.value("fallbackReason").toString().isEmpty())m_fallbackReason=result.value("fallbackReason").toString();
+    if(m_sourceKind=="youtube")m_fallbackAttempted=true;
     auto started=m_backend->coordinator.restartActive(active->occurrenceId(),*m_backend->input);
     if(!started.ok)fail("The audio could not start.");
     publishState();
@@ -283,8 +315,28 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         if(m_shutdown||!m_profileActive||m_player!=item||generation!=m_epoch||load!=item->playbackGeneration())return;
         if(kind=="loaded") {
             if(!m_backend->entries.bind(entry,token)){fail("The playback identity could not be confirmed.");return;}
+            if(m_sourceKind=="torrent") {
+                const auto row=activeRow(),track=row.value("track").toMap(),edition=row.value("edition").toMap();
+                const auto metadata=item->getProperty("metadata").toMap();QVariantMap tags;
+                for(auto it=metadata.cbegin();it!=metadata.cend();++it)tags.insert(it.key().toLower(),it.value());
+                const auto title=tags.value("title").toString(),album=tags.value("album").toString(),artist=tags.value("artist").toString();
+                auto expectedArtist=track.value("artists").toStringList();
+                if(expectedArtist.isEmpty())expectedArtist=track.value("artist").toString().split(" · ",Qt::SkipEmptyParts);
+                const bool artistMismatch=!artist.isEmpty()&&!expectedArtist.isEmpty()
+                    &&std::none_of(expectedArtist.cbegin(),expectedArtist.cend(),[&artist](const QString &value){return musicIdentity(value)==musicIdentity(artist);});
+                const bool mismatch=(!title.isEmpty()&&musicIdentity(title)!=musicIdentity(track.value("title").toString()))
+                    ||(!album.isEmpty()&&musicIdentity(album)!=musicIdentity(edition.value("name").toString()))||artistMismatch
+                    ||(duration>0&&row.value("seconds").toDouble()>0&&std::abs(duration-row.value("seconds").toDouble())>2.0);
+                if(mismatch){
+                    QTimer::singleShot(0,this,[this,item,generation]{
+                        if(m_player==item&&generation==m_epoch&&!tryFallback("Torrent audio metadata did not match the requested recording."))
+                            fail("The audio did not match this recording.");
+                    });return;
+                }
+            }
             if(!m_backend->coordinator.engineLoaded(token).ok)return;
             m_loaded=true;m_state="playing";
+            m_lastProgress=0;m_lastProgressMs=monotonicMs();
             if(std::isfinite(duration)&&duration>0){m_duration=duration;m_backend->callbacks.durationObserved(token,duration);}
             if(m_resume>0)m_backend->adapter.seek(qRound64(m_resume*1000));
             publishState();
@@ -296,6 +348,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             if(advance){
                 m_backend->callbacks.seekApplied(advance->completed,position);
                 m_resume=position;emit discontinuity(position);
+                m_lastProgress=position;m_lastProgressMs=monotonicMs();
                 m_backend->physicalSeek.reset();m_seekAccepted=false;
                 if(advance->nextPhysical)dispatchSeek(*advance->nextPhysical);
                 publishState();
@@ -303,7 +356,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         }else if(kind.startsWith("ended-")){
             auto work=m_backend->entries.tokenFor(entry);if(!work||*work!=token)return;
             if(kind=="ended-eof")naturalEnd(*work);
-            else if(kind=="ended-error")fail("The audio could not be decoded or played. Retry this track.");
+            else if(kind=="ended-error"&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
         }
     });
     connect(item,&MpvItem::trackedSeekReply,this,[this,item,token](quint64 serial,bool success,quint64 load) {
@@ -311,7 +364,11 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             ||m_backend->physicalSeek->sequence()!=serial||m_backend->physicalSeek->workToken()!=token)return;
         if(success){m_seekAccepted=true;return;}
         auto failed=m_backend->seeks.failActive(*m_backend->physicalSeek);
-        if(failed){m_backend->callbacks.seekFailed(*failed,"mpv rejected seek");m_backend->physicalSeek.reset();fail("The seek failed. Retry this track.");}
+        if(failed){
+            const auto target=position();
+            m_backend->callbacks.seekFailed(*failed,"mpv rejected seek");m_backend->physicalSeek.reset();
+            if(!tryFallback("Torrent audio seek failed.",target))fail("The seek failed. Retry this track.");
+        }
     });
     connect(item,&MpvItem::positionChanged,this,[this,item,token,generation] {
         if(m_player!=item||generation!=m_epoch||!m_loaded)return;
@@ -328,8 +385,8 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             m_paused=item->pause();publishState();
         }
     });
-    connect(item,&MpvItem::playbackError,this,[this,item](const QString &,const QString &) {
-        if(m_player==item)fail("The audio could not be decoded or played. Retry this track.");
+    connect(item,&MpvItem::playbackError,this,[this,item,generation](const QString &,const QString &) {
+        if(m_player==item&&generation==m_epoch&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
     });
     QVariantMap fields;for(const auto &header:headers)fields.insert(header.name,header.value);
     // This first host adapter admits whole local files. Never silently discard a
@@ -337,11 +394,19 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
     if(!options.isEmpty()){fail("This bounded source is not connected to the local player yet.");retirePlayer();return;}
     item->loadFileWithHeaders(resource,fields);item->setPause(m_paused);
     QTimer::singleShot(15000,this,[this,item,generation] {
-        if(m_player==item&&generation==m_epoch&&!m_loaded)fail("The audio did not start in time. Retry this track.");
+        if(m_player==item&&generation==m_epoch&&!m_loaded&&!tryFallback("Torrent audio did not start in time."))fail("The audio did not start in time. Retry this track.");
     });
     publishState();
 }
 void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) { if(m_player)m_player->setPause(paused); }
+bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double> resume) {
+    if(m_shutdown||!m_profileActive||m_sourceKind!="torrent"||m_fallbackAttempted||activeIndex()<0)return false;
+    const auto at=resume.value_or(position());const bool play=!m_paused;
+    emit playbackEnding(false);cancelResolution();
+    if(!m_backend->coordinator.stop().ok)return false;
+    retirePlayer();m_fallbackAttempted=true;m_fallbackReason=reason;m_sourceKind="youtube";
+    beginActive(at,play,true);return true;
+}
 void VinylBackendSession::seekExact(const PlaybackSeekCommand &command,double) {
     auto result=m_backend->seeks.submit(command,monotonicMs());if(result.dispatch)dispatchSeek(*result.dispatch);
 }
@@ -401,6 +466,7 @@ void VinylBackendSession::suspend() {
 }
 void VinylBackendSession::clearProfile() {
     suspend();m_backend->coordinator.clear();m_rows.clear();m_profileActive=false;
+    m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
     m_resume=0;m_duration=0;m_repeat="off";m_shuffleEnabled=false;m_state="idle";m_error.clear();emit queueChanged();publishState();
 }
 void VinylBackendSession::shutdown() { if(m_shutdown)return;suspend();m_shutdown=true;m_deadline.stop(); }

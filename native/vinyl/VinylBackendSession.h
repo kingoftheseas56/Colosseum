@@ -39,6 +39,8 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(QString sourceState READ sourceState NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(QString qualityLabel READ qualityLabel NOTIFY stateChanged)
+    Q_PROPERTY(QString sourceKind READ sourceKind NOTIFY stateChanged)
+    Q_PROPERTY(QString fallbackReason READ fallbackReason NOTIFY stateChanged)
     Q_PROPERTY(QString repeatMode READ repeatMode NOTIFY stateChanged)
 public:
     explicit VinylBackendSession(QObject *parent=nullptr);
@@ -61,6 +63,8 @@ public:
     QString sourceState() const { return m_state; }
     QString error() const { return m_error; }
     QString qualityLabel() const { return m_quality; }
+    QString sourceKind() const { return m_sourceKind; }
+    QString fallbackReason() const { return m_fallbackReason; }
     QString repeatMode() const { return m_repeat; }
 
     Q_INVOKABLE bool replaceRows(const QVariantList &rows,int index,bool shuffle);
@@ -109,7 +113,8 @@ private:
     void setPaused(const vinyl::PlaybackWorkToken &,bool);
     void seekExact(const vinyl::PlaybackSeekCommand &,double);
     void stop(const vinyl::PlaybackWorkToken &);
-    void beginActive(double seconds=0,bool play=true);
+    void beginActive(double seconds=0,bool play=true,bool fallback=false);
+    bool tryFallback(const QString &reason,std::optional<double> resume=std::nullopt);
     void retirePlayer();
     void cancelResolution();
     void fail(const QString &message);
@@ -125,6 +130,10 @@ private:
     QPointer<QObject> m_collection,m_preferences;
     QPointer<MpvItem> m_player;
     QString m_profile,m_repeat="off",m_state="idle",m_error,m_quality="Local audio";
+    QString m_sourceKind,m_fallbackReason;
+    bool m_forceFallback=false,m_fallbackAttempted=false;
+    qint64 m_lastProgressMs=0;
+    double m_lastProgress=0;
     bool m_paused=true,m_loaded=false,m_shutdown=false,m_profileActive=false,m_shuffleEnabled=false;
     bool m_publishedPaused=true;
     double m_resume=0,m_duration=0;

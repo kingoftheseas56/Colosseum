@@ -11,10 +11,11 @@ class tst_stream_server_scoped : public QObject {
 private slots:
     void scopedManifestSelectionAndCancellation() {
         QTcpServer server;
-        if (!server.listen(QHostAddress::LocalHost, 11470))
-            QSKIP("External Stremio service owns test endpoint");
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0));
         bool hold = false;
         int creates = 0;
+        QByteArray lastCreate;
+        QByteArray manifestBody=QByteArrayLiteral("{\"files\":[{\"name\":\"cover.jpg\",\"length\":100},{\"name\":\"song.flac\",\"path\":\"album/song.flac\",\"length\":1234}]}");
         connect(&server, &QTcpServer::newConnection, &server, [&]() {
             while (server.hasPendingConnections()) {
                 auto *socket = server.nextPendingConnection();
@@ -22,16 +23,16 @@ private slots:
                 connect(socket, &QTcpSocket::readyRead, socket, [&, socket]() {
                     const auto request = socket->readAll();
                     if (!request.contains("HTTP/1.1")) return;
-                    if (request.contains("/create")) { ++creates; if (hold) return; }
+                    if (request.contains("/create")) { ++creates;lastCreate=request; if (hold) return; }
                     const QByteArray body = request.contains("/create")
-                        ? QByteArrayLiteral("{\"files\":[{\"name\":\"cover.jpg\",\"length\":100},{\"name\":\"song.flac\",\"path\":\"album/song.flac\",\"length\":1234}]}")
+                        ? manifestBody
                         : QByteArrayLiteral("{}");
                     socket->write("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + QByteArray::number(body.size()) + "\r\n\r\n" + body);
                     socket->disconnectFromHost();
                 });
             }
         });
-        StreamServer stream;
+        StreamServer stream(server.serverPort(), nullptr);
         QSignalSpy manifest(&stream, &StreamServer::torrentManifestReady);
         QSignalSpy scoped(&stream, &StreamServer::torrentStreamReady);
         QSignalSpy errors(&stream, &StreamServer::torrentRequestError);
@@ -45,10 +46,10 @@ private slots:
         QCOMPARE(files.size(), 2);
         QCOMPARE(files.at(1).toMap().value("fileIdx").toInt(), 1);
         QCOMPARE(files.at(1).toMap().value("path").toString(), QString("album/song.flac"));
-        stream.requestFile("selected", hash, 1);
+        stream.requestFile("manifest", hash, 1);
         QTRY_COMPARE(scoped.size(), 1);
-        QCOMPARE(scoped.at(0).at(1).toString(), QString("http://127.0.0.1:11470/") + hash + "/1");
-        stream.requestFile("invalid", hash, 2);
+        QCOMPARE(scoped.at(0).at(1).toString(), QString("http://127.0.0.1:%1/").arg(server.serverPort()) + hash + "/1");
+        stream.requestFile("manifest", hash, 2);
         QTRY_COMPARE(errors.size(), 1);
         hold = true;
         const int before = creates;
@@ -70,6 +71,18 @@ private slots:
         QTRY_COMPARE(legacy.size(), 1);
         QTRY_COMPARE(fetch.size(), 1);
         QCOMPARE(scoped.size(), 1);
+        stream.cancelRequest("manifest");
+        stream.requestFile("manifest",hash,1);QTRY_COMPARE(errors.size(),2);
+        stream.requestManifest("invalid-hash","not-a-hash");QTRY_COMPARE(errors.size(),3);
+        QCOMPARE(manifest.size(),2);
+        manifestBody="{\"infoHash\":\""+QByteArray(40,'b')+"\",\"files\":[{\"name\":\"song.flac\",\"length\":1234}]}";
+        stream.requestManifest("wrong-identity",hash);QTRY_COMPARE(errors.size(),4);
+        manifestBody=QByteArrayLiteral("{\"files\":[{\"path\":\"../song.flac\",\"length\":1234}]}");
+        stream.requestManifest("unsafe-path",hash);QTRY_COMPARE(errors.size(),5);
+        manifestBody=QByteArrayLiteral("{\"files\":[{\"path\":\"album/song.flac\",\"length\":1234}]}");
+        stream.requestMagnetManifest("with-magnet",hash,"magnet:?xt=urn:btih:"+hash+"&tr=udp%3A%2F%2Ftracker.example%3A80");
+        QTRY_COMPARE(manifest.size(),3);QVERIFY(lastCreate.contains("tracker.example"));
+        QCOMPARE(globalErrors.size(),0);QCOMPARE(legacy.size(),1);QCOMPARE(fetch.size(),1);
     }
 };
 QTEST_GUILESS_MAIN(tst_stream_server_scoped)

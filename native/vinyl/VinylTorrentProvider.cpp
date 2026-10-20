@@ -103,6 +103,7 @@ int VinylTorrentProvider::resolve(const QVariantMap &track)
     m_track.trackNumber = track.value(QStringLiteral("trackNumber")).toInt();
     m_track.discNumber = track.value(QStringLiteral("discNumber")).toInt();
     m_track.durationMs = track.value(QStringLiteral("durationMs")).toLongLong();
+    m_track.releaseYear = track.value(QStringLiteral("releaseYear")).toInt();
     m_queries = MusicTorrentQueryPlanner::automaticQueries(m_track);
     m_queryIndex = m_attempted = 0;
     m_seen.clear();
@@ -160,8 +161,9 @@ void VinylTorrentProvider::tryNextCandidate()
     m_streamToken = QStringLiteral("vinyl-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
     // Give metadata more of the bounded budget than catalogue discovery. Cold
     // swarms can still miss the total deadline; the caller owns that fallback.
-    m_stage.start(qMin(6000, m_deadlineMs));
-    m_stream->requestManifest(m_streamToken, m_candidate.infoHash);
+    m_stage.start(qMin(15000, m_deadlineMs));
+    if(m_candidate.magnetUri.isEmpty())m_stream->requestManifest(m_streamToken,m_candidate.infoHash);
+    else m_stream->requestMagnetManifest(m_streamToken,m_candidate.infoHash,m_candidate.magnetUri);
 }
 
 void VinylTorrentProvider::clearTransport()

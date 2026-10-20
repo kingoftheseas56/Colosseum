@@ -44,6 +44,7 @@ public:
     Q_INVOKABLE void leaveArtist();
     Q_INVOKABLE void retryArtist();
     void setArtworkNetworkManager(QNetworkAccessManager *manager){m_artworkNam=manager;}
+    void setTorrentProvider(QObject *provider);
     QVariantMap artistArtwork() const{return m_artwork;}
     QVariantMap artist() const{return m_artist;}
     QVariantList artistAlbums() const{return m_artistAlbums;}
@@ -60,11 +61,15 @@ signals:
     void importProgress(int,int,int,const QString &);
     void profileLeaving();void profileEntered();void checkpointRequested();void shuttingDown();
     void artistChanged();
+private slots:
+    void torrentCompleted(int requestId,const QVariantMap &data,const QString &error);
 private:
-    struct Pending {int id;int transportId;bool local;QString operation,value;};
+    struct Pending {int id;int transportId;bool local;QString operation,value;bool torrent=false;QString fallbackReason;};
     VinylLocalSource *m_local;VinylProvider *m_provider;QPointer<CollectionStore> m_collection;
     int m_serial=0;QHash<QString,Pending> m_pending;
     QHash<QString,QVariantMap> m_albums;QHash<QString,QString> m_videos;
+    QHash<QString,QVariantMap> m_remoteTracks;
+    QPointer<QObject> m_torrent;
     QVariantMap m_artist,m_artistMedia,m_identity,m_artistIntent;
     QVariantList m_artistAlbums,m_artistSingles;
     QString m_artistError,m_channel;bool m_cached=false;

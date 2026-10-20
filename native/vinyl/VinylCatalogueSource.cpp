@@ -14,6 +14,15 @@
 #include <QBuffer>
 using namespace vinyl::artist;
 
+namespace {
+QVariantMap musicIntent(const QVariantMap &album,const QVariantMap &track,int number){
+    const auto artists=track.value("artists",album.value("artists")).toStringList();
+    return {{"artist",artists.value(0)},{"album",album.value("title")},{"title",track.value("title")},
+        {"trackNumber",track.value("trackNumber",number)},{"discNumber",track.value("discNumber",0)},
+        {"durationMs",qRound64(track.value("seconds").toDouble()*1000)},{"releaseYear",album.value("year").toInt()}};
+}
+}
+
 VinylCatalogueSource::VinylCatalogueSource(VinylLocalSource *local,VinylProvider *provider,CollectionStore *collection,QObject *parent)
  :QObject(parent),m_local(local),m_provider(provider),m_collection(collection),m_bridge(*this,*this,*this) {
     connect(local,&VinylLocalSource::completed,this,[this](auto lane,int id,auto data,auto error){accept(lane,id,data,error,true);});
@@ -23,25 +32,43 @@ VinylCatalogueSource::VinylCatalogueSource(VinylLocalSource *local,VinylProvider
     });
     connect(local,&VinylLocalSource::importCompleted,this,&VinylCatalogueSource::importCompleted);
     connect(local,&VinylLocalSource::importProgress,this,&VinylCatalogueSource::importProgress);
-    connect(local,&VinylLocalSource::profileLeaving,this,[this]{cancelAll();m_albums.clear();m_videos.clear();emit profileLeaving();});
+    connect(local,&VinylLocalSource::profileLeaving,this,[this]{cancelAll();m_albums.clear();m_videos.clear();m_remoteTracks.clear();emit profileLeaving();});
     connect(local,&VinylLocalSource::profileEntered,this,&VinylCatalogueSource::profileEntered);
     connect(local,&VinylLocalSource::checkpointRequested,this,&VinylCatalogueSource::checkpointRequested);
     connect(local,&VinylLocalSource::shuttingDown,this,[this]{cancelAll();emit shuttingDown();});
 }
 void VinylCatalogueSource::setCollectionStore(QObject *store){m_collection=qobject_cast<CollectionStore *>(store);}
+void VinylCatalogueSource::setTorrentProvider(QObject *provider){
+    if(m_torrent==provider)return;
+    cancel("play");if(m_torrent)disconnect(m_torrent,nullptr,this,nullptr);
+    m_torrent=provider;
+    if(provider)connect(provider,SIGNAL(completed(int,QVariantMap,QString)),this,SLOT(torrentCompleted(int,QVariantMap,QString)),Qt::QueuedConnection);
+}
 void VinylCatalogueSource::setAlbums(const QVariantList &entries){
     m_local->setAlbums(entries);
     for(const auto &entry:entries){auto album=entry.toMap().value("payload").toMap().value("album").toMap();if(album.isEmpty())album=entry.toMap();if(!album.isEmpty())remember(album);}
 }
 QVariantMap VinylCatalogueSource::remember(QVariantMap album){
     const auto id=album.value("id").toString();if(id.isEmpty())return album;
-    const auto prior=m_albums.value(id);
+    auto prior=m_albums.value(id);
+    if(prior.isEmpty())prior=m_albums.value(album.value("browseId").toString());
+    // Search summaries must not erase the release context of queued tracks.
+    if(album.value("tracks").toList().isEmpty()&&!prior.value("tracks").toList().isEmpty()){
+        auto complete=prior;
+        for(auto it=album.cbegin();it!=album.cend();++it)if(it.key()!="tracks")complete.insert(it.key(),it.value());
+        album=complete;
+    }
     if(!album.contains("providerEditions")&&prior.contains("providerEditions"))album["providerEditions"]=prior.value("providerEditions");
     m_albums.insert(id,album);
     if(!album.value("browseId").toString().isEmpty())m_albums.insert(album.value("browseId").toString(),album);
+    int trackNumber=0;
     for(const auto &item:album.value("tracks").toList()){
+        ++trackNumber;
         const auto track=item.toMap();const auto video=track.value("videoId").toString();
-        if(QRegularExpression("^[A-Za-z0-9_-]{11}$").match(video).hasMatch())m_videos.insert(track.value("id").toString(),video);
+        if(QRegularExpression("^[A-Za-z0-9_-]{11}$").match(video).hasMatch()){
+            const auto key=track.value("id").toString();m_videos.insert(key,video);
+            m_remoteTracks.insert(key,musicIntent(album,track,trackNumber));
+        }
     }
     return album;
 }
@@ -55,25 +82,57 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         if(album.value("origin")=="local")local=true;
         else remoteValue=album.value("browseId",value).toString();
     }
-    if(operation=="resolve"&&!local){remoteValue=m_videos.value(value);}
-    const int transport=local?m_local->request(lane,operation,value,options):m_provider->request(lane,operation,remoteValue);
+    if((operation=="resolve"||operation=="resolveFallback")&&!local){remoteValue=m_videos.value(value);}
+    if(operation=="resolve"&&lane=="play"&&!local&&m_torrent&&m_remoteTracks.contains(value)){
+        auto intent=m_remoteTracks.value(value);
+        const auto browseId=options.value("browseId").toString();
+        if(!browseId.isEmpty()){
+            const auto album=m_albums.value(browseId);bool found=false;int number=0;
+            for(const auto &entry:album.value("tracks").toList()){
+                ++number;const auto track=entry.toMap();
+                if(track.value("id").toString()==value){intent=musicIntent(album,track,number);found=true;break;}
+            }
+            if(!found)return -1;
+        }
+        int transport=-1;
+        if(!QMetaObject::invokeMethod(m_torrent,"resolve",Qt::DirectConnection,Q_RETURN_ARG(int,transport),Q_ARG(QVariantMap,intent))||transport<0)return -1;
+        m_pending.insert(lane,{id,transport,false,operation,value,true,{}});return id;
+    }
+    const int transport=local?m_local->request(lane,operation,value,options):m_provider->request(lane,operation=="resolveFallback"?"resolve":operation,remoteValue);
     if(transport<0)return -1;
     m_pending.insert(lane,{id,transport,local,operation,value});return id;
 }
 void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &data,const QString &error,bool local){
     if(!m_pending.contains(lane))return;const auto pending=m_pending.value(lane);
-    if(pending.local!=local||pending.transportId!=id)return;m_pending.remove(lane);
+    if(pending.torrent||pending.local!=local||pending.transportId!=id)return;m_pending.remove(lane);
     QVariant result=data;
     if(error.isEmpty()){
         if(pending.operation=="album")result=remember(data.toMap());
         else if(pending.operation=="catalogueSearch"){
             auto map=data.toMap();QVariantList albums;
             for(const auto &item:map.value("albums").toList())albums.append(remember(item.toMap()));map["albums"]=albums;result=map;
-        }else if(pending.operation=="resolve"&&!local){auto map=data.toMap();map["trackId"]=pending.value;result=map;}
+        }else if((pending.operation=="resolve"||pending.operation=="resolveFallback")&&!local){
+            auto map=data.toMap();map["trackId"]=pending.value;map["provider"]="youtube";
+            map["fallbackReason"]=pending.fallbackReason;result=map;
+        }
     }
     emit completed(lane,pending.id,result,error);
 }
-void VinylCatalogueSource::cancel(const QString &lane){m_pending.remove(lane);m_local->cancel(lane);m_provider->cancel(lane);}
+void VinylCatalogueSource::torrentCompleted(int requestId,const QVariantMap &data,const QString &error){
+    const auto it=m_pending.find("play");
+    if(sender()!=m_torrent||it==m_pending.end()||!it->torrent||it->transportId!=requestId)return;
+    if(error.isEmpty()&&data.value("provider")=="torrent"&&!data.value("url").toString().isEmpty()){
+        const auto pending=*it;m_pending.erase(it);auto result=data;result["trackId"]=pending.value;
+        emit completed("play",pending.id,result,{});return;
+    }
+    it->torrent=false;it->fallbackReason=error.isEmpty()?QStringLiteral("The torrent source returned no playable file."):error;
+    it->transportId=m_provider->request("play","resolve",m_videos.value(it->value));
+    if(it->transportId<0){const auto pending=*it;m_pending.erase(it);emit completed("play",pending.id,{},"The fallback source is unavailable.");}
+}
+void VinylCatalogueSource::cancel(const QString &lane){
+    m_pending.remove(lane);if(lane=="play"&&m_torrent)QMetaObject::invokeMethod(m_torrent,"cancel",Qt::DirectConnection);
+    m_local->cancel(lane);m_provider->cancel(lane);
+}
 void VinylCatalogueSource::cancelAll(){for(const auto &lane:m_pending.keys())cancel(lane);m_local->cancelImport();leaveArtist();}
 void VinylCatalogueSource::leaveArtist(){
     ++m_artworkGeneration;

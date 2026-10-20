@@ -23,6 +23,21 @@ public slots:
         changeIdentityAudio(path,160);
         return path;
     }
+    QString createTaggedAudio(const QString &title,const QString &artist,const QString &album) {
+        const auto path=createIdentityAudio();changeIdentityAudio(path,16000);
+        QByteArray info("INFO",4);
+        const auto append=[&info](const char *key,const QString &value){
+            const auto text=value.toUtf8()+char(0);QByteArray field;
+            QDataStream bytes(&field,QIODevice::WriteOnly);bytes.setByteOrder(QDataStream::LittleEndian);
+            bytes.writeRawData(key,4);bytes<<quint32(text.size());bytes.writeRawData(text.constData(),text.size());
+            if(text.size()%2)bytes<<quint8(0);info+=field;
+        };
+        append("INAM",title);append("IART",artist);append("IPRD",album);
+        QFile file(path);if(!file.open(QIODevice::ReadWrite))qFatal("Cannot tag audio fixture");
+        file.seek(file.size());QDataStream stream(&file);stream.setByteOrder(QDataStream::LittleEndian);
+        stream.writeRawData("LIST",4);stream<<quint32(info.size());stream.writeRawData(info.constData(),info.size());
+        const auto length=file.size();file.seek(4);stream<<quint32(length-8);return path;
+    }
     void changeIdentityAudio(const QString &path, int frames) {
         QFile file(path);if(!file.open(QIODevice::WriteOnly)) qFatal("Cannot write identity audio");
         QDataStream stream(&file);stream.setByteOrder(QDataStream::LittleEndian);

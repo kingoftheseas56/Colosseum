@@ -4935,15 +4935,27 @@ target_link_libraries(music_torrent_matcher_harness PRIVATE Qt6::Core)
 add_test(NAME colosseum.music_torrent_matcher COMMAND music_torrent_matcher_harness)
 set_tests_properties(colosseum.music_torrent_matcher PROPERTIES LABELS "unit;vinyl" TIMEOUT 60)
 
-# BLOCKED donor contracts, deliberately not registered as passing/skipped tests.
-# Sources are preserved under vinyl-live/ for the deferred external integration.
-# Both require StreamServer::requestManifest/cancelRequest/requestFile and
-# torrentManifestReady/torrentStreamReady/torrentRequestError signals; the current
-# app-base StreamServer does not provide them. Do not transplant the donor owner.
-set(COLOSSEUM_VINYL_BLOCKED_CONTRACTS
-    vinyl_torrent_provider_contracts
-    vinyl_stream_contracts)
-message(STATUS "Vinyl BLOCKED dependency: ${COLOSSEUM_VINYL_BLOCKED_CONTRACTS}; current StreamServer lacks request-scoped torrent APIs (external integration deferred)")
+add_executable(vinyl_stream_contracts vinyl-live/stream_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
+target_include_directories(vinyl_stream_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_stream_contracts PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME colosseum.vinyl_stream_contracts COMMAND vinyl_stream_contracts)
+set_tests_properties(colosseum.vinyl_stream_contracts PROPERTIES LABELS "unit;vinyl;stream" TIMEOUT 60)
+
+add_executable(vinyl_torrent_provider_contracts vinyl-live/torrent_provider_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylTorrentProvider.cpp" "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylTorrentProvider.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentsCsvIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentsCsvIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/KnabenIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/KnabenIndexer.h")
+target_include_directories(vinyl_torrent_provider_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_torrent_provider_contracts PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME colosseum.vinyl_torrent_provider_contracts COMMAND vinyl_torrent_provider_contracts)
+set_tests_properties(colosseum.vinyl_torrent_provider_contracts PROPERTIES LABELS "unit;vinyl;torrent" TIMEOUT 60)
 
 # Local source contract uses the same VaultIdentity implementation as the native app.
 add_executable(vinyl_local_source_harness

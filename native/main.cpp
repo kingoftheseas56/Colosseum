@@ -149,6 +149,7 @@
 #include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
 #include "torrent/TankorentSearchService.h"
+#include "vinyl/VinylTorrentProvider.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
@@ -1741,9 +1742,6 @@ int main(int argc, char *argv[]) {
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylProvider, &VinylProvider::shuttingDown);
     auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
-    // VinylTorrentProvider is preserved as a deferred donor adapter only. It
-    // requires request-scoped StreamServer APIs absent from the current owner;
-    // do not replace that shared owner or expose a nonfunctional provider.
 #endif
     auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
@@ -1963,6 +1961,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylCatalogueSource"), vinylCatalogueSource);
     vinylCatalogueSource->setArtworkNetworkManager(engine.networkAccessManager());
+    vinylCatalogueSource->setTorrentProvider(new VinylTorrentProvider(engine.networkAccessManager(),stream,&backendServices));
     const auto bindVinylScope = [&engine, accountRuntime] {
         engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
             accountRuntime->profileStores()->activeProfile().profileId());

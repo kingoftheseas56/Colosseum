@@ -19,11 +19,11 @@ class VinylTorrentProvider : public QObject {
     Q_OBJECT
 public:
     explicit VinylTorrentProvider(QNetworkAccessManager *network, StreamServer *stream,
-                                  QObject *parent = nullptr, int deadlineMs = 12000);
+                                  QObject *parent = nullptr, int deadlineMs = 45000);
     // Inject a search service (including its mock-indexer factory) and stream
     // service for deterministic tests. Neither injected service is owned here.
     VinylTorrentProvider(TankorentSearchService *search, StreamServer *stream,
-                         QObject *parent, int deadlineMs = 12000);
+                         QObject *parent, int deadlineMs = 45000);
     ~VinylTorrentProvider() override;
 
     Q_INVOKABLE int resolve(const QVariantMap &track);

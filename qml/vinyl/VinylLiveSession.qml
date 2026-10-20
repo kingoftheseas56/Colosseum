@@ -89,7 +89,7 @@ Item {
         collectionStore: root.collectionStore
         preferences: root.activityPreferences
         profileScope: typeof VinylProfileScope !== "undefined" ? VinylProfileScope : "local-test"
-        onPlaybackRequested: {root.manualNoteLine=-1;root.videoShown=false;root.sourceKind=root.playingEdition.origin || "local";root.playbackRequested();}
+        onPlaybackRequested: {root.manualNoteLine=-1;root.videoShown=false;root.playbackRequested();}
         onPlaybackEnding: natural => root.activityEnd(natural)
         onDiscontinuity: seconds => root.activityDiscontinuity(seconds)
     }
@@ -155,8 +155,8 @@ Item {
         function onResetCommitted(generation,atMs) {root.activityActive=false;root.scheduleActivityBegin();}
         function onResetApplied(generation,atMs) {root.activityActive=false;root.scheduleActivityBegin();}
     }
-    property string sourceKind: ""
-    property string fallbackReason: ""
+    readonly property string sourceKind: backend.sourceKind
+    readonly property string fallbackReason: backend.fallbackReason
     property bool audioAdvanced: false
     property int epoch: 0
     // Import callbacks use this profile-only generation; track changes must not invalidate imports.
@@ -640,7 +640,7 @@ Item {
         resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
         shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";
-        resetting=false;sourceKind="";fallbackReason="";
+        resetting=false;
         if(source && source.setAlbums) source.setAlbums([]);
     }
     function suspendPlayback(reason) {if(shuttingDown || !profileActive) return;snapshot();backend.suspend();cancelQueueRequest();}

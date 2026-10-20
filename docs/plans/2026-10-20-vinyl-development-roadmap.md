@@ -40,7 +40,7 @@
 | Local import | `native/vinyl/VinylLocalSource.{h,cpp}`, `VinylMusicMetadata.*` | M1 reads tags/duration/artwork asynchronously, groups local albums/discs, and preserves identities across partial/repeat imports. Hemanth's Illmatic FLAC folder passed actual-app receiving as one Nas album with ten tracks. Physical Windows picker selection remains unverified. |
 | Listening session | `native/vinyl/VinylBackendSession.*`, `qml/vinyl/VinylLiveSession.qml` | M0F adopts the native queue/session/seek/checkpoint path through existing mpv and profile stores. Actual-app import/play/replacement/repeat/seek/cold-restore/resume/privacy/clear passed with normal exits. Ordinary picker and metadata usability remain M1. |
 | Online catalogue | `scripts/vinyl/provider.py`, `native/vinyl/VinylProvider.h`, `VinylCatalogueSource.*` | M2 connects real YouTube Music search, Artist shelves, complete release/video continuations and full albums/versions through the ordinary app. MusicBrainz is optional identity/grouping enrichment. Cached restart and local listening with the helper unavailable passed. Global search is explicitly limited. |
-| Torrent playback | `VinylTorrentProvider`, `MusicTorrentMatcher`, `MusicTorrentQueryPlanner` | Source exists, but the app build explicitly excludes the adapter because current StreamServer lacks the donor's request-scoped manifest/file/cancel contract. This is a real integration blocker. |
+| Torrent playback | `VinylTorrentProvider`, `MusicTorrentMatcher`, `MusicTorrentQueryPlanner` | M3 promotes the adapter through bounded scoped APIs on the existing StreamServer. Exact individual-file torrent playback and separately demonstrated real YouTube fallback passed in the normal app. Whole-album CUE spans remain unsupported in this adapter. |
 | Rich artist backend | Artist read, artwork, personal, media and composed-service artifacts | M2 adapts the accepted ArtistServiceBridge to authoritative MusicBrainz snapshots and the current Collection owner; real provider data fills the existing Artist page. Provider saves keep stable keys with external identity metadata. Exact canonical recording/edition playback remains unavailable without a verified mapping; in-app video and final visual qualification remain later gates. |
 | Frontend reference | Recognized native artist capture and its matching `trees/A` snapshot | The reference has matching artwork assets. It differs from current production QML. It is a design reference with historical runtime defects, not a safe wholesale replacement for newer app code. |
 | Advanced features | BC/BD/BE/BF/BG backend artifacts and existing QML presentation | Substantial reusable components exist. Their presence is not evidence of live provider integration or working app controls. |
@@ -201,9 +201,9 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 **Interfaces/blocker:** the donor adapter expects `requestManifest`, `requestFile`, `cancelRequest` and request-scoped manifest/stream/error signals. Current StreamServer does not supply that contract. First establish a compatible adapter or scoped extension over its actual transport; do not uncomment CMake entries against nonexistent methods or replace the shared server wholesale.
 
-- [ ] Run an early bounded compatibility investigation once M0 is stable, so the largest integration risk is known while M1/M2 progress. Pin the exact transport contract and shared-media regressions before coding it.
-- [ ] Support cancellable request ownership, manifest/file admission and cleanup without disrupting Theatre, readers or other streams.
-- [ ] Apply source policy: available local media directly; otherwise a suitable torrent; YouTube fallback after explicit source failure/no-match according to the existing candidate contracts. Bound attempts and preserve useful failure reasons.
+- [x] Run an early bounded compatibility investigation once M0 is stable, so the largest integration risk is known while M1/M2 progress. Pin the exact transport contract and shared-media regressions before coding it.
+- [x] Support cancellable request ownership, manifest/file admission and cleanup without disrupting Theatre, readers or other streams.
+- [x] Apply source policy: available local media directly; otherwise a suitable torrent; YouTube fallback after explicit source failure/no-match according to the existing candidate contracts. Bound attempts and preserve useful failure reasons.
 - [ ] Match the intended recording/edition and selected torrent file. Support authored whole-album/cue semantics, correct spans and next-track behavior where applicable; reject ambiguous or wrong-version candidates.
 - [ ] Resolve URLs just in time, preserve queue occurrences, and cancel stale work on skip, route/profile change and shutdown. Expired fallback URLs must be re-resolved rather than persisted as canonical media.
 - [ ] Exercise buffering, seek, queue transitions, timeout, retry, source failure, fallback and cache cleanup through the real app player.
@@ -211,6 +211,8 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 **Checks:** `tests/vinyl-live/torrent_provider_contracts.cpp`, `stream_contracts.cpp`, `TorrentSessionContracts.qml`, music matcher harness, adapted BB/W4 cue journeys, and full-app source failure/fallback/output witnesses.
 
 **Exit gate:** demonstrated torrent playback and a separately demonstrated YouTube fallback in the normal app, with cancellation, seek/EOF and clean shutdown. Passing a local-file test cannot close the online transport gate.
+
+**2026-10-21 receiving:** this online exit gate passed for individual audio files: Nas N.Y. State of Mind through Tankorent, and Eminem Stan (feat. Dido) through real YouTube after no exact torrent match. Both retained canonical identity, decoded to WASAPI, sought, paused/resumed, advanced at EOF and shut down their owned runtimes. All six focused targets passed. The app is left open on Illmatic. See [M3 receiving](../reviews/2026-10-21-vinyl-m3-receiving.md). The unchecked extended/CUE requirements above remain work; this does not declare the entire source stack or release complete.
 
 ### M4 — Complete personal library, playlists and listening state
 
@@ -343,4 +345,4 @@ Primary sequence: **M0 → M0R → M0F → M1 → M2 → M3 → M4 → M5 → M6
 
 ## First execution slice
 
-M0, M0R, M0F and M1 implementation/automated receiving are accepted on the development branch; M1's physical Windows picker interaction remains unverified. M2 catalogue/Artist receiving is accepted with real and cached data in the ordinary app. Next is M3's StreamServer compatibility and torrent-preferred/YouTube-fallback transport qualification. Main-branch landing and release qualification remain explicit receiving steps.
+M0, M0R, M0F and M1 implementation/automated receiving are accepted on the development branch; M1's physical Windows picker interaction remains unverified. M2 catalogue/Artist receiving is accepted with real and cached data in the ordinary app. M3's individual-file torrent-preferred/YouTube-fallback online exit gate is now accepted; authored whole-album CUE integration and extended source lifecycle qualification remain unchecked. Main-branch landing and release qualification remain explicit receiving steps.

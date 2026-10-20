@@ -34,9 +34,60 @@ protected:
     }
 };
 
+class TorrentSourceFake : public QObject {
+    Q_OBJECT
+public:
+    int serial=0,cancellations=0;QVariantMap last;
+    Q_INVOKABLE int resolve(const QVariantMap &track){last=track;return ++serial;}
+    Q_INVOKABLE void cancel(){++cancellations;}
+signals:
+    void completed(int requestId,const QVariantMap &data,const QString &error);
+};
+
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
+    void summariesPreserveQueuedReleaseContext(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
+        TorrentSourceFake torrent;source.setTorrentProvider(&torrent);
+        const QVariantMap track{{"id","shared-song"},{"videoId","abcdefghijk"},{"title","Song"},{"artists",QStringList{"Artist"}},{"seconds",180}};
+        source.setAlbums({QVariantMap{{"id","original"},{"browseId","MPRE_original"},{"title","Original"},{"year",1994},{"tracks",QVariantList{track}}}});
+        source.setAlbums({QVariantMap{{"id","other"},{"browseId","MPRE_other"},{"title","Compilation"},{"year",2024},{"tracks",QVariantList{track}}}});
+        source.setAlbums({QVariantMap{{"id","original"},{"browseId","MPRE_original"},{"title","Original"},{"tracks",QVariantList{}}}});
+        QVERIFY(source.request("play","resolve","shared-song",{{"browseId","MPRE_original"}})>0);
+        QCOMPARE(torrent.last.value("album").toString(),QString("Original"));
+        QCOMPARE(torrent.last.value("releaseYear").toInt(),1994);
+        source.cancel("play");
+        QVERIFY(source.request("play","resolve","shared-song",{{"browseId","MPRE_other"}})>0);
+        QCOMPARE(torrent.last.value("album").toString(),QString("Compilation"));
+    }
+    void torrentPreferredAndFailureFallsBackWithoutChangingTrack(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
+        TorrentSourceFake torrent;source.setTorrentProvider(&torrent);
+        const QVariantMap track{{"id","remote-song"},{"videoId","abcdefghijk"},{"title","Song"},{"artists",QStringList{"Artist"}},{"seconds",180}};
+        source.setAlbums({QVariantMap{{"id","remote-album"},{"browseId","MPRE_album"},{"origin","youtube-music"},{"title","Album"},{"artists",QStringList{"Artist"}},{"year","1994"},{"tracks",QVariantList{track}}}});
+        QSignalSpy done(&source,&VinylCatalogueSource::completed),helper(&provider,&VinylProvider::completed);
+        const auto first=source.request("play","resolve","remote-song");
+        QCOMPARE(torrent.serial,1);QCOMPARE(helper.size(),0);QCOMPARE(torrent.last.value("title").toString(),QString("Song"));
+        QCOMPARE(torrent.last.value("releaseYear").toInt(),1994);
+        emit torrent.completed(1,{{"provider","torrent"},{"url","http://127.0.0.1:9999/torrent/1"}},{});
+        QTRY_COMPARE(done.size(),1);QCOMPARE(done.last()[1].toInt(),first);QCOMPARE(done.last()[2].toMap().value("trackId").toString(),QString("remote-song"));
+        QCOMPARE(helper.size(),0);
+        const auto second=source.request("play","resolve","remote-song");
+        emit torrent.completed(2,{},"No matching file");
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);QCOMPARE(done.last()[1].toInt(),second);
+        QCOMPARE(done.last()[2].toMap().value("provider").toString(),QString("youtube"));
+        QCOMPARE(done.last()[2].toMap().value("fallbackReason").toString(),QString("No matching file"));
+        QVERIFY(done.last()[3].toString().isEmpty());QCOMPARE(helper.size(),1);
+        source.request("play","resolve","remote-song");source.cancel("play");
+        emit torrent.completed(3,{{"provider","torrent"},{"url","http://127.0.0.1/stale"}},{});
+        QTest::qWait(40);QCOMPARE(done.size(),2);QVERIFY(torrent.cancellations>0);
+        source.request("play","resolveFallback","remote-song");
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,10000);QCOMPARE(torrent.serial,3);
+        QCOMPARE(done.last()[2].toMap().value("provider").toString(),QString("youtube"));
+    }
     void cleanup(){qunsetenv("VINYL_TEST_IDENTITY_UNAVAILABLE");qunsetenv("VINYL_TEST_PHOTOS");}
     void initTestCase(){QStandardPaths::setTestModeEnabled(true);QCoreApplication::setApplicationName("VinylCatalogueContract-"+QUuid::createUuid().toString());}
     void independentChannelsAndPayload(){

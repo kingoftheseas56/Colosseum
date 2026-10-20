@@ -3058,13 +3058,15 @@ endforeach()
 # harness targets above build either way, exactly as before this seam existed.
 # Vinyl local files use Vault identity; the optional catalogue helper has an
 # app-owned runtime. A missing online dependency never disables local listening.
-# Deferred VinylTorrentProvider sources remain in the repository, excluded here:
-# current StreamServer has no donor request-scoped manifest/stream/cancel contract.
+# Music acquisition reuses the existing scoped StreamServer transport.
 target_sources(colosseum PRIVATE
     vinyl/VinylLocalSource.h vinyl/VinylLocalSource.cpp
     vinyl/VinylMusicMetadata.h vinyl/VinylMusicMetadata.cpp
     vinyl/VinylCatalogueSource.h vinyl/VinylCatalogueSource.cpp
-    vinyl/VinylProvider.h)
+    vinyl/VinylProvider.h
+    vinyl/VinylTorrentProvider.h vinyl/VinylTorrentProvider.cpp
+    torrent/MusicTorrentMatcher.h torrent/MusicTorrentMatcher.cpp
+    torrent/MusicTorrentQueryPlanner.h torrent/MusicTorrentQueryPlanner.cpp)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
 add_library(colosseum_vinyl_app STATIC
     vinyl/VinylBackendSession.h vinyl/VinylBackendSession.cpp)
