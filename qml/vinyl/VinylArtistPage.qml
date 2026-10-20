@@ -81,14 +81,8 @@ Flickable {
     function openSearchDialog(originItem) {
         releasePicker.closePopup(false);
         dialogReturnItem = originItem || searchButton;
-        searchInput.text = "";
+        searchDialog.query = "";
         searchDialog.open();
-    }
-
-    function openBackdropsDialog(originItem) {
-        releasePicker.closePopup(false);
-        dialogReturnItem = originItem || backdropsButton;
-        backdropDialog.open();
     }
 
     function restoreDialogFocus() {
@@ -215,7 +209,6 @@ Flickable {
             playlistDialog.close();
             createDialog.close();
             searchDialog.close();
-            backdropDialog.close();
             releaseDetailDialog.close();
         }
     }
@@ -272,7 +265,6 @@ Flickable {
             skinLayerBReady: internalArtistSkin.artistLayerBReady
             artistData: root.artistData
             onCreatePlaylistRequested: { playlistName.text = ""; createDialog.open(); }
-            onBackdropsRequested: root.openBackdropsDialog(null)
             onItemFocused: item => root.reveal(item)
         }
 
@@ -492,15 +484,6 @@ Flickable {
                         font.family: theme.display
                         font.pixelSize: Math.max(38, Math.min(55, root.width * 0.0315))
                         font.weight: Font.Normal
-                    }
-                    Text {
-                        width: parent.width
-                        text: String(root.artistData.singlesRows.length)
-                            + " selected tracks in a compact vertical list, with sleeve artwork and release context."
-                        color: theme.inkDim
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -1025,56 +1008,12 @@ Flickable {
             }
         }
 
-        // Right: Backdrops selector + System menu button (.rightbar parity)
+        // Page options
         Row {
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
-
-            KeyboardAction {
-                id: backdropsButton
-                objectName: "vinylArtistBackdropsButton"
-                width: backdropBtnRow.implicitWidth + 28
-                height: 40
-                focusRadius: 20
-                spaceActivates: true
-                accessibleName: "Artist backdrops"
-                onTriggered: root.openBackdropsDialog(backdropsButton)
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 20
-                    color: backdropsButton.interactionActive
-                        ? Qt.rgba(1, 1, 1, 0.12)
-                        : Qt.rgba(0.063, 0.067, 0.09, 0.56)
-                    border.width: 1
-                    border.color: backdropsButton.interactionActive ? theme.gold : theme.edge
-                }
-
-                Row {
-                    id: backdropBtnRow
-                    anchors.centerIn: parent
-                    spacing: 8
-                    Text {
-                        text: "Backdrops"
-                        color: theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        visible: root.artistData.heroPhotos.length > 0
-                        text: (root.artistData.heroPhotos.length < 10 ? "0" : "") + String(root.artistData.heroPhotos.length)
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 11
-                        font.weight: Font.Bold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
 
             KeyboardAction {
                 id: moreButton
@@ -1375,325 +1314,18 @@ Flickable {
         }
     }
 
-    // Artist-scoped Search Dialog (openSearch parity)
-    Dialog {
+    VinylArtistSearchPopup {
         id: searchDialog
-        objectName: "vinylArtistSearchDialog"
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(620, parent.width - 48)
-        height: Math.min(540, parent.height - 72)
-        title: "Search " + root.artistData.record.name
-        modal: true
-        focus: true
-        palette.window: "#0e1017"
-        palette.windowText: theme.ink
-        palette.text: theme.ink
-        palette.base: "#171a24"
-        palette.button: "#252834"
-        palette.buttonText: theme.ink
-        standardButtons: Dialog.Close
-
-        readonly property var matches: root.artistData.search(searchInput.text)
-
-        onOpened: searchInput.forceActiveFocus(Qt.PopupFocusReason)
+        artistData: root.artistData
+        backdrop: root.backdrop
         onClosed: root.restoreDialogFocus()
-
-        contentItem: Column {
-            spacing: 12
-            TextField {
-                id: searchInput
-                objectName: "vinylArtistSearchInput"
-                width: parent.width
-                placeholderText: "Albums, songs, videos, live…"
-                color: theme.ink
-                font.family: theme.ui
-                font.pixelSize: 14
-                Keys.onDownPressed: event => {
-                    if (searchResultsList.count > 0) {
-                        var first = searchResultsList.itemAtIndex(0);
-                        if (first) first.forceActiveFocus(Qt.TabFocusReason);
-                        event.accepted = true;
-                    }
-                }
-            }
-
-            ListView {
-                id: searchResultsList
-                objectName: "vinylArtistSearchResultsList"
-                width: parent.width
-                height: Math.max(180, searchDialog.height - 170)
-                clip: true
-                spacing: 4
-                model: searchDialog.matches.length
-
-                delegate: KeyboardAction {
-                    id: matchRow
-                    readonly property var modelData: searchDialog.matches[index]
-                    required property int index
-
-                    objectName: "vinylArtistSearchResult_" + index
-                    width: searchResultsList.width
-                    height: 48
-                    focusRadius: 9
-                    focusInset: -2
-                    spaceActivates: true
-                    accessibleName: modelData.label + ", " + modelData.type
-                    onTriggered: {
-                        var item = modelData;
-                        searchDialog.close();
-                        root.switchTab(item.tab, false);
-                        if (item.type === "Album") {
-                            root.activateDiscographyCard(item.record, null);
-                        } else if (item.type === "Track") {
-                            root.artistData.queueDemoSong(item.rowIndex);
-                            if (item.record && item.record.playable && item.record.song)
-                                root.songRequested(item.record.song);
-                        } else if (item.type === "Video" || item.type === "Live") {
-                            root.showMedia(item.record, null);
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 9
-                        color: matchRow.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.14) : Qt.rgba(1, 1, 1, 0.04)
-                        border.width: matchRow.interactionActive ? 1 : 0
-                        border.color: theme.gold
-                    }
-
-                    Column {
-                        x: 12
-                        width: parent.width - 104
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 2
-                        Text {
-                            width: parent.width
-                            text: matchRow.modelData.label
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            width: parent.width
-                            text: matchRow.modelData.extra
-                            color: theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: String(matchRow.modelData.type).toUpperCase()
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 10
-                        font.weight: Font.Bold
-                        font.letterSpacing: 1.4
-                    }
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: "Search applies to this artist's release entries, tracks, and video/performance picks."
-                color: theme.inkDimmer
-                font.family: theme.ui
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-            }
-        }
-    }
-
-    // Artist Backdrops Dialog (openBackdrops parity)
-    Dialog {
-        id: backdropDialog
-        objectName: "vinylArtistBackdropsDialog"
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(640, parent.width - 48)
-        title: "Artist backdrops"
-        modal: true
-        focus: true
-        palette.window: "#0e1017"
-        palette.windowText: theme.ink
-        palette.text: theme.ink
-        palette.button: "#252834"
-        palette.buttonText: theme.ink
-        standardButtons: Dialog.Close
-
-        onOpened: autoWallOption.forceActiveFocus(Qt.PopupFocusReason)
-        onClosed: root.restoreDialogFocus()
-
-        contentItem: Column {
-            spacing: 14
-
-            Text {
-                width: parent.width
-                text: "Auto rotate is the default when multiple photographs exist. The selected photograph drives both the sharp hero and the synchronized full-page blurred skin."
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-
-            Flow {
-                width: parent.width
-                spacing: 10
-
-                KeyboardAction {
-                    id: autoWallOption
-                    objectName: "vinylArtistBackdrop_auto"
-                    width: 180
-                    height: 64
-                    focusRadius: 10
-                    spaceActivates: true
-                    accessibleName: "Auto rotate backdrops"
-                    onTriggered: {
-                        hero.setBackdrop("auto");
-                        backdropDialog.close();
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 10
-                        color: root.artistData.selectedWallpaper === "auto"
-                            ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                            : Qt.rgba(1, 1, 1, 0.05)
-                        border.width: root.artistData.selectedWallpaper === "auto" ? 2 : 1
-                        border.color: root.artistData.selectedWallpaper === "auto" ? theme.gold : theme.edge
-                    }
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 3
-                        Text {
-                            text: "Auto rotate"
-                            color: root.artistData.selectedWallpaper === "auto" ? theme.gold : theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            font.weight: Font.Bold
-                        }
-                        Text {
-                            text: String(root.artistData.heroPhotos.length) + " eligible photos"
-                            color: theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                        }
-                    }
-                }
-
-                Repeater {
-                    model: root.artistData.backdropOptions.length
-                    delegate: KeyboardAction {
-                        id: wallOption
-                        readonly property var modelData: root.artistData.backdropOptions[index]
-                        required property int index
-
-                        readonly property bool isSelectedWall: root.artistData.selectedWallpaper === modelData.id
-                        objectName: "vinylArtistBackdrop_" + modelData.id
-                        width: 180
-                        height: 64
-                        focusRadius: 10
-                        spaceActivates: true
-                        accessibleName: modelData.name + ", " + modelData.era
-                        onTriggered: {
-                            hero.setBackdrop(modelData.id);
-                            backdropDialog.close();
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 10
-                            color: wallOption.isSelectedWall
-                                ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                                : Qt.rgba(1, 1, 1, 0.05)
-                            border.width: wallOption.isSelectedWall ? 2 : 1
-                            border.color: wallOption.isSelectedWall ? theme.gold : theme.edge
-                        }
-                        Column {
-                            x: 12
-                            width: parent.width - 24
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 3
-                            Text {
-                                width: parent.width
-                                text: wallOption.modelData.name
-                                color: wallOption.isSelectedWall ? theme.gold : theme.ink
-                                font.family: theme.ui
-                                font.pixelSize: 13
-                                font.weight: Font.Bold
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                width: parent.width
-                                text: wallOption.modelData.era
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
-                }
-            }
-
-            Row {
-                width: parent.width
-                spacing: 8
-                TextField {
-                    id: customWallField
-                    objectName: "vinylArtistBackdropCustomInput"
-                    width: parent.width - 110
-                    placeholderText: "Local image URL or path (file:///...)"
-                    color: theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 13
-                }
-                KeyboardAction {
-                    id: applyCustomWallBtn
-                    objectName: "vinylArtistBackdropCustomApply"
-                    width: 100
-                    height: 38
-                    focusRadius: 8
-                    spaceActivates: true
-                    accessibleName: "Apply custom banner"
-                    onTriggered: {
-                        if (customWallField.text.trim().length > 0) {
-                            root.artistData.customBackdropUrl = customWallField.text.trim();
-                            hero.setBackdrop("custom");
-                            backdropDialog.close();
-                        }
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 8
-                        color: Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                        border.width: 1
-                        border.color: theme.gold
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Use local"
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 12
-                        font.weight: Font.Bold
-                    }
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: "Source note: Reference artist imagery from TheAudioDB does not establish commercial redistribution rights."
-                color: theme.inkDimmer
-                font.family: theme.ui
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-            }
+        onMatchRequested: item => {
+            root.switchTab(item.tab, false);
+            if (item.type === "Album" || item.type === "Single") root.activateDiscographyCard(item.record, null);
+            else if (item.type === "Track") {
+                if (item.record && item.record.song) root.songRequested(item.record.song);
+                else if (item.record && item.record.album) root.albumRequested(item.record.album);
+            } else if (item.type === "Video" || item.type === "Live") root.showMedia(item.record, null);
         }
     }
 

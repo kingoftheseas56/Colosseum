@@ -159,7 +159,8 @@ Item {
     }
     readonly property var media: online && catalogueService ? ({portrait:{cover:""}, videos:providerMedia(catalogueService.artistMedia.videos,"video"),livePerformances:providerMedia(catalogueService.artistMedia.livePerformances,"live"), relatedArtists:(onlineArtist.relatedArtists || []).map(function(a){return {id:"ytm:artist:"+a.id,title:a.name,name:a.name,artistRef:{id:"ytm:artist:"+a.id,name:a.name},cover:a.thumbnail || ""};}),popularSongs:[],featuredPlaylists:[],artistPlaylists:[],provider:"YouTube Music",sourceUrl:"https://music.youtube.com/channel/"+(onlineArtist.channelId || "")}) : localMedia
     readonly property var liveCards: media.livePerformances
-    readonly property var backdropOptions: (artist.backdrops || []).map(function(photo,index) {
+    readonly property var backdropOptions: online && catalogueService && catalogueService.artistArtwork
+        ? (catalogueService.artistArtwork.photos || []) : (artist.backdrops || []).map(function(photo,index) {
         return {id:"local-" + index, name:"Photo " + (index+1), era:"Local artwork", cover:photo,
             fallbackCover:record.releases.length ? record.releases[0].album.cover || "" : "",
             focalX:0.5, focalY:0.4, autoRotate:true};
@@ -187,7 +188,7 @@ Item {
     readonly property bool playable: singlesRows.some(function(row) { return row.playable; }) || (online && albums.some(function(a){return !!a.browseId;}))
     function artwork(url) { return url ? String(url) : ""; }
     function selectReleaseCategory(category) { categoryFilter = category || "All"; filter = categoryFilter === "All" ? "all" : categoryFilter; }
-    function search(query) { return Catalogue.searchArtistCatalogue(allDiscographyCards, singlesRows, media.videos, liveCards, query); }
+    function search(query) { return Catalogue.searchArtistCatalogue(allDiscographyCards, online ? [] : singlesRows, media.videos, liveCards, query); }
     function open(value) {
         var nextName = typeof value === "object" ? value.name || "" : String(value || "");
         var nextId = typeof value === "object" ? value.id || "" : "";

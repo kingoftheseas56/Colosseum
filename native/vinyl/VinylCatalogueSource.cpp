@@ -7,6 +7,11 @@
 #include <QSet>
 #include <QMap>
 #include <algorithm>
+#include <QDateTime>
+#include <QNetworkReply>
+#include <QImageReader>
+#include <QImage>
+#include <QBuffer>
 using namespace vinyl::artist;
 
 VinylCatalogueSource::VinylCatalogueSource(VinylLocalSource *local,VinylProvider *provider,CollectionStore *collection,QObject *parent)
@@ -71,6 +76,10 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
 void VinylCatalogueSource::cancel(const QString &lane){m_pending.remove(lane);m_local->cancel(lane);m_provider->cancel(lane);}
 void VinylCatalogueSource::cancelAll(){for(const auto &lane:m_pending.keys())cancel(lane);m_local->cancelImport();leaveArtist();}
 void VinylCatalogueSource::leaveArtist(){
+    ++m_artworkGeneration;
+    const auto replies=m_artworkReplies;m_artworkReplies.clear();
+    for(auto *reply:replies){reply->disconnect(this);reply->abort();reply->deleteLater();}
+    m_artwork.clear();m_artworkRequest={};
     for(const auto &lane:m_artistRequests.keys())m_provider->cancel(lane);m_artistRequests.clear();m_bridge.leaveArtist();
     m_artist.clear();m_artistAlbums.clear();m_artistSingles.clear();m_artistMedia.clear();m_identity.clear();m_artistError.clear();m_cached=false;m_channel.clear();emit artistChanged();
 }
@@ -94,6 +103,7 @@ void VinylCatalogueSource::openArtist(const QVariantMap &intent){
 void VinylCatalogueSource::acceptArtist(const QString &lane,const QVariant &data,const QString &error){
     if(!error.isEmpty()){if(lane=="artist-identity")m_identity={{"unavailable",true}};m_artistError+=(m_artistError.isEmpty()?QString():"\n")+error;emit artistChanged();return;}
     auto map=data.toMap();if(map.value("_cached").toBool())m_cached=true;
+    if(lane=="artist-artwork"){loadArtwork(map);return;}
     if(lane=="artist"&&m_channel.isEmpty()){
         QVariantList exact;for(const auto &row:map.value("artists").toList())if(row.toMap().value("name").toString().compare(m_artistIntent.value("name").toString(),Qt::CaseInsensitive)==0)exact.append(row);
         if(exact.size()==1){openArtist(exact.first().toMap());return;}
@@ -147,6 +157,7 @@ void VinylCatalogueSource::acceptArtist(const QString &lane,const QVariant &data
             const QString key="ytm:artist:"+m_channel;
             if(m_collection&&m_collection->has("Vinyl",key))m_collection->setVinylArtistSaved({{"id",key},{"name",m_artist.value("name")},{"externalIds",QVariantMap{{"musicbrainz",mbid}}}},true);
             m_bridge.enterArtist("active-profile",mbid);m_bridge.requestArtist(mbid);m_bridge.requestDiscography();
+            if(m_artworkNam)artistRequest("artist-artwork","artistArtwork",mbid);
         }
     }
     requestIdentity();emit artistChanged();
@@ -172,7 +183,10 @@ void VinylCatalogueSource::request(const ReadRequest &req,std::function<void(Rea
             if(offset+100<groups.size())reply.nextCursor=QString::number(offset+100);
             if(reply.items.isEmpty())reply.state=State::Empty;
         }
-    }else{reply.state=State::Unavailable;reply.message="No canonical media or licensed artist artwork mapping is available.";}
+    }else if(req.channel==Channel::Artwork&&!m_artwork.isEmpty()){
+        reply.entity=m_artwork;
+        if(m_artwork.value("photos").toList().isEmpty())reply.state=State::Empty;
+    }else{reply.state=State::Unavailable;reply.message="No canonical media or artist artwork mapping is available.";}
     QTimer::singleShot(0,this,[done=std::move(done),reply]{done(reply);});
 }
 SavedReply VinylCatalogueSource::read(const QString &profile,const QString &artist){
@@ -187,3 +201,80 @@ SavedReply VinylCatalogueSource::write(const QString &profile,const QString &art
 }
 CommandReply VinylCatalogueSource::selectRecording(const ExactSelection &){return {false,"mapping_unavailable","This recording has no authoritative edition occurrence. Open its catalogue album."};}
 CommandReply VinylCatalogueSource::selectRelease(const ExactSelection &){return {false,"mapping_unavailable","This edition has no authoritative playback mapping. Open its catalogue album."};}
+
+void VinylCatalogueSource::loadArtwork(const QVariantMap &data){
+    using namespace vinyl::artwork;
+    const auto mbid=m_identity.value("mbid").toString();
+    if(!m_artworkNam||data.value("artistMbid").toString()!=mbid||data.value("source")!="theaudiodb"
+       ||data.value("usage")!="development"||data.value("termsUrl")!="https://www.theaudiodb.com/docs_terms_of_use.php"){
+        m_artistError="Artist artwork identity or source is unavailable.";emit artistChanged();return;
+    }
+    m_artworkRequest={};m_artworkRequest.artistMbid=mbid.toStdString();
+    m_artworkRequest.artistName=m_artist.value("name").toString().toStdString();
+    m_artworkRequest.nowEpoch=QDateTime::currentSecsSinceEpoch();m_artworkRequest.maxSlides=4;
+    m_artworkRequest.scope=Scope::LocalPreview;
+    const auto generation=m_artworkGeneration;
+    for(const auto &item:data.value("photos").toList().mid(0,4)){
+        const auto photo=item.toMap();const QUrl url(photo.value("url").toString());
+        if(url.scheme()!="https"||!QStringList{"r2.theaudiodb.com","www.theaudiodb.com"}.contains(url.host())
+           ||!url.path().startsWith("/images/media/artist/fanart/")||!url.userInfo().isEmpty()
+           ||url.hasQuery()||url.port(443)!=443)continue;
+        QNetworkRequest request(url);request.setTransferTimeout(15000);
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
+        request.setAttribute(QNetworkRequest::CacheLoadControlAttribute,data.value("_cached").toBool()?QNetworkRequest::AlwaysCache:QNetworkRequest::PreferCache);
+        auto *reply=m_artworkNam->get(request);m_artworkReplies.insert(reply);
+        auto bytes=std::make_shared<QByteArray>();
+        connect(reply,&QNetworkReply::readyRead,this,[reply,bytes]{bytes->append(reply->readAll());if(bytes->size()>2*1024*1024)reply->abort();});
+        connect(reply,&QNetworkReply::finished,this,[this,reply,bytes,photo,data,generation,url]{
+            if(generation!=m_artworkGeneration||!m_artworkReplies.remove(reply))return;
+            bytes->append(reply->readAll());
+            if(reply->error()==QNetworkReply::NoError&&reply->url()==url
+               &&!reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid()&&bytes->size()<=2*1024*1024){
+                QBuffer buffer(bytes.get());buffer.open(QIODevice::ReadOnly);QImageReader reader(&buffer);
+                const auto size=reader.size();
+                if(size.width()>=1280&&size.height()>=720&&qint64(size.width())*size.height()<=16*1024*1024){
+                    const auto image=reader.read();
+                    if(!image.isNull()){
+                        PhotoCandidate candidate;candidate.artistMbid=m_artworkRequest.artistMbid;
+                        candidate.provider="TheAudioDB";candidate.providerAssetId=photo.value("id").toString().toStdString();
+                        candidate.sourceUrl=url.toString().toStdString();candidate.kind=PhotoKind::Hero;
+                        candidate.width=image.width();candidate.height=image.height();
+                        // The provider's artist fanart fields assert the subject/type;
+                        // do not admit albums, banners, clearart or arbitrary image URLs.
+                        candidate.canonicalArtistConfirmed=true;candidate.actualPhotograph=true;
+                        candidate.cleanImage=true;candidate.subjectCropSafe=true;
+                        candidate.sha256="sha256:"+QCryptographicHash::hash(*bytes,QCryptographicHash::Sha256).toHex().toStdString();
+                        const auto small=image.scaled(9,8,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
+                        quint64 fingerprint=0;for(int y=0;y<8;++y)for(int x=0;x<8;++x)
+                            fingerprint=(fingerprint<<1)|(qGray(small.pixel(x,y))>qGray(small.pixel(x+1,y))?1:0);
+                        candidate.phash64="phash64:"+QString::number(fingerprint,16).rightJustified(16,'0').toStdString();
+                        candidate.observedAtEpoch=data.value("fetchedAtEpoch").toLongLong();
+                        candidate.rights.status=RightsStatus::VerifiedPermitted;
+                        candidate.rights.licenseId="TheAudioDB-development-use";
+                        candidate.rights.evidenceUrl=data.value("termsUrl").toString().toStdString();
+                        candidate.rights.author="Individual creator not supplied by TheAudioDB";
+                        candidate.rights.attribution=photo.value("attribution").toString().toStdString();
+                        candidate.rights.artistHeroPermitted=true;candidate.rights.localCachePermitted=true;
+                        candidate.rights.validUntilEpoch=candidate.observedAtEpoch+7*24*60*60;
+                        m_artworkRequest.fetched.push_back(std::move(candidate));
+                    }
+                }
+            }
+            reply->deleteLater();if(m_artworkReplies.isEmpty())publishArtwork();
+        });
+    }
+    if(m_artworkReplies.isEmpty())publishArtwork();else emit artistChanged();
+}
+void VinylCatalogueSource::publishArtwork(){
+    const auto decision=vinyl::artwork::ArtistArtworkResolver{}.resolve(m_artworkRequest);
+    QVariantList photos;
+    for(const auto &frame:decision.slides){const auto &p=frame.photo;
+        photos.append(QVariantMap{{"id",QString::fromStdString(p.providerAssetId)},{"cover",QString::fromStdString(frame.displayRef)},
+            {"name",QStringLiteral("Artist photo %1").arg(photos.size()+1)},{"era","TheAudioDB"},
+            {"sourceUrl",QString::fromStdString(p.rights.evidenceUrl)},{"attribution",QString::fromStdString(p.rights.attribution)},
+            {"width",p.width},{"height",p.height},{"focalX",0.5},{"focalY",0.4},{"autoRotate",true}});
+    }
+    m_artwork={{"artistMbid",QString::fromStdString(m_artworkRequest.artistMbid)},{"photos",photos},
+        {"usage","development"},{"source","TheAudioDB"},{"distributionCleared",false}};
+    m_bridge.requestArtwork();emit artistChanged();
+}

@@ -23,6 +23,7 @@ TestCase {
         property var artistSingles: []
         property var artistMedia: ({})
         property var artistIdentity: ({})
+        property var artistArtwork: ({})
         property bool artistBusy:false
         property bool cached:false
         property string artistError:""
@@ -95,6 +96,47 @@ TestCase {
         source.artistIdentity={mbid:"11111111-1111-4111-8111-111111111111"};
         compare(world.artistData.canonicalArtistId,key);compare(world.artistData.saved,true);
         verify(world.artistData.toggleSaved());verify(!collection.has("Vinyl",key));
+    }
+    function test_artistSearchPopup_data(){return [{tag:"desktop",width:1280},{tag:"narrow",width:640}];}
+    function test_artistSearchPopup(data){
+        host.width=data.width;world.width=data.width;seed(3);world.showArtist("Local Artist");
+        host.requestActivate();tryCompare(host,"active",true);
+        var page=item("vinylArtistPage"),origin=item("vinylArtistSearchButton");
+        page.openSearchDialog(origin);
+        var popup=item("vinylArtistSearchDialog"),input=item("vinylArtistSearchInput"),results=item("vinylArtistSearchResultsList");
+        tryCompare(popup,"opened",true);tryCompare(results,"count",6);
+        verify(popup.width<=popup.parent.width-40);verify(popup.height<=popup.parent.height-48);
+        compare(popup.background.radius,24);compare(input.background.radius,14);
+        verify(item("vinylArtistSearchClose")!==null);
+        tryVerify(function(){return results.itemAtIndex(0)!==null;});
+        verify(findChild(results.itemAtIndex(0),"vinylArtistSearchResult_0_art")!==null);
+        input.forceActiveFocus();keyClick(Qt.Key_Down);tryCompare(results.itemAtIndex(0),"activeFocus",true);
+        keyClick(Qt.Key_Up);tryCompare(input,"activeFocus",true);
+        input.text="does-not-match";tryCompare(results,"count",0);verify(item("vinylArtistSearchEmpty").visible);
+        keyClick(Qt.Key_Escape);tryCompare(popup,"opened",false);tryCompare(origin,"activeFocus",true);
+        page.openSearchDialog(origin);tryCompare(popup,"opened",true);
+        input.text="Album 000";tryCompare(results,"count",2);keyClick(Qt.Key_Down);
+        tryCompare(results.itemAtIndex(0),"activeFocus",true);keyClick(Qt.Key_Return);tryCompare(popup,"opened",false);
+        verify(world.session.browsing);source.completed("browse",world.session.browseRequest,record(0),"");
+        tryCompare(world,"page","album");compare(world.session.queue.length,0);
+    }
+    function test_onlineArtistUsesArtworkFramesAndRotationStates(){
+        compare(item("vinylArtistBackdropsButton"),null);
+        compare(item("vinylArtistBackdropsDialog"),null);
+        world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
+        var hero=item("vinylArtistPage").heroItem;
+        source.artistSingles=[{id:"single",title:"A release",kind:"single",origin:"youtube-music",browseId:"MPRE_single",artists:["Artist"],artistIds:["ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"],tracks:[]}];
+        var hits=world.artistData.search("A release");compare(hits.length,1);compare(hits[0].type,"Single");
+        compare(hero.eligiblePhotoCount,0);compare(hero.rotationMode,"fallback");
+        var photos=[];for(var i=0;i<4;i++)photos.push({id:"photo-"+i,cover:"",name:"Photo "+i,era:"TheAudioDB",autoRotate:true});
+        source.artistArtwork={photos:photos};tryCompare(hero,"eligiblePhotoCount",4);compare(hero.rotationMode,"multi-rotate");
+        hero.setBackdrop("photo-2");compare(hero.rotationMode,"pinned");verify(!hero.slideshowEnabled);
+        hero.setBackdrop("auto");verify(hero.slideshowEnabled);hero.advanceSlideshow();compare(hero.slideshowIndex,1);
+        source.artistArtwork={photos:photos.slice(0,1)};tryCompare(hero,"rotationMode","static");verify(!hero.slideshowEnabled);
+        source.artistArtwork={photos:[]};tryCompare(hero,"rotationMode","fallback");
+        compare(String(hero.currentSynchronizedSource),"");
+        source.artistArtwork={photos:[{id:"broken",name:"Broken photo",era:"Test",cover:"file:///missing-vinyl-artist-photo.jpg",autoRotate:true}]};
+        tryCompare(hero,"eligiblePhotoCount",0);compare(hero.rotationMode,"fallback");
     }
     function test_artistSelectionMatchesWorldPills() {
         seed(2);world.showArtist("Local Artist");
@@ -260,7 +302,8 @@ TestCase {
         trigger.forceActiveFocus();tryCompare(trigger,"activeFocus",true);
         keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
         var scroll=item("vinylFilterMenuScroll");
-        verify(scroll.contentHeight>scroll.height,"All decades require scrolling in this viewport");
+        tryVerify(function(){return scroll.contentHeight>scroll.height;},5000,
+                  "All decades require scrolling after popup layout settles");
         var popupTop=menu.contentItem.mapToItem(world,0,0).y-menu.topPadding;
         verify(popupTop>=world.worldScroll.y,"Popup stays below the page header");
         verify(popupTop+menu.height<=world.contentBottom+1,"Popup stays above the player");

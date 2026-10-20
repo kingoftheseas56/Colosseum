@@ -1962,6 +1962,7 @@ int main(int argc, char *argv[]) {
 #if !defined(Q_OS_ANDROID)
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylCatalogueSource"), vinylCatalogueSource);
+    vinylCatalogueSource->setArtworkNetworkManager(engine.networkAccessManager());
     const auto bindVinylScope = [&engine, accountRuntime] {
         engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
             accountRuntime->profileStores()->activeProfile().profileId());

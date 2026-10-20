@@ -938,10 +938,56 @@ def _parse_releases_request(request, raw_value):
     return channel_id or raw_value, kind
 
 
+def fetch_artist_artwork(mbid, get_json=None):
+    """Public artist fanart metadata; media bytes use Colosseum's image owner."""
+    if not MBID_RE.fullmatch(mbid) or uuid.UUID(mbid).int == 0:
+        raise InvalidArgumentError("Artwork needs a canonical artist identity")
+    mbid = mbid.lower()
+    url = 'https://www.theaudiodb.com/api/v1/json/123/artist-mb.php?i=' + mbid
+    if get_json is None:
+        def get_json(target):
+            import requests
+            try:
+                with requests.get(target, headers={'User-Agent': MB_USER_AGENT}, timeout=20, stream=True) as response:
+                    response.raise_for_status()
+                    chunks = bytearray()
+                    for chunk in response.iter_content(16384):
+                        chunks.extend(chunk)
+                        if len(chunks) > 1024 * 1024:
+                            raise ProviderUnavailableError('Artist artwork response exceeded its limit')
+                    return json.loads(chunks)
+            except (requests.RequestException, ValueError):
+                raise ProviderUnavailableError('Artist artwork is temporarily unavailable') from None
+    result = {'artistMbid':mbid, 'source':'theaudiodb', 'usage':'development',
+              'termsUrl':'https://www.theaudiodb.com/docs_terms_of_use.php',
+              'fetchedAtEpoch':int(time.time()), 'photos':[]}
+    records = get_json(url).get('artists') or []
+    matches = [a for a in records if str(a.get('strMusicBrainzID', '')).lower() == mbid]
+    if len(matches) != 1:
+        return result
+    artist = matches[0]
+    seen = set()
+    for slot in ('strArtistFanart', 'strArtistFanart2', 'strArtistFanart3', 'strArtistFanart4'):
+        photo = str(artist.get(slot) or '')
+        parsed = urlparse(photo)
+        if (parsed.scheme != 'https' or parsed.hostname not in ('www.theaudiodb.com', 'r2.theaudiodb.com')
+                or not parsed.path.startswith('/images/media/artist/fanart/') or parsed.query
+                or parsed.username or parsed.password or parsed.port not in (None,443) or photo in seen):
+            continue
+        seen.add(photo)
+        identifier = str(artist.get('idArtist') or '')
+        result['photos'].append({'url':photo, 'id':parsed.path.rsplit('/',1)[-1],
+            'sourceUrl':'https://www.theaudiodb.com/artist/' + identifier if identifier.isdigit() else url,
+            'attribution':'Artist fanart supplied by TheAudioDB; individual creator not supplied'})
+    return result
+
+
 def handle(request, client=None, mb_client=None):
     operation, value = request["operation"], str(request.get("value", "")).strip()
     if operation == "resolve":
         return resolve(value)
+    if operation == "artistArtwork":
+        return fetch_artist_artwork(value)
     fetched_at = request.get("fetchedAt")
     if operation == "artistIdentity":
         identifier = request.get("mbid") or request.get("name") or value

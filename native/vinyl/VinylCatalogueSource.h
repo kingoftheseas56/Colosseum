@@ -3,6 +3,11 @@
 #include "VinylProvider.h"
 #include "backend/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.h"
 #include <QPointer>
+#include <QNetworkAccessManager>
+#include <QSet>
+#include "backend/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.h"
+
+class QNetworkReply;
 
 class CollectionStore;
 // Catalogue projection/transport only. Local files, personal state and playback
@@ -17,6 +22,7 @@ class VinylCatalogueSource final : public QObject,
     Q_PROPERTY(QVariantList artistSingles READ artistSingles NOTIFY artistChanged)
     Q_PROPERTY(QVariantMap artistMedia READ artistMedia NOTIFY artistChanged)
     Q_PROPERTY(QVariantMap artistIdentity READ artistIdentity NOTIFY artistChanged)
+    Q_PROPERTY(QVariantMap artistArtwork READ artistArtwork NOTIFY artistChanged)
     Q_PROPERTY(bool artistBusy READ artistBusy NOTIFY artistChanged)
     Q_PROPERTY(QString artistError READ artistError NOTIFY artistChanged)
     Q_PROPERTY(bool cached READ cached NOTIFY artistChanged)
@@ -37,12 +43,14 @@ public:
     Q_INVOKABLE void openArtist(const QVariantMap &);
     Q_INVOKABLE void leaveArtist();
     Q_INVOKABLE void retryArtist();
+    void setArtworkNetworkManager(QNetworkAccessManager *manager){m_artworkNam=manager;}
+    QVariantMap artistArtwork() const{return m_artwork;}
     QVariantMap artist() const{return m_artist;}
     QVariantList artistAlbums() const{return m_artistAlbums;}
     QVariantList artistSingles() const{return m_artistSingles;}
     QVariantMap artistMedia() const{return m_artistMedia;}
     QVariantMap artistIdentity() const{return m_identity;}
-    bool artistBusy() const{return !m_artistRequests.isEmpty();}
+    bool artistBusy() const{return !m_artistRequests.isEmpty()||!m_artworkReplies.isEmpty();}
     QString artistError() const{return m_artistError;}
     bool cached() const{return m_cached;}
     QObject *canonicalArtistService(){return &m_bridge;}
@@ -62,6 +70,13 @@ private:
     QString m_artistError,m_channel;bool m_cached=false;
     QHash<QString,int> m_artistRequests;
     vinyl::artist::ArtistServiceBridge m_bridge;
+    QPointer<QNetworkAccessManager> m_artworkNam;
+    QSet<QNetworkReply*> m_artworkReplies;
+    QVariantMap m_artwork;
+    vinyl::artwork::Request m_artworkRequest;
+    quint64 m_artworkGeneration=0;
+    void loadArtwork(const QVariantMap &);
+    void publishArtwork();
     void accept(const QString &,int,const QVariant &,const QString &,bool);
     void artistRequest(const QString &,const QString &,const QString &,const QVariantMap &payload={});
     void acceptArtist(const QString &,const QVariant &,const QString &);

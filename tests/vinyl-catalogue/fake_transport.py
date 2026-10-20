@@ -12,7 +12,12 @@ if value == "slow":
 if value == "oversize":
     print("x" * (4 * 1024 * 1024 + 1))
     sys.exit(0)
-if operation == "artist":
+if operation == "artistArtwork":
+    data = {"artistMbid":"11111111-1111-4111-8111-111111111111","source":"theaudiodb","usage":"development",
+            "termsUrl":"https://www.theaudiodb.com/docs_terms_of_use.php","fetchedAtEpoch":int(time.time()),
+            "photos":[{"id":str(i),"url":"https://r2.theaudiodb.com/images/media/artist/fanart/%d.jpg"%i,
+                       "attribution":"TheAudioDB test source"} for i in range(int(os.environ.get('VINYL_TEST_PHOTOS','4')))]}
+elif operation == "artist":
     data = {"requestedChannelId": channel, "channelId": channel, "name": "No MB mapping" if os.environ.get("VINYL_TEST_IDENTITY_UNAVAILABLE") else "Artist", "origin": "youtube-music"}
 elif operation == "artistReleases":
     data = {"requestedChannelId": channel, "kind": request["kind"], "complete": True,

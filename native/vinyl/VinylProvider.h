@@ -25,8 +25,8 @@ public:
         return requestPayload(lane,operation,value,{});
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload) {
-        static const QStringList operations={"search","catalogueSearch","album","resolve","artist","artistReleases","artistVideos","artistIdentity"};
-        static const QStringList lanes={"browse","queue","play","artist","artist-albums","artist-singles","artist-videos","artist-identity"};
+        static const QStringList operations={"search","catalogueSearch","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork"};
+        static const QStringList lanes={"browse","queue","play","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork"};
         if(!operations.contains(operation)||!lanes.contains(lane)||value.size()>300)return -1;
         cancel(lane);const int id=++m_serial;
         QJsonObject input=QJsonObject::fromVariantMap(payload);input["operation"]=operation;input["value"]=value;

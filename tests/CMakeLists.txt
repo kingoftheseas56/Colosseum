@@ -4975,7 +4975,7 @@ add_executable(vinyl_catalogue_source_test
 set_target_properties(vinyl_catalogue_source_test PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_catalogue_source_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_compile_definitions(vinyl_catalogue_source_test PRIVATE VINYL_FAKE_TRANSPORT="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-catalogue/fake_transport.py")
-target_link_libraries(vinyl_catalogue_source_test PRIVATE colosseum_vinyl_backend Qt6::Core Qt6::Network Qt6::Test Libmpv::Libmpv)
+target_link_libraries(vinyl_catalogue_source_test PRIVATE colosseum_vinyl_backend Qt6::Core Qt6::Gui Qt6::Network Qt6::Test Libmpv::Libmpv)
 if(MSVC)
     target_compile_options(vinyl_catalogue_source_test PRIVATE /utf-8)
 endif()

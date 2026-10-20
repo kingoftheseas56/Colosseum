@@ -6,11 +6,38 @@
 #include "vinyl/VinylCatalogueSource.h"
 #include "engine/VaultIdentity.h"
 #include "CollectionStore.h"
+#include <QNetworkReply>
+#include <QImage>
+#include <QBuffer>
+
+class ArtworkReply : public QNetworkReply {
+    QByteArray m_bytes; qint64 m_offset=0;
+public:
+    ArtworkReply(const QNetworkRequest &request,QByteArray bytes,QObject *parent):QNetworkReply(parent),m_bytes(std::move(bytes)){
+        setRequest(request);setUrl(request.url());open(QIODevice::ReadOnly);
+        QTimer::singleShot(20,this,[this]{setFinished(true);emit readyRead();emit finished();});
+    }
+    void abort() override {setError(OperationCanceledError,"cancelled");}
+    qint64 bytesAvailable() const override{return m_bytes.size()-m_offset+QNetworkReply::bytesAvailable();}
+    qint64 readData(char *data,qint64 max) override{auto n=qMin(max,qint64(m_bytes.size())-m_offset);if(!n)return -1;memcpy(data,m_bytes.constData()+m_offset,size_t(n));m_offset+=n;return n;}
+};
+class ArtworkNam : public QNetworkAccessManager {
+public:bool duplicate=false;bool invalid=false;
+protected:
+    QNetworkReply *createRequest(Operation,const QNetworkRequest &request,QIODevice *) override {
+        int seed=duplicate?0:request.url().fileName().section('.',0,0).toInt();
+        QImage image(invalid?32:1280,invalid?32:720,QImage::Format_RGB32);
+        for(int y=0;y<image.height();++y)for(int x=0;x<image.width();++x)
+            image.setPixel(x,y,((x/142+y/90*7+seed*13)%17)<8?qRgb(240,240,240):qRgb(20,20,20));
+        QByteArray bytes;QBuffer buffer(&bytes);buffer.open(QIODevice::WriteOnly);image.save(&buffer,"PNG");
+        return new ArtworkReply(request,bytes,this);
+    }
+};
 
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
-    void cleanup(){qunsetenv("VINYL_TEST_IDENTITY_UNAVAILABLE");}
+    void cleanup(){qunsetenv("VINYL_TEST_IDENTITY_UNAVAILABLE");qunsetenv("VINYL_TEST_PHOTOS");}
     void initTestCase(){QStandardPaths::setTestModeEnabled(true);QCoreApplication::setApplicationName("VinylCatalogueContract-"+QUuid::createUuid().toString());}
     void independentChannelsAndPayload(){
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));QSignalSpy done(&provider,&VinylProvider::completed);
@@ -82,6 +109,28 @@ private slots:
         QSignalSpy done(&source,&VinylCatalogueSource::completed);source.request("browse","album","provider-release");
         QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);QVERIFY(done.first()[3].toString().isEmpty());
         QCOMPARE(done.first()[2].toMap().value("tracks").toList().size(),1);
+    }
+    void artworkAdmission_data(){
+        QTest::addColumn<int>("count");QTest::addColumn<bool>("duplicate");QTest::addColumn<bool>("invalid");QTest::addColumn<int>("expected");
+        QTest::newRow("four")<<4<<false<<false<<4;
+        QTest::newRow("one")<<1<<false<<false<<1;
+        QTest::newRow("none")<<0<<false<<false<<0;
+        QTest::newRow("duplicates")<<4<<true<<false<<1;
+        QTest::newRow("bad-geometry")<<4<<false<<true<<0;
+    }
+    void artworkAdmission(){
+        QFETCH(int,count);QFETCH(bool,duplicate);QFETCH(bool,invalid);QFETCH(int,expected);
+        qputenv("VINYL_TEST_PHOTOS",QByteArray::number(count));
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));ArtworkNam nam;nam.duplicate=duplicate;nam.invalid=invalid;
+        VinylCatalogueSource source(&local,&provider,nullptr);source.setArtworkNetworkManager(&nam);
+        source.openArtist({{"id","ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"},{"name","Artist"}});
+        QTRY_VERIFY_WITH_TIMEOUT(!source.artistBusy(),15000);
+        QCOMPARE(source.artistArtwork().value("photos").toList().size(),expected);
+        QCOMPARE(source.artistArtwork().value("distributionCleared").toBool(),false);
+        auto *bridge=qobject_cast<vinyl::artist::ArtistServiceBridge *>(source.canonicalArtistService());
+        QTRY_COMPARE(bridge->artwork().value("photos").toList().size(),expected);
+        emit local.profileLeaving();QVERIFY(source.artistArtwork().isEmpty());
     }
 };
 QTEST_GUILESS_MAIN(CatalogueSourceTest)

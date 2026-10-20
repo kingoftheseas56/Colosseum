@@ -12,13 +12,15 @@ Item {
     property int crossfadeDurationMs: 1350
 
     signal createPlaylistRequested()
-    signal backdropsRequested()
     signal playArtistRequested()
     signal shuffleArtistRequested()
     signal itemFocused(var item)
 
     readonly property bool sourcedContext: artistData.context.sources.length > 0
-    readonly property var eligiblePhotos: artistData.heroPhotos || []
+    property var failedPhotoIds: []
+    readonly property var eligiblePhotos: (artistData.heroPhotos || []).filter(function(photo) {
+        return root.failedPhotoIds.indexOf(photo.id) < 0;
+    })
     readonly property int eligiblePhotoCount: eligiblePhotos.length
     readonly property string rotationMode: {
         if (artistData.customBackdropUrl && String(artistData.customBackdropUrl).length > 0)
@@ -98,6 +100,7 @@ Item {
 
     function resolvedUrlForPhoto(photo, useFallback) {
         if (!photo) {
+            if (artistData.liveMode) return "";
             if (artistData.record && artistData.record.releases && artistData.record.releases.length > 0)
                 return artistData.artwork(artistData.record.releases[0].album.cover);
             return "";
@@ -125,6 +128,17 @@ Item {
             var serial = photoRequestSerial;
             var failed = layer === 0 ? layerASource : layerBSource;
             var fallback = layer === 0 ? layerAFallback : layerBFallback;
+            if (root.artistData.liveMode) {
+                Qt.callLater(function() {
+                    if (root.photoRequestSerial !== serial) return;
+                    var photo = root.eligiblePhotos.find(function(value) { return String(value.cover) === String(failed); });
+                    if (!photo) return;
+                    root.failedPhotoIds = root.failedPhotoIds.concat([photo.id]);
+                    if (root.artistData.selectedWallpaper === photo.id) root.artistData.selectedWallpaper = "auto";
+                    root.syncInitialBackdrop();
+                });
+                return;
+            }
             if (fallback && failed !== fallback) {
                 Qt.callLater(function() {
                     if (root.photoRequestSerial !== serial) return;
@@ -216,7 +230,7 @@ Item {
     Connections {
         target: root.artistData
         ignoreUnknownSignals: true
-        function onHeroPhotosChanged() { root.syncInitialBackdrop(); }
+        function onHeroPhotosChanged() { root.failedPhotoIds = []; root.syncInitialBackdrop(); }
         function onNameChanged() { root.syncInitialBackdrop(); }
         function onOverrideHeroPhotosChanged() { root.syncInitialBackdrop(); }
         function onCustomBackdropUrlChanged() {
