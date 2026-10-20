@@ -8,7 +8,9 @@ int main() {
     for (const QByteArray value : {QByteArray(), QByteArray("0"), QByteArray("1"), QByteArray("2")}) {
         if (value.isEmpty()) qunsetenv("COLOSSEUM_VINYL_LIVE");
         else qputenv("COLOSSEUM_VINYL_LIVE", value);
-#ifdef COLOSSEUM_ENABLE_VINYL_QUALIFICATION
+#if defined(Q_OS_ANDROID)
+        const bool expected = false;
+#elif defined(COLOSSEUM_ENABLE_VINYL_QUALIFICATION)
         const bool expected = value == "1";
 #else
         const bool expected = true;

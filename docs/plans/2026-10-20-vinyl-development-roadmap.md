@@ -115,14 +115,16 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 **Sources:** the existing BA/BB/BC/BE/BF/Artist implementations and W4 build/journey sources identified in the backend review. Do not rewrite their working algorithms.
 
-- [ ] Recover/apply the known Artist composition fixes for plain-int `lengthMs` and non-default-constructible `SourceBatch`; prove the exact target build rather than relying on header shims or an unrelated repaired copy.
-- [ ] Bind BB5 durable source-memory restore to the expected profile with a typed mismatch. Coalesce expiry refresh and preserve current-work identity when forwarding playback failure.
-- [ ] Reconcile BA2C's continuing playback plus pending replacement with BA3 capture/restore. Preserve both resume and pending intent; a valid checkpoint must not fail during source replacement.
-- [ ] Give bounded/invalid seeks, failed commands, missing acknowledgments and timeout/EOF/cancellation defined terminal behavior while retaining exact request identity.
-- [ ] Repair the source-proven numeric/persistence, text-anchor/hash, graph normalization and rank-input boundary findings in their owning components, with focused counterexample tests from review R6–R8.
-- [ ] Repair Artist cross-lane cancellation tickets, continuation usability/revision checks and media unavailable envelope handling; qualify authoritative edition occurrences instead of the fake's permissive fallback.
-- [ ] Reproduce the required real CUE seek-time case without weakening its invariant, then run the retained composed/reference checks plus new regressions. Assert required real-test registration; an absent fixture must not reduce the qualifying set silently.
-- [ ] Freeze hashes only after passing exact-source receiving evidence. Retained final W4-I evidence is 36/37, despite earlier 37/37 records; it did not issue a sealed baseline.
+- [x] Recover/apply the known Artist composition fixes for plain-int `lengthMs` and non-default-constructible `SourceBatch`; prove the exact target build rather than relying on header shims or an unrelated repaired copy.
+- [x] Bind BB5 durable source-memory restore to the expected profile with a typed mismatch. Coalesce expiry refresh and preserve current-work identity when forwarding playback failure.
+- [x] Reconcile BA2C's continuing playback plus pending replacement with BA3 capture/restore. Preserve both resume and pending intent; a valid checkpoint must not fail during source replacement.
+- [x] Give bounded/invalid seeks, failed commands, missing acknowledgments and timeout/EOF/cancellation defined terminal behavior while retaining exact request identity.
+- [x] Repair the source-proven numeric/persistence, text-anchor/hash, graph normalization and rank-input boundary findings in their owning components, with focused counterexample tests from review R6–R8.
+- [x] Repair Artist cross-lane cancellation tickets, continuation usability/revision checks and media unavailable envelope handling; qualify authoritative edition occurrences instead of the fake's permissive fallback.
+- [x] Run the required real CUE seek-time case without weakening its invariant, then run the retained composed/reference checks plus new regressions. Assert required real-test registration; an absent fixture must not reduce the qualifying set silently.
+- [x] Freeze hashes after passing exact-source receiving evidence. The new adopted baseline supersedes the retained W4-I 36/37 receipt; it does not retroactively seal the old Arc artifacts.
+
+**Status (2026-10-20): M0R accepted.** The promoted baseline clean-built on Windows Qt 6.11.1/MSVC, passed all 47 harnesses plus 40 repeated real-engine runs and six inventory-guard cases, and has a pinned 151-file source/control manifest. Independent review found no Critical/Important findings and one protected standalone artwork nil-UUID validation inconsistency deferred to M0F. The historical CUE timing failure did not reproduce; deterministic startup/sequence/queued-seek regressions did and are repaired. See `docs/reviews/2026-10-20-vinyl-m0r-receiving.md` and its source manifest. This qualifies the backend baseline, not the live facade or actual-app journey.
 
 **Exit gate:** the repaired adopted source builds, focused counterexamples pass, required W4 journeys actually execute, and the artifact/evidence inventory is reproducible. These checks still do not replace actual-app qualification or audible output.
 
@@ -138,6 +140,7 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 - [ ] Adapt BA3 checkpoints through current Progress storage and migrate existing QML snapshots. Adapt BA5 semantics through Collection and BE2 through profile preferences.
 - [ ] Integrate BA4 facts through the existing Activity/history owner, preserving privacy, activation thresholds, retention and reset behavior. Never count BA4 and the current tracker as independent listens.
 - [ ] Expose immutable presentation/query state and explicit commands/events to QML with profile generation, cancellation and shutdown ownership. Use real source/store ports; default fakes and the Artist factory's in-memory bytes port cannot become production dependencies.
+- [ ] Align the standalone artwork nil-UUID validator with BA0 while receiving the facade; keep canonical-ID checks at every exposed entry. The composed adapter already rejects nil IDs.
 - [ ] Move one complete existing local play/queue/replace/checkpoint/restart journey onto the adopted path, with before/after compatibility tests and actual-app proof.
 
 **Exit gate:** one app session/player/state authority, preserved local and existing behavior, profile-safe asynchronous work, and a demonstrable full-app journey through the adopted backend. M1 then extends ingestion/usability on this foundation rather than growing a competing implementation.
@@ -330,4 +333,4 @@ Primary sequence: **M0 → M0R → M0F → M1 → M2 → M3 → M4 → M5 → M6
 
 ## First execution slice
 
-Finish M0, repair and receive the authored backend through M0R, then establish M0F's native ownership/identity boundary and migrate one real app listening journey. Continue with M1's ordinary metadata-rich import on that adopted path, using the recovered artist page as its visual target. In the same early window, settle M3's exact StreamServer compatibility contract. This reuses the backend already written and exposes integration risk without building another detached world.
+M0 and M0R are accepted on the development branch. Begin M0F's native ownership/identity boundary and migrate one real app listening journey using the repaired baseline. Continue with M1's ordinary metadata-rich import on that adopted path, using the recovered artist page as its visual target. In the same early window, settle M3's exact StreamServer compatibility contract. Main-branch landing and release qualification remain explicit receiving steps.
