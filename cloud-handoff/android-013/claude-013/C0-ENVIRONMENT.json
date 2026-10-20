@@ -1,0 +1,45 @@
+{
+ "task": "claude-android-cloud-013-20261020",
+ "checkpoint": "C0-initial",
+ "utc": "2026-10-20T15:51:26Z",
+ "import_sha": "5e60f3630e2d7f56ae49556c0472c4b5391dcfe2",
+ "upstream_app_sha": "fdd23f09e8b631f5c165e84d969895c99f520a28",
+ "baseline_branch": "codex/android-cloud-baseline-013-20261020",
+ "worker_branch": "claude/android-stabilization-013-20261020",
+ "cloud_source_manifest_sha256": "d56adc31fee3431d405de9060de765c8e48e229ada08e30939acafb81ceb070e",
+ "verify_source": "PASS 4644/4644 (app 4495, donor 149), 0 mismatches",
+ "vm": {
+  "os": "Ubuntu 24.04.5 LTS",
+  "kernel": "6.18.44-fc-v139",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "vcpus": 4,
+  "mem_total": "16874930176",
+  "swap": "0",
+  "disk_root_avail_at_start": "30G of per-session allowance (df: 252G device, 9.3G used)",
+  "kvm": "absent (/dev/kvm missing; no vmx/svm cpu flag) -> emulator only via software TCG, if at all"
+ },
+ "network": {
+  "proxy": "agent proxy, TLS via /root/.ccr/ca-bundle.crt",
+  "reachable_200": [
+   "download.qt.io",
+   "dl.google.com",
+   "services.gradle.org",
+   "repo.maven.apache.org",
+   "archives.boost.io",
+   "pypi.org",
+   "github release assets (openssl 3.5.9, libtorrent 2.0.14)"
+  ]
+ },
+ "toolchain": {
+  "installer": "scripts/android/install_toolchain.sh (aqtinstall 3.3.0), 2m06s, 4.7G",
+  "qt": "6.11.1 gcc_64 + android_arm64_v8a + android_x86_64",
+  "ndk": "Pkg.Revision = 27.2.12479018",
+  "platform": "android-36",
+  "build_tools": "36.0.0",
+  "jdk": "openjdk version \"21.0.12.1\" 2026-08-18",
+  "cmake": "cmake version 3.28.3",
+  "ninja": "1.11.1",
+  "python": "3.13.16",
+  "qualify_toolchain": "9/9 after Linux fix (host qmlimportscanner lives in libexec/ on Linux Qt 6.11.1); before fix 8/9"
+ }
+}
