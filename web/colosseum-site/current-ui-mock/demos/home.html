@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Colosseum · Home</title>
+    <!-- Baseline composition retained; current source HomePage/Main/TopBar. Local fixture catalog. -->
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/Fraunces-Regular.ttf") format("truetype");
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --gold: #f0c44a;
+        --ink: #f7f7f5;
+        --dim: #c9c8d0;
+        --dimmer: #9a99a5;
+        --edge: rgba(255, 255, 255, 0.18);
+        --ui: "Segoe UI", system-ui;
+        --display: Fraunces, Georgia, serif;
+      }
+      html,
+      body {
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background: #0a0b10;
+      }
+      body {
+        font-family: var(--ui);
+        color: var(--ink);
+        position: relative;
+        user-select: none;
+        cursor: default;
+      }
+      .wall {
+        position: absolute;
+        inset: 0;
+        background: url("../assets/cold-ripple.jpg") center/cover;
+      }
+      .wall:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.34),
+          rgba(0, 0, 0, 0.1) 50%,
+          rgba(0, 0, 0, 0.46)
+        );
+      }
+      .glass {
+        background: linear-gradient(#00000024, #00000024), #ffffff1a;
+        backdrop-filter: blur(24px);
+        border: 1px solid var(--edge);
+      }
+      .topbar {
+        position: absolute;
+        left: 54px;
+        top: 30px;
+        width: 1172px;
+        height: 56px;
+        z-index: 20;
+      }
+      .clock b {
+        font: 32px/1 var(--display);
+        font-weight: 400;
+      }
+      .clock i {
+        font-style: normal;
+        font-size: 16px;
+        color: var(--dim);
+        margin-left: 5px;
+      }
+      .clock small {
+        display: block;
+        margin-top: 3px;
+        font-size: 13px;
+        color: var(--dim);
+      }
+      .picker {
+        position: absolute;
+        left: 50%;
+        top: 5px;
+        transform: translateX(-50%);
+        height: 46px;
+        padding: 0 7px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .picker span {
+        height: 34px;
+        padding: 0 17px;
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--dim);
+      }
+      .sys {
+        position: absolute;
+        right: 0;
+        top: 17px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+      .sys img {
+        width: 22px;
+        height: 22px;
+        opacity: 0.72;
+      }
+      .acct {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid #ffffff61;
+        position: relative;
+      }
+      .acct:before {
+        content: "";
+        position: absolute;
+        left: 7px;
+        top: 3.5px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #fff;
+        opacity: 0.82;
+      }
+      .acct:after {
+        content: "";
+        position: absolute;
+        left: 4.5px;
+        top: 10px;
+        width: 10px;
+        height: 6px;
+        border-radius: 3px;
+        background: #fff;
+        opacity: 0.82;
+      }
+      .page {
+        position: absolute;
+        top: 96px;
+        left: 0;
+        right: 0;
+        height: 624px;
+        overflow: hidden;
+      }
+      .board {
+        position: absolute;
+        left: 54px;
+        top: 0;
+        width: 1172px;
+        display: flex;
+        flex-direction: column;
+        will-change: transform;
+      }
+      .art {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .rail-window {
+        overflow: hidden;
+      }
+      .img-wrap {
+        overflow: hidden;
+        background: linear-gradient(150deg, #532f49, #1d121b);
+      }
+      img.failed {
+        opacity: 0;
+      }
+      .scrollbar {
+        position: absolute;
+        right: 4px;
+        top: 106px;
+        width: 3px;
+        height: 78px;
+        background: #f0c44a80;
+        border-radius: 3px;
+        opacity: 0;
+      }
+      .board {
+        padding: 10px 0 40px;
+        gap: 30px;
+      }
+      .hero {
+        position: relative;
+        flex: none;
+        height: 340px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: #1a1410;
+        border: 1px solid var(--edge);
+      }
+      .hero > .art {
+        position: absolute;
+        inset: 0;
+      }
+      .hero:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, #000000db, #0000006b 52%, #0000000f);
+      }
+      .hero-copy {
+        position: absolute;
+        left: 44px;
+        bottom: 44px;
+        z-index: 2;
+      }
+      .kicker {
+        font-size: 11px;
+        letter-spacing: 3px;
+        color: var(--gold);
+      }
+      .hero h1 {
+        font: 48px/1.2 var(--display);
+        margin: 12px 0 18px;
+      }
+      .explore {
+        height: 46px;
+        border-radius: 12px;
+        border: 1px solid #ffffff42;
+        background: linear-gradient(#ffffff24, #ffffff0d);
+        display: inline-flex;
+        align-items: center;
+        padding: 0 22px;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .explore b {
+        color: var(--gold);
+        font-size: 16px;
+      }
+      .world-count {
+        position: absolute;
+        right: 24px;
+        top: 24px;
+        z-index: 2;
+        font: 16px var(--display);
+        color: var(--dim);
+      }
+      .head {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .head h2 {
+        font: 22px var(--display);
+      }
+      .head span {
+        font: 17px var(--display);
+      }
+      .head b {
+        font-size: 22px;
+        font-weight: 400;
+        color: var(--dim);
+        margin-left: 6px;
+      }
+      .tiles {
+        display: flex;
+        gap: 18px;
+      }
+      .tile {
+        position: relative;
+        flex: none;
+        width: 340px;
+        height: 148px;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .tile.hot {
+        border-color: #f0c44a8c;
+        background-color: #ffffff26;
+      }
+      .tile .cover {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 112px;
+        height: 148px;
+      }
+      .resume {
+        position: absolute;
+        left: 33px;
+        top: 51px;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        border: 1.5px solid #ffffffe6;
+        background: #0000008c;
+        display: grid;
+        place-items: center;
+      }
+      .resume img {
+        width: 21px;
+        height: 21px;
+      }
+      .tile-info {
+        position: absolute;
+        left: 127px;
+        right: 15px;
+        top: 14px;
+        bottom: 12px;
+      }
+      .badge {
+        font-size: 9px;
+        letter-spacing: 1.3px;
+        color: var(--gold);
+      }
+      .progress-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+      .progress-info strong {
+        display: block;
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .progress-info p {
+        font-size: 12px;
+        color: var(--dim);
+        margin: 4px 0 8px;
+      }
+      .progress {
+        height: 4px;
+        background: #fff3;
+        border-radius: 2px;
+      }
+      .progress i {
+        display: block;
+        height: 100%;
+        background: var(--gold);
+        border-radius: 2px;
+      }
+      .remove {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        width: 24px;
+        height: 24px;
+        background: #0009;
+        border: 1px solid var(--edge);
+        border-radius: 50%;
+        text-align: center;
+        font-size: 11px;
+        line-height: 22px;
+        opacity: 0;
+      }
+      .hot .remove {
+        opacity: 1;
+      }
+      .widget {
+        position: relative;
+        flex: none;
+        height: 400px;
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .widget h2 {
+        position: absolute;
+        top: 28px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font: 33px var(--display);
+      }
+      .widget .label {
+        position: absolute;
+        left: 46px;
+        top: 36px;
+        color: var(--dim);
+        font: italic 22px var(--display);
+      }
+      .widget .label.right {
+        left: auto;
+        right: 46px;
+      }
+      .fan {
+        position: absolute;
+        top: 83px;
+        width: 560px;
+        height: 294px;
+      }
+      .fan.first {
+        left: 60px;
+      }
+      .fan.second {
+        right: 60px;
+      }
+      .fan .cover {
+        position: absolute;
+        width: 148px;
+        height: 222px;
+        border-radius: 12px;
+        border: 1px solid #ffffff14;
+        box-shadow:
+          0 3px 0 #0005,
+          0 7px 0 2px #0002;
+      }
+      .under {
+        position: absolute;
+        top: 77px;
+        left: calc(50% - 32px);
+        width: 64px;
+        height: 2px;
+        background: var(--gold);
+      }
+      .film-band {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 66px;
+        height: 208px;
+        background: #0008;
+        border-block: 1px solid #ffffff14;
+        overflow: hidden;
+      }
+      .film-band:before,
+      .film-band:after {
+        content: "";
+        position: absolute;
+        z-index: 2;
+        left: 12px;
+        right: 0;
+        height: 6px;
+        background: repeating-linear-gradient(
+          90deg,
+          #ffffff4d 0 6px,
+          transparent 6px 26px
+        );
+        top: 6px;
+      }
+      .film-band:after {
+        top: auto;
+        bottom: 6px;
+      }
+      .reel {
+        position: absolute;
+        top: 25px;
+        display: flex;
+        gap: 14px;
+      }
+      .still {
+        position: relative;
+        width: 300px;
+        height: 158px;
+        flex: none;
+        border-radius: 8px;
+        overflow: hidden;
+        background: linear-gradient(140deg, #33445d, #0c1118);
+      }
+      .still:after {
+        content: "";
+        position: absolute;
+        inset: 60% 0 0;
+        background: linear-gradient(transparent, #000b);
+      }
+      .still b {
+        position: absolute;
+        bottom: 8px;
+        left: 10px;
+        z-index: 2;
+        font-size: 13px;
+      }
+      .still small {
+        position: absolute;
+        top: 8px;
+        left: 10px;
+        font-size: 9px;
+        letter-spacing: 1.6px;
+        color: #fff9;
+      }
+      .desk {
+        position: absolute;
+        left: 204px;
+        right: 160px;
+        bottom: 44px;
+        height: 262px;
+        display: flex;
+        gap: 74px;
+        align-items: flex-end;
+      }
+      .pile {
+        position: relative;
+        width: 230px;
+        height: 262px;
+        flex: none;
+      }
+      .slab {
+        position: absolute;
+        height: 22px;
+        bottom: 0;
+        left: 16px;
+        width: 198px;
+        background: #37505f;
+        border-radius: 4px;
+        border: 1px solid #ffffff1f;
+      }
+      .slab:nth-child(2) {
+        bottom: 24px;
+        width: 184px;
+        background: #6d3a2a;
+        transform: rotate(1.8deg);
+      }
+      .slab:nth-child(3) {
+        bottom: 48px;
+        width: 192px;
+        background: #54432c;
+        transform: rotate(-0.8deg);
+      }
+      .pile .cover {
+        position: absolute;
+        left: 54px;
+        bottom: 72px;
+        width: 122px;
+        height: 182px;
+        transform: rotate(4deg);
+        border-radius: 5px;
+      }
+      .chart-copy {
+        width: 270px;
+        flex: none;
+        padding-bottom: 30px;
+      }
+      .chart-copy b {
+        font: 50px var(--display);
+      }
+      .chart-copy p {
+        font-size: 13px;
+        color: var(--dim);
+        margin: 8px 0 16px;
+      }
+      .genres {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .genres span {
+        border: 1px solid var(--edge);
+        background: #ffffff0a;
+        border-radius: 13px;
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+      .second-book {
+        width: 118px;
+        flex: none;
+        margin-bottom: 30px;
+      }
+      .second-book .cover {
+        height: 176px;
+        border-radius: 5px;
+      }
+      .second-book small {
+        display: block;
+        color: var(--dimmer);
+        font-size: 10px;
+        letter-spacing: 1.6px;
+        margin-top: 10px;
+      }
+      .vault {
+        height: 520px;
+      }
+      .cabinet {
+        position: absolute;
+        top: 89px;
+        left: 205px;
+        width: 760px;
+        height: 366px;
+        border-radius: 12px;
+        border: 1px solid #ffffff33;
+        background: linear-gradient(#39444a, #1a2025 18%, #252e34 72%, #0d1215);
+        box-shadow: 0 14px 20px #0006;
+      }
+      .plate {
+        position: absolute;
+        inset: 20px;
+        background: linear-gradient(#242c31, #171d21 48%, #0e1316);
+        border: 1px solid #000b;
+        border-radius: 7px;
+        box-shadow: inset 0 0 0 6px #ffffff08;
+      }
+      .door {
+        position: absolute;
+        left: calc(50% - 139px);
+        top: 24px;
+        width: 278px;
+        height: 278px;
+        border-radius: 50%;
+        border: 8px solid #657179;
+        background: repeating-radial-gradient(
+          circle,
+          #333e45 0 15px,
+          #1c242a 16px 19px,
+          #354149 20px 21px
+        );
+        box-shadow:
+          0 0 0 11px #0a0f13,
+          0 0 0 19px #2d373e;
+      }
+      .wheel {
+        position: absolute;
+        left: calc(50% - 58px);
+        top: calc(50% - 58px);
+        width: 116px;
+        height: 116px;
+        border-radius: 50%;
+        border: 7px solid #77848b;
+        box-shadow: 0 0 0 4px #161e23;
+        background: #172127;
+      }
+      .wheel i {
+        position: absolute;
+        width: 9px;
+        height: 52px;
+        top: 0;
+        left: 47px;
+        transform-origin: 50% 51px;
+        background: linear-gradient(90deg, #425159, #8b989e, #344149);
+        border-radius: 4px;
+      }
+      .wheel:after {
+        content: "";
+        position: absolute;
+        left: 35px;
+        top: 35px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #8b969b;
+        border: 3px solid #3d4b53;
+      }
+      .hinge {
+        position: absolute;
+        right: 28px;
+        top: 42px;
+        bottom: 42px;
+        width: 22px;
+        background: linear-gradient(90deg, #10161a, #718087, #20292f);
+        border-radius: 4px;
+      }
+      .hinge i {
+        display: block;
+        position: absolute;
+        right: 18px;
+        width: 34px;
+        height: 56px;
+        background: linear-gradient(#48575e, #151d22);
+        border: 1px solid #ffffff24;
+        border-radius: 5px;
+      }
+      .bolt {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: linear-gradient(#78838a, #111619);
+        border: 1px solid #ffffff33;
+      }
+    </style>
+    <link rel="stylesheet" href="../shared/home-interactive.css" />
+  </head>
+  <body>
+    <div class="wall"></div>
+    <div class="topbar">
+      <div class="clock">
+        <b>9:41</b><i>PM</i><small>Thursday, October 8</small>
+      </div>
+      <div class="picker glass">
+        <span>Tankoban</span><span>Biblio</span><span>Theatre</span>
+      </div>
+      <div class="sys">
+        <img src="../assets/icons/update.svg" alt="Updates" /><img
+          src="../assets/icons/trackers.svg"
+          alt="Trackers"
+        /><span class="acct" aria-label="Account"></span
+        ><img src="../assets/icons/settings.svg" alt="Wallpaper" /><img
+          src="../assets/icons/minimize.svg"
+          alt="Minimize"
+        /><img
+          src="../assets/icons/fullscreen-exit.svg"
+          alt="Exit fullscreen"
+        /><img src="../assets/icons/power.svg" alt="Quit" />
+      </div>
+    </div>
+    <main class="page">
+      <div class="board" id="board">
+        <section class="hero">
+          <img
+            class="art"
+            src="../assets/universes/one-piece/east-blue/banners/romance.png"
+            alt=""
+          />
+          <div class="hero-copy">
+            <div class="kicker">UNIVERSE</div>
+            <h1>One Piece</h1>
+            <span class="explore">Explore the universe <b>→</b></span>
+          </div>
+          <span class="world-count">Explore all universes ›</span>
+        </section>
+        <section>
+          <div class="head">
+            <h2>Continue</h2>
+            <span>See all <b>›</b></span>
+          </div>
+          <div class="rail-window">
+            <div class="tiles">
+              <article class="tile glass">
+                <div class="cover img-wrap">
+                  <img
+                    class="art"
+                    src="../assets/fixtures/captures/theatre-posters/dune.jpg"
+                    alt=""
+                  />
+                </div>
+                <span class="resume"
+                  ><img src="../assets/icons/play.svg" alt="Resume"
+                /></span>
+                <div class="tile-info">
+                  <div class="badge">VIDEO</div>
+                  <div class="progress-info">
+                    <strong>Dune: Part Two</strong>
+                    <p>1h 12m · 43%</p>
+                    <div class="progress"><i style="width: 43%"></i></div>
+                  </div>
+                </div>
+                <span class="remove">×</span>
+              </article>
+              <article class="tile glass">
+                <div class="cover img-wrap">
+                  <img
+                    class="art"
+                    src="../assets/fixtures/captures/manga-covers/onepiece.jpg"
+                    alt=""
+                  />
+                </div>
+                <span class="resume"
+                  ><img src="../assets/icons/manga.svg" alt="Resume"
+                /></span>
+                <div class="tile-info">
+                  <div class="badge">MANGA</div>
+                  <div class="progress-info">
+                    <strong>One Piece</strong>
+                    <p>Chapter 108 · 64%</p>
+                    <div class="progress"><i style="width: 64%"></i></div>
+                  </div>
+                </div>
+                <span class="remove">×</span>
+              </article>
+              <article class="tile glass">
+                <div class="cover img-wrap">
+                  <img
+                    class="art"
+                    src="../assets/feria/assets/dune-book.jpg"
+                    alt=""
+                  />
+                </div>
+                <span class="resume"
+                  ><img src="../assets/icons/books.svg" alt="Resume"
+                /></span>
+                <div class="tile-info">
+                  <div class="badge">BOOK</div>
+                  <div class="progress-info">
+                    <strong>Dune</strong>
+                    <p>Chapter 7 · 32%</p>
+                    <div class="progress"><i style="width: 32%"></i></div>
+                  </div>
+                </div>
+                <span class="remove">×</span>
+              </article>
+              <article class="tile glass">
+                <div class="cover img-wrap">
+                  <img
+                    class="art"
+                    src="../assets/fixtures/captures/comic-covers/invincible.jpg"
+                    alt=""
+                  />
+                </div>
+                <span class="resume"
+                  ><img src="../assets/icons/manga.svg" alt="Resume"
+                /></span>
+                <div class="tile-info">
+                  <div class="badge">COMIC</div>
+                  <div class="progress-info">
+                    <strong>Invincible</strong>
+                    <p>Issue 12 · 48%</p>
+                    <div class="progress"><i style="width: 48%"></i></div>
+                  </div>
+                </div>
+                <span class="remove">×</span>
+              </article>
+            </div>
+          </div>
+        </section>
+        <section class="widget glass">
+          <h2>Tankoban</h2>
+          <span class="label">Manga</span
+          ><span class="label right">Comics</span>
+          <div class="fan first">
+            <div
+              class="cover img-wrap"
+              style="
+                left: 62px;
+                top: 58px;
+                transform: rotate(-16deg);
+                z-index: 8;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/manga-covers/onepiece.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 134px;
+                top: 47px;
+                transform: rotate(-8deg);
+                z-index: 9;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/manga-covers/berserk.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 206px;
+                top: 36px;
+                transform: rotate(0deg);
+                z-index: 10;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/manga-covers/vinland.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 278px;
+                top: 47px;
+                transform: rotate(8deg);
+                z-index: 9;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/manga-covers/vagabond.png"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 350px;
+                top: 58px;
+                transform: rotate(16deg);
+                z-index: 8;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/manga-covers/chainsaw.png"
+                alt=""
+              />
+            </div>
+          </div>
+          <div class="fan second">
+            <div
+              class="cover img-wrap"
+              style="
+                left: 62px;
+                top: 58px;
+                transform: rotate(-16deg);
+                z-index: 8;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/comic-covers/invincible.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 134px;
+                top: 47px;
+                transform: rotate(-8deg);
+                z-index: 9;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/feria/assets/phm-cover.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 206px;
+                top: 36px;
+                transform: rotate(0deg);
+                z-index: 10;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/fixtures/captures/comic-covers/saga.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 278px;
+                top: 47px;
+                transform: rotate(8deg);
+                z-index: 9;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/feria/assets/phm-cover.jpg"
+                alt=""
+              />
+            </div>
+            <div
+              class="cover img-wrap"
+              style="
+                left: 350px;
+                top: 58px;
+                transform: rotate(16deg);
+                z-index: 8;
+              "
+            >
+              <img
+                class="art"
+                src="../assets/feria/assets/phm-cover.jpg"
+                alt=""
+              />
+            </div>
+          </div>
+        </section>
+        <section class="widget glass">
+          <h2>Theatre</h2>
+          <i class="under"></i><span class="label">Trending</span>
+          <div class="film-band">
+            <div class="reel" id="reel">
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/fixtures/captures/theatre-posters/dune.jpg"
+                  alt=""
+                /><small>MOVIES</small><b>Dune: Part Two</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/stranger-bg.jpg"
+                  alt=""
+                /><small>SHOWS</small><b>Shogun</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/stranger-bg.jpg"
+                  alt=""
+                /><small>SHOWS</small><b>The Bear</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/stranger-bg.jpg"
+                  alt=""
+                /><small>SHOWS</small><b>Fallout</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/fixtures/captures/theatre-posters/dune.jpg"
+                  alt=""
+                /><small>MOVIES</small><b>Dune: Part Two</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/stranger-bg.jpg"
+                  alt=""
+                /><small>SHOWS</small><b>Shogun</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/stranger-bg.jpg"
+                  alt=""
+                /><small>SHOWS</small><b>The Bear</b>
+              </div>
+              <div class="still">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/stranger-bg.jpg"
+                  alt=""
+                /><small>SHOWS</small><b>Fallout</b>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="widget glass">
+          <h2>Biblio</h2>
+          <span class="label">Top charts</span>
+          <div class="desk">
+            <div class="pile">
+              <i class="slab"></i><i class="slab"></i><i class="slab"></i>
+              <div class="cover img-wrap">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/dune-book.jpg"
+                  alt=""
+                />
+              </div>
+            </div>
+            <div class="chart-copy">
+              <b>Top 10</b>
+              <p>a local selection from the staged book catalogue</p>
+              <div class="genres">
+                <span>Fiction</span><span>Mystery</span><span>Fantasy</span
+                ><span>Romance</span>
+              </div>
+            </div>
+            <div class="second-book">
+              <div class="cover img-wrap">
+                <img
+                  class="art"
+                  src="../assets/feria/assets/phm-cover.jpg"
+                  alt=""
+                />
+              </div>
+              <small>No. 2</small>
+            </div>
+          </div>
+        </section>
+        <section class="widget vault glass">
+          <h2>Vault</h2>
+          <i class="under"></i><span class="label">On this machine</span>
+          <div class="cabinet">
+            <div class="plate">
+              <span class="hinge"
+                ><i style="top: 0"></i><i style="top: 95px"></i
+                ><i style="bottom: 0"></i
+              ></span>
+              <div class="door">
+                <div class="wheel">
+                  <i style="transform: rotate(0deg)"></i
+                  ><i style="transform: rotate(72deg)"></i
+                  ><i style="transform: rotate(144deg)"></i
+                  ><i style="transform: rotate(216deg)"></i
+                  ><i style="transform: rotate(288deg)"></i>
+                </div>
+              </div>
+              <i class="bolt" style="left: 20px; top: 20px"></i
+              ><i class="bolt" style="left: 20px; bottom: 20px"></i
+              ><i class="bolt" style="right: 20px; top: 20px"></i
+              ><i class="bolt" style="right: 20px; bottom: 20px"></i>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <div class="scrollbar" id="scrollbar"></div>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="../shared/catalog.js"></script>
+    <script src="../shared/home.js"></script>
+  </body>
+</html>

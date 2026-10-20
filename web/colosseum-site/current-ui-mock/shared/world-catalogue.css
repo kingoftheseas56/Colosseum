@@ -1,0 +1,562 @@
+/* Catalogue tabs and the row index. Measurements from Colosseum master 2916fe85:
+   RowIndexSidebar.qml, TrendingTop10.qml, PortraitTile.qml, GenreMosaic.qml. */
+.cattab {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px; /* RowIndexSidebar.contentLeft = width + 28 */
+}
+.cattab[hidden],
+.discover[hidden] {
+  display: none;
+}
+.catmain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+/* ---- RowIndexSidebar: 52 retracted, 240 open, pinned while the page scrolls ---- */
+.rowindex {
+  position: sticky;
+  top: 70px; /* the mock's pinned tab bar (58) + the sidebar's 12px pin line */
+  flex: none;
+  width: 240px;
+  height: 520px; /* page height 624 - pin line 12 - bottom gap 92 */
+  transition: width 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rowindex.closed {
+  width: 52px;
+}
+.rowindex::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.18) 10%, rgba(255, 255, 255, 0.1) 86%, transparent);
+}
+.ri-toggle {
+  position: absolute;
+  right: -14px;
+  top: 18px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.46);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  display: grid;
+  place-items: center;
+  opacity: 0.74;
+  cursor: pointer;
+  padding: 0;
+}
+.ri-toggle:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+.ri-toggle svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--ink-dim);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rowindex.closed .ri-toggle svg {
+  transform: rotate(180deg);
+}
+.ri-brand {
+  margin: 22px 0 0 12px;
+  height: 78px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.ri-brand small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 2.8px;
+  color: var(--gold);
+}
+.ri-brand b {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 27px;
+  letter-spacing: -0.54px;
+}
+.rowindex.closed .ri-brand {
+  height: 38px;
+  opacity: 0;
+}
+.ri-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 16px;
+  max-height: calc(100% - 118px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rowindex.closed .ri-list {
+  padding-right: 4px;
+  max-height: calc(100% - 78px);
+}
+.ri-row {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: 600 14px var(--ui);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s;
+}
+.rowindex.closed .ri-row {
+  width: 44px;
+}
+.ri-row svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--ink-dim);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ri-row span {
+  line-height: 1.25;
+  padding: 10px 0;
+}
+.rowindex.closed .ri-row span {
+  display: none;
+}
+.ri-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+}
+.ri-row.cur {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--ink);
+}
+.ri-row.cur svg {
+  stroke: var(--gold);
+}
+.ri-row.cur::before {
+  /* the gold bar, with its soft glow */
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 4px;
+  background: var(--gold);
+  box-shadow: 0 0 0 6px rgba(240, 196, 74, 0.14);
+}
+.rowindex.closed .ri-row.cur::before {
+  left: -2px;
+}
+
+/* ---- shelves ---- */
+.shelf {
+  scroll-margin-top: 72px;
+}
+.shelf .head span {
+  cursor: pointer;
+}
+.shelf .head span:hover,
+.shelf .head span:hover b {
+  color: var(--gold);
+}
+
+/* TrendingTop10: 212 high strip, 30px between entries */
+.ranks {
+  display: flex;
+  gap: 30px;
+  height: 212px;
+  padding-left: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.rank {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  height: 212px;
+  cursor: pointer;
+}
+.rank b {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 132px;
+  line-height: 0.82;
+  color: rgba(255, 255, 255, 0.16);
+  margin-bottom: -8px;
+}
+/* PortraitTile: 132x196, radius 12, caption inside at 9px */
+.ptile {
+  position: relative;
+  flex: none;
+  width: 132px;
+  height: 196px;
+  margin-left: -32px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(90deg, #444, #111);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.28), 0 7px 0 2px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.22s;
+}
+.ptile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ptile::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+}
+.ptile span {
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  bottom: 9px;
+  z-index: 1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank:hover .ptile {
+  border: 2px solid rgba(240, 196, 74, 0.55);
+}
+
+/* GenreMosaic: five columns, 16px gaps, 112 high, radius 14 */
+.mosaic {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+.genre {
+  position: relative;
+  height: 112px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--edge);
+  cursor: pointer;
+}
+.genre img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+.genre::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.46);
+}
+.genre strong {
+  position: absolute;
+  left: 13px;
+  bottom: 13px;
+  z-index: 1;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16px;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}
+.genre em {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 1;
+  font-style: normal;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.82);
+}
+.genre:hover {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+/* The pinned tab bar is the glass pill alone, as in the app (WorldTabBar docked): no band behind it. */
+.tabslot {
+  background: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  pointer-events: none;
+}
+.tabslot .tabs {
+  pointer-events: auto;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Theatre: TheatreCatalogPage (gallery profile, 46px between shelves) ---- */
+.catmain.theatre {
+  gap: 46px;
+}
+.customise,
+.explorehead span {
+  font: 600 13px var(--ui);
+  color: var(--ink-dim);
+}
+.customise {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: -22px; /* the app gives this line 24px, then the first shelf follows */
+}
+.customise span,
+.explorehead span {
+  cursor: pointer;
+}
+.customise span:hover,
+.explorehead span:hover {
+  color: var(--ink);
+}
+.catmain.theatre .head {
+  margin-bottom: 18px; /* gallery headerGap */
+}
+/* PosterRail */
+.posters {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding-top: 8px;
+  margin-top: -8px;
+}
+.pcard {
+  position: relative;
+  flex: none;
+  width: 148px;
+  cursor: pointer;
+}
+.pcov {
+  position: relative;
+  width: 148px;
+  height: 222px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  transition: transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.pcov img,
+.bcov img,
+.fcovers img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pcard p {
+  margin-top: 10px;
+  min-height: 35px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pcard:hover .pcov {
+  transform: translateY(-7px);
+  box-shadow: 0 0 0 2px var(--gold);
+}
+.posters.ranked {
+  gap: 30px;
+  padding-left: 6px;
+}
+.posters.ranked .pcard {
+  width: auto;
+  display: grid;
+  grid-template-columns: auto 148px;
+  align-items: end;
+}
+.posters.ranked .pcard b {
+  grid-row: 1;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 132px;
+  line-height: 0.82;
+  color: rgba(255, 255, 255, 0.16);
+  margin: 0 -32px -8px 0;
+}
+.posters.ranked .pcard p {
+  grid-column: 2;
+}
+
+/* ---- Biblio: BiblioExplorePage (28px between rows) and BiblioBookRail ---- */
+.catmain.biblio {
+  gap: 28px;
+}
+.explorehead {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.explorehead h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 26px;
+}
+.bhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.bhead h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 20px;
+}
+.bhead span {
+  font: 600 13px var(--ui);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.bhead span:hover {
+  color: var(--gold);
+}
+.books {
+  display: flex;
+  gap: 16px;
+  height: 218px;
+  padding-left: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.bcard {
+  position: relative;
+  flex: none;
+  width: 130px;
+  cursor: pointer;
+}
+.bcov {
+  position: relative;
+  width: 130px;
+  height: 182px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1b1b22;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.bcard p {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bcard small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bcard:hover .bcov {
+  box-shadow: inset 0 0 0 2px rgba(240, 196, 74, 0.55);
+}
+.books.ranked {
+  gap: 26px;
+  height: 236px;
+  padding-left: 30px;
+}
+.books.ranked .bcard b {
+  /* BiblioBookRail: behind the cover, 28px proud of its left edge, 6px below its foot */
+  position: absolute;
+  left: -28px;
+  top: 96px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 92px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.16);
+}
+.books.ranked .bcov {
+  z-index: 1;
+}
+/* the three facet tiles close the page, 20px apart */
+.shelf.facet {
+  position: relative;
+  height: 168px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  cursor: pointer;
+}
+.shelf.facet + .shelf.facet {
+  margin-top: -8px;
+}
+.fcovers {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 14px;
+  height: 132px;
+  display: flex;
+  gap: 8px;
+}
+.fcovers div {
+  position: relative;
+  flex: none;
+  width: 88px;
+  height: 132px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1b1b22;
+}
+.shelf.facet strong {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 18px;
+}
+.shelf.facet:hover {
+  border-color: var(--gold);
+}

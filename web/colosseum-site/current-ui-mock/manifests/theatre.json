@@ -1,0 +1,901 @@
+{
+  "group": "theatre",
+  "routes": [
+    {
+      "id": "theatre.detail",
+      "file": "demos/theatre-series.html",
+      "title": "Theatre \u00b7 default title",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {},
+      "sources": ["qml/TheatreSeries.qml"],
+      "states": [
+        {
+          "id": "movie",
+          "params": {
+            "type": "movie",
+            "title": "Dune: Part Two"
+          },
+          "expect": "Movie metadata and source launch"
+        },
+        {
+          "id": "series",
+          "params": {},
+          "expect": "Seasons, episode list, watched state"
+        },
+        {
+          "id": "anime",
+          "params": {
+            "type": "anime",
+            "title": "One Piece"
+          },
+          "expect": "Absolute / Seasons and episode jump"
+        },
+        {
+          "id": "specials",
+          "params": {
+            "season": 0
+          },
+          "expect": "Special episode"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Metadata error and Retry"
+        },
+        {
+          "id": "watched",
+          "params": {
+            "watched": true
+          },
+          "expect": "Source-native watched markers; no invented manual watched action"
+        },
+        {
+          "id": "many-seasons",
+          "params": {
+            "seasonCount": 12,
+            "rebuilt": false
+          },
+          "expect": "Choose season dropdown replaces overflowing pills; keyboard can select Season 12 or Specials."
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=watch]",
+          "expect": "Source picker visible"
+        },
+        {
+          "selector": "[data-action=library]",
+          "expect": "Removal options and Cancel"
+        },
+        {
+          "selector": "[data-action=season]",
+          "expect": "Episode season changes"
+        },
+        {
+          "selector": "[data-action=season-picker]",
+          "expect": "12 seasons plus Specials in source-shaped scrollable menu; Esc restores focus."
+        }
+      ]
+    },
+    {
+      "id": "theatre.rebuilt",
+      "file": "demos/theatre-series.html",
+      "title": "Theatre \u00b7 rebuilt (opt-in)",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {
+        "rebuilt": true
+      },
+      "sources": ["qml/TheatreSeriesView.qml"],
+      "states": [
+        {
+          "id": "anime",
+          "params": {
+            "rebuilt": true,
+            "type": "anime"
+          },
+          "expect": "Rebuilt anime ledger"
+        },
+        {
+          "id": "movie",
+          "params": {
+            "rebuilt": true,
+            "type": "movie"
+          },
+          "expect": "Rebuilt movie hero"
+        },
+        {
+          "id": "many-seasons",
+          "params": {
+            "seasonCount": 12,
+            "rebuilt": true
+          },
+          "expect": "Choose season dropdown replaces overflowing pills; keyboard can select Season 12 or Specials."
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=watch]",
+          "expect": "Source picker visible"
+        },
+        {
+          "selector": "[data-action=next-up-jump]",
+          "expect": "Scroll to next episode"
+        },
+        {
+          "selector": ".tu-ledger-jump",
+          "expect": "Enter episode number and jump with Enter"
+        },
+        {
+          "selector": "[data-action=season-picker]",
+          "expect": "12 seasons plus Specials in source-shaped scrollable menu; Esc restores focus."
+        }
+      ]
+    },
+    {
+      "id": "theatre.sources",
+      "file": "demos/theatre-sources.html",
+      "title": "Sources",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {},
+      "sources": ["qml/SourcesSheet.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {
+            "state": "ready"
+          },
+          "expect": "Fixture sources and quality/provider filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Finding sources and fixture continuation"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "No sources and Retry"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Source error and Retry"
+        },
+        {
+          "id": "disabled",
+          "params": {
+            "state": "disabled"
+          },
+          "expect": "No enabled extensions"
+        },
+        {
+          "id": "download",
+          "params": {
+            "mode": "download"
+          },
+          "expect": "Download mode"
+        },
+        {
+          "id": "season",
+          "params": {
+            "mode": "season"
+          },
+          "expect": "Full-season source mode"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=provider-filter]",
+          "expect": "Extension selector"
+        },
+        {
+          "selector": "[data-action=quality-1080p]",
+          "expect": "Only matching quality rows"
+        },
+        {
+          "selector": "[data-action=source-pick]",
+          "expect": "Source fixture selection"
+        }
+      ]
+    },
+    {
+      "id": "player.video",
+      "file": "demos/video-player.html",
+      "title": "Video \u00b7 default player",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {},
+      "sources": [
+        "qml/PlayerPage.qml",
+        "qml/SubtitleMenu.qml",
+        "qml/AudioMenu.qml",
+        "qml/SubStyleBar.qml",
+        "qml/PlayerHotkeys.js",
+        "qml/BrowserDrawer.qml"
+      ],
+      "states": [
+        {
+          "id": "resume",
+          "params": {
+            "state": "resume"
+          },
+          "expect": "Resume / Start over"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Opening stream"
+        },
+        {
+          "id": "buffering",
+          "params": {
+            "state": "buffering"
+          },
+          "expect": "Buffering / Continue fixture"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Playback failed / Retry / stream picker"
+        },
+        {
+          "id": "upnext",
+          "params": {
+            "state": "upnext"
+          },
+          "expect": "Countdown / Cancel / Play now"
+        },
+        {
+          "id": "subtitles",
+          "params": {
+            "menu": "subtitles"
+          },
+          "expect": "subtitles panel"
+        },
+        {
+          "id": "audio",
+          "params": {
+            "menu": "audio"
+          },
+          "expect": "audio panel"
+        },
+        {
+          "id": "speed",
+          "params": {
+            "menu": "speed"
+          },
+          "expect": "speed panel"
+        },
+        {
+          "id": "more",
+          "params": {
+            "menu": "more"
+          },
+          "expect": "more panel"
+        },
+        {
+          "id": "stats",
+          "params": {
+            "menu": "stats"
+          },
+          "expect": "stats panel"
+        },
+        {
+          "id": "episodes",
+          "params": {
+            "menu": "episodes"
+          },
+          "expect": "episodes panel"
+        },
+        {
+          "id": "live",
+          "params": {
+            "live": true,
+            "menu": "live"
+          },
+          "expect": "Live guide fixture"
+        },
+        {
+          "id": "sources",
+          "params": {
+            "menu": "sources",
+            "live": false
+          },
+          "expect": "sources panel"
+        },
+        {
+          "id": "gif",
+          "params": {
+            "menu": "gif",
+            "live": false
+          },
+          "expect": "gif panel"
+        },
+        {
+          "id": "capture",
+          "params": {
+            "menu": "capture",
+            "live": false
+          },
+          "expect": "capture panel"
+        },
+        {
+          "id": "dvr",
+          "params": {
+            "menu": "dvr",
+            "live": true
+          },
+          "expect": "dvr panel"
+        },
+        {
+          "id": "shortcuts",
+          "params": {
+            "menu": "shortcuts",
+            "live": false
+          },
+          "expect": "shortcuts panel"
+        },
+        {
+          "id": "aspect",
+          "params": {
+            "menu": "aspect",
+            "live": false
+          },
+          "expect": "aspect panel"
+        },
+        {
+          "id": "episode-drawer",
+          "params": {
+            "menu": "episodes",
+            "title": "The Bear"
+          },
+          "expect": "Episode/source tabs and season pills in right drawer"
+        },
+        {
+          "id": "local-file",
+          "params": {
+            "menu": "sources",
+            "local": true
+          },
+          "expect": "No live sources for downloaded file"
+        },
+        {
+          "id": "skip-intro",
+          "params": {
+            "skipSegment": "intro"
+          },
+          "expect": "Conditional Skip Intro pill seeks past segment with source safety offset."
+        },
+        {
+          "id": "skip-recap",
+          "params": {
+            "skipSegment": "recap"
+          },
+          "expect": "Conditional Skip Recap pill seeks past segment with source safety offset."
+        },
+        {
+          "id": "skip-credits",
+          "params": {
+            "skipSegment": "credits"
+          },
+          "expect": "Conditional Skip Credits pill seeks past segment with source safety offset."
+        },
+        {
+          "id": "skip-upnext-priority",
+          "params": {
+            "skipSegment": "intro",
+            "state": "upnext"
+          },
+          "expect": "Up Next hides Skip pill; Cancel restores it while still inside segment."
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=play-pause]",
+          "expect": "Paused / Playing fixture"
+        },
+        {
+          "selector": "[data-action=seek]",
+          "expect": "Position changes"
+        },
+        {
+          "selector": "[data-action=captions]",
+          "expect": "Subtitle tracks, filters, appearance and delay"
+        },
+        {
+          "selector": "[data-action=speed]",
+          "expect": "Speed, sleep, skip step"
+        },
+        {
+          "selector": "[data-action=watch-party]",
+          "expect": "Watch Party panel"
+        },
+        {
+          "selector": "[data-action=close]",
+          "expect": "End session confirmation"
+        },
+        {
+          "selector": "[data-action=skip-segment]",
+          "expect": "Seek to segment end +0.75s, bounded by duration -0.25s; pill dismisses."
+        },
+        {
+          "selector": "body",
+          "keyboard": "Hold Space 400ms, release",
+          "expect": "Temporary 2x (or prior higher speed), restored on release without changing paused state."
+        },
+        {
+          "selector": "body",
+          "keyboard": "F11",
+          "expect": "Staged fullscreen toggles; OS window unchanged."
+        }
+      ]
+    },
+    {
+      "id": "player.experimental",
+      "file": "demos/video-player.html",
+      "title": "Player2 \u00b7 experimental",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {
+        "experimental": true
+      },
+      "sources": [
+        "qml/player2/Player2Shell.qml",
+        "qml/player2/controls/TransportBar.qml",
+        "qml/player2/controls/TrackMenu.qml",
+        "qml/player2/controls/OverflowMenu.qml",
+        "qml/player2/controls/SourceDrawer.qml",
+        "qml/player2/controls/EpisodeBrowser.qml"
+      ],
+      "states": [
+        {
+          "id": "tracks",
+          "params": {
+            "experimental": true,
+            "menu": "subtitles"
+          },
+          "expect": "Experimental player with track controls"
+        },
+        {
+          "id": "speed",
+          "params": {
+            "experimental": true,
+            "menu": "speed"
+          },
+          "expect": "Player2 source-specific speed"
+        },
+        {
+          "id": "more",
+          "params": {
+            "experimental": true,
+            "menu": "more"
+          },
+          "expect": "Player2 source-specific more"
+        },
+        {
+          "id": "sources",
+          "params": {
+            "experimental": true,
+            "menu": "sources"
+          },
+          "expect": "Player2 source-specific sources"
+        },
+        {
+          "id": "series",
+          "params": {
+            "experimental": true,
+            "title": "The Bear",
+            "episode": 2
+          },
+          "expect": "Conditional previous/next episode controls"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=play-pause]",
+          "expect": "Fixture play/pause"
+        },
+        {
+          "selector": "body",
+          "keyboard": "F",
+          "expect": "Staged fullscreen toggles; OS window unchanged."
+        }
+      ]
+    },
+    {
+      "id": "watchparty.create",
+      "file": "demos/theatre-watchparty.html",
+      "title": "Watch Party \u00b7 local fixture",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {},
+      "sources": ["qml/WatchPartyPanel.qml", "qml/WatchPartyJoinSheet.qml"],
+      "states": [
+        {
+          "id": "host",
+          "params": {
+            "state": "host"
+          },
+          "expect": "host room state"
+        },
+        {
+          "id": "participant",
+          "params": {
+            "state": "participant"
+          },
+          "expect": "participant room state"
+        },
+        {
+          "id": "shared",
+          "params": {
+            "state": "shared"
+          },
+          "expect": "shared room state"
+        },
+        {
+          "id": "source-required",
+          "params": {
+            "state": "source-required"
+          },
+          "expect": "source-required room state"
+        },
+        {
+          "id": "mismatch",
+          "params": {
+            "state": "mismatch"
+          },
+          "expect": "mismatch room state"
+        },
+        {
+          "id": "desynced",
+          "params": {
+            "state": "desynced"
+          },
+          "expect": "desynced room state"
+        },
+        {
+          "id": "reconnecting",
+          "params": {
+            "state": "reconnecting"
+          },
+          "expect": "reconnecting room state"
+        },
+        {
+          "id": "host-grace",
+          "params": {
+            "state": "host-grace"
+          },
+          "expect": "host-grace room state"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "state": "unavailable"
+          },
+          "expect": "unavailable room state"
+        },
+        {
+          "id": "signedout",
+          "params": {
+            "state": "signedout"
+          },
+          "expect": "signedout room state"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "error room state"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=party-start]",
+          "expect": "Host room fixture"
+        },
+        {
+          "selector": "[data-action=party-join]",
+          "expect": "Join room sheet"
+        }
+      ]
+    },
+    {
+      "id": "watchparty.join",
+      "file": "demos/theatre-watchparty.html",
+      "title": "Watch Party \u00b7 local fixture",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {
+        "join": true
+      },
+      "sources": ["qml/WatchPartyPanel.qml", "qml/WatchPartyJoinSheet.qml"],
+      "states": [
+        {
+          "id": "form",
+          "params": {
+            "join": true
+          },
+          "expect": "Room ID, guest name, privacy facts and join validation"
+        },
+        {
+          "id": "joined",
+          "params": {
+            "join": true,
+            "state": "joined"
+          },
+          "expect": "Joined room source-readiness card with Close and Leave"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "join": true,
+            "state": "unavailable"
+          },
+          "expect": "Service unavailable status and disabled join"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=party-start]",
+          "expect": "Host room fixture"
+        },
+        {
+          "selector": "[data-action=party-join]",
+          "expect": "Join room sheet"
+        }
+      ]
+    },
+    {
+      "id": "watchparty.room",
+      "file": "demos/theatre-watchparty.html",
+      "title": "Watch Party \u00b7 local fixture",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {
+        "state": "host"
+      },
+      "sources": ["qml/WatchPartyPanel.qml", "qml/WatchPartyJoinSheet.qml"],
+      "states": [
+        {
+          "id": "host",
+          "params": {
+            "state": "host"
+          },
+          "expect": "host room state"
+        },
+        {
+          "id": "participant",
+          "params": {
+            "state": "participant"
+          },
+          "expect": "participant room state"
+        },
+        {
+          "id": "shared",
+          "params": {
+            "state": "shared"
+          },
+          "expect": "shared room state"
+        },
+        {
+          "id": "source-required",
+          "params": {
+            "state": "source-required"
+          },
+          "expect": "source-required room state"
+        },
+        {
+          "id": "mismatch",
+          "params": {
+            "state": "mismatch"
+          },
+          "expect": "mismatch room state"
+        },
+        {
+          "id": "desynced",
+          "params": {
+            "state": "desynced"
+          },
+          "expect": "desynced room state"
+        },
+        {
+          "id": "reconnecting",
+          "params": {
+            "state": "reconnecting"
+          },
+          "expect": "reconnecting room state"
+        },
+        {
+          "id": "host-grace",
+          "params": {
+            "state": "host-grace"
+          },
+          "expect": "host-grace room state"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "state": "unavailable"
+          },
+          "expect": "unavailable room state"
+        },
+        {
+          "id": "signedout",
+          "params": {
+            "state": "signedout"
+          },
+          "expect": "signedout room state"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "error room state"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=party-start]",
+          "expect": "Host room fixture"
+        },
+        {
+          "selector": "[data-action=party-join]",
+          "expect": "Join room sheet"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "id": "theatre.default",
+      "source": "qml/TheatreSeries.qml",
+      "route": "theatre.detail",
+      "status": "implemented",
+      "notes": "Copied baseline hero/facts/ledger retained; source-native season/episode contexts, watched markers, library/removal, notifications, source/download transitions; sticky header verified."
+    },
+    {
+      "id": "theatre.rebuilt",
+      "source": "qml/TheatreSeriesView.qml",
+      "route": "theatre.rebuilt",
+      "status": "implemented",
+      "notes": "Source-specific 60px heading and synopsis in hero, two-column facts, 56px ledger, 96px episode rows, inline order/season pills, Next and Go-to controls. Native virtualization/performance is out of scope."
+    },
+    {
+      "id": "theatre.cast-related",
+      "source": "qml/TheatreSeries.qml",
+      "route": "theatre.detail",
+      "status": "source-inapplicable",
+      "notes": "Pinned default and rebuilt title components do not instantiate a cast or more-like-this section."
+    },
+    {
+      "id": "sources.order",
+      "source": "qml/SourcesSheet.qml:47-53",
+      "route": "theatre.sources",
+      "status": "source-inapplicable",
+      "notes": "Source explicitly preserves extension request order. No user re-sorting exists; none invented."
+    },
+    {
+      "id": "sources.filters",
+      "source": "qml/SourcesSheet.qml",
+      "route": "theatre.sources",
+      "status": "implemented",
+      "notes": "Extension counts and quality filters, all fixture rows, play/download/season selection, copy-reference local state, disabled/loading/error/empty states."
+    },
+    {
+      "id": "player.transport",
+      "source": "qml/PlayerPage.qml",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "Playback clock, seek, volume, mute, tracks, delay, speed, skip step, aspect, A/B, source browser, up-next, resume and close controls use local state."
+    },
+    {
+      "id": "player.subtitles",
+      "source": "qml/SubtitleMenu.qml",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "Embedded/external/language/SDH/forced filters, appearance preview, fixture load-file and find-more results."
+    },
+    {
+      "id": "player.capture",
+      "source": "qml/PlayerPage.qml",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "Screenshot/GIF start-stop-discard and folder responses explicitly fixture; no files generated."
+    },
+    {
+      "id": "player.live",
+      "source": "qml/PlayerPage.qml",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "Conditional live guide/filter/channel, DVR start-stop and jump-to-live fixture controls."
+    },
+    {
+      "id": "player.experimental",
+      "source": "qml/player2/Player2Shell.qml",
+      "route": "player.experimental",
+      "status": "implemented",
+      "notes": "Labeled conditional route with 320px simple track menu, speed-only selector, conditional previous/next episode buttons, four-row overflow menu, no Watch Party, right source/episode drawer. Shares unchanged source HUD geometry with existing Player2-derived baseline."
+    },
+    {
+      "id": "watchparty",
+      "source": "qml/WatchPartyPanel.qml",
+      "route": "watchparty.room",
+      "status": "implemented",
+      "notes": "Create, join validation, host/shared control, participants/chat, leave/end confirmation, mismatch/catch-up and connection states. No network."
+    },
+    {
+      "id": "player.sleep",
+      "source": "qml/PlayerPage.qml",
+      "route": "player.video",
+      "status": "fixture",
+      "notes": "All pinned presets (15/30/45 min, 1/2/3/4/6 hours, end current/next episode, cancel) and selected state exist; native sleep/power management is not executed."
+    },
+    {
+      "id": "player.substylebar",
+      "source": "qml/SubtitleMenu.qml:141; qml/PlayerPage.qml:5859",
+      "route": "player.video",
+      "status": "source-inapplicable",
+      "notes": "SubStyleBar is instantiated behind onStyleRequested, but current SubtitleMenu declares styleRequested without emitting it. The reachable unified subtitle appearance panel is implemented; no new trigger was invented for the dormant bar."
+    },
+    {
+      "id": "player.hold-space",
+      "source": "qml/PlayerPage.qml:3257-3265,3911-3919,4005-4018",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "350ms press threshold; short release toggles playback; hold sets max(2, prior speed); release restores prior speed without toggling. Keyboard auto-repeat is ignored; blur cancels safely."
+    },
+    {
+      "id": "player.skip-segment",
+      "source": "qml/PlayerPage.qml:2873-2898,5053-5098",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "Source-shaped 42px monochrome intro/recap/credits pill; visible only in active segment with controls/settings enabled; yields to Up Next and excludes live. Click/Enter seeks to min(duration - .25, segment end + .75) and dismisses that segment."
+    },
+    {
+      "id": "player.window-hotkeys",
+      "source": "qml/Main.qml:205-211; qml/player2/Player2Shell.qml:560-561",
+      "route": "player.video",
+      "status": "implemented",
+      "notes": "Application-style F11 works in default/experimental player even over local menus. Player2 F toggles the same staged fullscreen state. Button aria-pressed/name and feedback reflect the state; OS window unchanged."
+    },
+    {
+      "id": "theatre.many-seasons",
+      "source": "qml/TheatreSeries.qml:1817-1933; qml/TheatreSeriesView.qml:1800-1905",
+      "route": "theatre.detail",
+      "status": "implemented",
+      "notes": "12-season fixture plus Specials replaces pills with authored 236px-wide, 304px-max-height menu. 36px options, active color, arrows/Home/End, Enter/Space, outside/Esc close and focus restore. Menu flips above when below would clip."
+    },
+    {
+      "id": "theatre.catalogue-context",
+      "source": "shared/catalog.js integration contract; qml/TheatreSeries.qml",
+      "route": "theatre.detail",
+      "status": "implemented",
+      "notes": "Normalizes plural catalogue movies/shows; preserves selected id/title/local artwork/year/genre/rating/synopsis/runtime through source and player. Verified through integrated catalogue clicks for Oppenheimer and Severance in both engines, plus explicit custom metadata."
+    }
+  ],
+  "limitations": [
+    "Native playback, torrents, provider fetching, synchronization, clipboard, filesystem capture, file picker, PiP, system fullscreen, power/sleep and external service mutations are local UI fixtures only.",
+    "Series/anime still artwork is not bundled: Colosseum wallpaper is visibly used; movie/player uses bundled Dune poster. No video or real chapter media is fabricated.",
+    "Episode data beyond supplied metadata is fixture content, including Specials.",
+    "Exact native Qt font enumeration, graphics decoding, thumbnail extraction, system browser window modes, clipboard/file writes and remote party/source resolution are represented with explicit fixtures.",
+    "Title state uses finite fixtures (four seasons normally, twelve in the dropdown fixture; absolute anime has 100 episodes). Native thousands-of-rows virtualization is not reproduced.",
+    "Source-specific UI was reconciled by QML inspection and browser screenshot review; native application reference screenshots were not available for pixel-diff scoring."
+  ]
+}

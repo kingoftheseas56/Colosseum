@@ -1,0 +1,494 @@
+/* Current source dimensions retain the inherited board/hero/card composition. */
+html,
+body {
+  width: 100%;
+  height: 100%;
+  min-width: 720px;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #ffffff26;
+  background: #ffffff0c;
+  padding: 8px 14px;
+  border-radius: 12px;
+}
+button:hover {
+  background: #ffffff20;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #bfa25580 #ffffff08;
+}
+input,
+select {
+  background: #18191fe6;
+  border: 1px solid #ffffff35;
+  padding: 12px;
+  border-radius: 8px;
+}
+select option {
+  background: #17181e;
+}
+.wall {
+  position: fixed;
+  background-image: url("../assets/extensions/store-jolly-roger.jpg");
+}
+.wall:after {
+  background: linear-gradient(#0405088c, #040508a8 50%, #040508cc);
+}
+.page {
+  inset: 96px 0 0;
+  height: auto;
+  overflow: auto;
+}
+.board {
+  position: relative;
+  left: auto;
+  margin: 0 54px;
+  width: auto;
+  gap: 36px;
+  will-change: auto;
+}
+.topbar {
+  width: auto;
+  right: 54px;
+}
+.topbar > button {
+  font-size: 32px;
+  background: transparent;
+  border: 0;
+  padding: 0 8px;
+}
+.house > .art {
+  pointer-events: none;
+}
+.house {
+  height: 330px;
+}
+.tray {
+  gap: 8px;
+  padding: 0 10px;
+}
+.house-app {
+  width: 12%;
+  max-width: 122px;
+}
+.app-tile {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.app-tile img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+}
+.app-tile[data-house="tributes"] img {
+  width: 48px;
+  height: 48px;
+  filter: brightness(0.3);
+}
+.app-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.app-caption {
+  gap: 5px;
+}
+.name-chip {
+  padding: 0 8px;
+}
+.toggle {
+  padding: 0;
+  flex: none;
+  cursor: pointer;
+  opacity: 1;
+}
+.search {
+  cursor: pointer;
+}
+.rail-window {
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+.cards {
+  width: max-content;
+  transform: none !important;
+}
+.addon {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  height: 299px;
+  color: var(--ink);
+  border-radius: 23px;
+}
+.addon:hover {
+  background: transparent;
+}
+.addon:hover .addon-art {
+  border-color: #f0c44a8c;
+}
+.addon:hover .logo-stage {
+  transform: translateY(-4px);
+}
+.logo-stage img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+}
+.install-state {
+  opacity: 1;
+}
+.logo-stage {
+  background: #14151aa6;
+}
+.seeall {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 4px;
+}
+.footer {
+  padding-bottom: 24px;
+}
+.section-head {
+  padding: 12px 0 0;
+}
+.section-head h1 {
+  font: 40px var(--display);
+  margin: 12px 0;
+}
+.section-head p {
+  margin: 10px 0;
+  color: var(--dimmer);
+}
+.section-head .searchbox {
+  font: 40px var(--display);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #ffffff40;
+  border-radius: 0;
+  width: min(850px, 90%);
+  padding: 12px 0;
+}
+.searchline {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.addon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 34px 22px;
+}
+.addon-grid .addon {
+  width: 100%;
+}
+.addon-grid .addon-art {
+  height: auto;
+  aspect-ratio: 365/220;
+}
+.addon-grid .logo-stage {
+  top: calc(50% - 56px);
+}
+.empty {
+  padding: 40px 0;
+  color: var(--dim);
+}
+.status {
+  color: #e8c283;
+  padding: 14px 0;
+}
+.config-hero {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 26px;
+  background: #ffffff08;
+  border: 1px solid #ffffff25;
+  border-radius: 22px;
+}
+.config-hero img {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+}
+.config-hero h1 {
+  font: 36px var(--display);
+  margin: 8px 0;
+}
+.config-hero p {
+  max-width: 780px;
+  color: var(--dim);
+  line-height: 1.55;
+}
+.config-hero small {
+  font-size: 11px;
+  letter-spacing: 1.7px;
+  color: var(--dimmer);
+}
+.config-hero > button {
+  margin-left: auto;
+}
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-top: -15px;
+}
+.tabs .selected,
+.primary {
+  background: var(--gold);
+  color: #181408;
+  border-color: var(--gold);
+}
+.config-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  margin-top: -15px;
+}
+.panel {
+  border: 1px solid #ffffff20;
+  background: #11131aa6;
+  border-radius: 18px;
+  padding: 24px;
+}
+.panel h2 {
+  font: 24px var(--display);
+  margin-bottom: 8px;
+}
+.panel p {
+  color: var(--dim);
+  line-height: 1.55;
+  font-size: 13px;
+}
+.lang {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  text-align: left;
+}
+.lang.selected {
+  border-color: var(--gold);
+  background: #f0c44a12;
+}
+.lang small {
+  font-size: 10px;
+  color: var(--dimmer);
+}
+.default-lang {
+  display: block;
+  margin-top: 22px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.default-lang select {
+  width: 100%;
+  margin-top: 10px;
+}
+.ladder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0;
+}
+.ladder-head small {
+  color: var(--dimmer);
+  font-size: 12px;
+}
+.provider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #ffffff16;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 10px 0;
+}
+.provider > .rank {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  border: 1px solid #f0c44a40;
+  border-radius: 50%;
+  flex: none;
+}
+.provider img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.provider .info {
+  flex: 1;
+  min-width: 0;
+}
+.provider .info small {
+  display: block;
+  color: var(--dimmer);
+  margin-top: 5px;
+}
+.provider button {
+  padding: 6px 10px;
+}
+.provider .enabled {
+  color: #81db9c;
+}
+.about p {
+  max-width: 820px;
+  font-size: 16px;
+  margin: 14px 0;
+}
+.behavior {
+  display: flex;
+  gap: 28px;
+}
+.behavior > div {
+  flex: 1;
+}
+.behavior strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--dimmer);
+}
+.behavior p {
+  margin-top: 6px;
+}
+dialog {
+  color: var(--ink);
+  background: #111217;
+  border: 1px solid #ffffff33;
+  border-radius: 22px;
+  width: min(1080px, calc(100% - 64px));
+  max-height: calc(100% - 64px);
+  padding: 0;
+  margin: auto;
+  box-shadow: 0 24px 90px #0009;
+}
+dialog::backdrop {
+  background: #0009;
+  backdrop-filter: blur(10px);
+}
+.setup-head {
+  display: flex;
+  align-items: center;
+  padding: 22px 26px;
+  border-bottom: 1px solid #ffffff1c;
+  gap: 15px;
+}
+.setup-head img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.setup-head h2 {
+  font: 25px var(--display);
+}
+.setup-head button {
+  margin-left: auto;
+}
+.setup-content {
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 18px;
+  text-align: center;
+  padding: 30px;
+}
+.setup-content h3 {
+  font: 24px var(--display);
+}
+.setup-content p {
+  max-width: 630px;
+  color: var(--dim);
+  line-height: 1.6;
+}
+.setup-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 26px;
+  background: #0b0c11;
+  flex-wrap: wrap;
+}
+.setup-foot label {
+  font-size: 13px;
+  color: var(--dimmer);
+}
+.setup-foot input {
+  flex: 1;
+  min-width: 260px;
+}
+.setup-status {
+  padding: 0 26px 15px;
+  color: #e9bf70;
+  min-height: 30px;
+}
+.busy {
+  opacity: 0.65;
+}
+@media (max-width: 1000px) {
+  .board {
+    margin: 0 32px;
+  }
+  .topbar {
+    left: 32px;
+    right: 32px;
+  }
+  .tray {
+    gap: 4px;
+    left: 2%;
+    right: 2%;
+  }
+  .app-tile {
+    width: 65px;
+    height: 65px;
+  }
+  .name-chip {
+    font-size: 9px;
+    max-width: 85px;
+  }
+  .toggle {
+    width: 22px;
+    height: 22px;
+  }
+  .config-grid {
+    grid-template-columns: 230px 1fr;
+  }
+  .addon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .provider {
+    gap: 8px;
+    padding: 10px;
+  }
+  .provider img {
+    display: none;
+  }
+}
+.app-tile img {
+  width: 58%;
+  height: 58%;
+}

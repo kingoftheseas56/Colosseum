@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Watch Party: two seats facing one screen. -->
+  <rect x="3.5" y="2.8" width="17" height="6" rx="1.4"/>
+  <circle cx="8.3" cy="13.4" r="2.1"/>
+  <circle cx="15.7" cy="13.4" r="2.1"/>
+  <path d="M4.6 21c0-2.1 1.6-3.7 3.7-3.7S12 18.9 12 21"/>
+  <path d="M12 21c0-2.1 1.6-3.7 3.7-3.7s3.7 1.6 3.7 3.7"/>
+</svg>

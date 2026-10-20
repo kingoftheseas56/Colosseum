@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Biblio · Explore</title>
+    <link rel="stylesheet" href="book-ui.css" />
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/Fraunces-Regular.ttf");
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #101116;
+      }
+      button {
+        color: #f7f7f5;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="book-explore">
+      <header>
+        <h1>Explore</h1>
+        <button data-action="customize">Customize shelves</button>
+      </header>
+      <nav>
+        <button data-action="discover">Discover</button
+        ><button class="gold">Explore</button
+        ><button data-action="library">Library</button>
+      </nav>
+      <div id="rows"></div>
+      <div class="mosaics">
+        <button data-facet="literary-fiction">Fiction</button
+        ><button data-facet="nonfiction">Nonfiction</button
+        ><button data-facet="young-adult">Audience</button>
+      </div>
+      <p class="book-ui-notice">
+        Local catalogue fixtures · shelf preferences are staged in this mock
+        session.
+      </p>
+    </main>
+    <script src="../shared/mock-runtime.js"></script>
+    <script>
+      (() => {
+        const M = MockUI,
+          P = M.params || {},
+          $ = (s) => document.querySelector(s);
+        let editing = false,
+          rows = M.get("biblio.explore.rows", [
+            { key: "top-10", title: "Top 10", hidden: false },
+            { key: "popular", title: "Popular", hidden: false },
+            { key: "top-rated", title: "Top Rated", hidden: false },
+            { key: "new-releases", title: "New Releases", hidden: false },
+            { key: "trending", title: "Trending", hidden: false },
+            { key: "most-read", title: "Most Read", hidden: false },
+            { key: "classics", title: "Classics", hidden: false },
+          ]);
+        const extension = {
+          key: "ext:fixture://book-catalogue|book|recent",
+          title: "Sample Book Catalogue",
+          hidden: false,
+          kind: "extension",
+          catalogId: "fixture://book-catalogue|book|recent",
+          transportUrl: "fixture://book-catalogue",
+          extCatalogId: "recent",
+          addonName: "Sample Book Catalogue",
+        };
+        rows = rows.map((r) =>
+          r.key === "top10" ? { ...r, key: "top-10" } : r,
+        );
+        if (
+          !rows.some((r) => r.kind === "extension") &&
+          !["empty", "error", "disabled"].includes(P.extensionState)
+        )
+          rows.splice(1, 0, extension);
+        if (["empty", "error", "disabled"].includes(P.extensionState))
+          rows = rows.filter((r) => r.kind !== "extension");
+        const books = [
+          { title: "Dune", author: "Frank Herbert", cover: "dune-book.jpg" },
+          {
+            title: "Project Hail Mary",
+            author: "Andy Weir",
+            cover: "phm-cover.jpg",
+          },
+        ];
+        function render() {
+          $("#rows").innerHTML =
+            P.state === "empty"
+              ? "<h2>No books here yet</h2><p>Explore another category to find a book.</p>"
+              : P.state === "error"
+                ? '<h2>Could not load shelves</h2><button data-action="retry">Retry</button>'
+                : rows
+                    .map((r, i) =>
+                      !editing && r.hidden
+                        ? ""
+                        : `<section data-kind="${r.kind || "builtin"}" data-row="${i}" draggable="${editing}"><div class="rail-title"><h2>${r.title}</h2>${editing ? `<div class="edit-controls"><span aria-label="Drag shelf">⠿</span><button data-up="${i}" ${i === 0 ? "disabled" : ""} aria-label="Move ${r.title} up">▲</button><button data-down="${i}" ${i === rows.length - 1 ? "disabled" : ""} aria-label="Move ${r.title} down">▼</button><button data-hide="${i}">${r.hidden ? "Show" : "Hide"}</button></div>` : `<button data-see="${i}">See all</button>`}</div><div class="shelf" style="opacity:${r.hidden ? 0.35 : 1}">${r.kind === "extension" && P.extensionState === "loading" ? Array.from({ length: 6 }, () => '<div class="book-skeleton" aria-label="Loading book"></div>').join("") : books.map((b, j) => `<button class="book" data-book="${j}">${r.key === "top-10" ? `<span class="rank">${j + 1}</span>` : ""}<img src="../assets/feria/assets/${b.cover}" alt="${b.title} cover">${r.kind === "extension" ? '<span class="book-source">Sample catalogue</span>' : ""}<b>${b.title}</b><small>${b.author}</small></button>`).join("")}</div></section>`,
+                    )
+                    .join("");
+          document
+            .querySelectorAll("[data-book]")
+            .forEach(
+              (b) =>
+                (b.onclick = () =>
+                  M.go("book.detail", {
+                    id: "biblio-" + b.dataset.book,
+                    title: books[+b.dataset.book].title,
+                    book: +b.dataset.book === 1 ? "phm" : "dune",
+                  })),
+            );
+          document.querySelectorAll("[data-see]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                let r = rows[+b.dataset.see],
+                  pin = {
+                    type: "book",
+                    catalogId: r.key === "top-10" ? "popular" : r.key,
+                    sourceKind:
+                      r.kind === "extension" ? "extension" : "builtin",
+                    filterGroup: "",
+                    filterKey: "",
+                  };
+                if (r.kind === "extension")
+                  Object.assign(pin, {
+                    catalogId: r.catalogId,
+                    extensionId: r.catalogId,
+                    transportUrl: r.transportUrl,
+                    extCatalogId: r.extCatalogId,
+                    addonName: r.addonName,
+                  });
+                M.set("biblio.discover.pin", pin);
+                M.go("discover.biblio", { catalogId: pin.catalogId, pin });
+              }),
+          );
+          document.querySelectorAll("[data-up],[data-down]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                let i = +(b.dataset.up ?? b.dataset.down),
+                  j = i + (b.dataset.up !== undefined ? -1 : 1);
+                [rows[i], rows[j]] = [rows[j], rows[i]];
+                save();
+              }),
+          );
+          document.querySelectorAll("[data-hide]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                rows[+b.dataset.hide].hidden = !rows[+b.dataset.hide].hidden;
+                save();
+              }),
+          );
+          $("[data-action=retry]")?.addEventListener("click", () =>
+            M.go("biblio.explore", {}),
+          );
+        }
+        let drag = null;
+        document.addEventListener("dragstart", (e) => {
+          let row = e.target.closest("[data-row]");
+          if (editing && row) drag = +row.dataset.row;
+        });
+        document.addEventListener("dragover", (e) => {
+          if (editing) e.preventDefault();
+        });
+        document.addEventListener("drop", (e) => {
+          let row = e.target.closest("[data-row]");
+          if (editing && row && drag !== null) {
+            e.preventDefault();
+            let dest = +row.dataset.row,
+              item = rows.splice(drag, 1)[0];
+            rows.splice(dest, 0, item);
+            drag = null;
+            save();
+          }
+        });
+        function save() {
+          M.set("biblio.explore.rows", rows);
+          render();
+        }
+        $("[data-action=customize]").onclick = (e) => {
+          editing = !editing;
+          e.target.textContent = editing ? "Done" : "Customize shelves";
+          render();
+        };
+        $("[data-action=discover]").onclick = () => M.go("world.biblio", {});
+        $("[data-action=library]").onclick = () => M.go("library.biblio", {});
+        document
+          .querySelectorAll("[data-facet]")
+          .forEach(
+            (b) =>
+              (b.onclick = () =>
+                M.go("discover.biblio", {
+                  axis:
+                    b.dataset.facet === "young-adult" ? "audience" : "genre",
+                  facet: b.dataset.facet,
+                })),
+          );
+        document.querySelectorAll("[data-facet]").forEach((b) => {
+          let title = b.textContent;
+          b.innerHTML =
+            '<span class="mosaic-covers">' +
+            books
+              .map(
+                (x) =>
+                  '<img src="../assets/feria/assets/' + x.cover + '" alt="">',
+              )
+              .join("") +
+            '</span><span class="mosaic-label">' +
+            title +
+            "</span>";
+        });
+        render();
+        if (P.section === "extensions")
+          document
+            .querySelector("[data-kind=extension]")
+            ?.scrollIntoView({ block: "start" });
+        M.ready();
+      })();
+    </script>
+  </body>
+</html>

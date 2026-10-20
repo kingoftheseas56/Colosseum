@@ -1,0 +1,700 @@
+{
+  "group": "extensions-feria",
+  "sourcePin": "2916fe85812643c2e0ae45b0aec132cb6eb4e507",
+  "routes": [
+    {
+      "id": "extensions",
+      "file": "demos/extensions.html",
+      "title": "Extensions",
+      "world": "extensions",
+      "chrome": "back",
+      "params": {},
+      "sources": [
+        "qml/ExtensionsStorePage.qml",
+        "qml/ExtensionsHouseHero.qml",
+        "qml/ExtensionsStoreApi.js",
+        "qml/AddonLogos.js"
+      ],
+      "states": [
+        {
+          "id": "offline",
+          "params": {
+            "state": "offline"
+          },
+          "expect": "Offline catalogue and retry"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Opening the Store"
+        },
+        {
+          "id": "install-error",
+          "params": {
+            "state": "install-error"
+          },
+          "expect": "Next fixture install fails visibly"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=search]",
+          "expect": "Store search view"
+        },
+        {
+          "selector": "[data-house=tankoyomi]",
+          "expect": "Tankoyomi configuration"
+        }
+      ]
+    },
+    {
+      "id": "extensions.search",
+      "file": "demos/extensions.html",
+      "title": "Search add-ons",
+      "world": "extensions",
+      "chrome": "back",
+      "params": {
+        "view": "search"
+      },
+      "sources": ["qml/ExtensionsSeeAllPage.qml"],
+      "states": [
+        {
+          "id": "matches",
+          "params": {
+            "view": "search",
+            "q": "anime"
+          },
+          "expect": "Anime results"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "view": "search",
+            "q": "zzzz"
+          },
+          "expect": "No add-on matches"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "extensions.seeall",
+      "file": "demos/extensions.html",
+      "title": "All add-ons",
+      "world": "extensions",
+      "chrome": "back",
+      "params": {
+        "view": "row",
+        "row": 1
+      },
+      "sources": ["qml/ExtensionsSeeAllPage.qml"],
+      "states": [
+        {
+          "id": "rail-0",
+          "params": {
+            "view": "row",
+            "row": 0
+          },
+          "expect": "Essentials"
+        },
+        {
+          "id": "rail-1",
+          "params": {
+            "view": "row",
+            "row": 1
+          },
+          "expect": "Most popular"
+        },
+        {
+          "id": "rail-2",
+          "params": {
+            "view": "row",
+            "row": 2
+          },
+          "expect": "Play sources"
+        },
+        {
+          "id": "rail-3",
+          "params": {
+            "view": "row",
+            "row": 3
+          },
+          "expect": "Something to watch"
+        },
+        {
+          "id": "rail-4",
+          "params": {
+            "view": "row",
+            "row": 4
+          },
+          "expect": "Anime"
+        },
+        {
+          "id": "rail-5",
+          "params": {
+            "view": "row",
+            "row": 5
+          },
+          "expect": "World cinema"
+        },
+        {
+          "id": "rail-6",
+          "params": {
+            "view": "row",
+            "row": 6
+          },
+          "expect": "Subtitles"
+        },
+        {
+          "id": "rail-7",
+          "params": {
+            "view": "row",
+            "row": 7
+          },
+          "expect": "Better titles"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "extensions.setup",
+      "file": "demos/extensions.html",
+      "title": "Set up add-on",
+      "world": "extensions",
+      "chrome": "back",
+      "params": {
+        "setup": "comet"
+      },
+      "sources": ["qml/ExtensionsSetupSheet.qml"],
+      "states": [],
+      "actions": [
+        {
+          "selector": "[data-action=paste-link]",
+          "expect": "Sample manifest link inserted"
+        },
+        {
+          "selector": "[data-action=close-setup]",
+          "expect": "Returns to Store"
+        }
+      ]
+    },
+    {
+      "id": "extensions.tankoyomi",
+      "file": "demos/extensions.html",
+      "title": "Tankoyomi",
+      "world": "extensions",
+      "chrome": "back",
+      "params": {
+        "view": "config"
+      },
+      "sources": [
+        "qml/TankoyomiConfigurationPage.qml",
+        "extensions/tankoyomi/manifest.json"
+      ],
+      "states": [
+        {
+          "id": "about",
+          "params": {
+            "view": "config",
+            "tab": "about"
+          },
+          "expect": "About Tankoyomi"
+        },
+        {
+          "id": "spanish",
+          "params": {
+            "view": "config",
+            "language": "es"
+          },
+          "expect": "ZonaTMO and NiAdd provider ladder"
+        },
+        {
+          "id": "no-enabled",
+          "params": {
+            "view": "config",
+            "state": "empty-providers"
+          },
+          "expect": "No enabled providers"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "feria",
+      "file": "demos/feria.html",
+      "title": "Feria",
+      "world": "feria",
+      "chrome": "default",
+      "params": {},
+      "sources": [
+        "qml/feria/PorticoDiscoveryHome.qml",
+        "qml/feria/PorticoData.js",
+        "qml/feria/FeriaWorld.qml"
+      ],
+      "states": [
+        {
+          "id": "watch",
+          "params": {
+            "lens": "watch"
+          },
+          "expect": "watch shelves"
+        },
+        {
+          "id": "listen",
+          "params": {
+            "lens": "listen"
+          },
+          "expect": "listen shelves"
+        },
+        {
+          "id": "read",
+          "params": {
+            "lens": "read"
+          },
+          "expect": "read shelves"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=apps]",
+          "expect": "22-provider selector"
+        },
+        {
+          "selector": "[data-action=title]",
+          "expect": "Title detail"
+        }
+      ]
+    },
+    {
+      "id": "feria.apps",
+      "file": "demos/feria.html",
+      "title": "Your apps",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "apps"
+      },
+      "sources": ["qml/feria/PorticoCombinedParityAppsView.qml"],
+      "states": [],
+      "actions": [
+        {
+          "selector": "[data-action=close-apps]",
+          "expect": "Feria home"
+        }
+      ]
+    },
+    {
+      "id": "feria.title",
+      "file": "demos/feria.html",
+      "title": "Feria title",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "title",
+        "id": "stranger"
+      },
+      "sources": ["qml/feria/PorticoDiscoveryTitleView.qml"],
+      "states": [
+        {
+          "id": "book",
+          "params": {
+            "view": "title",
+            "id": "phm"
+          },
+          "expect": "Reading provider choices"
+        },
+        {
+          "id": "no-providers",
+          "params": {
+            "view": "title",
+            "id": "perfectdays"
+          },
+          "expect": "No provider options"
+        },
+        {
+          "id": "offline",
+          "params": {
+            "view": "title",
+            "state": "offline"
+          },
+          "expect": "Availability retry"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "feria.search",
+      "file": "demos/feria.html",
+      "title": "Search Feria",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "search"
+      },
+      "sources": ["qml/feria/PorticoDiscoverySearchRedesign.qml"],
+      "states": [
+        {
+          "id": "dune",
+          "params": {
+            "view": "search",
+            "q": "Dune"
+          },
+          "expect": "Two results"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "view": "search",
+            "q": "zzzz"
+          },
+          "expect": "No catalogue matches and provider search"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "feria.seeall",
+      "file": "demos/feria.html",
+      "title": "Feria collection",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "seeAll",
+        "shelf": "netflix"
+      },
+      "sources": ["qml/feria/FeriaSeeAllView.qml"],
+      "states": [
+        {
+          "id": "continue-empty",
+          "params": {
+            "view": "seeAll",
+            "shelf": "continue"
+          },
+          "expect": "Empty Continue grid"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "feria.host",
+      "file": "demos/feria.html",
+      "title": "Feria app",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "host",
+        "app": "netflix",
+        "id": "stranger"
+      },
+      "sources": [
+        "qml/feria/PorticoDiscoveryHostView.qml",
+        "qml/feria/FeriaBrowserMenu.qml",
+        "qml/feria/FeriaBrowserDownloads.qml",
+        "qml/feria/FeriaPageTools.qml",
+        "qml/feria/FeriaBrowserRequests.qml",
+        "docs/research/2026-10-07-feria-dots-ui-contract-draft.md"
+      ],
+      "states": [
+        {
+          "id": "reading",
+          "params": {
+            "view": "host",
+            "app": "mangaplus"
+          },
+          "expect": "readspaces sidebar"
+        },
+        {
+          "id": "listening",
+          "params": {
+            "view": "host",
+            "app": "spotify"
+          },
+          "expect": "soundspaces sidebar"
+        },
+        {
+          "id": "restore",
+          "params": {
+            "view": "host",
+            "panel": "tabs",
+            "state": "restore"
+          },
+          "expect": "Explicit restore/dismiss"
+        },
+        {
+          "id": "collapsed",
+          "params": {
+            "view": "host",
+            "expanded": false
+          },
+          "expect": "Retracted sidebar"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=address]",
+          "expect": "Address row unfolds above viewport"
+        },
+        {
+          "selector": "[data-action=maximize]",
+          "expect": "Live fixture fills frame"
+        }
+      ]
+    },
+    {
+      "id": "feria.history",
+      "file": "demos/feria.html",
+      "title": "Feria history",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "host",
+        "app": "netflix",
+        "panel": "history"
+      },
+      "sources": [
+        "qml/feria/FeriaBrowserMenu.qml",
+        "docs/research/2026-10-07-feria-dots-ui-contract-draft.md"
+      ],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "feria.bookmarks",
+      "file": "demos/feria.html",
+      "title": "Feria bookmarks",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "host",
+        "app": "netflix",
+        "panel": "bookmarks"
+      },
+      "sources": [
+        "qml/feria/FeriaBrowserMenu.qml",
+        "docs/research/2026-10-07-feria-dots-ui-contract-draft.md"
+      ],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "feria.downloads",
+      "file": "demos/feria.html",
+      "title": "Feria downloads",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "host",
+        "app": "netflix",
+        "panel": "downloads"
+      },
+      "sources": [
+        "qml/feria/FeriaBrowserDownloads.qml",
+        "docs/research/2026-10-07-feria-dots-ui-contract-draft.md"
+      ],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "feria.settings",
+      "file": "demos/feria.html",
+      "title": "Feria settings",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "host",
+        "app": "netflix",
+        "panel": "settings"
+      },
+      "sources": [
+        "qml/feria/FeriaBrowserMenu.qml",
+        "docs/research/2026-10-07-feria-dots-ui-contract-draft.md"
+      ],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "feria.tools",
+      "file": "demos/feria.html",
+      "title": "Feria tools",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "host",
+        "app": "netflix",
+        "panel": "tools"
+      },
+      "sources": [
+        "qml/feria/FeriaBrowserMenu.qml",
+        "docs/research/2026-10-07-feria-dots-ui-contract-draft.md"
+      ],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "feria.account",
+      "file": "demos/feria.html",
+      "title": "Your Feria",
+      "world": "feria",
+      "chrome": "default",
+      "params": {
+        "view": "account"
+      },
+      "sources": ["qml/feria/PorticoCombinedParityAccountView.qml"],
+      "states": [
+        {
+          "id": "history",
+          "params": {
+            "view": "account",
+            "tab": "history"
+          },
+          "expect": "history"
+        },
+        {
+          "id": "highlights",
+          "params": {
+            "view": "account",
+            "tab": "highlights"
+          },
+          "expect": "highlights"
+        },
+        {
+          "id": "stats",
+          "params": {
+            "view": "account",
+            "tab": "stats"
+          },
+          "expect": "stats"
+        },
+        {
+          "id": "apps",
+          "params": {
+            "view": "account",
+            "tab": "apps"
+          },
+          "expect": "apps"
+        },
+        {
+          "id": "signed-out",
+          "params": {
+            "view": "account",
+            "state": "signed-out"
+          },
+          "expect": "Signed-out fixture"
+        },
+        {
+          "id": "offline",
+          "params": {
+            "view": "account",
+            "state": "offline"
+          },
+          "expect": "Account unavailable retry"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "coverage": [
+    {
+      "id": "extensions.hero",
+      "source": "qml/ExtensionsHouseHero.qml",
+      "route": "extensions",
+      "status": "implemented",
+      "notes": "8 authentic marks, Jolly Roger wallpaper, Tributes route and local well toggles"
+    },
+    {
+      "id": "extensions.rails",
+      "source": "qml/ExtensionsStoreApi.js",
+      "route": "extensions",
+      "status": "implemented",
+      "notes": "All 8 source rail titles; representative offline catalogue membership, not a snapshot of live rankings"
+    },
+    {
+      "id": "extensions.search",
+      "source": "qml/ExtensionsSeeAllPage.qml",
+      "route": "extensions.search",
+      "status": "implemented",
+      "notes": "All-word local search, clear, results and empty state"
+    },
+    {
+      "id": "extensions.setup",
+      "source": "qml/ExtensionsSetupSheet.qml",
+      "route": "extensions.setup",
+      "status": "implemented",
+      "notes": "Blocked embedded setup/retry, validated paste field, explicit sample clipboard fixture, install/busy/error"
+    },
+    {
+      "id": "extensions.tankoyomi",
+      "source": "qml/TankoyomiConfigurationPage.qml",
+      "route": "extensions.tankoyomi",
+      "status": "implemented",
+      "notes": "Exact 4 languages and 10 provider identities from pinned manifest; local order, enablement and default language"
+    },
+    {
+      "id": "feria.discovery",
+      "source": "qml/feria/PorticoDiscoveryHome.qml",
+      "route": "feria",
+      "status": "implemented",
+      "notes": "13 default apps, all lenses, source catalogue shelves, local Continue, row links"
+    },
+    {
+      "id": "feria.apps",
+      "source": "qml/feria/PorticoCombinedParityAppsView.qml",
+      "route": "feria.apps",
+      "status": "implemented",
+      "notes": "All 22 bundled brand logos; toggles/order; native-app-only Kobo and Apple Books remain unavailable"
+    },
+    {
+      "id": "feria.title",
+      "source": "qml/feria/PorticoDiscoveryTitleView.qml",
+      "route": "feria.title",
+      "status": "implemented",
+      "notes": "Exact PorticoData metadata/provider fixtures, saved state, cross-media choices"
+    },
+    {
+      "id": "feria.search",
+      "source": "qml/feria/PorticoDiscoverySearchRedesign.qml",
+      "route": "feria.search",
+      "status": "implemented",
+      "notes": "Search, feature result, additional results, shortcuts, empty/provider-search paths"
+    },
+    {
+      "id": "feria.seeall",
+      "source": "qml/feria/FeriaSeeAllView.qml",
+      "route": "feria.seeall",
+      "status": "implemented",
+      "notes": "Source-shaped poster grid and empty Continue"
+    },
+    {
+      "id": "feria.host",
+      "source": "docs/research/2026-10-07-feria-dots-ui-contract-draft.md",
+      "route": "feria.host",
+      "status": "implemented",
+      "notes": "App-only session registration, category-named docked sidebar, stable exact-space identities, address row, maximize/minimize, local navigation and media states"
+    },
+    {
+      "id": "feria.browser-tools",
+      "source": "qml/feria/FeriaBrowserMenu.qml",
+      "route": "feria.tools",
+      "status": "implemented",
+      "notes": "Tools/history/download/settings replace content surface per latest contract; no generic floating menu over website"
+    },
+    {
+      "id": "feria.account",
+      "source": "qml/feria/PorticoCombinedParityAccountView.qml",
+      "route": "feria.account",
+      "status": "implemented",
+      "notes": "History, Highlights, fixture Stats, app management and signed-out/offline states"
+    }
+  ],
+  "limitations": [
+    "Native QtWebEngine, DRM, live login, streaming, downloads, permissions and printing are explicitly staged; this is not a browser engine implementation.",
+    "Store rows use representative repository-named offline add-ons; ordering and World cinema membership are illustrative rather than a captured live stremio-addons.net response.",
+    "PorticoData contains more catalogue titles than the 14 bundled Feria artworks; unbundled title art is a clearly labelled text fallback, never unrelated art.",
+    "Feria header X choice is deliberately explicit (close selected space or whole app), because latest source contract leaves its final behavior open.",
+    "Native-app-only Kobo and Apple Books are shown with original marks but not opened.",
+    "Browser extension runtime/management is deferred by source contract; sidebar explains this and can navigate to Colosseum add-ons.",
+    "OS/native engine-only effects and per-site DOM adaptation remain visual/local-state approximations."
+  ]
+}

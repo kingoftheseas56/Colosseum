@@ -1,0 +1,73 @@
+.page {
+  overflow-y: auto;
+  padding-bottom: 100px;
+}
+.board {
+  position: relative;
+  transform: none !important;
+}
+.tile,
+.explore,
+.widget,
+.head span,
+.world-count {
+  cursor: pointer;
+}
+.tile:hover {
+  border-color: #f0c44a;
+}
+.tile:hover .remove {
+  opacity: 1;
+}
+.widget:hover {
+  border-color: #ffffff66;
+}
+.hero .art {
+  object-position: center 30%;
+  filter: brightness(0.7);
+}
+.hero-copy {
+  pointer-events: none;
+}
+.hero .explore {
+  pointer-events: auto;
+}
+.remove {
+  color: white;
+}
+.home-actions {
+  display: flex;
+  gap: 10px;
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  z-index: 3;
+}
+.home-actions button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ffffff55;
+  background: #0007;
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+}
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #f0c44a;
+  outline-offset: 3px;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff55 transparent;
+}
+
+/* Current Main.qml vignette; cold-ripple luma .50379, adaptive extra .002925. */
+.wall::after {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.342925),
+    rgba(0, 0, 0, 0.282925) 50%,
+    rgba(0, 0, 0, 0.462925)
+  );
+}

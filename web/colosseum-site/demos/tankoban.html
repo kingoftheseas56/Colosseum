@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Tankoban · Colosseum</title>
+<style>
+@font-face{font-family:Fraunces;src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,sans-serif;--serif:Fraunces,Georgia,serif}
+*{box-sizing:border-box}html,body{width:1280px;height:720px;margin:0;overflow:hidden;background:#08090f}
+body{font-family:var(--ui);font-size:14px;color:var(--ink);user-select:none}
+button,input{font:inherit}button{color:inherit;cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.wall{position:absolute;inset:0;background:url("../assets/cold-ripple.jpg") center/cover no-repeat}
+.wall:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.343),rgba(0,0,0,.283) 50%,rgba(0,0,0,.463))}
+.topbar{position:absolute;left:54px;top:30px;width:1172px;height:56px;z-index:30}
+.leftchrome{height:56px;position:absolute;left:0;top:0;display:flex;align-items:center;gap:18px}
+.back{display:flex;align-items:center;gap:8px;color:var(--dim);white-space:nowrap;border:0;background:transparent;padding:0;font-size:14px}
+.back:hover{color:var(--ink)}.back svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.clock b{font:400 32px/1 var(--serif)}.clock i{font:16px var(--ui);font-style:normal;color:var(--dim);margin-left:5px}
+.clock small{display:block;color:var(--dim);font-size:13px;margin-top:7px}
+.glass{background:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18)),rgba(255,255,255,.1);border:1px solid var(--edge);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.picker{position:absolute;top:5px;left:50%;transform:translateX(-50%);height:46px;border-radius:999px;display:flex;align-items:center;gap:4px;padding:0 6px}
+.picker button{height:34px;padding:0 13px;white-space:nowrap;border:1px solid transparent;background:transparent;border-radius:999px;color:var(--dim);font-size:14px;font-weight:500}
+.picker button:hover{background:#ffffff20;color:var(--ink)}.picker button.active{background:var(--gold);color:#1a1408;font-weight:600}
+.system{position:absolute;right:0;top:17px;height:22px;display:flex;align-items:center;gap:20px}
+.sysbtn{position:relative;width:22px;height:22px;flex:none;border:0;background:transparent;padding:0;display:grid;place-items:center;opacity:.82}
+.sysbtn:hover{opacity:1}.sysbtn img{width:22px;height:22px;display:block}.sysbtn .state{position:absolute;right:-3px;bottom:-3px;width:7px;height:7px;border-radius:50%;background:#ef6a5a;border:1px solid #1b1b20}
+.device{border:1.5px solid #ffffff60;background:#ffffff10;border-radius:15px;height:22px;min-width:58px;padding:0 10px;font-size:10px;font-weight:600;color:var(--dim)}
+.device:hover{background:#ffffff20}
+.page{position:absolute;inset:96px 0 0;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.34) transparent;overscroll-behavior:contain}
+.page::-webkit-scrollbar{width:9px}.page::-webkit-scrollbar-track{background:transparent}.page::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(255,255,255,.34)}
+.page.scrolled{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 28px,#000 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 28px,#000 100%)}
+.board{position:relative;width:1172px;margin-left:54px;padding:12px 0 110px;display:flex;flex-direction:column;gap:36px}
+.hero{height:330px;position:relative;flex:none;border-radius:20px;overflow:hidden;border:1px solid var(--edge);background:linear-gradient(107deg,#100b08 4%,#1f140e 74%,#150e0a)}
+.hero:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 60% 50%,rgba(89,53,34,.19),transparent 65%)}
+.hero .ghost{position:absolute;right:36px;top:-44px;color:#ffffff0c;font:150px var(--serif);pointer-events:none}
+.hero-poster{position:absolute;right:56px;top:22px;width:189px;height:286px;object-fit:cover;object-position:center top;box-shadow:0 14px 36px #0008}
+.hero-copy{position:absolute;left:42px;top:104px;width:650px;z-index:1}
+.kicker{color:var(--gold);font-size:11px;letter-spacing:3px;text-transform:uppercase}
+.hero h1{font:400 42px/.99 var(--serif);margin:17px 0 16px}
+.hero p{font-size:13.5px;line-height:1.55;color:var(--dim);width:595px;margin:0}
+.hero-actions{display:flex;gap:10px;margin-top:17px}
+.hero-actions button{border-radius:11px;border:1px solid #ffffff24;background:#ffffff17;font-size:14px;height:42px;padding:0 18px}
+.hero-actions button.primary{background:var(--gold);color:#17120a;font-weight:600;border-color:transparent}
+.hero-actions button:hover{filter:brightness(1.17)}.hero-dots{position:absolute;right:26px;bottom:26px;display:flex;gap:7px;align-items:center;height:22px;border-radius:99px;background:#0007;padding:0 11px}
+.hero-dots button{width:7px;height:7px;border:0;padding:0;background:#ffffff80;border-radius:8px}
+.hero-dots button.on{width:22px;background:var(--gold)}
+.tabslot{flex:none;height:58px;display:grid;place-items:center}
+.tabs{display:flex;align-items:center;gap:6px;padding:6px;height:54px;width:640px;border:1px solid var(--edge);border-radius:18px;background:linear-gradient(#0000002e,#0000002e),#ffffff15;-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.tabs button{flex:1;min-width:0;height:100%;border-radius:14px;border:1px solid #ffffff1a;background:transparent;color:var(--ink);font-weight:600;font-size:14px}
+.tabs button:hover:not(.active){background:#ffffff26}.tabs button.active{background:var(--gold);border-color:transparent;color:#17120a}
+.docked{position:absolute;top:100px;height:50px;z-index:23;display:none;justify-content:center;align-items:center;pointer-events:none}
+.docked.show{display:flex}
+.docked .tabs{width:520px;height:46px;border-radius:15px;padding:5px;box-shadow:0 14px 30px #0006;pointer-events:auto}
+.docked .tabs button{font-size:13px;border-radius:11px;background:#ffffff10}.docked .tabs button.active{background:var(--gold);color:#17120a}
+.docked .tabs button:hover:not(.active){background:#ffffff25}
+.dock{position:absolute;bottom:16px;left:58px;width:130px;height:64px;z-index:31;border-radius:32px;background:#060609b8;border:1px solid var(--edge);display:flex;align-items:center;gap:14px;padding:8px}
+.dock button{position:relative;width:48px;height:48px;border:0;border-radius:24px;background:#ffffff0c;display:grid;place-items:center}
+.dock button:hover{background:#ffffff25}.dock img{width:27px;height:27px;object-fit:contain}.dock button:last-child img{width:21px;height:21px;opacity:.85}
+.dock button:first-child:after{content:"";position:absolute;bottom:3px;left:13px;width:20px;height:3px;border-radius:4px;background:var(--gold)}
+#content{min-height:515px}#content[hidden]{display:none}
+.discover{display:flex;align-items:flex-start;gap:28px;min-height:900px}
+.disc-sidebar{width:52px;flex:none;position:sticky;top:12px;height:520px;border-right:1px solid #ffffff26}
+.disc-sidebar .disc-toggle{width:28px;height:28px;border:1px solid #ffffff25;border-radius:50%;position:absolute;top:18px;right:-14px;background:#0008;color:var(--dim);display:grid;place-items:center}
+.disc-source{position:absolute;top:60px;left:0;width:44px;height:46px;background:#ffffff18;border-radius:12px;display:grid;place-items:center;border:0}
+.disc-source:before{content:"";position:absolute;left:-2px;top:10px;bottom:10px;width:3px;border-radius:4px;background:var(--gold);box-shadow:0 0 0 6px #f0c44a22}
+.disc-source img{width:22px;height:22px}.disc-main{flex:1;min-width:0}
+.disc-mast{height:76px;border-bottom:1px solid #ffffff1c;display:flex;align-items:flex-end;justify-content:space-between}
+.lens{display:flex;gap:28px;height:45px;align-items:center}.lens button{position:relative;border:0;background:none;padding:0 0 10px;color:var(--dim);font-size:17px;font-weight:600}
+.lens button.active{color:var(--ink)}.lens button.active:after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:5px;background:var(--gold)}
+.now{text-align:right;align-self:flex-start;margin-top:0}.now small{display:block;letter-spacing:2.5px;font-size:10px;color:var(--dim)}
+.now b{font:400 30px/1.1 var(--serif);display:block;margin:5px 0 7px}.now b i{font:12px var(--ui);font-style:normal;color:var(--dim)}
+.now em{font-style:normal;font-size:13px;color:var(--dim)}
+.disc-filter{display:flex;align-items:center;gap:10px;margin:16px 0 18px}.disc-filter strong{font-size:11px;letter-spacing:1.4px;color:var(--dim)}
+.disc-filter button{height:40px;min-width:210px;border-radius:12px;border:1px solid var(--edge);background:#ffffff0f;text-align:left;padding:0 14px;display:flex;align-items:center;justify-content:space-between}
+.disc-grid{display:grid;grid-template-columns:repeat(6,148px);gap:26px 20px;margin:0 36px}
+.disc-grid .disc-card{cursor:pointer}.disc-cov{width:148px;height:222px;border-radius:12px;overflow:hidden;box-shadow:0 6px 20px #0007;border:1px solid #ffffff1a;background:#22252c}
+.disc-cov img{width:100%;height:100%;object-fit:cover}.disc-card p{font-size:13px;line-height:1.35;margin:10px 0;color:var(--ink);font-weight:600}
+.disc-card:hover .disc-cov{outline:2px solid var(--gold)}
+.catalogue{display:flex;align-items:stretch;gap:28px;position:relative;min-height:800px}
+.rowindex{width:52px;flex:none;align-self:stretch;position:relative;transition:width .24s cubic-bezier(.2,.7,.2,1)}
+.rowindex.open{width:240px}
+.ri-stick{position:sticky;top:12px;height:520px;width:100%;border-right:1px solid #ffffff24}
+.ri-toggle{position:absolute;top:18px;right:-14px;width:28px;height:28px;z-index:2;border:1px solid #ffffff2a;border-radius:50%;background:#08090bbb;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);font-size:21px;line-height:1;color:var(--dim);display:grid;place-items:center;padding-bottom:3px}
+.ri-toggle:hover{background:#ffffff1b;color:var(--ink)}
+.ri-brand{position:absolute;left:12px;top:22px;height:38px;width:188px;opacity:0;pointer-events:none;white-space:nowrap}
+.rowindex.open .ri-brand{height:78px;opacity:1}.ri-brand small{display:block;color:var(--gold);font-size:10px;letter-spacing:2.8px;margin:2px 0 5px}
+.ri-brand b{font:400 27px var(--serif)}
+.ri-list{position:absolute;top:60px;left:0;right:4px;bottom:18px;display:flex;flex-direction:column;gap:4px;overflow:auto;scrollbar-width:none}
+.rowindex.open .ri-list{top:100px;right:16px}
+.ri-row{position:relative;border:0;border-radius:12px;padding:0 12px;display:flex;gap:10px;align-items:center;background:transparent;min-height:46px;width:44px;flex:none;text-align:left;color:var(--dim);font-size:14px;font-weight:600}
+.rowindex.open .ri-row{width:100%;min-height:46px;padding:10px 12px}
+.ri-row svg{width:20px;height:20px;flex:none;fill:none;stroke:var(--dim);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ri-row span{display:none;line-height:1.25}.rowindex.open .ri-row span{display:block}
+.ri-row:hover{background:#ffffff12;color:var(--ink)}.ri-row.selected{background:#ffffff17;color:var(--ink)}
+.ri-row.selected svg{stroke:var(--gold)}.ri-row.selected:before{content:"";position:absolute;left:-2px;top:10px;bottom:10px;width:3px;border-radius:4px;background:var(--gold);box-shadow:0 0 0 6px #f0c44a20}
+.cat-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:36px;overflow:visible}
+.shelf{min-width:0;scroll-margin-top:84px}.shelf-head{height:30px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.shelf-head h2{font:400 22px var(--serif);margin:0;white-space:nowrap}.shelf-head .more{font:400 17px var(--serif);border:0;background:transparent;color:var(--ink);white-space:nowrap}
+.shelf-head .more:hover{color:var(--gold)}
+.collect-tiles{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;min-height:222px}
+.collect-tile{position:relative;flex:0 0 148px;height:222px;border-radius:12px;border:1px solid #ffffff22;overflow:hidden;background:linear-gradient(135deg,#343739,#151518);box-shadow:0 7px 2px #0002;cursor:pointer}
+.collect-tile img{height:100%;width:100%;object-fit:cover}.collect-tile:after{content:"";position:absolute;inset:55% 0 0;background:linear-gradient(transparent,#000d)}
+.collect-title{position:absolute;z-index:1;bottom:26px;left:10px;right:10px;font-size:13px;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.collect-sub{position:absolute;z-index:1;bottom:10px;left:10px;font-size:10px;color:#fff9}
+.progress{position:absolute;z-index:2;left:0;right:0;bottom:0;height:4px;background:#ffffff31}.progress i{display:block;background:var(--gold);height:100%}
+.collect-tile:hover,.portrait:hover{outline:2px solid var(--gold)}
+.rankstrip{display:flex;gap:30px;height:212px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#ffffff36 transparent;padding-left:6px}
+.rankitem{position:relative;flex:none;height:212px;display:flex;align-items:flex-end;cursor:pointer}
+.ranknum{font:bold 132px/.82 var(--serif);color:#ffffff28;margin-bottom:-8px}
+.portrait{position:relative;flex:none;width:132px;height:196px;overflow:hidden;margin-left:-32px;border-radius:12px;border:1px solid #ffffff19;background:#20222a;box-shadow:0 3px 0 #0006,0 7px 2px #0003}
+.portrait img{width:100%;height:100%;object-fit:cover}.portrait:after{content:"";position:absolute;inset:65% 0 0;background:linear-gradient(transparent,#000b)}
+.portrait span{position:absolute;z-index:1;bottom:9px;left:9px;right:9px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:13px;font-weight:600}
+.genres{display:grid;grid-template-columns:repeat(5,222px);gap:16px;overflow:visible}
+.genre-card{height:112px;border:1px solid var(--edge);border-radius:14px;overflow:hidden;position:relative;cursor:pointer;background:linear-gradient(90deg,#532f49,#1d121b)}
+.genre-card img{width:100%;height:100%;object-fit:cover;object-position:top center;position:absolute;inset:0}
+.genre-card:after{content:"";position:absolute;inset:0;background:#0007}
+.genre-card strong{position:absolute;z-index:1;left:13px;bottom:13px;font:600 16px var(--serif);text-shadow:0 1px 2px black}
+.genre-card em{position:absolute;z-index:1;right:12px;top:12px;font:11px var(--ui);font-style:normal;color:#fffd}
+.genre-card:hover{outline:2px solid var(--gold)}.genre-card:hover:after{background:#0005}
+.library{width:1172px;min-height:800px}
+.library-toolbar{height:44px;margin:8px 44px 14px 48px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.library-search{width:220px;height:38px;background:#090a10a8;border:1px solid var(--edge);border-radius:19px;padding:0 16px;color:var(--ink);font-size:14px}
+.lib-controls{display:flex;gap:8px;align-items:center}.lib-controls button{height:34px;border-radius:14px;border:1px solid #ffffff24;background:transparent;padding:0 14px;font-weight:600;font-size:13px;white-space:nowrap}
+.lib-controls button.active{background:var(--gold);border-color:transparent;color:#17120a}.lib-controls button:hover:not(.active){background:#ffffff20}
+.library-grid{margin:0 44px 0 48px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:28px 16px}
+.lib-card{position:relative;cursor:pointer;min-width:0}.lib-poster{width:100%;aspect-ratio:2/3;overflow:hidden;border-radius:10px;background:linear-gradient(145deg,#352e3b,#121318);border:1px solid #ffffff2b;box-shadow:0 3px 0 #0005}
+.lib-poster img{width:100%;height:100%;object-fit:cover}.lib-card p{font-size:13px;color:var(--dim);margin:9px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-card:hover .lib-poster{outline:2px solid var(--gold)}.lib-dots{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:8px;background:#0a0a13d1;border:1px solid var(--edge);display:none;place-items:center}
+.lib-card:hover .lib-dots,.lib-dots:focus-visible{display:grid}.lib-menu{position:absolute;top:39px;right:8px;z-index:5;border:1px solid var(--edge);background:#101118;border-radius:12px;padding:6px;min-width:165px;box-shadow:0 12px 24px #0008}
+.lib-menu button{background:none;border:0;text-align:left;color:#ef7970;border-radius:8px;padding:10px 12px;white-space:nowrap}.lib-menu button:hover{background:#ffffff15}
+.empty{font:400 30px var(--serif);padding:70px 0;text-align:center}.empty small{display:block;color:var(--dim);font:14px var(--ui);margin-top:12px}
+.toast{position:absolute;bottom:85px;left:50%;transform:translateX(-50%);padding:12px 19px;border:1px solid var(--edge);border-radius:13px;background:#13151ada;color:var(--dim);font-size:13px;opacity:0;transition:opacity .18s;pointer-events:none;z-index:35}
+.toast.visible{opacity:1}
+</style></head>
+<body>
+<div class="wall" aria-hidden="true"></div>
+<header class="topbar" aria-label="Colosseum top bar"><div class="leftchrome"><button class="back" type="button" id="home"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Home</button><div class="clock"><div><b>2:43</b><i>PM</i></div><small>Thursday, October 8</small></div></div>
+<nav class="picker glass" aria-label="Worlds"><button class="active" type="button">Tankoban</button><button type="button">Biblio</button><button type="button">Theatre</button><button type="button">Universes</button><button type="button">Feria</button></nav>
+<div class="system"><button class="sysbtn" type="button" title="Search"><img src="../assets/icons/search.svg" alt="Search"></button><button class="sysbtn" type="button" title="Trackers"><img src="../assets/icons/trackers.svg" alt="Trackers"><i class="state"></i></button><button class="device" type="button" title="This device">Device</button><button class="sysbtn" type="button" title="Wallpaper"><img src="../assets/icons/settings.svg" alt="Wallpaper"></button><button class="sysbtn" type="button" title="Minimize"><img src="../assets/icons/minimize.svg" alt="Minimize"></button><button class="sysbtn" type="button" title="Fullscreen"><img src="../assets/icons/fullscreen-exit.svg" alt="Fullscreen"></button><button class="sysbtn" type="button" title="Power"><img src="../assets/icons/power.svg" alt="Power"></button></div></header>
+<div class="docked" id="docked"><div class="tabs" id="dock-tabs" role="tablist" aria-label="Tankoban page tabs"></div></div>
+<main class="page" id="page" tabindex="0" aria-label="Scrollable Tankoban world"><div class="board">
+<section class="hero" id="hero" aria-label="Featured in Tankoban"><span class="ghost">T</span><img class="hero-poster" id="hero-poster" src="../current-ui-mock/assets/fixtures/captures/comic-covers/invincible.jpg" alt="Invincible cover">
+<div class="hero-copy"><div class="kicker">Featured in Tankoban</div><h1 id="hero-title">Invincible</h1><p id="hero-description">Mark Grayson inherits superpowers from his father, Earth's greatest hero — then learns the man is an alien sent to conquer the planet.</p><div class="hero-actions"><button type="button" class="primary" id="hero-read">Read</button><button type="button" id="hero-details">Details</button></div></div>
+<div class="hero-dots" id="hero-dots" aria-label="Featured slides"></div></section>
+<div class="tabslot" id="tabslot"><div class="tabs" id="flow-tabs" role="tablist" aria-label="Tankoban page tabs"></div></div>
+<div id="content" role="tabpanel"></div>
+</div></main>
+<div class="dock" aria-label="Colosseum dock"><button type="button" title="Colosseum home"><img src="../current-ui-mock/assets/icons/colosseum.svg" alt="Home"></button><button type="button" title="Vault"><img src="../current-ui-mock/assets/icons/vault-door.svg" alt="Vault"></button></div>
+<div class="toast" id="toast" aria-live="polite"></div>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id), page=$("page"), host=$("content");
+const q=new URLSearchParams(location.search), AS="../current-ui-mock/assets/fixtures/captures/";
+const raw=[
+["One Piece","manga-covers/onepiece.jpg","manga",64],["Berserk","manga-covers/berserk.jpg","manga",42],["Vinland Saga","manga-covers/vinland.jpg","manga",25],
+["Vagabond","manga-covers/vagabond.png","manga",0],["Chainsaw Man","manga-covers/chainsaw.png","manga",0],["Monster","manga-covers/monster.jpg","manga",0],
+["Saga","comic-covers/saga.jpg","comics",31],["Invincible","comic-covers/invincible.jpg","comics",18],["Watchmen","comic-covers/watchmen.jpg","comics",0],
+["The Sandman","comic-covers/sandman.jpg","comics",0],["Hellboy","comic-covers/hellboy.jpg","comics",0],["Sin City","comic-covers/sincity.jpg","comics",0]
+];
+const all=raw.map((a,i)=>({id:i,title:a[0],cover:AS+a[1],kind:a[2],progress:a[3]}));
+const manga=all.filter(x=>x.kind==="manga"),comics=all.filter(x=>x.kind==="comics");
+const genreM=[["Shounen",1240],["Seinen",680],["Romance",920],["Action",1510],["Comedy",1100],["Drama",870],["Shoujo",540],["Josei",210],["Isekai",430],["School",360],["Magic",290]];
+const genreC=[["Superhero",418],["Science Fiction",206],["Fantasy",188],["Horror",143],["Crime",131],["Action",127],["Comedy",97],["Drama",84]];
+const comicShelves=["Recently Available","Complete Runs","Near Complete","Omnibuses","Deluxe Editions","Graphic Novels","Community Collections","Most Stocked","Marvel","DC","Image","The 2020s","The 2010s","Deep Shelves","Fan-Made Shelf"];
+const featured=[
+{title:"Invincible",id:7,desc:"Mark Grayson inherits superpowers from his father, Earth's greatest hero — then learns the man is an alien sent to conquer the planet."},
+{title:"One Piece",id:0,desc:"Set sail with a crew chasing the greatest treasure on the seas."},
+{title:"Berserk",id:1,desc:"A swordsman's dark journey through destiny, survival and friendship."},
+{title:"Saga",id:6,desc:"Two families, one impossible voyage, and a galaxy in conflict."}
+];
+const tabs=["discover","manga","comics","library"];
+let active=tabs.includes(q.get("tab"))?q.get("tab"):"discover",expanded=q.get("index")==="open",discoverType="manga",slide=0;
+let libFilter="",libSort="lastRead",libQuery="",menuId=null;const removed=new Set();
+function safe(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function notice(msg){const el=$("toast");el.textContent=msg;el.classList.add("visible");clearTimeout(notice.job);notice.job=setTimeout(()=>el.classList.remove("visible"),2200);}
+function buttonTab(key){return '<button type="button" role="tab" data-tab="'+key+'" aria-selected="'+(active===key)+'" class="'+(active===key?"active":"")+'">'+key.charAt(0).toUpperCase()+key.slice(1)+'</button>';}
+function updateTabs(){["flow-tabs","dock-tabs"].forEach(id=>$(id).innerHTML=tabs.map(buttonTab).join(""));}
+function showSlide(n){
+slide=(n+featured.length)%featured.length;const f=featured[slide],item=all[f.id];
+$("hero-title").textContent=f.title;$("hero-description").textContent=f.desc;
+$("hero-poster").src=item.cover;$("hero-poster").alt=f.title+" cover";
+$("hero-dots").innerHTML=featured.map((s,i)=>'<button type="button" data-slide="'+i+'" aria-label="Feature '+(i+1)+'" class="'+(i===slide?"on":"")+'"></button>').join("");
+}
+function header(title,more){return '<div class="shelf-head"><h2>'+safe(title)+'</h2>'+(more?'<button class="more" data-more="'+safe(title)+'" type="button">'+more+' ›</button>':'')+'</div>';}
+function collection(items){return '<section class="shelf" data-title="Your Collection">'+header("Your Collection","")+'<div class="collect-tiles">'+items.filter(x=>x.progress).map(x=>
+'<div class="collect-tile" data-title-card="'+x.id+'"><img src="'+x.cover+'" alt=""><span class="collect-title">'+safe(x.title)+'</span><span class="collect-sub">'+x.progress+'% complete</span><div class="progress"><i style="width:'+x.progress+'%"></i></div></div>').join("")+'</div></section>';}
+function rotated(items,start){return items.map((v,i)=>items[(i+start)%items.length]);}
+function ranked(title,items,more){return '<section class="shelf" data-title="'+safe(title)+'">'+header(title,more?"Explore":"")+'<div class="rankstrip">'+items.map((x,i)=>
+'<div class="rankitem" data-title-card="'+x.id+'"><b class="ranknum">'+(i+1)+'</b><div class="portrait"><img src="'+x.cover+'" alt=""><span>'+safe(x.title)+'</span></div></div>').join("")+'</div></section>';}
+function mosaic(title,data,pool,more){
+return '<section class="shelf" data-title="'+safe(title)+'">'+header(title,more?"Explore":"")+'<div class="genres">'+data.map((g,i)=>
+'<div class="genre-card" data-genre="'+safe(g[0])+'"><img src="'+pool[i%pool.length].cover+'" alt=""><em>'+g[1]+'</em><strong>'+safe(g[0])+'</strong></div>').join("")+'</div></section>';}
+function iconPaths(title){
+const t=title.toLowerCase();
+if(/collection|library|shelf|shelves/.test(t))return '<path d="M4 4v16h5V4zM9 6h5v14H9zM16 4l4 15-4 1-4-15z"/>';
+if(/top|rated|popular|best/.test(t))return '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>';
+if(/recent|new|available|release|continue/.test(t))return '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
+if(/explore|discover|genre/.test(t))return '<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5z"/>';
+if(/edition|omnibus|omnibuses|complete|run/.test(t))return '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>';
+return '<path d="M4 6h16M4 12h16M4 18h16"/>';
+}
+function indexRow(title,i){return '<button type="button" class="ri-row" data-row="'+i+'" title="'+safe(title)+'" aria-label="Jump to '+safe(title)+'"><svg viewBox="0 0 24 24">'+iconPaths(title)+'</svg><span>'+safe(title)+'</span></button>';}
+function catalogue(type){
+const selected=type==="manga"?manga:comics;
+const main=type==="manga"?collection(selected)+ranked("Top in Tankoban — Manga",selected,true)+mosaic("Explore by Genre — Manga",genreM,selected,true):
+collection(selected)+ranked("Top in Tankoban — Comics",selected,true)+comicShelves.map((title,i)=>ranked(title,rotated(selected,(i+1)%selected.length),i<11)).join("")+mosaic("Explore Comics",genreC,selected,false);
+const labels=type==="manga"?["Your Collection","Top in Tankoban — Manga","Explore by Genre — Manga"]:["Your Collection","Top in Tankoban — Comics"].concat(comicShelves,["Explore Comics"]);
+return '<div class="catalogue"><aside class="rowindex '+(expanded?"open":"")+'" id="rowindex"><div class="ri-stick"><button type="button" id="ri-toggle" class="ri-toggle" aria-label="'+(expanded?"Collapse":"Expand")+' row index" title="Toggle row index">'+(expanded?"‹":"›")+'</button><div class="ri-brand"><small>WORLD</small><b>Tankoban</b></div><div class="ri-list">'+labels.map(indexRow).join("")+'</div></div></aside><div class="cat-main">'+main+'</div></div>';
+}
+function discover(){
+const pool=discoverType==="manga"?manga:comics, provider=discoverType==="manga"?"Jikan":"Grand Database";
+const image=discoverType==="manga"?"../current-ui-mock/assets/addon-logos/jikan.png":"../current-ui-mock/assets/addon-logos/colosseum-grand-database.png";
+return '<div class="discover"><aside class="disc-sidebar"><button type="button" class="disc-toggle" title="Discover sources" data-discover-action="sources">›</button><button type="button" class="disc-source" data-discover-action="sources" title="'+provider+'"><img src="'+image+'" alt="'+provider+'"></button></aside><div class="disc-main">'+
+'<div class="disc-mast"><div class="lens"><button type="button" data-disc-type="manga" class="'+(discoverType==="manga"?"active":"")+'">Manga</button><button type="button" data-disc-type="comics" class="'+(discoverType==="comics"?"active":"")+'">Comics</button></div><div class="now"><small>NOW BROWSING</small><b>Popular <i>▼</i></b><em>'+provider+'</em></div></div>'+
+'<div class="disc-filter"><strong>FILTER</strong><button type="button" data-discover-action="filters">All <span>▾</span></button></div>'+
+'<div class="disc-grid">'+pool.concat(pool).map(x=>'<div class="disc-card" data-title-card="'+x.id+'"><div class="disc-cov"><img src="'+x.cover+'" alt=""></div><p>'+safe(x.title)+'</p></div>').join("")+'</div></div></div>';
+}
+function filteredLibrary(){
+let a=all.filter(x=>!removed.has(x.id));
+if(libFilter==="inProgress")a=a.filter(x=>x.progress>0);
+if(libFilter==="downloaded")a=a.filter(x=>[0,1,6,7].includes(x.id));
+if(libQuery.trim())a=a.filter(x=>x.title.toLowerCase().includes(libQuery.trim().toLowerCase()));
+if(libSort==="az")a.sort((a,b)=>a.title.localeCompare(b.title));
+if(libSort==="added")a.reverse();
+return a;
+}
+function controlButton(label,val,mode){const on=(mode==="filter"?libFilter:libSort)===val;return '<button type="button" class="'+(on?"active":"")+'" data-lib-'+mode+'="'+val+'">'+label+'</button>';}
+function library(){
+const filt=controlButton("All","","filter")+controlButton("In Progress","inProgress","filter")+controlButton("Downloaded","downloaded","filter");
+const sort=controlButton("Last Read","lastRead","sort")+controlButton("Recently Added","added","sort")+controlButton("A-Z","az","sort");
+return '<div class="library"><div class="library-toolbar"><input class="library-search" id="library-search" type="search" autocomplete="off" placeholder="Search your library" aria-label="Search your library" value="'+safe(libQuery)+'"><div class="lib-controls">'+filt+'</div><div class="lib-controls">'+sort+'</div></div><div id="library-results">'+libraryResults()+'</div></div>';
+}
+function libraryResults(){
+const rows=filteredLibrary();
+if(!rows.length)return '<div class="empty">'+(removed.size===all.length?"Your library is empty":"No matches")+'<small>Try a different filter or search.</small></div>';
+return '<div class="library-grid">'+rows.map(x=>'<div class="lib-card" data-title-card="'+x.id+'"><div class="lib-poster"><img src="'+x.cover+'" alt=""></div><p>'+safe(x.title)+'</p><button type="button" class="lib-dots" data-lib-menu="'+x.id+'" aria-label="Options for '+safe(x.title)+'">⋮</button>'+
+(menuId===x.id?'<div class="lib-menu"><button type="button" data-lib-remove="'+x.id+'">Remove from Library</button></div>':"")+'</div>').join("")+'</div>';
+}
+function render(){host.innerHTML=active==="discover"?discover():active==="library"?library():catalogue(active);updateTabs();updateDock();updateIndex();}
+function updateDock(){
+const stick=$("tabslot").getBoundingClientRect().top<96;
+$("docked").classList.toggle("show",stick);
+$("flow-tabs").style.visibility=stick?"hidden":"visible";
+const left=54+(active==="manga"||active==="comics"?(expanded?240:52)+28:active==="discover"?80:0);
+$("docked").style.left=((left+1226-520)/2)+"px";
+page.classList.toggle("scrolled",page.scrollTop>0);
+}
+function updateIndex(){
+const idx=$("rowindex");if(!idx)return;
+const sections=Array.from(host.querySelectorAll(".shelf"));let current=0;
+sections.forEach((s,i)=>{if(s.getBoundingClientRect().top<=178)current=i;});
+if(page.scrollTop+page.clientHeight>=page.scrollHeight-2)current=sections.length-1;
+idx.querySelectorAll(".ri-row").forEach((b,i)=>{b.classList.toggle("selected",i===current);b.setAttribute("aria-current",i===current?"location":"false");});
+}
+function chooseTab(tab){if(!tabs.includes(tab))return;active=tab;menuId=null;render();if(page.scrollTop>0&&page.scrollTop>page.scrollHeight-page.clientHeight)page.scrollTop=Math.max(0,page.scrollHeight-page.clientHeight);updateDock();}
+document.addEventListener("click",function(event){
+let b=event.target.closest("button"),card=event.target.closest("[data-title-card]");
+if(b&&b.dataset.tab){chooseTab(b.dataset.tab);return;}
+if(b&&b.dataset.slide!==undefined){showSlide(Number(b.dataset.slide));return;}
+if(b&&b.id==="ri-toggle"){expanded=!expanded;const idx=$("rowindex");idx.classList.toggle("open",expanded);b.textContent=expanded?"‹":"›";b.title=expanded?"Collapse row index":"Expand row index";b.setAttribute("aria-label",b.title);updateDock();return;}
+if(b&&b.dataset.row!==undefined){const section=host.querySelectorAll(".shelf")[Number(b.dataset.row)];if(section)page.scrollTo({top:page.scrollTop+section.getBoundingClientRect().top-174,behavior:"smooth"});return;}
+if(b&&b.dataset.discType){discoverType=b.dataset.discType;render();return;}
+if(b&&b.dataset.discoverAction){notice("Browse "+(discoverType==="manga"?"Jikan manga":"Grand Database comics")+" in this local preview.");return;}
+if(b&&b.dataset.more){notice(b.dataset.more+" · catalogue preview");return;}
+if(b&&b.dataset.libFilter!==undefined){libFilter=b.dataset.libFilter;menuId=null;render();return;}
+if(b&&b.dataset.libSort!==undefined){libSort=b.dataset.libSort;menuId=null;render();return;}
+if(b&&b.dataset.libMenu!==undefined){menuId=Number(b.dataset.libMenu);$("library-results").innerHTML=libraryResults();return;}
+if(b&&b.dataset.libRemove!==undefined){removed.add(Number(b.dataset.libRemove));menuId=null;$("library-results").innerHTML=libraryResults();notice("Removed from the staged library");return;}
+if(event.target.closest("[data-genre]")){notice(event.target.closest("[data-genre]").dataset.genre+" · genre preview");return;}
+if(card){const item=all[Number(card.dataset.titleCard)];if(item)notice(item.title+" · detail preview");return;}
+if(b&&b.closest(".picker")){if(b.textContent!=="Tankoban")notice(b.textContent+" is another Colosseum world");return;}
+if(b&&b.closest(".dock")){notice(b.title+" · Colosseum dock");return;}
+if(b&&b.closest(".system")){notice(b.title+" · local preview");return;}
+if(b&&b.id==="home"){chooseTab("discover");page.scrollTop=0;return;}
+if(b&&b.id==="hero-read"){notice(featured[slide].title+" · reading preview");return;}
+if(b&&b.id==="hero-details"){notice(featured[slide].title+" · series details preview");return;}
+});
+host.addEventListener("input",function(e){if(e.target.id==="library-search"){libQuery=e.target.value;menuId=null;$("library-results").innerHTML=libraryResults();}});
+page.addEventListener("scroll",function(){updateDock();updateIndex();},{passive:true});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&menuId!==null){menuId=null;const target=$("library-results");if(target)target.innerHTML=libraryResults();}});
+render();showSlide(0);
+const scrollStart=Number(q.get("y")||0);
+if(Number.isFinite(scrollStart)&&scrollStart>0){page.scrollTop=scrollStart;updateDock();updateIndex();}
+requestAnimationFrame(()=>{updateDock();updateIndex();});
+})();
+</script><script src="autoscroll.js"></script></body></html>

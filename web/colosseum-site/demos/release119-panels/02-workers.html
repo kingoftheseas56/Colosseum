@@ -1,0 +1,73 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Colosseum 1.1.9 Workers</title>
+<style>
+@font-face{font-family:Fraunces;src:url(../../assets/Fraunces-Regular.ttf)}
+:root{--gold:#f0c44a;--ink:#f6f5f2;--dim:#c4c3cb;--ui:"Segoe UI",Arial,sans-serif;--serif:Fraunces,Georgia,serif}
+*{box-sizing:border-box;margin:0}
+html,body{width:2000px;height:1415px;background:#0b0b0d;overflow:hidden}
+body{position:relative;color:var(--ink);font-family:var(--ui)}
+.bg{position:absolute;inset:-60px;background:url(../../release119/hero.png) center/cover;filter:blur(38px) saturate(.75) brightness(.55)}
+.shade{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 18%,rgba(140,140,150,.28),transparent 70%),linear-gradient(180deg,rgba(10,10,12,.15) 0%,rgba(10,10,12,.35) 45%,rgba(8,8,10,.92) 100%)}
+header{position:absolute;top:42px;left:72px;right:72px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:18px;font-family:var(--serif);letter-spacing:.42em;font-size:25px;color:var(--gold)}
+.brand img{width:52px}
+.pill{height:50px;padding:0 30px;border-radius:25px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:18px;color:var(--gold);background:rgba(30,30,34,.72);border:1.5px solid rgba(240,196,74,.35)}
+.pill i{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#1a1408;font-style:normal;font-size:16px;display:grid;place-items:center}
+.eyebrow{position:absolute;left:72px;top:150px;font-size:17px;font-weight:600;letter-spacing:.32em;color:var(--gold)}
+.eyebrow:after{content:"";display:block;width:48px;height:3px;background:var(--gold);margin-top:14px}
+h1{position:absolute;left:72px;top:200px;font-family:var(--serif);font-weight:400;font-size:112px;line-height:1.02;letter-spacing:-.015em;text-shadow:0 8px 40px rgba(0,0,0,.35)}
+.lede{position:absolute;right:72px;top:300px;width:620px;background:rgba(36,36,40,.82);border:1.5px solid rgba(255,255,255,.1);border-radius:22px;padding:24px 30px;font-size:23px;line-height:1.5;color:#ecebe8}
+.panel{position:absolute;left:72px;right:72px;top:500px;bottom:44px;border-radius:30px;background:rgba(22,22,25,.9);border:1.5px solid rgba(255,255,255,.1);box-shadow:0 40px 100px rgba(0,0,0,.45);overflow:hidden}
+.flow{position:absolute;left:44px;right:44px;top:44px;height:330px;display:grid;grid-template-columns:1fr 360px 1fr;gap:100px;align-items:center}
+.shot{border-radius:22px;overflow:hidden;height:330px;border:1.5px solid rgba(255,255,255,.12)}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.cf{height:330px;border-radius:30px;border:1.5px solid rgba(243,128,32,.6);background:radial-gradient(circle at 50% 40%,rgba(243,128,32,.16),rgba(20,20,23,.96) 70%);box-shadow:0 0 70px rgba(243,128,32,.18);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.cf img{width:190px}
+.cf b{font-size:28px;font-weight:600}
+.cf span{font-size:16px;font-weight:700;letter-spacing:.24em;color:#f6a35e}
+.lines{position:absolute;inset:0;width:100%;height:100%}
+.later{position:absolute;left:0;right:0;bottom:0;height:420px;border-top:1.5px solid rgba(255,255,255,.08);background:rgba(10,10,12,.55);padding:44px}
+.later .lab{font-size:16px;font-weight:700;letter-spacing:.28em;color:var(--gold)}
+.later h2{font-family:var(--serif);font-weight:400;font-size:76px;line-height:1.05;margin-top:16px}
+.later p{font-size:24px;color:var(--dim);margin-top:16px}
+.slot{position:absolute;right:44px;top:62px;width:880px;display:flex;flex-direction:column;gap:16px}
+.row{height:88px;border-radius:16px;background:#141417 url(../../release119/browse.png) no-repeat;opacity:.55;border:1.5px solid rgba(255,255,255,.1)}
+.r1{background-size:1320px auto;background-position:-24px -530px}
+.r2{background-size:1320px auto;background-position:-24px -685px}
+.new{height:118px;border-radius:18px;border:2.5px dashed rgba(240,196,74,.8);background:rgba(240,196,74,.07);display:flex;align-items:center;gap:26px;padding:0 32px}
+.plus{width:62px;height:62px;border-radius:50%;background:var(--gold);color:#1a1408;font-size:44px;line-height:60px;text-align:center}
+.new b{font-family:var(--serif);font-weight:400;font-size:40px}
+</style></head><body>
+<div class="bg"></div><div class="shade"></div>
+<header>
+  <div class="brand"><img src="../../assets/colosseum.svg" alt="">COLOSSEUM</div>
+  <div class="pill">Release 1.1.9</div>
+  <div class="pill">1.1.9 features</div>
+</header>
+<div class="eyebrow">UNIVERSES</div>
+<h1>Now served from<br>Cloudflare Workers.</h1>
+<p class="lede">New and fixed universes reach you without a new installer.</p>
+
+<section class="panel">
+  <svg class="lines" viewBox="0 0 1856 871" preserveAspectRatio="none">
+    <path d="M648 209 H746 M738 201 l10 8 l-10 8" stroke="#f0c44a" stroke-width="2.5" fill="none"/>
+    <path d="M1108 209 H1206 M1198 201 l10 8 l-10 8" stroke="#f0c44a" stroke-width="2.5" fill="none"/>
+  </svg>
+  <div class="flow">
+    <div class="shot"><img src="../../release119/covers.png" alt="" style="object-position:left top"></div>
+    <div class="cf"><img src="../../release119/cloudflare.svg" alt="Cloudflare"><b>Cloudflare</b><span>WORKERS</span></div>
+    <div class="shot"><img src="../../release119/hero.png" alt="" style="object-position:left center"></div>
+  </div>
+  <div class="later">
+    <div class="lab">COMING LATER</div>
+    <h2>Add your own<br>universes.</h2>
+    <p>Request a franchise, or build its page yourself.</p>
+    <div class="slot">
+      <div class="row r1"></div>
+      <div class="row r2"></div>
+      <div class="new"><div class="plus">+</div><b>Your universe here</b></div>
+    </div>
+  </div>
+</section>
+<style id="artboard-responsive-fit">html{width:100%!important;height:100%!important;overflow:hidden!important}body{transform-origin:top left!important}</style>
+<script id="artboard-fit">(()=>{function fit(){const w=innerWidth,h=innerHeight,scale=Math.min(w/2000,h/1415);document.body.style.transform='scale('+scale+')';}addEventListener('resize',fit);fit();})();</script></body></html>

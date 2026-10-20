@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+<!-- Direct mechanical translation of NewWorldLandform.qml QML PathSvg for whole-cake; source SHA256=b06daf30831351ab9a1a91342cf5e3add9923d0f1e4eba1f4372c99a73c4ae5e -->
+<path d="M4 80 Q10 70 18 76 L18 49 Q18 43 29 43 L29 31 Q29 24 40 24 L40 12 60 12 60 24 Q72 24 72 31 L72 43 Q84 43 84 49 L84 76 95 79 91 89 79 91 72 87 59 95 48 91 38 95 25 88 12 92 Z" fill="none" stroke="#836543" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.208"/>
+<path d="M4 80 Q10 70 18 76 L18 49 Q18 43 29 43 L29 31 Q29 24 40 24 L40 12 60 12 60 24 Q72 24 72 31 L72 43 Q84 43 84 49 L84 76 95 79 91 89 79 91 72 87 59 95 48 91 38 95 25 88 12 92 Z" fill="#d5bd93" stroke="#74563c" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M19 49 Q50 63 84 49 M19 61 Q51 75 84 61 M19 73 Q50 87 83 73 M29 32 Q50 43 72 32 M29 42 Q51 53 72 42 M41 13 Q51 19 60 13 M41 23 Q52 29 60 23 M23 52 Q26 64 29 54 Q32 66 36 57 Q40 69 44 58 Q48 70 52 59 Q55 70 59 58 Q62 68 65 57 Q70 65 73 54 Q77 62 80 51 M46 68 L46 76 M56 69 L56 76 M34 35 L34 43 M63 35 L63 44 M45 12 L45 5 M54 13 L54 5 M43 5 Q45 0 47 5 M52 5 Q54 0 56 5 M27 80 L32 75 M70 82 L76 76" fill="none" stroke="#74563c" stroke-width="0.85" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

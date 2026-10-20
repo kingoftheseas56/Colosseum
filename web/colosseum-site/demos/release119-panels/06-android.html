@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Colosseum on Android</title>
+<style>
+@font-face{font-family:Fraunces;src:url(../../assets/Fraunces-Regular.ttf)}
+*{box-sizing:border-box;margin:0}html,body{width:100%;min-height:100%;background:#0b0b0d}body{overflow-x:hidden;color:#f6f5f2;font-family:"Segoe UI",Arial,sans-serif}
+.viewport{width:100%;overflow:hidden}.artboard{position:relative;width:2000px;height:1415px;overflow:hidden;transform-origin:top left}
+.bg{position:absolute;inset:-60px;background:url(../../release119/android.png) center/cover;filter:blur(48px) saturate(.65) brightness(.3)}
+.shade{position:absolute;inset:0;background:linear-gradient(90deg,#09090c40,#09090c00),linear-gradient(180deg,#09090c44,#09090c66 50%,#08080aee)}
+header{position:absolute;top:42px;left:72px;right:72px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:18px;font-family:Fraunces,Georgia,serif;letter-spacing:.42em;font-size:25px;color:#f0c44a}.brand img{width:52px}
+.pill{height:50px;padding:0 30px;border-radius:25px;display:flex;align-items:center;font-weight:600;font-size:18px;color:#f0c44a;background:#1e1e22b8;border:1.5px dashed #f0c44a80}
+.eyebrow{position:absolute;left:82px;top:473px;font-size:20px;font-weight:600;letter-spacing:.3em;color:#f0c44a}
+h1{position:absolute;left:72px;top:525px;width:1030px;font:400 137px/1.12 Fraunces,Georgia,serif;letter-spacing:-.025em}
+.accent{position:absolute;left:82px;top:888px;width:72px;height:3px;background:#f0c44a}
+.tablet{position:absolute;left:1210px;top:192px;width:666px;height:1110px;overflow:hidden;border-radius:26px;background:#09090c;box-shadow:0 40px 100px #000b,0 0 0 12px #18181a,0 0 0 14px #f0c44a66}.tablet img{width:100%;height:100%;display:block;object-fit:contain}
+</style></head><body><div class="viewport"><main class="artboard" aria-label="Colosseum Android teaser"><div class="bg"></div><div class="shade"></div>
+<header><div class="brand"><img src="../../assets/colosseum.svg" alt="">COLOSSEUM</div><div class="pill">In development</div></header>
+<p class="eyebrow">BEYOND 2.0.1</p><h1>Colosseum<br>on Android.</h1><div class="accent"></div>
+<figure class="tablet"><img src="../../release119/android.png" alt="Colosseum running on an Android tablet, with Tankoban discovery, manga covers and bottom world navigation."></figure></main></div>
+<script>function fit(){const scale=Math.min(1,innerWidth/2000);document.querySelector('.artboard').style.transform=`scale(${scale})`;document.querySelector('.viewport').style.height=`${1415*scale}px`;}addEventListener('resize',fit);fit();</script></body></html>

@@ -1,0 +1,1057 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  background: #0a0b10;
+  font-family: var(--ui);
+  color: var(--ink);
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #f0c44a;
+  outline-offset: 3px;
+}
+button {
+  background: #ffffff0b;
+  border: 1px solid #ffffff26;
+  border-radius: 10px;
+  padding: 10px 15px;
+}
+button:hover {
+  background: #ffffff20;
+}
+button.primary {
+  background: #f0c44a;
+  color: #17120a;
+  border-color: #f0c44a;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.bar {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.small {
+  font-size: 12px;
+  color: #b0afbc;
+}
+.screen {
+  position: absolute;
+  inset: 106px 54px 0;
+  overflow: auto;
+  padding-bottom: 35px;
+  scrollbar-width: thin;
+  scrollbar-color: #777781 #11121a;
+}
+.home {
+  height: auto;
+  bottom: 0;
+  overflow: auto;
+  padding-bottom: 30px;
+  width: auto;
+  right: 54px;
+}
+.heading {
+  margin-bottom: 20px;
+}
+.facets {
+  margin: 22px 0;
+  width: 100%;
+  height: auto;
+}
+.facets button {
+  flex: 1;
+  border-radius: 14px;
+}
+.facets button.on,
+.bar button.on {
+  background: #f0c44a;
+  color: #17120a;
+}
+.pile .banner {
+  width: 100%;
+  min-height: 178px;
+  display: block;
+  text-align: left;
+  padding: 0;
+}
+.explore {
+  opacity: 1;
+}
+.mark img {
+  background: transparent;
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.gallery .banner {
+  height: 235px;
+}
+.gallery .mark {
+  display: none;
+}
+.gallery .banner-copy {
+  left: 22px;
+  top: 40%;
+  width: 85%;
+}
+.gallery .banner-copy p:not(.holds) {
+  display: none;
+}
+.gallery .explore {
+  top: auto;
+  bottom: 20px;
+  right: 20px;
+}
+.hero-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.25;
+  pointer-events: none;
+}
+.universe-page {
+  inset: 0;
+  overflow: auto;
+}
+.universe-hero {
+  padding: 115px 64px 35px;
+  min-height: 365px;
+  background: linear-gradient(90deg, #11131bf0, #11131b66);
+}
+.universe-hero h1 {
+  font: 64px/1.1 var(--display);
+  margin: 16px 0;
+}
+.universe-content {
+  padding: 24px 64px 50px;
+}
+.section-title {
+  font: 25px var(--display);
+  margin: 24px 0 18px;
+}
+.media-rail {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 5px 3px 18px;
+}
+.media-card {
+  width: 152px;
+  flex: none;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.media-card img {
+  width: 152px;
+  height: 218px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.media-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.media-card p {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 5px;
+}
+.book-cover {
+  height: 218px;
+  padding: 24px 15px;
+  background: linear-gradient(140deg, #594837, #181c2c);
+  border: 1px solid #8c7959;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 24px var(--display);
+  text-align: center;
+  border-radius: 4px;
+}
+.notice {
+  padding: 12px 15px;
+  border: 1px solid #ffffff22;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #c2c0cc;
+  background: #0005;
+  line-height: 1.6;
+  margin: 15px 0;
+}
+.portals {
+  display: flex;
+  gap: 24px;
+  overflow: auto;
+  padding: 35px 0;
+}
+.portal {
+  flex: 0 0 240px;
+  height: 410px;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+.portal img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.portal span {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 60px 18px 22px;
+  background: linear-gradient(transparent, #000);
+  font: 27px var(--display);
+}
+.atlas {
+  position: relative;
+  min-height: 350px;
+  border: 1px solid #ffffff26;
+  border-radius: 18px;
+  overflow: hidden;
+  background: radial-gradient(ellipse, #19414c, #091321);
+}
+.atlas .map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.65;
+}
+.atlas-nodes {
+  position: relative;
+  padding: 40px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 36px;
+  min-height: 350px;
+  align-items: center;
+}
+.atlas-nodes button {
+  background: #071019dc;
+  box-shadow: 0 0 25px #7bcfe320;
+}
+.galaxy {
+  background: radial-gradient(ellipse, #263244, #050711);
+}
+.orbit {
+  border: 1px solid #7484a846;
+  border-radius: 50%;
+  position: absolute;
+  inset: 25px 14%;
+  transform: rotate(-17deg);
+  pointer-events: none;
+}
+.orbit.two {
+  inset: 60px 25%;
+  transform: rotate(20deg);
+}
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.panel {
+  padding: 22px;
+  background: #ffffff08;
+  border: 1px solid #ffffff20;
+  border-radius: 14px;
+}
+.panel h2 {
+  font: 25px var(--display);
+  margin-bottom: 15px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid #ffffff14;
+}
+.row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.row p {
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 5px;
+}
+.row img {
+  width: 48px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.empty {
+  padding: 60px 30px;
+  text-align: center;
+  border: 1px dashed #ffffff3a;
+  border-radius: 18px;
+}
+.empty h2 {
+  font-size: 20px;
+  margin: 20px;
+}
+.empty p {
+  color: #aaa;
+  margin: 15px;
+}
+.overlay-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #0009;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  backdrop-filter: blur(8px);
+}
+.dialog {
+  width: 590px;
+  max-width: 95vw;
+  background: #171921;
+  padding: 32px;
+  overflow: auto;
+  border-left: 1px solid #ffffff30;
+  box-shadow: 0 0 80px #0008;
+}
+.dialog h2 {
+  font: 31px var(--display);
+  margin: 10px 0 16px;
+}
+.dialog p {
+  line-height: 1.6;
+  color: #c8c7cf;
+  margin: 12px 0;
+}
+.dialog .close {
+  float: right;
+}
+.dialog.center {
+  margin: auto;
+  width: 560px;
+  max-height: 90vh;
+  border: 1px solid #ffffff30;
+  border-radius: 18px;
+}
+.field {
+  display: block;
+  margin: 20px 0 7px;
+  font-size: 13px;
+}
+input,
+select {
+  padding: 11px;
+  background: #080b13;
+  border: 1px solid #ffffff30;
+  border-radius: 8px;
+}
+input {
+  min-width: 190px;
+}
+.dialog input {
+  width: 100%;
+}
+.status {
+  font-size: 12px;
+  color: #f0c44a;
+}
+.vault-hero {
+  height: 210px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  margin-bottom: 20px;
+  background: #151b26;
+}
+.vault-hero img {
+  position: absolute;
+  right: 0;
+  width: 65%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.52;
+}
+.vault-hero:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #101018 30%, transparent);
+}
+.vault-hero > div {
+  position: relative;
+  z-index: 1;
+  padding: 30px;
+}
+.vault-hero h1 {
+  font: 40px var(--display);
+  margin: 8px 0;
+}
+.vault-layout {
+  display: flex;
+  gap: 24px;
+}
+.vault-rail {
+  width: 160px;
+  flex: none;
+  border-right: 1px solid #ffffff20;
+  padding-right: 12px;
+}
+.vault-rail button {
+  width: 100%;
+  margin-bottom: 7px;
+  text-align: left;
+}
+.vault-main {
+  flex: 1;
+  min-width: 0;
+}
+.vault-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+.vault-tile {
+  position: relative;
+  min-width: 0;
+}
+.vault-tile > .open {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  text-align: left;
+}
+.vault-tile img {
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.vault-tile h3 {
+  font-size: 13px;
+  margin: 8px 0;
+}
+.vault-tile .menu {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: #080a13d9;
+  padding: 4px 9px;
+}
+.vault-grid.list {
+  display: block;
+}
+.vault-grid.list .vault-tile {
+  margin: 12px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ffffff20;
+}
+.vault-grid.list .open {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.vault-grid.list img {
+  width: 50px;
+  height: 70px;
+}
+.vault-grid.list .menu {
+  top: 20px;
+}
+.progress {
+  height: 5px;
+  background: #ffffff20;
+  border-radius: 3px;
+  margin: 12px 0;
+}
+.progress i {
+  display: block;
+  width: var(--pct, 45%);
+  height: 100%;
+  background: #f0c44a;
+  border-radius: 3px;
+}
+summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.download-lanes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin: 20px 0;
+}
+.download-lanes button {
+  text-align: left;
+  padding: 20px;
+}
+.download-lanes strong {
+  font: 25px var(--display);
+  display: block;
+  margin-bottom: 10px;
+}
+@media (max-width: 900px) {
+  .screen,
+  .home {
+    left: 24px;
+    right: 24px;
+  }
+  .universe-content {
+    padding: 20px 30px;
+  }
+  .universe-hero {
+    padding-left: 30px;
+  }
+  .vault-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .vault-rail {
+    width: 120px;
+  }
+  .atlas-nodes {
+    gap: 14px;
+    padding: 22px;
+  }
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* Keep the source wallpaper subordinate to glass and readable media content. */
+.wall::after {
+  background: linear-gradient(
+    180deg,
+    rgba(5, 7, 14, 0.76),
+    rgba(5, 7, 14, 0.82) 55%,
+    rgba(5, 7, 14, 0.9)
+  );
+}
+.universe-page {
+  background: #111318;
+}
+.universe-page .hero-bg {
+  opacity: 0.55;
+}
+.universe-page .universe-hero,
+.universe-page .universe-content {
+  position: relative;
+}
+.universe-page .universe-content {
+  background: linear-gradient(#111318c9, #111318f5);
+}
+.pile .banner .art {
+  opacity: 0.4;
+}
+.pile .banner:hover .art {
+  opacity: 0.7;
+}
+.starwars-galaxy .atlas-nodes {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 30px;
+  padding: 25px 35px;
+}
+.starwars-galaxy .atlas-nodes button {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  font-size: 12px;
+  min-height: 125px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.starwars-galaxy .atlas-nodes button::before {
+  content: "";
+  width: 57px;
+  height: 57px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 28%,
+    #e8e4d8,
+    #9d9a91 32%,
+    #242525 73%,
+    #050711
+  );
+  box-shadow: 0 0 30px #8babc224;
+}
+.starwars-galaxy .atlas-nodes button:nth-child(2n)::before {
+  background: radial-gradient(
+    circle at 30% 28%,
+    #b9a08a,
+    #6f5747 35%,
+    #211918 75%,
+    #050711
+  );
+}
+.starwars-galaxy .atlas-nodes button:nth-child(3n)::before {
+  background: radial-gradient(
+    circle at 30% 28%,
+    #858b93,
+    #343a40 35%,
+    #0f1215 75%,
+    #050711
+  );
+}
+.starwars-galaxy .atlas-nodes button:hover {
+  color: #f0c44a;
+}
+.cosmere-atlas .atlas-nodes button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  justify-content: center;
+}
+.cosmere-atlas .atlas-nodes button::before {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #d9e8ff, #78cfe3 45%, #183443);
+  transform: rotate(45deg);
+  box-shadow: 0 0 28px #78cfe388;
+  border: 1px solid #d9e8ff;
+}
+.cosmere-atlas .atlas-nodes button:hover {
+  color: #78cfe3;
+}
+/* Interactive header actions need a complete 44px hit area inside the scrollport. */
+.heading {
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+}
+.universe-content {
+  min-height: calc(100vh - 365px);
+}
+.resume-rail {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 4px 2px 16px;
+}
+.resume-card {
+  width: 320px;
+  flex: none;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #ffffff25;
+  background: #131722cc;
+  border-radius: 16px;
+}
+.resume-card .grow {
+  flex: 1;
+}
+.resume-disc button {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: #f0c44a;
+  color: #16120c;
+  font-size: 22px;
+}
+.resume-card .bar button {
+  padding: 6px 11px;
+  font-size: 12px;
+}
+.resume-card p {
+  margin-top: 8px;
+}
+.saga-matrix-layout {
+  display: flex;
+  gap: 26px;
+  align-items: start;
+}
+.matrix-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.saga-matrix {
+  display: grid;
+  grid-template-columns: 75px repeat(var(--columns), minmax(130px, 1fr));
+  gap: 12px;
+  min-width: 570px;
+}
+.story-heading {
+  min-height: 66px;
+  font-size: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.story-heading span {
+  border: 1px solid #ffffff35;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  text-align: center;
+  padding-top: 3px;
+}
+.medium-label {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  padding-top: 20px;
+  color: #aaa;
+}
+.story-cell {
+  padding: 7px;
+  background: #11151b;
+}
+.story-cell.selected {
+  border-color: #f0c44a;
+  box-shadow: 0 0 0 1px #f0c44a;
+}
+.story-cell small {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.mini-book {
+  height: 155px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 22px var(--display);
+  padding: 10px;
+  background: linear-gradient(145deg, #594a36, #202334);
+  border-radius: 4px;
+}
+.screen-cell img {
+  height: 155px;
+  width: 100%;
+  object-fit: cover;
+}
+.matrix-gap {
+  display: grid;
+  place-items: center;
+  color: #ffffff35;
+  border: 1px dashed #ffffff12;
+}
+.saga-selected {
+  width: 245px;
+  flex: none;
+  background: #111620bf;
+  padding: 20px;
+  border-radius: 12px;
+}
+.saga-selected h2 {
+  font: 26px var(--display);
+  margin: 14px 0;
+}
+.saga-selected p {
+  line-height: 1.5;
+  font-size: 13px;
+  margin: 12px 0;
+}
+.saga-selected .book-cover {
+  height: 130px;
+}
+.saga-selected .media-card {
+  width: 100%;
+}
+.still-rail {
+  display: flex;
+  gap: 20px;
+}
+.still-rail figure {
+  width: 420px;
+  max-width: 100%;
+  margin: 0;
+}
+.still-rail img {
+  width: 100%;
+  height: 210px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.still-rail figcaption {
+  font-size: 11px;
+  color: #b7b4be;
+  margin-top: 8px;
+}
+.creator-rail {
+  display: flex;
+  gap: 20px;
+}
+.creator {
+  width: 150px;
+}
+.creator > div {
+  height: 132px;
+  width: 132px;
+  border-radius: 8px;
+  border: 1px solid #ffffff22;
+  background: #ffffff0c;
+  display: grid;
+  place-items: center;
+  font: 34px var(--display);
+  color: #aaa;
+}
+.creator strong {
+  display: block;
+  margin: 12px 0 5px;
+  font-size: 13px;
+}
+.information-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.information-grid small {
+  font-size: 10px;
+  color: #aaa;
+  letter-spacing: 2px;
+}
+.information-grid p {
+  font-size: 14px;
+  margin-top: 10px;
+}
+.dcau-interior {
+  padding: 10px 16px;
+  background: linear-gradient(#080b1544, #080b15d9);
+  border-radius: 16px;
+}
+.dcau-interior .media-card {
+  width: 152px;
+}
+.dcau-comics .book-cover {
+  background: linear-gradient(#111827b8, #0a0c11d9);
+  border-color: #ffffff35;
+}
+.vault-shelves {
+  margin: 8px 0 24px;
+}
+.vault-shelf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.vault-shelf-head h2 {
+  font: 22px var(--display);
+  margin: 18px 0 14px;
+}
+.vault-recent-rail,
+.vault-resume-rail,
+.vault-folder-rail {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+}
+.vault-arrival {
+  position: relative;
+  width: 285px;
+  min-width: 285px;
+  height: 164px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #20222b;
+  border: 1px solid #ffffff24;
+}
+.vault-arrival img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+}
+.vault-arrival > div {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 14px;
+  background: linear-gradient(transparent, #101215);
+}
+.vault-arrival strong {
+  display: block;
+  margin-bottom: 10px;
+}
+.vault-arrival button {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.vault-resume {
+  width: 215px;
+  flex: none;
+  position: relative;
+  background: #ffffff07;
+  border: 1px solid #ffffff24;
+  border-radius: 12px;
+  padding: 12px;
+}
+.vault-resume img {
+  height: 100px;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.vault-resume strong {
+  display: block;
+  margin: 8px 0;
+}
+.vault-resume > button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+.vault-folder-rail button {
+  min-width: 180px;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  padding: 18px;
+}
+.vault-folder-rail img {
+  width: 25px;
+  height: 25px;
+}
+.companion-list {
+  padding-left: 18px;
+  color: #c8c7cf;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.file-inspect {
+  margin-top: 10px;
+}
+.vault-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+.vault-grid {
+  padding-bottom: 30px;
+}
+@media (max-width: 1000px) {
+  .saga-matrix-layout {
+    display: block;
+  }
+  .saga-selected {
+    width: auto;
+    margin-top: 15px;
+  }
+  .information-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.universe-page {
+  padding-bottom: 0;
+}
+.saga-matrix-panel,
+#u-creators,
+#u-stills,
+#u-beyond,
+#u-upcoming,
+.continuation-section {
+  scroll-margin-top: 106px;
+}
+.wall.dcau-environment::after {
+  background: linear-gradient(#070a141a, #070a1430 60%, #070a1480);
+}
+.wall.dcau-environment::after {
+  background: linear-gradient(
+    #070a14b3,
+    #070a1470 160px,
+    #070a141a 300px,
+    #070a1480
+  );
+}
+.wall.dcau-environment + #app .heading button {
+  background: #0b101bd9;
+  border-color: #ffffff40;
+}
+
+/* VaultDetailSheet.qml: centered 880px panel, h−64 cap, independently scrolling body.
+   Scoped to this sheet only; other dialogs and drawers keep their own geometry. */
+.vault-detail-overlay {
+  align-items: center;
+  justify-content: center;
+}
+.vault-detail-overlay .dialog {
+  position: relative;
+  margin: 0;
+  width: min(880px, calc(100vw - 40px));
+  max-width: none;
+  height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #ffffff30;
+  border-radius: 20px;
+  background: #171921;
+}
+.vault-detail-overlay .dialog > .close {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: 2;
+  float: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.vault-detail-scroll {
+  height: calc(100% - 84px);
+  margin: 54px 30px 30px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #777781 #171921;
+}
+.vault-detail-scroll h2 {
+  margin-top: 0;
+}
+
+.vault-detail-scroll .vault-play-glyph {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-right: 5px;
+}

@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Colosseum · UI review map</title>
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("assets/Fraunces-Regular.ttf");
+      }
+      @font-face {
+        font-family: Switzer;
+        src: url("assets/fonts/Switzer-Regular.otf");
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: #10110e;
+        color: #ecece3;
+        font:
+          14px Switzer,
+          system-ui,
+          sans-serif;
+        line-height: 1.55;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      button,
+      input,
+      summary {
+        font: inherit;
+      }
+      a:focus-visible,
+      input:focus-visible,
+      summary:focus-visible,
+      button:focus-visible {
+        outline: 2px solid #eed06f;
+        outline-offset: 4px;
+      }
+      header {
+        padding: 50px 5vw 30px;
+        border-bottom: 1px solid #ffffff20;
+        background: radial-gradient(
+          ellipse at 100% 0,
+          #a2842625,
+          transparent 60%
+        );
+      }
+      .kicker {
+        font-size: 11px;
+        letter-spacing: 2px;
+        color: #d3bd75;
+        text-transform: uppercase;
+      }
+      h1 {
+        font:
+          52px Fraunces,
+          Georgia,
+          serif;
+        font-weight: 400;
+        margin: 12px 0;
+      }
+      h2 {
+        font:
+          30px Fraunces,
+          Georgia,
+          serif;
+        font-weight: 400;
+        margin: 0;
+      }
+      h3 {
+        font-size: 17px;
+        margin: 0;
+      }
+      p {
+        margin: 9px 0;
+        color: #b1b2a7;
+      }
+      .intro {
+        max-width: 790px;
+      }
+      .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 30px;
+      }
+      .enter {
+        display: inline-block;
+        background: #eed06f;
+        color: #1b190d;
+        padding: 12px 18px;
+        border-radius: 7px;
+        white-space: nowrap;
+      }
+      .counts {
+        display: flex;
+        gap: 35px;
+        margin-top: 25px;
+      }
+      .counts b {
+        font-size: 25px;
+        display: block;
+        font-weight: 500;
+      }
+      .counts span {
+        font-size: 11px;
+        color: #a5a69a;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr);
+        max-width: 1600px;
+        margin: auto;
+      }
+      aside {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        padding: 30px 24px;
+        max-height: 100vh;
+        overflow: auto;
+      }
+      aside a {
+        display: flex;
+        justify-content: space-between;
+        padding: 9px 10px;
+        border-radius: 6px;
+        color: #b5b7a9;
+      }
+      aside a:hover {
+        background: #ffffff09;
+        color: #eed06f;
+        text-decoration: none;
+      }
+      aside .meta {
+        font-size: 11px;
+        color: #7e8076;
+        margin-top: 24px;
+      }
+      .main {
+        padding: 30px 4vw 70px;
+        border-left: 1px solid #ffffff16;
+        min-width: 0;
+      }
+      .filter-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        background: #10110ef5;
+        z-index: 2;
+        padding: 12px 0 18px;
+      }
+      input {
+        flex: 1;
+        min-width: 0;
+        background: #1b1e16;
+        border: 1px solid #ffffff25;
+        border-radius: 7px;
+        color: #f0f1e8;
+        padding: 12px 15px;
+      }
+      button {
+        border: 1px solid #ffffff25;
+        background: #ffffff08;
+        color: #e6e7df;
+        border-radius: 7px;
+        padding: 12px 15px;
+        cursor: pointer;
+      }
+      .group {
+        margin: 24px 0 50px;
+        scroll-margin-top: 95px;
+      }
+      .group-head {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 18px;
+      }
+      .pill {
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        padding: 4px 8px;
+        border-radius: 20px;
+        background: #ffffff09;
+        border: 1px solid #ffffff20;
+        color: #aaa;
+      }
+      .prototype {
+        color: #d6b5ef;
+        border-color: #be85e847;
+        background: #be85e810;
+      }
+      .route {
+        padding: 21px 0;
+        border-top: 1px solid #ffffff1c;
+      }
+      .route-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        align-items: baseline;
+      }
+      .route-title:hover {
+        color: #eed06f;
+      }
+      .route-id {
+        font:
+          11px ui-monospace,
+          monospace;
+        color: #8e9481;
+        display: block;
+        margin-top: 4px;
+      }
+      .open {
+        color: #e6ce80;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .states {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+      .state {
+        border: 1px solid #ffffff20;
+        background: #ffffff04;
+        padding: 7px 11px;
+        border-radius: 5px;
+        font-size: 12px;
+      }
+      .state:hover {
+        border-color: #d6c077;
+        color: #f0d986;
+        text-decoration: none;
+      }
+      details {
+        margin-top: 15px;
+        font-size: 12px;
+        color: #8c9183;
+      }
+      summary {
+        cursor: pointer;
+        display: list-item;
+      }
+      .source-list {
+        margin: 10px 0 0;
+        padding-left: 18px;
+        overflow-wrap: anywhere;
+      }
+      .boundary {
+        padding: 20px 22px;
+        border: 1px solid #ffffff22;
+        border-radius: 9px;
+        background: #ffffff03;
+        margin: 0 0 24px;
+      }
+      .boundary p {
+        font-size: 12px;
+      }
+      .pins {
+        margin-left: 5px;
+        font-family: ui-monospace, monospace;
+        overflow-wrap: anywhere;
+        font-size: 11px;
+        color: #c0c5b4;
+      }
+      .empty {
+        padding: 50px 0;
+        color: #b7baa8;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      footer {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #ffffff1a;
+        color: #7f8575;
+        font-size: 11px;
+      }
+      @media (max-width: 750px) {
+        header {
+          padding: 30px 22px;
+        }
+        h1 {
+          font-size: 38px;
+        }
+        .header-row {
+          display: block;
+        }
+        .enter {
+          margin-top: 15px;
+        }
+        .layout {
+          display: block;
+        }
+        aside {
+          position: static;
+          max-height: none;
+          display: flex;
+          flex-wrap: wrap;
+          padding: 15px;
+          gap: 6px;
+        }
+        aside > a {
+          font-size: 12px;
+          gap: 10px;
+        }
+        .meta {
+          display: none;
+        }
+        .main {
+          border: 0;
+          padding: 15px 22px;
+        }
+        .route-top {
+          align-items: flex-start;
+        }
+        .counts {
+          gap: 22px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-row">
+        <div class="intro">
+          <div class="kicker">
+            Source-pinned browser recreation · Review companion
+          </div>
+          <h1>Every route. Every declared state.</h1>
+          <p>
+            A separate inspection map for Colosseum’s browser mock. Open a
+            screen, examine a named fixture state, and trace it to its QML
+            source.
+          </p>
+        </div>
+        <a class="enter" href="index.html">Open the mock ›</a>
+      </div>
+      <div class="counts" id="counts"></div>
+    </header>
+    <div class="layout">
+      <aside id="nav" aria-label="Manifest groups"></aside>
+      <main class="main">
+        <section class="boundary">
+          <h3>Review boundaries</h3>
+          <p>
+            Accounts, providers, sync, downloads, security actions and native
+            media playback are staged in memory. No real credentials or service
+            operations are needed. Native file dialogs, shaders and engines are
+            represented by labeled fixtures; individual manifest limitations are
+            available below each group.
+          </p>
+          <p>
+            Current app source
+            <span class="pins">2916fe85812643c2e0ae45b0aec132cb6eb4e507</span
+            ><br />HTML baseline
+            <span class="pins">db990f8f438a53cf7da1eec9ff7f4d57955c7cc4</span
+            ><br />Separate Vinyl prototype
+            <span class="pins">bf3becf16c4288e9fce591ac45e9c179d846ae21</span>
+          </p>
+          <p>
+            Vinyl is an additional prototype, outside the current five-world
+            app. This map is review material, not app chrome or a promise of
+            backend parity.
+          </p>
+        </section>
+        <div class="filter-row">
+          <input
+            id="filter"
+            type="search"
+            aria-label="Filter routes, states and sources"
+            placeholder="Filter routes, states, or QML sources…"
+          /><button id="clear" type="button">Clear</button>
+        </div>
+        <p id="result-count" role="status"></p>
+        <div id="groups"></div>
+        <div id="empty" class="empty" hidden>No routes match this filter.</div>
+        <footer>
+          Loaded directly from shared/routes.js. Works from a downloaded folder
+          without fetch, a server, or external assets. Deep links use the host’s
+          encoded route + JSON-parameter hash contract.
+        </footer>
+      </main>
+    </div>
+    <script src="shared/routes.js"></script>
+    <script>
+      "use strict";
+      const registry = window.MOCK_ROUTES || {},
+        manifests = window.MOCK_COVERAGE || [],
+        groups = document.getElementById("groups"),
+        nav = document.getElementById("nav"),
+        filter = document.getElementById("filter");
+      const escapeHTML = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const labels = {
+        biblio: "Biblio",
+        "extensions-feria": "Extensions & Feria",
+        manga: "Tankoban & comics",
+        shell: "Shell & worlds",
+        theatre: "Theatre",
+        "universes-vault": "Universes & Vault",
+        utilities: "Account & utilities",
+        vinyl: "Vinyl prototype",
+      };
+      function deepLink(route, params) {
+        return (
+          "index.html#" +
+          encodeURIComponent(route.id) +
+          "?" +
+          encodeURIComponent(
+            JSON.stringify(Object.assign({}, route.params || {}, params || {})),
+          )
+        );
+      }
+      let seen = new Set(),
+        entries = manifests.map((m) => ({
+          group: m.group,
+          limitations: m.limitations || [],
+          routes: (m.routes || [])
+            .filter((r) => registry[r.id] && !seen.has(r.id) && seen.add(r.id))
+            .map((r) => registry[r.id]),
+        }));
+      const rest = Object.values(registry).filter((r) => !seen.has(r.id));
+      if (rest.length)
+        entries.push({ group: "other", routes: rest, limitations: [] });
+      const totalStates = Object.values(registry).reduce(
+        (n, r) => n + (r.states || []).length,
+        0,
+      );
+      document.getElementById("counts").innerHTML = [
+        [Object.keys(registry).length, "Registered routes"],
+        [totalStates, "Declared states"],
+        [entries.length, "Manifest groups"],
+      ]
+        .map(([n, l]) => "<div><b>" + n + "</b><span>" + l + "</span></div>")
+        .join("");
+      for (const m of entries) {
+        let id = "group-" + m.group;
+        nav.insertAdjacentHTML(
+          "beforeend",
+          '<a href="#' +
+            escapeHTML(id) +
+            '">' +
+            escapeHTML(labels[m.group] || m.group) +
+            "<span>" +
+            m.routes.length +
+            "</span></a>",
+        );
+        let section = document.createElement("section");
+        section.className = "group";
+        section.id = id;
+        section.innerHTML =
+          '<div class="group-head"><h2>' +
+          escapeHTML(labels[m.group] || m.group) +
+          '</h2><span class="pill ' +
+          (m.group === "vinyl" ? "prototype" : "") +
+          '">' +
+          (m.group === "vinyl"
+            ? "SEPARATE PROTOTYPE"
+            : m.routes.length + " ROUTES") +
+          "</span></div>";
+        for (const r of m.routes) {
+          let article = document.createElement("article");
+          article.className = "route";
+          article.dataset.route = r.id;
+          article.dataset.search = [
+            r.id,
+            r.title,
+            m.group,
+            ...(r.sources || []),
+            ...(r.states || []).map((s) => s.id + " " + s.expect),
+          ]
+            .join(" ")
+            .toLowerCase();
+          article.innerHTML =
+            '<div class="route-top"><div><h3><a class="route-title" href="' +
+            escapeHTML(deepLink(r)) +
+            '">' +
+            escapeHTML(r.title || r.id) +
+            '</a></h3><span class="route-id">' +
+            escapeHTML(r.id) +
+            '</span></div><a class="open" data-default="' +
+            escapeHTML(r.id) +
+            '" href="' +
+            escapeHTML(deepLink(r)) +
+            '">Open default ›</a></div><div class="states">' +
+            (r.states || [])
+              .map(
+                (s) =>
+                  '<a class="state" data-state="' +
+                  escapeHTML(r.id + ":" + s.id) +
+                  '" href="' +
+                  escapeHTML(deepLink(r, s.params)) +
+                  '" title="' +
+                  escapeHTML(s.expect || s.id) +
+                  '">' +
+                  escapeHTML(s.id) +
+                  " ›</a>",
+              )
+              .join("") +
+            '</div><details><summary>Source & inspection details</summary><ul class="source-list">' +
+            (r.sources || [])
+              .map((s) => "<li>" + escapeHTML(s) + "</li>")
+              .join("") +
+            "</ul><p>Page: " +
+            escapeHTML(r.file) +
+            " · chrome: " +
+            escapeHTML(r.chrome || "default") +
+            "</p>" +
+            (r.states || [])
+              .map(
+                (s) =>
+                  "<p><b>" +
+                  escapeHTML(s.id) +
+                  ":</b> " +
+                  escapeHTML(s.expect || "Declared fixture state") +
+                  "</p>",
+              )
+              .join("") +
+            "</details>";
+          section.append(article);
+        }
+        if (m.limitations.length)
+          section.insertAdjacentHTML(
+            "beforeend",
+            '<details><summary>Fixture and native boundaries for this group</summary><ul class="source-list">' +
+              m.limitations
+                .map(
+                  (s) =>
+                    "<li>" +
+                    escapeHTML(typeof s === "string" ? s : JSON.stringify(s)) +
+                    "</li>",
+                )
+                .join("") +
+              "</ul></details>",
+          );
+        groups.append(section);
+      }
+      nav.insertAdjacentHTML(
+        "beforeend",
+        '<div class="meta">Review companion only.<br>Current registry is the source of truth.</div>',
+      );
+      function applyFilter() {
+        const q = filter.value.toLowerCase().trim();
+        let visible = 0;
+        document.querySelectorAll(".route").forEach((r) => {
+          r.hidden = q && !r.dataset.search.includes(q);
+          if (!r.hidden) visible++;
+        });
+        document
+          .querySelectorAll(".group")
+          .forEach(
+            (g) =>
+              (g.hidden = ![...g.querySelectorAll(".route")].some(
+                (r) => !r.hidden,
+              )),
+          );
+        document.getElementById("empty").hidden = visible !== 0;
+        document.getElementById("result-count").textContent =
+          visible +
+          " of " +
+          Object.keys(registry).length +
+          " routes shown" +
+          (q ? " for “" + filter.value + "”" : "");
+      }
+      filter.addEventListener("input", applyFilter);
+      document.getElementById("clear").onclick = () => {
+        filter.value = "";
+        applyFilter();
+        filter.focus();
+      };
+      applyFilter();
+      document.documentElement.dataset.reviewReady = "true";
+    </script>
+  </body>
+</html>

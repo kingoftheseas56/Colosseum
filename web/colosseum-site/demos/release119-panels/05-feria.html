@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Colosseum · Feria 2.0.1</title><style>
+@font-face{font-family:Fraunces;src:url(../../assets/Fraunces-Regular.ttf)}
+:root{--gold:#f0c44a;--ink:#f6f5f2;--dim:#c4c3cb}
+*{box-sizing:border-box;margin:0}html,body{width:2000px;height:1415px;overflow:hidden;background:#0b0b0d}
+body{position:relative;color:var(--ink);font-family:"Segoe UI",Arial,sans-serif}
+.bg{position:absolute;inset:-60px;background:center/cover;filter:blur(44px) saturate(.65) brightness(.32)}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,#09090c44,#09090c66 50%,#08080aee)}
+header{position:absolute;top:42px;left:72px;right:72px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:18px;font-family:Fraunces,Georgia,serif;letter-spacing:.42em;font-size:25px;color:var(--gold)}.brand img{width:52px}
+.pill{height:50px;padding:0 30px;border-radius:25px;display:flex;align-items:center;font-weight:600;font-size:18px;color:var(--gold);background:#1e1e22b8;border:1.5px solid #f0c44a59}.dash{border-style:dashed}
+.eyebrow{position:absolute;left:72px;top:140px;font-size:17px;font-weight:600;letter-spacing:.32em;color:var(--gold)}
+h1{position:absolute;left:72px;top:170px;font-family:Fraunces,Georgia,serif;font-weight:400;font-size:132px;line-height:1;letter-spacing:-.02em}
+h1 small{font-family:"Segoe UI",sans-serif;font-size:40px;font-weight:600;color:var(--gold);letter-spacing:0;margin-left:18px;vertical-align:52%}
+.lede{position:absolute;right:72px;top:206px;font-family:Fraunces,Georgia,serif;font-size:44px;color:#ecebe8;text-align:right}
+.screen{position:absolute;overflow:hidden;border-radius:22px;background:#09090c;box-shadow:0 30px 80px #0009,0 0 0 1.5px #ffffff26}.screen img{width:100%;height:100%;display:block;object-fit:contain}
+.label{font-size:17px;font-weight:600;letter-spacing:.22em;color:var(--gold)}
+.note{position:absolute;bottom:25px;left:72px;right:72px;color:#aaa8ae;font-size:16px;text-align:right}
+.copy h2{font:400 60px/1.12 Fraunces,Georgia,serif}.copy p{font-size:25px;line-height:1.6;color:var(--dim)}
+
+
+.discovery{left:72px;top:450px;width:914px;height:730px}
+.browser{left:1014px;top:450px;width:914px;height:730px;border:1.5px solid #f0c44aaa;box-shadow:0 36px 100px #000b}
+.view-label{position:absolute;font-size:16px;font-weight:600;letter-spacing:.23em;color:var(--gold)}
+.discovery-label{left:90px;top:400px}.browser-label{left:1032px;top:400px}
+.lede{font-size:42px}.note{font-size:15px;bottom:13px}
+</style><style>.screen.browser iframe{display:block;width:100%;height:100%;border:0;background:#09090c}</style></head><body>
+    <div class="bg" style="background-image:url(../../release119/feria-hybrid.png)"></div><div class="shade"></div>
+    <header><div class="brand"><img src="../../assets/colosseum.svg" alt="">COLOSSEUM</div><div class="pill">Feria 2.0.1</div><div class="pill dash">In development</div></header>
+    <div class="eyebrow">COMING NEXT</div>
+<h1>Feria<small>2.0.1</small></h1>
+<p class="lede">Your favourite sites, inside Colosseum.</p>
+<div class="view-label discovery-label">DISCOVER</div>
+<div class="screen discovery"><img src="../../release119/feria-showcase.png" alt="Feria discovery showcase with Netflix, YouTube, Spotify and Manga Plus shortcuts."></div>
+<div class="view-label browser-label">BROWSE · WATCHSPACES</div>
+<div class="screen browser"><iframe loading="lazy" src="../feria-hybrid-release119.html" title="Feria hybrid browser and watchspaces interactive preview"></iframe></div>
+<p class="note">Discovery showcase + browser design preview · in development.</p>
+<style id="artboard-responsive-fit">html{width:100%!important;height:100%!important;overflow:hidden!important}body{transform-origin:top left!important}</style>
+<script id="artboard-fit">(()=>{function fit(){const w=innerWidth,h=innerHeight,scale=Math.min(w/2000,h/1415);document.body.style.transform='scale('+scale+')';}addEventListener('resize',fit);fit();})();</script></body></html>

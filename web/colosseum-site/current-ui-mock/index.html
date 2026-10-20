@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Colosseum · Current UI mock</title>
+    <link rel="stylesheet" href="shared/shell.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <iframe id="view" title="Colosseum content"></iframe>
+      <header id="topbar">
+        <div id="clock">
+          <button id="back" aria-label="Go back">‹ <span>Home</span></button>
+          <div><b id="time"></b><small id="date"></small></div>
+        </div>
+        <nav id="worlds" aria-label="Worlds"></nav>
+        <nav id="system" aria-label="System"></nav>
+      </header>
+      <aside id="taskbar" aria-label="Session taskbar">
+        <button id="start" aria-label="Expand taskbar" title="Colosseum">
+          <img src="assets/icons/colosseum.svg" alt="" /></button
+        ><button data-route="vault" title="Vault" aria-label="Vault">
+          <img src="assets/icons/vault-folder.svg" alt="" />
+        </button>
+        <div id="task-actions"></div>
+        <div id="sessions"></div>
+      </aside>
+      <section id="fan" hidden></section>
+      <div id="sheet" hidden></div>
+      <div id="notice" role="status" hidden></div>
+    </div>
+    <script src="shared/routes.js"></script>
+    <script src="shared/shell.js"></script>
+  </body>
+</html>

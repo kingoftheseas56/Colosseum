@@ -1,0 +1,960 @@
+{
+  "group": "manga",
+  "sourcePin": "2916fe85812643c2e0ae45b0aec132cb6eb4e507",
+  "routes": [
+    {
+      "id": "manga.series",
+      "file": "demos/manga-series.html",
+      "title": "Manga \u00b7 Tankoban",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {},
+      "sources": [
+        "qml/MangaSeries.qml",
+        "qml/MangaReadingRoom.qml",
+        "qml/MangaSeriesSharedHeader.qml",
+        "qml/MangaTankobanLibrary.qml"
+      ],
+      "states": [
+        {
+          "id": "volumes",
+          "params": {},
+          "expect": "Compact 263px header and centered volume flow"
+        },
+        {
+          "id": "requested-volume",
+          "params": {
+            "volume": 7
+          },
+          "expect": "Volume 7 centered with honest NO COVER fallback"
+        },
+        {
+          "id": "downloading",
+          "params": {
+            "volume": 2,
+            "state": "downloading"
+          },
+          "expect": "42% downloading and cancellation"
+        },
+        {
+          "id": "failed",
+          "params": {
+            "volume": 2,
+            "state": "failed"
+          },
+          "expect": "Retry Read action"
+        },
+        {
+          "id": "chapters",
+          "params": {
+            "mode": "chapters"
+          },
+          "expect": "Separate default chapter ledger"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=chapters]",
+          "expect": "Chapter ledger with ten rows"
+        },
+        {
+          "selector": "[data-action=select]",
+          "expect": "Selection mode and Download next 10"
+        },
+        {
+          "selector": "[data-action=read-volume]",
+          "expect": "Ready volume enters reader; unready volume opens sources"
+        }
+      ]
+    },
+    {
+      "id": "manga.chapters",
+      "file": "demos/manga-series.html",
+      "title": "Manga \u00b7 Chapters",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "mode": "chapters"
+      },
+      "sources": [
+        "qml/MangaChapterSeriesView.qml",
+        "qml/MangaSeriesSharedHeader.qml"
+      ],
+      "states": [
+        {
+          "id": "page-2",
+          "params": {
+            "mode": "chapters",
+            "page": 2
+          },
+          "expect": "Chapters 11\u201320"
+        },
+        {
+          "id": "spanish",
+          "params": {
+            "mode": "chapters",
+            "language": "es"
+          },
+          "expect": "Spanish fixture model, three pages"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "mode": "chapters",
+            "state": "loading"
+          },
+          "expect": "Loading message and explicit fixture completion"
+        },
+        {
+          "id": "error",
+          "params": {
+            "mode": "chapters",
+            "state": "error"
+          },
+          "expect": "Error and retry"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "mode": "chapters",
+            "state": "empty"
+          },
+          "expect": "No chapters available"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "mode": "chapters",
+            "state": "unavailable"
+          },
+          "expect": "Open Extensions gate"
+        },
+        {
+          "id": "failed-download",
+          "params": {
+            "mode": "chapters",
+            "state": "chapter-failed"
+          },
+          "expect": "Retry chapter download"
+        },
+        {
+          "id": "downloading",
+          "params": {
+            "mode": "chapters",
+            "state": "chapter-downloading"
+          },
+          "expect": "Chapter progress and cancellation"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=download-page]",
+          "expect": "Current page staged as downloaded"
+        },
+        {
+          "selector": "[data-action=chapter-page]",
+          "expect": "Exactly one native page selector"
+        },
+        {
+          "selector": "[data-action=read-chapter]",
+          "expect": "Reader route preserves language and chapter"
+        },
+        {
+          "selector": "[data-action=language]",
+          "expect": "Changing language resets chapter page"
+        }
+      ]
+    },
+    {
+      "id": "manga.rebuilt",
+      "file": "demos/manga-series.html",
+      "title": "Manga \u00b7 Rebuilt title page",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "rebuilt": true
+      },
+      "sources": [
+        "qml/TankobanSeriesView.qml",
+        "qml/TankobanChapterList.qml",
+        "qml/TitlePageBar.qml"
+      ],
+      "states": [
+        {
+          "id": "chapters",
+          "params": {
+            "rebuilt": true,
+            "mode": "chapters"
+          },
+          "expect": "76px title bar, poster masthead, compact 88px chapter rows"
+        },
+        {
+          "id": "chapter-only",
+          "params": {
+            "rebuilt": true,
+            "chapterOnly": true
+          },
+          "expect": "Volume switch hidden"
+        },
+        {
+          "id": "page-4",
+          "params": {
+            "rebuilt": true,
+            "mode": "chapters",
+            "page": 4
+          },
+          "expect": "Page 4 of 119, chapters 31\u201340"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=chapters]",
+          "expect": "Compact chapter list"
+        },
+        {
+          "selector": "[data-action=window-menu]",
+          "expect": "Window menu"
+        },
+        {
+          "selector": "[data-action=next-page]",
+          "expect": "Next ten chapters"
+        }
+      ]
+    },
+    {
+      "id": "manga.legacy",
+      "file": "demos/manga-series.html",
+      "title": "Manga \u00b7 Legacy WeebCentral",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "legacy": true
+      },
+      "sources": [
+        "qml/Main.qml",
+        "qml/MangaSeriesThumbnailMock.qml",
+        "qml/MangaReadingRoomThumbnailMock.qml",
+        "qml/MangaTankobanLibraryThumbnailMock.qml"
+      ],
+      "states": [
+        {
+          "id": "mixed-shelf",
+          "params": {
+            "legacy": true
+          },
+          "expect": "Compact glass masthead, 14 fixture volumes in vertical cover grid, six latest chapters in persistent footer"
+        },
+        {
+          "id": "chapter-only",
+          "params": {
+            "legacy": true,
+            "chapterOnly": true
+          },
+          "expect": "Chapter-only shelf with 24 rows and Read first chapter"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=legacy-read]",
+          "expect": "Open first volume or chapter sample"
+        },
+        {
+          "selector": "[data-action=legacy-select]",
+          "expect": "Toggle multiselection and Download next 10"
+        },
+        {
+          "selector": "[data-action=legacy-synopsis]",
+          "expect": "Expand/collapse synopsis without replacing shelf"
+        },
+        {
+          "selector": "[data-action=legacy-chapter-download]",
+          "expect": "Stage/cancel chapter download"
+        }
+      ]
+    },
+    {
+      "id": "manga.sources",
+      "file": "demos/manga-sources.html",
+      "title": "Manga \u00b7 Sources",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {},
+      "sources": ["qml/MangaTankobanSourcesPage.qml"],
+      "states": [
+        {
+          "id": "results",
+          "params": {
+            "state": "results"
+          },
+          "expect": "Nyaa result rows and confidence evidence"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Searching volume sources"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "state": "unavailable"
+          },
+          "expect": "Open Extensions"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "No sources"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Retry"
+        },
+        {
+          "id": "downloading",
+          "params": {
+            "state": "downloading"
+          },
+          "expect": "Staged progress/cancel/fail/finish"
+        },
+        {
+          "id": "ready",
+          "params": {
+            "state": "ready"
+          },
+          "expect": "Read or return"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=choose-source]",
+          "expect": "Inspect chosen source"
+        },
+        {
+          "selector": "[data-action=cancel]",
+          "expect": "Cancel to previous route"
+        }
+      ]
+    },
+    {
+      "id": "comics.series",
+      "file": "demos/comics-series.html",
+      "title": "Comics \u00b7 Collected editions",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {},
+      "sources": [
+        "qml/ComicSeriesPage.qml",
+        "qml/ComicDbLedger.qml",
+        "qml/ComicSeries.qml"
+      ],
+      "states": [
+        {
+          "id": "issues",
+          "params": {
+            "view": "issues"
+          },
+          "expect": "Issue ledger"
+        },
+        {
+          "id": "releases",
+          "params": {
+            "view": "releases"
+          },
+          "expect": "GetComics filter/order controls"
+        },
+        {
+          "id": "archive",
+          "params": {
+            "view": "archive"
+          },
+          "expect": "Archive board and index"
+        },
+        {
+          "id": "publishers",
+          "params": {
+            "view": "publishers"
+          },
+          "expect": "Publisher choices"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "state": "unavailable"
+          },
+          "expect": "Catalogue-only no-source state"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=alternate-source]",
+          "expect": "Collected edition alternate source picker"
+        },
+        {
+          "selector": "[data-action=continue]",
+          "expect": "Comic reader defaults"
+        },
+        {
+          "selector": "[data-view=issues]",
+          "expect": "Issue ledger"
+        }
+      ]
+    },
+    {
+      "id": "comics.releases",
+      "file": "demos/comics-series.html",
+      "title": "Comics \u00b7 GetComics releases",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "view": "releases"
+      },
+      "sources": ["qml/ComicSeries.qml"],
+      "states": [],
+      "actions": [
+        {
+          "selector": "[data-action=clear-filter]",
+          "expect": "Restore all fixture releases"
+        }
+      ]
+    },
+    {
+      "id": "comics.archive",
+      "file": "demos/comics-series.html",
+      "title": "Comics \u00b7 Archive",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "view": "archive"
+      },
+      "sources": [
+        "qml/Main.qml",
+        "qml/ComicArchiveBoard.qml",
+        "qml/GenreMosaic.qml",
+        "qml/ComicArchiveIndex.qml"
+      ],
+      "states": [
+        {
+          "id": "publisher-franchise-board",
+          "params": {
+            "view": "archive"
+          },
+          "expect": "Full-page 5-column, 112px-high GenreMosaic taxonomy"
+        },
+        {
+          "id": "series-archive-index",
+          "params": {
+            "view": "archive-index",
+            "box": "DC Comics"
+          },
+          "expect": "Six-column series archive poster grid and All releases door"
+        },
+        {
+          "id": "empty-index",
+          "params": {
+            "view": "archive-index",
+            "box": "Independent",
+            "state": "empty"
+          },
+          "expect": "No series archives surfaced under this box."
+        },
+        {
+          "id": "loading-index",
+          "params": {
+            "view": "archive-index",
+            "box": "DC Comics",
+            "state": "loading"
+          },
+          "expect": "Reading the archives loading state"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=archive-box]",
+          "expect": "Open archive index for selected publisher/franchise"
+        },
+        {
+          "selector": "[data-action=all-releases]",
+          "expect": "Open raw release feed one level down"
+        },
+        {
+          "selector": "[data-action=archive-series]",
+          "expect": "Open selected series release shelf"
+        }
+      ]
+    },
+    {
+      "id": "comics.publishers",
+      "file": "demos/comics-series.html",
+      "title": "Comics \u00b7 Publishers",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "view": "publishers"
+      },
+      "sources": [
+        "qml/Main.qml",
+        "qml/ComicArchiveBoard.qml",
+        "qml/GenreMosaic.qml",
+        "qml/ComicArchiveIndex.qml"
+      ],
+      "states": [
+        {
+          "id": "publisher-franchise-board",
+          "params": {
+            "view": "archive"
+          },
+          "expect": "Full-page 5-column, 112px-high GenreMosaic taxonomy"
+        },
+        {
+          "id": "series-archive-index",
+          "params": {
+            "view": "archive-index",
+            "box": "DC Comics"
+          },
+          "expect": "Six-column series archive poster grid and All releases door"
+        },
+        {
+          "id": "empty-index",
+          "params": {
+            "view": "archive-index",
+            "box": "Independent",
+            "state": "empty"
+          },
+          "expect": "No series archives surfaced under this box."
+        },
+        {
+          "id": "loading-index",
+          "params": {
+            "view": "archive-index",
+            "box": "DC Comics",
+            "state": "loading"
+          },
+          "expect": "Reading the archives loading state"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=archive-box]",
+          "expect": "Open archive index for selected publisher/franchise"
+        },
+        {
+          "selector": "[data-action=all-releases]",
+          "expect": "Open raw release feed one level down"
+        },
+        {
+          "selector": "[data-action=archive-series]",
+          "expect": "Open selected series release shelf"
+        }
+      ]
+    },
+    {
+      "id": "comics.sources",
+      "file": "demos/manga-sources.html",
+      "title": "Comics \u00b7 Alternate sources",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "comic": true
+      },
+      "sources": ["qml/ComicTorrentSourcesPage.qml"],
+      "states": [
+        {
+          "id": "results",
+          "params": {
+            "comic": true,
+            "state": "results"
+          },
+          "expect": "Identity rail and source match evidence"
+        },
+        {
+          "id": "inspecting",
+          "params": {
+            "comic": true,
+            "state": "inspecting"
+          },
+          "expect": "Inspecting pack"
+        },
+        {
+          "id": "ambiguous",
+          "params": {
+            "comic": true,
+            "state": "ambiguous"
+          },
+          "expect": "Choose one archive"
+        },
+        {
+          "id": "incomplete",
+          "params": {
+            "comic": true,
+            "state": "incomplete"
+          },
+          "expect": "Missing issues with retry/manual search"
+        },
+        {
+          "id": "combined",
+          "params": {
+            "comic": true,
+            "state": "combined"
+          },
+          "expect": "Whole archive warning and cancel"
+        },
+        {
+          "id": "downloading",
+          "params": {
+            "comic": true,
+            "state": "downloading"
+          },
+          "expect": "Staged progress"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "comic": true,
+            "state": "empty"
+          },
+          "expect": "No sources"
+        },
+        {
+          "id": "error",
+          "params": {
+            "comic": true,
+            "state": "error"
+          },
+          "expect": "Search failure"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=choose-source]",
+          "expect": "Inspect selected pack; weak match requires confirmation"
+        },
+        {
+          "selector": "[data-action=confirm-combined]",
+          "expect": "Stage complete archive acquisition"
+        }
+      ]
+    },
+    {
+      "id": "reader.comic",
+      "file": "demos/comic-reader.html",
+      "title": "Manga / comic reader",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {},
+      "sources": [
+        "qml/MangaReader.qml",
+        "qml/comicreader/ComicReaderShell.qml",
+        "qml/comicreader/ComicReaderHud.qml",
+        "qml/comicreader/ComicReaderPagesOverlay.qml",
+        "qml/comicreader/ComicReaderImagePopover.qml",
+        "qml/comicreader/ComicReaderLayoutPopover.qml",
+        "qml/comicreader/ComicReaderSettingsSheet.qml"
+      ],
+      "states": [
+        {
+          "id": "manga",
+          "params": {
+            "mode": "manga"
+          },
+          "expect": "RTL paired pages"
+        },
+        {
+          "id": "comic",
+          "params": {
+            "mode": "comic",
+            "kind": "issue"
+          },
+          "expect": "LTR paired pages"
+        },
+        {
+          "id": "single",
+          "params": {
+            "layout": "single_page"
+          },
+          "expect": "Single sample page"
+        },
+        {
+          "id": "strip",
+          "params": {
+            "layout": "long_strip"
+          },
+          "expect": "Continuous original sample pages"
+        },
+        {
+          "id": "pages",
+          "params": {
+            "overlay": "pages"
+          },
+          "expect": "pages overlay"
+        },
+        {
+          "id": "image",
+          "params": {
+            "overlay": "image"
+          },
+          "expect": "image overlay"
+        },
+        {
+          "id": "layout",
+          "params": {
+            "overlay": "layout"
+          },
+          "expect": "layout overlay"
+        },
+        {
+          "id": "loupe",
+          "params": {
+            "overlay": "loupe"
+          },
+          "expect": "loupe overlay"
+        },
+        {
+          "id": "settings",
+          "params": {
+            "overlay": "settings"
+          },
+          "expect": "settings overlay"
+        },
+        {
+          "id": "navigator",
+          "params": {
+            "overlay": "navigator"
+          },
+          "expect": "navigator overlay"
+        },
+        {
+          "id": "bookmarks",
+          "params": {
+            "overlay": "bookmarks"
+          },
+          "expect": "bookmarks overlay"
+        },
+        {
+          "id": "goto",
+          "params": {
+            "overlay": "goto"
+          },
+          "expect": "goto overlay"
+        },
+        {
+          "id": "shortcuts",
+          "params": {
+            "overlay": "shortcuts"
+          },
+          "expect": "shortcuts overlay"
+        },
+        {
+          "id": "pairing",
+          "params": {
+            "overlay": "pairing"
+          },
+          "expect": "pairing overlay"
+        },
+        {
+          "id": "close",
+          "params": {
+            "overlay": "close"
+          },
+          "expect": "close overlay"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Page loading and fixture completion"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Retry and skip damaged sample page"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=pages]",
+          "expect": "Thumbnail filmstrip"
+        },
+        {
+          "selector": "[data-action=image]",
+          "expect": "Anchored Image panel"
+        },
+        {
+          "selector": "[data-action=layout]",
+          "expect": "Anchored Layout panel"
+        },
+        {
+          "selector": "[data-action=bookmark]",
+          "expect": "Toggle current bookmark"
+        },
+        {
+          "selector": "[data-action=left-page]",
+          "expect": "Reading-order-aware page turn"
+        },
+        {
+          "selector": "[data-action=close]",
+          "expect": "Close confirmation"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "id": "manga.default",
+      "source": "qml/MangaReadingRoom.qml",
+      "route": "manga.series",
+      "status": "implemented",
+      "notes": "Current default retained; no duplicate hero Read action on a known volume shelf. Existing copied hero/story/flow reconciled to compact current header."
+    },
+    {
+      "id": "manga.volume-flow",
+      "source": "qml/MangaTankobanLibrary.qml",
+      "route": "manga.series",
+      "status": "implemented",
+      "notes": "Center first, activate second; arrows, PageUp/Down ten-volume jumps, selected batches, missing-cover fallbacks, ready/failed/downloading fixtures."
+    },
+    {
+      "id": "manga.chapter-language",
+      "source": "qml/MangaChapterSeriesView.qml",
+      "route": "manga.chapters",
+      "status": "implemented",
+      "notes": "Ten rows maximum; one Page N dropdown, range, language model reset, per-page/per-chapter download, cancel/delete confirmation, loading/empty/error/extension-gate states."
+    },
+    {
+      "id": "manga.rebuilt",
+      "source": "qml/TankobanSeriesView.qml",
+      "route": "manga.rebuilt",
+      "status": "implemented",
+      "notes": "Opt-in separate route, 76px source title chrome, 124\u00d7186 cover, chapter-only switch exclusion, 88px rows, page arrows and go-to chapter."
+    },
+    {
+      "id": "manga.legacy",
+      "source": "qml/MangaReadingRoomThumbnailMock.qml",
+      "route": "manga.legacy",
+      "status": "implemented",
+      "notes": "Conditional legacyWeebCentral active reading room: compact 58px chrome/glass masthead, on-device count, synopsis expansion, 7-column adaptive volume grid at 1280px, state chips/progress, selection and latest-chapters 104px tail. Fourteen mapped volumes and six tail chapters are explicit fixture subset. The old tall corridor is an uninstantiated Component and is not presented."
+    },
+    {
+      "id": "manga.sources",
+      "source": "qml/MangaTankobanSourcesPage.qml",
+      "route": "manga.sources",
+      "status": "implemented",
+      "notes": "Full-height source picker with 300px artwork wash, identity, 150px result rows, source evidence, progress and cancel/read/ready states. All results are explicit fixtures."
+    },
+    {
+      "id": "comics.db-ledger",
+      "source": "qml/ComicDbLedger.qml",
+      "route": "comics.series",
+      "status": "implemented",
+      "notes": "Default grouped collected-edition ledger, 158\u00d7236 hero cover, 104\u00d7156 edition cards, metadata/source evidence and alternate source route. Catalogue fields are staged."
+    },
+    {
+      "id": "comics.issues-releases",
+      "source": "qml/ComicSeriesPage.qml",
+      "route": "comics.series",
+      "status": "implemented",
+      "notes": "Continue issue, issue ledger, missing-source entry; GetComics release filter and Newest/Oldest/A\u2013Z selector. Finite fixture subset only."
+    },
+    {
+      "id": "comics.archive",
+      "source": "qml/ComicArchiveBoard.qml",
+      "route": "comics.archive",
+      "status": "implemented",
+      "notes": "Dedicated full-page board uses actual GenreMosaic geometry (5 columns, 112px tiles, 16px gaps), publisher/franchise labels/counts, available matching local artwork or native gradient fallback. Archive index has source 6-column geometry and All releases door; keyboard grid navigation, empty/loading states. Finite staged taxonomy and series counts."
+    },
+    {
+      "id": "comics.source-safety",
+      "source": "qml/ComicTorrentSourcesPage.qml",
+      "route": "comics.sources",
+      "status": "implemented",
+      "notes": "Inspecting, ambiguous archive choice, incomplete set, combined archive, weak mismatch confirmation, search/clear, cancel/retry are interactive; no torrent work occurs."
+    },
+    {
+      "id": "reader.hud",
+      "source": "qml/comicreader/ComicReaderHud.qml",
+      "route": "reader.comic",
+      "status": "implemented",
+      "notes": "Retains baseline 38px title strip, 46px command strip, six commands, 54px gold rail; current page/unit navigation, slider, thumbnail jumps, reading-order toggle, bookmarks and local resume."
+    },
+    {
+      "id": "reader.layouts",
+      "source": "qml/comicreader/ComicReaderShell.qml",
+      "route": "reader.comic",
+      "status": "implemented",
+      "notes": "Manga/Comic/Strip semantic modes and independent single/paired/long-strip layouts; RTL/LTR, coupling nudge, zoom, strip width/gap, auto-scroll and manual-wheel pause."
+    },
+    {
+      "id": "reader.overlay-coordinator",
+      "source": "qml/comicreader/ComicReaderShell.qml",
+      "route": "reader.comic",
+      "status": "implemented",
+      "notes": "Only one overlay at a time; Escape closes overlay first, then hides reader chrome; back returns to title. Pages, image, layout, loupe, settings, chapter navigator, bookmarks, goto, shortcuts and paired context chooser."
+    },
+    {
+      "id": "reader.image",
+      "source": "qml/comicreader/ComicReaderImagePopover.qml",
+      "route": "reader.comic",
+      "status": "approximate",
+      "notes": "322px anchored panel with Quality/Brightness/Night filter and Advanced contrast/gamma/rotation/auto-crop. Gamma uses SVG transfer; quality and auto-crop are browser-level approximations."
+    },
+    {
+      "id": "reader.settings",
+      "source": "qml/comicreader/ComicReaderSettingsSheet.qml",
+      "route": "reader.comic",
+      "status": "approximate",
+      "notes": "352px sheet via S; veil, coupling, gutter, zoom, four strip widths, three gap values, tools, memory-saver state and clear/reset confirmation. Native cache policy is not replicated."
+    },
+    {
+      "id": "reader.loupe",
+      "source": "qml/comicreader/ComicReaderShell.qml",
+      "route": "reader.comic",
+      "status": "approximate",
+      "notes": "Movable magnified sample-page lens with +/\u2212 sizing. Lens uses sample image rather than native composited visible-page rectangles."
+    },
+    {
+      "id": "reader.guided",
+      "source": "qml/MangaReader.qml",
+      "route": "reader.comic",
+      "status": "source-inapplicable",
+      "notes": "Guided mode is archived and not reachable in the pinned current shell; intentionally excluded."
+    },
+    {
+      "id": "comics.parked-locg-publisher",
+      "source": "qml/LocgPublisherPage.qml",
+      "route": "comics.publishers",
+      "status": "source-inapplicable",
+      "notes": "Header explicitly marks LOCG publisher page PARKED 2026-07-12 with no door routes. Current publisher navigation goes through GetComics archive taxonomy, not a revived LOCG route."
+    }
+  ],
+  "limitations": [
+    "All acquisition, provider, identity, progress and download outcomes are staged browser state, never live operations.",
+    "Twelve original local SVG pages titled Signal at Dawn are explicitly labeled sample content; no One Piece or other licensed narrative scans are supplied or fabricated.",
+    "Only the bundled series cover is used as the volume-1 cover fixture. Other volume artwork uses the native NO COVER state rather than invented cover art.",
+    "Browser-native select popups stand in for QML ComboBox/Popup surfaces; keyboard/value behavior is covered, pixel-exact popup painting is platform-dependent.",
+    "Reader native image cache/memory saver, high-resolution image decode, advanced auto-crop, precise loupe hit mapping and spread-detection algorithms are not native ports.",
+    "Catalogue counts may describe a full series while only a documented finite staged sample is supplied for comics; no catalogue API is queried.",
+    "Legacy uses 14 mapped-volume fixtures plus six latest chapters, not a full live 115-volume catalogue. Archive publisher/franchise counts and source relationships are local fixtures; source-compatible gradient fallback is used where matching artwork is absent."
+  ],
+  "verification": {
+    "smoke": "reports/manga/smoke.json",
+    "interactions": "reports/manga/interactions.json",
+    "screenshots": "reports/manga/",
+    "engines": ["Chromium Headless Shell (bundled)", "Firefox (bundled)"],
+    "viewports": ["1280x720", "1440x900"],
+    "offline": true,
+    "visualReview": "Captured and viewed screenshots; corrected inherited chapter wallpaper, rebuilt title-bar/poster geometry, anchored reader panels and provider branding.",
+    "additionalSmoke": "reports/manga/extra-smoke.json",
+    "finalChecks": "reports/manga/final-checks.json",
+    "compositionChecks": "reports/manga/composition-checks.json",
+    "compositionReview": "reports/manga/COMPOSITION-REVIEW.md"
+  }
+}

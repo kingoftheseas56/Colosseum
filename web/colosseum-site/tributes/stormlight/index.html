@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cosmere Cognitive Atlas | Colosseum Tribute</title>
+<style>
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/Fraunces-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --void: #070a12;
+  --blue: #78cfe3;
+  --storm: #d9e8ff;
+  --copper: #b8734a;
+  --gold: #f0c44a;
+  --ink: #f7f7f5;
+  --ink-dim: #c9c8d0;
+  --ink-dimmer: #9a99a5;
+  --margin: 54px;
+  --ui: "Segoe UI", sans-serif;
+  --display: "Fraunces", Georgia, serif;
+}
+* { box-sizing: border-box; }
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #04050a;
+  color: var(--ink);
+}
+button { font: inherit; }
+.stage {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(to bottom, #0b1120 0%, var(--void) 48%, #04050a 100%);
+  z-index: 0;
+}
+.page {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 1;
+  scrollbar-width: none;
+}
+.page::-webkit-scrollbar { display: none; }
+.house-scrollbar {
+  position: fixed;
+  z-index: 15;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  background: rgba(247,247,245,.03);
+  user-select: none;
+  touch-action: none;
+}
+.house-scrollbar:hover { background: rgba(247,247,245,.06); }
+.house-scrollbar[hidden] { display: none; }
+.house-thumb {
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 8px;
+  min-height: 8px;
+  border-radius: 4px;
+  background: rgba(247,247,245,.30);
+  cursor: default;
+}
+.house-scrollbar:hover .house-thumb { background: rgba(247,247,245,.55); }
+.house-scrollbar.dragging .house-thumb { background: rgba(240,196,74,.85); }
+.content {
+  width: 100%;
+  opacity: 0;
+  animation: reveal 460ms cubic-bezier(.215,.61,.355,1) forwards;
+}
+@keyframes reveal { to { opacity: 1; } }
+.hero {
+  position: relative;
+  width: 100%;
+  height: max(680px, 100vh);
+  min-height: 680px;
+  overflow: hidden;
+}
+.hero-art {
+  position: absolute;
+  inset: 0;
+  background-image: url("/current-ui-mock/assets/extensions/house/cosmere.jpg");
+  background-size: cover;
+  background-position: center;
+  opacity: .17;
+}
+.hero-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(7,10,18,.50) 0%,
+    rgba(7,10,18,.80) 55%,
+    var(--void) 100%);
+}
+.hero-copy {
+  position: absolute;
+  left: var(--margin);
+  top: 104px;
+  width: min(600px, 49vw);
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.eyebrow,
+.section-kicker,
+.starter-short,
+.world-epithet,
+.portal-label,
+.open-label,
+.begin-label {
+  font-family: var(--ui);
+  text-transform: uppercase;
+}
+.eyebrow {
+  color: var(--blue);
+  font-size: 10px;
+  letter-spacing: 3px;
+}
+.hero h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 54px;
+  font-weight: 400;
+  line-height: .92;
+}
+.blurb {
+  width: calc(100% - 20px);
+  margin: 0;
+  color: var(--ink-dim);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.35;
+}
+.invite {
+  margin: 4px 0 0;
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 12px;
+}
+.entry-atlas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 320px;
+}
+.entry-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .62;
+  pointer-events: none;
+}
+.begin-label {
+  position: absolute;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--storm);
+  font-size: 10px;
+  letter-spacing: 3px;
+  white-space: nowrap;
+}
+.begin-dot {
+  position: absolute;
+  left: calc(50% - 6px);
+  top: 120px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--storm);
+  border: 4px solid rgba(120,207,227,.28);
+}
+.starter {
+  position: absolute;
+  width: 276px;
+  height: 116px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(120,207,227,.28);
+  background: rgba(9,17,27,.94);
+  color: inherit;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease;
+}
+.starter:hover { border-color: var(--blue); }
+.starter:focus-visible {
+  outline: none;
+  border: 2px solid var(--storm);
+}
+.starter.s0 { left: 84px; top: 98px; }
+.starter.s1 { right: 84px; top: 98px; }
+.starter.s2 { left: 50%; top: 218px; transform: translateX(-50%); }
+.starter-accent {
+  position: absolute;
+  left: 0;
+  top: 19px;
+  width: 2px;
+  height: 78px;
+  background: var(--blue);
+}
+.starter-copy {
+  position: absolute;
+  left: 18px;
+  right: 72px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.starter-short {
+  color: var(--blue);
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+.starter-title {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.starter-note {
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 10px;
+  line-height: 1.18;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.starter-cover {
+  position: absolute;
+  right: 10px;
+  top: 20px;
+  width: 50px;
+  height: 76px;
+  object-fit: cover;
+}
+.resolving {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 8px;
+  letter-spacing: 2px;
+}
+.map-section {
+  position: relative;
+  width: 100%;
+  height: 470px;
+}
+.map-heading {
+  position: absolute;
+  left: var(--margin);
+  top: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.section-kicker {
+  color: var(--gold);
+  font-size: 10px;
+  letter-spacing: 3px;
+}
+.map-heading h2,
+.shelves-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 31px;
+  font-weight: 400;
+}
+.system-map {
+  position: absolute;
+  left: var(--margin);
+  right: var(--margin);
+  top: 112px;
+  bottom: 24px;
+}
+.system-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .45;
+  pointer-events: none;
+}
+.system-core {
+  position: absolute;
+  left: calc(50% - 4.5px);
+  top: calc(50% - 4.5px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+.world-node {
+  position: absolute;
+  width: 230px;
+  height: 74px;
+  border-radius: 37px;
+  border: 1px solid var(--accent);
+  background: rgba(6,11,19,.82);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.world-node:hover,
+.world-node:focus-visible {
+  outline: none;
+  background: rgba(15,26,41,.92);
+}
+.world-node.n0, .world-node.n3 { left: 15px; }
+.world-node.n1, .world-node.n4 { left: calc(50% - 115px); }
+.world-node.n2, .world-node.n5 { right: 15px; }
+.world-node.n0, .world-node.n1, .world-node.n2 { top: 20px; }
+.world-node.n3, .world-node.n4, .world-node.n5 { bottom: 20px; }
+.world-node-dot {
+  position: absolute;
+  left: 20px;
+  top: 33px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.world-node-copy {
+  position: absolute;
+  left: 42px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.world-name {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+}
+.world-epithet {
+  color: var(--ink-dimmer);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.divider {
+  height: 1px;
+  margin: 0 var(--margin);
+  background: rgba(120,207,227,.22);
+}
+.world-gates-heading {
+  position: relative;
+  height: 94px;
+}
+.world-gates-heading .inner {
+  position: absolute;
+  left: var(--margin);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.world-gates-heading .section-kicker { color: var(--blue); }
+.world-gates-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 27px;
+  font-weight: 400;
+}
+.world-section {
+  position: relative;
+  width: 100%;
+  height: 278px;
+}
+.world-section.alt { background: rgba(120,207,227,.025); }
+.section-accent {
+  position: absolute;
+  left: var(--margin);
+  top: 28px;
+  width: 3px;
+  height: 58px;
+  background: var(--accent);
+}
+.section-title-block {
+  position: absolute;
+  left: calc(var(--margin) + 18px);
+  top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.section-title {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 29px;
+  line-height: 1;
+}
+.section-epithet {
+  color: var(--accent);
+  font-family: var(--ui);
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+.portal-count {
+  position: absolute;
+  right: var(--margin);
+  top: 39px;
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 11px;
+}
+.book-walk {
+  position: absolute;
+  left: var(--margin);
+  right: var(--margin);
+  top: 108px;
+  height: 148px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.book-walk::-webkit-scrollbar { display: none; }
+.book-gates {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  height: 138px;
+}
+.book-gate {
+  position: relative;
+  flex: 0 0 230px;
+  width: 230px;
+  height: 138px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(9,14,23,.94);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  transition: border-color 130ms ease;
+}
+.book-gate:hover,
+.book-gate:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(18,27,41,.96);
+}
+.book-cover {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 78px;
+  height: 122px;
+  object-fit: cover;
+}
+.book-copy {
+  position: absolute;
+  left: 100px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.portal-label {
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 1px;
+  line-height: 1.12;
+  max-height: 2.3em;
+  overflow: hidden;
+}
+.book-title {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 17px;
+  line-height: 1.08;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.open-label {
+  color: var(--ink-dimmer);
+  font-size: 8px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.shelves-heading {
+  position: relative;
+  width: 100%;
+  height: 126px;
+}
+.shelves-heading .inner {
+  position: absolute;
+  left: var(--margin);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shelves-sub {
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 12px;
+}
+.tail { height: 76px; }
+.chrome-scrim {
+  position: fixed;
+  z-index: 16;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 120px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,.55), transparent);
+}
+.back-action {
+  position: fixed;
+  z-index: 20;
+  left: var(--margin);
+  top: 28px;
+  height: 34px;
+  border: 0;
+  padding: 0 8px 0 2px;
+  background: transparent;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+.back-action:hover { color: var(--gold); }
+.back-action svg { width: 20px; height: 20px; }
+.back-action span { font-family: var(--ui); font-size: 15px; }
+.window-controls {
+  position: fixed;
+  z-index: 30;
+  right: var(--margin);
+  top: 34px;
+  display: flex;
+  gap: 20px;
+}
+.window-control {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  opacity: .72;
+  cursor: pointer;
+}
+.window-control:hover { opacity: 1; }
+.window-control svg { width: 22px; height: 22px; display: block; }
+
+.book-detail-layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: none;
+  color: var(--ink);
+  background: linear-gradient(to bottom, #0c0f18 0%, #06070b 100%);
+}
+.book-detail-layer.open { display: block; }
+.book-detail-bar {
+  position: absolute;
+  left: var(--margin);
+  right: var(--margin);
+  top: 22px;
+  height: 64px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.10);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 10px 32px rgba(0,0,0,.22);
+}
+.book-detail-bar-left,
+.book-detail-bar-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+.book-detail-bar-left { left: 18px; gap: 22px; }
+.book-detail-bar-right { right: 14px; gap: 6px; }
+.book-detail-back {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  padding: 4px 8px 4px 2px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 14px;
+}
+.book-detail-back:hover { color: var(--ink); }
+.book-detail-back svg { width: 20px; height: 20px; }
+.book-detail-brand {
+  font-family: var(--display);
+  font-size: 20px;
+  color: var(--ink);
+}
+.book-sys {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-dimmer);
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 14px;
+}
+.book-sys:hover { background: rgba(255,255,255,.08); }
+.book-detail-scroll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 108px;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.book-detail-scroll::-webkit-scrollbar { display: none; }
+.book-detail-body {
+  margin: 0 var(--margin);
+  min-height: 590px;
+  padding-top: 16px;
+  padding-bottom: 70px;
+  display: grid;
+  grid-template-columns: 268px minmax(0,1fr);
+  column-gap: 64px;
+}
+.book-detail-cover-column {
+  width: 268px;
+}
+.book-object {
+  position: relative;
+  width: 268px;
+  height: 402px;
+  margin-bottom: 28px;
+  filter: drop-shadow(0 26px 24px rgba(0,0,0,.65));
+}
+.book-object::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: 5px;
+  width: 7px;
+  height: 392px;
+  border-radius: 2px;
+  z-index: -1;
+  background: linear-gradient(to right,#d3cdbe,#a8a294);
+}
+.book-detail-cover {
+  position: absolute;
+  inset: 0;
+  width: 268px;
+  height: 402px;
+  object-fit: cover;
+  background: #14131a;
+  border-radius: 3px;
+}
+.book-spine {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  width: 11px;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(to right,rgba(0,0,0,.5) 0%,rgba(0,0,0,.05) 60%,rgba(255,255,255,.08) 100%);
+}
+.book-action-stack { display: flex; flex-direction: column; gap: 12px; }
+.book-primary {
+  width: 268px;
+  height: 50px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--gold);
+  color: #241a05;
+  font-family: var(--ui);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+}
+.book-primary:hover { filter: brightness(1.08); }
+.book-primary:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.book-status {
+  width: 268px;
+  text-align: center;
+  color: var(--ink-dim);
+  font-family: var(--ui);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.book-secondary {
+  width: 268px;
+  height: 50px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 13px;
+  background: rgba(255,255,255,.07);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+}
+.book-detail-text {
+  min-width: 0;
+  padding-top: 2px;
+}
+.book-detail-eyebrow {
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+.book-detail-title {
+  margin: 14px 0 0;
+  max-width: 820px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 54px;
+  font-weight: 400;
+  line-height: 1.02;
+}
+.book-detail-tagline {
+  display: none;
+  max-width: 820px;
+  margin-top: 20px;
+  color: var(--ink);
+  opacity: .92;
+  font-family: var(--display);
+  font-size: 28px;
+  font-style: italic;
+  line-height: 1.3;
+}
+.book-detail-rule {
+  position: relative;
+  width: min(100%,820px);
+  height: 3px;
+  margin-top: 30px;
+}
+.book-detail-rule::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1px;
+  height: 1px;
+  background: linear-gradient(to right,rgba(255,255,255,.18),transparent 70%);
+}
+.book-detail-rule::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gold);
+}
+.book-detail-synopsis {
+  width: min(100%,640px);
+  margin: 26px 0 0;
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 17px;
+  line-height: 1.7;
+}
+.book-detail-synopsis::first-letter {
+  float: left;
+  margin: -.08em .08em 0 0;
+  color: var(--ink);
+  font-size: 62px;
+  line-height: .9;
+}
+.book-detail-source {
+  width: min(100%,640px);
+  margin-top: 40px;
+}
+.book-detail-source-label {
+  color: var(--ink-dimmer);
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+}
+.book-detail-source-card {
+  margin-top: 12px;
+  min-height: 64px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,.05);
+  color: var(--ink-dim);
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.45;
+}
+@media (max-width: 760px) {
+  .book-detail-body {
+    grid-template-columns: 1fr;
+    row-gap: 38px;
+  }
+  .book-detail-cover-column { margin: 0 auto; }
+}
+@media (max-width: 900px) {
+  :root { --margin: 32px; }
+  .starter.s0 { left: 32px; }
+  .starter.s1 { right: 32px; }
+}
+
+/* Web layouts keep every atlas entry reachable on narrow screens. */
+html{scrollbar-color:#596779 #070a12}button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.book-walk{scrollbar-width:thin}.book-walk::-webkit-scrollbar{display:block;height:6px}.book-walk::-webkit-scrollbar-thumb{background:#596779;border-radius:6px}
+@media(max-width:760px){
+ :root{--margin:20px}.hero{height:auto;min-height:0;padding-bottom:32px}.hero-copy{position:relative;left:auto;top:auto;padding:105px 20px 25px;width:auto;max-width:none}.hero-copy .blurb{max-width:none}.entry-atlas{position:relative;height:auto;padding:20px}.entry-lines,.begin-dot{display:none}.begin-label{position:static;transform:none;margin:0 0 16px}#starters{display:grid;gap:12px}.starter.s0,.starter.s1,.starter.s2{position:relative;left:auto;right:auto;top:auto;transform:none;width:100%;height:116px}.starter-title{white-space:normal}.map-section{height:auto;padding:24px 20px}.map-heading{position:static;margin-bottom:24px}.map-heading h2,.shelves-heading h2{font-size:26px}.system-map{position:relative;inset:auto}.system-lines,.system-core{display:none}#worldNodes{display:grid;gap:12px}.world-node.n0,.world-node.n1,.world-node.n2,.world-node.n3,.world-node.n4,.world-node.n5{position:relative;inset:auto;width:100%}.section-title{font-size:24px}.portal-count{top:80px}.shelves-heading{height:160px}.shelves-heading .inner{right:20px}.book-detail-bar{left:12px;right:12px}.book-detail-bar-right{gap:6px}.book-detail-body{padding-left:20px;padding-right:20px}.book-detail-brand{display:none}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.content{opacity:1}}
+
+</style>
+</head>
+<body>
+<div class="stage"></div>
+<div class="page" id="page">
+  <main class="content" id="content">
+    <section class="hero">
+      <div class="hero-art"></div>
+      <div class="hero-wash"></div>
+      <div class="hero-copy">
+        <div class="eyebrow">THE COSMERE&nbsp; / &nbsp;A CONNECTED EPIC</div>
+        <h1>Cosmere</h1>
+        <p class="blurb">Brandon Winn Sanderson is an American author of high fantasy, science fiction, and young adult books. His best known novels include the Mistborn series and The Stormlight Archive, which are set in the "Cosmere", a fictional universe.</p>
+        <p class="invite">Begin with the kind of journey you want.</p>
+      </div>
+      <div class="entry-atlas" id="entryAtlas">
+        <svg class="entry-lines" viewBox="0 0 1280 320" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="e0" x1="640" y1="126" x2="222" y2="156" gradientUnits="userSpaceOnUse"><stop stop-color="#78cfe3"/><stop offset="1" stop-color="#32566b"/></linearGradient>
+            <linearGradient id="e1" x1="640" y1="126" x2="1058" y2="156" gradientUnits="userSpaceOnUse"><stop stop-color="#78cfe3"/><stop offset="1" stop-color="#32566b"/></linearGradient>
+            <linearGradient id="e2" x1="640" y1="126" x2="640" y2="276" gradientUnits="userSpaceOnUse"><stop stop-color="#78cfe3"/><stop offset="1" stop-color="#32566b"/></linearGradient>
+          </defs>
+          <line x1="640" y1="126" x2="222" y2="156" stroke="url(#e0)"/>
+          <line x1="640" y1="126" x2="1058" y2="156" stroke="url(#e1)"/>
+          <line x1="640" y1="126" x2="640" y2="276" stroke="url(#e2)"/>
+          <circle cx="640" cy="126" r="37" fill="none" stroke="#31546a"/>
+          <circle cx="640" cy="126" r="62" fill="none" stroke="#31546a"/>
+        </svg>
+        <div class="begin-label">BEGIN HERE</div>
+        <div class="begin-dot"></div>
+        <div id="starters"></div>
+      </div>
+    </section>
+    <section class="map-section">
+      <div class="map-heading">
+        <div class="section-kicker">THE COGNITIVE ATLAS</div>
+        <h2>Six systems. One underlying light.</h2>
+      </div>
+      <div class="system-map">
+        <svg class="system-lines" viewBox="0 0 1172 334" preserveAspectRatio="none" aria-hidden="true">
+          <g stroke="#355568" stroke-width="1" fill="none">
+            <line x1="586" y1="167" x2="130" y2="74"/>
+            <line x1="586" y1="167" x2="586" y2="44"/>
+            <line x1="586" y1="167" x2="1042" y2="74"/>
+            <line x1="586" y1="167" x2="130" y2="270"/>
+            <line x1="586" y1="167" x2="586" y2="292"/>
+            <line x1="586" y1="167" x2="1042" y2="270"/>
+          </g>
+          <circle cx="586" cy="167" r="85" fill="none" stroke="#203846"/>
+        </svg>
+        <div class="system-core"></div>
+        <div id="worldNodes"></div>
+      </div>
+    </section>
+    <div class="divider"></div>
+    <section class="world-gates-heading">
+      <div class="inner">
+        <div class="section-kicker">WORLD GATES</div>
+        <h2>Explore the stories of each world</h2>
+      </div>
+    </section>
+    <div id="worldSections"></div>
+    <section class="shelves-heading">
+      <div class="inner">
+        <div class="section-kicker">THE COMPLETE SHELVES</div>
+        <h2>Every published road through the Cosmere</h2>
+        <div class="shelves-sub">Main arcs, novellas, graphic stories, and the books between worlds.</div>
+      </div>
+    </section>
+    <div id="seriesSections"></div>
+    <div class="tail"></div>
+  </main>
+</div>
+<section class="book-detail-layer" id="bookDetailLayer" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Book details">
+  <div class="book-detail-bar">
+    <div class="book-detail-bar-left">
+      <button class="book-detail-back" id="bookDetailBack" aria-label="Back to Cosmere">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+        <span>Back</span>
+      </button>
+      <div class="book-detail-brand">Biblio</div>
+    </div>
+    <div class="book-detail-bar-right">
+      <button class="book-sys" id="bookMinimize" aria-label="Minimize">—</button>
+      <button class="book-sys" id="bookFullscreen" aria-label="Toggle fullscreen">⛶</button>
+      <button class="book-sys" id="bookClose" aria-label="Close">⏻</button>
+    </div>
+  </div>
+  <div class="book-detail-scroll" id="bookDetailScroll">
+    <div class="book-detail-body">
+      <aside class="book-detail-cover-column">
+        <div class="book-object">
+          <img class="book-detail-cover" id="bookDetailCover" alt="">
+          <div class="book-spine"></div>
+        </div>
+        <div class="book-action-stack">
+          <a class="book-primary" href="https://getcolosseum.world/#downloads" target="_blank" rel="noopener noreferrer" aria-label="Explore the full Cosmere Tribute in Colosseum">Try the full Tribute ↗</a>
+          <div class="book-status">Continue the journey with reading and your library inside Colosseum.</div>
+
+        </div>
+      </aside>
+      <article class="book-detail-text">
+        <div class="book-detail-eyebrow" id="bookDetailEyebrow"></div>
+        <h1 class="book-detail-title" id="bookDetailTitle"></h1>
+        <div class="book-detail-tagline" id="bookDetailTagline"></div>
+        <div class="book-detail-rule"></div>
+        <p class="book-detail-synopsis" id="bookDetailSynopsis">Discover more about this story in Colosseum.</p>
+        <div class="book-detail-source">
+          <div class="book-detail-source-label">THE FULL EXPERIENCE</div>
+          <div class="book-detail-source-card" id="bookDetailSource">Enjoying this preview? Try the full Cosmere Tribute in the Colosseum desktop app to explore the stories, read, and build your library.</div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+<div class="house-scrollbar" id="houseScrollbar" aria-hidden="true">
+  <div class="house-thumb" id="houseThumb"></div>
+</div>
+<div class="chrome-scrim"></div>
+<button class="back-action" id="backButton" aria-label="Back">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+  <span>Back</span>
+</button>
+<div class="window-controls">
+  <button class="window-control" id="minimizeButton" aria-label="Minimize">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h12"/></svg>
+  </button>
+  <button class="window-control" id="powerButton" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M6.5 7a8 8 0 1 0 11 0"/></svg>
+  </button>
+</div>
+<script>
+const BOOKS = {
+  "Mistborn The Final Empire Brandon Sanderson":{"id":386002824,"title":"Mistborn","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/b5/0c/31/b50c3199-b99c-3e54-81a9-cae1d3009434/9781429914567.jpg/600x900bb.jpg"},
+  "The Way of Kings Brandon Sanderson":{"id":376229549,"title":"The Way of Kings","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/52/5c/07/525c07e7-5df8-34d5-14df-2562be74194e/9781429992800.jpg/600x900bb.jpg"},
+  "Tress of the Emerald Sea Brandon Sanderson":{"id":6445129603,"title":"Tress of the Emerald Sea","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/19/1e/8d/191e8db5-18a9-651c-4964-709a3b1c827a/d22ed81f-4ae5-4bb3-a19f-998bb13ac3da_cover_image.jpg/600x900bb.jpg"},
+  "The Alloy of Law Brandon Sanderson":{"id":441897455,"title":"The Alloy of Law","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/22/70/fc/2270fc46-569d-d027-4356-aefbe5c2eb39/9781429994897.jpg/600x900bb.jpg"},
+  "Edgedancer Brandon Sanderson":{"id":6447583802,"title":"Edgedancer","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/f8/39/c2/f839c282-7a4d-1487-a262-b8a7e3456449/bca90388-b050-4d7d-beaf-23f4cab65d1a_cover_image.jpg/600x900bb.jpg"},
+  "Dawnshard Brandon Sanderson":{"id":1539206171,"title":"Dawnshard","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/c6/0e/d2/c60ed246-d6c4-bf52-2332-4a49a87cf4d9/Dawnshard_catalog_cover.jpg/600x900bb.jpg"},
+  "Elantris Brandon Sanderson":{"id":385985700,"title":"Elantris","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication62/v4/42/6b/d0/426bd05e-1457-b0dd-7f03-3e50ce7a01e6/9781429914550.jpg/600x900bb.jpg"},
+  "The Emperor's Soul Brandon Sanderson":{"id":576052926,"title":"The Emperor's Soul","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication/v4/f0/52/f3/f052f3b5-ca7e-e43e-47cf-a0d2953ba777/emperors_soul_ebook_cover_1515.png/600x900bb.jpg"},
+  "Warbreaker Brandon Sanderson":{"id":385110621,"title":"Warbreaker","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/11/54/a5/1154a513-5761-995f-9037-08e839b87904/9781429967945.jpg/600x900bb.jpg"},
+  "White Sand Brandon Sanderson":{"id":6480001197,"title":"White Sand","author":"Brandon Sanderson, Rik Hoskin, Julius Gopez & Ross Campbell","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/21/b9/3d/21b93d5a-9fc3-8011-fe2a-d2aca1e8cd17/WhiteSandOmnibusTPBcvr_copy.jpg/600x900bb.jpg"},
+  "Yumi and the Nightmare Painter Brandon Sanderson":{"id":6445249970,"title":"Yumi and the Nightmare Painter","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/25/f2/bd/25f2bdef-64f6-d1c7-5c13-4804bcbb8b5a/5216cb67-38ef-4ea1-8384-0e1262d14d33_cover_image.jpg/600x900bb.jpg"},
+  "The Sunlit Man Brandon Sanderson":{"id":6445250112,"title":"The Sunlit Man","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/2b/ea/2b/2bea2b86-8928-fc78-4b0a-03bf521b0d75/3ca4e17e-dd85-46e2-a213-4c036e3da4d9_cover_image.jpg/600x900bb.jpg"},
+  "Isles of the Emberdark Brandon Sanderson":{"id":6744427925,"title":"Isles of the Emberdark","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/9c/ba/e8/9cbae81e-e64e-7b9b-901a-285530c1ba8c/ae07851e-213b-41c1-b43b-d6ff8bf04ba1_cover_image.jpg/600x900bb.jpg"},
+  "Arcanum Unbounded Brandon Sanderson":{"id":1128453315,"title":"Arcanum Unbounded: The Cosmere Collection","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/90/25/98/90259812-a4ae-d03d-46c7-63121bba1936/9780765391179.jpg/600x900bb.jpg"},
+  "The Well of Ascension Brandon Sanderson":{"id":385972806,"title":"The Well of Ascension","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/7a/b2/87/7ab28706-07fe-cea5-4b18-ad8854cde884/9781429961813.jpg/600x900bb.jpg"},
+  "The Hero of Ages Brandon Sanderson":{"id":385973719,"title":"The Hero of Ages","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/7f/32/b8/7f32b82f-8558-ddcc-7275-5556286fe6b1/9781429960304.jpg/600x900bb.jpg"},
+  "Shadows of Self Brandon Sanderson":{"id":953108265,"title":"Shadows of Self","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/d5/7f/3a/d57f3a46-ac80-98be-140e-95159a78a703/9781466862661.jpg/600x900bb.jpg"},
+  "The Bands of Mourning Brandon Sanderson":{"id":953141184,"title":"The Bands of Mourning","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/69/bc/43/69bc4350-91fc-ccef-c7ae-72f4ab84ade2/9781466862678.jpg/600x900bb.jpg"},
+  "The Lost Metal Brandon Sanderson":{"id":1598914426,"title":"The Lost Metal","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/77/c4/58/77c4581f-8507-bacf-416a-6b019e67cbc4/9780765391209.jpg/600x900bb.jpg"},
+  "Words of Radiance Brandon Sanderson":{"id":717847678,"title":"Words of Radiance","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/f1/c0/bd/f1c0bd9e-fafa-1318-2548-9c41fe5bc674/9781429949620.jpg/600x900bb.jpg"},
+  "Oathbringer Brandon Sanderson":{"id":1198279804,"title":"Oathbringer","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/80/91/f6/8091f63f-5c0d-f3f7-d447-a2fbbaa7fa7c/9780765399830.jpg/600x900bb.jpg"},
+  "Rhythm of War Brandon Sanderson":{"id":1489970175,"title":"Rhythm of War","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication112/v4/f9/66/8f/f9668f66-d081-938a-49e6-51cc84fd5ed4/9781429952040.jpg/600x900bb.jpg"},
+  "Wind and Truth Brandon Sanderson":{"id":6474140457,"title":"Wind and Truth","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/74/12/d4/7412d47d-fb1c-de98-4dcf-88fe96e6f585/9781250319173.jpg/600x900bb.jpg"},
+  "The Fires of December Brandon Sanderson":{"id":6762225585,"title":"The Fires of December","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/ee/73/9a/ee739a85-fd9b-ebe4-d8c7-6217f8d9588b/88b48aec-555a-4ce8-a662-f8db69e51719_cover_image.jpg/600x900bb.jpg"},
+  "Shadows for Silence in the Forests of Hell Brandon Sanderson":{"id":973606789,"title":"Shadows for Silence in the Forests of Hell","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication1/v4/5d/1d/96/5d1d96d2-2f6e-eff4-07d0-de446525198c/shadows_for_silence_catalog_cover.jpg/600x900bb.jpg"},
+  "White Sand Omnibus Brandon Sanderson":{"id":6480001197,"title":"White Sand","author":"Brandon Sanderson, Rik Hoskin, Julius Gopez & Ross Campbell","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/21/b9/3d/21b93d5a-9fc3-8011-fe2a-d2aca1e8cd17/WhiteSandOmnibusTPBcvr_copy.jpg/600x900bb.jpg"},
+  "Mistborn Secret History Brandon Sanderson":{"id":1078539652,"title":"Mistborn: Secret History","author":"Brandon Sanderson","cover":"https://is1-ssl.mzstatic.com/image/thumb/Publication69/v4/47/90/24/4790242b-cd4c-74e3-a279-d22ddee0163e/Mistborn-Secret-History-catalog-cover.jpg/600x900bb.jpg"}
+};
+
+const STARTERS = [
+  {label:"The balanced beginning",short:"MISTBORN",note:"A complete fantasy heist with the clearest doorway into Sanderson's magic.",query:"Mistborn The Final Empire Brandon Sanderson"},
+  {label:"The deep end",short:"STORMLIGHT",note:"A vast epic for readers ready to begin with the Cosmere at full scale.",query:"The Way of Kings Brandon Sanderson"},
+  {label:"The standalone voyage",short:"TRESS",note:"A warm, self-contained adventure with the wider universe glinting beneath it.",query:"Tress of the Emerald Sea Brandon Sanderson"}
+];
+const WORLDS = [
+  {name:"Scadrial",epithet:"METAL · ASH · REBELLION",accent:"#b8734a",books:[["Mistborn — Era One","Mistborn The Final Empire Brandon Sanderson"],["Mistborn — Era Two","The Alloy of Law Brandon Sanderson"]]},
+  {name:"Roshar",epithet:"STORMS · OATHS · RADIANCE",accent:"#78cfe3",books:[["The Stormlight Archive","The Way of Kings Brandon Sanderson"],["Edgedancer","Edgedancer Brandon Sanderson"],["Dawnshard","Dawnshard Brandon Sanderson"]]},
+  {name:"Sel",epithet:"GLYPHS · SOULS · DEVOTION",accent:"#d9e8ff",books:[["Elantris","Elantris Brandon Sanderson"],["The Emperor's Soul","The Emperor's Soul Brandon Sanderson"]]},
+  {name:"Nalthis",epithet:"BREATH · COLOR · AWAKENING",accent:"#d688b4",books:[["Warbreaker","Warbreaker Brandon Sanderson"]]},
+  {name:"Taldain",epithet:"SAND · SUN · MASTERY",accent:"#e5c77c",books:[["White Sand","White Sand Brandon Sanderson"]]},
+  {name:"Farther Worlds",epithet:"OCEANS · DREAMS · STARLIGHT",accent:"#8ec7b5",books:[["Tress of the Emerald Sea","Tress of the Emerald Sea Brandon Sanderson"],["Yumi and the Nightmare Painter","Yumi and the Nightmare Painter Brandon Sanderson"],["The Sunlit Man","The Sunlit Man Brandon Sanderson"],["Isles of the Emberdark","Isles of the Emberdark Brandon Sanderson"],["Arcanum Unbounded","Arcanum Unbounded Brandon Sanderson"]]}
+];
+const SERIES = [
+  {name:"Mistborn — Era One",epithet:"THE ORIGINAL TRILOGY",accent:"#b8734a",books:[["01","Mistborn The Final Empire Brandon Sanderson"],["02","The Well of Ascension Brandon Sanderson"],["03","The Hero of Ages Brandon Sanderson"]]},
+  {name:"Mistborn — Era Two",epithet:"WAX & WAYNE",accent:"#ce9567",books:[["01","The Alloy of Law Brandon Sanderson"],["02","Shadows of Self Brandon Sanderson"],["03","The Bands of Mourning Brandon Sanderson"],["04","The Lost Metal Brandon Sanderson"]]},
+  {name:"The Stormlight Archive",epithet:"FIRST ARC + NOVELLAS",accent:"#78cfe3",books:[["01","The Way of Kings Brandon Sanderson"],["02","Words of Radiance Brandon Sanderson"],["2.5","Edgedancer Brandon Sanderson"],["03","Oathbringer Brandon Sanderson"],["3.5","Dawnshard Brandon Sanderson"],["04","Rhythm of War Brandon Sanderson"],["05","Wind and Truth Brandon Sanderson"]]},
+  {name:"Selish Stories",epithet:"ELANTRIS + THE EMPEROR'S SOUL",accent:"#d9e8ff",books:[["ELANTRIS","Elantris Brandon Sanderson"],["SHARDWORLD NOVELLA","The Emperor's Soul Brandon Sanderson"]]},
+  {name:"Hoid's Travails",epithet:"STORIES TOLD ACROSS THE STARS",accent:"#8ec7b5",books:[["01","Tress of the Emerald Sea Brandon Sanderson"],["02","Yumi and the Nightmare Painter Brandon Sanderson"],["03","The Fires of December Brandon Sanderson"]]},
+  {name:"Cosmere Standalones",epithet:"COMPLETE WORLDS IN ONE VOLUME",accent:"#d688b4",books:[["NALTHIS","Warbreaker Brandon Sanderson"],["CANTICLE","The Sunlit Man Brandon Sanderson"],["FIRST OF THE SUN","Isles of the Emberdark Brandon Sanderson"],["THRENODY","Shadows for Silence in the Forests of Hell Brandon Sanderson"]]},
+  {name:"White Sand",epithet:"THE TALDAIN GRAPHIC NOVEL",accent:"#e5c77c",books:[["COMPLETE EDITION","White Sand Omnibus Brandon Sanderson"]]},
+  {name:"Collections & Secret Histories",epithet:"THE CONNECTIONS BENEATH",accent:"#9aa8c6",books:[["THE COSMERE COLLECTION","Arcanum Unbounded Brandon Sanderson"],["MISTBORN NOVELLA","Mistborn Secret History Brandon Sanderson"]]}
+];
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function(ch) {
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+  });
+}
+let currentBook = null;
+let universeReturnScroll = 0;
+
+function stripBookHtml(value) {
+  // Template content stays inert: remote images and event handlers never activate.
+  const box = document.createElement("template");
+  box.innerHTML = String(value || "");
+  box.content.querySelectorAll("script,style").forEach(function(node){ node.remove(); });
+  return (box.content.textContent || "").replace(/\s+/g, " ").trim();
+}
+function genreLineFor(book) {
+  const parts = [];
+  const genres = Array.isArray(book.genres) ? book.genres.filter(function(g){ return g !== "Books"; }) : [];
+  if (genres.length) parts.push(genres[0]);
+  if (book.author) parts.push(book.author);
+  if (book.year) parts.push(book.year);
+  return parts.join("  ·  ");
+}
+function renderBookDetail(book) {
+  document.getElementById("bookDetailCover").src = book.cover || "";
+  document.getElementById("bookDetailTitle").textContent = book.title || "";
+  document.getElementById("bookDetailEyebrow").textContent =
+      String(book.genreLine || genreLineFor(book) || book.author || "BOOKS").toUpperCase();
+
+  const tagline = document.getElementById("bookDetailTagline");
+  if (book.tagline) {
+    tagline.textContent = "“" + book.tagline + "”";
+    tagline.style.display = "block";
+  } else {
+    tagline.textContent = "";
+    tagline.style.display = "none";
+  }
+
+  document.getElementById("bookDetailSynopsis").textContent =
+      book.synopsis || "Discover more about this story in Colosseum.";
+}
+function hydrateAppleBook(book) {
+  if (!book || !book.id) return;
+  fetch("https://itunes.apple.com/lookup?id=" + encodeURIComponent(book.id))
+    .then(function(r){ if (!r.ok) throw new Error("lookup"); return r.json(); })
+    .then(function(payload) {
+      if (!currentBook || String(currentBook.id) !== String(book.id)) return;
+      const row = payload && payload.results && payload.results[0];
+      if (!row) return;
+      const year = String(row.releaseDate || "").substring(0,4);
+      const hydrated = Object.assign({}, currentBook, {
+        title: row.trackName || row.trackCensoredName || currentBook.title,
+        author: row.artistName || currentBook.author,
+        year: year,
+        genres: row.genres || [],
+        genreLine: "",
+        synopsis: stripBookHtml(row.description || ""),
+        cover: currentBook.cover || row.artworkUrl100 || ""
+      });
+      hydrated.genreLine = genreLineFor(hydrated);
+      currentBook = hydrated;
+      renderBookDetail(hydrated);
+    })
+    .catch(function() {
+      if (!currentBook || String(currentBook.id) !== String(book.id)) return;
+      if (!currentBook.synopsis)
+        document.getElementById("bookDetailSynopsis").textContent =
+          "Continue the journey in Colosseum for the full Tribute and reading experience.";
+    });
+}
+let detailReturnFocus=null;
+function openBookDetail(book) {
+  detailReturnFocus=document.activeElement;
+  if (!book) return;
+  currentBook = Object.assign({}, book);
+  universeReturnScroll = document.getElementById("page").scrollTop;
+  renderBookDetail(currentBook);
+  document.getElementById("bookDetailScroll").scrollTop = 0;
+  const layer = document.getElementById("bookDetailLayer");
+  layer.classList.add("open");
+  layer.setAttribute("aria-hidden", "false");
+  document.getElementById("houseScrollbar").hidden = true;
+  document.getElementById("page").inert=true;
+  document.getElementById("backButton").inert=true;
+  document.querySelector(".window-controls").inert=true;
+  document.getElementById("bookDetailBack").focus();
+  hydrateAppleBook(currentBook);
+}
+function closeBookDetail() {
+  const layer = document.getElementById("bookDetailLayer");
+  if (!layer.classList.contains("open")) return false;
+  layer.classList.remove("open");
+  layer.setAttribute("aria-hidden", "true");
+  currentBook = null;
+  document.getElementById("page").inert=false;
+  document.getElementById("backButton").inert=false;
+  document.querySelector(".window-controls").inert=false;
+  detailReturnFocus?.focus({preventScroll:true});
+  const page = document.getElementById("page");
+  page.scrollTop = universeReturnScroll;
+  syncHouseScrollbar();
+  return true;
+}
+function emitBook(book) {
+  openBookDetail(book);
+  window.dispatchEvent(new CustomEvent("colosseum:bookRequested", {detail: book}));
+  console.info("bookRequested", book);
+}
+function starterMarkup(s, i) {
+  const book = BOOKS[s.query];
+  return '<button class="starter s'+i+'" data-query="'+esc(s.query)+'">'+
+    '<span class="starter-accent"></span>'+
+    '<span class="starter-copy">'+
+      '<span class="starter-short">'+esc(s.short)+'</span>'+
+      '<span class="starter-title">'+esc(s.label)+'</span>'+
+      '<span class="starter-note">'+esc(s.note)+'</span>'+
+    '</span>'+
+    (book ? '<img class="starter-cover" src="'+esc(book.cover)+'" alt="">' : '<span class="resolving">RESOLVING</span>')+
+  '</button>';
+}
+function worldNodeMarkup(w, i) {
+  return '<button class="world-node n'+i+'" style="--accent:'+esc(w.accent)+'" data-world-index="'+i+'">'+
+    '<span class="world-node-dot"></span>'+
+    '<span class="world-node-copy">'+
+      '<span class="world-name">'+esc(w.name)+'</span>'+
+      '<span class="world-epithet">'+esc(w.epithet)+'</span>'+
+    '</span>'+
+  '</button>';
+}
+function bookGateMarkup(entry, accent) {
+  const label = entry[0], query = entry[1], book = BOOKS[query];
+  if (!book) return '';
+  return '<button class="book-gate" style="--accent:'+esc(accent)+'" data-query="'+esc(query)+'">'+
+    '<img class="book-cover" src="'+esc(book.cover)+'" alt="">'+
+    '<span class="book-copy">'+
+      '<span class="portal-label">'+esc(label)+'</span>'+
+      '<span class="book-title">'+esc(book.title)+'</span>'+
+      '<span class="open-label">EXPLORE BOOK DETAILS&nbsp; →</span>'+
+    '</span>'+
+  '</button>';
+}
+function sectionMarkup(section, alt) {
+  const gates = section.books.map(function(b){ return bookGateMarkup(b, section.accent); }).join('');
+  const count = section.books.reduce(function(n,b){ return n + (BOOKS[b[1]] ? 1 : 0); }, 0);
+  return '<section class="world-section'+(alt ? ' alt' : '')+'" style="--accent:'+esc(section.accent)+'">'+
+    '<div class="section-accent"></div>'+
+    '<div class="section-title-block">'+
+      '<div class="section-title">'+esc(section.name)+'</div>'+
+      '<div class="section-epithet">'+esc(section.epithet)+'</div>'+
+    '</div>'+
+    '<div class="portal-count">'+count+(count === 1 ? ' portal' : ' portals')+'</div>'+
+    '<div class="book-walk"><div class="book-gates">'+gates+'</div></div>'+
+  '</section>';
+}
+
+document.getElementById("starters").innerHTML = STARTERS.map(starterMarkup).join("");
+document.getElementById("worldNodes").innerHTML = WORLDS.map(worldNodeMarkup).join("");
+document.getElementById("worldSections").innerHTML = WORLDS.map(function(w,i){ return sectionMarkup(w, i % 2 === 1); }).join("");
+document.getElementById("seriesSections").innerHTML = SERIES.map(function(s,i){ return sectionMarkup(s, i % 2 === 0); }).join("");
+
+const pageEl = document.getElementById("page");
+const houseScrollbar = document.getElementById("houseScrollbar");
+const houseThumb = document.getElementById("houseThumb");
+let scrollbarDrag = null;
+function syncHouseScrollbar() {
+  const viewport = pageEl.clientHeight;
+  const total = pageEl.scrollHeight;
+  const overflow = total > viewport + 1;
+  houseScrollbar.hidden = !overflow;
+  if (!overflow) return;
+  const thumbHeight = Math.max(8, viewport * viewport / total);
+  const thumbTravel = viewport - thumbHeight;
+  const scrollTravel = total - viewport;
+  houseThumb.style.height = thumbHeight + "px";
+  houseThumb.style.top = (scrollTravel ? pageEl.scrollTop / scrollTravel * thumbTravel : 0) + "px";
+}
+pageEl.addEventListener("scroll", syncHouseScrollbar, {passive:true});
+window.addEventListener("resize", syncHouseScrollbar);
+houseScrollbar.addEventListener("pointerdown", function(e) {
+  if (e.target !== houseThumb) {
+    const top = houseThumb.getBoundingClientRect().top;
+    pageEl.scrollTop += e.clientY < top ? -pageEl.clientHeight : pageEl.clientHeight;
+    syncHouseScrollbar();
+    return;
+  }
+  scrollbarDrag = {y:e.clientY, scrollTop:pageEl.scrollTop};
+  houseScrollbar.classList.add("dragging");
+  houseScrollbar.setPointerCapture(e.pointerId);
+});
+houseScrollbar.addEventListener("pointermove", function(e) {
+  if (!scrollbarDrag) return;
+  const thumbTravel = pageEl.clientHeight - houseThumb.offsetHeight;
+  const scrollTravel = pageEl.scrollHeight - pageEl.clientHeight;
+  if (thumbTravel > 0)
+    pageEl.scrollTop = scrollbarDrag.scrollTop + (e.clientY - scrollbarDrag.y) * scrollTravel / thumbTravel;
+});
+function endScrollbarDrag(e) {
+  if (!scrollbarDrag) return;
+  scrollbarDrag = null;
+  houseScrollbar.classList.remove("dragging");
+  if (houseScrollbar.hasPointerCapture(e.pointerId)) houseScrollbar.releasePointerCapture(e.pointerId);
+}
+houseScrollbar.addEventListener("pointerup", endScrollbarDrag);
+houseScrollbar.addEventListener("pointercancel", endScrollbarDrag);
+requestAnimationFrame(syncHouseScrollbar);
+
+document.addEventListener("click", function(e) {
+  const starter = e.target.closest(".starter");
+  const gate = e.target.closest(".book-gate");
+  const node = e.target.closest(".world-node");
+  if (starter || gate) {
+    const q = (starter || gate).dataset.query;
+    if (BOOKS[q]) emitBook(BOOKS[q]);
+  }
+  if (node) {
+    const i = Number(node.dataset.worldIndex || 0);
+    const section = document.getElementById("worldSections").children[i];
+    if (section)
+      pageEl.scrollTo({top: section.offsetTop, behavior: "auto"});
+  }
+});
+document.getElementById("bookDetailBack").addEventListener("click", closeBookDetail);
+document.getElementById("bookMinimize").addEventListener("click", function() {
+  closeBookDetail();
+  window.dispatchEvent(new CustomEvent("colosseum:minimizeRequested"));
+});
+document.getElementById("bookFullscreen").addEventListener("click", function() {
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen)
+    document.documentElement.requestFullscreen().catch(function(){});
+  else if (document.exitFullscreen) document.exitFullscreen().catch(function(){});
+});
+document.getElementById("bookClose").addEventListener("click", function() {
+  closeBookDetail();
+});
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Tab" && document.getElementById("bookDetailLayer").classList.contains("open")) {
+    const nodes=Array.from(document.querySelectorAll("#bookDetailLayer button,#bookDetailLayer a[href]"));
+    const first=nodes[0],last=nodes[nodes.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+  if (e.key === "Escape" && closeBookDetail()) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+document.getElementById("backButton").addEventListener("click", function() {
+  if (!closeBookDetail()) location.assign('/tributes/');
+});
+document.getElementById("minimizeButton").addEventListener("click", function() {
+  location.assign("/tributes/");
+  window.dispatchEvent(new CustomEvent("colosseum:minimizeRequested"));
+});
+document.getElementById("powerButton").addEventListener("click", function() {
+  window.dispatchEvent(new CustomEvent("colosseum:closeRequested"));
+  location.assign('/tributes/');
+});
+</script>
+</body>
+</html>

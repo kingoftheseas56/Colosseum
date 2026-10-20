@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>World page (recreation of Colosseum 1.1.8)</title>
+<!--
+  A fixed 1280x720 recreation of a world page: world.html?w=tankoban | biblio | theatre.
+  All three worlds share one shell in the app (WorldPage.qml), so they share this file.
+  Measured from the v1.1.8 QML and cross-checked against the Arc 54 web rewrite's
+  styles/shell.css + components.css (wallpaper vignette, card and dock geometry):
+  TopBar, WorldPage (board x54, page y96, spacing 36), FeaturedCarousel/CarouselSlide (330 high),
+  ContinueRow + ContinueTile "world" (148x222), WorldTabBar (54 high, docks at 46), DiscoverSidebar
+  (52 closed), DiscoverBrowser masthead (76) and its gallery wall (148 posters, 20 gap).
+  The host page scales this stage to fit; nothing here is interactive.
+-->
+<style>
+  @font-face{font-family:"Fraunces";src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+  :root{--gold:#f0c44a;--ink:#f7f7f5;--ink-dim:#c9c8d0;--ink-dimmer:#9a99a5;--edge:rgba(255,255,255,.18);
+    --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;--display:"Fraunces",Georgia,serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:720px;overflow:hidden;background:#0a0b10}
+  body{font-family:var(--ui);color:var(--ink);position:relative;user-select:none;cursor:default}
+  .wall{position:absolute;inset:0;background:url("../assets/cold-ripple.jpg") center/cover}
+  /* Main.qml vignette over the wallpaper */
+  .wall::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,.10) 50%,rgba(0,0,0,.46))}
+  .glass{background:linear-gradient(rgba(0,0,0,.14),rgba(0,0,0,.14)),rgba(255,255,255,.10);
+    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--edge)}
+
+  /* ---- TopBar: x54 y30, 56 high ---- */
+  .topbar{position:absolute;left:54px;top:30px;width:1172px;height:56px;z-index:30}
+  .left{position:absolute;left:0;top:0;height:56px;display:flex;align-items:center;gap:18px}
+  .back{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-dim)}
+  .back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .clock b{font-family:var(--display);font-weight:400;font-size:32px;line-height:1}
+  .clock i{font-style:normal;font-size:16px;color:var(--ink-dim);margin-left:5px}
+  .clock small{display:block;margin-top:3px;font-size:13px;color:var(--ink-dim)}
+  .picker{position:absolute;left:50%;top:5px;transform:translateX(-50%);height:46px;padding:0 7px;border-radius:999px;
+    display:flex;align-items:center;gap:4px}
+  .picker span{height:34px;padding:0 17px;border-radius:999px;display:flex;align-items:center;font-size:14px;font-weight:500;color:var(--ink-dim)}
+  .picker span.on{background:var(--gold);color:#1a1408;font-weight:600}
+  .sys{position:absolute;right:0;top:17px;display:flex;gap:20px;align-items:center}
+  .sys img{width:22px;height:22px;opacity:.72}
+  .acct{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.38);position:relative;opacity:.92}
+  .acct::before{content:"";position:absolute;left:7px;top:3.5px;width:5px;height:5px;border-radius:50%;background:#fff;opacity:.82}
+  .acct::after{content:"";position:absolute;left:4.5px;top:10px;width:10px;height:6px;border-radius:3px;background:#fff;opacity:.82}
+
+  /* ---- page: the one vertical scroller, y96 ---- */
+  .page{position:absolute;left:0;right:0;top:96px;height:624px;overflow:hidden}
+  .page.scrolled{-webkit-mask-image:linear-gradient(transparent,#000 28px);mask-image:linear-gradient(transparent,#000 28px)}
+  .board{position:absolute;left:54px;width:1172px;top:0;padding:12px 0 24px;display:flex;flex-direction:column;gap:36px;will-change:transform}
+
+  /* ---- FeaturedCarousel: 330 high, radius 20 ---- */
+  .hero{position:relative;height:330px;border-radius:20px;overflow:hidden;border:1px solid var(--edge)}
+  .slides{display:flex;height:100%;width:200%;transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+  .slide{position:relative;width:50%;height:100%}
+  .slide .art{position:absolute;inset:0;background-size:cover;background-position:top center}
+  .slide .poster{position:absolute;right:56px;top:22px;height:286px;width:189px;object-fit:contain}
+  .slide .film{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,.30) 55%,rgba(0,0,0,0))}
+  .slide .tint{display:none;position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.12) 60%,rgba(0,0,0,.45))}
+  .slide.poster-kind .tint{display:block}
+  .ghost{position:absolute;right:40px;top:-30px;font-family:var(--display);font-weight:700;font-size:150px;color:rgba(255,255,255,.06)}
+  .copy{position:absolute;left:42px;bottom:42px;width:560px}
+  .kick{font-size:11px;letter-spacing:3px;color:var(--gold);text-transform:uppercase}
+  .copy h1{font-family:var(--display);font-weight:400;font-size:42px;line-height:.96;margin:8px 0}
+  .copy p{font-size:13px;line-height:1.25;color:var(--ink-dim);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .cta{display:flex;gap:10px;margin-top:14px}
+  .cta span{height:42px;padding:0 18px;border-radius:11px;display:flex;align-items:center;font-size:14px}
+  .cta .p{background:var(--gold);color:#1a1408;font-weight:600}
+  .cta .s{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);font-weight:500}
+  .dots{position:absolute;right:26px;bottom:26px;height:22px;padding:0 11px;border-radius:999px;background:rgba(0,0,0,.42);display:flex;align-items:center;gap:7px}
+  .dots i{width:7px;height:7px;border-radius:4px;background:rgba(255,255,255,.5);transition:width .15s}
+  .dots i.on{width:22px;background:var(--gold)}
+
+  /* ---- WidgetHeader + ContinueRow ---- */
+  .head{height:30px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .head h2{font-family:var(--display);font-weight:400;font-size:22px}
+  .head span{font-family:var(--display);font-size:17px;display:flex;align-items:center;gap:6px}
+  .head span b{font-weight:400;font-size:22px;color:var(--ink-dim)}
+  .tiles{display:flex;gap:20px;height:222px}
+  .tile{position:relative;flex:none;width:148px;height:222px;border-radius:12px;overflow:hidden;
+    box-shadow:0 3px 0 rgba(0,0,0,.28),0 7px 0 2px rgba(0,0,0,.10);border:1px solid rgba(255,255,255,.08)}
+  .tile img,.card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .tile::after{content:"";position:absolute;left:0;right:0;bottom:0;height:82px;
+    background:linear-gradient(transparent,rgba(0,0,0,.35) 40%,rgba(0,0,0,.82))}
+  .tile .t{position:absolute;left:12px;right:12px;bottom:30px;z-index:2;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .s{position:absolute;left:12px;right:12px;bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;font-size:11px;color:rgba(247,247,245,.78)}
+  .tile .bar{position:absolute;left:0;right:0;bottom:0;height:4px;z-index:3;background:rgba(255,255,255,.2)}
+  .tile .bar i{display:block;height:100%;background:var(--gold)}
+
+  /* ---- WorldTabBar: 58 slot, glass 640x54 r18; docked copy 46 high r15 ---- */
+  .tabslot{height:58px;display:flex;align-items:center;justify-content:center}
+  .tabs{display:flex;gap:6px;padding:6px;height:54px;border-radius:18px;
+    background:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18)),rgba(255,255,255,.08);
+    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--edge)}
+  .tabs span{flex:1;display:flex;align-items:center;justify-content:center;border-radius:14px;font-size:14px;font-weight:600;
+    border:1px solid rgba(255,255,255,.10)}
+  .tabs span.on{background:var(--gold);color:#17120a;border-color:transparent}
+  .dock{position:absolute;top:102px;left:134px;right:54px;height:50px;z-index:20;display:flex;align-items:center;justify-content:center;
+    opacity:0;transition:opacity .16s}
+  .dock.on{opacity:1}
+  .dock .tabs{height:46px;padding:5px;border-radius:15px;box-shadow:0 14px 30px rgba(0,0,0,.35)}
+  .dock .tabs span{border-radius:11px;font-size:13px;background:rgba(255,255,255,.06)}
+  .dock .tabs span.on{background:var(--gold)}
+
+  /* ---- Discover: sidebar 52 + content at 80 ---- */
+  .discover{position:relative;min-height:700px}
+  .side{position:absolute;left:0;top:0;width:52px;height:520px}
+  .side::after{content:"";position:absolute;right:0;top:2px;bottom:2px;width:1px;
+    background:linear-gradient(transparent,rgba(255,255,255,.18) 10%,rgba(255,255,255,.10) 86%,transparent)}
+  .side .tog{position:absolute;left:38px;top:18px;width:28px;height:28px;border-radius:14px;z-index:2;display:grid;place-items:center;
+    background:linear-gradient(rgba(0,0,0,.46),rgba(0,0,0,.46));border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+  .side .tog svg{width:13px;height:13px;stroke:var(--ink-dim);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .side .src{position:absolute;left:0;top:60px;width:44px;height:46px;border-radius:12px;background:rgba(255,255,255,.09);display:grid;place-items:center}
+  .side .src::before{content:"";position:absolute;left:-2px;top:10px;bottom:10px;width:3px;border-radius:4px;background:var(--gold);box-shadow:0 0 0 6px rgba(240,196,74,.14)}
+  .side .src img{width:19px;height:19px}
+  .main{margin-left:80px}
+  .mast{position:relative;height:76px;border-bottom:1px solid rgba(255,255,255,.09)}
+  .lens{position:absolute;left:0;bottom:14px;display:flex;gap:28px;font-size:17px;font-weight:600;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+  .lens span{color:var(--ink-dim);padding-bottom:9px;position:relative}
+  .lens span.on{color:var(--ink)}
+  .lens span.on::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:var(--gold)}
+  .now{position:absolute;right:0;top:0;text-align:right;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+  .now small{display:block;font-size:10px;letter-spacing:2.5px;color:var(--ink-dim)}
+  .now b{display:block;margin-top:4px;font-family:var(--display);font-weight:600;font-size:30px;line-height:1.1}
+  .now b i{font-style:normal;font-family:var(--ui);font-size:14px;color:var(--ink-dim);margin-left:10px;vertical-align:middle}
+  .now em{display:block;margin-top:7px;font-style:normal;font-size:13px;color:var(--ink-dim)}
+  .filter{margin-top:16px;display:flex;align-items:center;gap:10px}
+  .filter b{font-size:12px;font-weight:600;letter-spacing:1.5px;color:var(--ink-dim)}
+  .filter span{height:40px;width:210px;padding:0 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;font-size:14px;
+    background:rgba(255,255,255,.06);border:1px solid var(--edge)}
+  .filter span i{font-style:normal;font-size:12px;color:var(--ink-dim)}
+  .grid{margin:18px 42px 0;display:grid;grid-template-columns:repeat(6,148px);column-gap:20px;row-gap:26px}
+  .card{position:relative}
+  .card .cov{position:relative;width:148px;height:222px;border-radius:12px;overflow:hidden;background:linear-gradient(150deg,#532f49,#1d121b);
+    box-shadow:0 10px 26px rgba(0,0,0,.45);transition:transform .26s cubic-bezier(.2,.7,.2,1),box-shadow .26s}
+  .card p{margin-top:10px;min-height:35px;font-size:13px;font-weight:600;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card.hot .cov{transform:translateY(-7px);box-shadow:0 0 0 2px var(--gold),0 20px 40px rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+<div class="wall"></div>
+
+<div class="topbar">
+  <div class="left">
+    <div class="back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Home</div>
+    <div class="clock"><b>8:29</b><i>PM</i><small>Friday, October 2</small></div>
+  </div>
+  <div class="picker glass" id="picker"></div>
+  <div class="sys">
+    <img src="../assets/icons/search.svg" alt=""><img src="../assets/icons/trackers.svg" alt=""><div class="acct"></div>
+    <img src="../assets/icons/settings.svg" alt=""><img src="../assets/icons/minimize.svg" alt="">
+    <img src="../assets/icons/fullscreen-exit.svg" alt=""><img src="../assets/icons/power.svg" alt="">
+  </div>
+</div>
+
+<div class="dock" id="dock"><div class="tabs" id="dockTabs"></div></div>
+
+<div class="page" id="page">
+  <div class="board" id="board">
+    <div class="hero">
+      <div class="slides" id="slides"></div>
+      <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+    <div>
+      <div class="head"><h2 id="contTitle"></h2><span>See all <b>&rsaquo;</b></span></div>
+      <div class="tiles" id="tiles"></div>
+    </div>
+    <div class="tabslot" id="tabslot"><div class="tabs" id="flowTabs"></div></div>
+    <div class="discover">
+      <div class="side">
+        <div class="tog"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        <div class="src"><img src="../assets/colosseum.svg" alt=""></div>
+      </div>
+      <div class="main">
+        <div class="mast">
+          <div class="lens" id="lens"></div>
+          <div class="now"><small>NOW BROWSING</small><b>Popular<i>&#9662;</i></b><em id="byline"></em></div>
+        </div>
+        <div class="filter"><b>FILTER</b><span>All<i>&#9662;</i></span></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Titles and cover addresses are the app's own (qml/Catalog.js at v1.1.8); reading progress is staged.
+  var AL = "https://s4.anilist.co/file/anilistcdn/media/manga/cover/";
+  var MZ = "https://is1-ssl.mzstatic.com/image/thumb/";
+  var MH = "https://live.metahub.space/";
+  function al(p) { return AL + p; }
+  function mz(p) { return MZ + p + "/400x600bb.jpg"; }
+  function mh(id) { return MH + "poster/medium/" + id + "/img"; }
+  var BK = {
+    regime: "Publication211/v4/f6/f5/a5/f6f5a534-5079-7881-13fb-6151f78a806b/9781668067260.jpg",
+    aquarius: "Publication116/v4/71/33/b9/7133b9b6-a782-fd0f-8848-302f2a5cb413/0000715555.jpg",
+    whistler: "Publication221/v4/e1/f4/a5/e1f4a502-9136-f220-0c92-facdfaa78e58/9780063511651.jpg",
+    calamity: "Publication211/v4/39/64/45/3964459f-f5f3-d0b9-8623-d792b4ee584d/9781954118829.jpg",
+    choke: "Publication211/v4/25/2d/e6/252de6b6-a031-1e18-caed-049078aab004/9781668065945.jpg",
+    yesteryear: "Publication221/v4/83/35/a9/8335a977-61f3-2f2c-22e2-a0551cf8707f/9780593804223.d.jpg",
+    theo: "Publication211/v4/ca/94/ee/ca94ee35-57c1-9f26-2a89-7530f60797ac/9781668236536.jpg",
+    weddings: "Publication221/v4/1f/f9/e2/1ff9e2eb-50a2-aa1c-3816-3c6971f9e712/9780593973127.d.jpg",
+    her: "Publication211/v4/3a/59/9a/3a599a84-72a0-a79c-b31e-ef91507596c6/9781668033920.jpg",
+    score: "Publication221/v4/a5/e3/9d/a5e39da7-be49-daf3-2991-8c89357cf5d3/0000128008.jpg"
+  };
+  var SAGA = "Publication4/v4/23/03/9c/23039c5b-155e-0ae4-36b3-d3407b07420c/AUG120491.jpg";
+  var INV = "Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg";
+
+  var WORLDS = {
+    tankoban: {
+      pill: "Tankoban", verb: "Read", cont: "Continue Reading", tint: ["#532f49", "#1d121b"],
+      tabs: ["Discover", "Manga", "Comics", "Library"], lens: ["Manga", "Comics"], byline: "Tankoban built-in catalogue",
+      slides: [
+        { title: "One Piece", c: ["#7a2f49", "#1d121b"], ghost: "M", art: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg",
+          blurb: "Rubber-bodied Monkey D. Luffy and his Straw Hat crew sail the seas hunting the legendary treasure that crowns the next King of the Pirates." },
+        { title: "Saga", c: ["#7a4a2f", "#241813"], ghost: "C", poster: MZ + SAGA + "/640x960bb.jpg",
+          blurb: "Alana and Marko, lovers from opposite sides of a galactic war, flee both armies to raise their newborn daughter in hiding." }
+      ],
+      tiles: [["One Piece", "Ch. 1090", 45, al("large/bx30013-BeslEMqiPhlk.jpg")], ["Berserk", "Vol. 22", 62, al("large/bx30002-Cul4OeN7bYtn.jpg")],
+              ["Saga", "Vol. 4", 80, mz(SAGA)], ["Vinland Saga", "Ch. 208", 30, al("large/bx30642-0mjRDkf4THpo.jpg")], ["Invincible", "Vol. 3", 18, mz(INV)]],
+      wall: [["Berserk", al("large/bx30002-Cul4OeN7bYtn.jpg")], ["One Piece", al("large/bx30013-BeslEMqiPhlk.jpg")],
+             ["Vagabond", al("large/bx30656-9mW113O7rDnA.png")], ["Chainsaw Man", al("large/bx105778-euxXZEIfDY2u.png")],
+             ["Vinland Saga", al("large/bx30642-0mjRDkf4THpo.jpg")], ["Jujutsu Kaisen", al("large/bx101517-H3TdM3g5ZUe9.jpg")],
+             ["Slam Dunk", al("large/bx30051-5KJyPlO7z5F4.png")], ["Solo Leveling", al("large/bx105398-b673Vt5ZSuz3.jpg")],
+             ["20th Century Boys", al("large/bx30003-E84fwIh22LAQ.jpg")], ["Naruto", al("medium/nx30011-9yUF1dXWgDOx.jpg")],
+             ["Fullmetal Alchemist", al("medium/bx30102-MJuQ0e0k2CgU.png")], ["Shingeki no Kyojin", al("medium/bx53390-1RsuABC34P9D.jpg")]]
+    },
+    biblio: {
+      pill: "Biblio", verb: "Read", cont: "Continue Reading", tint: ["#6a4a2c", "#1d1209"],
+      tabs: ["Discover", "Explore", "Library"], lens: ["Books"], byline: "Biblio built-in catalogue",
+      slides: [
+        { title: "Whistler", c: ["#3f5a4a", "#101a14"], ghost: "B", poster: mz(BK.whistler), blurb: "By Ann Patchett — topping Apple Books now." },
+        { title: "The Calamity Club", c: ["#4a4063", "#13101f"], ghost: "B", poster: mz(BK.calamity), blurb: "By Kathryn Stockett — topping Apple Books now." }
+      ],
+      tiles: [["Theo of Golden", "Chapter 14", 71, mz(BK.theo)], ["Regime Change", "Chapter 6", 34, mz(BK.regime)],
+              ["Aquarius", "Chapter 21", 58, mz(BK.aquarius)], ["Choke Point", "Chapter 3", 12, mz(BK.choke)]],
+      wall: [["Regime Change", mz(BK.regime)], ["Aquarius", mz(BK.aquarius)], ["Whistler", mz(BK.whistler)], ["The Calamity Club", mz(BK.calamity)],
+             ["Choke Point", mz(BK.choke)], ["Yesteryear", mz(BK.yesteryear)], ["Theo of Golden", mz(BK.theo)], ["Weddings", mz(BK.weddings)],
+             ["It Could Have Been Her", mz(BK.her)], ["The Score", mz(BK.score)]]
+    },
+    theatre: {
+      pill: "Theatre", verb: "Watch", cont: "Continue Watching", tint: ["#33445d", "#0c1118"],
+      tabs: ["Discover", "Movies", "Shows", "Anime", "Library"], lens: ["Movies", "Shows"], byline: "Cinemeta",
+      slides: [
+        { title: "Dune: Part Two", c: ["#5d4633", "#18110c"], ghost: "T", art: MH + "background/large/tt15239678/img",
+          blurb: "Paul Atreides unites with Chani and the Fremen while war spreads across Arrakis." },
+        { title: "Shogun", c: ["#4c2f2a", "#160d0b"], ghost: "S", art: MH + "background/large/tt2788316/img",
+          blurb: "A shipwrecked pilot, a lord's dangerous gambit, and a country on the edge of war." }
+      ],
+      tiles: [["The Bear", "S3 · E6", 80, mh("tt14452776")], ["Shogun", "S1 · E4", 45, mh("tt2788316")], ["Oppenheimer", "58 min left", 68, mh("tt15398776")],
+              ["Andor", "S2 · E3", 20, mh("tt9253284")], ["Fallout", "S1 · E2", 62, mh("tt12637874")]],
+      wall: [["Dune: Part Two", mh("tt15239678")], ["Oppenheimer", mh("tt15398776")], ["The Batman", mh("tt1877830")],
+             ["Spider-Man: Across the Spider-Verse", mh("tt9362722")], ["Godzilla Minus One", mh("tt23289160")], ["Mad Max: Fury Road", mh("tt1392190")],
+             ["Interstellar", mh("tt0816692")], ["Everything Everywhere All at Once", mh("tt6710474")], ["John Wick: Chapter 4", mh("tt10366206")],
+             ["The Lord of the Rings: The Return of the King", mh("tt0167260")], ["The Dark Knight", mh("tt0468569")], ["Inception", mh("tt1375666")]]
+    }
+  };
+  var W = WORLDS[(/[?&]w=(\w+)/.exec(location.search) || [])[1]] || WORLDS.tankoban;
+  function $(id) { return document.getElementById(id); }
+  function on(i) { return i ? "" : ' class="on"'; }
+
+  $("picker").innerHTML = ["Tankoban", "Biblio", "Theatre"].map(function (p) {
+    return "<span" + (p === W.pill ? ' class="on"' : "") + ">" + p + "</span>"; }).join("");
+  var tabsHtml = W.tabs.map(function (t, i) { return "<span" + on(i) + ">" + t + "</span>"; }).join("");
+  $("flowTabs").innerHTML = tabsHtml; $("flowTabs").style.width = 160 * W.tabs.length + "px";   // WorldTabBar: 160 per tab,
+  $("dockTabs").innerHTML = tabsHtml; $("dockTabs").style.width = 130 * W.tabs.length + "px";   // 130 when docked
+  $("lens").innerHTML = W.lens.map(function (t, i) { return "<span" + on(i) + ">" + t + "</span>"; }).join("");
+  $("byline").textContent = W.byline;
+  $("contTitle").textContent = W.cont;
+  var tint = "background:linear-gradient(150deg," + W.tint[0] + "," + W.tint[1] + ")";
+  $("slides").innerHTML = W.slides.map(function (sl) {
+    return '<div class="slide' + (sl.poster ? " poster-kind" : "") + '" style="background:linear-gradient(90deg,' + sl.c[0] + "," + sl.c[1] + ')">' +
+      (sl.art ? '<div class="art" style="background-image:url(&quot;' + sl.art + '&quot;)"></div>'
+              : '<div class="tint"></div><img class="poster" src="' + sl.poster + '" alt="">') +
+      '<div class="film"></div><div class="ghost">' + sl.ghost + '</div><div class="copy"><div class="kick">Featured in ' + W.pill + "</div><h1>" + sl.title +
+      "</h1><p>" + sl.blurb + '</p><div class="cta"><span class="p">' + W.verb + '</span><span class="s">Details</span></div></div></div>';
+  }).join("");
+  $("tiles").innerHTML = W.tiles.map(function (c) {
+    return '<div class="tile" style="' + tint + '"><img src="' + c[3] + '" alt=""><div class="t">' + c[0] +
+      '</div><div class="s">' + c[1] + '</div><div class="bar"><i style="width:' + c[2] + '%"></i></div></div>';
+  }).join("");
+  $("grid").innerHTML = W.wall.map(function (w) {
+    return '<div class="card"><div class="cov" style="' + tint + '"><img src="' + w[1] + '" alt=""></div><p>' + w[0] + "</p></div>";
+  }).join("");
+
+  var board = document.getElementById("board"), page = document.getElementById("page"), dock = document.getElementById("dock");
+  var slot = document.getElementById("tabslot"), slides = document.getElementById("slides");
+  var dots = document.getElementById("dots").children, cards = document.getElementById("grid").children;
+
+  function setScroll(y) {
+    board.style.transform = "translateY(" + (-y) + "px)";
+    page.classList.toggle("scrolled", y > 0);
+    var docked = slot.offsetTop - y < 0;          // the in-flow bar has slid under the top bar
+    dock.classList.toggle("on", docked);
+    slot.style.opacity = docked ? 0 : 1;
+  }
+  function setSlide(i) {
+    slides.style.transform = "translateX(" + (-50 * i) + "%)";
+    for (var d = 0; d < dots.length; d++) dots[d].classList.toggle("on", d === i);
+  }
+  function setHot(i) { for (var c = 0; c < cards.length; c++) cards[c].classList.toggle("hot", c === i); }
+  function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+  // Rows park just under the docked bar (WorldPage.parkY: dock space 64 + gap 14).
+  var parkWall = document.querySelector(".discover").offsetTop - 64 - 14;
+  // The loop: rest, next featured slide, glide to the wall, focus walks three posters, return.
+  var LOOP = 16000;
+  function frame(t) {
+    setSlide(t > 1800 && t < 14600 ? 1 : 0);
+    var y = t < 3600 ? 0 : t < 5600 ? parkWall * ease((t - 3600) / 2000)
+          : t < 12600 ? parkWall : t < 14400 ? parkWall * (1 - ease((t - 12600) / 1800)) : 0;
+    setScroll(Math.round(y));
+    setHot(t > 6600 && t < 8200 ? 1 : t >= 8200 && t < 9800 ? 2 : t >= 9800 && t < 11800 ? 3 : -1);
+  }
+
+  var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var seek = /[?&]t=(\d+)/.exec(location.search);     // ?t=7000 freezes one moment, for checking
+  if (seek || still) { frame(seek ? +seek[1] : 0); return; }
+
+  var running = false, start = 0, held = 0;
+  function tick(now) {
+    if (!running) return;
+    frame((now - start) % LOOP);
+    requestAnimationFrame(tick);
+  }
+  function play(on) {
+    if (on === running) return;
+    running = on;
+    if (on) { start = performance.now() - held; requestAnimationFrame(tick); }
+    else held = (performance.now() - start) % LOOP;
+  }
+  if ("IntersectionObserver" in window)
+    new IntersectionObserver(function (es) { play(es[0].isIntersecting); }, { threshold: 0.3 }).observe(document.documentElement);
+  else play(true);
+})();
+</script>
+</body>
+</html>

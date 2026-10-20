@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+<!-- Direct mechanical translation of NewWorldLandform.qml QML PathSvg for fishman; source SHA256=b06daf30831351ab9a1a91342cf5e3add9923d0f1e4eba1f4372c99a73c4ae5e -->
+<path d="M5 71 Q13 66 23 72 L29 65 35 72 44 65 53 72 62 65 70 72 79 66 87 72 96 70 Q90 91 67 91 L55 96 37 91 22 94 10 86 Z" fill="none" stroke="#836543" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.208"/>
+<path d="M5 71 Q13 66 23 72 L29 65 35 72 44 65 53 72 62 65 70 72 79 66 87 72 96 70 Q90 91 67 91 L55 96 37 91 22 94 10 86 Z" fill="#bdbb94" stroke="#74563c" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M11 70 Q49 81 91 70 M19 77 Q48 91 82 78 M24 65 L25 52 35 44 43 54 43 68 M48 69 L48 48 57 39 64 47 64 67 M71 67 L72 56 79 50 86 55 86 68 M28 55 L37 55 M51 50 L61 50 M29 62 L35 62 M52 59 L59 59 M43 30 L43 20 49 13 55 20 55 30 M39 22 L49 14 60 22 M37 30 L62 30 M46 30 L46 35 M54 30 L54 35 M15 61 L14 45 M14 55 L8 50 M14 50 L20 43 M89 64 L90 47 M90 54 L96 48" fill="none" stroke="#74563c" stroke-width="0.85" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M5 62 C5 18 95 18 95 62 C95 108 5 108 5 62 Z M1 62 C1 13 99 13 99 62 C99 111 1 111 1 62 Z M34 22 C34 1 65 1 65 22 C65 44 34 44 34 22 Z" fill="none" stroke="#6d755f" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.518"/>
+</svg>

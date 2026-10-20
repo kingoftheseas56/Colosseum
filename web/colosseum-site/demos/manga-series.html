@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>One Piece | Tankoban series | Colosseum 1.1.8 recreation</title>
+<!--
+  Fixed 1280x720 no-input story stage. Tokens: v1.1.8 qml/Theme.qml.
+  Header: MangaSeriesSharedHeader.qml and TankobanSeriesView.qml; source-release
+  default: Main.qml rebuiltTitlePages=false (MangaSeries/MangaReadingRoom).
+  Flow: v1.1.8 MangaTankobanLibrary.qml, OnePieceVolumeCard.qml.
+  Full-height synopsis/facts composition follows the supplied tankoban.webp
+  reference rather than claiming the tag's compact 263px header is identical.
+  Artwork: One Piece banner and main cover from v1.1.8 qml/Catalog.js;
+  remaining volume covers are staged public book-cover URLs.
+-->
+<style>
+@font-face{font-family:Fraunces;src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,sans-serif;--display:Fraunces,Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:#050608}
+body{position:relative;font-family:var(--ui);color:var(--ink);user-select:none;cursor:default}
+#wallpaper{position:absolute;inset:0;background:url("../assets/cold-ripple.jpg") center/cover;opacity:.24}
+#wallpaper:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,.10) 50%,rgba(0,0,0,.46))}
+#viewport{position:absolute;inset:0;overflow:hidden;isolation:isolate}
+#content{position:absolute;left:0;right:0;top:0;will-change:transform}
+#topbar{position:absolute;inset:0 0 auto;height:58px;z-index:50;display:flex;align-items:center;padding:0 54px;background:rgba(3,4,7,.32);border-bottom:1px solid rgba(255,255,255,.05)}
+#topbar:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent);pointer-events:none}
+#topbar .back{display:flex;align-items:center;gap:9px;font-size:14px;position:relative;color:var(--ink)}
+#topbar .back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#topbar .world{font-size:15px;font-weight:600;position:absolute;left:50%;transform:translateX(-50%);color:#deddd8;letter-spacing:.15px}
+#topbar .tools{position:absolute;right:54px;top:11px;display:flex;align-items:center;gap:8px}
+#topbar .tools span{width:36px;height:36px;display:grid;place-items:center}
+#topbar .tools img{width:20px;height:20px;opacity:.76}
+#topbar.solid{background:#050608;border-color:var(--edge)}
+.hero{height:360px;position:relative;overflow:hidden;background:linear-gradient(140deg,#422e41,#13151e 55%,#050608)}
+.hero .banner{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 39%;opacity:.82}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(4,5,8,.78) 0%,rgba(4,5,8,.54) 49%,rgba(4,5,8,.12)),linear-gradient(0deg,#050608 0%,rgba(5,6,8,.30) 29%,rgba(0,0,0,.12) 68%,rgba(0,0,0,.4))}
+.hero .inner{position:absolute;left:54px;top:129px;width:790px;text-shadow:0 2px 12px rgba(0,0,0,.55)}
+.eyebrow{color:var(--gold);font-size:11px;letter-spacing:3px;text-transform:uppercase}
+h1{font-family:var(--display);font-weight:400;font-size:64px;line-height:1.12;margin:13px 0 17px;letter-spacing:-1.5px}
+.metadata{display:flex;align-items:center;gap:18px;font-size:14px;white-space:nowrap;color:var(--dim)}
+.metadata strong{color:var(--ink);font-weight:600}
+.metadata .score{color:var(--gold);font-weight:600}
+.metadata .genres{overflow:hidden;text-overflow:ellipsis}
+.hero-actions{display:flex;align-items:center;gap:10px;margin-top:20px}
+.hero-actions .action{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:42px;border-radius:11px;padding:0 19px;font-size:14px;font-weight:600;box-shadow:0 7px 24px rgba(0,0,0,.20)}
+.hero-actions .primary{color:#171205;background:var(--gold);min-width:100px}
+.hero-actions .secondary{color:var(--ink);background:rgba(13,15,21,.44);border:1px solid var(--edge);min-width:104px}
+.action svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.mode-switch{position:absolute;top:120px;right:54px;width:258px;height:36px;padding:3px;display:flex;border-radius:10px;border:1px solid var(--edge);background:rgba(15,16,19,.83);z-index:2}
+.mode-switch span{flex:1;display:grid;place-items:center;font-size:12px;color:var(--dim);border-radius:7px}
+.mode-switch span.active{background:var(--gold);color:#191407;font-weight:600}
+.language{position:absolute;right:54px;top:165px;width:258px;height:36px;background:rgba(15,16,19,.84);border:1px solid var(--edge);border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 7px 0 12px;font-size:11px;color:var(--dimmer)}
+.language span:last-child{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.018);color:var(--dimmer);width:166px;height:28px;border-radius:7px;display:flex;align-items:center;padding:0 10px;font-size:12px}
+.story{height:278px;position:relative;background:linear-gradient(180deg,rgba(5,6,8,.98),#050608);padding:18px 54px 0;display:grid;grid-template-columns:610px 1fr;gap:52px}
+.story .synopsis p{font-size:14px;line-height:1.78;color:var(--dim);max-width:610px}
+.story .synopsis .credit{margin-top:17px;color:var(--dimmer);font-size:12px}
+.facts{padding-top:3px}
+.fact{display:grid;grid-template-columns:120px 1fr;gap:5px;height:29px;font-size:13px;line-height:24px}
+.fact dt{color:var(--dimmer)} .fact dd{color:var(--ink)}
+.shelf{position:relative;height:538px;background:#050608}
+.shelf .heading{position:relative;height:74px;margin:0 54px;border-bottom:0;display:flex;align-items:center;gap:17px}
+.shelf .heading h2{font:400 26px/1 var(--display)}
+.shelf .heading .desc{font-size:12px;color:var(--dimmer);margin-top:4px}
+.shelf .heading .select{margin-left:auto;font-size:11px;color:var(--dim);letter-spacing:.6px}
+.flow-viewport{height:346px;position:relative;overflow:hidden}
+.flow-viewport:before,.flow-viewport:after{content:"";position:absolute;top:0;bottom:0;width:120px;z-index:15;pointer-events:none}
+.flow-viewport:before{left:0;background:linear-gradient(90deg,#050608,transparent)}
+.flow-viewport:after{right:0;background:linear-gradient(270deg,#050608,transparent)}
+.volume{width:185px;height:304px;position:absolute;top:21px;left:0;transform-origin:50% 50%;will-change:transform,opacity}
+.volume .cover{position:relative;width:167px;height:250px;margin:0 auto;overflow:hidden;border-radius:6px;background:linear-gradient(145deg,#64314d,#21131d);border:1px solid var(--edge);box-shadow:0 10px 25px rgba(0,0,0,.35)}
+.volume.current .cover{border:2px solid var(--gold);box-shadow:0 8px 26px rgba(0,0,0,.65),0 0 0 1px rgba(240,196,74,.25)}
+.volume .cover .fallback{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:var(--dimmer)}
+.volume .cover .fallback b{font:400 34px var(--display)} .volume .cover .fallback i{font:9px var(--ui);font-style:normal;letter-spacing:1.6px}
+.volume .cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.volume .owned{position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold)}
+.volume .caption{text-align:center;padding-top:11px}
+.volume .caption .num{font-size:10px;letter-spacing:1.8px;color:var(--dimmer)}
+.volume.current .caption .num{color:var(--gold)}
+.volume .caption .name{font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+.actionbar{height:52px;margin:0 54px;display:flex;align-items:center;justify-content:space-between}
+.actionbar .current{font:400 18px var(--display)} .actionbar .current small{font:11px var(--ui);color:var(--dim);margin-left:10px}
+.actionbar .controls{display:flex;gap:9px;align-items:center}
+.actionbar .control{height:34px;padding:0 17px;display:grid;place-items:center;border-radius:9px;font-size:11px;font-weight:600}
+.actionbar .download{background:rgba(255,255,255,.10);border:1px solid var(--edge);color:var(--dim)}
+.actionbar .read{background:var(--gold);color:#171205}
+.shelf .foot{margin:10px 54px;font-size:11px;color:var(--dimmer);letter-spacing:.1px}
+</style>
+</head>
+<body>
+<div id="wallpaper"></div>
+<div id="viewport">
+  <div id="content">
+    <section class="hero" aria-label="One Piece manga series">
+      <img id="banner" class="banner" src="https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg" alt="">
+      <div class="shade"></div>
+      <div class="inner">
+        <div class="eyebrow">Manga · Tankoban</div>
+        <h1>One Piece</h1>
+        <div class="metadata"><strong>ODA Eiichiro</strong><span>Ongoing</span><span>1997</span><span class="score">★ 9.10</span><span class="genres">Action · Adventure · Comedy</span></div>
+        <div class="hero-actions">
+          <span class="action primary"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg>Read</span>
+          <span class="action secondary"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Library</span>
+        </div>
+      </div>
+      <div class="mode-switch"><span class="active">Tankoban Mode</span><span>Chapter Mode</span></div>
+      <div class="language"><span>Language</span><span>English</span></div>
+    </section>
+    <section class="story" aria-label="Synopsis and series facts">
+      <div class="synopsis"><p>As a child, Monkey D. Luffy was inspired to become a pirate by listening to the tales of the buccaneer “Red-Haired” Shanks. But his life changed when Luffy accidentally ate the Gum-Gum Devil Fruit and gained the power to stretch like rubber...at the cost of never being able to swim again! Years later, still vowing to become the king of the pirates, Luffy sets out on his adventure...one guy alone in a rowboat, in search of the legendary “One Piece,” said to be the greatest treasure in the world...</p><div class="credit">(Source: VIZ Media)</div></div>
+      <dl class="facts">
+        <div class="fact"><dt>Author</dt><dd>ODA Eiichiro</dd></div>
+        <div class="fact"><dt>Status</dt><dd>Ongoing</dd></div>
+        <div class="fact"><dt>Volumes</dt><dd>115</dd></div>
+        <div class="fact"><dt>On this device</dt><dd>1 volume</dd></div>
+        <div class="fact"><dt>Chapters</dt><dd>1190</dd></div>
+      </dl>
+    </section>
+    <section class="shelf" aria-label="Tankoban volume carousel">
+      <div class="heading"><h2>Volumes</h2><span class="desc">115 books · 1 on this device</span><span class="select">Select</span></div>
+      <div class="flow-viewport" id="flow"></div>
+      <div class="actionbar"><div class="current" id="volName">Vol. 1 <small>Romance Dawn</small></div><div class="controls"><span class="control download">Download</span><span class="control read" id="readVolume">Read Vol. 1</span></div></div>
+
+    </section>
+  </div>
+</div>
+<div id="topbar">
+  <div class="back"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Back</div>
+  <div class="world">Tankoban</div>
+  <div class="tools"><span><img src="../assets/icons/minimize.svg" alt=""></span><span><img src="../assets/icons/fullscreen-exit.svg" alt=""></span><span><img src="../assets/icons/power.svg" alt=""></span></div>
+</div>
+<script>
+(function(){
+  // Catalog.js v1.1.8 supplies the featured One Piece banner and main series cover.
+  // Per-volume URLs, names, on-device progress, counts and scores are demo fixtures.
+  var catalogCover="https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-BeslEMqiPhlk.jpg";
+  var vols=[
+    ["Romance Dawn",catalogCover],["Buggy the Clown","https://covers.openlibrary.org/b/isbn/9781591160571-L.jpg"],
+    ["Don't Get Fooled Again","https://covers.openlibrary.org/b/isbn/9781591161844-L.jpg"],
+    ["The Black Cat Pirates","https://covers.openlibrary.org/b/isbn/9781591163374-L.jpg"],
+    ["For Whom the Bell Tolls","https://covers.openlibrary.org/b/id/14621967-L.jpg"],
+    ["The Oath","https://covers.openlibrary.org/b/isbn/9781591167259-L.jpg"],
+    ["The Crap-Geezer","https://covers.openlibrary.org/b/isbn/9781591168041-L.jpg"],
+    ["I Won't Die","https://covers.openlibrary.org/b/isbn/9781591168508-L.jpg"],
+    ["Tears","https://covers.openlibrary.org/b/isbn/9781591168522-L.jpg"],
+    ["OK, Let's Stand Up!","https://covers.openlibrary.org/b/isbn/9781591168539-L.jpg"]
+  ];
+  var flow=document.getElementById("flow"),content=document.getElementById("content"),bar=document.getElementById("topbar");
+  var volName=document.getElementById("volName"),readVolume=document.getElementById("readVolume"),cards=[];
+  window.__imageFailures=[];
+  var imgs=Array.from(document.querySelectorAll("img"));
+  vols.forEach(function(v,i){
+    var card=document.createElement("div");card.className="volume";
+    card.innerHTML='<div class="cover"><span class="fallback"><b>'+ (i+1) +'</b><i>NO COVER</i></span><img alt="" src="'+v[1]+'">'+(i===0?'<span class="owned"></span>':'')+'</div><div class="caption"><div class="num">VOL '+(i+1)+'</div><div class="name">'+v[0].replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</div></div>';
+    flow.appendChild(card);cards.push(card);imgs.push(card.querySelector("img"));
+  });
+  imgs.forEach(function(img){img.addEventListener("error",function(){window.__imageFailures.push(img.src);img.style.display="none";});});
+  function clamp(a,b,c){return Math.max(b,Math.min(c,a))}
+  function ease(t){t=clamp(t,0,1);return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+  function tween(t,a,b,v0,v1){return v0+(v1-v0)*ease((t-a)/(b-a))}
+  var LOOP=16000;
+  function frame(t){
+    t=((t%LOOP)+LOOP)%LOOP;
+    var scroll=t<2900?0:t<5300?tween(t,2900,5300,0,490):t<13200?490:t<15300?tween(t,13200,15300,490,0):0;
+    content.style.transform="translate3d(0,"+(-scroll).toFixed(1)+"px,0)";
+    bar.classList.toggle("solid",scroll>70);
+    var focus=t<6200?0:t<7550?tween(t,6200,7550,0,1):t<9000?1:t<10350?tween(t,9000,10350,1,2):t<11100?2:t<12250?tween(t,11100,12250,2,3):3;
+    var nearest=Math.round(focus);
+    for(var i=0;i<cards.length;i++){
+      var d=Math.abs(i-focus),scale=d<1?1.10-.10*d:d<2?1-.05*(d-1):d<3?.95-.05*(d-2):.86;
+      var x=640-92.5+(i-focus)*203;
+      var card=cards[i];
+      card.style.transform="translate3d("+x.toFixed(1)+"px,0,0) scale("+scale.toFixed(3)+")";
+      card.style.opacity=i===nearest?"1":String(clamp(1-.075*d,.34,.88));
+      card.style.zIndex=String(20-Math.round(d));
+      card.classList.toggle("current",i===nearest);
+    }
+    volName.innerHTML="Vol. "+(nearest+1)+" <small>"+vols[nearest][0].replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</small>";
+    readVolume.textContent="Read Vol. "+(nearest+1);
+  }
+  var frozen=/[?&]t=(\d+)/.exec(location.search);
+  var still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(frozen||still){frame(frozen?Number(frozen[1]):0);return;}
+  var running=false,start=0,held=0;
+  function tick(now){if(!running)return;frame((now-start)%LOOP);requestAnimationFrame(tick)}
+  function play(on){if(on===running)return;running=on;if(on){start=performance.now()-held;requestAnimationFrame(tick)}else held=(performance.now()-start)%LOOP}
+  if("IntersectionObserver" in window)new IntersectionObserver(function(entries){play(entries[0].isIntersecting)},{threshold:.3}).observe(document.documentElement);
+  else play(true);
+})();
+</script>
+</body>
+</html>

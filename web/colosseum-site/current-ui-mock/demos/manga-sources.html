@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sources | Colosseum</title>
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/fonts/Fraunces-Regular.ttf");
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      :root {
+        --gold: #f0c44a;
+        --ink: #f7f7f5;
+        --dim: #c9c8d0;
+        --dimmer: #9a99a5;
+        --edge: #ffffff2e;
+        --display: Fraunces, Georgia, serif;
+        --ui: Switzer, system-ui;
+      }
+      body {
+        background: #050608;
+        color: var(--ink);
+        font-family: var(--ui);
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+    </style>
+    <link rel="stylesheet" href="manga.css" />
+  </head>
+  <body>
+    <main class="source-page">
+      <div class="source-top">
+        <button data-action="back">‹ Back</button><span>Tankoban</span
+        ><button class="cancel" data-action="cancel">Cancel</button>
+      </div>
+      <header class="source-hero">
+        <div class="eyebrow"></div>
+        <h1></h1>
+        <p class="identity"></p>
+        <p class="fixture-note">
+          Local fixture source results. No provider search or download is
+          performed.
+        </p>
+      </header>
+      <form class="source-query" hidden>
+        <input
+          aria-label="Search another title or ISBN"
+          placeholder="Search another title or ISBN"
+        /><button type="button" class="pill" data-action="clear-query">
+          Clear</button
+        ><button class="pill gold" data-action="search">Search</button>
+      </form>
+      <section class="source-results"></section>
+      <p class="source-footer">
+        Source matches, archive contents and acquisition states below are
+        demonstration data.
+      </p>
+    </main>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="manga-sources.js"></script>
+  </body>
+</html>

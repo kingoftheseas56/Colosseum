@@ -1,0 +1,489 @@
+@font-face {
+  font-family: Fraunces;
+  src: url("../assets/Fraunces-Regular.ttf");
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: #080a0d;
+  overflow: hidden;
+  color: #f7f7f5;
+  font:
+    14px "Segoe UI",
+    system-ui;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #f0c44a;
+  outline-offset: 3px;
+}
+button:hover {
+  background-color: #ffffff1a !important;
+}
+#stage {
+  position: absolute;
+  width: 1280px;
+  height: 720px;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: #12151a;
+}
+#view {
+  border: 0;
+  width: 1280px;
+  height: 720px;
+  position: absolute;
+  inset: 0;
+}
+#topbar {
+  position: absolute;
+  left: 54px;
+  right: 54px;
+  top: 30px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+#topbar > * {
+  pointer-events: auto;
+}
+#clock {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+#time {
+  font: 30px Fraunces;
+  font-weight: 400;
+}
+#date {
+  display: block;
+  color: #c9c8d0;
+  font-size: 12px;
+  margin-top: 3px;
+}
+#back {
+  border: 0;
+  background: none;
+  padding: 8px 0;
+  font-size: 17px;
+}
+#worlds {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 46px;
+  border: 1px solid #ffffff2e;
+  border-radius: 99px;
+  background: #ffffff16;
+  backdrop-filter: blur(24px);
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  gap: 3px;
+}
+#worlds button {
+  background: none;
+  border: 0;
+  border-radius: 99px;
+  padding: 8px 13px;
+  color: #c9c8d0;
+  font-size: 14px;
+}
+#worlds button.active {
+  color: #f0c44a;
+  background: #ffffff16;
+}
+#system {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+#system button {
+  width: 23px;
+  height: 30px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+#system img {
+  width: 21px;
+  height: 21px;
+  opacity: 0.8;
+}
+#taskbar {
+  position: absolute;
+  left: 58px;
+  bottom: 16px;
+  height: 64px;
+  min-width: 130px;
+  border: 1px solid #ffffff33;
+  background: #1c2124c9;
+  backdrop-filter: blur(30px);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px;
+  z-index: 90;
+}
+#taskbar button {
+  border: 0;
+  background: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  padding: 10px;
+}
+#taskbar button img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+#taskbar #start {
+  width: 48px;
+}
+#task-actions,
+#sessions {
+  display: none;
+  gap: 8px;
+}
+#taskbar.open #task-actions,
+#taskbar.open #sessions {
+  display: flex;
+}
+#taskbar.open {
+  right: 58px;
+}
+#sessions {
+  margin-left: auto;
+}
+#sessions button {
+  position: relative;
+  border: 1px solid #ffffff29;
+  border-radius: 50%;
+}
+#sessions small {
+  position: absolute;
+  right: -3px;
+  top: -4px;
+  background: #f0c44a;
+  color: #161616;
+  border-radius: 12px;
+  padding: 1px 5px;
+}
+#fan {
+  position: absolute;
+  bottom: 92px;
+  left: 58px;
+  z-index: 95;
+  background: #20262df5;
+  border: 1px solid #ffffff33;
+  border-radius: 14px;
+  min-width: 292px;
+  padding: 12px;
+  box-shadow: 0 20px 60px #0008;
+}
+#fan button {
+  display: block;
+  padding: 12px;
+  text-align: left;
+  background: none;
+  border: 0;
+  width: 100%;
+  border-radius: 8px;
+}
+#sheet {
+  position: absolute;
+  inset: 0;
+  background: #0008;
+  backdrop-filter: blur(8px);
+  z-index: 120;
+  align-items: center;
+  justify-content: center;
+}
+#sheet:not([hidden]) {
+  display: flex;
+}
+.dialog {
+  width: 550px;
+  padding: 30px;
+  border: 1px solid #ffffff33;
+  border-radius: 20px;
+  background: #22292f;
+}
+.dialog h2 {
+  font: 28px Fraunces;
+  margin-top: 0;
+}
+.dialog p {
+  color: #c9c8d0;
+  line-height: 1.5;
+}
+.dialog button {
+  padding: 12px 16px;
+  border: 1px solid #ffffff33;
+  background: #ffffff10;
+  border-radius: 10px;
+  margin: 5px;
+}
+.dialog .items button {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+.dialog input {
+  width: 100%;
+  padding: 12px;
+  background: #0003;
+  border: 1px solid #ffffff40;
+  border-radius: 8px;
+  color: white;
+}
+#notice {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #232b31;
+  padding: 12px 20px;
+  border: 1px solid #ffffff3a;
+  border-radius: 10px;
+  z-index: 140;
+}
+* {
+  scrollbar-color: #ffffff55 transparent;
+  scrollbar-width: thin;
+}
+*[hidden] {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+.account-glyph {
+  display: block;
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff61;
+}
+.account-glyph:before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.82;
+}
+.account-glyph:after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 10px;
+  width: 10px;
+  height: 6px;
+  border-radius: 3px;
+  background: #fff;
+  opacity: 0.82;
+}
+#account-flyout {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  background: transparent;
+}
+.account-card {
+  position: absolute;
+  width: 296px;
+  padding: 22px 20px;
+  border-radius: 16px;
+  border: 1px solid #f0c44a47;
+  background: #15130f;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #f2f2ef;
+  font-family: "Segoe UI", system-ui;
+}
+.account-card:before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 1px;
+  height: 1px;
+  background: #f0c44a8c;
+}
+.account-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.account-medallion {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid #f0c44abf;
+  background: #f0c44a24;
+  display: grid;
+  place-items: center;
+  color: #f0df9a;
+  font-size: 17px;
+  font-weight: 600;
+  flex: none;
+}
+.account-identity b {
+  font-size: 15px;
+  font-weight: 600;
+}
+.account-identity small {
+  display: block;
+  margin-top: 2px;
+  color: #8f8b80;
+  font-size: 11px;
+}
+.account-card hr {
+  height: 1px;
+  border: 0;
+  background: #26231d;
+  width: 100%;
+  margin: 0;
+}
+.account-sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b7b3a6;
+  font-size: 12px;
+}
+.account-sync i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7ec97e;
+  flex: none;
+}
+.account-sync i.blocked {
+  background: #e0564b;
+}
+.account-sync i.pending {
+  background: #f0df9a;
+}
+.account-card nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.account-card nav button {
+  height: 32px;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  padding: 0 2px;
+  color: #b7b3a6;
+  font-size: 12px;
+}
+.account-card button:focus-visible {
+  outline: 1px solid #f0c44ab8;
+  outline-offset: 0;
+  background: #f0c44a14;
+}
+.account-session {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #2a2720;
+  border-radius: 10px;
+  background: #ffffff0a;
+  color: #d8d4c8;
+  font-size: 12px;
+  font-weight: 600;
+}
+.account-retry {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #f0c44a6b;
+  border-radius: 9px;
+  background: #f0c44a14;
+  color: #f0df9a;
+  font-size: 12px;
+  font-weight: 600;
+}
+.account-glyph.signed {
+  color: #f0df9a;
+  background: #f0c44a29;
+  border-color: #f0c44acc;
+  font-size: 11px;
+  line-height: 19px;
+}
+.account-glyph.signed:before,
+.account-glyph.signed:after {
+  display: none;
+}
+.account-device {
+  display: block;
+  padding: 4px 9px;
+  border: 1px solid #ffffff61;
+  border-radius: 11px;
+  background: #ffffff0a;
+  font-size: 10px;
+}
+#system button.device {
+  width: 58px;
+}
+@font-face {
+  font-family: Inter;
+  src: url("../assets/fonts/Inter-Regular.otf");
+}
+@font-face {
+  font-family: Inter;
+  src: url("../assets/fonts/Inter-SemiBold.otf");
+  font-weight: 600;
+}
+.account-card {
+  font-family: Inter, "Segoe UI", system-ui;
+}
+/* VaultPage.qml1991–2028: page-local Back and window-only chrome. */
+#topbar.vault-chrome {
+  left: 14px;
+  right: 54px;
+  top: 21px;
+  height: 33px;
+}
+#topbar.vault-chrome #system {
+  gap: 22px;
+}
+#topbar.vault-chrome #back {
+  border: 1px solid #ffffff2e;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 14px;
+  background: #11151a70;
+}

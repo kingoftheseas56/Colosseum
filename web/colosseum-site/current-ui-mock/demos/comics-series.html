@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Comics | Colosseum</title>
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/fonts/Fraunces-Regular.ttf");
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      :root {
+        --gold: #f0c44a;
+        --ink: #f7f7f5;
+        --dim: #c9c8d0;
+        --dimmer: #9a99a5;
+        --edge: #ffffff2e;
+        --display: Fraunces, Georgia, serif;
+        --ui: Switzer, system-ui;
+      }
+      body {
+        background: #050608;
+        color: var(--ink);
+        font-family: var(--ui);
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+    </style>
+    <link rel="stylesheet" href="manga.css" />
+    <style>
+      .comics-scroll {
+        position: absolute;
+        inset: 58px 0 0;
+        overflow: auto;
+        padding: 42px 54px 60px;
+      }
+      .comic-hero {
+        display: flex;
+        gap: 26px;
+        align-items: center;
+        padding-bottom: 26px;
+        border-bottom: 1px solid var(--edge);
+      }
+      .comic-hero img {
+        width: 158px;
+        height: 236px;
+        object-fit: cover;
+        border-radius: 9px;
+      }
+      .comic-hero h1 {
+        font: 50px var(--display);
+        margin: 8px 0;
+      }
+      .comic-hero p {
+        font-size: 14px;
+        color: var(--dim);
+        max-width: 620px;
+        line-height: 1.5;
+        margin-bottom: 10px;
+      }
+      .comic-tabs {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin: 24px 0;
+      }
+      .comic-tabs button {
+        padding: 7px 0;
+        border-bottom: 2px solid transparent;
+        font-size: 13px;
+      }
+      .comic-tabs button.active {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .format-head {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        margin: 26px 0 4px;
+        color: var(--gold);
+        font-size: 12px;
+        letter-spacing: 2.8px;
+        text-transform: uppercase;
+      }
+      .format-head:after {
+        content: "";
+        height: 1px;
+        flex: 1;
+        background: #f0c44a56;
+      }
+      .edition {
+        min-height: 192px;
+        display: flex;
+        gap: 20px;
+        padding: 18px 4px;
+        border-bottom: 1px solid #ffffff0e;
+        align-items: center;
+      }
+      .edition-cover {
+        width: 104px;
+        height: 156px;
+        object-fit: cover;
+        border: 1px solid var(--edge);
+        border-radius: 7px;
+        background: #15171f;
+        display: grid;
+        place-items: center;
+        color: var(--dimmer);
+      }
+      .edition-info {
+        flex: 1;
+      }
+      .edition-info h2 {
+        font: 21px var(--display);
+        margin-bottom: 7px;
+      }
+      .edition-info p {
+        font-size: 13px;
+        color: var(--dimmer);
+        margin-bottom: 7px;
+      }
+      .edition-info .source-evidence {
+        font-size: 11px;
+        color: var(--gold);
+        margin-top: 20px;
+      }
+      .edition .pill {
+        max-width: 145px;
+      }
+      .issue-row {
+        min-height: 90px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-bottom: 1px solid #ffffff0d;
+        padding: 8px 16px;
+      }
+      .issue-row .number {
+        width: 52px;
+        height: 74px;
+        background: #15171f;
+        border: 1px solid var(--edge);
+        border-radius: 5px;
+        display: grid;
+        place-items: center;
+        font: 20px var(--display);
+      }
+      .issue-row .info {
+        flex: 1;
+      }
+      .issue-row small {
+        display: block;
+        margin-top: 7px;
+        color: var(--dimmer);
+      }
+      .release-controls {
+        display: flex;
+        gap: 12px;
+        margin: 15px 0;
+      }
+      .release-controls input {
+        flex: 1;
+      }
+      .archive-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 22px;
+      }
+      .archive-card {
+        text-align: left;
+      }
+      .archive-card img {
+        width: 100%;
+        aspect-ratio: 2/3;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 8px;
+      }
+      .archive-card p {
+        color: var(--dimmer);
+        font-size: 12px;
+        margin-top: 5px;
+      }
+    </style>
+    <link rel="stylesheet" href="comics-archives.css" />
+  </head>
+  <body>
+    <div class="source-top">
+      <button data-action="back">‹ Back</button><span>Tankoban</span
+      ><button class="cancel" data-action="close">×</button>
+    </div>
+    <main class="comics-scroll">
+      <header class="comic-hero">
+        <img
+          src="../assets/fixtures/captures/comic-covers/sandman.jpg"
+          alt="The Sandman cover fixture"
+        />
+        <div>
+          <div class="eyebrow">COMICS</div>
+          <h1>The Sandman</h1>
+          <p>by Neil Gaiman</p>
+          <p>DC · 4 collected editions · Collected editions available</p>
+          <p>
+            A journey through the realm of dreams. Catalogue and source
+            availability are staged for this mock.
+          </p>
+          <button class="pill" data-action="library">+ Library</button>
+          <button class="pill gold" data-action="continue">
+            Continue · Issue #1
+          </button>
+        </div>
+      </header>
+      <nav class="comic-tabs" aria-label="Comic views">
+        <button data-view="editions">Collected editions</button
+        ><button data-view="issues">Issues</button
+        ><button data-view="releases">GetComics releases</button
+        ><button data-view="archive">Archive board</button
+        ><button data-view="publishers">Publishers</button>
+      </nav>
+      <div id="comics-content"></div>
+      <p class="fixture-note" style="margin-top: 25px">
+        Catalogue, issue, edition and source data are local fixtures. No live
+        acquisition.
+      </p>
+    </main>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="comics-archives.js"></script>
+    <script src="comics-series.js"></script>
+  </body>
+</html>

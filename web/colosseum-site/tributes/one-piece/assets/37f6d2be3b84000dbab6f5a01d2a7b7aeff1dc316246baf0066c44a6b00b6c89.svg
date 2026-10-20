@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+<!-- Direct mechanical translation of NewWorldLandform.qml QML PathSvg for wano; source SHA256=b06daf30831351ab9a1a91342cf5e3add9923d0f1e4eba1f4372c99a73c4ae5e -->
+<path d="M4 54 L12 40 9 28 22 22 28 10 43 14 52 7 66 13 76 9 84 22 96 29 90 43 97 53 88 64 92 78 77 83 72 93 59 88 45 96 34 88 18 93 16 80 6 75 11 64 Z" fill="none" stroke="#836543" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.208"/>
+<path d="M4 54 L12 40 9 28 22 22 28 10 43 14 52 7 66 13 76 9 84 22 96 29 90 43 97 53 88 64 92 78 77 83 72 93 59 88 45 96 34 88 18 93 16 80 6 75 11 64 Z" fill="#bdbb94" stroke="#74563c" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M32 37 L49 12 55 12 72 39 Z M41 24 L49 12 55 12 63 26 55 22 49 26 Z M36 37 L45 28 M59 28 L66 38 M23 44 Q37 37 43 43 M67 44 Q80 36 87 43 M52 42 C44 52 63 58 53 67 S48 79 57 86 M17 66 L21 54 27 64 M73 69 L78 57 85 68 M29 59 L41 51 51 59 M31 60 L31 68 47 68 47 60 M28 69 L50 69 M32 70 L32 76 M44 70 L44 76 M64 55 L72 49 79 55 77 61 65 61 Z M23 79 L30 74 37 79 M66 79 L73 74 80 80 M31 82 L42 82 M36 86 L43 86 M62 35 L64 39" fill="none" stroke="#74563c" stroke-width="0.85" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Colosseum 1.1.9 Universes</title>
+<style>
+@font-face{font-family:Fraunces;src:url(../../assets/Fraunces-Regular.ttf)}
+:root{--gold:#f0c44a;--ink:#f6f5f2;--dim:#c4c3cb;--ui:"Segoe UI",Arial,sans-serif;--serif:Fraunces,Georgia,serif}
+*{box-sizing:border-box;margin:0}
+html,body{width:2000px;height:1415px;background:#0b0b0d;overflow:hidden}
+body{position:relative;color:var(--ink);font-family:var(--ui)}
+.bg{position:absolute;inset:-60px;background:url(../../release119/saga.png) center 30%/cover;filter:blur(38px) saturate(.75) brightness(.55)}
+.shade{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 18%,rgba(140,140,150,.28),transparent 70%),linear-gradient(180deg,rgba(10,10,12,.15) 0%,rgba(10,10,12,.35) 45%,rgba(8,8,10,.92) 100%)}
+header{position:absolute;top:42px;left:72px;right:72px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:18px;font-family:var(--serif);letter-spacing:.42em;font-size:25px;color:var(--gold)}
+.brand img{width:52px}
+.pill{height:50px;padding:0 30px;border-radius:25px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:18px;color:var(--gold);background:rgba(30,30,34,.72);border:1.5px solid rgba(240,196,74,.35)}
+.pill i{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#1a1408;font-style:normal;font-size:16px;display:grid;place-items:center}
+.hero{position:absolute;top:128px;left:0;right:0;text-align:center}
+.eyebrow{font-size:17px;font-weight:600;letter-spacing:.32em;color:var(--gold)}
+h1{font-family:var(--serif);font-weight:400;font-size:178px;line-height:1;letter-spacing:-.02em;margin-top:18px;text-shadow:0 10px 60px rgba(0,0,0,.5)}
+.sub{font-family:var(--serif);font-size:34px;color:#e9e6df;margin-top:22px}
+.stage{position:absolute;left:0;right:0;top:478px;height:700px;perspective:2600px}
+.win{position:absolute;border-radius:22px;overflow:hidden;background:#111;box-shadow:0 50px 120px rgba(0,0,0,.7),0 0 0 1.5px rgba(255,255,255,.14)}
+.win img{display:block;width:100%}
+.browse{left:84px;top:34px;width:1040px;transform:rotateY(9deg) rotateZ(-.4deg);transform-origin:left center}
+.saga{right:84px;top:0;width:1020px;transform:rotateY(-9deg) rotateZ(.4deg);transform-origin:right center;box-shadow:0 50px 120px rgba(0,0,0,.75),0 0 0 2px rgba(240,196,74,.75),0 0 70px rgba(240,196,74,.28)}
+.tag{position:absolute;font-size:15px;font-weight:700;letter-spacing:.24em;color:var(--gold);background:rgba(12,12,14,.86);border:1.5px solid rgba(240,196,74,.45);border-radius:20px;padding:9px 18px}
+.t1{left:118px;top:-26px}.t2{right:118px;top:-60px}
+.facts{position:absolute;left:72px;right:72px;bottom:46px;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.fact{background:rgba(20,20,23,.82);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:24px 28px}
+.fact b{display:block;font-family:var(--serif);font-weight:400;font-size:30px;margin-bottom:8px}
+.fact span{font-size:18px;line-height:1.45;color:var(--dim)}
+.foot{position:absolute;right:72px;bottom:14px;font-size:15px;color:rgba(255,255,255,.5)}
+</style></head><body>
+<div class="bg"></div><div class="shade"></div>
+<header>
+  <div class="brand"><img src="../../assets/colosseum.svg" alt="">COLOSSEUM</div>
+  <div class="pill">Release 1.1.9</div>
+  <div class="pill">1.1.9 features</div>
+</header>
+<section class="hero">
+  <div class="eyebrow">INTRODUCING</div>
+  <h1>Universes</h1>
+  <p class="sub">A page for each franchise, with everything Colosseum can open.</p>
+</section>
+<section class="stage">
+  <div class="win browse"><img src="../../release119/browse.png" alt="Explore Universes in Colosseum"></div>
+  <div class="win saga"><img src="../../release119/saga.png" alt="Harry Potter universe page"></div>
+  <div class="tag t1">EXPLORE UNIVERSES</div>
+  <div class="tag t2">INSIDE A UNIVERSE</div>
+</section>
+<section class="facts">
+  <div class="fact"><b>Books, manga, shows, films</b><span>If it has an English or English-subtitled source Colosseum can play or open, it goes on the page.</span></div>
+  <div class="fact"><b>Books next to their films</b><span>The Harry Potter page lines up all seven books with the eight films, story by story.</span></div>
+  <div class="fact"><b>Read or watch from here</b><span>Read opens the book in Biblio. Watch opens the film in Theatre.</span></div>
+</section>
+<div class="foot">Some pages are still rough around the edges. If we missed something, tell us.</div>
+<style id="artboard-responsive-fit">html{width:100%!important;height:100%!important;overflow:hidden!important}body{transform-origin:top left!important}</style>
+<script id="artboard-fit">(()=>{function fit(){const w=innerWidth,h=innerHeight,scale=Math.min(w/2000,h/1415);document.body.style.transform='scale('+scale+')';}addEventListener('resize',fit);fit();})();</script></body></html>

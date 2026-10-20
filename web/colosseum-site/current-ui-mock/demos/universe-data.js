@@ -1,0 +1,403 @@
+window.UNIVERSES = [
+  {
+    name: "Attack on Titan",
+    desc: "Attack on Titan is a Japanese manga series written and illustrated by Hajime Isayama. Set in a world where humanity is forced to live in cities surrounded by three enormous walls that protect them from gigantic man-eating humanoids referred to as Titans, the story follows Eren Yeager, an adolescent boy who vows to exterminate the Titans after they bring about the destruction of his hometown and the death of his mother. It was serialized in Kodansha's monthly magazine Bessatsu Shonen Magazine from September 2009 to April 2021, with its chapters collected in 34 tankobon volumes.",
+    holds: "3 Manga  \u00b7  1 Anime  \u00b7  7 Films",
+    mark: "attack-on-titan.svg",
+  },
+  {
+    name: "Avatar: The Last Airbender",
+    desc: "Avatar: The Last Airbender, also known as Avatar Legends, is an American multimedia franchise created by Michael Dante DiMartino and Bryan Konietzko. The franchise began with the animated television series Avatar: The Last Airbender, which aired on Nickelodeon from 2005 to 2008. The franchise is set in an Asian-inspired fantasy world in which some people can telekinetically manipulate one of the four classical elements: air, water, earth, or fire. Only the titular &quot;Avatar&quot; can bend all four elements and is responsible for maintaining balance in the world.",
+    holds: "3 Shows  \u00b7  2 Films  \u00b7  5 Novels  \u00b7  Comics",
+    mark: "avatar.svg",
+  },
+  {
+    name: "DC Animated Universe",
+    desc: "The DC Animated Universe (DCAU), also referred to as the Timmverse or Diniverse by fans, is a shared fictional universe based on DC Comics properties and media franchise produced by Warner Bros. Animation. It began with Batman: The Animated Series in 1992 and ended with Justice League vs. the Fatal Five in 2019. The associated media franchise includes theatrical and direct-to-video feature films, shorts, comic books, video games, and other multimedia adaptations.",
+    holds: "8 Series  \u00b7  4 Films",
+    mark: "dc.png",
+  },
+  {
+    name: "Dragon Ball",
+    desc: "Dragon Ball is a Japanese media franchise created by Akira Toriyama. The series follows the adventures of protagonist Son Goku from his childhood through adulthood as he trains in martial arts.",
+    holds: "8 Manga  \u00b7  7 Anime  \u00b7  25 Films",
+    mark: "dragon-ball.png",
+  },
+  {
+    name: "Dune",
+    desc: "Frank Herbert's world, end to end \u2014 the novels, the films, the graphic novel.",
+    holds: "6 Novels  \u00b7  4 Films  \u00b7  3 Shows",
+    mark: "dune.png",
+  },
+  {
+    name: "Harry Potter",
+    desc: "The Wizarding World \u2014 Rowling's seven novels, the eight films, and the Fantastic Beasts era beyond.",
+    holds: "10 Books  \u00b7  11 Films  \u00b7  1 Show",
+    mark: "harry-potter.png",
+  },
+  {
+    name: "James Bond",
+    desc: "The James Bond franchise focuses on the character of James Bond, a fictional British Secret Service agent created in 1953 by writer Ian Fleming, who featured him in twelve novels and two short-story collections. Since Fleming's death in 1964, nine other authors have written authorised Bond novels or novelisations: Kingsley Amis, Christopher Wood, John Gardner, Raymond Benson, Sebastian Faulks, Jeffery Deaver, William Boyd, Anthony Horowitz and Charlie Higson. The latest novel is On His Majesty's Secret Service by Charlie Higson, published in May 2023. Charlie Higson wrote a series on a young James Bond, and Kate Westbrook wrote three novels based on the diaries of a recurring series character, Moneypenny.",
+    holds: "25 Films  \u00b7  6 Eras  \u00b7  14 Books",
+    mark: "james-bond.png",
+  },
+  {
+    name: "Jurassic Park",
+    desc: "Crichton's islands of resurrected giants \u2014 the novels, all seven films, and the animated escapes, in one place.",
+    holds: "2 Novels  \u00b7  7 Films  \u00b7  2 Shows",
+    mark: "jurassic-park.png",
+  },
+  {
+    name: "Lord of the Rings",
+    desc: "Tolkien's Middle-earth \u2014 the novels, Jackson's films, and the age of Rings of Power.",
+    holds: "5 Novels  \u00b7  9 Films  \u00b7  1 Show",
+    mark: "lord-of-the-rings.png",
+  },
+  {
+    name: "Marvel Cinematic Universe",
+    desc: "The Marvel Cinematic Universe (MCU) is an American media franchise and shared universe centered on a series of superhero films produced by Marvel Studios. The films are based on characters from American comic books published by Marvel Comics.",
+    holds: "40 Films  \u00b7  20 Series  \u00b7  3 Specials",
+    mark: "marvel.png",
+  },
+  {
+    name: "Naruto",
+    desc: "Naruto is a Japanese manga series written and illustrated by Masashi Kishimoto. It tells the story of Naruto Uzumaki, a young, socially isolated ninja who seeks recognition from his peers and dreams of becoming the Hokage, the leader of his village. The story is told in two parts: the first is set in Naruto's pre-teen years, and the second in his teens. The series is based on two one-shot manga by Kishimoto: Karakuri (1995), which earned Kishimoto an honorable mention in Shueisha's monthly Hop Step Award the following year, and Naruto (1997).",
+    holds: "4 Manga  \u00b7  3 Anime  \u00b7  11 Films",
+    mark: "naruto.svg",
+  },
+  {
+    name: "One Piece",
+    desc: "One Piece is a Japanese manga series written and illustrated by Eiichiro Oda. It follows the adventures of Monkey D. Luffy and his crew, the Straw Hats, as he searches for the legendary treasure known as the &quot;One Piece&quot; to become the next King of the Pirates.",
+    holds:
+      "15 Manga  \u00b7  5 Series  \u00b7  15 Films  \u00b7  17 Specials  \u00b7  4 Novels",
+    mark: "one-piece.png",
+  },
+  {
+    name: "Percy Jackson",
+    desc: "A demigod's quests from Camp Half-Blood to Olympus \u2014 the five books, the films, and the series, in one place.",
+    holds: "7 Novels  \u00b7  2 Films  \u00b7  1 Show",
+    mark: "percy-jackson.png",
+  },
+  {
+    name: "Sherlock Holmes",
+    desc: "The Baker Street canon \u2014 Doyle's nine books and the defining screen deductions, in one place.",
+    holds: "9 Books  \u00b7  2 Films  \u00b7  3 Shows",
+    mark: "sherlock-holmes.png",
+  },
+  {
+    name: "A Song of Ice and Fire",
+    desc: "Martin's Westeros \u2014 the saga still being written, and the shows that carved it into legend.",
+    holds: "9 Books  \u00b7  3 Shows  \u00b7  Graphic Novels",
+    mark: "ice-and-fire.png",
+  },
+  {
+    name: "Star Trek",
+    desc: "Star Trek is an American science fiction media franchise created by Gene Roddenberry and owned by Paramount, which began with the series of the same name and became a worldwide pop culture phenomenon. Since its creation, the franchise has expanded into various films, television series, video games, novels, and comic books, and it has become one of the most recognizable and highest-grossing media franchises of all time.",
+    holds: "13 Shows  \u00b7  14 Films",
+    mark: "star-trek.png",
+  },
+  {
+    name: "Star Wars",
+    desc: "Star Wars is an American media franchise created by George Lucas. The space opera saga began with the original Star Wars film (1977) and quickly became a worldwide pop culture phenomenon. It has expanded into various films and other media, including television series, video games, novels, comic books, theme park attractions, and themed areas, comprising an all-encompassing fictional universe. Star Wars is one of the highest-grossing media franchises of all time and has a large following.",
+    holds: "11 Films  \u00b7  17 Shows",
+    mark: "star-wars.png",
+  },
+  {
+    name: "Studio Ghibli",
+    desc: "Studio Ghibli Inc. is a Japanese animation studio based in Koganei, Tokyo. It was founded on June 15, 1985, by directors Hayao Miyazaki and Isao Takahata and producer Toshio Suzuki, after acquiring Topcraft's assets. It has a strong presence in the animation industry and has expanded its portfolio to include various media such as short subjects, television commercials and two television films. The studio's work is highly acclaimed by both critics and audiences and has been recognized with numerous awards. Their mascot and most recognizable character is Totoro from the 1988 film My Neighbor Totoro, a giant spirit inspired by raccoon dogs (tanuki) and cats (neko). Among the studio's highest-grossing films are Princess Mononoke (1997), Spirited Away (2001), Howl's Moving Castle (2004), Ponyo (2008), and The Boy and the Heron (2023).",
+    holds: "23 Films  \u00b7  1984\u20132023",
+    mark: "studio-ghibli.svg",
+  },
+  {
+    name: "Weekly Shonen Jump",
+    desc: "Weekly Sh\u014dnen Jump is a weekly sh\u014dnen manga anthology published in Japan by Shueisha under the Jump line of magazines. It is one of the longest-running manga magazines, with the first issue being released on July 11, 1968.",
+    holds: "50+ Manga  \u00b7  Weekly  \u00b7  Since 1968",
+    mark: "shonen-jump.png",
+  },
+  {
+    name: "The Witcher",
+    desc: "Geralt's path through a Continent of monsters \u2014 the saga, the shows, and the animated film, in one place.",
+    holds: "9 Novels  \u00b7  2 Shows  \u00b7  3 Films",
+    mark: "the-witcher.png",
+  },
+];
+window.DCAU_CATALOGUE = {
+  id: "dcau",
+  title: "DC Animated Universe",
+  logo: "https://images.metahub.space/logo/medium/tt0103359/img",
+  background: "https://images.metahub.space/background/medium/tt0103359/img",
+  sections: [
+    {
+      id: "tv",
+      title: "TV Shows",
+      kind: "video",
+      entries: [
+        {
+          id: "tt0103359",
+          type: "series",
+          title: "Batman: The Animated Series",
+          year: "1992",
+        },
+        {
+          id: "tt0115378",
+          type: "series",
+          title: "Superman: The Animated Series",
+          year: "1996",
+        },
+        {
+          id: "tt0118266",
+          type: "series",
+          title: "The New Batman Adventures",
+          year: "1997",
+        },
+        {
+          id: "tt0147746",
+          type: "series",
+          title: "Batman Beyond",
+          year: "1999",
+        },
+        {
+          id: "tt0247729",
+          type: "series",
+          title: "Static Shock",
+          year: "2000",
+        },
+        {
+          id: "tt0260662",
+          type: "series",
+          title: "The Zeta Project",
+          year: "2001",
+        },
+        {
+          id: "tt0275137",
+          type: "series",
+          title: "Justice League",
+          year: "2001",
+        },
+        {
+          id: "tt6025022",
+          type: "series",
+          title: "Justice League Unlimited",
+          year: "2004",
+        },
+      ],
+    },
+    {
+      id: "shorts",
+      title: "Web Shorts",
+      kind: "video",
+      entries: [
+        {
+          id: "tt6075386",
+          type: "series",
+          title: "Lobo",
+          year: "2000",
+          note: "14 episodes",
+        },
+        {
+          id: "tt0337763",
+          type: "series",
+          title: "Gotham Girls",
+          year: "2000",
+          note: "31 episodes",
+        },
+      ],
+    },
+    {
+      id: "movies",
+      title: "Movies",
+      kind: "video",
+      entries: [
+        {
+          id: "tt0106364",
+          type: "movie",
+          title: "Batman: Mask of the Phantasm",
+          year: "1993",
+        },
+        {
+          id: "tt0143127",
+          type: "movie",
+          title: "Batman & Mr. Freeze: SubZero",
+          year: "1998",
+        },
+        {
+          id: "tt0231237",
+          type: "movie",
+          title: "Batman Beyond: The Movie",
+          year: "1999",
+        },
+        {
+          id: "tt0233298",
+          type: "movie",
+          title: "Batman Beyond: Return of the Joker",
+          year: "2000",
+        },
+        {
+          id: "tt0346578",
+          type: "movie",
+          title: "Batman: Mystery of the Batwoman",
+          year: "2003",
+        },
+        {
+          id: "tt6556890",
+          type: "movie",
+          title: "Batman and Harley Quinn",
+          year: "2017",
+        },
+        {
+          id: "tt8752474",
+          type: "movie",
+          title: "Justice League vs. the Fatal Five",
+          year: "2019",
+        },
+      ],
+    },
+    {
+      id: "comics",
+      title: "Comics",
+      kind: "comic",
+      entries: [
+        {
+          provider: "getcomics",
+          title: "The Batman Adventures",
+          year: "1992",
+          posts: [11366],
+          id: "gcd:4374",
+          gcdId: 4374,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2015/08/Batman-Adventures-Collection.jpg?fit=480%2C757&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "The Batman Adventures: Mad Love",
+          year: "1994",
+          posts: [153724],
+          id: "gcd:4943",
+          gcdId: 4943,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2025/01/Batman-Adventures-Mad-Love-1-1994.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Mad Love Deluxe Edition",
+          year: "2015",
+          posts: [80956],
+          id: "gcd:4943",
+          gcdId: 4943,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2018/04/The-Batman-Adventures-Mad-Love-Deluxe-Edition-2015.jpg?fit=400%2C617&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Batman & Robin Adventures",
+          year: "1995",
+          posts: [50187],
+          id: "gcd:5222",
+          gcdId: 5222,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2017/04/Batman-and-Robin-Adventures-1-25-Annuals-Sub-Zero-1995-1997.jpg?fit=400%2C612&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Superman Adventures",
+          year: "1996",
+          posts: [14615],
+          id: "gcd:5531",
+          gcdId: 5531,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2015/10/Superman-Adventures-1-66-Extras-1966-2002.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Adventures in the DC Universe",
+          year: "1997",
+          posts: [48881],
+          id: "gcd:5719",
+          gcdId: 5719,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2017/03/Adventures-In-the-DC-Universe-1-19-Annual-1997-1998.jpg?fit=400%2C610&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Batman: Gotham Adventures",
+          year: "1998",
+          posts: [15941],
+          id: "gcd:5954",
+          gcdId: 5954,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2015/10/Batman-Gotham-Adventures-1-60.jpg?fit=480%2C743&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Batman Beyond",
+          year: "1999",
+          posts: [190572],
+          id: "gcd:6259",
+          gcdId: 6259,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2021/05/Batman-Beyond-1-24-1999-2001.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Batman Beyond (TV tie-ins)",
+          year: "2000",
+          posts: [163954],
+          id: "gcd:6261",
+          gcdId: 6261,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2020/06/Batman-Beyond-TV-Tie-ins-2000-2002.jpg?fit=400%2C388&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Batman Beyond: Return of the Joker",
+          year: "2001",
+          posts: [282726],
+          id: "gcd:18999",
+          gcdId: 18999,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2022/09/Batman-Beyond-Return-of-the-Joker-2001.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Justice League Adventures",
+          year: "2002",
+          posts: [10563],
+          id: "gcd:10924",
+          gcdId: 10924,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2015/07/Justice-League-Adventures-1-34-2002-2004.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Gotham Girls",
+          year: "2002",
+          posts: [10470],
+          id: "gcd:13050",
+          gcdId: 13050,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2015/07/Gotham-Girls-1-5-2002-2003.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Batman Adventures Vol. 2",
+          year: "2003",
+          posts: [183948],
+          id: "gcd:15821",
+          gcdId: 15821,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2021/02/Batman-Adventures-Vol.-2-1-17-2003-2004.jpg?fit=400%2C615&ssl=1",
+        },
+        {
+          provider: "getcomics",
+          title: "Justice League Unlimited",
+          year: "2004",
+          posts: [8823],
+          id: "gcd:11988",
+          gcdId: 11988,
+          cover:
+            "https://i0.wp.com/getcomics.org/share/uploads/2015/06/Justice-League-Unlimited-1-46.jpg?fit=480%2C730&ssl=1",
+        },
+      ],
+    },
+  ],
+};

@@ -1,0 +1,319 @@
+{
+  "group": "vinyl",
+  "sourcePin": "bf3becf16c4288e9fce591ac45e9c179d846ae21",
+  "routes": [
+    {
+      "id": "vinyl.home",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 Home (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "home"
+      },
+      "sources": ["qml/vinyl/VinylHomePage.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "home"
+          },
+          "expect": "Source-derived home fixture screen"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "vinyl.album",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 Album (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "album"
+      },
+      "sources": ["qml/vinyl/VinylAlbumPage.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "album"
+          },
+          "expect": "Source-derived album fixture screen"
+        },
+        {
+          "id": "edition-25",
+          "params": {
+            "page": "album",
+            "edition": 2
+          },
+          "expect": "Two-disc anniversary edition"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=save]",
+          "expect": "Saved toggle"
+        },
+        {
+          "selector": "[data-track=\"1\"]",
+          "expect": "Playing fixture track changes"
+        },
+        {
+          "selector": "[data-section=Editions]",
+          "expect": "Edition list scrolls into view"
+        },
+        {
+          "selector": "[data-edition=\"2\"]",
+          "expect": "Shown edition changes independently of playing edition"
+        }
+      ]
+    },
+    {
+      "id": "vinyl.song",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 Song (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "song"
+      },
+      "sources": ["qml/vinyl/VinylSongPage.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "song"
+          },
+          "expect": "Source-derived song fixture screen"
+        },
+        {
+          "id": "tall",
+          "params": {
+            "page": "song",
+            "fixture": "mounamela"
+          },
+          "expect": "Tall poster and no annotations"
+        },
+        {
+          "id": "video",
+          "params": {
+            "page": "song",
+            "fixture": "without-me",
+            "video": true
+          },
+          "expect": "Fixture-still presentation"
+        },
+        {
+          "id": "finding",
+          "params": {
+            "page": "song",
+            "source": "finding"
+          },
+          "expect": "Finding source, playback control disabled"
+        },
+        {
+          "id": "retrying",
+          "params": {
+            "page": "song",
+            "source": "retrying"
+          },
+          "expect": "Retrying source, playback control disabled"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "vinyl.discover",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 Discover (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "discover"
+      },
+      "sources": ["qml/vinyl/VinylDiscoverPage.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "discover"
+          },
+          "expect": "Source-derived discover fixture screen"
+        },
+        {
+          "id": "offline",
+          "params": {
+            "page": "discover",
+            "offline": true
+          },
+          "expect": "Cached shelves with disabled filters"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "vinyl.list",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 List (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "list"
+      },
+      "sources": ["qml/vinyl/VinylListPage.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "list"
+          },
+          "expect": "Source-derived list fixture screen"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "vinyl.taste",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 Taste (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "taste"
+      },
+      "sources": ["qml/vinyl/VinylTastePicker.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "taste"
+          },
+          "expect": "Source-derived taste fixture screen"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#artist-search",
+          "expect": "Artist fixture search"
+        },
+        {
+          "selector": "[data-artist]",
+          "expect": "Selection checkmark and aria-pressed"
+        },
+        {
+          "selector": "[data-action=done]",
+          "expect": "Personalized home fixture projections"
+        }
+      ]
+    },
+    {
+      "id": "vinyl.credits",
+      "file": "demos/vinyl.html",
+      "title": "Vinyl \u00b7 Credits (prototype)",
+      "world": "prototype",
+      "chrome": "none",
+      "params": {
+        "page": "credits"
+      },
+      "sources": ["qml/vinyl/VinylCreditsPopup.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "page": "credits"
+          },
+          "expect": "Source-derived credits fixture screen"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "coverage": [
+    {
+      "id": "vinyl.home",
+      "source": "qml/vinyl/VinylHomePage.qml",
+      "route": "vinyl.home",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    },
+    {
+      "id": "vinyl.album",
+      "source": "qml/vinyl/VinylAlbumPage.qml",
+      "route": "vinyl.album",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    },
+    {
+      "id": "vinyl.song",
+      "source": "qml/vinyl/VinylSongPage.qml",
+      "route": "vinyl.song",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    },
+    {
+      "id": "vinyl.discover",
+      "source": "qml/vinyl/VinylDiscoverPage.qml",
+      "route": "vinyl.discover",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    },
+    {
+      "id": "vinyl.list",
+      "source": "qml/vinyl/VinylListPage.qml",
+      "route": "vinyl.list",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    },
+    {
+      "id": "vinyl.taste",
+      "source": "qml/vinyl/VinylTastePicker.qml",
+      "route": "vinyl.taste",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    },
+    {
+      "id": "vinyl.credits",
+      "source": "qml/vinyl/VinylCreditsPopup.qml",
+      "route": "vinyl.credits",
+      "status": "implemented",
+      "notes": "Separate source-pinned prototype; local fixture state."
+    }
+  ],
+  "limitations": [
+    "Separate prototype, never added to current-world pills.",
+    "No network, audio playback, production recommendation ranking or provider operations. Transport and queue are staged.",
+    "Library is intentionally empty in the QML source; a disclosure replaces an inert tab.",
+    "Artist activation intentionally remains unavailable as in QML.",
+    "Artist artwork is representative album artwork; catalogue ranking fields and Thriller metadata are explicitly unverified fixture inputs.",
+    "Original stand-in lyric and annotation content only.",
+    "QML blur/shader rendering is approximated by CSS. Native timers do not autoplay in browser.",
+    "More-by artist covers are display-only, matching available original page fixture context.",
+    "Transport does not advance a realtime clock, and source-finding/retrying are explicit inspection parameters."
+  ],
+  "verification": {
+    "browsers": ["Chromium 1234 headless shell", "Firefox 1538"],
+    "viewport": "1280x720",
+    "captureCount": 44,
+    "checks": [
+      "All route defaults",
+      "New and skipped profiles",
+      "Edition switch and disc 2",
+      "Taste artist search and selection",
+      "Telugu Discover lens",
+      "Carousel selection",
+      "Save toggle",
+      "Track selection",
+      "Credits modal and Escape",
+      "Queue modal",
+      "Notes toggle",
+      "Tall song fixture",
+      "Video-still fixture",
+      "Finding/retrying source",
+      "Offline disabled filters",
+      "No broken local images",
+      "No JavaScript page errors"
+    ],
+    "evidence": "Captured and visually inspected paired browser contact sheets; parent to copy /tmp/vinyl-evidence into final evidence bundle."
+  }
+}

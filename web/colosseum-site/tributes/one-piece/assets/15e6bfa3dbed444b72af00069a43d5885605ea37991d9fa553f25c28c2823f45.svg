@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+<!-- Direct mechanical translation of NewWorldLandform.qml QML PathSvg for dressrosa; source SHA256=b06daf30831351ab9a1a91342cf5e3add9923d0f1e4eba1f4372c99a73c4ae5e -->
+<path d="M6 68 Q11 54 26 51 L29 30 39 30 43 18 53 18 55 7 60 7 64 19 72 19 76 31 81 49 Q96 55 97 68 L92 82 77 89 55 93 32 90 15 84 Z" fill="none" stroke="#836543" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.208"/>
+<path d="M6 68 Q11 54 26 51 L29 30 39 30 43 18 53 18 55 7 60 7 64 19 72 19 76 31 81 49 Q96 55 97 68 L92 82 77 89 55 93 32 90 15 84 Z" fill="#d3c197" stroke="#74563c" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M8 68 Q48 91 95 68 M12 75 L15 81 M22 80 L25 85 M36 84 L37 89 M51 85 L52 91 M67 83 L68 88 M81 77 L82 84 M29 33 L75 33 M38 27 L68 27 M43 18 L66 18 M55 8 L61 8 M40 38 L40 52 M68 39 L68 53 M26 54 L34 46 43 54 42 63 26 63 Z M49 48 L56 41 63 48 63 62 49 62 Z M70 57 L77 51 85 58 84 64 71 64 Z M18 69 C16 59 39 57 43 67 C44 77 20 80 18 69 Z M20 67 Q30 60 41 67 M23 70 L23 73 M30 72 L30 76 M37 70 L37 74 M55 66 L55 76 M53 72 L62 72" fill="none" stroke="#74563c" stroke-width="0.85" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta property="og:type" content="website">
+<meta property="og:title" content="One Piece · The Grand Voyage | Colosseum">
+<meta name="theme-color" content="#161a19">
+<link rel="icon" href="data:,">
+<title>One Piece | The Grand Voyage | Colosseum</title>
+<meta name="description" content="Explore four hand-crafted One Piece sea charts and 32 story arcs, with anime, manga, One Pace and related adaptations. An interactive Colosseum tribute.">
+<style>
+:root { color-scheme:dark; --shell:#161b1a; }
+* { box-sizing:border-box; }
+html,body { margin:0; width:100%; height:100%; overflow:hidden; }
+body { background:var(--shell); color:#efe6cf; font-family:Georgia,'Times New Roman',serif; }
+#view { position:relative; width:100%; height:100vh; height:100dvh; background:#151b18; }
+#view iframe { border:0; position:absolute; inset:0; height:100%; width:100%; background:#151b18; }
+#view iframe[hidden] { display:none!important; }
+#notice { position:fixed; z-index:100; left:50%; bottom:18px; transform:translateX(-50%);
+  max-width:min(92vw,550px); padding:13px 18px; background:#17201c; color:#f4e5c7;
+  border:1px solid #9f8b61; box-shadow:0 6px 36px #0008; border-radius:6px;
+  text-align:center; font:13px Georgia,serif; }
+#notice[hidden] { display:none; }
+@media(prefers-reduced-motion:reduce) { *,*:before,*:after { scroll-behavior:auto!important; } }
+</style>
+<style id="arcCatalogueStyle">
+/*
+ * One Piece Tribute HTML — Layer 2 Arc-Detail & Catalogue Stylesheet
+ * Faithful translation of:
+ *   - qml/OnePieceArcPage.qml
+ *   - qml/OnePieceArcCatalogue.qml
+ *   - qml/OnePieceEpisodeCard.qml
+ *   - qml/OnePieceVolumeCard.qml
+ *   - qml/WidgetHeader.qml
+ *   - qml/BackAction.qml
+ *   - qml/ChromeScrim.qml
+ *   - qml/UniverseChromeAction.qml
+ *   - qml/Theme.qml
+ */
+
+:root {
+  --op-gold: #f0c44a;
+  --op-ink: #f7f7f5;
+  --op-ink-dim: #c9c8d0;
+  --op-ink-dimmer: #9a99a5;
+  --op-edge: rgba(255, 255, 255, 0.18);
+  --op-edge-hover: rgba(255, 255, 255, 0.34);
+  --op-glass-tint: rgba(255, 255, 255, 0.10);
+  --op-glass-hi: rgba(255, 255, 255, 0.14);
+  --op-biblio-top: #0c0f18;
+  --op-biblio-bottom: #06070b;
+  --op-ui: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --op-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --op-margin: 54px;
+}
+
+#onePieceArcPage {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: #080b0f;
+  color: var(--op-ink);
+  font-family: var(--op-ui);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+#onePieceArcPage[hidden] {
+  display: none !important;
+}
+
+/* Backdrop: OnePieceArcPage.qml pageBackdrop + OnePieceArcCatalogue.qml gradient */
+.op-arc-backdrop {
+  position: absolute;
+  inset: 0;
+  background: #080b0f;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#onePieceArcHero {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0.30;
+  transition: opacity 180ms ease;
+}
+
+#onePieceArcHero[hidden] {
+  display: none !important;
+}
+
+.op-arc-backdrop-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 5, 6, 0.58);
+}
+
+.op-arc-catalogue-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 6, 8, 0.72) 0%,
+    rgba(5, 6, 8, 0.90) 34%,
+    rgba(3, 3, 4, 0.98) 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ChromeScrim.qml: height 120, top 0.55 black -> transparent, z: 16 */
+.op-chrome-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 120px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+  z-index: 16;
+}
+
+/* BackAction.qml: plain variant at x: theme.margin, y: 28, z: 20, >=44px hit target */
+#arcBackAction {
+  position: absolute;
+  left: var(--op-margin);
+  top: 23px;
+  z-index: 20;
+  min-width: 84px;
+  min-height: 44px;
+  padding: 5px 10px 5px 2px;
+  margin-left: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--op-ink);
+  font-family: var(--op-ui);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+#arcBackAction:hover,
+#arcBackAction:focus,
+#arcBackAction:focus-visible {
+  color: var(--op-gold);
+  outline: none;
+}
+
+#arcBackAction svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: block;
+}
+
+/* Top centered header: OnePieceArcCatalogue.qml y: 34, z: 20 */
+#arcTopHeader {
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: calc(100vw - 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--op-ink-dim);
+  font-family: var(--op-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.0px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Top-right chrome actions: OnePieceArcPage.qml z: 40, rightMargin: theme.margin, y: 34 */
+.op-chrome-actions {
+  position: absolute;
+  right: var(--op-margin);
+  top: 23px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.op-chrome-pill {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--op-edge);
+  background: rgba(12, 16, 22, 0.72);
+  color: var(--op-ink-dim);
+  font-family: var(--op-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.op-chrome-pill[aria-pressed="true"] {
+  border-color: rgba(240, 196, 74, 0.55);
+  color: var(--op-gold);
+}
+
+.op-chrome-pill:hover,
+.op-chrome-pill:focus-visible {
+  border-color: var(--op-gold);
+  color: var(--op-gold);
+  outline: none;
+}
+
+.op-chrome-icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--op-ink);
+  opacity: 0.78;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--op-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.0px;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.op-chrome-icon-btn:hover,
+.op-chrome-icon-btn:focus-visible {
+  opacity: 1;
+  color: var(--op-gold);
+  border-color: var(--op-gold);
+  outline: none;
+}
+
+/* Main Flickable equivalent: OnePieceArcCatalogue.qml topMargin: 92 */
+#onePieceArcCatalogue {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 92px;
+  bottom: 0;
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+#arcContentCol {
+  padding: 0 var(--op-margin) 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+  max-width: 100%;
+}
+
+/* Hero text block: OnePieceArcCatalogue.qml spacing: 7 */
+.op-hero-header {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+#arcSeaEyebrow {
+  color: var(--op-gold);
+  font-family: var(--op-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+#arcHeroTitle {
+  color: var(--op-ink);
+  font-family: var(--op-display);
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.08;
+  margin: 0;
+}
+
+#arcHeroSummary {
+  width: min(76%, 900px);
+  color: var(--op-ink-dim);
+  font-family: var(--op-ui);
+  font-size: 13px;
+  line-height: 1.25;
+  margin: 0;
+  user-select: text;
+}
+
+/* Source metadata & lane navigation strip */
+.op-hero-meta-strip {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+}
+
+.op-meta-fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--op-ink-dim);
+}
+
+.op-meta-fact strong {
+  color: var(--op-ink-dimmer);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.op-ongoing-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(240, 196, 74, 0.14);
+  border: 1px solid rgba(240, 196, 74, 0.48);
+  color: var(--op-gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+}
+
+.op-mapping-note {
+  margin: 2px 0 0;
+  width: min(76%, 900px);
+  color: var(--op-ink-dimmer);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.op-lane-jump-bar {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.op-lane-jump-btn {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--op-edge);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--op-ink-dim);
+  font-family: var(--op-ui);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.op-lane-jump-btn:hover,
+.op-lane-jump-btn:focus-visible,
+.op-lane-jump-btn[aria-current="true"] {
+  border-color: var(--op-gold);
+  color: var(--op-gold);
+  background: rgba(240, 196, 74, 0.10);
+  outline: none;
+}
+
+/* Lane section block: OnePieceArcCatalogue.qml spacing: 18 */
+.op-catalogue-lane {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.op-catalogue-lane[hidden] {
+  display: none !important;
+}
+
+/* WidgetHeader.qml: implicitHeight 30, title 22px Fraunces, sub 12px Segoe UI */
+.op-widget-header {
+  min-height: 30px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.op-widget-header-left {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.op-widget-title {
+  margin: 0;
+  color: var(--op-ink);
+  font-family: var(--op-display);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.op-widget-sub {
+  color: var(--op-ink-dim);
+  font-family: var(--op-ui);
+  font-size: 12px;
+}
+
+/* Horizontal Flickable row for 16:9 episode/title cards (height: 216, spacing: 20) */
+.op-episode-strip {
+  width: 100%;
+  height: 216px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 2px 2px 6px;
+  scroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* OnePieceEpisodeCard.qml: width 278, height 208, radius 14, color #101419 */
+.op-episode-card {
+  width: 278px;
+  height: 208px;
+  flex: 0 0 278px;
+  position: relative;
+  border-radius: 14px;
+  background: #101419;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
+  text-align: left;
+  color: var(--op-ink);
+  font-family: var(--op-ui);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.op-episode-card:hover,
+.op-episode-card:focus-visible {
+  border-color: var(--op-gold);
+  box-shadow: 0 0 0 1px var(--op-gold);
+  outline: none;
+}
+
+/* Top 16:9 media slot: height 150 */
+.op-episode-media {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 150px;
+  background: linear-gradient(145deg, #121821 0%, #0b0f15 100%);
+  overflow: hidden;
+}
+
+/* Neutral 16:9 placeholder slot (ARTWORK-SEAM.md) */
+.op-episode-placeholder {
+  position: absolute;
+  inset: 0;
+  padding: 14px 14px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.op-placeholder-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.op-placeholder-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--op-ink-dim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.op-placeholder-aspect {
+  color: var(--op-ink-dimmer);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+}
+
+.op-placeholder-center {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.op-placeholder-epnum {
+  color: var(--op-ink-dim);
+  font-family: var(--op-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.op-placeholder-key {
+  color: var(--op-ink-dimmer);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.op-resolved-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 2;
+}
+
+/* Bottom gradient & caption: OnePieceEpisodeCard.qml height 76, margins 12 */
+.op-episode-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 76px;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 13, 0.35) 0%,
+    rgba(8, 10, 13, 0.98) 100%
+  );
+  z-index: 3;
+  pointer-events: none;
+}
+
+.op-episode-caption {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.op-episode-source {
+  color: var(--op-gold);
+  font-family: var(--op-ui);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.op-episode-title {
+  color: var(--op-ink);
+  font-family: var(--op-ui);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Horizontal Flickable row for 2:3 volume cards (OnePieceArcCatalogue.qml height: 380, Row y: 36, spacing: 20) */
+.op-volume-strip {
+  width: 100%;
+  height: 380px;
+  padding-top: 36px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  scroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* OnePieceVolumeCard.qml: bookWidth 184, bookHeight 276 (2:3), captionHeight 54 -> 202x330 */
+.op-volume-card {
+  width: 202px;
+  height: 330px;
+  flex: 0 0 202px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--op-ink);
+  font-family: var(--op-ui);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: center bottom;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.op-volume-card:hover,
+.op-volume-card:focus-visible {
+  transform: scale(1.10);
+  outline: none;
+}
+
+.op-volume-cover-box {
+  width: 184px;
+  height: 276px;
+  flex: 0 0 276px;
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--op-glass-tint);
+  border: 1px solid var(--op-edge);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 140ms ease, border-width 140ms ease;
+}
+
+.op-volume-card:hover .op-volume-cover-box {
+  border-color: var(--op-edge-hover);
+}
+
+.op-volume-card:focus-visible .op-volume-cover-box {
+  border: 2px solid var(--op-gold);
+}
+
+.op-volume-placeholder {
+  position: absolute;
+  inset: 0;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  pointer-events: none;
+}
+
+.op-volume-edition-pill {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--op-ink-dim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.op-volume-card[data-edition="color"] .op-volume-edition-pill {
+  border-color: rgba(240, 196, 74, 0.42);
+  color: var(--op-gold);
+  background: rgba(240, 196, 74, 0.10);
+}
+
+.op-volume-vol-label {
+  color: var(--op-ink-dimmer);
+  font-family: var(--op-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.op-volume-seam-meta {
+  width: 100%;
+  color: var(--op-ink-dimmer);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 8.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.op-volume-caption {
+  margin-top: 12px;
+  width: 184px;
+  color: var(--op-ink);
+  font-family: var(--op-ui);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Unmapped lane quiet notice (when Live Action has 0 mapped episodes on an arc) */
+.op-lane-empty-note {
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--op-ink-dimmer);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Offline Route & Artwork Seam Inspector bar (replaces deceptive Play/Read actions) */
+#arcRouteToast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 120;
+  width: min(92vw, 760px);
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(12, 16, 23, 0.96);
+  border: 1px solid var(--op-gold);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65);
+  color: var(--op-ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#arcRouteToast[hidden] {
+  display: none !important;
+}
+
+.op-toast-details {
+  min-width: 0;
+  flex: 1;
+}
+
+.op-toast-kicker {
+  color: var(--op-gold);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+}
+
+.op-toast-body {
+  color: var(--op-ink);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.op-toast-seam {
+  color: var(--op-ink-dimmer);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10.5px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.op-toast-close {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--op-edge);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--op-ink);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.op-toast-close:hover,
+.op-toast-close:focus-visible {
+  border-color: var(--op-gold);
+  color: var(--op-gold);
+  outline: none;
+}
+
+/* Reduced motion & mobile responsiveness */
+@media (prefers-reduced-motion: reduce) {
+  #onePieceArcCatalogue,
+  .op-episode-strip,
+  .op-volume-strip {
+    scroll-behavior: auto !important;
+  }
+  .op-volume-card {
+    transition: none !important;
+  }
+  .op-volume-card:hover,
+  .op-volume-card:focus-visible {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --op-margin: 18px;
+  }
+  #arcBackAction {
+    top: 14px;
+  }
+  #arcTopHeader {
+    display: none;
+  }
+  .op-chrome-actions {
+    top: 14px;
+    gap: 8px;
+  }
+  .op-chrome-pill {
+    font-size: 9px;
+    padding: 0 9px;
+  }
+  #onePieceArcCatalogue {
+    top: 72px;
+  }
+  #arcContentCol {
+    gap: 32px;
+    padding-bottom: 72px;
+  }
+  #arcHeroTitle {
+    font-size: 28px;
+  }
+  #arcHeroSummary,
+  .op-mapping-note {
+    width: 100%;
+    font-size: 12px;
+  }
+}
+
+
+/* Combined One Piece Tribute · clean receiving baseline for Dots · 2026-10-19 */
+.op-placeholder-key,.op-volume-seam-meta {display:none!important}
+#onePieceArcCatalogue,.op-episode-strip,.op-volume-strip{
+  scrollbar-width:none!important;-ms-overflow-style:none!important
+}
+#onePieceArcCatalogue::-webkit-scrollbar,.op-episode-strip::-webkit-scrollbar,
+.op-volume-strip::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}
+.op-episode-card[data-lane="pace"] .op-episode-media {
+  background:radial-gradient(ellipse at 75% 30%,rgba(207,156,68,.19),transparent 65%),
+   linear-gradient(135deg,#181b23 5%,#090e17 80%);
+}
+.op-episode-card[data-lane="pace"] .op-placeholder-badge{
+  background:rgba(240,196,74,.10);color:#f0c44a;
+  border-color:rgba(240,196,74,.34)
+}
+.op-episode-card[data-lane="pace"] .op-placeholder-epnum{
+  color:rgba(249,238,206,.74);font:500 22px/1.2 Fraunces,Georgia,serif
+}
+.op-episode-card[data-lane="related"] .op-resolved-art{
+  object-fit:contain;background:#0b1018;
+}
+.op-episode-card[data-lane="related"] .op-episode-media{
+  background:radial-gradient(circle at 50% 45%,#343032,#0b1018 78%)
+}
+.op-episode-card .op-placeholder-aspect{display:none}
+.op-episode-card[data-lane="pace"] .op-placeholder-center{padding-bottom:20px}
+
+</style>
+<style id="websitePolish">
+/* Website edition: retain the native gold / charcoal catalogue and parchment maps. */
+#voyageLoading{position:fixed;inset:0;z-index:150;display:grid;place-content:center;gap:15px;text-align:center;background:#151b18;color:#ead8b5;font:16px Georgia,serif}
+#voyageLoading[hidden]{display:none}
+#voyageLoading span{font:10px system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;color:#ac9b7b}
+#voyageLoading .op-loading-ring{margin:auto;width:32px;height:32px;border:1px solid #746344;border-top-color:#f0c44a;border-radius:50%;animation:voyage-loading 1.3s linear infinite}
+@keyframes voyage-loading{to{transform:rotate(360deg)}}
+#onePieceArcPage button,#tributeExplorer button{touch-action:manipulation}
+#onePieceArcCatalogue{scroll-padding-top:18px}
+#arcContentCol{gap:38px}
+#arcHeroSummary{max-width:840px;line-height:1.65}
+.op-hero-meta-strip{line-height:1.5}
+.op-chrome-icon-btn{opacity:1}
+.op-mapping-note{line-height:1.6;max-width:850px}
+.op-lane-jump-btn{min-height:38px}
+.op-widget-header{align-items:center;min-height:38px}
+.op-widget-sub{line-height:1.45}
+.op-lane-tools{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.op-lane-tools button{color:#ddd8c8;border:1px solid #ffffff30;background:#ffffff06;min-height:36px;min-width:36px;border-radius:8px;cursor:pointer;font:600 12px var(--op-ui)}
+.op-lane-tools .op-row-arrow{font-size:24px;font-weight:400;line-height:1;padding:0 10px}
+.op-lane-tools .op-browse-all{padding:0 13px}
+.op-lane-tools button:hover,.op-lane-tools button:focus-visible{border-color:var(--op-gold);color:var(--op-gold);outline:none}
+.op-lane-tools button:disabled{opacity:.25;cursor:default;border-color:#ffffff20;color:#ddd8c8}
+.op-episode-strip{height:220px;gap:18px;scroll-snap-type:x proximity;scroll-padding:2px;overscroll-behavior-x:contain}
+.op-episode-card{scroll-snap-align:start;isolation:isolate}
+.op-placeholder-badge:empty{display:none}
+.op-volume-strip{scroll-snap-type:x proximity;scroll-padding:12px;overscroll-behavior-x:contain}
+.op-volume-card{scroll-snap-align:start}
+.op-episode-card[data-lane=related]{width:196px;height:338px;flex-basis:196px}
+.op-episode-card[data-lane=related] .op-episode-media{height:270px}
+.op-episode-card[data-lane=related] .op-episode-scrim{height:72px}
+.op-episode-card[data-lane=related] .op-resolved-art{object-fit:contain}
+#relatedRow{height:350px}
+#paceRow{height:154px}
+.op-episode-card[data-lane=pace]{height:142px}
+.op-episode-card[data-lane=pace] .op-episode-media{height:85px}
+.op-episode-card[data-lane=pace] .op-placeholder-top{display:none}
+.op-episode-card[data-lane=pace] .op-episode-placeholder{padding:16px}
+.op-episode-card[data-lane=pace] .op-placeholder-center{padding:0}
+.op-episode-card[data-lane=pace] .op-episode-scrim{height:66px}
+.op-episode-card[data-lane=pace] .op-placeholder-epnum{font-size:18px}
+/* Retain a clear focus ring for keyboard interaction, with no scrollbar chrome. */
+.op-episode-card:focus-visible,.op-volume-card:focus-visible .op-volume-cover-box{outline:2px solid var(--op-gold);outline-offset:2px}
+#tributeExplorer{padding:0;width:min(1100px,calc(100vw - 56px));max-width:none;max-height:min(880px,calc(100dvh - 56px));height:fit-content;border:1px solid #c8a35d77;border-radius:16px;color:#f3eee2;background:#0d1219;box-shadow:0 32px 120px #000b;font-family:var(--op-ui);overflow:hidden}
+#tributeExplorer::backdrop{background:rgba(1,4,7,.8);backdrop-filter:blur(10px)}
+#tributeExplorer button,#tributeExplorer input{font-family:var(--op-ui)}
+#tributeExplorer button{cursor:pointer}
+#tributeExplorer button:disabled{cursor:default;opacity:.35}
+#tributeExplorer button:focus-visible,#tributeExplorer input:focus-visible{outline:2px solid #f0c44a;outline-offset:3px}
+.op-explorer-shell{display:flex;flex-direction:column;max-height:min(878px,calc(100dvh - 58px))}
+.op-explorer-bar{display:flex;align-items:center;gap:16px;min-height:70px;padding:12px 26px;border-bottom:1px solid #ffffff15;background:#0c1117;flex-shrink:0}
+.op-explorer-eyebrow{font-size:10px;letter-spacing:2px;color:#af9d78;margin-right:auto}
+.op-explorer-close,.op-explorer-back{border:0;color:#ede5d5;background:transparent;min-height:44px;padding:6px 8px;font-size:13px;font-weight:600;border-radius:6px;white-space:nowrap}
+.op-explorer-close span{font-size:23px;margin-left:8px;vertical-align:-2px}
+.op-explorer-back{color:var(--op-gold);padding-left:0}
+.op-explorer-back[hidden]{display:none}
+.op-explorer-content{padding:32px;overflow-y:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:none}
+.op-explorer-content::-webkit-scrollbar{display:none}
+.op-explorer-title{font:600 clamp(24px,2.4vw,38px)/1.16 var(--op-display);margin:0 0 17px;color:#fff5e3;text-wrap:balance}
+.op-explorer-footer{padding:14px 26px;color:#9ea4af;font-size:11px;line-height:1.5;border-top:1px solid #ffffff13;flex-shrink:0}
+.op-detail-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:32px;align-items:start}
+.op-detail-layout.is-portrait{grid-template-columns:minmax(190px,.67fr) minmax(0,1fr)}
+.op-detail-art{aspect-ratio:16/9;background:radial-gradient(circle at 75% 25%,#3a3225,#111822 70%);overflow:hidden;border-radius:9px;display:grid;place-items:center;min-width:0}
+.is-portrait .op-detail-art{aspect-ratio:2/3;max-height:530px}
+.op-explorer-image{width:100%;height:100%;display:block;object-fit:cover}
+.is-portrait .op-explorer-image{object-fit:contain;background:#0b1018}
+.op-explorer-number{padding:24px;color:#d2c1a2;font:500 28px/1.2 var(--op-display);text-align:center}
+.op-detail-kicker{margin:0 0 12px;color:#f0c44a;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;line-height:1.7}
+.op-detail-arc{font-size:12px;color:#b7af9f;line-height:1.6;margin:0 0 8px}
+.op-detail-date{font-size:11px;color:#8f99a5;margin:0 0 24px}
+.op-detail-subhead{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#d8d2c5;margin:26px 0 9px}
+.op-detail-summary{font-size:14px;line-height:1.75;color:#b8bdc7;max-width:820px}
+.op-detail-facts{display:grid;grid-template-columns:max-content 1fr;column-gap:18px;row-gap:8px;font-size:12px;line-height:1.6;margin:24px 0}
+.op-detail-facts dt{color:#919aaa}.op-detail-facts dd{margin:0;color:#e0d9c8;overflow-wrap:anywhere}
+.op-detail-note{color:#989fa9;line-height:1.6;font-size:12px}
+.op-detail-navigation{margin-top:28px;display:flex;justify-content:space-between;align-items:center;gap:9px}
+.op-detail-navigation button{min-height:44px;border:1px solid #ffffff30;color:#f0e6cf;background:#ffffff06;padding:8px 14px;border-radius:7px;font-size:12px}
+.op-detail-counter{color:#8c96a5;font-size:11px;white-space:nowrap}
+.op-search-label{display:block;font-size:12px;color:#9ea7b5;margin-bottom:9px}
+.op-explorer-search{display:block;width:100%;min-height:48px;border:1px solid #ffffff35;background:#080e15;border-radius:8px;color:#f0eadb;padding:10px 15px;font-size:15px;line-height:1.4}
+.op-browser-heading{margin-bottom:24px}.op-browser-count{font-size:12px;color:#9aa1ad;margin:14px 0}
+.op-browser-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:20px}
+.op-browser-grid.portrait-grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}
+.op-browser-card{display:flex;flex-direction:column;padding:0;border:1px solid #ffffff15;border-radius:9px;overflow:hidden;text-align:left;background:#121921;color:#ede7d8;min-width:0}
+.op-browser-art{width:100%;aspect-ratio:16/9;background:radial-gradient(circle at 65% 30%,#362f24,#0d141e 80%);display:grid;place-items:center;overflow:hidden}
+.portrait-grid .op-browser-art{aspect-ratio:2/3}.portrait-grid .op-browser-art img{object-fit:contain}
+.op-browser-category{font:600 9px var(--op-ui);color:#f0c44a;padding:12px 12px 5px;text-transform:uppercase;letter-spacing:.08em}
+.op-browser-title{font:600 12px/1.5 var(--op-ui);padding:0 12px 14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.op-browser-empty{grid-column:1/-1;color:#bdc1cb;font-size:14px;line-height:1.7;padding:24px 0}
+.op-voyage-results{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:27px}
+.op-voyage-group{display:flex;flex-direction:column;align-items:stretch;gap:5px;min-width:0}
+.op-voyage-sea{background:transparent;border:0;border-bottom:1px solid #a88b5755;color:#e8c68b;font:500 24px/1.3 var(--op-display)!important;text-align:left;padding:9px 0 13px;margin-bottom:6px}
+.op-voyage-arc{display:flex;align-items:center;gap:12px;background:#ffffff04;border:1px solid #ffffff0d;min-height:42px;border-radius:5px;color:#e0dfd8;text-align:left;padding:8px 10px;font:12px/1.5 var(--op-ui)}
+.op-voyage-arc:hover{background:#e8c68b12;border-color:#b8955e55}
+.op-voyage-order{color:#9e8869;font-variant-numeric:tabular-nums;min-width:22px;font-size:10px}
+@media(max-width:680px){
+ #onePieceArcCatalogue{top:76px}#arcHeroSummary{font-size:13px;line-height:1.65}#arcContentCol{gap:32px}
+ .op-widget-header{flex-wrap:wrap;gap:8px}.op-widget-header-left{gap:7px}
+ .op-lane-tools{margin-left:auto}.op-lane-tools .op-row-arrow{display:none}.op-lane-tools .op-browse-all{min-height:36px;font-size:11px}
+ .op-widget-title{font-size:21px}.op-widget-sub{font-size:11px}
+ .op-episode-strip{gap:13px}.op-volume-strip{gap:12px}
+ #tributeExplorer{width:calc(100vw - 16px);max-height:calc(100dvh - 20px);border-radius:12px}
+ .op-explorer-shell{max-height:calc(100dvh - 22px)}
+ .op-explorer-bar{padding:8px 14px;gap:8px;min-height:60px}.op-explorer-eyebrow{font-size:8px;letter-spacing:1px}.op-explorer-back span{display:none}
+ .op-explorer-content{padding:20px}.op-explorer-footer{padding:12px 18px;font-size:10px}
+ .op-detail-layout,.op-detail-layout.is-portrait{grid-template-columns:1fr;gap:20px}
+ .op-detail-layout.is-portrait .op-detail-art{max-width:220px;max-height:330px;width:100%;margin:0 auto}
+ .op-explorer-title{font-size:28px}.op-detail-summary{font-size:13px;line-height:1.7}.op-detail-subhead{margin-top:20px}
+ .op-detail-facts{font-size:11px;gap:7px 14px}.op-detail-navigation{margin-top:20px}
+ .op-browser-grid{grid-template-columns:1fr 1fr;gap:12px}.op-browser-grid.portrait-grid{grid-template-columns:1fr 1fr}
+ .op-browser-title{font-size:11px;padding:0 10px 12px}.op-browser-category{padding:10px 10px 5px;font-size:8px}
+ .op-browser-art .op-explorer-number{font-size:18px;padding:12px}
+ .op-voyage-results{grid-template-columns:1fr;gap:21px}
+}
+@media(max-width:365px){.op-chrome-pill{font-size:8px;letter-spacing:.6px;padding:0 8px}.op-chrome-actions{gap:3px}.op-chrome-icon-btn{padding:0 6px}#arcBackAction{min-width:68px}}
+@media(prefers-reduced-motion:reduce){.op-loading-ring{animation:none!important}*{scroll-behavior:auto!important}}
+
+</style>
+</head>
+<body>
+<div id="voyageLoading" role="status"><div class="op-loading-ring" aria-hidden="true"></div><div>The Grand Voyage</div><span>Preparing the charts</span></div>
+<main id="view" aria-label="Interactive One Piece sea charts">
+  <section id="onePieceArcPage" hidden aria-label="One Piece Arc Catalogue"></section>
+</main>
+<div id="notice" role="status" aria-live="polite" hidden></div>
+<script src="runtime.js" defer></script>
+<script id="onePieceSourceHandoff" type="application/json">{"version":"1.0.0","built":"2026-10-19","kind":"interactive visual tribute","singleFile":false,"sourceSnapshot":"2026-10-18","seas":4,"arcs":32,"onePaceRecords":490,"mangaVolumeRecords":113,"sharedStandardAndColoredCovers":true,"images":{"animeStills":53,"mangaCovers":111,"liveActionStills":16,"relatedPosters":5},"hostAPI":"window.ColosseumTribute: reset(),navigate({sea,arc,lane}),state(),openDirectory()","hostMessages":"Same-origin parent only: colosseum:tribute:reset, colosseum:tribute:navigate. Ready/route events use same-origin target only.","remainingSourceGaps":"Anime stills beyond 53 and BookWalker covers 112-113 are not supplied. One Pace intentionally has no per-edit thumbnail.","publicDeployment":"Not performed; rights for third-party artwork require review."}</script>
+</body>
+</html>

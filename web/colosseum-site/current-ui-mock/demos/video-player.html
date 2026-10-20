@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Video player (recreation of Colosseum current UI fixture)</title>
+    <!--
+  Fixed 1280x720 non-interactive Theatre player. Frame timings are demonstration-only.
+  Player 2 shell/TopBar/TransportBar/SeekBar/PauseCard/TrackMenu supply HUD measurements;
+  PlayerPage.qml:5399-5574 supplies the chapter-thumbnail variant missing in Player 2.
+  App Catalog.js Dune: Part Two backdrop: ../assets/fixtures/captures/theatre-posters/dune.jpg  This machine timed out on metahub, so the same-title TMDB backdrop is used as a fallback.
+-->
+    <style>
+      @font-face {
+        font-family: "Fraunces";
+        src: url("../assets/Fraunces-Regular.ttf") format("truetype");
+      }
+      :root {
+        --gold: #f0c44a;
+        --ink: #f7f7f5;
+        --dim: #c9c8d0;
+        --dimmer: #9a99a5;
+        --edge: rgba(255, 255, 255, 0.18);
+        --ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+        --display: "Fraunces", Georgia, serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background: #08090c;
+      }
+      body {
+        font-family: var(--ui);
+        color: var(--ink);
+        position: relative;
+        user-select: none;
+        cursor: default;
+        -webkit-font-smoothing: antialiased;
+      }
+      #stage {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        isolation: isolate;
+        background: #101012;
+      }
+      .art-fallback {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse at 59% 33%,
+            rgba(170, 99, 48, 0.72),
+            transparent 51%
+          ),
+          linear-gradient(120deg, #302820 7%, #85613b 43%, #17131b 100%);
+      }
+      .art-fallback::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: url("../assets/cold-ripple.jpg") center/cover;
+        opacity: 0.12;
+        mix-blend-mode: screen;
+      }
+      #picture {
+        position: absolute;
+        left: -3%;
+        top: -3%;
+        width: 106%;
+        height: 106%;
+        object-fit: cover;
+        object-position: center center;
+        opacity: 0.94;
+        transform-origin: 50% 50%;
+        filter: saturate(0.84) brightness(0.77);
+      }
+      .art-shade {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(1, 2, 5, 0.28),
+            transparent 54%,
+            rgba(0, 0, 0, 0.09)
+          ),
+          linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.43),
+            transparent 49%,
+            rgba(0, 0, 0, 0.23)
+          );
+      }
+      .chrome {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #topChrome {
+        z-index: 7;
+      }
+      .top-scrim {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 112px;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.6),
+          rgba(0, 0, 0, 0)
+        );
+      }
+      .top-left {
+        position: absolute;
+        left: 28px;
+        top: 18px;
+        height: 59px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .top-left .top-icon,
+      .window-btn {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+      }
+      .top-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-width: 600px;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.42);
+      }
+      .eyebrow {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        color: var(--dimmer);
+      }
+      .now-title {
+        font-size: 19px;
+        font-weight: 600;
+        line-height: 24px;
+        color: var(--ink);
+      }
+      .now-detail {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--dim);
+      }
+      .top-right {
+        position: absolute;
+        right: 20px;
+        top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 38px;
+      }
+      .clock {
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+        margin-right: 20px;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+      }
+      .glyph {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: var(--ink);
+      }
+      .glyph svg {
+        width: 46%;
+        height: 46%;
+        overflow: visible;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .window-btn .glyph svg {
+        width: 18px;
+        height: 18px;
+      }
+      #info {
+        position: absolute;
+        z-index: 6;
+        left: 40px;
+        bottom: 152px;
+        width: 520px;
+        padding: 20px 26px;
+        border-radius: 12px;
+        background: rgba(10, 10, 13, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+        pointer-events: none;
+      }
+      #info h2 {
+        font-size: 26px;
+        font-weight: 600;
+        line-height: 34px;
+        letter-spacing: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0 0 9px;
+      }
+      #info .facts {
+        font-size: 12px;
+        line-height: 17px;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #info .quality {
+        margin-top: 9px;
+        font-size: 11px;
+        line-height: 15px;
+        letter-spacing: 2px;
+        color: var(--dimmer);
+        font-variant-numeric: tabular-nums;
+      }
+      #info p {
+        font-size: 12px;
+        line-height: 1.35;
+        color: var(--dim);
+        margin-top: 13px;
+        max-width: 468px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      #bottomChrome {
+        z-index: 8;
+      }
+      .bottom-scrim {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 146px;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0),
+          rgba(0, 0, 0, 0.45) 45%,
+          rgba(0, 0, 0, 0.85)
+        );
+      }
+      .state-row {
+        position: absolute;
+        left: 54px;
+        right: 54px;
+        top: 594px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      }
+      #playerState {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      #ends {
+        font-size: 12px;
+        letter-spacing: 1.5px;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+      }
+      .seek-row {
+        position: absolute;
+        left: 54px;
+        right: 54px;
+        top: 616px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+      }
+      .elapsed {
+        width: 58px;
+        flex: none;
+        text-align: left;
+        color: var(--ink);
+      }
+      .duration {
+        width: 58px;
+        flex: none;
+        text-align: right;
+        color: var(--dim);
+      }
+      .timeline {
+        position: relative;
+        flex: 1;
+        height: 22px;
+        display: flex;
+        align-items: center;
+      }
+      .track {
+        position: relative;
+        width: 100%;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .buffered {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 87%;
+        border-radius: inherit;
+        background: rgba(255, 255, 255, 0.3);
+      }
+      .progress {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 45%;
+        border-radius: inherit;
+        background: var(--gold);
+      }
+      .chapters {
+        position: absolute;
+        inset: 0;
+      }
+      .chapter {
+        position: absolute;
+        top: 50%;
+        height: 5px;
+        width: 2px;
+        transform: translate(-1px, -50%);
+        background: rgba(255, 255, 255, 0.55);
+        border-radius: 1px;
+      }
+      .playhead {
+        position: absolute;
+        left: 45%;
+        top: 50%;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--gold);
+        border: 1px solid rgba(0, 0, 0, 0.32);
+        transform: translate(-50%, -50%);
+      }
+      .transport {
+        position: absolute;
+        left: 54px;
+        right: 54px;
+        top: 662px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .cluster {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 56px;
+      }
+      .action {
+        width: 40px;
+        height: 40px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: var(--ink);
+      }
+      .action .glyph svg {
+        width: 46%;
+        height: 46%;
+      }
+      .action.active {
+        color: var(--gold);
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .action.hero {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #101014;
+      }
+      .action.hero .glyph {
+        color: #101014;
+      }
+      .action.hero .glyph svg {
+        width: 22px;
+        height: 22px;
+      }
+      .action.seek {
+        position: relative;
+      }
+      .action.seek .glyph svg {
+        width: 22px;
+        height: 22px;
+      }
+      .action.seek small {
+        position: absolute;
+        top: 18px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 10px;
+      }
+      .volume {
+        position: relative;
+        width: 190px;
+        height: 48px;
+        flex: none;
+        display: flex;
+        align-items: center;
+      }
+      .volume .mute {
+        width: 48px;
+        height: 48px;
+        flex: none;
+      }
+      .vol-line {
+        position: relative;
+        margin-left: 6px;
+        flex: 1;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .vol-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 83%;
+        border-radius: inherit;
+        background: var(--gold);
+      }
+      .vol-knob {
+        position: absolute;
+        top: 50%;
+        left: 83%;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--gold);
+        transform: translate(-50%, -50%);
+      }
+      .center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        gap: 8px;
+      }
+      .right {
+        margin-left: auto;
+      }
+      #hoverCard {
+        position: absolute;
+        z-index: 12;
+        top: 466px;
+        width: 216px;
+        height: 165px;
+        border-radius: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.86);
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.34);
+        padding: 8px;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .thumb-fallback {
+        width: 200px;
+        height: 112px;
+        position: relative;
+        border-radius: 2px;
+        background: linear-gradient(130deg, #8c5e35, #31231e 60%, #141218);
+        overflow: hidden;
+      }
+      #thumbImage {
+        display: block;
+        width: 200px;
+        height: 112px;
+        object-fit: cover;
+        object-position: center;
+      }
+      .thumb-caption {
+        margin-top: 5px;
+        font-size: 11px;
+        line-height: 14px;
+        color: rgba(255, 255, 255, 0.72);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .thumb-time {
+        font-size: 12px;
+        line-height: 15px;
+        font-weight: 600;
+        color: var(--ink);
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      #subtitleMenu {
+        position: absolute;
+        z-index: 15;
+        right: 54px;
+        bottom: 68px;
+        width: 320px;
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(10, 13, 18, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+      }
+      .menu-heading {
+        height: 29px;
+        font-size: 13px;
+        line-height: 20px;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .menu-row {
+        position: relative;
+        height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 3px 4px;
+        border-radius: 8px;
+      }
+      .menu-row.selected {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .menu-row.off {
+        height: 40px;
+      }
+      .menu-dot {
+        width: 12px;
+        height: 12px;
+        flex: none;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .menu-row.selected .menu-dot {
+        border-color: var(--gold);
+        background: var(--gold);
+      }
+      .menu-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .menu-text b {
+        font-weight: 400;
+        font-size: 13px;
+        line-height: 17px;
+        white-space: nowrap;
+      }
+      .menu-text small {
+        font-size: 11px;
+        line-height: 15px;
+        color: var(--dimmer);
+        white-space: nowrap;
+      }
+      .sync {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .sync .label {
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: var(--dimmer);
+      }
+      .sync-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sync-right em {
+        font-size: 12px;
+        font-style: normal;
+        text-align: center;
+        width: 64px;
+        font-variant-numeric: tabular-nums;
+      }
+      .delay {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 26px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        font-weight: 600;
+        font-size: 13px;
+      }
+    </style>
+    <link rel="stylesheet" href="theatre-ui.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <div class="art-fallback"></div>
+      <img
+        id="picture"
+        alt=""
+        src="../assets/fixtures/captures/theatre-posters/dune.jpg"
+        data-catalog-backdrop="../assets/fixtures/captures/theatre-posters/dune.jpg"
+      />
+      <div class="art-shade"></div>
+      <div class="chrome" id="topChrome">
+        <div class="top-scrim"></div>
+        <div class="top-left">
+          <div class="top-icon">
+            <span class="glyph" data-icon="back"></span>
+          </div>
+          <div class="top-copy">
+            <span class="eyebrow">NOW PLAYING</span
+            ><span class="now-title">Dune: Part Two</span
+            ><span class="now-detail">2024 · 1080p</span>
+          </div>
+        </div>
+        <div class="top-right">
+          <span class="clock">1:41 PM</span>
+          <div class="window-btn">
+            <span class="glyph" data-icon="minimize"></span>
+          </div>
+          <div class="window-btn">
+            <span class="glyph" data-icon="close"></span>
+          </div>
+        </div>
+      </div>
+      <div id="info">
+        <h2>DUNE: PART TWO</h2>
+        <div class="facts" id="infoFacts">2024 · 166 min · ends 3:04 PM</div>
+        <div class="quality">1080p · H.264 · AAC · 5.1</div>
+        <p>
+          Paul Atreides unites with Chani and the Fremen while war spreads
+          across Arrakis.
+        </p>
+      </div>
+      <div class="chrome" id="bottomChrome">
+        <div class="bottom-scrim"></div>
+        <div class="state-row">
+          <span id="playerState"></span
+          ><span id="ends">ENDS&nbsp;&nbsp;3:04 PM</span>
+        </div>
+        <div class="seek-row">
+          <span class="elapsed" id="elapsed">1:14:42</span>
+          <div class="timeline">
+            <div class="track" id="track">
+              <span class="buffered"></span
+              ><span class="progress" id="progress"></span
+              ><span class="chapters">
+                <i class="chapter" style="left: 20%"></i
+                ><i class="chapter" style="left: 37%"></i
+                ><i class="chapter" style="left: 60%"></i
+                ><i class="chapter" style="left: 75%"></i
+                ><i class="chapter" style="left: 88%"></i> </span
+              ><i class="playhead" id="playhead"></i>
+            </div>
+          </div>
+          <span class="duration">2:46:00</span>
+        </div>
+        <div class="transport">
+          <div class="cluster">
+            <div class="volume">
+              <div class="mute">
+                <span class="glyph" data-icon="volume"></span>
+              </div>
+              <div class="vol-line">
+                <span class="vol-fill"></span><span class="vol-knob"></span>
+              </div>
+            </div>
+            <div class="action">
+              <span class="glyph" data-icon="stream"></span>
+            </div>
+            <div class="action">
+              <span class="glyph" data-icon="download"></span>
+            </div>
+            <div class="action">
+              <span class="glyph" data-icon="fit"></span>
+            </div>
+          </div>
+          <div class="cluster center">
+            <div class="action seek">
+              <span class="glyph" data-icon="seek-back"></span><small>10</small>
+            </div>
+            <div class="action hero" id="playButton">
+              <span class="glyph" data-icon="pause" id="playGlyph"></span>
+            </div>
+            <div class="action seek">
+              <span class="glyph" data-icon="seek-forward"></span
+              ><small>10</small>
+            </div>
+          </div>
+          <div class="cluster right">
+            <div class="action">
+              <span class="glyph" data-icon="episodes"></span>
+            </div>
+            <div class="action">
+              <span class="glyph" data-icon="audio"></span>
+            </div>
+            <div class="action" id="subButton">
+              <span class="glyph" data-icon="captions"></span>
+            </div>
+            <div class="action">
+              <span class="glyph" data-icon="speed"></span>
+            </div>
+            <div class="action">
+              <span class="glyph" data-icon="fullscreen"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="hoverCard">
+        <div class="thumb-fallback">
+          <img
+            id="thumbImage"
+            alt=""
+            src="../assets/fixtures/captures/theatre-posters/dune.jpg"
+          />
+        </div>
+        <div class="thumb-caption" id="chapterCaption">
+          Chapter 4 · The Desert
+        </div>
+        <div class="thumb-time" id="previewTime">1:46:00</div>
+      </div>
+      <div id="subtitleMenu">
+        <div class="menu-heading">Subtitles&nbsp;&nbsp; 3</div>
+        <div class="menu-row off">
+          <span class="menu-dot"></span>
+          <div class="menu-text"><b>Off</b></div>
+        </div>
+        <div class="menu-row selected">
+          <span class="menu-dot"></span>
+          <div class="menu-text">
+            <b>English</b><small>ENG · SRT · Default</small>
+          </div>
+        </div>
+        <div class="menu-row">
+          <span class="menu-dot"></span>
+          <div class="menu-text">
+            <b>English (SDH)</b><small>ENG · SRT</small>
+          </div>
+        </div>
+        <div class="menu-row">
+          <span class="menu-dot"></span>
+          <div class="menu-text"><b>Español</b><small>SPA · SRT</small></div>
+        </div>
+        <div class="sync">
+          <span class="label">SYNC</span>
+          <div class="sync-right">
+            <span class="delay">−</span><em>+0.00s</em
+            ><span class="delay">+</span><span class="delay">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="../shared/catalog.js"></script>
+    <script src="theatre-ui.js"></script>
+    <script src="theatre-player.js"></script>
+  </body>
+</html>

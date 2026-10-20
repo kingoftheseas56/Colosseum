@@ -1,0 +1,835 @@
+{
+  "group": "shell",
+  "routes": [
+    {
+      "id": "home",
+      "file": "demos/home.html",
+      "title": "Home",
+      "chrome": "default",
+      "sources": ["qml/Main.qml", "qml/TopBar.qml"],
+      "states": [
+        {
+          "id": "home",
+          "params": {},
+          "expect": "Home carousel, Continue, Bookshelf, Theatre, Biblio and Vault widgets"
+        },
+        {
+          "id": "account-signedin",
+          "params": {},
+          "expect": "Account glyph opens signed-in identity flyout"
+        },
+        {
+          "id": "account-signedout",
+          "params": {},
+          "expect": "account.signed false gives source Sign in entry"
+        },
+        {
+          "id": "account-retry",
+          "params": {},
+          "expect": "account.syncRetry gives Retry sync and attention line"
+        }
+      ],
+      "actions": [
+        {
+          "selector": ".explore",
+          "expect": "Universe route"
+        },
+        {
+          "selector": ".head span",
+          "expect": "Continue library"
+        }
+      ]
+    },
+    {
+      "id": "world.tankoban",
+      "file": "demos/world.html",
+      "title": "Tankoban",
+      "world": "tankoban",
+      "chrome": "default",
+      "params": {
+        "world": "tankoban"
+      },
+      "sources": ["qml/WorldPage.qml", "qml/TankobanWorld.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "world": "tankoban"
+          },
+          "expect": "Feature, Continue and Discover-first tabs"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=discover]",
+          "expect": "Discovery grid and filter controls"
+        }
+      ]
+    },
+    {
+      "id": "discover.tankoban",
+      "file": "demos/discover.html",
+      "title": "Discover \u00b7 Tankoban",
+      "world": "tankoban",
+      "chrome": "default",
+      "params": {
+        "world": "tankoban",
+        "mode": "discover"
+      },
+      "sources": [
+        "qml/DiscoverSidebar.qml",
+        "qml/SearchSurface.qml",
+        "qml/LibraryPage.qml"
+      ],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#filter-toggle",
+          "expect": "Filter chips toggle"
+        },
+        {
+          "selector": "#view-toggle",
+          "expect": "List/grid layout toggle"
+        },
+        {
+          "selector": ".more",
+          "expect": "Entry action dialog"
+        }
+      ]
+    },
+    {
+      "id": "library.tankoban",
+      "file": "demos/library.html",
+      "title": "Library \u00b7 Tankoban",
+      "world": "tankoban",
+      "chrome": "default",
+      "params": {
+        "world": "tankoban",
+        "mode": "library"
+      },
+      "sources": ["qml/TankobanLibraryTab.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        },
+        {
+          "id": "menu",
+          "params": {},
+          "expect": "Anchored source-specific actions; Escape restores invoker focus"
+        },
+        {
+          "id": "downloaded",
+          "params": {
+            "life": "downloaded"
+          },
+          "expect": "Downloaded filter and card indicators"
+        }
+      ],
+      "actions": [
+        {
+          "selector": ".more",
+          "expect": "Source-specific 200px anchored menu"
+        },
+        {
+          "selector": "[data-filter=sort][data-value=az]",
+          "expect": "Sorted saved titles"
+        },
+        {
+          "selector": "#query",
+          "expect": "Source-supported local title search"
+        }
+      ]
+    },
+    {
+      "id": "search.tankoban",
+      "file": "demos/search.html",
+      "title": "Search \u00b7 Tankoban",
+      "world": "tankoban",
+      "chrome": "none",
+      "params": {
+        "world": "tankoban",
+        "mode": "search"
+      },
+      "sources": ["qml/SearchSurface.qml", "qml/BiblioSearch.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#query",
+          "expect": "Local results and source-shaped Top Match hero"
+        },
+        {
+          "selector": "#clear",
+          "expect": "Empty search genre/recent state restored"
+        }
+      ]
+    },
+    {
+      "id": "discover.tankoban.seeall",
+      "file": "demos/discover.html",
+      "title": "See all \u00b7 Tankoban",
+      "world": "tankoban",
+      "chrome": "default",
+      "params": {
+        "world": "tankoban",
+        "mode": "discover",
+        "rail": "Popular titles"
+      },
+      "sources": ["qml/DiscoverSidebar.qml", "qml/WorldPage.qml"],
+      "states": [
+        {
+          "id": "genre",
+          "params": {
+            "genre": "Fantasy"
+          },
+          "expect": "Filtered genre catalogue"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "world.biblio",
+      "file": "demos/world.html",
+      "title": "Biblio",
+      "world": "biblio",
+      "chrome": "default",
+      "params": {
+        "world": "biblio"
+      },
+      "sources": ["qml/WorldPage.qml", "qml/BiblioWorld.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "world": "biblio"
+          },
+          "expect": "Feature, Continue and Discover-first tabs"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=discover]",
+          "expect": "Discovery grid and filter controls"
+        }
+      ]
+    },
+    {
+      "id": "discover.biblio",
+      "file": "demos/discover.html",
+      "title": "Discover \u00b7 Biblio",
+      "world": "biblio",
+      "chrome": "default",
+      "params": {
+        "world": "biblio",
+        "mode": "discover"
+      },
+      "sources": [
+        "qml/DiscoverSidebar.qml",
+        "qml/SearchSurface.qml",
+        "qml/LibraryPage.qml"
+      ],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#filter-toggle",
+          "expect": "Filter chips toggle"
+        },
+        {
+          "selector": "#view-toggle",
+          "expect": "List/grid layout toggle"
+        },
+        {
+          "selector": ".more",
+          "expect": "Entry action dialog"
+        }
+      ]
+    },
+    {
+      "id": "library.biblio",
+      "file": "demos/library.html",
+      "title": "Library \u00b7 Biblio",
+      "world": "biblio",
+      "chrome": "default",
+      "params": {
+        "world": "biblio",
+        "mode": "library"
+      },
+      "sources": ["qml/BiblioLibraryPage.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        },
+        {
+          "id": "menu",
+          "params": {},
+          "expect": "Anchored source-specific actions; Escape restores invoker focus"
+        }
+      ],
+      "actions": [
+        {
+          "selector": ".more",
+          "expect": "Source-specific 200px anchored menu"
+        },
+        {
+          "selector": "[data-filter=sort][data-value=az]",
+          "expect": "Sorted saved titles"
+        },
+        {
+          "selector": "#query",
+          "expect": "Source-supported local title search"
+        }
+      ]
+    },
+    {
+      "id": "search.biblio",
+      "file": "demos/search.html",
+      "title": "Search \u00b7 Biblio",
+      "world": "biblio",
+      "chrome": "none",
+      "params": {
+        "world": "biblio",
+        "mode": "search"
+      },
+      "sources": ["qml/SearchSurface.qml", "qml/BiblioSearch.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        },
+        {
+          "id": "books-and-audio",
+          "params": {
+            "query": "Dune"
+          },
+          "expect": "Separate Books and Audiobooks result groups"
+        },
+        {
+          "id": "audio-error",
+          "params": {
+            "query": "Dune",
+            "audioStatus": "error"
+          },
+          "expect": "Audio partial error and Retry, with Books retained"
+        },
+        {
+          "id": "jump-to",
+          "params": {},
+          "expect": "Recent, Home/Top 10/Genres Jump to, browse genre"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#query",
+          "expect": "Local results and source-shaped Top Match hero"
+        },
+        {
+          "selector": "#clear",
+          "expect": "Empty search genre/recent state restored"
+        }
+      ]
+    },
+    {
+      "id": "discover.biblio.seeall",
+      "file": "demos/discover.html",
+      "title": "See all \u00b7 Biblio",
+      "world": "biblio",
+      "chrome": "default",
+      "params": {
+        "world": "biblio",
+        "mode": "discover",
+        "rail": "Popular titles"
+      },
+      "sources": ["qml/DiscoverSidebar.qml", "qml/WorldPage.qml"],
+      "states": [
+        {
+          "id": "genre",
+          "params": {
+            "genre": "Fantasy"
+          },
+          "expect": "Filtered genre catalogue"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "world.theatre",
+      "file": "demos/world.html",
+      "title": "Theatre",
+      "world": "theatre",
+      "chrome": "default",
+      "params": {
+        "world": "theatre"
+      },
+      "sources": ["qml/WorldPage.qml", "qml/TheatreWorld.qml"],
+      "states": [
+        {
+          "id": "default",
+          "params": {
+            "world": "theatre"
+          },
+          "expect": "Feature, Continue and Discover-first tabs"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=discover]",
+          "expect": "Discovery grid and filter controls"
+        }
+      ]
+    },
+    {
+      "id": "discover.theatre",
+      "file": "demos/discover.html",
+      "title": "Discover \u00b7 Theatre",
+      "world": "theatre",
+      "chrome": "default",
+      "params": {
+        "world": "theatre",
+        "mode": "discover"
+      },
+      "sources": [
+        "qml/DiscoverSidebar.qml",
+        "qml/SearchSurface.qml",
+        "qml/LibraryPage.qml"
+      ],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#filter-toggle",
+          "expect": "Filter chips toggle"
+        },
+        {
+          "selector": "#view-toggle",
+          "expect": "List/grid layout toggle"
+        },
+        {
+          "selector": ".more",
+          "expect": "Entry action dialog"
+        }
+      ]
+    },
+    {
+      "id": "library.theatre",
+      "file": "demos/library.html",
+      "title": "Library \u00b7 Theatre",
+      "world": "theatre",
+      "chrome": "default",
+      "params": {
+        "world": "theatre",
+        "mode": "library"
+      },
+      "sources": ["qml/LibraryPage.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        },
+        {
+          "id": "menu",
+          "params": {},
+          "expect": "Anchored source-specific actions; Escape restores invoker focus"
+        },
+        {
+          "id": "new-episodes",
+          "params": {
+            "life": "newEpisodes"
+          },
+          "expect": "New episode ledger filters staged series and badge"
+        },
+        {
+          "id": "downloaded",
+          "params": {
+            "life": "downloaded"
+          },
+          "expect": "Downloaded ledger and card indicators"
+        },
+        {
+          "id": "ended",
+          "params": {
+            "airing": "ended"
+          },
+          "expect": "Airing filter selects staged ended series"
+        }
+      ],
+      "actions": [
+        {
+          "selector": ".more",
+          "expect": "Source-specific 200px anchored menu"
+        },
+        {
+          "selector": "[data-filter=sort][data-value=az]",
+          "expect": "Sorted saved titles"
+        },
+        {
+          "selector": "#query",
+          "expect": "Source-supported local title search"
+        }
+      ]
+    },
+    {
+      "id": "search.theatre",
+      "file": "demos/search.html",
+      "title": "Search \u00b7 Theatre",
+      "world": "theatre",
+      "chrome": "none",
+      "params": {
+        "world": "theatre",
+        "mode": "search"
+      },
+      "sources": ["qml/SearchSurface.qml", "qml/BiblioSearch.qml"],
+      "states": [
+        {
+          "id": "ready",
+          "params": {},
+          "expect": "Staged catalogue grid"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "status": "empty"
+          },
+          "expect": "Empty/no results recovery"
+        },
+        {
+          "id": "error",
+          "params": {
+            "status": "error"
+          },
+          "expect": "Retry preserves filters"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "status": "loading"
+          },
+          "expect": "Deterministic loading with fixture continuation"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "#query",
+          "expect": "Local results and source-shaped Top Match hero"
+        },
+        {
+          "selector": "#clear",
+          "expect": "Empty search genre/recent state restored"
+        }
+      ]
+    },
+    {
+      "id": "discover.theatre.seeall",
+      "file": "demos/discover.html",
+      "title": "See all \u00b7 Theatre",
+      "world": "theatre",
+      "chrome": "default",
+      "params": {
+        "world": "theatre",
+        "mode": "discover",
+        "rail": "Popular titles"
+      },
+      "sources": ["qml/DiscoverSidebar.qml", "qml/WorldPage.qml"],
+      "states": [
+        {
+          "id": "genre",
+          "params": {
+            "genre": "Fantasy"
+          },
+          "expect": "Filtered genre catalogue"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "library.continue",
+      "file": "demos/library.html",
+      "title": "Continue",
+      "chrome": "default",
+      "params": {
+        "mode": "continue"
+      },
+      "sources": ["qml/Main.qml"],
+      "states": [
+        {
+          "id": "all",
+          "params": {},
+          "expect": "Cross-world in-progress titles"
+        }
+      ],
+      "actions": [
+        {
+          "selector": ".open",
+          "expect": "Resume correct reader/player"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "id": "shell.home",
+      "source": "qml/Main.qml",
+      "route": "home",
+      "status": "implemented",
+      "notes": "Copied baseline hero and five widget compositions; real scrolling and routed actions; staged covers."
+    },
+    {
+      "id": "shell.worlds",
+      "source": "qml/WorldPage.qml",
+      "route": "world.tankoban",
+      "status": "implemented",
+      "notes": "Original world demo dimensions/styles retained; default Discover and world-specific tabs; hero slideshow is user-controlled."
+    },
+    {
+      "id": "shell.chrome",
+      "source": "qml/TopBar.qml",
+      "route": "home",
+      "status": "implemented",
+      "notes": "Source four top pills, Home no-selection, world-search, back-only/none variants; live local clock."
+    },
+    {
+      "id": "shell.taskbar",
+      "source": "qml/Taskbar.qml",
+      "route": "home",
+      "status": "implemented",
+      "notes": "64 px dock at 16 px bottom; permanent Colosseum/Vault, media/sample picker, recent sessions, Next to Open, source action doors and grouped sessions."
+    },
+    {
+      "id": "shell.discovery",
+      "source": "qml/DiscoverSidebar.qml",
+      "route": "discover.tankoban",
+      "status": "implemented",
+      "notes": "Source sidebar starts collapsed; source selection, genres, sort, local search and deterministic loading/error/empty recovery."
+    },
+    {
+      "id": "shell.library",
+      "source": "qml/LibraryPage.qml",
+      "route": "library.tankoban",
+      "status": "implemented",
+      "notes": "Separate Theatre, Biblio and Tankoban source variants. Theatre Shelf Ledger includes new episodes/downloaded; type and airing filter pills. Biblio excludes video-only ledger concepts; Tankoban has All/In Progress/Downloaded. Menus anchored at 200px with 38px actions, dismissal, keyboard navigation and focus restoration."
+    },
+    {
+      "id": "shell.search",
+      "source": "qml/SearchSurface.qml",
+      "route": "search.theatre",
+      "status": "implemented",
+      "notes": "World-scoped search, local history/genres and Top Match. Biblio has actual source Books/Audiobooks groups and Jump to Home/Top 10/Genres. Series/LibGen groups were an inventory error; absent from pinned BiblioSearch.qml."
+    },
+    {
+      "id": "shell.native-history",
+      "source": "Browser adapter for qml/Main.qml navigation",
+      "route": "home",
+      "status": "implemented",
+      "notes": "pushState for route entries and popstate restoration; app Back/Escape share browser history. Replaced iframe nodes avoid duplicate joint-history entries. Native Back/Forward and app reversal tested in Chromium/Firefox."
+    },
+    {
+      "id": "shell.account-flyout",
+      "source": "qml/account/AccountFlyout.qml",
+      "route": "home",
+      "status": "implemented",
+      "notes": "296px anchored identity flyout, signed-in/out and Device fixture state, source Account/Devices entries, sync/pending/retry status, Sign in/out, outside/Escape dismissal, focus containment and restoration. Local fixture only."
+    }
+  ],
+  "limitations": [
+    "Catalogue, providers, history and sessions are local fixtures only. Native file picker and window minimize/quit use explanatory staged sheets.",
+    "Current source sidebar geometry reproduced; catalogues are finite authentic-asset fixtures, not live remote completeness.",
+    "Native spatial D-pad navigation is approximated with browser Tab/Enter.",
+    "Home and world baseline widget geometry is preserved; catalogue artwork selections and metadata are staged. Search/discovery services never run.",
+    "Current BiblioSearch.qml has Books and Audiobooks only, not Series or LibGen search result groups; earlier inventory statement was incorrect. Book result set uses two authentic bundled fixture covers. Native services remain staged."
+  ]
+}

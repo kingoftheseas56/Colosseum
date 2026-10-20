@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Colosseum · Discover</title>
+    <link rel="stylesheet" href="../shared/catalog.css" />
+  </head>
+  <body>
+    <div class="wall"></div>
+    <main class="page">
+      <div class="tabs" id="tabs"></div>
+      <div class="sidebar-layout">
+        <aside class="side" id="side"></aside>
+        <section class="main">
+          <div class="topline">
+            <h1 id="heading"></h1>
+            <div id="category">
+              <label for="sort">NOW BROWSING</label><br /><select id="sort">
+                <option value="popular">Popular</option>
+                <option value="rating">Highest rated</option>
+                <option value="new">New releases</option>
+                <option value="az">A–Z</option>
+              </select>
+            </div>
+          </div>
+          <div class="fixture-note" id="fixture">
+            Local catalogue fixture · No provider requests
+          </div>
+          <form class="toolbar" id="queryform">
+            <input
+              id="query"
+              type="search"
+              aria-label="Search this catalogue"
+              placeholder="Search titles"
+            /><button type="button" id="clear" aria-label="Clear search">
+              ×</button
+            ><button id="submit">Search</button
+            ><button type="button" id="filter-toggle">Filters</button
+            ><button type="button" id="view-toggle">List view</button>
+          </form>
+          <div class="filters" id="filters"></div>
+          <div id="suggestions" class="suggestions"></div>
+          <p id="count" class="count" aria-live="polite"></p>
+          <section class="grid" id="grid"></section>
+          <div id="empty" hidden class="empty"></div>
+        </section>
+      </div>
+    </main>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="../shared/catalog.js"></script>
+    <script src="../shared/library.js"></script>
+  </body>
+</html>

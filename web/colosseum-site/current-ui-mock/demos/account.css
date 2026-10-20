@@ -1,0 +1,194 @@
+.rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 232px;
+  background: #121009;
+  padding: 74px 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.initial {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid #b39649;
+  background: #f0c44a20;
+  display: grid;
+  place-items: center;
+  color: #f0df9a;
+  font-size: 16px;
+}
+.rail nav {
+  display: grid;
+  gap: 4px;
+}
+.rail nav button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 15px 14px;
+  color: #b5b1a4;
+}
+.rail nav button.selected {
+  color: #f1df9c;
+  background: #f0c44a13;
+}
+.rail nav button span {
+  display: inline-block;
+  width: 29px;
+}
+.rail .foot {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+}
+.account-content {
+  position: absolute;
+  left: 266px;
+  right: 40px;
+  top: 64px;
+  bottom: 36px;
+  overflow: auto;
+  padding-right: 16px;
+}
+.account-content h1 {
+  font:
+    600 26px Switzer,
+    "Segoe UI",
+    sans-serif;
+  margin-bottom: 30px;
+}
+.account-content .section:first-of-type {
+  border-top: 1px solid #ffffff1e;
+}
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  height: 190px;
+  border-top: 1px solid #ffffff1e;
+  border-bottom: 1px solid #ffffff1e;
+}
+.medallion {
+  width: 126px;
+  height: 126px;
+  border-radius: 50%;
+  border: 1px solid #ffffff25;
+  display: grid;
+  place-items: center;
+  outline: 1px solid #f0c44a44;
+  outline-offset: -9px;
+  color: #f0c44a;
+  font-size: 48px;
+  background: #ffffff05;
+}
+.medallion img {
+  width: 58px;
+  height: 58px;
+}
+.avatar-grid {
+  display: flex;
+  gap: 16px;
+  margin: 24px 0 0;
+}
+.avatar-grid button {
+  width: 92px;
+  height: 98px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+}
+.avatar-grid button .symbol {
+  font-size: 28px;
+  height: 36px;
+}
+.avatar-grid button img {
+  width: 32px;
+  height: 32px;
+}
+.auth-intro {
+  position: absolute;
+  left: 64px;
+  top: 225px;
+  width: 500px;
+}
+.auth-intro h1 {
+  font-size: 66px;
+  line-height: 1.1;
+  margin: 16px 0 28px;
+}
+.auth-intro p {
+  font-size: 14px;
+  max-width: 450px;
+}
+.auth-panel {
+  position: absolute;
+  right: 64px;
+  top: 45px;
+  bottom: 45px;
+  width: 560px;
+  border: 1px solid #ffffff22;
+  border-radius: 22px;
+  background: #161713d9;
+  padding: 32px 36px;
+  overflow: auto;
+}
+.auth-panel h2 {
+  font: 30px Fraunces;
+  margin: 10px 0;
+}
+.auth-panel .actions {
+  display: grid;
+}
+.auth-panel .choice {
+  width: 100%;
+  text-align: left;
+  margin: 10px 0;
+  padding: 19px 20px;
+}
+.choice small {
+  display: block;
+  margin-top: 6px;
+}
+.auth-panel .kicker {
+  margin-top: 8px;
+}
+.auth-panel .form {
+  margin-top: 24px;
+}
+.key {
+  padding: 24px;
+  border: 1px solid #f0c44a55;
+  background: #f0c44a0c;
+  border-radius: 12px;
+  letter-spacing: 2px;
+  line-height: 2;
+  text-align: center;
+  color: #f0df9a;
+}
+.device-row {
+  padding: 22px 0;
+  border-bottom: 1px solid #ffffff1e;
+}
+.account-content .status {
+  margin-bottom: 12px;
+}
+.pending {
+  border: 1px solid #f0c44a3a;
+  border-radius: 13px;
+  padding: 22px;
+  background: #f0c44a09;
+}
+.auth-back {
+  position: absolute;
+  top: 26px;
+  left: 40px;
+}

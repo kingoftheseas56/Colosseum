@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vinyl · Separate prototype</title>
+    <link rel="stylesheet" href="vinyl.css" />
+  </head>
+  <body>
+    <div class="wall"></div>
+    <header class="prototype-header">
+      <button data-action="back">‹ Back</button>
+      <div class="clock">
+        <b>8:29</b><small>Vinyl · Separate prototype</small>
+      </div>
+      <nav>
+        <button data-route="home">Home</button
+        ><button data-route="discover">Discover</button
+        ><button data-route="album">Album</button
+        ><button data-route="song">Song</button>
+      </nav>
+      <label
+        >Fixture
+        <select id="fixture">
+          <option value="thriller">Thriller</option>
+          <option value="without-me">Without Me</option>
+          <option value="mounamela">Mounamela</option>
+        </select></label
+      ><label
+        >Profile
+        <select id="profile">
+          <option>new</option>
+          <option>skipped</option>
+          <option>seasoned</option>
+        </select></label
+      ><button data-action="offline">Catalogue online</button>
+    </header>
+    <main id="content"></main>
+    <footer id="player" class="player glass"></footer>
+    <dialog id="overlay" class="glass"></dialog>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="vinyl-data.js"></script>
+    <script src="vinyl.js"></script>
+  </body>
+</html>

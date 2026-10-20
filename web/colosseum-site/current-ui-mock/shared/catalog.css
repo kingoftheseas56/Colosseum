@@ -1,0 +1,508 @@
+@font-face {
+  font-family: Fraunces;
+  src: url("../assets/Fraunces-Regular.ttf");
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html,
+body {
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  background: #0a0b10;
+  color: #f7f7f5;
+  font:
+    14px "Segoe UI",
+    system-ui;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  background-color: #ffffff19;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #f0c44a;
+  outline-offset: 3px;
+}
+.wall {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.342925),
+      rgba(0, 0, 0, 0.282925) 50%,
+      rgba(0, 0, 0, 0.462925)
+    ),
+    url("../assets/cold-ripple.jpg") center/cover;
+}
+.page {
+  position: absolute;
+  top: 108px;
+  left: 54px;
+  right: 54px;
+  bottom: 0;
+  overflow: auto;
+  padding-bottom: 110px;
+}
+.page h1 {
+  font: 32px Fraunces;
+  margin: 0 0 22px;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid #ffffff22;
+}
+.tabs button {
+  border: 0;
+  background: none;
+  color: #c9c8d0;
+  padding: 17px 24px;
+}
+.tabs button.on {
+  color: #f0c44a;
+  border-bottom: 3px solid #f0c44a;
+}
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 18px 0;
+}
+.toolbar input {
+  min-width: 250px;
+  flex: 1;
+}
+.toolbar input,
+.toolbar select,
+.toolbar button,
+.filters button,
+.side button {
+  padding: 11px 15px;
+  background: #ffffff0d;
+  border: 1px solid #ffffff29;
+  border-radius: 10px;
+}
+.toolbar select option {
+  background: #20262c;
+}
+.count {
+  font-size: 12px;
+  color: #c9c8d0;
+  margin: 12px 0;
+}
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filters button.on {
+  color: #f0c44a;
+  border-color: #f0c44a;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 148px);
+  gap: 26px 28px;
+  padding: 15px 0 30px;
+}
+.card {
+  position: relative;
+}
+.card > .open {
+  display: block;
+  border: 0;
+  background: none;
+  text-align: left;
+  width: 148px;
+}
+.card img {
+  width: 148px;
+  height: 222px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px #0007;
+}
+.card h3 {
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 9px 0 3px;
+}
+.card small {
+  color: #c9c8d0;
+  font-size: 11px;
+}
+.card .more {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  border-radius: 50%;
+  background: #10151ed9;
+  border: 1px solid #ffffff45;
+  width: 30px;
+  height: 30px;
+}
+.card .bar {
+  height: 3px;
+  background: #ffffff2b;
+  margin-top: 8px;
+}
+.card .bar i {
+  display: block;
+  height: 3px;
+  background: #f0c44a;
+}
+.grid.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.grid.list .card {
+  height: 98px;
+  max-width: 800px;
+  background: #ffffff0a;
+  border-radius: 12px;
+  padding: 8px;
+}
+.grid.list .open {
+  width: 100%;
+  height: 82px;
+  padding-left: 72px;
+  position: relative;
+}
+.grid.list img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 55px;
+  height: 82px;
+  border-radius: 5px;
+}
+.grid.list .bar {
+  max-width: 450px;
+}
+.empty {
+  padding: 65px;
+  text-align: center;
+  color: #c9c8d0;
+  width: 100%;
+  border: 1px solid #ffffff22;
+  border-radius: 16px;
+}
+.empty h2 {
+  font: 26px Fraunces;
+  color: #f7f7f5;
+  margin-bottom: 12px;
+}
+.empty button {
+  margin-top: 20px;
+  padding: 12px 20px;
+  border: 1px solid #ffffff33;
+  border-radius: 10px;
+  background: #ffffff10;
+}
+.sidebar-layout {
+  display: flex;
+  gap: 26px;
+}
+.side {
+  width: 52px;
+  flex: none;
+  border-right: 1px solid #ffffff1c;
+}
+.side.expanded {
+  width: 240px;
+}
+.side button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 10px;
+  width: 44px;
+  border: 0;
+  background: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.side.expanded button {
+  width: 220px;
+}
+.side img {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+}
+.side span {
+  display: none;
+}
+.side.expanded span {
+  display: inline;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+}
+.topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+.topline label {
+  font-size: 10px;
+  color: #c9c8d0;
+  letter-spacing: 2px;
+}
+.topline select {
+  font: 27px Fraunces;
+  background: none;
+  color: white;
+  border: 0;
+  padding: 8px;
+}
+.topline option {
+  background: #20262c;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0008;
+  backdrop-filter: blur(6px);
+  z-index: 100;
+}
+.dialog {
+  width: 490px;
+  border: 1px solid #ffffff33;
+  background: #23292e;
+  padding: 28px;
+  border-radius: 18px;
+}
+.dialog h2 {
+  font: 26px Fraunces;
+  margin-bottom: 15px;
+}
+.dialog p {
+  color: #c9c8d0;
+  line-height: 1.6;
+}
+.dialog button {
+  display: block;
+  width: 100%;
+  padding: 13px 16px;
+  margin-top: 12px;
+  text-align: left;
+  border: 1px solid #ffffff25;
+  border-radius: 9px;
+  background: #ffffff0c;
+}
+.suggestions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.suggestions button {
+  padding: 10px 16px;
+  background: #ffffff12;
+  border: 1px solid #ffffff30;
+  border-radius: 20px;
+}
+.fixture-note {
+  font-size: 11px;
+  color: #aeb0b9;
+  margin-bottom: 12px;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff55 transparent;
+}
+[hidden] {
+  display: none !important;
+}
+
+.library-mode .topline,
+.library-mode .fixture-note {
+  display: none;
+}
+.ledger {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #ffffff1f;
+}
+.ledger button {
+  background: none;
+  border: 0;
+  color: #c9c8d0;
+  font: 17px Fraunces;
+}
+.ledger button b {
+  font-size: 29px;
+  color: white;
+  font-weight: 400;
+}
+.ledger button.on,
+.ledger button.on b {
+  color: #f0c44a;
+}
+.ledger i {
+  color: #c9c8d0;
+}
+.library-mode .tabs {
+  margin-bottom: 0;
+}
+.library-mode .toolbar {
+  margin: 8px 0;
+}
+.library-mode .count {
+  margin: 8px 0;
+}
+.library-mode .grid {
+  padding-top: 8px;
+}
+.library-mode #queryform input {
+  max-width: 470px;
+}
+
+input::placeholder {
+  color: #c3c2cd;
+  opacity: 0.8;
+}
+/* Source LibraryPage / BiblioLibraryPage / TankobanLibraryTab variants. */
+.source-library .library-header {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.source-library .library-header .ledger {
+  border: 0;
+  height: 76px;
+  gap: 9px;
+  flex: 1;
+}
+.source-library .ledger button {
+  font: 13px Fraunces;
+  white-space: nowrap;
+}
+.source-library .ledger button b {
+  font-size: 23px;
+}
+.source-library #queryform {
+  width: 250px;
+  flex: none;
+  gap: 0;
+  margin-left: auto;
+  height: 38px;
+}
+.source-library #queryform input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border-radius: 19px;
+  background: #080a107d;
+  padding: 0 16px;
+}
+.source-library #queryform #clear {
+  margin-left: -32px;
+  border: 0;
+  background: none;
+  padding: 4px;
+}
+.library-controls {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.library-controls button {
+  height: 34px;
+  padding: 0 15px;
+  border-radius: 14px;
+  background: transparent;
+  border: 1px solid #ffffff24;
+  color: #f7f7f5;
+  font-size: 13px;
+  font-weight: 600;
+}
+.library-controls button.on {
+  background: #f0c44a;
+  color: #17120a;
+  border-color: #f0c44a;
+}
+.library-controls i {
+  width: 1px;
+  height: 22px;
+  background: #ffffff2e;
+  margin: 0 3px;
+}
+.library-menu-dismiss {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+}
+.library-menu {
+  position: absolute;
+  z-index: 56;
+  width: 200px;
+  padding: 6px 0;
+  border: 1px solid #ffffff2e;
+  border-radius: 13px;
+  background: #0b0c13fa;
+  box-shadow: 0 16px 30px #0006;
+}
+.library-menu button {
+  display: block;
+  width: 100%;
+  height: 38px;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: #f7f7f5;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+.library-menu button.warn {
+  color: #e08a8a;
+}
+.new-episodes {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  background: #f0c44a;
+  color: #17120a;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 7px;
+}
+.downloaded-badge {
+  position: absolute;
+  right: 8px;
+  top: 190px;
+  width: 20px;
+  height: 20px;
+  background: #0a0a12cc;
+  border-radius: 6px;
+  text-align: center;
+}

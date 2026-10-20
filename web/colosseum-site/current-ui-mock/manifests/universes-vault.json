@@ -1,0 +1,703 @@
+{
+  "group": "universes-vault",
+  "routes": [
+    {
+      "id": "universes",
+      "file": "demos/universes.html",
+      "title": "Universes",
+      "world": "universes",
+      "chrome": "default",
+      "params": {},
+      "sources": ["qml/UniversesWorld.qml"],
+      "states": [
+        {
+          "id": "gallery",
+          "params": {
+            "view": "gallery"
+          },
+          "expect": "Three-column gallery"
+        },
+        {
+          "id": "books",
+          "params": {
+            "facet": "Books"
+          },
+          "expect": "Book universes filtered"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "No universes hold this yet"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=view]",
+          "expect": "Toggle gallery/list"
+        },
+        {
+          "selector": "[data-action=tributes]",
+          "expect": "Open installed tribute entries"
+        },
+        {
+          "selector": "[data-action=universe]",
+          "expect": "Open structured page"
+        }
+      ]
+    },
+    {
+      "id": "universe.saga",
+      "file": "demos/universe-page.html",
+      "title": "SAGA template",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "name": "Dune",
+        "template": "SAGA"
+      },
+      "sources": ["qml/SagaUniversePage.qml"],
+      "states": [
+        {
+          "id": "about",
+          "params": {
+            "tab": "About"
+          },
+          "expect": "About panel"
+        },
+        {
+          "id": "watch",
+          "params": {
+            "tab": "Watch"
+          },
+          "expect": "Video works"
+        },
+        {
+          "id": "read",
+          "params": {
+            "tab": "Read"
+          },
+          "expect": "Books or manga"
+        },
+        {
+          "id": "uninstalled",
+          "params": {
+            "state": "uninstalled"
+          },
+          "expect": "Not installed"
+        },
+        {
+          "id": "continue",
+          "params": {
+            "section": "continue"
+          },
+          "expect": "Resume / detail / remove Continue cards"
+        },
+        {
+          "id": "creators",
+          "params": {
+            "section": "creators"
+          },
+          "expect": "Creators and information"
+        },
+        {
+          "id": "stills",
+          "params": {
+            "section": "stills"
+          },
+          "expect": "Source artwork still rail"
+        },
+        {
+          "id": "matrix",
+          "params": {
+            "section": "matrix"
+          },
+          "expect": "Story / medium grid and selected-work side panel"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=read]",
+          "expect": "Route to owning media world"
+        },
+        {
+          "selector": "[data-action=tab]",
+          "expect": "Switch shelf tabs"
+        }
+      ]
+    },
+    {
+      "id": "universe.shelves",
+      "file": "demos/universe-page.html",
+      "title": "UNIVERSE template",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "name": "One Piece",
+        "template": "UNIVERSE"
+      },
+      "sources": ["qml/ShelvesUniversePage.qml"],
+      "states": [
+        {
+          "id": "about",
+          "params": {
+            "tab": "About"
+          },
+          "expect": "About panel"
+        },
+        {
+          "id": "watch",
+          "params": {
+            "tab": "Watch"
+          },
+          "expect": "Video works"
+        },
+        {
+          "id": "read",
+          "params": {
+            "tab": "Read"
+          },
+          "expect": "Books or manga"
+        },
+        {
+          "id": "uninstalled",
+          "params": {
+            "state": "uninstalled"
+          },
+          "expect": "Not installed"
+        },
+        {
+          "id": "continue",
+          "params": {
+            "section": "continue"
+          },
+          "expect": "Resume / detail / remove Continue cards"
+        },
+        {
+          "id": "creators",
+          "params": {
+            "section": "creators"
+          },
+          "expect": "Creators and information"
+        },
+        {
+          "id": "stills",
+          "params": {
+            "section": "stills"
+          },
+          "expect": "Source artwork still rail"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=read]",
+          "expect": "Route to owning media world"
+        },
+        {
+          "selector": "[data-action=tab]",
+          "expect": "Switch shelf tabs"
+        }
+      ]
+    },
+    {
+      "id": "universe.extension",
+      "file": "demos/universe-page.html",
+      "title": "extension template",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "name": "One Piece",
+        "template": "extension"
+      },
+      "sources": ["qml/UniverseExtensionPage.qml"],
+      "states": [
+        {
+          "id": "uninstalled",
+          "params": {
+            "state": "uninstalled"
+          },
+          "expect": "Not installed state"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-media]",
+          "expect": "Routes to media owning world"
+        }
+      ]
+    },
+    {
+      "id": "tribute.dcau",
+      "file": "demos/tribute-page.html",
+      "title": "DCAU tribute",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "tribute": "dcau"
+      },
+      "sources": [
+        "qml/DCAUUniversePage.qml",
+        "qml/DCAUWorldPage.qml",
+        "qml/DCAUUniverseData.js"
+      ],
+      "states": [
+        {
+          "id": "destination",
+          "params": {
+            "destination": "Gotham"
+          },
+          "expect": "Selected hub or system"
+        },
+        {
+          "id": "metropolis",
+          "params": {
+            "hub": "Metropolis"
+          },
+          "expect": "Illustrated hub with comics and video rails"
+        },
+        {
+          "id": "future",
+          "params": {
+            "hub": "Future Gotham"
+          },
+          "expect": "Future Gotham illustrated rails"
+        },
+        {
+          "id": "justice",
+          "params": {
+            "hub": "Watch Tower"
+          },
+          "expect": "Watch Tower illustrated rails"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=structured]",
+          "expect": "Open structured universe"
+        }
+      ]
+    },
+    {
+      "id": "tribute.starwars",
+      "file": "demos/tribute-page.html",
+      "title": "Star Wars tribute",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "tribute": "starwars"
+      },
+      "sources": ["qml/GalaxyUniversePage.qml"],
+      "states": [
+        {
+          "id": "destination",
+          "params": {
+            "destination": "Age of Rebellion"
+          },
+          "expect": "Selected hub or system"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=structured]",
+          "expect": "Open structured universe"
+        }
+      ]
+    },
+    {
+      "id": "tribute.onepiece",
+      "file": "demos/tribute-page.html",
+      "title": "One Piece tribute",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "tribute": "onepiece"
+      },
+      "sources": ["qml/OnePieceUniversePage.qml"],
+      "states": [
+        {
+          "id": "atlas",
+          "params": {
+            "sea": "paradise"
+          },
+          "expect": "Secondary sea map"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=structured]",
+          "expect": "Open structured universe"
+        }
+      ]
+    },
+    {
+      "id": "tribute.cosmere",
+      "file": "demos/tribute-page.html",
+      "title": "Cosmere tribute",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "tribute": "cosmere"
+      },
+      "sources": ["qml/CosmereUniversePage.qml"],
+      "states": [],
+      "actions": [
+        {
+          "selector": "[data-action=structured]",
+          "expect": "Open structured universe"
+        }
+      ]
+    },
+    {
+      "id": "universe.onepiece.arc",
+      "file": "demos/onepiece-arc.html",
+      "title": "One Piece arc",
+      "world": "universes",
+      "chrome": "back",
+      "params": {
+        "title": "Romance Dawn"
+      },
+      "sources": ["qml/OnePieceArcPage.qml"],
+      "states": [
+        {
+          "id": "volumes",
+          "params": {
+            "tab": "Volumes"
+          },
+          "expect": "Volume rail"
+        },
+        {
+          "id": "onepace",
+          "params": {
+            "tab": "One Pace"
+          },
+          "expect": "One Pace source entry"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=episode]",
+          "expect": "Episode title/source flow"
+        },
+        {
+          "selector": "[data-action=tab]",
+          "expect": "Episode/volume/One Pace tabs"
+        }
+      ]
+    },
+    {
+      "id": "vault",
+      "file": "demos/vault.html",
+      "title": "Vault",
+      "world": "vault",
+      "chrome": "default",
+      "params": {},
+      "sources": [
+        "qml/VaultPage.qml",
+        "qml/VaultDetailSheet.qml",
+        "qml/VaultIdentifyDialog.qml",
+        "qml/VaultIdentityCeremonyDialog.qml"
+      ],
+      "states": [
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "empty Vault state"
+        },
+        {
+          "id": "scanning",
+          "params": {
+            "state": "scanning"
+          },
+          "expect": "scanning Vault state"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "error Vault state"
+        },
+        {
+          "id": "hidden",
+          "params": {
+            "state": "hidden"
+          },
+          "expect": "hidden Vault state"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "state": "unavailable"
+          },
+          "expect": "unavailable Vault state"
+        },
+        {
+          "id": "folder",
+          "params": {
+            "folder": "Films"
+          },
+          "expect": "Nested folder"
+        },
+        {
+          "id": "list",
+          "params": {
+            "view": "list"
+          },
+          "expect": "List layout"
+        },
+        {
+          "id": "detail",
+          "params": {
+            "detail": "dune"
+          },
+          "expect": "Detail sheet"
+        },
+        {
+          "id": "show",
+          "params": {
+            "detail": "show"
+          },
+          "expect": "Seasons and episode rows"
+        },
+        {
+          "id": "identify",
+          "params": {
+            "dialog": "identify"
+          },
+          "expect": "Identity candidates and confirmation"
+        },
+        {
+          "id": "ceremony",
+          "params": {
+            "dialog": "ceremony"
+          },
+          "expect": "Changed file identity ceremony"
+        },
+        {
+          "id": "recent",
+          "params": {
+            "recent": true,
+            "section": "recent"
+          },
+          "expect": "Just arrived compact carousel with previous/next"
+        },
+        {
+          "id": "extras",
+          "params": {
+            "detail": "dune"
+          },
+          "expect": "Companion filenames and playable fixture extras"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=detail]",
+          "expect": "Detail sheet"
+        },
+        {
+          "selector": "[data-action=menu]",
+          "expect": "Row context actions"
+        },
+        {
+          "selector": "[data-action=add]",
+          "expect": "Sample folder selector"
+        }
+      ]
+    },
+    {
+      "id": "vault.detail",
+      "file": "demos/vault.html",
+      "title": "Vault details",
+      "world": "vault",
+      "chrome": "default",
+      "params": {
+        "detail": "dune"
+      },
+      "sources": ["qml/VaultDetailSheet.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "vault.identify",
+      "file": "demos/vault.html",
+      "title": "Identify Vault title",
+      "world": "vault",
+      "chrome": "default",
+      "params": {
+        "dialog": "identify"
+      },
+      "sources": ["qml/VaultIdentifyDialog.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "downloads",
+      "file": "demos/downloads.html",
+      "title": "Downloads",
+      "world": "vault",
+      "chrome": "default",
+      "params": {},
+      "sources": ["qml/DownloadsPage.qml"],
+      "states": [
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "Empty queue and lanes"
+        },
+        {
+          "id": "arriving",
+          "params": {
+            "group": "theatre"
+          },
+          "expect": "Expanded season job"
+        },
+        {
+          "id": "biblio",
+          "params": {
+            "ledger": "biblio"
+          },
+          "expect": "Book and audiobook ledger"
+        },
+        {
+          "id": "theatre",
+          "params": {
+            "ledger": "theatre"
+          },
+          "expect": "Film and show ledger"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=ledger]",
+          "expect": "Completed world ledger"
+        },
+        {
+          "selector": "[data-action=remote]",
+          "expect": "Stage a local download"
+        },
+        {
+          "selector": "[data-action=menu]",
+          "expect": "Delete/download-again menu"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "id": "universes",
+      "source": "qml/UniversesWorld.qml",
+      "route": "universes",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "universe.saga",
+      "source": "qml/SagaUniversePage.qml",
+      "route": "universe.saga",
+      "status": "implemented",
+      "notes": "Continue actions, source matrix selection, stills, creators, information, representative catalogue fixtures"
+    },
+    {
+      "id": "universe.shelves",
+      "source": "qml/ShelvesUniversePage.qml",
+      "route": "universe.shelves",
+      "status": "implemented",
+      "notes": "Continue actions, source matrix selection, stills, creators, information, representative catalogue fixtures"
+    },
+    {
+      "id": "universe.extension",
+      "source": "qml/UniverseExtensionPage.qml",
+      "route": "universe.extension",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "tribute.dcau",
+      "source": "qml/DCAUUniversePage.qml",
+      "route": "tribute.dcau",
+      "status": "implemented",
+      "notes": "Four authentic illustrated source interiors; comics by hub post IDs, then Theatre; static motion approximation"
+    },
+    {
+      "id": "tribute.starwars",
+      "source": "qml/GalaxyUniversePage.qml",
+      "route": "tribute.starwars",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "tribute.onepiece",
+      "source": "qml/OnePieceUniversePage.qml",
+      "route": "tribute.onepiece",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "tribute.cosmere",
+      "source": "qml/CosmereUniversePage.qml",
+      "route": "tribute.cosmere",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "universe.onepiece.arc",
+      "source": "qml/OnePieceArcPage.qml",
+      "route": "universe.onepiece.arc",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "vault",
+      "source": "qml/VaultPage.qml, qml/VaultDetailSheet.qml, qml/VaultIdentifyDialog.qml, qml/VaultIdentityCeremonyDialog.qml",
+      "route": "vault",
+      "status": "implemented",
+      "notes": "Current compact Continue/Just arrived/Your folders composition, text companions, staged extra playback, detail/identity/filter fixtures"
+    },
+    {
+      "id": "vault.detail",
+      "source": "qml/VaultDetailSheet.qml",
+      "route": "vault.detail",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "vault.identify",
+      "source": "qml/VaultIdentifyDialog.qml",
+      "route": "vault.identify",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    },
+    {
+      "id": "downloads",
+      "source": "qml/DownloadsPage.qml",
+      "route": "downloads",
+      "status": "implemented",
+      "notes": "Fixture UI; see limitations and evidence"
+    }
+  ],
+  "limitations": [
+    "Universe roster and baseline shelves retain prior HTML composition. Live catalogue data is represented by small sample rails, not the complete franchise catalogues.",
+    "DCAU portals and all four illustrated interiors use exact source artwork; scene animation is static. Comic/video IDs are source-derived; unavailable covers use title cards.",
+    "Star Wars galaxy is a keyboard-accessible 2D system map, not the native 3D scene.",
+    "One Piece East Blue uses original source SVG atlas; other seas use labelled browser-safe route maps. Arc episode/volume counts are explicit representative fixtures.",
+    "Cosmere atlas is a 2D six-system approximation.",
+    "Standard missing cover art uses explicit typographic title cards, not unrelated covers.",
+    "Vault folder selection/indexing, native Explorer, file presence, and identity matching are staged sample states.",
+    "Downloads never contacts a provider or downloads/deletes real bytes. Progress is deterministic, not a background transfer.",
+    "Universes without a downloaded source banner retain a neutral local wallpaper; their authentic franchise marks are bundled."
+  ],
+  "verification": {
+    "test": "demos/universe-vault-test.cjs",
+    "hostTest": "demos/universe-vault-host-test.cjs",
+    "evidence": "evidence/universes-vault",
+    "visualReview": "evidence/universes-vault/VISUAL-REVIEW.md",
+    "sourceAssets": "assets/universes/SOURCES.json",
+    "deltaTest": "demos/universe-vault-delta-test.cjs",
+    "deltaEvidence": "evidence/universes-vault/chromium-delta-results.json and firefox-delta-results.json"
+  }
+}

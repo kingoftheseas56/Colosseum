@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Biblio book page (Current Colosseum mock)</title>
+    <!-- Original Brotherhood HTML composition retained and made interactive. Current source:
+ Colosseum 2916fe85812643c2e0ae45b0aec132cb6eb4e507. Staged data only.
+ Reader sample: Jane Austen, Pride and Prejudice (1813), public domain.
+ Artwork: authentic bundled Colosseum Feria assets; see assets provenance. -->
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/Fraunces-Regular.ttf") format("truetype");
+      }
+      :root {
+        --gold: #f0c44a;
+        --ink: #f7f7f5;
+        --dim: #c9c8d0;
+        --dimmer: #9a99a5;
+        --edge: rgba(255, 255, 255, 0.18);
+        --ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+        --display: Fraunces, Georgia, serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background: #06070b;
+      }
+      body {
+        position: relative;
+        color: var(--ink);
+        font-family: var(--ui);
+        user-select: none;
+        cursor: default;
+      }
+      .wallpaper {
+        position: absolute;
+        inset: 0;
+        background: url("../assets/cold-ripple.jpg") center/cover no-repeat;
+      }
+      .ground {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, #0c0f18, #06070b);
+      }
+      /* BiblioBook: separate 64px Glass bar, at margin 54 and top 22. */
+      .topbar {
+        position: absolute;
+        left: 54px;
+        top: 22px;
+        width: 1172px;
+        height: 64px;
+        border-radius: 16px;
+        overflow: hidden;
+        z-index: 9;
+        border: 1px solid var(--edge);
+        background: rgba(140, 143, 150, 0.58);
+      }
+      .topbar::before {
+        content: "";
+        position: absolute;
+        inset: -22px;
+        background: url("../assets/cold-ripple.jpg") center/cover;
+        filter: blur(24px) brightness(0.8);
+        opacity: 0.24;
+      }
+      .topbar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.14));
+      }
+      .bar-left,
+      .bar-right {
+        position: absolute;
+        z-index: 2;
+        top: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+      }
+      .bar-left {
+        left: 18px;
+        gap: 22px;
+      }
+      .bar-right {
+        right: 14px;
+        gap: 6px;
+      }
+      .back {
+        font-size: 14px;
+        color: var(--dim);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .back svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .brand {
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: 20px;
+        line-height: 1;
+      }
+      .system {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: var(--dimmer);
+        font-size: 14px;
+        font-family: var(--ui);
+      }
+      /* The detail layer is SOLID. This scrollport starts at y108, not WorldPage's y96. */
+      .viewport {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 108px;
+        bottom: 0;
+        overflow: hidden;
+        z-index: 2;
+      }
+      .viewport.scrolled {
+        -webkit-mask-image: linear-gradient(transparent, #000 24px);
+        mask-image: linear-gradient(transparent, #000 24px);
+      }
+      .layout {
+        position: absolute;
+        left: 54px;
+        top: 0;
+        width: 1172px;
+        padding-bottom: 106px;
+        display: grid;
+        grid-template-columns: 268px 840px;
+        column-gap: 64px;
+        align-items: start;
+        will-change: transform;
+      }
+      .cover-column {
+        width: 268px;
+        padding-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      .book-object {
+        width: 268px;
+        height: 402px;
+        position: relative;
+        isolation: isolate;
+      }
+      .page-edge {
+        position: absolute;
+        right: -5px;
+        top: 5px;
+        width: 7px;
+        height: 392px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #d3cdbe, #a8a294);
+        z-index: 0;
+      }
+      .cover-face {
+        position: absolute;
+        inset: 0;
+        border-radius: 3px;
+        overflow: hidden;
+        z-index: 1;
+        background: linear-gradient(155deg, #5a4a3a, #181210);
+        box-shadow: 0 18px 27px rgba(0, 0, 0, 0.7);
+      }
+      .cover-fallback {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        text-align: center;
+        font-family: var(--display);
+        font-size: 33px;
+        line-height: 1.15;
+        color: rgba(255, 255, 255, 0.8);
+      }
+      .cover-face img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .spine {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 11px;
+        height: 100%;
+        border-radius: 3px;
+        z-index: 2;
+        background: linear-gradient(
+          90deg,
+          rgba(0, 0, 0, 0.5),
+          rgba(0, 0, 0, 0.05) 60%,
+          rgba(255, 255, 255, 0.08)
+        );
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 268px;
+      }
+      .read,
+      .library {
+        height: 50px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--ui);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .read {
+        background: var(--gold);
+        color: #241a05;
+      }
+      .read-status {
+        color: var(--dim);
+        font-size: 12px;
+        line-height: 1.35;
+        text-align: center;
+      }
+      .library {
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--edge);
+        color: var(--ink);
+      }
+      .library span:first-child {
+        font-size: 15px;
+      }
+      .copy {
+        min-width: 0;
+        padding-top: 18px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: 1.8px;
+        color: var(--dimmer);
+        font-weight: 600;
+        line-height: 17px;
+      }
+      h1 {
+        font-family: var(--display);
+        font-size: 54px;
+        line-height: 1.02;
+        font-weight: 400;
+        margin-top: 14px;
+        max-width: 840px;
+        overflow-wrap: break-word;
+      }
+      .rule {
+        position: relative;
+        height: 3px;
+        margin-top: 50px;
+        margin-bottom: 26px;
+      }
+      .rule::before {
+        content: "";
+        position: absolute;
+        top: 1px;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(90deg, var(--edge), transparent 70%);
+      }
+      .rule::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 34px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--gold);
+      }
+      .synopsis {
+        width: 640px;
+        max-width: 100%;
+        color: var(--dim);
+        font: 400 17px/1.7 var(--display);
+      }
+      .synopsis .initial {
+        font-family: var(--display);
+        font-size: 62px;
+        line-height: 1;
+        color: var(--ink);
+      }
+      .section {
+        width: 640px;
+        max-width: 100%;
+      }
+      .section.editions {
+        margin-top: 40px;
+      }
+      .section.audio {
+        margin-top: 30px;
+      }
+      .section-label {
+        height: 15px;
+        margin-bottom: 12px;
+        font-family: var(--ui);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 1.6px;
+        color: var(--dimmer);
+      }
+      .panel {
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        overflow: hidden;
+        background:
+          linear-gradient(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.14)),
+          rgba(255, 255, 255, 0.1);
+        -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
+      }
+      .focus-row {
+        height: 52px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 18px;
+        position: relative;
+        background: transparent;
+        transition: background 0.18s;
+      }
+      .focus-row + .focus-row {
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .focus-row.best {
+        background: rgba(240, 196, 74, 0.06);
+      }
+      .focus-row.hot {
+        background: rgba(240, 196, 74, 0.11);
+      }
+      .format {
+        height: 24px;
+        min-width: 54px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--edge);
+        padding: 0 8px;
+        border-radius: 7px;
+        flex: none;
+        font-family: var(--ui);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--dim);
+      }
+      .format.best {
+        border-color: rgba(240, 196, 74, 0.5);
+        color: var(--gold);
+      }
+      .audio .format {
+        min-width: 58px;
+        letter-spacing: 0.6px;
+      }
+      .metadata {
+        color: var(--dim);
+        font-family: var(--ui);
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
+      }
+      .metadata b {
+        font-weight: 700;
+      }
+      .arrow {
+        font-family: var(--ui);
+        color: var(--dimmer);
+        font-size: 16px;
+        flex: none;
+        margin-left: auto;
+      }
+      .focus-row.hot .arrow {
+        color: var(--gold);
+      }
+      /* HouseScrollBar: a visible 12px rail, with its thumb derived from staged scroll. */
+      .scrollbar {
+        position: absolute;
+        z-index: 5;
+        right: 0;
+        top: 0;
+        width: 12px;
+        height: 612px;
+        background: rgba(247, 247, 245, 0.03);
+      }
+      .scrollbar .thumb {
+        position: absolute;
+        right: 2px;
+        top: 0;
+        width: 8px;
+        height: 158px;
+        border-radius: 4px;
+        background: rgba(247, 247, 245, 0.3);
+        transform: translateY(0);
+      }
+    </style>
+    <link rel="stylesheet" href="book-ui.css" />
+  </head>
+  <body>
+    <div class="wallpaper"></div>
+    <div class="ground"></div>
+    <div class="topbar">
+      <div class="bar-left">
+        <div class="back">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" /></svg
+          >Back
+        </div>
+        <div class="brand">Biblio</div>
+      </div>
+      <div class="bar-right">
+        <span class="system">—</span><span class="system">⛶</span
+        ><span class="system">⏻</span>
+      </div>
+    </div>
+    <div class="viewport" id="viewport">
+      <div class="layout" id="layout">
+        <div class="cover-column">
+          <div class="book-object">
+            <div class="page-edge"></div>
+            <div class="cover-face">
+              <div class="cover-fallback">Dune</div>
+              <img
+                id="cover"
+                src="../assets/feria/assets/dune-book.jpg"
+                alt="Dune book cover"
+              />
+            </div>
+            <div class="spine"></div>
+          </div>
+          <div class="actions">
+            <div class="read">Read</div>
+            <div class="read-status">Read will choose a tracked edition</div>
+            <div class="library"><span>+</span><span>Library</span></div>
+          </div>
+        </div>
+        <div class="copy">
+          <div class="eyebrow">
+            FICTION &amp; LITERATURE&nbsp; · &nbsp;FRANK HERBERT&nbsp; ·
+            &nbsp;1965
+          </div>
+          <h1>Dune</h1>
+          <div class="rule"></div>
+          <p class="synopsis">
+            <span class="initial">O</span>n the desert planet Arrakis, Paul
+            Atreides is caught between rival houses, imperial power and the
+            people who call the desert home. Frank Herbert’s science-fiction
+            novel explores ecology, religion and the consequences of power.
+          </p>
+          <div class="section editions" id="editions">
+            <div class="section-label">EDITIONS&nbsp; · &nbsp;3</div>
+            <div class="panel">
+              <div class="focus-row best" id="edition0">
+                <span class="format best">EPUB</span
+                ><span class="metadata"
+                  ><b>1.8 MB</b> &nbsp;·&nbsp; 1965 &nbsp;·&nbsp; English</span
+                ><span class="arrow">↓</span>
+              </div>
+              <div class="focus-row" id="edition1">
+                <span class="format">PDF</span
+                ><span class="metadata"
+                  ><b>2.5 MB</b> &nbsp;·&nbsp; 1965 &nbsp;·&nbsp; English</span
+                ><span class="arrow">↓</span>
+              </div>
+              <div class="focus-row" id="edition2">
+                <span class="format">AZW3</span
+                ><span class="metadata"
+                  ><b>2.1 MB</b> &nbsp;·&nbsp; 1965 &nbsp;·&nbsp; English</span
+                ><span class="arrow">↓</span>
+              </div>
+            </div>
+          </div>
+          <div class="section audio" id="audiobook">
+            <div class="section-label">AUDIOBOOK&nbsp; · &nbsp;2</div>
+            <div class="panel">
+              <div class="focus-row" id="audio0">
+                <span class="format">MP3</span
+                ><span class="metadata"
+                  >484 MB &nbsp;·&nbsp; English &nbsp;·&nbsp; 1965</span
+                ><span class="arrow">↓</span>
+              </div>
+              <div class="focus-row" id="audio1">
+                <span class="format">M4B</span
+                ><span class="metadata"
+                  >512 MB &nbsp;·&nbsp; English &nbsp;·&nbsp; 1965</span
+                ><span class="arrow">↓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scrollbar"><div class="thumb" id="thumb"></div></div>
+    </div>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="book-ui.js"></script>
+  </body>
+</html>

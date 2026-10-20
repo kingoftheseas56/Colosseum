@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280,initial-scale=1">
+<title>Downloads · Colosseum</title>
+<style>
+@font-face{font-family:Fraunces;src:url("../assets/Fraunces-Regular.ttf") format("truetype");font-display:swap}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,sans-serif;--display:Fraunces,Georgia,serif}
+*{box-sizing:border-box}
+html,body{width:1280px;height:720px;margin:0;overflow:hidden;background:#080b13}
+body{font-family:var(--ui);color:var(--ink);user-select:none;position:relative}
+button{font:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wallpaper{position:absolute;inset:0;background:url("../assets/cold-ripple.jpg") center center/cover no-repeat;pointer-events:none}
+.wallpaper::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,5,12,.95) 0%,rgba(4,5,11,.88) 55%,rgba(4,5,12,.93) 100%)}
+.wallpaper::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 15% 27%,rgba(125,67,47,.13),transparent 43%),radial-gradient(ellipse at 91% 88%,rgba(45,55,91,.19),transparent 50%);z-index:1}
+#viewport{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#787982 transparent}
+#viewport::-webkit-scrollbar{width:8px}
+#viewport::-webkit-scrollbar-track{background:transparent}
+#viewport::-webkit-scrollbar-thumb{background:rgba(195,196,202,.46);border-radius:6px}
+#content{position:relative;padding:14px 54px 126px;min-height:100%}
+.eyebrow{font-size:12px;line-height:18px;letter-spacing:2.6px;font-weight:600;color:var(--dimmer)}
+h1,h2,h3,p{margin:0}
+h1{font:400 56px/1.09 var(--display);letter-spacing:-1px;margin-top:8px}
+.gold-rule{width:34px;height:3px;background:var(--gold);border-radius:2px;margin-top:26px}
+.totals{font-size:13px;color:var(--dimmer);line-height:20px;margin-top:16px;white-space:nowrap}
+.totals b{color:var(--ink);font-weight:700}.totals em{color:var(--gold);font-style:normal;font-weight:700}.totals .divider{margin:0 5px;color:var(--dimmer)}
+.lane{margin-top:48px;scroll-margin-top:54px}
+#arriving{margin-top:39px}
+#tankoban{margin-top:46px}
+.section-head{display:flex;align-items:baseline;gap:14px;min-height:36px}
+.section-head h2{font:400 28px/36px var(--display);letter-spacing:-.2px;flex:none}
+.section-head p{font-size:13px;line-height:18px;color:var(--dim)}
+.section-head p b{font-weight:700;color:var(--ink)}
+.panel{border:1px solid var(--edge);border-radius:18px;background:rgba(9,11,17,.48);margin-top:16px;overflow:hidden}
+.now-panel{height:76px;position:relative}
+.now-main{height:73px;padding:16px 26px 14px 52px;display:flex;align-items:center;gap:24px}
+.now-name{min-width:0;flex:1}
+.now-name strong{display:block;font-size:15px;line-height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now-name small{display:block;font-size:12px;line-height:19px;color:var(--dimmer);white-space:nowrap}
+.now-stats{font-size:12px;color:var(--dim);white-space:nowrap;text-align:right}
+.now-stats b{color:var(--ink);font-weight:600}
+.now-actions{display:flex;gap:18px;align-items:center;margin-left:5px}
+.text-action{background:none;border:0;padding:4px 0;color:var(--dimmer);font-size:12px;white-space:nowrap}
+.text-action.primary{color:var(--gold);font-weight:600}
+.text-action:hover{color:#ffe095}
+.progress-line{position:absolute;bottom:0;left:0;height:3px;width:68%;background:var(--gold);border-radius:0 3px 3px 0}
+.cover-panel{padding:26px;height:266px}
+.cover-rail{display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;height:214px;scrollbar-width:none;scroll-behavior:smooth}
+.cover-rail::-webkit-scrollbar{display:none}
+.cover-card{width:148px;min-width:148px;height:198px;border-radius:12px;border:1px solid var(--edge);overflow:hidden;position:relative;background:linear-gradient(180deg,#46313a,#08090d);color:var(--ink);text-align:left;padding:0;display:block;transition:border-color .12s,transform .12s}
+.cover-card:nth-child(3n+2){background:linear-gradient(180deg,#22283f,#08090d)}
+.cover-card:hover,.cover-card.selected{border:2px solid rgba(240,196,74,.75);transform:translateY(-2px)}
+.cover-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cover-card::after{content:"";position:absolute;inset:auto 0 0;height:56%;background:linear-gradient(transparent,rgba(0,0,0,.83));pointer-events:none}
+.cover-card .card-copy{position:absolute;left:12px;right:9px;bottom:9px;z-index:1;pointer-events:none}
+.card-copy b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:14px;font-weight:600;line-height:17px;max-height:34px}
+.card-copy small{display:block;font-size:11px;margin-top:9px;line-height:14px;color:var(--dim)}
+#biblio .cover-card{background:linear-gradient(180deg,#302d4b,#090a0d)}
+#audiobooks .cover-card{background:linear-gradient(180deg,#2f343c,#090a0d)}
+.ledger{display:none;margin-top:14px;border-radius:14px;border:1px solid rgba(255,255,255,.15);background:rgba(4,6,11,.7);padding:16px 20px}
+.ledger.open{display:block}.ledger-title{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.ledger-title strong{font-size:15px;font-weight:600}
+.ledger-title button{background:transparent;border:0;color:var(--dimmer);font-size:19px}
+.ledger-list{border-top:1px solid rgba(255,255,255,.11);margin-top:13px}
+.ledger-row{display:flex;align-items:center;gap:15px;border-bottom:1px solid rgba(255,255,255,.07);padding:12px 0;font-size:13px}
+.ledger-row:last-child{border:0}.ledger-row .check{font-size:16px;color:var(--dim)}
+.ledger-row .detail{flex:1;min-width:0}.ledger-row .detail small{display:block;color:var(--dimmer);margin-top:4px}
+.ledger-row .action{border:0;background:transparent;color:var(--gold);font-size:12px;font-weight:600}
+.ledger-row .action:hover{color:#ffe095}
+.sysbar{position:absolute;z-index:25;top:0;left:0;width:100%;height:52px;pointer-events:none}
+.back{position:absolute;top:9px;left:22px;border:0;width:42px;height:34px;border-radius:20px;background:rgba(0,0,0,.43);color:var(--ink);font-size:25px;line-height:25px;pointer-events:auto}
+.back:hover{background:rgba(255,255,255,.17)}
+.sys-actions{position:absolute;right:26px;top:17px;display:flex;align-items:center;gap:20px}
+.sys-actions button{width:17px;height:17px;padding:0;border:0;background:transparent;opacity:.72;pointer-events:auto}
+.sys-actions button:hover{opacity:1}
+.sys-actions img{width:17px;height:17px;display:block}
+#dock{position:absolute;z-index:40;left:57.6px;bottom:16px;width:130px;height:64px;background:rgba(5,5,9,.94);border:1px solid rgba(255,255,255,.16);border-radius:32px;display:flex;align-items:center;gap:14px;padding:0 14px 0 8px;overflow:hidden;transition:width .2s ease,border-radius .2s ease}
+#dock.expanded{width:1164.8px;border-radius:18px;border-color:rgba(240,196,74,.68)}
+.dock-item{position:relative;flex:0 0 46px;width:46px;height:46px;border:0;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.055);color:var(--dim);padding:0}
+.dock-item.home{flex-basis:48px;width:48px;border-radius:24px}
+#dock.expanded .dock-item.home{border-radius:14px;border:3px solid var(--gold);box-shadow:0 0 0 2px rgba(240,196,74,.32)}
+.dock-item img{width:21px;height:21px;object-fit:contain;opacity:.78}
+.dock-item.home img{width:28px;height:28px;opacity:1}
+.dock-item:hover,.dock-item.active{background:rgba(255,255,255,.15)}
+.dock-item.active:after{position:absolute;content:"";bottom:3px;left:13px;width:20px;height:3px;border-radius:2px;background:var(--gold)}
+.dock-item .badge{position:absolute;right:1px;top:1px;border-radius:9px;background:var(--gold);color:#15100a;font-size:11px;line-height:17px;min-width:17px;height:17px;font-weight:700}
+.dock-open-only{display:none}
+#dock.expanded .dock-open-only{display:grid}
+.dock-spacer{flex:1}
+#dock:not(.expanded) .dock-spacer{display:none}
+#notice{position:absolute;right:54px;bottom:32px;background:rgba(9,10,17,.92);border:1px solid var(--edge);border-radius:10px;padding:12px 18px;font-size:12px;color:var(--dim);max-width:390px;z-index:45;display:none}
+#notice.visible{display:block}
+.index-handle{position:absolute;z-index:28;left:0;top:236px;width:24px;height:40px;color:var(--dim);background:rgba(0,0,0,.27);border:1px solid rgba(255,255,255,.11);border-left:0;border-radius:0 12px 12px 0;opacity:0;transition:opacity .12s}
+.index-handle:hover,.index-handle:focus-visible,body.index-open .index-handle{opacity:1}
+#index{position:absolute;z-index:27;top:224px;left:-245px;width:240px;padding:24px 12px 16px 12px;background:rgba(9,10,16,.96);backdrop-filter:blur(20px);border:1px solid var(--edge);border-radius:0 16px 16px 0;transition:left .16s ease}
+body.index-open #index{left:0}
+.index-label{font-size:11px;letter-spacing:1.8px;color:var(--dimmer);padding:0 12px 12px}
+.index-item{width:100%;display:flex;align-items:center;gap:12px;height:39px;border:0;border-radius:9px;background:transparent;color:var(--dim);text-align:left;padding:0 12px;font-size:13px}
+.index-item:hover,.index-item.selected{color:var(--ink);background:rgba(255,255,255,.1)}
+.index-item svg{width:20px;height:20px;stroke:var(--dim);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.index-item.selected svg{stroke:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wallpaper"></div>
+<main id="viewport" aria-label="Downloads: local media from all Colosseum worlds">
+ <div id="content">
+  <header class="page-heading">
+   <div class="eyebrow">COLOSSEUM · LOCAL</div>
+   <h1>Downloads</h1>
+   <div class="gold-rule" aria-hidden="true"></div>
+   <div class="totals"><b>52</b> items <span class="divider">·</span> <b>33.4 GB</b> on disk <span class="divider">·</span> Tankoban 42 <span class="divider">·</span> Biblio 2 <span class="divider">·</span> Theatre 6 <span class="divider">·</span> Audiobooks 2 <span class="divider">·</span> <em id="arriving-total">1 arriving</em></div>
+  </header>
+  <section id="arriving" class="lane" data-section="arriving">
+   <div class="section-head"><h2>Now arriving</h2><p id="arriving-count">1 live job</p></div>
+   <div class="panel now-panel">
+    <div class="now-main">
+     <div class="now-name"><strong>Arcane · Season 2, Episode 3</strong><small id="job-subtitle">Theatre · downloading · 1.8 GB of 2.6 GB</small></div>
+     <div class="now-stats"><b id="job-percentage">68%</b> · <span id="job-speed">2.8 MB/s</span> · <span id="job-eta">~5 min left</span></div>
+     <div class="now-actions"><button class="text-action primary" id="pause" type="button">Pause</button><button class="text-action" id="cancel" type="button">Cancel</button></div>
+    </div>
+    <div class="progress-line" id="progress"></div>
+   </div>
+  </section>
+
+  <section id="tankoban" class="lane" data-section="tankoban">
+   <div class="section-head"><h2>Tankoban</h2><p><b>42</b> chapters, volumes &amp; issues · 3.2 GB</p></div>
+   <div class="panel cover-panel"><div class="cover-rail" aria-label="Downloaded comics and manga">
+    <button class="cover-card" type="button" data-world="tankoban" data-title="One Piece" data-count="12" data-unit="volume"><img src="../current-ui-mock/assets/fixtures/captures/manga-covers/onepiece.jpg" alt=""><span class="card-copy"><b>One Piece</b><small>12 volumes</small></span></button>
+    <button class="cover-card" type="button" data-world="tankoban" data-title="Berserk" data-count="7" data-unit="volume"><img src="../current-ui-mock/assets/fixtures/captures/manga-covers/berserk.jpg" alt=""><span class="card-copy"><b>Berserk</b><small>7 volumes</small></span></button>
+    <button class="cover-card" type="button" data-world="tankoban" data-title="Chainsaw Man" data-count="6" data-unit="volume"><img src="../current-ui-mock/assets/fixtures/captures/manga-covers/chainsaw.png" alt=""><span class="card-copy"><b>Chainsaw Man</b><small>6 volumes</small></span></button>
+    <button class="cover-card" type="button" data-world="tankoban" data-title="Vinland Saga" data-count="4" data-unit="volume"><img src="../current-ui-mock/assets/fixtures/captures/manga-covers/vinland.jpg" alt=""><span class="card-copy"><b>Vinland Saga</b><small>4 volumes</small></span></button>
+    <button class="cover-card" type="button" data-world="tankoban" data-title="Saga" data-count="5" data-unit="issue"><img src="../current-ui-mock/assets/fixtures/captures/comic-covers/saga.jpg" alt=""><span class="card-copy"><b>Saga</b><small>5 issues</small></span></button>
+    <button class="cover-card" type="button" data-world="tankoban" data-title="Invincible" data-count="6" data-unit="issue"><img src="../current-ui-mock/assets/fixtures/captures/comic-covers/invincible.jpg" alt=""><span class="card-copy"><b>Invincible</b><small>6 issues</small></span></button>
+    <button class="cover-card" type="button" data-world="tankoban" data-title="Watchmen" data-count="2" data-unit="issue"><img src="../current-ui-mock/assets/fixtures/captures/comic-covers/watchmen.jpg" alt=""><span class="card-copy"><b>Watchmen</b><small>2 issues</small></span></button>
+   </div></div>
+   <div class="ledger" id="tankoban-ledger" aria-live="polite"><div class="ledger-title"><strong></strong><button type="button" aria-label="Close Tankoban detail">×</button></div><div class="ledger-list"></div></div>
+  </section>
+  <section id="biblio" class="lane" data-section="biblio">
+   <div class="section-head"><h2>Biblio</h2><p><b>2</b> books · 20 MB</p></div>
+   <div class="panel cover-panel"><div class="cover-rail" aria-label="Downloaded books">
+    <button class="cover-card" type="button" data-world="biblio" data-title="Dune" data-count="1" data-unit="book"><img src="../current-ui-mock/assets/feria/assets/dune-book.jpg" alt=""><span class="card-copy"><b>Dune</b><small>1 book</small></span></button>
+    <button class="cover-card" type="button" data-world="biblio" data-title="Project Hail Mary" data-count="1" data-unit="book"><img src="../current-ui-mock/assets/feria/assets/phm-cover.jpg" alt=""><span class="card-copy"><b>Project Hail Mary</b><small>1 book</small></span></button>
+   </div></div>
+   <div class="ledger" id="biblio-ledger" aria-live="polite"><div class="ledger-title"><strong></strong><button type="button" aria-label="Close Biblio detail">×</button></div><div class="ledger-list"></div></div>
+  </section>
+  <section id="theatre" class="lane" data-section="theatre">
+   <div class="section-head"><h2>Theatre</h2><p><b>6</b> files · 28.4 GB</p></div>
+   <div class="panel cover-panel"><div class="cover-rail" aria-label="Downloaded movies and series">
+    <button class="cover-card" type="button" data-world="theatre" data-title="Dune: Part Two" data-count="1" data-unit="film"><img src="../current-ui-mock/assets/feria/assets/dune2-poster.jpg" alt=""><span class="card-copy"><b>Dune: Part Two</b><small>1 film</small></span></button>
+    <button class="cover-card" type="button" data-world="theatre" data-title="Oppenheimer" data-count="1" data-unit="film"><img src="../current-ui-mock/assets/fixtures/captures/theatre-posters/oppenheimer.jpg" alt=""><span class="card-copy"><b>Oppenheimer</b><small>1 film</small></span></button>
+    <button class="cover-card" type="button" data-world="theatre" data-title="Godzilla" data-count="1" data-unit="film"><img src="../current-ui-mock/assets/fixtures/captures/theatre-posters/godzilla.jpg" alt=""><span class="card-copy"><b>Godzilla</b><small>1 film</small></span></button>
+    <button class="cover-card" type="button" data-world="theatre" data-title="Mad Max: Fury Road" data-count="1" data-unit="film"><img src="../current-ui-mock/assets/fixtures/captures/theatre-posters/madmax.jpg" alt=""><span class="card-copy"><b>Mad Max: Fury Road</b><small>1 film</small></span></button>
+    <button class="cover-card" type="button" data-world="theatre" data-title="The Batman" data-count="1" data-unit="film"><img src="../current-ui-mock/assets/fixtures/captures/theatre-posters/batman.jpg" alt=""><span class="card-copy"><b>The Batman</b><small>1 film</small></span></button>
+    <button class="cover-card" type="button" data-world="theatre" data-title="Across the Spider-Verse" data-count="1" data-unit="film"><img src="../current-ui-mock/assets/fixtures/captures/theatre-posters/spiderverse.jpg" alt=""><span class="card-copy"><b>Across the Spider-Verse</b><small>1 film</small></span></button>
+   </div></div>
+   <div class="ledger" id="theatre-ledger" aria-live="polite"><div class="ledger-title"><strong></strong><button type="button" aria-label="Close Theatre detail">×</button></div><div class="ledger-list"></div></div>
+  </section>
+  <section id="audiobooks" class="lane" data-section="audiobooks">
+   <div class="section-head"><h2>Audiobooks</h2><p><b>2</b> audiobooks · 1.8 GB</p></div>
+   <div class="panel cover-panel"><div class="cover-rail" aria-label="Downloaded audiobooks">
+    <button class="cover-card" type="button" data-world="audiobooks" data-title="Dune · Audiobook" data-count="1" data-unit="audiobook"><img src="../current-ui-mock/assets/feria/assets/dune-book.jpg" alt=""><span class="card-copy"><b>Dune</b><small>1 audiobook</small></span></button>
+    <button class="cover-card" type="button" data-world="audiobooks" data-title="Project Hail Mary · Audiobook" data-count="1" data-unit="audiobook"><img src="../current-ui-mock/assets/feria/assets/phm-cover.jpg" alt=""><span class="card-copy"><b>Project Hail Mary</b><small>1 audiobook</small></span></button>
+   </div></div>
+   <div class="ledger" id="audiobooks-ledger" aria-live="polite"><div class="ledger-title"><strong></strong><button type="button" aria-label="Close Audiobooks detail">×</button></div><div class="ledger-list"></div></div>
+  </section>
+ </div>
+</main>
+<div class="sysbar" aria-label="Window controls">
+ <button class="back" type="button" aria-label="Back" title="Back">‹</button>
+ <div class="sys-actions">
+  <button type="button" data-sys="search" title="Search" aria-label="Search"><img src="../assets/icons/search.svg" alt=""></button>
+  <button type="button" data-sys="minimize" title="Minimize" aria-label="Minimize"><img src="../assets/icons/minimize.svg" alt=""></button>
+  <button type="button" data-sys="fullscreen" title="Fullscreen" aria-label="Fullscreen"><img src="../assets/icons/fullscreen-exit.svg" alt=""></button>
+  <button type="button" data-sys="power" title="Close" aria-label="Close"><img src="../assets/icons/power.svg" alt=""></button>
+ </div>
+</div>
+<button type="button" class="index-handle" id="index-handle" aria-label="Open section index" aria-expanded="false" title="Sections">›</button>
+<nav id="index" aria-label="Section index">
+ <div class="index-label">THIS PAGE</div>
+ <button class="index-item" type="button" data-jump="arriving"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Now arriving</button>
+ <button class="index-item" type="button" data-jump="tankoban"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Tankoban</button>
+ <button class="index-item" type="button" data-jump="biblio"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Biblio</button>
+ <button class="index-item" type="button" data-jump="theatre"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Theatre</button>
+ <button class="index-item" type="button" data-jump="audiobooks"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Audiobooks</button>
+</nav>
+<div id="dock" aria-label="Colosseum taskbar">
+ <button type="button" class="dock-item home" id="dock-home" aria-label="Open taskbar" title="Colosseum"><img src="../current-ui-mock/assets/icons/colosseum.svg" alt=""></button>
+ <button type="button" class="dock-item" data-dock="vault" title="Vault" aria-label="Vault"><img src="../current-ui-mock/assets/icons/vault-door.svg" alt=""></button>
+ <button type="button" class="dock-item dock-open-only" data-dock="open" title="Open media" aria-label="Open media"><img src="../current-ui-mock/assets/icons/open-media.svg" alt=""></button>
+ <button type="button" class="dock-item dock-open-only" data-dock="party" title="Watch Party" aria-label="Join Watch Party"><img src="../current-ui-mock/assets/icons/watch-party.svg" alt=""></button>
+ <button type="button" class="dock-item dock-open-only active" data-dock="downloads" title="Downloads" aria-label="Downloads"><img src="../current-ui-mock/assets/icons/download.svg" alt=""><span class="badge">1</span></button>
+ <button type="button" class="dock-item dock-open-only" data-dock="extensions" title="Extensions" aria-label="Extensions"><img src="../current-ui-mock/assets/icons/extensions.svg" alt=""></button>
+ <button type="button" class="dock-item dock-open-only" data-dock="history" title="Your Colosseum" aria-label="Your Colosseum"><img src="../current-ui-mock/assets/icons/your-colosseum-laurel.svg" alt=""></button>
+ <div class="dock-spacer"></div>
+</div>
+<div id="notice" role="status" aria-live="polite"></div>
+<script>
+(function(){
+ "use strict";
+ var params=new URLSearchParams(location.search),view=document.getElementById("viewport");
+ var dock=document.getElementById("dock"),home=document.getElementById("dock-home");
+ var notice=document.getElementById("notice"),notifyTimeout;
+ function toast(message){notice.textContent=message;notice.classList.add("visible");clearTimeout(notifyTimeout);notifyTimeout=setTimeout(function(){notice.classList.remove("visible")},2800)}
+ function setDock(open){dock.classList.toggle("expanded",open);home.setAttribute("aria-label",open?"Close taskbar":"Open taskbar")}
+ home.addEventListener("click",function(){setDock(!dock.classList.contains("expanded"))});
+ setDock(params.get("dock")==="open");
+ document.querySelectorAll("[data-dock]").forEach(function(el){el.addEventListener("click",function(){
+  var k=el.getAttribute("data-dock");if(k==="downloads"){setDock(false);view.scrollTop=0;return}
+  if(k==="vault"){location.href="vault.html";return}
+  if(k==="extensions"){location.href="extensions.html";return}
+  toast(k==="open"?"Open Media is a local-file action in the desktop app.":k==="party"?"Watch Party opens from the desktop app.":"Your Colosseum is reached from the desktop taskbar.");
+ })});
+ document.querySelector(".back").addEventListener("click",function(){if(history.length>1){history.back()}else{toast("Home is available from the Colosseum desktop shell.")}});
+ document.querySelectorAll("[data-sys]").forEach(function(el){el.addEventListener("click",function(){
+  var k=el.getAttribute("data-sys");if(k==="search"){toast("Search lives in the desktop Colosseum shell.")}else if(k==="fullscreen"){document.body.classList.toggle("screen-mode");toast("Fullscreen is controlled by the hosting website.")}else{toast("Window controls belong to the desktop Colosseum shell.")}
+ })});
+ function setIndex(open){document.body.classList.toggle("index-open",open);document.getElementById("index-handle").setAttribute("aria-expanded",String(open));document.getElementById("index-handle").textContent=open?"‹":"›"}
+ var indexHandle=document.getElementById("index-handle");indexHandle.addEventListener("click",function(){setIndex(!document.body.classList.contains("index-open"))});
+ if(params.get("index")==="open")setIndex(true);
+ function goTo(id){var el=document.getElementById(id);if(!el)return;view.scrollTop=el.offsetTop-24;document.querySelectorAll("[data-jump]").forEach(function(b){b.classList.toggle("selected",b.getAttribute("data-jump")===id)})}
+ document.querySelectorAll("[data-jump]").forEach(function(b){b.addEventListener("click",function(){goTo(b.getAttribute("data-jump"));setIndex(false)})});
+ document.addEventListener("keydown",function(e){if(e.key==="Escape"){setIndex(false);notice.classList.remove("visible")}if(e.key.toLowerCase()==="i"&&!/input|textarea/i.test((e.target||{}).tagName||""))setIndex(!document.body.classList.contains("index-open"))});
+ var pause=document.getElementById("pause"),paused=false;
+ pause.addEventListener("click",function(){paused=!paused;pause.textContent=paused?"Resume":"Pause";document.getElementById("job-subtitle").textContent=paused?"Theatre · paused · 1.8 GB of 2.6 GB":"Theatre · downloading · 1.8 GB of 2.6 GB";document.getElementById("job-speed").textContent=paused?"paused":"2.8 MB/s";document.getElementById("job-eta").textContent=paused?"ready to resume":"~5 min left"});
+ document.getElementById("cancel").addEventListener("click",function(){document.getElementById("arriving").remove();document.getElementById("arriving-total").remove();var badge=document.querySelector(".dock-item .badge");if(badge)badge.remove();toast("The staged job was canceled. Your completed downloads remain.")});
+ document.querySelectorAll(".cover-card").forEach(function(card){card.addEventListener("click",function(){
+  var w=card.getAttribute("data-world"),title=card.getAttribute("data-title"),n=Number(card.getAttribute("data-count"))||1,unit=card.getAttribute("data-unit");
+  var ledger=document.getElementById(w+"-ledger");var same=ledger.classList.contains("open")&&card.classList.contains("selected");
+  document.querySelectorAll(".ledger").forEach(function(p){p.classList.remove("open")});
+  document.querySelectorAll(".cover-card").forEach(function(p){p.classList.remove("selected")});
+  if(same)return;
+  card.classList.add("selected");ledger.querySelector(".ledger-title strong").textContent=title+" · local copies";
+  var list=ledger.querySelector(".ledger-list");list.textContent="";
+  for(var i=0;i<Math.min(n,5);i++){
+   var row=document.createElement("div");row.className="ledger-row";
+   var chk=document.createElement("span");chk.className="check";chk.textContent="✓";
+   var detail=document.createElement("span");detail.className="detail";
+   var name=document.createElement("strong");name.textContent=n===1?title:(unit==="issue"?"Issue ":unit==="volume"?"Volume ":"Part ")+(i+1);
+   var sub=document.createElement("small");sub.textContent="On this machine · ready to open";detail.appendChild(name);detail.appendChild(sub);
+   var action=document.createElement("button");action.type="button";action.className="action";action.textContent="Open";
+   action.addEventListener("click",function(){toast("This is a visual demo: local media opens in the Colosseum app.")});
+   row.appendChild(chk);row.appendChild(detail);row.appendChild(action);list.appendChild(row);
+  }
+  if(n>5){var more=document.createElement("div");more.className="ledger-row";more.textContent="+"+(n-5)+" more local "+unit+(n-5===1?"":"s");list.appendChild(more)}
+  ledger.classList.add("open");
+ })});
+ document.querySelectorAll(".ledger-title button").forEach(function(b){b.addEventListener("click",function(){b.closest(".ledger").classList.remove("open");document.querySelectorAll(".cover-card").forEach(function(c){c.classList.remove("selected")})})});
+ function initialScroll(){var px=params.get("y"),tab=(params.get("tab")||"").toLowerCase();if(px!==null&&isFinite(Number(px)))view.scrollTop=Math.max(0,Number(px));else if(tab)goTo(tab)}
+ window.addEventListener("load",function(){requestAnimationFrame(function(){requestAnimationFrame(initialScroll)})});
+})();
+</script>
+<script src="autoscroll.js"></script></body>
+</html>
+

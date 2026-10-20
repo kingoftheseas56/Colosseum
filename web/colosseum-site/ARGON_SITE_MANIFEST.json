@@ -1,0 +1,988 @@
+{
+  "schema": 1,
+  "purpose": "Argon website UI source-reading copy, not a deployable asset-complete website",
+  "source_repo": "kingoftheseas56/Brotherhood",
+  "source_branch": "codex/tributes-site",
+  "source_commit": "4f33a13df11bbd4d54ad295dc5669c9282fb6908",
+  "source_directory": "agents/colosseum-site/",
+  "local_directory": "web/colosseum-site/",
+  "import_media_max_bytes": 100000,
+  "kept_files": 790,
+  "kept_bytes": 31922426,
+  "omitted_media_files": 162,
+  "omitted_media_bytes": 68481984,
+  "omitted_media": [
+    {
+      "path": "assets/cold-ripple.jpg",
+      "bytes": 460861,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/assets/cold-ripple.jpg",
+      "production_url": "https://getcolosseum.world/assets/cold-ripple.jpg"
+    },
+    {
+      "path": "assets/feria-apps/frieren-poster.jpg",
+      "bytes": 101045,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/assets/feria-apps/frieren-poster.jpg",
+      "production_url": "https://getcolosseum.world/assets/feria-apps/frieren-poster.jpg"
+    },
+    {
+      "path": "assets/feria-apps/glassonion-poster.jpg",
+      "bytes": 119484,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/assets/feria-apps/glassonion-poster.jpg",
+      "production_url": "https://getcolosseum.world/assets/feria-apps/glassonion-poster.jpg"
+    },
+    {
+      "path": "assets/feria-apps/stranger-bg.jpg",
+      "bytes": 776217,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/assets/feria-apps/stranger-bg.jpg",
+      "production_url": "https://getcolosseum.world/assets/feria-apps/stranger-bg.jpg"
+    },
+    {
+      "path": "assets/feria-apps/vinland-poster.jpg",
+      "bytes": 120282,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/assets/feria-apps/vinland-poster.jpg",
+      "production_url": "https://getcolosseum.world/assets/feria-apps/vinland-poster.jpg"
+    },
+    {
+      "path": "assets/tankoban.webp",
+      "bytes": 162218,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/assets/tankoban.webp",
+      "production_url": "https://getcolosseum.world/assets/tankoban.webp"
+    },
+    {
+      "path": "current-ui-mock/assets/addon-logos/knaben.ico",
+      "bytes": 262206,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/addon-logos/knaben.ico",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/addon-logos/knaben.ico"
+    },
+    {
+      "path": "current-ui-mock/assets/addon-logos/meteor.png",
+      "bytes": 136024,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/addon-logos/meteor.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/addon-logos/meteor.png"
+    },
+    {
+      "path": "current-ui-mock/assets/addon-logos/torrentio.png",
+      "bytes": 265208,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/addon-logos/torrentio.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/addon-logos/torrentio.png"
+    },
+    {
+      "path": "current-ui-mock/assets/cold-ripple.jpg",
+      "bytes": 460861,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/cold-ripple.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/cold-ripple.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/extensions/colosseum-night-cc0-1920x1080.jpg",
+      "bytes": 686349,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/extensions/colosseum-night-cc0-1920x1080.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/extensions/colosseum-night-cc0-1920x1080.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/extensions/house/cosmere.jpg",
+      "bytes": 457940,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/extensions/house/cosmere.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/extensions/house/cosmere.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/extensions/house/dcau.jpg",
+      "bytes": 257284,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/extensions/house/dcau.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/extensions/house/dcau.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/extensions/house/starwars-banner.jpg",
+      "bytes": 500855,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/extensions/house/starwars-banner.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/extensions/house/starwars-banner.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/extensions/store-jolly-roger.jpg",
+      "bytes": 588657,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/extensions/store-jolly-roger.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/extensions/store-jolly-roger.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/feria/assets/frieren-poster.jpg",
+      "bytes": 101045,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/feria/assets/frieren-poster.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/feria/assets/frieren-poster.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/feria/assets/glassonion-poster.jpg",
+      "bytes": 119484,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/feria/assets/glassonion-poster.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/feria/assets/glassonion-poster.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/feria/assets/stranger-bg.jpg",
+      "bytes": 776217,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/feria/assets/stranger-bg.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/feria/assets/stranger-bg.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/feria/assets/vinland-poster.jpg",
+      "bytes": 120282,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/feria/assets/vinland-poster.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/feria/assets/vinland-poster.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/comic-covers/hellboy.jpg",
+      "bytes": 411446,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/comic-covers/hellboy.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/comic-covers/hellboy.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/comic-covers/invincible.jpg",
+      "bytes": 211956,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/comic-covers/invincible.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/comic-covers/invincible.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/comic-covers/saga.jpg",
+      "bytes": 273451,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/comic-covers/saga.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/comic-covers/saga.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/comic-covers/sandman.jpg",
+      "bytes": 503900,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/comic-covers/sandman.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/comic-covers/sandman.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/comic-covers/sincity.jpg",
+      "bytes": 279806,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/comic-covers/sincity.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/comic-covers/sincity.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/comic-covers/watchmen.jpg",
+      "bytes": 224945,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/comic-covers/watchmen.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/comic-covers/watchmen.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/manga-covers/berserk.jpg",
+      "bytes": 123361,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/manga-covers/berserk.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/manga-covers/berserk.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/manga-covers/chainsaw.png",
+      "bytes": 609084,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/manga-covers/chainsaw.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/manga-covers/chainsaw.png"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/manga-covers/onepiece.jpg",
+      "bytes": 131815,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/manga-covers/onepiece.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/manga-covers/onepiece.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/manga-covers/vagabond.png",
+      "bytes": 593709,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/manga-covers/vagabond.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/manga-covers/vagabond.png"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/manga-covers/vinland.jpg",
+      "bytes": 154200,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/manga-covers/vinland.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/manga-covers/vinland.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/theatre-posters/madmax.jpg",
+      "bytes": 116838,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/theatre-posters/madmax.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/theatre-posters/madmax.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/fixtures/captures/theatre-posters/spiderverse.jpg",
+      "bytes": 154870,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/fixtures/captures/theatre-posters/spiderverse.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/fixtures/captures/theatre-posters/spiderverse.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/universes/dcau/environments/gotham-v11-bg.png",
+      "bytes": 400335,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/universes/dcau/environments/gotham-v11-bg.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/universes/dcau/environments/gotham-v11-bg.png"
+    },
+    {
+      "path": "current-ui-mock/assets/universes/dcau/environments/justice-v11-bg.png",
+      "bytes": 585249,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/universes/dcau/environments/justice-v11-bg.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/universes/dcau/environments/justice-v11-bg.png"
+    },
+    {
+      "path": "current-ui-mock/assets/universes/one-piece/east-blue/banners/romance.png",
+      "bytes": 826209,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/universes/one-piece/east-blue/banners/romance.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/universes/one-piece/east-blue/banners/romance.png"
+    },
+    {
+      "path": "current-ui-mock/assets/universes/star-wars/coruscant.jpg",
+      "bytes": 376138,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/universes/star-wars/coruscant.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/universes/star-wars/coruscant.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/universes/star-wars/hoth.jpg",
+      "bytes": 108320,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/universes/star-wars/hoth.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/universes/star-wars/hoth.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/cold-ripple.jpg",
+      "bytes": 460861,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/cold-ripple.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/cold-ripple.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-pages/dangerous.jpg",
+      "bytes": 122238,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-pages/dangerous.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-pages/dangerous.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-pages/eminem-show-cover.jpg",
+      "bytes": 562550,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-pages/eminem-show-cover.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-pages/eminem-show-cover.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-pages/sagara-sangamam-backdrop.png",
+      "bytes": 219282,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-pages/sagara-sangamam-backdrop.png",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-pages/sagara-sangamam-backdrop.png"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_0JJ1LXBTQTC.jpg",
+      "bytes": 138868,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_0JJ1LXBTQTC.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_0JJ1LXBTQTC.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_1X1w2p5pgW0.jpg",
+      "bytes": 127596,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_1X1w2p5pgW0.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_1X1w2p5pgW0.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_3jGuGO44ziy.jpg",
+      "bytes": 106074,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_3jGuGO44ziy.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_3jGuGO44ziy.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_3khwVTxUcDb.jpg",
+      "bytes": 140027,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_3khwVTxUcDb.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_3khwVTxUcDb.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_4L5VumVqPLu.jpg",
+      "bytes": 171474,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_4L5VumVqPLu.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_4L5VumVqPLu.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_6pEdKESQLeh.jpg",
+      "bytes": 211537,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_6pEdKESQLeh.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_6pEdKESQLeh.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_74EFmf0sBVs.jpg",
+      "bytes": 113953,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_74EFmf0sBVs.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_74EFmf0sBVs.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_7Eqd3VY0SGr.jpg",
+      "bytes": 128678,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_7Eqd3VY0SGr.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_7Eqd3VY0SGr.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_8G34qEx8tZK.jpg",
+      "bytes": 269794,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_8G34qEx8tZK.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_8G34qEx8tZK.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_BAWniMjKTZx.jpg",
+      "bytes": 132151,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_BAWniMjKTZx.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_BAWniMjKTZx.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_BZdFfPLotHS.jpg",
+      "bytes": 107514,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_BZdFfPLotHS.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_BZdFfPLotHS.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_CEsAJuezLwa.jpg",
+      "bytes": 143407,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_CEsAJuezLwa.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_CEsAJuezLwa.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_E4GfUXfDfhy.jpg",
+      "bytes": 200221,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_E4GfUXfDfhy.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_E4GfUXfDfhy.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_E9Diy6kXmlV.jpg",
+      "bytes": 172523,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_E9Diy6kXmlV.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_E9Diy6kXmlV.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_EAezTjkpoJI.jpg",
+      "bytes": 139849,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_EAezTjkpoJI.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_EAezTjkpoJI.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_GXKcP94m4I0.jpg",
+      "bytes": 119755,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_GXKcP94m4I0.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_GXKcP94m4I0.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_H7hXbSZvh9z.jpg",
+      "bytes": 214824,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_H7hXbSZvh9z.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_H7hXbSZvh9z.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_HvkCGrHIae2.jpg",
+      "bytes": 132277,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_HvkCGrHIae2.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_HvkCGrHIae2.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_KipiERroY8i.jpg",
+      "bytes": 118695,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_KipiERroY8i.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_KipiERroY8i.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_NWtCRQBRP38.jpg",
+      "bytes": 131145,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_NWtCRQBRP38.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_NWtCRQBRP38.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_OlDsQnYS8Vu.jpg",
+      "bytes": 167182,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_OlDsQnYS8Vu.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_OlDsQnYS8Vu.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_QFpeH3GzBe4.jpg",
+      "bytes": 193223,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_QFpeH3GzBe4.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_QFpeH3GzBe4.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TKsnx0yK3wu.jpg",
+      "bytes": 147265,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TKsnx0yK3wu.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TKsnx0yK3wu.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TeNNqIVw9cn.jpg",
+      "bytes": 166207,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TeNNqIVw9cn.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TeNNqIVw9cn.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TrOpWVKgpyE.jpg",
+      "bytes": 138831,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TrOpWVKgpyE.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_TrOpWVKgpyE.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_W5qN7flBszY.jpg",
+      "bytes": 101913,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_W5qN7flBszY.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_W5qN7flBszY.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_Zn4e2Zq4oVK.jpg",
+      "bytes": 121784,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_Zn4e2Zq4oVK.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_Zn4e2Zq4oVK.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_cMoxENuJa8v.jpg",
+      "bytes": 150208,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_cMoxENuJa8v.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_cMoxENuJa8v.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_crTmGTk8aGZ.jpg",
+      "bytes": 120451,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_crTmGTk8aGZ.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_crTmGTk8aGZ.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_cvxEwRqFR5u.jpg",
+      "bytes": 152587,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_cvxEwRqFR5u.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_cvxEwRqFR5u.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_eSklbXQTF0P.jpg",
+      "bytes": 152261,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_eSklbXQTF0P.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_eSklbXQTF0P.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_gdubPaMNURy.jpg",
+      "bytes": 138384,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_gdubPaMNURy.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_gdubPaMNURy.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_hNBlvm0CJrV.jpg",
+      "bytes": 132071,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_hNBlvm0CJrV.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_hNBlvm0CJrV.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_k3jg1y2f6MF.jpg",
+      "bytes": 117393,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_k3jg1y2f6MF.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_k3jg1y2f6MF.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_lzArHgbY5cu.jpg",
+      "bytes": 155745,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_lzArHgbY5cu.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_lzArHgbY5cu.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_nVOvQM1ODKM.jpg",
+      "bytes": 106588,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_nVOvQM1ODKM.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_nVOvQM1ODKM.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_prJElj3cxDf.jpg",
+      "bytes": 109409,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_prJElj3cxDf.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_prJElj3cxDf.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_pytqecL3fsM.jpg",
+      "bytes": 162966,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_pytqecL3fsM.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_pytqecL3fsM.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_r3jEPg0hFsW.jpg",
+      "bytes": 143147,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_r3jEPg0hFsW.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_r3jEPg0hFsW.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_rCyhCrbXXz7.jpg",
+      "bytes": 148411,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_rCyhCrbXXz7.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_rCyhCrbXXz7.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_rOOa1dXXpDB.jpg",
+      "bytes": 139870,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_rOOa1dXXpDB.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_rOOa1dXXpDB.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_ssu6fPzQdWm.jpg",
+      "bytes": 131342,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_ssu6fPzQdWm.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_ssu6fPzQdWm.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_tQfaWH32ovE.jpg",
+      "bytes": 190049,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_tQfaWH32ovE.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_tQfaWH32ovE.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_x1NV6TpyFIK.jpg",
+      "bytes": 130501,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_x1NV6TpyFIK.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_x1NV6TpyFIK.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_yXhSI4FCUo6.jpg",
+      "bytes": 112779,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_yXhSI4FCUo6.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/vinyl/vinyl-world/covers/MPREb_yXhSI4FCUo6.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/wallpaper/cold-ripple.jpg",
+      "bytes": 460861,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/wallpaper/cold-ripple.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/wallpaper/cold-ripple.jpg"
+    },
+    {
+      "path": "current-ui-mock/assets/wallpaper/sagas/dune.jpg",
+      "bytes": 118367,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/assets/wallpaper/sagas/dune.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/assets/wallpaper/sagas/dune.jpg"
+    },
+    {
+      "path": "current-ui-mock/verification/selected-screenshots/home-extensions.jpg",
+      "bytes": 217457,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/verification/selected-screenshots/home-extensions.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/verification/selected-screenshots/home-extensions.jpg"
+    },
+    {
+      "path": "current-ui-mock/verification/selected-screenshots/vault-feria.jpg",
+      "bytes": 123376,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/verification/selected-screenshots/vault-feria.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/verification/selected-screenshots/vault-feria.jpg"
+    },
+    {
+      "path": "current-ui-mock/verification/selected-screenshots/vinyl.jpg",
+      "bytes": 150116,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/current-ui-mock/verification/selected-screenshots/vinyl.jpg",
+      "production_url": "https://getcolosseum.world/current-ui-mock/verification/selected-screenshots/vinyl.jpg"
+    },
+    {
+      "path": "demos/reports/biblio-wave3-scrolled.png",
+      "bytes": 888342,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/biblio-wave3-scrolled.png",
+      "production_url": "https://getcolosseum.world/demos/reports/biblio-wave3-scrolled.png"
+    },
+    {
+      "path": "demos/reports/biblio-wave3-top.png",
+      "bytes": 785994,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/biblio-wave3-top.png",
+      "production_url": "https://getcolosseum.world/demos/reports/biblio-wave3-top.png"
+    },
+    {
+      "path": "demos/reports/book-page-mid.png",
+      "bytes": 136191,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/book-page-mid.png",
+      "production_url": "https://getcolosseum.world/demos/reports/book-page-mid.png"
+    },
+    {
+      "path": "demos/reports/book-page-t0.png",
+      "bytes": 322270,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/book-page-t0.png",
+      "production_url": "https://getcolosseum.world/demos/reports/book-page-t0.png"
+    },
+    {
+      "path": "demos/reports/comic-reader-mid.png",
+      "bytes": 423152,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/comic-reader-mid.png",
+      "production_url": "https://getcolosseum.world/demos/reports/comic-reader-mid.png"
+    },
+    {
+      "path": "demos/reports/comic-reader-t0.png",
+      "bytes": 496221,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/comic-reader-t0.png",
+      "production_url": "https://getcolosseum.world/demos/reports/comic-reader-t0.png"
+    },
+    {
+      "path": "demos/reports/downloads-wave3-scrolled.png",
+      "bytes": 877840,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/downloads-wave3-scrolled.png",
+      "production_url": "https://getcolosseum.world/demos/reports/downloads-wave3-scrolled.png"
+    },
+    {
+      "path": "demos/reports/downloads-wave3-top.png",
+      "bytes": 827196,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/downloads-wave3-top.png",
+      "production_url": "https://getcolosseum.world/demos/reports/downloads-wave3-top.png"
+    },
+    {
+      "path": "demos/reports/extensions-wave3-scrolled.png",
+      "bytes": 991523,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/extensions-wave3-scrolled.png",
+      "production_url": "https://getcolosseum.world/demos/reports/extensions-wave3-scrolled.png"
+    },
+    {
+      "path": "demos/reports/extensions-wave3-top.png",
+      "bytes": 742442,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/extensions-wave3-top.png",
+      "production_url": "https://getcolosseum.world/demos/reports/extensions-wave3-top.png"
+    },
+    {
+      "path": "demos/reports/manga-series-mid.png",
+      "bytes": 558237,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/manga-series-mid.png",
+      "production_url": "https://getcolosseum.world/demos/reports/manga-series-mid.png"
+    },
+    {
+      "path": "demos/reports/manga-series-t0.png",
+      "bytes": 843648,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/manga-series-t0.png",
+      "production_url": "https://getcolosseum.world/demos/reports/manga-series-t0.png"
+    },
+    {
+      "path": "demos/reports/tankoban-wave3-scrolled.png",
+      "bytes": 830759,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/tankoban-wave3-scrolled.png",
+      "production_url": "https://getcolosseum.world/demos/reports/tankoban-wave3-scrolled.png"
+    },
+    {
+      "path": "demos/reports/tankoban-wave3-top.png",
+      "bytes": 615601,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/tankoban-wave3-top.png",
+      "production_url": "https://getcolosseum.world/demos/reports/tankoban-wave3-top.png"
+    },
+    {
+      "path": "demos/reports/theatre-series-mid.png",
+      "bytes": 200536,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/theatre-series-mid.png",
+      "production_url": "https://getcolosseum.world/demos/reports/theatre-series-mid.png"
+    },
+    {
+      "path": "demos/reports/theatre-series-t0.png",
+      "bytes": 665070,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/theatre-series-t0.png",
+      "production_url": "https://getcolosseum.world/demos/reports/theatre-series-t0.png"
+    },
+    {
+      "path": "demos/reports/theatre-wave3-scrolled.png",
+      "bytes": 1139482,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/theatre-wave3-scrolled.png",
+      "production_url": "https://getcolosseum.world/demos/reports/theatre-wave3-scrolled.png"
+    },
+    {
+      "path": "demos/reports/theatre-wave3-top.png",
+      "bytes": 1252263,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/theatre-wave3-top.png",
+      "production_url": "https://getcolosseum.world/demos/reports/theatre-wave3-top.png"
+    },
+    {
+      "path": "demos/reports/video-player-mid.png",
+      "bytes": 503553,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/video-player-mid.png",
+      "production_url": "https://getcolosseum.world/demos/reports/video-player-mid.png"
+    },
+    {
+      "path": "demos/reports/video-player-t0.png",
+      "bytes": 522050,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/demos/reports/video-player-t0.png",
+      "production_url": "https://getcolosseum.world/demos/reports/video-player-t0.png"
+    },
+    {
+      "path": "release119/android.png",
+      "bytes": 1877021,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/android.png",
+      "production_url": "https://getcolosseum.world/release119/android.png"
+    },
+    {
+      "path": "release119/browse.png",
+      "bytes": 782144,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/browse.png",
+      "production_url": "https://getcolosseum.world/release119/browse.png"
+    },
+    {
+      "path": "release119/cold-ripple.jpg",
+      "bytes": 460861,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/cold-ripple.jpg",
+      "production_url": "https://getcolosseum.world/release119/cold-ripple.jpg"
+    },
+    {
+      "path": "release119/covers.png",
+      "bytes": 567489,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/covers.png",
+      "production_url": "https://getcolosseum.world/release119/covers.png"
+    },
+    {
+      "path": "release119/feria-hybrid.png",
+      "bytes": 4608575,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/feria-hybrid.png",
+      "production_url": "https://getcolosseum.world/release119/feria-hybrid.png"
+    },
+    {
+      "path": "release119/feria-showcase.png",
+      "bytes": 3997989,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/feria-showcase.png",
+      "production_url": "https://getcolosseum.world/release119/feria-showcase.png"
+    },
+    {
+      "path": "release119/hero.png",
+      "bytes": 471951,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/hero.png",
+      "production_url": "https://getcolosseum.world/release119/hero.png"
+    },
+    {
+      "path": "release119/saga.png",
+      "bytes": 885368,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/saga.png",
+      "production_url": "https://getcolosseum.world/release119/saga.png"
+    },
+    {
+      "path": "release119/t-cosmere-crop.png",
+      "bytes": 535323,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/t-cosmere-crop.png",
+      "production_url": "https://getcolosseum.world/release119/t-cosmere-crop.png"
+    },
+    {
+      "path": "release119/t-onepiece-crop.png",
+      "bytes": 2202986,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/t-onepiece-crop.png",
+      "production_url": "https://getcolosseum.world/release119/t-onepiece-crop.png"
+    },
+    {
+      "path": "release119/t-onepiece.png",
+      "bytes": 2255468,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/t-onepiece.png",
+      "production_url": "https://getcolosseum.world/release119/t-onepiece.png"
+    },
+    {
+      "path": "release119/t-starwars.png",
+      "bytes": 246111,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/t-starwars.png",
+      "production_url": "https://getcolosseum.world/release119/t-starwars.png"
+    },
+    {
+      "path": "release119/v-album.png",
+      "bytes": 869725,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/v-album.png",
+      "production_url": "https://getcolosseum.world/release119/v-album.png"
+    },
+    {
+      "path": "release119/v-artist-hero.png",
+      "bytes": 1047720,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/v-artist-hero.png",
+      "production_url": "https://getcolosseum.world/release119/v-artist-hero.png"
+    },
+    {
+      "path": "release119/v-artist.png",
+      "bytes": 3301919,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/v-artist.png",
+      "production_url": "https://getcolosseum.world/release119/v-artist.png"
+    },
+    {
+      "path": "release119/v-home.png",
+      "bytes": 788473,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/v-home.png",
+      "production_url": "https://getcolosseum.world/release119/v-home.png"
+    },
+    {
+      "path": "release119/v-song.png",
+      "bytes": 909515,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/release119/v-song.png",
+      "production_url": "https://getcolosseum.world/release119/v-song.png"
+    },
+    {
+      "path": "tributes/one-piece/assets/00dac4e0e8d32f57a37246a55d67058beaf16031dfec77e26b555867afe2eb8a.webp",
+      "bytes": 247312,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/00dac4e0e8d32f57a37246a55d67058beaf16031dfec77e26b555867afe2eb8a.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/00dac4e0e8d32f57a37246a55d67058beaf16031dfec77e26b555867afe2eb8a.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/0a942d17c68e298f42c4294c6c8d074bf543f571cb87f305e50007b6119ca638.webp",
+      "bytes": 340904,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/0a942d17c68e298f42c4294c6c8d074bf543f571cb87f305e50007b6119ca638.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/0a942d17c68e298f42c4294c6c8d074bf543f571cb87f305e50007b6119ca638.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/0d894fcc87e6765fd21914f80c87bab50a4f17b98ca59f7d22a8aeb3f2fcf841.webp",
+      "bytes": 212380,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/0d894fcc87e6765fd21914f80c87bab50a4f17b98ca59f7d22a8aeb3f2fcf841.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/0d894fcc87e6765fd21914f80c87bab50a4f17b98ca59f7d22a8aeb3f2fcf841.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/1115f7d2c163a0ccf7632dfa2619e9246c30da0ff3bc2c91e08a68c4d5349500.webp",
+      "bytes": 281788,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/1115f7d2c163a0ccf7632dfa2619e9246c30da0ff3bc2c91e08a68c4d5349500.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/1115f7d2c163a0ccf7632dfa2619e9246c30da0ff3bc2c91e08a68c4d5349500.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/1ff61241894e190f7a12ee08983443b915d72670bfb36060a8252f5c77a517c9.webp",
+      "bytes": 205214,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/1ff61241894e190f7a12ee08983443b915d72670bfb36060a8252f5c77a517c9.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/1ff61241894e190f7a12ee08983443b915d72670bfb36060a8252f5c77a517c9.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/29afcc7af154f3eeec4c7f9a7d79a230aa11f36e110e4bff8fc4f588d9b199e2.webp",
+      "bytes": 273148,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/29afcc7af154f3eeec4c7f9a7d79a230aa11f36e110e4bff8fc4f588d9b199e2.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/29afcc7af154f3eeec4c7f9a7d79a230aa11f36e110e4bff8fc4f588d9b199e2.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/2b4dc5ce39b3ef311221e2c335dbf2ed1498bb348b6a5e415ca3421aeee65646.webp",
+      "bytes": 173904,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/2b4dc5ce39b3ef311221e2c335dbf2ed1498bb348b6a5e415ca3421aeee65646.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/2b4dc5ce39b3ef311221e2c335dbf2ed1498bb348b6a5e415ca3421aeee65646.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/31d430e34e11bd5a4bb9db39eeda8749a2314b1a9008a5abc4a464b22a9b94b6.webp",
+      "bytes": 123176,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/31d430e34e11bd5a4bb9db39eeda8749a2314b1a9008a5abc4a464b22a9b94b6.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/31d430e34e11bd5a4bb9db39eeda8749a2314b1a9008a5abc4a464b22a9b94b6.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/376fe307829224feaada681ff1100ccf1e30164a0f6fe51d73a053ce3d3a95dc.webp",
+      "bytes": 247690,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/376fe307829224feaada681ff1100ccf1e30164a0f6fe51d73a053ce3d3a95dc.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/376fe307829224feaada681ff1100ccf1e30164a0f6fe51d73a053ce3d3a95dc.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/3ca7673c32c5e42b1cab1a4f9b41d68118129cb0d43b51ae999861e6c04c5d01.webp",
+      "bytes": 140568,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/3ca7673c32c5e42b1cab1a4f9b41d68118129cb0d43b51ae999861e6c04c5d01.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/3ca7673c32c5e42b1cab1a4f9b41d68118129cb0d43b51ae999861e6c04c5d01.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/408afd23b85dc832a9ba010d3b3c843139ceaff4e0ad7c2a4c3348f0295b6562.webp",
+      "bytes": 212504,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/408afd23b85dc832a9ba010d3b3c843139ceaff4e0ad7c2a4c3348f0295b6562.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/408afd23b85dc832a9ba010d3b3c843139ceaff4e0ad7c2a4c3348f0295b6562.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/49e5f1e2c0608e5dcd1733cd1040ffb6e44040eb218a1bb20208ea725da4e167.webp",
+      "bytes": 317374,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/49e5f1e2c0608e5dcd1733cd1040ffb6e44040eb218a1bb20208ea725da4e167.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/49e5f1e2c0608e5dcd1733cd1040ffb6e44040eb218a1bb20208ea725da4e167.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/50e3112116b0f919d0a9c354a5fe7c5d5a131bba192e2bc95c4654a903bdbe93.webp",
+      "bytes": 307334,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/50e3112116b0f919d0a9c354a5fe7c5d5a131bba192e2bc95c4654a903bdbe93.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/50e3112116b0f919d0a9c354a5fe7c5d5a131bba192e2bc95c4654a903bdbe93.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/580f810528007109e2b9dc0b7b2308347c8441609c0d453464309cff092c59da.webp",
+      "bytes": 224742,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/580f810528007109e2b9dc0b7b2308347c8441609c0d453464309cff092c59da.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/580f810528007109e2b9dc0b7b2308347c8441609c0d453464309cff092c59da.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/5b1f9d317d9432729abcf5a3f6f8eef5b553b55c89466404b931219f9a792955.webp",
+      "bytes": 201054,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/5b1f9d317d9432729abcf5a3f6f8eef5b553b55c89466404b931219f9a792955.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/5b1f9d317d9432729abcf5a3f6f8eef5b553b55c89466404b931219f9a792955.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/5c3590a66e09ee02eac4648c12f2fedaec3c8d7f29402bcfcb85a08ea2196917.webp",
+      "bytes": 214786,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/5c3590a66e09ee02eac4648c12f2fedaec3c8d7f29402bcfcb85a08ea2196917.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/5c3590a66e09ee02eac4648c12f2fedaec3c8d7f29402bcfcb85a08ea2196917.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/5ce5b4ccf6a52b9433c7bdde85fe089d3f2387ca88827ecc4fd8c4b78c9cec76.webp",
+      "bytes": 142656,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/5ce5b4ccf6a52b9433c7bdde85fe089d3f2387ca88827ecc4fd8c4b78c9cec76.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/5ce5b4ccf6a52b9433c7bdde85fe089d3f2387ca88827ecc4fd8c4b78c9cec76.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/60d403dc95e866a2eb4ce0d47f100caef7b00dc4c8bc9546a79a014d848ab418.webp",
+      "bytes": 179434,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/60d403dc95e866a2eb4ce0d47f100caef7b00dc4c8bc9546a79a014d848ab418.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/60d403dc95e866a2eb4ce0d47f100caef7b00dc4c8bc9546a79a014d848ab418.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/691e42daf4fb7063e86144357850548e7ddc6458fc9845438b5f794b657a2acb.webp",
+      "bytes": 117512,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/691e42daf4fb7063e86144357850548e7ddc6458fc9845438b5f794b657a2acb.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/691e42daf4fb7063e86144357850548e7ddc6458fc9845438b5f794b657a2acb.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/6c157d92a312cdd8f593b2f7baf84f625f1d44420ab6a3969074b7520a294b0f.webp",
+      "bytes": 292974,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/6c157d92a312cdd8f593b2f7baf84f625f1d44420ab6a3969074b7520a294b0f.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/6c157d92a312cdd8f593b2f7baf84f625f1d44420ab6a3969074b7520a294b0f.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/6fcd8449c192502680ae0f0ea6f781845875be438f0bc98bb4bd6c269566e9b5.webp",
+      "bytes": 169090,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/6fcd8449c192502680ae0f0ea6f781845875be438f0bc98bb4bd6c269566e9b5.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/6fcd8449c192502680ae0f0ea6f781845875be438f0bc98bb4bd6c269566e9b5.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/71be36ee7c78a899d03ee5dd4bcadc328872d4326cea1fc3000fd447fc6d92ed.webp",
+      "bytes": 260968,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/71be36ee7c78a899d03ee5dd4bcadc328872d4326cea1fc3000fd447fc6d92ed.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/71be36ee7c78a899d03ee5dd4bcadc328872d4326cea1fc3000fd447fc6d92ed.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/79fbdb7ae6dfc5af96371a976fc4b79b240bef9376e15057dcea897a6f98904b.webp",
+      "bytes": 214966,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/79fbdb7ae6dfc5af96371a976fc4b79b240bef9376e15057dcea897a6f98904b.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/79fbdb7ae6dfc5af96371a976fc4b79b240bef9376e15057dcea897a6f98904b.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/7b55dc82396c38f47496438e9d31acb1793a5e3171e8fc15e4b0062d45c5e18b.webp",
+      "bytes": 234394,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/7b55dc82396c38f47496438e9d31acb1793a5e3171e8fc15e4b0062d45c5e18b.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/7b55dc82396c38f47496438e9d31acb1793a5e3171e8fc15e4b0062d45c5e18b.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/8d82833eeb4482b4d65cf2ccb75d699afc1ced8be7bcda5c79dda62b053a9790.webp",
+      "bytes": 195750,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/8d82833eeb4482b4d65cf2ccb75d699afc1ced8be7bcda5c79dda62b053a9790.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/8d82833eeb4482b4d65cf2ccb75d699afc1ced8be7bcda5c79dda62b053a9790.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/96eee81054de6812a56ba624be20f5d16edd3adeacecac097f071be0ae37d127.webp",
+      "bytes": 256734,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/96eee81054de6812a56ba624be20f5d16edd3adeacecac097f071be0ae37d127.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/96eee81054de6812a56ba624be20f5d16edd3adeacecac097f071be0ae37d127.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/a58d465e100a429354f54592522a61afe9cf2d51fc25f67078959356cf9e515f.webp",
+      "bytes": 262618,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/a58d465e100a429354f54592522a61afe9cf2d51fc25f67078959356cf9e515f.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/a58d465e100a429354f54592522a61afe9cf2d51fc25f67078959356cf9e515f.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/ac183febe52aee9f0dba3af87b847238d1e36c5bfdd95381ec3edc5cf8ae554b.webp",
+      "bytes": 228170,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/ac183febe52aee9f0dba3af87b847238d1e36c5bfdd95381ec3edc5cf8ae554b.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/ac183febe52aee9f0dba3af87b847238d1e36c5bfdd95381ec3edc5cf8ae554b.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/c210c251a8ccd47f6b8cc3e6bc0db9c1298958c7fce932769f24905308df11f4.webp",
+      "bytes": 138948,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/c210c251a8ccd47f6b8cc3e6bc0db9c1298958c7fce932769f24905308df11f4.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/c210c251a8ccd47f6b8cc3e6bc0db9c1298958c7fce932769f24905308df11f4.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/d8cf85652917230391a5e5c27245d97bdd59e29fc8c558e41cac4be20823afb2.webp",
+      "bytes": 294738,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/d8cf85652917230391a5e5c27245d97bdd59e29fc8c558e41cac4be20823afb2.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/d8cf85652917230391a5e5c27245d97bdd59e29fc8c558e41cac4be20823afb2.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/e1fb087d4fce3d346f922cfd0d0e2065473b634f4439429c39d8216c90aa1575.webp",
+      "bytes": 196914,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/e1fb087d4fce3d346f922cfd0d0e2065473b634f4439429c39d8216c90aa1575.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/e1fb087d4fce3d346f922cfd0d0e2065473b634f4439429c39d8216c90aa1575.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/e56ef48cf823e3542a1e78966237788672fe0a0418586aab1f70fe877debd85a.webp",
+      "bytes": 118142,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/e56ef48cf823e3542a1e78966237788672fe0a0418586aab1f70fe877debd85a.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/e56ef48cf823e3542a1e78966237788672fe0a0418586aab1f70fe877debd85a.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/efe4f47055891eb557566415933d70006cf4a9edaa079c777aea6c1d36ac4610.webp",
+      "bytes": 164418,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/efe4f47055891eb557566415933d70006cf4a9edaa079c777aea6c1d36ac4610.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/efe4f47055891eb557566415933d70006cf4a9edaa079c777aea6c1d36ac4610.webp"
+    },
+    {
+      "path": "tributes/one-piece/assets/fda7401ae4ff4bad6507eafce3ce4a7f9b164be28b680c834a393cc2c7af6051.webp",
+      "bytes": 314484,
+      "source_url": "https://raw.githubusercontent.com/kingoftheseas56/Brotherhood/4f33a13df11bbd4d54ad295dc5669c9282fb6908/agents/colosseum-site/tributes/one-piece/assets/fda7401ae4ff4bad6507eafce3ce4a7f9b164be28b680c834a393cc2c7af6051.webp",
+      "production_url": "https://getcolosseum.world/tributes/one-piece/assets/fda7401ae4ff4bad6507eafce3ce4a7f9b164be28b680c834a393cc2c7af6051.webp"
+    }
+  ]
+}

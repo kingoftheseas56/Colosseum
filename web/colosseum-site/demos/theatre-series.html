@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Theatre series · Colosseum 1.1.8 recreation</title>
+<!-- Fixed 1280x720 / original default TheatreSeries.qml from v1.1.8, not the optional TheatreSeriesView.
+     Synthetic in-library The Bear state, real Cinemeta episode titles/overviews/still URLs.
+     Image fallback colours are always painted before their network pictures arrive. -->
+<style>
+@font-face{font-family:Fraunces;src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,sans-serif;--display:Fraunces,Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:#000}
+body{font-family:var(--ui);color:var(--ink);position:relative;user-select:none;cursor:default}
+.wall{position:absolute;inset:0;background:url("../assets/cold-ripple.jpg") center/cover;opacity:.24}
+.wall:after{content:"";position:absolute;inset:0;background:linear-gradient(#000b 0%,#000e 44%,#000 100%)}
+.stage{position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg,rgba(0,0,0,.40),rgba(0,0,0,.78) 42%,rgba(0,0,0,.95))}
+.content{position:absolute;left:0;top:0;width:1280px;will-change:transform}
+.hero{position:relative;width:1280px;height:360px;overflow:hidden;background:linear-gradient(120deg,#43382f,#181619 54%,#08090b)}
+.hero .art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 38%}
+.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,.50) 55%,rgba(0,0,0,.96) 100%)}
+.hero-copy{position:absolute;left:54px;right:54px;bottom:30px;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.kicker{color:var(--gold);font-size:11px;font-weight:400;letter-spacing:3px;text-transform:uppercase}
+.hero h1{font-family:var(--display);font-size:64px;font-weight:600;line-height:1.08;text-shadow:0 2px 8px rgba(0,0,0,.4)}
+.meta{display:flex;align-items:center;gap:11px;white-space:nowrap;font-size:14px;color:var(--dim);min-height:20px}
+.meta .year{color:var(--ink);font-weight:600}
+.meta .dash{color:var(--dimmer)}
+.rating{display:flex;gap:7px;align-items:center;color:var(--ink);font-weight:600}
+.imdb{display:grid;place-items:center;width:34px;height:18px;border-radius:3px;background:#f5c518;color:#111;font-size:10px;font-weight:900;letter-spacing:-.45px}
+.actions{display:flex;gap:12px;padding-top:8px}
+.action{height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;gap:9px;padding:0 18px;font-size:15px;font-weight:600;white-space:nowrap}
+.action.primary{padding:0 20px;background:var(--gold);color:#1a1306;font-size:14px}
+.action.secondary{background:rgba(255,255,255,.05);border:1px solid var(--edge)}
+.action .check{font-size:17px;color:var(--gold);line-height:1}
+.action svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.facts{display:flex;gap:56px;margin-left:54px;width:1172px;align-items:flex-start;min-height:94px}
+.synopsis{width:580px;flex:none;padding:22px 0 6px;color:var(--dim);font-size:15px;line-height:1.5}
+.factlist{display:flex;flex-direction:column;gap:10px;padding-top:1px;font-size:13px}
+.fact{display:flex;align-items:baseline;gap:18px;min-height:16px;white-space:nowrap}
+.fact .key{width:90px;color:var(--dim);flex:none}
+.fact .value{color:var(--ink)}
+.season-placeholder{height:160px;position:relative}
+.episodes{position:relative;width:1280px;padding-bottom:80px}
+.episode{height:104px;position:relative;width:100%;background:transparent}
+.episode.next{height:148px}
+.episode-face{position:absolute;left:54px;right:54px;top:0;bottom:0;border-bottom:1px solid var(--edge);background:rgba(255,255,255,.005)}
+.episode.next .episode-face{background:rgba(240,196,74,.035)}
+.episode.focus .episode-face{background:rgba(240,196,74,.09);box-shadow:inset 0 0 0 1px rgba(240,196,74,.32)}
+.episode.next .rail,.episode.focus .rail{position:absolute;left:54px;top:0;bottom:0;width:2px;background:var(--gold)}
+.ep-num{position:absolute;left:56px;top:0;width:70px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ep-num:after{content:"";position:absolute;right:0;top:14px;bottom:14px;width:1px;background:var(--edge)}
+.ep-num strong{font-family:var(--display);font-weight:600;font-size:21px;line-height:1.15}
+.episode.next .ep-num strong{font-size:25px;color:var(--gold)}
+.ep-num small{color:var(--dimmer);font-weight:600;letter-spacing:1.1px;font-size:9px}
+.still{position:absolute;left:142px;top:50%;transform:translateY(-50%);width:172px;height:96px;border-radius:7px;overflow:hidden;background:linear-gradient(140deg,#3a4d55,#161b22 57%,#0c1115)}
+.still img{display:block;width:100%;height:100%;object-fit:cover}
+.ep-copy{position:absolute;left:332px;right:272px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.episode.next .ep-copy{gap:8px}
+.ep-title{font-size:15px;font-weight:600;color:var(--ink);line-height:1.28;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.episode.next .ep-title{font-size:17px}
+.ep-sub{font-size:12px;font-weight:600;color:var(--dimmer);white-space:nowrap}
+.episode.next .ep-sub{color:var(--gold)}
+.ep-desc{font-size:13px;color:var(--dimmer);line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
+.episode.next .ep-desc{-webkit-line-clamp:2}
+.ep-state{position:absolute;top:50%;right:168px;transform:translateY(-50%);font-size:10px;letter-spacing:1.1px;font-weight:600;color:var(--dimmer)}
+.episode.next .ep-state{color:var(--gold)}
+.ep-actions{position:absolute;right:64px;top:50%;transform:translateY(-50%);display:flex;gap:8px}
+.round{height:38px;width:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.07);border:1px solid var(--edge)}
+.episode.next .round.play{border-color:var(--gold);color:var(--gold)}
+.round svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.chrome{position:absolute;left:0;width:1280px;height:160px;z-index:15;--pinTop:72px}
+.chrome:before{content:"";pointer-events:none;position:absolute;left:0;right:0;top:calc(-1 * var(--pinTop));height:calc(160px + var(--pinTop));background:rgba(4,5,9,.93);opacity:0}
+.chrome.pinned:before{opacity:1;border-bottom:1px solid var(--edge)}
+.tabs{position:relative;height:44px;display:flex;gap:22px;padding:18px 54px 0;align-items:flex-start}
+.tab{font-size:15px;white-space:nowrap;color:var(--dim);display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.tab.selected{color:var(--gold);font-weight:600}
+.tab.selected:after{content:"";height:2px;width:26px;border-radius:2px;background:var(--gold)}
+.ledger{position:relative;height:86px;margin:0 54px;display:flex;align-items:center;justify-content:space-between}
+.ledger h2{font-family:var(--display);font-size:25px;line-height:1.2;font-weight:600}
+.ledger p{color:var(--dimmer);font-size:12px;letter-spacing:.3px;margin-top:7px}
+.season-download{height:40px;min-width:176px;border:1px solid var(--edge);border-radius:9px;background:rgba(255,255,255,.06);display:flex;gap:9px;align-items:center;justify-content:center;color:var(--dim);font-size:12px;font-weight:600}
+.season-download svg{height:16px;width:16px;stroke:currentColor;fill:none;stroke-width:1.6}
+.columns{position:relative;height:30px;margin:0 54px;border-bottom:1px solid var(--edge);font-size:10px;letter-spacing:1.3px;font-weight:600;color:var(--dimmer)}
+.columns span{position:absolute;top:8px}.columns .c1{left:12px}.columns .c2{left:276px}.columns .c3{right:118px}
+.top-scrim{position:absolute;top:0;left:0;right:0;height:84px;background:linear-gradient(rgba(0,0,0,.58),transparent);pointer-events:none;z-index:20}
+.back{position:absolute;left:54px;top:28px;height:34px;display:flex;align-items:center;gap:9px;z-index:22;color:var(--ink);font-size:15px}
+.back svg{height:20px;width:20px;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.sys{position:absolute;right:54px;top:34px;height:22px;display:flex;align-items:center;gap:20px;z-index:22}
+.sys img{width:22px;height:22px;opacity:.72}
+.scroll-track{position:absolute;right:5px;top:20px;bottom:12px;width:5px;border-radius:9px;background:transparent;z-index:24}
+.scroll-thumb{position:absolute;top:0;right:0;width:5px;height:88px;border-radius:9px;background:rgba(235,236,241,.40)}
+</style>
+</head>
+<body>
+<div class="wall"></div>
+<div class="stage">
+  <div class="content" id="content">
+    <section class="hero">
+      <img class="art" src="https://live.metahub.space/background/large/tt14452776/img" alt="The Bear series backdrop">
+      <div class="hero-copy" id="heroCopy">
+        <div class="kicker">Series - Theatre</div>
+        <h1>The Bear</h1>
+        <div class="meta"><span class="year">2022–2026</span><span class="dash">-</span><span>Comedy - Drama</span><span class="dash">-</span><span class="rating"><span class="imdb">IMDb</span> 8.5</span><span class="dash">-</span><span>35 min</span></div>
+        <div class="actions">
+          <div class="action primary"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg><span id="watchText">Watch&nbsp; S2 · E1</span></div>
+          <div class="action secondary"><span class="check">✓</span>In Library</div>
+          <div class="action secondary">Notifications on</div>
+        </div>
+      </div>
+    </section>
+    <div class="facts">
+      <p class="synopsis">A young chef from the fine dining world returns to Chicago to run his family's sandwich shop.</p>
+      <div class="factlist"><div class="fact"><span class="key">Writers</span><span class="value">Christopher Storer</span></div><div class="fact"><span class="key">Country</span><span class="value">United States</span></div><div class="fact"><span class="key">Aired</span><span class="value">2022–2026</span></div><div class="fact"><span class="key">Status</span><span class="value">Ended</span></div></div>
+    </div>
+    <div class="season-placeholder" id="seasonPlace"></div>
+    <section class="episodes" id="episodes" aria-label="Episodes"></section>
+  </div>
+  <div class="chrome" id="chrome">
+    <div class="tabs" id="tabs"><span class="tab">Season 1</span><span class="tab selected">Season 2</span><span class="tab">Season 3</span><span class="tab">Season 4</span><span class="tab">Season 5</span><span class="tab">Specials</span></div>
+    <div class="ledger"><div><h2 id="seasonTitle">Season 2</h2><p id="seasonSub">10 episodes&nbsp; / &nbsp;next E1</p></div><div class="season-download"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg>Download season</div></div>
+    <div class="columns"><span class="c1">EPISODE</span><span class="c2">STORY</span><span class="c3">STATUS</span></div>
+  </div>
+  <div class="top-scrim"></div>
+  <div class="back"><svg viewBox="0 0 24 24"><path d="M15 5.5 8 12l7 6.5"/></svg>Back</div>
+  <div class="sys"><img src="../assets/icons/minimize.svg" alt=""><img src="../assets/icons/fullscreen-exit.svg" alt=""><img src="../assets/icons/power.svg" alt=""></div>
+  <div class="scroll-track"><div class="scroll-thumb" id="scrollThumb"></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  // All episode names, descriptions and still-address patterns below were checked against Cinemeta.
+  var stillBase = "https://episodes.metahub.space/tt14452776/";
+  var seasons = {
+    2: [
+      ["Beef","Faced with the reality of opening a new restaurant, the crew must make a plan."],
+      ["Pasta","The crew splits up to work towards their new vision."],
+      ["Sundae","Sydney searches Chicago for culinary inspiration."],
+      ["Honeydew","Marcus challenges himself."],
+      ["Pop","The renovation gets off track."],
+      ["Fishes","Feast of the Seven Fishes."],
+      ["Forks","Richie stages."],
+      ["Bolognese","The crew awaits a do-or-die fire suppression test."],
+      ["Omelette","Final preparations are made for The Bear's first service."],
+      ["The Bear","Friends & Family night at The Bear."]
+    ],
+    3: [
+      ["Tomorrow","The next day and the days that led to it."],
+      ["Next","Carmy sets a new standard."],
+      ["Doors","The staff slogs through a month of service."],
+      ["Violet","Sydney gets a new apartment. Marcus finds inspiration."],
+      ["Children","The Computer gives The Bear its odds."],
+      ["Napkins","Tina looks for a new opportunity."],
+      ["Legacy","The restaurant is out of C-Folds. Sydney is presented with an opportunity."],
+      ["Ice Chips","Sugar finds support in an unexpected place."],
+      ["Apologies","Carmy thinks about apologizing."],
+      ["Forever","Another funeral."]
+    ]
+  };
+  var icons = {
+    play:'<svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg>',
+    download:'<svg viewBox="0 0 24 24"><path d="M12 3v11m-4-4 4 4 4-4M4 17v3h16v-3"/></svg>'
+  };
+  function el(id) { return document.getElementById(id); }
+  var content = el("content"), chrome = el("chrome"), list = el("episodes"),
+      tabs = Array.from(el("tabs").children), thumb = el("scrollThumb");
+  var activeSeason = 0, activeFocus = -1, LOOP = 17000;
+  function build(season) {
+    if (activeSeason === season) return;
+    activeSeason = season; activeFocus = -1;
+    el("seasonTitle").textContent = "Season " + season;
+    el("seasonSub").textContent = "10 episodes  /  next E1";
+    el("watchText").textContent = "Watch  S" + season + " · E1";
+    tabs.forEach(function (tab) { tab.classList.toggle("selected",tab.textContent === "Season " + season); });
+    list.innerHTML = seasons[season].map(function (ep, i) {
+      var n = i + 1, next = i === 0;
+      return '<article class="episode'+(next?' next':'')+'" data-i="'+i+'">'+
+        '<div class="episode-face"></div>'+(next?'<div class="rail"></div>':'')+
+        '<div class="ep-num"><strong>'+n+'</strong><small>S'+season+'</small></div>'+
+        '<div class="still"><img alt="'+ep[0]+' still" src="'+stillBase+season+'/'+n+'/w780.jpg"></div>'+
+        '<div class="ep-copy"><div class="ep-title">'+ep[0]+'</div><div class="ep-sub">'+(next?'Next up · ':'')+(season===2?'6/22/23':'6/26/24')+'</div><div class="ep-desc">'+ep[1].replace(/&/g,"&amp;")+'</div></div>'+
+        '<div class="ep-state">'+(next?'NEXT UP':'AVAILABLE')+'</div>'+
+        '<div class="ep-actions"><span class="round play">'+icons.play+'</span><span class="round">'+icons.download+'</span></div></article>';
+    }).join("");
+    Array.from(list.querySelectorAll("img")).forEach(function (img) {
+      img.addEventListener("error",function () { img.style.display="none"; });
+    });
+  }
+  function ease(x) { return x < .5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2; }
+  // Measured: 360px hero; synopsis row then 44px season strip + 86px ledger + 30px columns.
+  // Paused header -> smooth scroll -> one season change -> 3 keyboard-focus steps -> return.
+  function frame(t) {
+    t = ((t % LOOP) + LOOP) % LOOP;
+    build(t < 6400 ? 2 : 3);
+    var park = el("seasonPlace").offsetTop - 72;
+    var y = t < 2400 ? 0 : t < 5100 ? park*ease((t-2400)/2700)
+          : t < 11800 ? park : t < 14400 ? park*(1-ease((t-11800)/2600)) : 0;
+    content.style.transform = "translateY(" + (-Math.round(y)) + "px)";
+    var placeY = el("seasonPlace").offsetTop - y, chromey = Math.max(72,placeY);
+    chrome.style.top = Math.round(chromey) + "px";
+    chrome.style.setProperty("--pinTop",Math.round(chromey)+"px");
+    chrome.classList.toggle("pinned",placeY <= 72);
+    el("heroCopy").style.opacity = Math.max(0,1-y/220).toFixed(3);
+    var focused = t>=7300 && t<8600 ? 0 : t>=8600 && t<10100 ? 1 : t>=10100 && t<11600 ? 2 : -1;
+    if(focused!==activeFocus){activeFocus=focused;Array.from(list.children).forEach(function (row,i){row.classList.toggle("focus",i===focused);});}
+    var scrollMax = list.offsetTop + list.offsetHeight - 720;
+    thumb.style.transform="translateY("+Math.round(Math.max(0,y/Math.max(1,scrollMax))*470)+"px)";
+  }
+  var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var frozen = /[?&]t=(\d+)/.exec(location.search);
+  if (frozen || reduced) { frame(frozen ? Number(frozen[1]) : 0); return; }
+  var running=false,start=0,held=0;
+  function tick(now){if(!running)return;frame((now-start)%LOOP);requestAnimationFrame(tick);}
+  function play(on){
+    if(on===running)return;
+    running=on;
+    if(on){start=performance.now()-held;requestAnimationFrame(tick);}
+    else held=(performance.now()-start)%LOOP;
+  }
+  if("IntersectionObserver" in window) new IntersectionObserver(function (entries){play(entries[0].isIntersecting);},{threshold:.3}).observe(document.documentElement);
+  else play(true);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280,initial-scale=1">
+<title>Extensions · Colosseum</title>
+<style>
+@font-face{font-family:Fraunces;src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,sans-serif;--display:Fraunces,Georgia,serif}
+*{box-sizing:border-box}
+html,body{width:1280px;height:720px;margin:0;overflow:hidden;background:#06070a}
+body{position:relative;color:var(--ink);font-family:var(--ui);cursor:default;user-select:none}
+button,input{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wall{position:absolute;inset:0;background:#06070a url("../current-ui-mock/assets/extensions/store-jolly-roger.jpg") center center/cover no-repeat}
+.wall:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,5,8,.55),rgba(4,5,8,.66) 50%,rgba(4,5,8,.80))}
+.header{position:absolute;top:30px;left:54px;height:56px;width:1172px;z-index:30;display:flex;align-items:center;gap:15px}
+.back{display:grid;place-items:center;width:46px;height:48px;border:0;background:transparent;padding:0;color:var(--dim);margin-left:-15px}
+.back svg{height:20px;width:20px;stroke-width:2.3;stroke:currentColor;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.back:hover{color:white}
+.header-copy h1{font:400 24px/29px var(--display);margin:0;letter-spacing:-.45px}
+.header-copy p{font:11px/16px var(--ui);color:var(--dim);margin:2px 0 0}
+.viewport{position:absolute;top:96px;left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#c9c8d06b transparent;overscroll-behavior:contain}
+.viewport::-webkit-scrollbar{width:6px}.viewport::-webkit-scrollbar-track{background:transparent}.viewport::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(205,205,210,.43)}
+.board{width:1172px;margin:0 54px;padding:12px 0 50px;display:flex;flex-direction:column;gap:36px}
+.house{width:1172px;height:330px;flex:none;position:relative;border-radius:28px;overflow:hidden;background:#0b0d12;border:1px solid rgba(255,255,255,.10)}
+.hero-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.hero-veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,.05) 42%,rgba(0,0,0,.14) 62%,rgba(0,0,0,.52));pointer-events:none}
+.search-pill{position:absolute;top:20px;right:26px;height:34px;border-radius:17px;display:flex;align-items:center;gap:8px;padding:0 18px;background:rgba(15,16,22,.78);border:1px solid rgba(255,255,255,.12);font-size:14px;color:rgba(255,255,255,.78);z-index:3}
+.search-pill img{width:15px;height:15px;opacity:.78}.search-pill:hover{border-color:#ffffff65;background:#14171dbf;color:var(--ink)}
+.tray{position:absolute;left:3%;right:3%;bottom:22px;height:174px;border:1px solid rgba(255,255,255,.30);border-radius:31px;background:linear-gradient(90deg,rgba(236,229,216,.32),rgba(220,212,198,.13));-webkit-backdrop-filter:blur(34px);backdrop-filter:blur(34px);display:flex;align-items:center;justify-content:center;gap:8px;z-index:2}
+.house-item{width:122px;height:140px;flex:none;position:relative;display:flex;align-items:center;flex-direction:column}
+.house-tile{height:82px;width:82px;border-radius:19px;border:0;background:rgba(250,250,248,.97);box-shadow:0 12px 25px #0004;display:grid;place-items:center;padding:0;transition:transform .18s ease,box-shadow .18s ease}
+.house-item[data-source="opensubtitles"] .house-tile{background:#1b1d24}
+.house-tile img{width:58%;height:58%;object-fit:contain}.house-item:hover .house-tile{transform:translateY(-4px) scale(1.03);box-shadow:0 19px 30px #0006}
+.house-caption{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:8px;white-space:nowrap}
+.house-name{height:28px;max-width:112px;display:grid;place-items:center;border-radius:11px;padding:0 10px;color:rgba(255,255,255,.86);background:rgba(25,26,29,.28);border:1px solid rgba(255,255,255,.16);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.house-item[data-source] .house-name{max-width:100px}
+.house-toggle{width:28px;height:28px;flex:none;border-radius:50%;padding:0;display:grid;place-items:center;background:rgba(40,120,82,.82);border:1px solid rgba(159,255,210,.55);color:#fff;font-size:14px;font-weight:600;transition:transform .16s ease}
+.house-toggle.off{background:rgba(18,19,24,.72);border-color:#ffffff55;opacity:.55}
+.house-toggle:hover{transform:translateY(-2px)}
+.rail{width:1172px;flex:none;min-height:0}
+.rail-head{position:relative;margin-bottom:14px}
+.rail-head h2{font:600 26px/32px var(--display);margin:0;letter-spacing:-.22px}
+.rail-head p{font-size:14px;line-height:18px;color:var(--dimmer);margin:5px 0 0}
+.see-all{position:absolute;right:0;bottom:0;background:none;border:0;color:var(--dim);font:15px var(--ui);padding:4px;transition:color .2s}
+.see-all:hover{color:var(--ink)}
+.rail-clip{width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-behavior:smooth}
+.rail-clip::-webkit-scrollbar{display:none}
+.cards{display:flex;gap:22px;width:max-content;align-items:flex-start}
+.addon{width:365px;height:299px;flex:none;padding:0;border:0;background:transparent;text-align:left;color:var(--ink);border-radius:23px;display:block;position:relative;transition:transform .18s ease}
+.addon-art{width:365px;height:220px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:23px;background:linear-gradient(110deg,hsl(var(--hue) 34% 16%),hsl(var(--hue2) 32% 10%));transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
+.wash{position:absolute;left:50%;top:50%;width:127%;height:127%;object-fit:contain;transform:translate(-50%,-50%) scale(1.35);filter:blur(36px) saturate(1.85) brightness(.72);opacity:.74;pointer-events:none}
+.art-scrim{position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.03),rgba(0,0,0,.18));pointer-events:none}
+.logo-stage{position:absolute;left:50%;top:50%;width:112px;height:112px;transform:translate(-50%,-50%);border-radius:26px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:rgba(24,25,31,.92);border:1px solid rgba(255,255,255,.09);transition:transform .18s ease}
+.logo-stage img{width:78%;height:78%;object-fit:contain}
+.addon:hover,.addon:focus-visible{transform:translateY(-4px)}
+.addon:hover .addon-art,.addon:focus-visible .addon-art{border-color:rgba(240,196,74,.42);box-shadow:0 14px 30px rgba(0,0,0,.28)}
+.addon:hover .logo-stage,.addon:focus-visible .logo-stage{transform:translate(-50%,calc(-50% - 4.5px)) scale(1.045)}
+.addon h3{margin:12px 0 0;font:600 18px/24px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addon p{margin:3px 0 0;max-width:100%;font:14px/20px var(--ui);color:#aaa69e;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.install-badge{position:absolute;right:14px;top:14px;height:26px;padding:0 11px;display:flex;align-items:center;border-radius:13px;background:rgba(10,11,15,.62);border:1px solid rgba(240,196,74,.45);color:var(--gold);font:600 11px var(--ui)}
+.footer{font-size:12px;color:#ffffff57;line-height:1.65;margin:0 0 10px}
+.dock{position:absolute;left:58px;bottom:16px;z-index:40;height:64px;width:130px;border-radius:32px;border:1px solid rgba(255,255,255,.16);background:rgba(5,5,8,.72);display:flex;align-items:center;gap:14px;padding:0 8px;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.dock button{border:0;border-radius:50%;width:48px;height:48px;padding:0;display:grid;place-items:center;background:rgba(255,255,255,.055);flex:none}
+.dock button:last-child{height:46px;width:46px;border-radius:13px}
+.dock button:hover{background:rgba(255,255,255,.15)}.dock img{width:28px;height:28px;object-fit:contain}.dock button:last-child img{width:25px;height:25px;opacity:.75}
+.dialog-shade{position:absolute;z-index:90;inset:0;background:rgba(0,0,0,.67);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);display:none;align-items:center;justify-content:center}
+.dialog-shade.open{display:flex}.dialog{width:960px;max-height:650px;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.21);border-radius:24px;overflow:hidden;background:#101116f2;box-shadow:0 22px 80px #000a}
+.dialog-title{padding:22px 26px;border-bottom:1px solid rgba(255,255,255,.14);display:flex;align-items:center;gap:14px}
+.dialog-title h2{font:28px/34px var(--display);margin:0}.dialog-title .close{margin-left:auto;font-size:25px;border:0;background:transparent;color:var(--dim)}
+.dialog-meta{color:var(--dimmer);font-size:13px;margin:0 26px 12px}.dialog-body{overflow:auto;padding:20px 26px 26px}
+.dialog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.dialog-grid .addon{width:282px;height:259px}.dialog-grid .addon-art{width:282px;height:170px}.dialog-grid .logo-stage{transform:translate(-50%,-50%) scale(.82)}.dialog-grid .addon:hover .logo-stage{transform:translate(-50%,calc(-50% - 4.5px)) scale(.87)}
+.search-field{margin:0 26px 0;padding:12px 15px;background:rgba(255,255,255,.08);border:1px solid var(--edge);color:var(--ink);border-radius:12px;font:16px var(--ui)}
+.empty{padding:40px 0;color:var(--dim);text-align:center}
+</style>
+</head>
+<body>
+<div class="wall" aria-hidden="true"></div>
+<header class="header">
+  <button class="back" type="button" aria-label="Back to Colosseum" title="Back"><svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></svg></button>
+  <div class="header-copy"><h1>Extensions</h1><p>Add-ons and sources for every world.</p></div>
+</header>
+<main class="viewport" id="viewport" aria-label="Extensions store, scroll for sections">
+  <div class="board" id="board">
+    <section class="house" aria-label="Installed sources and the Extensions House">
+      <img class="hero-image" src="../current-ui-mock/assets/extensions/house/dcau.jpg" alt="">
+      <div class="hero-veil"></div>
+      <button class="search-pill" type="button" id="search-pill"><img src="../assets/icons/search.svg" alt="">Search</button>
+      <div class="tray" id="tray" aria-label="Installed sources"></div>
+    </section>
+  </div>
+</main>
+<div class="dock" role="group" aria-label="Colosseum dock">
+  <button type="button" title="Colosseum" aria-label="Colosseum"><img src="../current-ui-mock/assets/icons/colosseum.svg" alt=""></button>
+  <button type="button" title="Vault" aria-label="Vault"><img src="../current-ui-mock/assets/icons/vault-door.svg" alt=""></button>
+</div>
+<div class="dialog-shade" id="dialog-shade" role="presentation">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-heading">
+    <div class="dialog-title"><h2 id="dialog-heading"></h2><button class="close" type="button" id="close-dialog" aria-label="Close">×</button></div>
+    <p class="dialog-meta" id="dialog-meta"></p>
+    <input class="search-field" type="search" id="search-field" placeholder="Search add-ons by name or purpose" aria-label="Search add-ons" hidden>
+    <div class="dialog-body" id="dialog-body"></div>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+const ROOT="../current-ui-mock/assets/";
+const U=ROOT+"addon-logos/";
+const A={
+ opensubtitles:["OpenSubtitles v3","opensubtitles.png","Subtitles in every language, matched to the exact episode playing.",true],
+ streaming:["Streaming Catalogs","streaming-catalogs.png","Streaming service catalogues for movies and shows.",true],
+ kitsu:["Anime Kitsu","anime-kitsu.png","Proper anime seasons, split cour entries and episode orders.",true],
+ flixpatrol:["FlixPatrol Top 10","flixpatrol.png","Worldwide top-ten charts, as browsable rows.",false],
+ netflix:["Netflix Catalog","netflix-catalog.png","What's new and leaving on Netflix as browsable rows.",false],
+ aiolists:["AIOLists","aiolists.png","Your watchlists from anywhere turned into home rows.",false],
+ marvel:["Marvel Universe","marvel.png","Every Marvel film and show in release or story order.",false],
+ dc:["DC Universe","dc.png","The DC canon, ordered and browsable.",false],
+ jikan:["Jikan","jikan.png","Anime catalogues and episode details.",false],
+ subsource:["SubSource","subsource.png","A second deep well of subtitles when the first runs dry.",false],
+ subdl:["SubDL","subdl.jpg","Community subtitles with strong regional coverage.",false],
+ ratings:["Ratings","ratings.jpg","IMDb, Rotten Tomatoes and Letterboxd scores on every page.",false],
+ streailer:["Streailer","streailer.png","Trailers on demand for anything in the catalog.",false],
+ morelike:["More Like This","morelikethis.png","Recommendations similar to a title you're exploring.",false],
+ tmdb:["The Movie Database","tmdb.png","Movies and series with detailed metadata.",true],
+ anime:["AniList","anilist.png","Anime and manga list details.",true],
+};
+const ROWS=[
+ ["essentials","Essentials","The five a fresh Colosseum needs.",["opensubtitles","streaming","kitsu","tmdb","anime"]],
+ ["watch","Something to watch","New rows and catalogues for Theatre.",["streaming","netflix","flixpatrol","aiolists","marvel","dc"]],
+ ["anime","Anime","Seasons, catalogues and episode orders for anime.",["kitsu","jikan","anime"]],
+ ["subtitles","Subtitles","Every language, matched to what is playing.",["opensubtitles","subsource","subdl"]],
+ ["titles","Better titles","Posters, ratings, episode orders and cleaner metadata.",["ratings","streailer","morelike","tmdb","kitsu"]]
+];
+const HOUSE=[
+ ["tributes","Tributes","icons/universes-atom.svg",null],
+ ["grand","Grand Database","addon-logos/colosseum-grand-database.png",null],
+ ["anilist","AniList","addon-logos/anilist.png",true],
+ ["applebooks","Apple Books","addon-logos/applebooks.ico",true],
+ ["kitsu","Anime Kitsu","addon-logos/anime-kitsu.png",true],
+ ["opensubtitles","OpenSubtitles","addon-logos/opensubtitles.png",true]
+];
+const tray=document.getElementById("tray"),board=document.getElementById("board"),viewport=document.getElementById("viewport"),shade=document.getElementById("dialog-shade"),dlgTitle=document.getElementById("dialog-heading"),dlgBody=document.getElementById("dialog-body"),dlgMeta=document.getElementById("dialog-meta"),searchField=document.getElementById("search-field");
+const installed=new Set(Object.entries(A).filter(function(e){return e[1][3]}).map(function(e){return e[0]}));
+function mk(tag,cls,txt){let el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=txt;return el}
+function img(path,alt){let i=document.createElement("img");i.src=path;i.alt=alt||"";return i}
+function hue(name){let h=0;for(const c of name)h=(h*31+c.charCodeAt(0))%360;return h}
+function makeHouse(){
+ HOUSE.forEach(function(h){
+  let item=mk("div","house-item");if(h[3]!==null)item.dataset.source=h[0];
+  let b=mk("button","house-tile");b.type="button";b.setAttribute("aria-label",h[1]);b.append(img(ROOT+h[2],h[1]+" logo"));
+  b.addEventListener("click",function(){if(h[0]==="tributes")showInfo("Tributes","Tributes and the Universe Hall are reached from the Colosseum app.");});
+  let cap=mk("div","house-caption"),name=mk("span","house-name",h[1]);cap.append(name);
+  if(h[3]!==null){let on=!!h[3],t=mk("button","house-toggle",on?"✓":"+");t.type="button";t.setAttribute("aria-label",(on?"Disable ":"Enable ")+h[1]);t.addEventListener("click",function(){on=!on;t.classList.toggle("off",!on);t.textContent=on?"✓":"+";t.setAttribute("aria-label",(on?"Disable ":"Enable ")+h[1]);});cap.append(t);}
+  item.append(b,cap);tray.append(item);
+ });
+}
+function card(id,small){
+ const data=A[id],name=data[0],logo=U+data[1],b=mk("button","addon");b.type="button";b.dataset.id=id;b.setAttribute("aria-label",name+(installed.has(id)?", installed":", view add-on details"));
+ const hue1=hue(name);b.style.setProperty("--hue",String(hue1));b.style.setProperty("--hue2",String((hue1+30)%360));
+ const art=mk("div","addon-art");art.append(img(logo,""));art.firstChild.className="wash";
+ art.append(mk("div","art-scrim"));
+ const stage=mk("div","logo-stage");
+ stage.append(img(logo,name+" logo"));
+ art.append(stage);
+ if(installed.has(id))art.append(mk("span","install-badge","✓ Installed"));
+ b.append(art,mk("h3","",name),mk("p","",data[2]));
+ b.addEventListener("click",function(){showInfo(name,data[2],id)});
+ return b;
+}
+function renderRails(){
+ ROWS.forEach(function(r,i){
+  let rail=mk("section","rail");rail.id="row-"+r[0];rail.dataset.rail=r[0];let head=mk("div","rail-head");
+  head.append(mk("h2","",r[1]),mk("p","",r[2]));
+  if(i){let all=mk("button","see-all","See all ›");all.type="button";all.addEventListener("click",function(){showList(r[1],r[2],r[3])});head.append(all)}
+  let clip=mk("div","rail-clip");clip.tabIndex=0;clip.setAttribute("aria-label",r[1]+" add-on cards; scroll horizontally");
+  const cards=mk("div","cards");r[3].forEach(function(id){cards.append(card(id))});clip.append(cards);
+  clip.addEventListener("wheel",function(e){if(e.shiftKey){clip.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
+  rail.append(head,clip);board.append(rail);
+ });
+ const foot=mk("p","footer","Community add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum.");board.append(foot);
+}
+function showDialog(title,sub){
+ dlgTitle.textContent=title;dlgMeta.textContent=sub||"";dlgBody.replaceChildren();searchField.hidden=true;searchField.value="";
+ shade.classList.add("open");document.getElementById("close-dialog").focus();
+}
+function showInfo(title,description,id){
+ showDialog(title,description);
+ if(id){const grid=mk("div","dialog-grid");grid.append(card(id,true));dlgBody.append(grid);}
+ else dlgBody.append(mk("p","",description));
+}
+function showList(title,subtitle,ids){
+ showDialog(title,subtitle);const grid=mk("div","dialog-grid");ids.forEach(function(id){grid.append(card(id,true))});dlgBody.append(grid);
+}
+function doSearch(){
+ const v=searchField.value.toLowerCase().trim(),terms=v.split(/\s+/).filter(Boolean);
+ const ids=Object.keys(A).filter(function(id){const d=A[id];return terms.every(function(t){return (d[0]+" "+d[2]).toLowerCase().includes(t)})});
+ dlgBody.replaceChildren();
+ if(!ids.length){dlgBody.append(mk("p","empty","No add-ons found. Try another name or category."));return}
+ const grid=mk("div","dialog-grid");ids.forEach(function(id){grid.append(card(id,true))});dlgBody.append(grid);
+}
+function openSearch(){
+ showDialog("Search add-ons","Browse the staged local catalogue. No network or sign-in needed.");
+ searchField.hidden=false;searchField.focus();doSearch();
+}
+function close(){shade.classList.remove("open")}
+document.getElementById("search-pill").addEventListener("click",openSearch);
+document.getElementById("close-dialog").addEventListener("click",close);
+searchField.addEventListener("input",doSearch);
+shade.addEventListener("click",function(e){if(e.target===shade)close()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
+document.querySelector(".back").addEventListener("click",function(){viewport.scrollTo({top:0,behavior:"smooth"})});
+makeHouse();renderRails();
+const params=new URLSearchParams(location.search);
+const y=Number(params.get("y")||0),tab=(params.get("tab")||"").toLowerCase();
+if(params.get("banner")==="starwars")document.querySelector(".hero-image").src=ROOT+"extensions/house/starwars-banner.jpg";
+if(params.get("banner")==="cosmere")document.querySelector(".hero-image").src=ROOT+"extensions/house/cosmere.jpg";
+const target=ROWS.find(function(r){return r[0]===tab||r[1].toLowerCase().replaceAll(" ","-")===tab});
+if(tab==="search")openSearch();
+if(target&&!y){document.getElementById("row-"+target[0]).scrollIntoView();viewport.scrollTop-=96}
+if(Number.isFinite(y)&&y>0){viewport.scrollTop=y;requestAnimationFrame(function(){viewport.scrollTop=y})}
+})();
+</script>
+<script src="autoscroll.js"></script></body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Video player (recreation of Colosseum 1.1.8)</title>
+<!--
+  Fixed 1280x720 non-interactive Theatre player. Frame timings are demonstration-only.
+  Player 2 shell/TopBar/TransportBar/SeekBar/PauseCard/TrackMenu supply HUD measurements;
+  PlayerPage.qml:5399-5574 supplies the chapter-thumbnail variant missing in Player 2.
+  App Catalog.js Dune: Part Two backdrop: https://live.metahub.space/background/large/tt15239678/img
+  This machine timed out on metahub, so the same-title TMDB backdrop is used as a fallback.
+-->
+<style>
+@font-face{font-family:"Fraunces";src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,-apple-system,sans-serif;--display:"Fraunces",Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:#08090c}
+body{font-family:var(--ui);color:var(--ink);position:relative;user-select:none;cursor:default;-webkit-font-smoothing:antialiased}
+#stage{position:relative;width:1280px;height:720px;overflow:hidden;isolation:isolate;background:#101012}
+.art-fallback{position:absolute;inset:0;background:radial-gradient(ellipse at 59% 33%,rgba(170,99,48,.72),transparent 51%),linear-gradient(120deg,#302820 7%,#85613b 43%,#17131b 100%)}
+.art-fallback::before{content:"";position:absolute;inset:0;background:url("../assets/cold-ripple.jpg") center/cover;opacity:.12;mix-blend-mode:screen}
+#picture{position:absolute;left:-3%;top:-3%;width:106%;height:106%;object-fit:cover;object-position:center center;opacity:.94;transform-origin:50% 50%;filter:saturate(.84) brightness(.77)}
+.art-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(1,2,5,.28),transparent 54%,rgba(0,0,0,.09)),linear-gradient(0deg,rgba(0,0,0,.43),transparent 49%,rgba(0,0,0,.23))}
+.chrome{position:absolute;inset:0;pointer-events:none}
+#topChrome{z-index:7}
+.top-scrim{position:absolute;left:0;top:0;width:100%;height:112px;background:linear-gradient(to bottom,rgba(0,0,0,.60),rgba(0,0,0,0))}
+.top-left{position:absolute;left:28px;top:18px;height:59px;display:flex;align-items:center;gap:14px}
+.top-left .top-icon,.window-btn{width:38px;height:38px;display:grid;place-items:center;border-radius:50%}
+.top-copy{display:flex;flex-direction:column;gap:2px;max-width:600px;text-shadow:0 1px 4px rgba(0,0,0,.42)}
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:2px;color:var(--dimmer)}
+.now-title{font-size:19px;font-weight:600;line-height:24px;color:var(--ink)}
+.now-detail{font-size:12px;line-height:16px;color:var(--dim)}
+.top-right{position:absolute;right:20px;top:16px;display:flex;align-items:center;gap:6px;height:38px}
+.clock{font-size:13px;letter-spacing:.5px;color:var(--dim);font-variant-numeric:tabular-nums;margin-right:20px;text-shadow:0 1px 1px rgba(0,0,0,.45)}
+.glyph{width:100%;height:100%;display:grid;place-items:center;color:var(--ink)}
+.glyph svg{width:46%;height:46%;overflow:visible;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.window-btn .glyph svg{width:18px;height:18px}
+#info{position:absolute;z-index:6;left:40px;bottom:152px;width:520px;padding:20px 26px;border-radius:12px;background:rgba(10,10,13,.72);border:1px solid rgba(255,255,255,.09);box-shadow:0 12px 30px rgba(0,0,0,.18);pointer-events:none}
+#info h2{font-size:26px;font-weight:600;line-height:34px;letter-spacing:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 9px}
+#info .facts{font-size:12px;line-height:17px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#info .quality{margin-top:9px;font-size:11px;line-height:15px;letter-spacing:2px;color:var(--dimmer);font-variant-numeric:tabular-nums}
+#info p{font-size:12px;line-height:1.35;color:var(--dim);margin-top:13px;max-width:468px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#bottomChrome{z-index:8}
+.bottom-scrim{position:absolute;bottom:0;left:0;right:0;height:146px;background:linear-gradient(to bottom,rgba(0,0,0,0),rgba(0,0,0,.45) 45%,rgba(0,0,0,.85))}
+.state-row{position:absolute;left:54px;right:54px;top:594px;height:22px;display:flex;align-items:center;justify-content:space-between;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+#playerState{font-size:14px;font-weight:600}
+#ends{font-size:12px;letter-spacing:1.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+.seek-row{position:absolute;left:54px;right:54px;top:616px;height:42px;display:flex;align-items:center;gap:12px;font-size:13px;font-variant-numeric:tabular-nums}
+.elapsed{width:58px;flex:none;text-align:left;color:var(--ink)}
+.duration{width:58px;flex:none;text-align:right;color:var(--dim)}
+.timeline{position:relative;flex:1;height:22px;display:flex;align-items:center}
+.track{position:relative;width:100%;height:3px;border-radius:999px;background:rgba(255,255,255,.16)}
+.buffered{position:absolute;left:0;top:0;height:100%;width:87%;border-radius:inherit;background:rgba(255,255,255,.30)}
+.progress{position:absolute;left:0;top:0;height:100%;width:45%;border-radius:inherit;background:var(--gold)}
+.chapters{position:absolute;inset:0}
+.chapter{position:absolute;top:50%;height:5px;width:2px;transform:translate(-1px,-50%);background:rgba(255,255,255,.55);border-radius:1px}
+.playhead{position:absolute;left:45%;top:50%;width:11px;height:11px;border-radius:50%;background:var(--gold);border:1px solid rgba(0,0,0,.32);transform:translate(-50%,-50%)}
+.transport{position:absolute;left:54px;right:54px;top:662px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.cluster{display:flex;align-items:center;gap:6px;height:56px}
+.action{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:50%;color:var(--ink)}
+.action .glyph svg{width:46%;height:46%}
+.action.active{color:var(--gold);background:rgba(255,255,255,.16)}
+.action.hero{width:48px;height:48px;background:rgba(255,255,255,.92);color:#101014}
+.action.hero .glyph{color:#101014}
+.action.hero .glyph svg{width:22px;height:22px}
+.action.seek{position:relative}
+.action.seek .glyph svg{width:22px;height:22px}
+.action.seek small{position:absolute;top:18px;left:0;right:0;text-align:center;font-size:10px;font-weight:600;line-height:10px}
+.volume{position:relative;width:190px;height:48px;flex:none;display:flex;align-items:center}
+.volume .mute{width:48px;height:48px;flex:none}
+.vol-line{position:relative;margin-left:6px;flex:1;height:6px;border-radius:999px;background:rgba(255,255,255,.16)}
+.vol-fill{position:absolute;inset:0 auto 0 0;width:83%;border-radius:inherit;background:var(--gold)}
+.vol-knob{position:absolute;top:50%;left:83%;width:14px;height:14px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%)}
+.center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);gap:8px}
+.right{margin-left:auto}
+#hoverCard{position:absolute;z-index:12;top:466px;width:216px;height:165px;border-radius:7px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.86);box-shadow:0 12px 25px rgba(0,0,0,.34);padding:8px;overflow:hidden;pointer-events:none}
+.thumb-fallback{width:200px;height:112px;position:relative;border-radius:2px;background:linear-gradient(130deg,#8c5e35,#31231e 60%,#141218);overflow:hidden}
+#thumbImage{display:block;width:200px;height:112px;object-fit:cover;object-position:center}
+.thumb-caption{margin-top:5px;font-size:11px;line-height:14px;color:rgba(255,255,255,.72);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumb-time{font-size:12px;line-height:15px;font-weight:600;color:var(--ink);text-align:center;font-variant-numeric:tabular-nums}
+#subtitleMenu{position:absolute;z-index:15;right:54px;bottom:68px;width:320px;padding:12px;border-radius:14px;background:rgba(10,13,18,.94);border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 45px rgba(0,0,0,.5);pointer-events:none}
+.menu-heading{height:29px;font-size:13px;line-height:20px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08)}
+.menu-row{position:relative;height:46px;display:flex;align-items:center;gap:12px;padding:3px 4px;border-radius:8px}
+.menu-row.selected{background:rgba(255,255,255,.10)}
+.menu-row.off{height:40px}
+.menu-dot{width:12px;height:12px;flex:none;border-radius:50%;border:1px solid rgba(255,255,255,.3)}
+.menu-row.selected .menu-dot{border-color:var(--gold);background:var(--gold)}
+.menu-text{min-width:0;display:flex;flex-direction:column;gap:2px}
+.menu-text b{font-weight:400;font-size:13px;line-height:17px;white-space:nowrap}
+.menu-text small{font-size:11px;line-height:15px;color:var(--dimmer);white-space:nowrap}
+.sync{border-top:1px solid rgba(255,255,255,.08);height:44px;display:flex;align-items:center;justify-content:space-between}
+.sync .label{font-size:11px;letter-spacing:1.5px;color:var(--dimmer)}
+.sync-right{display:flex;align-items:center;gap:8px}
+.sync-right em{font-size:12px;font-style:normal;text-align:center;width:64px;font-variant-numeric:tabular-nums}
+.delay{display:grid;place-items:center;width:30px;height:26px;border-radius:6px;background:rgba(255,255,255,.05);font-weight:600;font-size:13px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="art-fallback"></div>
+  <img id="picture" alt="" src="https://image.tmdb.org/t/p/w1280/uhUO7vQQKvCTfQWubOt5MAKokbL.jpg" data-catalog-backdrop="https://live.metahub.space/background/large/tt15239678/img">
+  <div class="art-shade"></div>
+  <div class="chrome" id="topChrome">
+    <div class="top-scrim"></div>
+    <div class="top-left"><div class="top-icon"><span class="glyph" data-icon="back"></span></div><div class="top-copy">
+      <span class="eyebrow">NOW PLAYING</span><span class="now-title">Dune: Part Two</span><span class="now-detail">2024 · 1080p</span>
+    </div></div>
+    <div class="top-right"><span class="clock">1:41 PM</span><div class="window-btn"><span class="glyph" data-icon="minimize"></span></div><div class="window-btn"><span class="glyph" data-icon="close"></span></div></div>
+  </div>
+  <div id="info">
+    <h2>DUNE: PART TWO</h2>
+    <div class="facts" id="infoFacts">2024 · 166 min · ends 3:04 PM</div>
+    <div class="quality">1080p · H.264 · AAC · 5.1</div>
+    <p>Paul Atreides unites with Chani and the Fremen while war spreads across Arrakis.</p>
+  </div>
+  <div class="chrome" id="bottomChrome">
+    <div class="bottom-scrim"></div>
+    <div class="state-row"><span id="playerState"></span><span id="ends">ENDS&nbsp;&nbsp;3:04 PM</span></div>
+    <div class="seek-row"><span class="elapsed" id="elapsed">1:14:42</span><div class="timeline">
+      <div class="track" id="track"><span class="buffered"></span><span class="progress" id="progress"></span><span class="chapters">
+        <i class="chapter" style="left:20%"></i><i class="chapter" style="left:37%"></i><i class="chapter" style="left:60%"></i><i class="chapter" style="left:75%"></i><i class="chapter" style="left:88%"></i>
+      </span><i class="playhead" id="playhead"></i></div>
+    </div><span class="duration">2:46:00</span></div>
+    <div class="transport">
+      <div class="cluster">
+        <div class="volume"><div class="mute"><span class="glyph" data-icon="volume"></span></div><div class="vol-line"><span class="vol-fill"></span><span class="vol-knob"></span></div></div>
+        <div class="action"><span class="glyph" data-icon="stream"></span></div>
+        <div class="action"><span class="glyph" data-icon="download"></span></div>
+        <div class="action"><span class="glyph" data-icon="fit"></span></div>
+      </div>
+      <div class="cluster center">
+        <div class="action seek"><span class="glyph" data-icon="seek-back"></span><small>10</small></div>
+        <div class="action hero" id="playButton"><span class="glyph" data-icon="pause" id="playGlyph"></span></div>
+        <div class="action seek"><span class="glyph" data-icon="seek-forward"></span><small>10</small></div>
+      </div>
+      <div class="cluster right">
+        <div class="action"><span class="glyph" data-icon="episodes"></span></div>
+        <div class="action"><span class="glyph" data-icon="audio"></span></div>
+        <div class="action" id="subButton"><span class="glyph" data-icon="captions"></span></div>
+        <div class="action"><span class="glyph" data-icon="speed"></span></div>
+        <div class="action"><span class="glyph" data-icon="fullscreen"></span></div>
+      </div>
+    </div>
+  </div>
+  <div id="hoverCard"><div class="thumb-fallback"><img id="thumbImage" alt="" src="https://image.tmdb.org/t/p/w1280/uhUO7vQQKvCTfQWubOt5MAKokbL.jpg"></div><div class="thumb-caption" id="chapterCaption">Chapter 4 · The Desert</div><div class="thumb-time" id="previewTime">1:46:00</div></div>
+  <div id="subtitleMenu">
+    <div class="menu-heading">Subtitles&nbsp;&nbsp; 3</div>
+    <div class="menu-row off"><span class="menu-dot"></span><div class="menu-text"><b>Off</b></div></div>
+    <div class="menu-row selected"><span class="menu-dot"></span><div class="menu-text"><b>English</b><small>ENG · SRT · Default</small></div></div>
+    <div class="menu-row"><span class="menu-dot"></span><div class="menu-text"><b>English (SDH)</b><small>ENG · SRT</small></div></div>
+    <div class="menu-row"><span class="menu-dot"></span><div class="menu-text"><b>Español</b><small>SPA · SRT</small></div></div>
+    <div class="sync"><span class="label">SYNC</span><div class="sync-right"><span class="delay">−</span><em>+0.00s</em><span class="delay">+</span><span class="delay">0</span></div></div>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var paths = {
+    back:'<path d="M19 12H5m7-7-7 7 7 7"/>',
+    minimize:'<path d="M5 12h14"/>',
+    close:'<path d="M18 6 6 18M6 6l12 12"/>',
+    play:'<path d="m8 5 11 7-11 7z"/>',
+    pause:'<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+    volume:'<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.08M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+    stream:'<path d="M7 7h14m-4-4 4 4-4 4M17 17H3m4-4-4 4 4 4"/>',
+    download:'<path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/>',
+    fit:'<path d="M4 7h10m4 0h2M4 17h2m4 0h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+    'seek-back':'<path d="M3 11a9 9 0 1 1 3.7 7.2M3 4v7h7"/>',
+    'seek-forward':'<path d="M21 11a9 9 0 1 0-3.7 7.2M21 4v7h-7"/>',
+    episodes:'<path d="M4 6h9M4 11h9M4 16h7"/><path d="m17 14 5 3-5 3z"/>',
+    audio:'<path d="m5 8 6 6m-7 0 6-6M7 4v2m-4 0h9M13 20l5-12 5 12m-8-5h6"/>',
+    captions:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 12h4m2 0h4M7 15h3m4 0h3"/>',
+    speed:'<path d="M5 16a9 9 0 1 1 14 0M12 13l4-4"/><circle cx="12" cy="13" r="1"/>',
+    fullscreen:'<path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/>'
+  };
+  function iconFor(kind){return '<svg viewBox="0 0 24 24" aria-hidden="true">'+(paths[kind]||'')+'</svg>';}
+  Array.prototype.forEach.call(document.querySelectorAll('[data-icon]'),function(n){n.innerHTML=iconFor(n.getAttribute('data-icon'));});
+  var $=function(id){return document.getElementById(id);};
+  var chromeTop=$('topChrome'),chromeBottom=$('bottomChrome'),info=$('info'),tip=$('hoverCard'),menu=$('subtitleMenu');
+  var picture=$('picture'),hoverPicture=$('thumbImage'),playGlyph=$('playGlyph'),subButton=$('subButton');
+  var duration=9960,LOOP=16000;
+  function smooth(a,b,t){var v=Math.max(0,Math.min(1,(t-a)/(b-a)));return v*v*(3-2*v);}
+  function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+  function fmt(s){s=Math.floor(Math.max(0,s));var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),v=s%60;return h?h+':'+String(m).padStart(2,'0')+':'+String(v).padStart(2,'0'):m+':'+String(v).padStart(2,'0');}
+  function wallClock(min){var n=(min+1440)%1440,h=Math.floor(n/60),m=n%60;return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM');}
+  var chapterTitles=['Chapter 1 · Arrakis','Chapter 2 · The Fremen','Chapter 3 · The Prophecy','Chapter 4 · The Desert','Chapter 5 · The Reckoning','Chapter 6 · The War'];
+  var boundaries=[0,.2,.37,.60,.75,.88];
+  // One source of temporal truth, as in the accepted world.html. No CSS keyframe animation.
+  function frame(t){
+    t=Math.max(0,Math.min(LOOP,t));
+    var a=smooth(1500,2650,t)*(1-smooth(13300,14500,t));
+    chromeTop.style.opacity=a.toFixed(4);chromeBottom.style.opacity=a.toFixed(4);
+    chromeTop.style.transform='translateY('+(-8*(1-a)).toFixed(2)+'px)';
+    var phase=2*Math.PI*t/LOOP;
+    picture.style.transform='translate3d('+(6*Math.sin(phase)).toFixed(2)+'px,'+(4*Math.sin(phase-.8)).toFixed(2)+'px,0) scale(1.06)';
+    var paused=t>=3100 && t<9420;
+    var f=t<3700?.288:t<9500?.288+.55*ease((t-3700)/5800):.838;
+    var seconds=f*duration;
+    var showTip=smooth(4300,5050,t)*(1-smooth(9040,9590,t));
+    var showInfo=smooth(3500,4240,t)*(1-smooth(9230,9750,t));
+    var showMenu=smooth(9890,10380,t)*(1-smooth(11600,12120,t));
+    info.style.opacity=(showInfo*a).toFixed(4);
+    info.style.transform='translateY('+((1-showInfo)*10).toFixed(2)+'px)';
+    menu.style.opacity=(showMenu*a).toFixed(4);
+    menu.style.visibility=showMenu>.005?'visible':'hidden';
+    subButton.classList.toggle('active',showMenu>.3);
+    $('playerState').textContent=paused?'Paused':'';
+    playGlyph.setAttribute('data-icon',paused?'play':'pause');
+    playGlyph.innerHTML=iconFor(paused?'play':'pause');
+    $('progress').style.width=(f*100).toFixed(3)+'%';
+    $('playhead').style.left=(f*100).toFixed(3)+'%';
+    $('elapsed').textContent=fmt(seconds);
+    var endClock=wallClock(13*60+41+Math.round((duration-seconds)/60));
+    $('ends').textContent='ENDS  '+endClock;
+    $('infoFacts').textContent='2024  ·  166 min  ·  ends '+endClock;
+    tip.style.opacity=(showTip*a).toFixed(4);
+    tip.style.visibility=showTip>.005?'visible':'hidden';
+    var x=124+1032*f-108;tip.style.left=Math.max(0,Math.min(1064,x)).toFixed(2)+'px';
+    $('previewTime').textContent=fmt(seconds);
+    var idx=0;for(var i=0;i<boundaries.length;i++){if(f>=boundaries[i])idx=i;}
+    $('chapterCaption').textContent=chapterTitles[idx];
+    var hover=showTip>.06;
+    $('track').style.height=hover?'5px':'3px';
+    $('playhead').style.width=hover?'14px':'11px';
+    $('playhead').style.height=hover?'14px':'11px';
+    var ticks=document.querySelectorAll('.chapter');for(var j=0;j<ticks.length;j++)ticks[j].style.height=hover?'8px':'5px';
+  }
+  var checks={errors:[],imageErrors:[]};window.__videoPlayerCheck=checks;
+  window.addEventListener('error',function(e){checks.errors.push(e.message||'Script error');});
+  [picture,hoverPicture].forEach(function(n){n.addEventListener('error',function(){checks.imageErrors.push(n.id);n.style.opacity=0;});});
+  var still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var seek=/[?&]t=(\d+)/.exec(location.search);
+  if(seek||still){frame(seek?+seek[1]:0);return;}
+  var running=false,start=0,held=0;
+  function tick(now){if(!running)return;frame((now-start)%LOOP);requestAnimationFrame(tick);}
+  function play(on){
+    if(on===running)return;
+    running=on;
+    if(on){start=performance.now()-held;requestAnimationFrame(tick);}
+    else held=(performance.now()-start)%LOOP;
+  }
+  if('IntersectionObserver' in window)new IntersectionObserver(function(es){play(es[0].isIntersecting);},{threshold:.3}).observe(document.documentElement);
+  else play(true);
+})();
+</script>
+</body>
+</html>

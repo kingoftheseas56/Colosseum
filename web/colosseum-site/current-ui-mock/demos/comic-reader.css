@@ -1,0 +1,372 @@
+@font-face {
+  font-family: Switzer;
+  src: url("../assets/fonts/Switzer-Regular.otf");
+}
+:root {
+  --ui: Switzer, "Segoe UI", sans-serif;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+#chrome {
+  pointer-events: none;
+}
+#chrome button,
+#chrome input {
+  pointer-events: auto;
+}
+.commands {
+  gap: 26px;
+}
+.cmd {
+  padding: 0;
+}
+.titlebar .back {
+  padding: 0;
+}
+.book-label {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.sample-label {
+  position: absolute;
+  left: 14px;
+  top: 94px;
+  font-size: 9px;
+  color: #ddd;
+  z-index: 9;
+  background: #0009;
+  padding: 4px 7px;
+  pointer-events: none;
+}
+.nav {
+  border: 0;
+}
+.title-toast {
+  pointer-events: none;
+}
+#spread {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 0 60px;
+}
+#spread .sample-page {
+  height: 100%;
+  width: auto;
+  max-width: 50%;
+  object-fit: contain;
+  transform-origin: center;
+  display: block;
+}
+#spread.single .sample-page {
+  max-width: 100%;
+}
+#strip {
+  display: none;
+  opacity: 1;
+  overflow: auto;
+  padding: 0 60px;
+}
+#strip-stack {
+  position: relative;
+  top: 0;
+  left: auto;
+  width: 78%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transform: none !important;
+}
+#strip-stack .sample-page {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.rail input[type="range"] {
+  position: absolute;
+  left: 140px;
+  width: calc(100% - 273px);
+  top: 18px;
+  accent-color: #17130a;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+.rail-arrow {
+  border: 0;
+}
+.reader-panel {
+  position: absolute;
+  z-index: 60;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #090a0df5;
+  padding: 14px 16px;
+  color: var(--dim);
+  width: 322px;
+  top: 92px;
+  right: 26px;
+  max-height: calc(100% - 158px);
+  overflow: auto;
+  font-size: 12px;
+}
+.reader-panel h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+.reader-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reader-panel .panel-head button {
+  font-size: 16px;
+  margin-top: -12px;
+}
+.setting-row {
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.setting-row .chips {
+  display: flex;
+  gap: 5px;
+}
+.reader-panel .chip {
+  border: 1px solid #ffffff17;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.reader-panel .chip.on {
+  color: var(--gold);
+  border-color: #f0c44a8c;
+  background: #f0c44a14;
+}
+.reader-panel input[type="range"] {
+  width: 100%;
+  accent-color: var(--gold);
+  display: block;
+  margin: 8px 0 12px;
+}
+.reader-panel input[type="number"] {
+  width: 100%;
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  padding: 9px;
+  background: #15171f;
+  margin: 12px 0;
+}
+.reader-panel .toolrow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.reader-panel .toolrow button {
+  padding: 9px 12px;
+  background: #ffffff0c;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.reader-panel .section {
+  font-size: 11px;
+  color: var(--dimmer);
+  margin: 14px 0 5px;
+}
+.reader-panel.settings {
+  width: 352px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  max-height: none;
+  border-radius: 0;
+  padding: 20px;
+}
+.reader-panel .full {
+  width: 100%;
+  text-align: left;
+  padding: 12px 0;
+  border-top: 1px solid #ffffff10;
+}
+.reader-panel .danger {
+  color: #e6a3a3;
+}
+.reader-panel .primary {
+  background: var(--gold);
+  color: #171205;
+  padding: 9px 16px;
+  border-radius: 8px;
+}
+.reader-scrim {
+  position: absolute;
+  inset: 84px 0 54px;
+  z-index: 40;
+  background: transparent;
+}
+.reader-scrim.modal {
+  inset: 0;
+  background: #0009;
+}
+.reader-panel.center {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  max-height: 80%;
+}
+.reader-panel p {
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.thumb-cell {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.thumb {
+  object-fit: cover;
+  width: 105px;
+  height: 151px;
+}
+.thumb-cell.thumb-current .thumb {
+  outline: 2px solid var(--gold);
+}
+#pages-overlay {
+  display: block;
+  opacity: 1;
+  height: 229px;
+  z-index: 60;
+  padding-top: 26px;
+}
+#pages-flow {
+  justify-content: flex-start;
+  overflow: auto;
+  padding: 14px 22px;
+  inset: 20px 0 0;
+}
+.pages-edge {
+  display: none;
+}
+.pages-close {
+  position: absolute;
+  right: 12px;
+  top: 4px;
+  color: var(--dim);
+  z-index: 10;
+}
+.reader-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  background: #000;
+  opacity: 0;
+}
+.loupe {
+  position: absolute;
+  z-index: 65;
+  left: 45%;
+  top: 30%;
+  width: 235px;
+  height: 235px;
+  border-radius: 50%;
+  border: 3px solid var(--gold);
+  box-shadow: 0 4px 35px #000;
+  overflow: hidden;
+  background: #111;
+  pointer-events: none;
+}
+.loupe img {
+  width: 470px;
+  height: auto;
+  position: absolute;
+  left: -118px;
+  top: -190px;
+  max-width: none;
+}
+.loupe-info {
+  position: absolute;
+  z-index: 66;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #090a0df5;
+  border: 1px solid var(--edge);
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.loupe-info button {
+  padding-left: 20px;
+}
+.page-error {
+  width: 450px;
+  min-height: 380px;
+  background: #15171f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border: 1px solid var(--edge);
+}
+.page-error button {
+  border: 1px solid var(--edge);
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+.reader-panel .navigator-list {
+  max-height: 360px;
+  overflow: auto;
+}
+.navigator-list button {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  text-align: left;
+  border-bottom: 1px solid #ffffff12;
+}
+.navigator-list button.on {
+  color: var(--gold);
+}
+[hidden] {
+  display: none !important;
+}
+.reader-panel .toolrow button.primary {
+  background: var(--gold);
+  color: #171205;
+}

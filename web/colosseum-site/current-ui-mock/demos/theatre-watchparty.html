@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Watch Party · Theatre fixture</title>
+    <style>
+      body {
+        margin: 0;
+        width: 1280px;
+        height: 720px;
+        background:
+          linear-gradient(#0009, #000f),
+          url("../assets/cold-ripple.jpg") center/cover;
+        color: #f7f7f5;
+        font:
+          14px "Segoe UI",
+          system-ui;
+        --gold: #f0c44a;
+      }
+      .party.popover {
+        position: static;
+      }
+      main {
+        padding: 55px;
+      }
+      button {
+        margin-top: 10px;
+      }
+    </style>
+    <link rel="stylesheet" href="theatre-ui.css" />
+  </head>
+  <body class="watchparty-page">
+    <main>
+      <button class="tu-btn" onclick="MockUI.back()">‹ Back</button>
+      <h1>Watch Party</h1>
+      <p>Room controls and members · local fixture</p>
+      <button class="tu-btn" onclick="openParty()">Open Watch Party</button>
+    </main>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="theatre-ui.js"></script>
+    <script>
+      function openParty() {
+        MockUI.params.join
+          ? TheatreUI.joinParty(MockUI.params)
+          : TheatreUI.party(MockUI.params);
+      }
+      openParty();
+      MockUI.ready();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,445 @@
+{
+  "group": "biblio",
+  "sourcePin": "2916fe85812643c2e0ae45b0aec132cb6eb4e507",
+  "routes": [
+    {
+      "id": "book.detail",
+      "file": "demos/book-page.html",
+      "title": "Biblio book",
+      "world": "biblio",
+      "chrome": "back",
+      "params": {},
+      "sources": ["qml/BiblioBook.qml"],
+      "states": [
+        {
+          "id": "dune",
+          "params": {},
+          "expect": "Dune cover, metadata, Torrents, Editions and Audiobook"
+        },
+        {
+          "id": "phm",
+          "params": {
+            "id": "biblio-1",
+            "title": "Project Hail Mary"
+          },
+          "expect": "Project Hail Mary artwork and metadata"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "Empty acquisition panels with retry"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Searching fixture state with retry"
+        },
+        {
+          "id": "download-error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Acquisition click fails once, offers retry"
+        },
+        {
+          "id": "choose-edition",
+          "params": {
+            "modal": "editions"
+          },
+          "expect": "Choose an edition dialog with Read and Cancel"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=read]",
+          "expect": "Choose an edition dialog"
+        },
+        {
+          "selector": "[data-action=collection]",
+          "expect": "Shared collection.<id> toggles"
+        },
+        {
+          "selector": "[data-action=torrent-0]",
+          "expect": "Staged download becomes ready"
+        },
+        {
+          "selector": "[data-action=see-more]",
+          "expect": "Expand/collapse torrent list"
+        }
+      ]
+    },
+    {
+      "id": "book.editions",
+      "file": "demos/book-page.html",
+      "title": "Book editions",
+      "world": "biblio",
+      "chrome": "back",
+      "params": {
+        "section": "editions"
+      },
+      "sources": ["qml/BiblioBook.qml"],
+      "states": [
+        {
+          "id": "editions",
+          "params": {
+            "section": "editions"
+          },
+          "expect": "Edition and audiobook rows visible"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=edition-1]",
+          "expect": "Staged acquisition; explicit acquisition does not auto-open reader"
+        }
+      ]
+    },
+    {
+      "id": "reader.book",
+      "file": "demos/book-reader.html",
+      "title": "Reader2",
+      "world": "biblio",
+      "chrome": "none",
+      "params": {},
+      "sources": [
+        "qml/reader2/ReaderShell.qml",
+        "qml/reader2/AppearancePanel.qml",
+        "qml/reader2/LeftPanel.qml",
+        "qml/reader2/SelectionMenu.qml",
+        "qml/reader2/DictCard.qml",
+        "qml/reader2/FootnoteCard.qml",
+        "qml/reader2/Reader2Logic.js"
+      ],
+      "states": [
+        {
+          "id": "paper",
+          "params": {},
+          "expect": "Public-domain reading sample and current Reader2 chrome"
+        },
+        {
+          "id": "appearance",
+          "params": {
+            "panel": "appearance"
+          },
+          "expect": "348px Appearance panel"
+        },
+        {
+          "id": "contents",
+          "params": {
+            "panel": "contents"
+          },
+          "expect": "TOC left panel"
+        },
+        {
+          "id": "bookmarks",
+          "params": {
+            "panel": "bookmarks"
+          },
+          "expect": "Bookmarks empty state or saved list"
+        },
+        {
+          "id": "highlights",
+          "params": {
+            "panel": "highlights"
+          },
+          "expect": "Highlights empty state or saved list"
+        },
+        {
+          "id": "audio-empty",
+          "params": {
+            "panel": "audio"
+          },
+          "expect": "Download audiobook message"
+        },
+        {
+          "id": "loading",
+          "params": {
+            "state": "loading"
+          },
+          "expect": "Opening book fixture"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Current source dark failed-open surface with Go back"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=next-page]",
+          "expect": "Reading location and progress advance"
+        },
+        {
+          "selector": "[data-action=bookmark]",
+          "expect": "Toggle bookmark"
+        },
+        {
+          "selector": "[data-action=appearance]",
+          "expect": "Appearance opens"
+        },
+        {
+          "selector": "[data-action=contents]",
+          "expect": "Left panel opens"
+        },
+        {
+          "selector": "[data-action=search]",
+          "expect": "Search sheet opens"
+        },
+        {
+          "selector": "[data-action=footnote]",
+          "expect": "Footnote card opens"
+        },
+        {
+          "selector": "[data-action=close]",
+          "expect": "Close confirmation"
+        },
+        {
+          "selector": "[data-action=note]",
+          "expect": "Selection expands to anchored 300x128 note editor"
+        },
+        {
+          "selector": "[data-action=define]",
+          "expect": "Anchored dictionary card"
+        },
+        {
+          "selector": "[data-action=open-wiktionary]",
+          "expect": "External navigation staged, no actual network call"
+        }
+      ]
+    },
+    {
+      "id": "reader.audio",
+      "file": "demos/audio-reader.html",
+      "title": "Reader2 audiobook companion",
+      "world": "biblio",
+      "chrome": "none",
+      "params": {},
+      "sources": ["qml/reader2/LeftPanel.qml", "qml/AudiobookSession.qml"],
+      "states": [
+        {
+          "id": "audio",
+          "params": {},
+          "expect": "Current Audio left panel and listening strip"
+        },
+        {
+          "id": "sync-error",
+          "params": {
+            "state": "sync-error"
+          },
+          "expect": "Failed chapter with Retry"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-audio=play]",
+          "expect": "Toggle shared staged transport"
+        },
+        {
+          "selector": "[data-audio=restart]",
+          "expect": "Restart sync confirmation"
+        },
+        {
+          "selector": "[data-audio-index=\"1\"]",
+          "expect": "Select chapter"
+        },
+        {
+          "selector": "[data-audio=follow]",
+          "expect": "Follow page turns while preserving paused state"
+        }
+      ]
+    },
+    {
+      "id": "biblio.explore",
+      "file": "demos/book-explore.html",
+      "title": "Explore Biblio",
+      "world": "biblio",
+      "chrome": "default",
+      "params": {},
+      "sources": [
+        "qml/BiblioExplorePage.qml",
+        "qml/BiblioExplorePreferences.qml",
+        "qml/BiblioExploreRules.js",
+        "qml/BiblioBookRail.qml"
+      ],
+      "states": [
+        {
+          "id": "shelves",
+          "params": {},
+          "expect": "Scrollable book shelves and fixed Fiction/Nonfiction/Audience mosaics"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "state": "empty"
+          },
+          "expect": "No books fixture"
+        },
+        {
+          "id": "error",
+          "params": {
+            "state": "error"
+          },
+          "expect": "Failure fixture with retry"
+        },
+        {
+          "id": "extension-preview",
+          "params": {
+            "section": "extensions"
+          },
+          "expect": "Bounded sample extension rail with source dimensions and See all"
+        },
+        {
+          "id": "extension-loading",
+          "params": {
+            "section": "extensions",
+            "extensionState": "loading"
+          },
+          "expect": "Six 130x182 loading skeletons"
+        },
+        {
+          "id": "extension-empty",
+          "params": {
+            "extensionState": "empty"
+          },
+          "expect": "Empty extension rail collapses entirely"
+        },
+        {
+          "id": "extension-error",
+          "params": {
+            "extensionState": "error"
+          },
+          "expect": "Failed extension rail collapses as current source specifies"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=customize]",
+          "expect": "Shelf reorder/hide/show controls"
+        },
+        {
+          "selector": "[data-book=\"0\"]",
+          "expect": "Book detail"
+        },
+        {
+          "selector": "[data-facet=\"literary-fiction\"]",
+          "expect": "Genre Discover route"
+        },
+        {
+          "selector": "[data-action=library]",
+          "expect": "Biblio library"
+        }
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "id": "book.metadata-acquisition",
+      "source": "qml/BiblioBook.qml",
+      "route": "book.detail",
+      "status": "implemented",
+      "notes": "Preserved baseline geometry; local Dune and PHM art; ranked torrents expand, edition chooser, collection, staged download/ready/error states."
+    },
+    {
+      "id": "book.edition-read-cancel",
+      "source": "qml/BiblioBook.qml",
+      "route": "book.editions",
+      "status": "implemented",
+      "notes": "Read chooses exact staged edition. Explicit acquisition is acquire-only; ready actions permit Read/Listen."
+    },
+    {
+      "id": "reader.navigation",
+      "source": "qml/reader2/ReaderShell.qml",
+      "route": "reader.book",
+      "status": "approximate",
+      "notes": "Eight staged reading locations use two public-domain Austen excerpts; browser pagination is a UI fixture rather than EPUB engine output."
+    },
+    {
+      "id": "reader.left-panels",
+      "source": "qml/reader2/LeftPanel.qml",
+      "route": "reader.book",
+      "status": "implemented",
+      "notes": "TOC/bookmarks/highlights/audio tabs; bookmark removal; highlight creation/edit/removal and notes."
+    },
+    {
+      "id": "reader.selection-search-footnote",
+      "source": "qml/reader2/ReaderShell.qml",
+      "route": "reader.book",
+      "status": "implemented",
+      "notes": "Exact source anchored geometry via Reader2Logic.selectionMenuPos, transparent outside-click dismissal, 44px selection row with three source swatches, Note/Define/Copy and existing-highlight Delete, 300x128 expanding note editor, 320px Dictionary with loading/ok/empty states and staged Open in Wiktionary control, 360px serif Footnote with scrollable body. Search remains local to sample prose."
+    },
+    {
+      "id": "reader.appearance",
+      "source": "qml/reader2/AppearancePanel.qml",
+      "route": "reader.book",
+      "status": "implemented",
+      "notes": "Six themes/custom colors, fonts/weight/size, spacing, indent/justify, page/scroll, constrained width, columns, hyphenation, ruler controls, default/reset confirmation. Native selects/ranges approximate source segments/sliders."
+    },
+    {
+      "id": "reader.appearance-css",
+      "source": "qml/reader2/AppearancePanel.qml",
+      "route": "reader.book",
+      "status": "approximate",
+      "notes": "Custom CSS intentionally inert. Image inversion preference retained; sample prose has no embedded illustrations. Browser font weight synthesis and hyphenation differ from Qt/web engine."
+    },
+    {
+      "id": "audio.transport-sync",
+      "source": "qml/AudiobookSession.qml",
+      "route": "reader.audio",
+      "status": "approximate",
+      "notes": "Shared staged play/pause/seek/speed/volume/mute/sleep values, playlist, follow-reading and sync status/retry/restart confirmation; no actual audio/speech processing, timer engine or timestamps generated."
+    },
+    {
+      "id": "audio.current-entry",
+      "source": "qml/reader2/LeftPanel.qml",
+      "route": "reader.audio",
+      "status": "implemented",
+      "notes": "Audio route opens the current Reader2 Audio panel. AudiobookPlayer.qml absent at exact pin; no standalone native player asserted."
+    },
+    {
+      "id": "biblio.explore-preferences",
+      "source": "qml/BiblioExplorePage.qml",
+      "route": "biblio.explore",
+      "status": "implemented",
+      "notes": "Top 10, extension preview, six house shelves and fixed full-width mosaics. Extension fixture supports ready/loading (six source-sized skeletons)/empty/error/disabled collapse; stable ext: key, reorder/hide/show and full extension Discover pin. Source-sized 130x182 covers and rank/source treatments. Catalogue limited to authentic Dune/PHM fixtures."
+    },
+    {
+      "id": "reader.anchored-cards",
+      "source": "qml/reader2/SelectionMenu.qml; qml/reader2/DictCard.qml; qml/reader2/FootnoteCard.qml; qml/reader2/Reader2Logic.js",
+      "route": "reader.book",
+      "status": "implemented",
+      "notes": "Both Chromium and Firefox assert source width/height and exact center/clamp/above-else-below positions. Screenshot review covers fresh/existing selection, note, dictionary loading/ok/empty/staged action and footnote."
+    },
+    {
+      "id": "biblio.extension-preview",
+      "source": "qml/BiblioExploreRules.js; qml/BiblioBookRail.qml",
+      "route": "biblio.explore",
+      "status": "implemented",
+      "notes": "Bounded local sample extension between Top 10 and house rails; skeleton and collapse cases, source metadata reveal, reorder and discover pin controls."
+    }
+  ],
+  "limitations": [
+    "All acquisition, audio, read-along processing and account effects are local fixtures only.",
+    "Reader uses public-domain excerpts, not Dune or Project Hail Mary chapters. EPUB pagination/search locator accuracy and native mpv playback are not ported.",
+    "No current AudiobookPlayer.qml exists in source tree: reader.audio intentionally opens Reader2 Audio controls.",
+    "Custom CSS is inert; sleep timer setting is staged without a real audio clock.",
+    "Reader highlights are staged at paragraph granularity rather than exact native CFI text-range painting.",
+    "Extension-preview and dictionary responses use bounded local fixtures; external Wiktionary navigation is visibly staged and does not make a network call."
+  ],
+  "verification": {
+    "chromium": "HeadlessShell 151.0.7922.34; browser interaction tests pass; 1280\u00d7720 and 1440\u00d7900; network blocked except local HTTP",
+    "firefox": "Firefox 153.0 fixed launcher; same interaction suite passes",
+    "test": "demos/book-test.cjs",
+    "evidence": "evidence/biblio/",
+    "visualReview": "Inspected every main route plus edition chooser, bookmarks, search, footnote, reset confirmation, sync error, Explore customization/mosaics, detail empty and reader error. Fixed torrent hidden-row CSS, audio seek width, source font cards/size stepper, reader error cover bounds and opaque panel fallback for Firefox legibility. Also inspected selection/highlight note states and file:// reader. Final reader error state hides prose fully.",
+    "fileProtocol": "Chromium and Firefox standalone file:// Reader2 ready + Appearance controls verified",
+    "assets": "All rendered image elements decoded in browser; external network blocked",
+    "anchoredCards": "demos/book-popover-test.cjs: Chromium 151 and Firefox 153 passed 44px selection, 300x128 note, 320px dictionary, 360px footnote and exact source placement assertions. All new state screenshots inspected in both engines.",
+    "customCss": "Inert custom CSS field, Use as default and Reset restore verified in both engines. Defaults copy prevents live editing from mutating saved defaults."
+  }
+}

@@ -1,0 +1,845 @@
+/* Source-derived Theatre controls, pin 2916fe8. Existing hero/ledger/player CSS retained. */
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+button:hover {
+  background-color: #ffffff12;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--gold, #f0c44a);
+  outline-offset: 3px;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+input,
+select {
+  background: #16181b;
+  color: #f7f7f5;
+  border: 1px solid #ffffff30;
+  border-radius: 7px;
+  padding: 9px;
+}
+input[type="range"] {
+  padding: 0;
+  accent-color: #f0c44a;
+}
+select option {
+  background: #151619;
+}
+button[aria-pressed="true"] {
+  color: #f0c44a;
+  background: #f0c44a18;
+}
+.tu-btn {
+  padding: 10px 15px;
+  border: 1px solid #ffffff2e;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.tu-btn.primary {
+  background: #f0c44a;
+  color: #17130a;
+  border-color: #f0c44a;
+}
+.tu-muted {
+  color: #9a99a5;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.tu-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.tu-spread {
+  justify-content: space-between;
+}
+.tu-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tu-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #bdbdc5;
+}
+.tu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0009;
+  display: grid;
+  place-items: center;
+}
+.tu-dialog {
+  width: 480px;
+  max-width: calc(100% - 40px);
+  max-height: 650px;
+  overflow: auto;
+  background: rgba(10, 13, 18, 0.97);
+  border: 1px solid #ffffff24;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px #0009;
+  padding: 22px;
+  color: #f7f7f5;
+  font:
+    14px "Segoe UI",
+    system-ui;
+}
+.tu-dialog.wide {
+  width: 760px;
+}
+.tu-dialog.popover {
+  position: absolute;
+  right: 54px;
+  bottom: 78px;
+  width: 360px;
+  max-height: 560px;
+}
+.tu-dialog.party {
+  width: 430px;
+  max-height: 590px;
+}
+.tu-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 14px;
+}
+.tu-dialog h2 {
+  font-size: 17px;
+  font-weight: 600;
+}
+.tu-dialog h3 {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: #aaaab5;
+  margin: 16px 0 8px;
+}
+.tu-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 23px;
+}
+.tu-choice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  width: 100%;
+  padding: 13px 10px;
+  border-radius: 8px;
+  border-bottom: 1px solid #ffffff0c;
+}
+.tu-choice small {
+  display: block;
+  color: #9999a5;
+  font-size: 11px;
+  margin-top: 5px;
+}
+.tu-choice.selected {
+  background: #ffffff15;
+  color: #f0c44a;
+}
+.tu-notice {
+  background: #f0c44a0c;
+  border: 1px solid #f0c44a40;
+  border-radius: 8px;
+  padding: 12px;
+  line-height: 1.5;
+}
+.tu-error {
+  color: #efaaa4;
+  padding: 10px 0;
+}
+.tu-divider {
+  border: 0;
+  border-top: 1px solid #ffffff20;
+  margin: 15px 0;
+}
+.tu-chip {
+  border: 1px solid #ffffff25;
+  padding: 8px 16px;
+  border-radius: 22px;
+  font-size: 13px;
+}
+.tu-chip.selected {
+  background: #f0c44a;
+  color: #19150d;
+}
+.tu-fixture {
+  position: fixed;
+  right: 18px;
+  top: 85px;
+  color: #b4b2aa;
+  font-size: 10px;
+  letter-spacing: 1px;
+  z-index: 28;
+  pointer-events: none;
+}
+.tu-sources {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #060607;
+  color: #f7f7f5;
+  overflow: auto;
+  font:
+    14px "Segoe UI",
+    system-ui;
+}
+.tu-source-banner {
+  height: 300px;
+  padding: 28px 54px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    linear-gradient(#0007, #000f),
+    url("../assets/fixtures/captures/theatre-posters/dune.jpg") center 26% /
+      cover;
+}
+.tu-source-banner h1 {
+  font:
+    600 56px Fraunces,
+    Georgia,
+    serif;
+  margin: 12px 0 0;
+}
+.tu-source-body {
+  margin: 20px 54px;
+}
+.tu-source-provider {
+  width: 100%;
+  height: 48px;
+  text-align: left;
+  background: #ffffff09;
+  border: 1px solid #ffffff20;
+  border-radius: 10px;
+  padding: 0 18px;
+}
+.tu-source-filter {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0;
+}
+.tu-source-row {
+  min-height: 150px;
+  display: grid;
+  grid-template-columns: 64px 1fr 220px 116px;
+  gap: 15px;
+  align-items: center;
+  border-top: 1px solid #ffffff22;
+  padding: 18px 6px;
+}
+.tu-source-row img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+.tu-source-row h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.tu-source-row .quality {
+  color: #f0c44a;
+  font-size: 13px;
+}
+.tu-source-row .release {
+  font-size: 12px;
+  color: #cbcad0;
+  margin: 9px 0;
+  overflow-wrap: anywhere;
+}
+.tu-source-row .tags {
+  font-size: 11px;
+  margin-top: 8px;
+  color: #aaa9b0;
+}
+.tu-source-row .tu-row {
+  flex-wrap: wrap;
+}
+.tu-source-row .play-source {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #f0c44a;
+  color: #181308;
+  font-size: 17px;
+}
+.tu-source-row .small {
+  font-size: 18px;
+  width: 28px;
+  height: 32px;
+}
+.tu-source-status {
+  padding: 25px 0;
+  color: #bbb;
+}
+.tu-member {
+  padding: 12px 0;
+  border-bottom: 1px solid #ffffff16;
+  display: flex;
+  justify-content: space-between;
+}
+.tu-chat {
+  max-height: 100px;
+  overflow: auto;
+  padding: 8px;
+  background: #ffffff06;
+}
+.tu-chat p {
+  margin: 6px 0;
+  font-size: 12px;
+}
+.tu-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.tu-subpreview {
+  text-align: center;
+  font-size: 24px;
+  padding: 20px;
+  background: #303139;
+  border-radius: 8px;
+}
+.tu-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tu-count {
+  min-width: 40px;
+  text-align: center;
+  color: #f0c44a;
+}
+.tu-status {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  background: #080a0de8;
+  padding: 28px;
+  border: 1px solid #ffffff22;
+  border-radius: 12px;
+  text-align: center;
+  z-index: 30;
+}
+.tu-status h2 {
+  margin-bottom: 12px;
+}
+.tu-upnext {
+  position: absolute;
+  right: 54px;
+  bottom: 160px;
+  background: #090b0eef;
+  border: 1px solid #ffffff30;
+  border-radius: 12px;
+  padding: 22px;
+  width: 340px;
+  z-index: 22;
+}
+.tu-upnext h3 {
+  font-size: 15px;
+  margin: 10px 0 20px;
+}
+.tu-sample-sub {
+  position: absolute;
+  bottom: 155px;
+  left: 20%;
+  right: 20%;
+  text-align: center;
+  font-size: 26px;
+  text-shadow: 0 2px 3px #000;
+  pointer-events: none;
+}
+.tu-ab {
+  position: absolute;
+  top: 100px;
+  left: 40px;
+  background: #080a0ddd;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.tu-variant {
+  position: absolute;
+  top: 85px;
+  left: 54px;
+  color: #f0c44a;
+  font-size: 11px;
+  letter-spacing: 1px;
+  z-index: 21;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Verified source panel dimensions; scroll only the content region. */
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
+.tu-dialog header {
+  flex: none;
+}
+.tu-dialog.party {
+  padding: 14px;
+  width: 430px;
+  max-height: 590px;
+}
+.tu-dialog.party header {
+  height: 36px;
+  margin-bottom: 12px;
+}
+.tu-dialog.party h3 {
+  margin: 12px 0 6px;
+}
+.tu-dialog.party .tu-member {
+  padding: 10px 0;
+}
+.tu-dialog.party .tu-btn {
+  padding: 8px 12px;
+}
+.tu-dialog.party .tu-divider {
+  margin: 10px 0;
+}
+.watchparty-page .tu-dialog.party {
+  position: relative;
+  right: auto;
+  bottom: auto;
+}
+.watchparty-page button {
+  margin-top: 0;
+}
+.tu-dialog.subtitles {
+  width: 760px;
+  height: 540px;
+  padding: 16px;
+}
+.tu-dialog.subtitles header {
+  height: 28px;
+  margin-bottom: 12px;
+}
+.tu-dialog.subtitles #subtitle-tracks {
+  height: 191px;
+  overflow: auto;
+}
+.tu-dialog.subtitles .tu-choice {
+  padding: 10px;
+}
+.tu-dialog.subtitles .tu-chip {
+  padding: 6px 12px;
+}
+.tu-dialog.subtitles .tu-divider {
+  margin: 10px 0;
+}
+.tu-dialog.subtitles .tu-stack {
+  gap: 8px;
+}
+.tu-dialog.subtitles input[type="range"] {
+  height: 18px;
+}
+.tu-dialog.subtitles select {
+  padding: 6px;
+}
+.tu-dialog.subtitles .tu-subpreview {
+  padding: 12px;
+}
+.tu-dialog.subtitles input[type="color"] {
+  height: 26px;
+  width: 55px;
+  padding: 2px;
+}
+.tu-dialog.subtitles #sub-search {
+  max-height: 80px;
+  overflow: auto;
+}
+.tu-dialog.speed-panel {
+  width: 460px;
+  padding: 16px;
+}
+.tu-dialog.speed-panel .tu-choice {
+  padding: 7px 10px;
+}
+.tu-dialog.speed-panel header {
+  margin-bottom: 4px;
+}
+.tu-dialog.speed-panel .tu-controls-grid {
+  gap: 8px;
+}
+.tu-dialog.speed-panel h3 {
+  margin: 8px 0;
+}
+.tu-dialog.track-small {
+  width: 320px;
+}
+.rebuilt .hero h1 {
+  font-size: 60px;
+}
+.rebuilt .hero-copy .synopsis {
+  padding: 0;
+  width: 790px;
+  max-height: 46px;
+  overflow: hidden;
+}
+.rebuilt .facts {
+  min-height: 100px;
+  padding: 6px 0 18px;
+}
+.rebuilt .factlist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  padding-top: 10px;
+  column-gap: 56px;
+}
+.rebuilt .chrome {
+  height: 66px;
+  display: flex;
+  align-items: center;
+  padding: 0 54px;
+  gap: 20px;
+  z-index: 15;
+}
+.rebuilt .ledger {
+  margin: 0;
+  position: static;
+  height: 56px;
+  display: contents;
+}
+.rebuilt .ledger > div {
+  order: -2;
+  min-width: 96px;
+}
+.rebuilt .ledger h2 {
+  font-size: 20px;
+}
+.rebuilt .ledger p {
+  font-size: 11px;
+  margin-top: 3px;
+}
+.rebuilt .tabs {
+  height: 36px;
+  padding: 0;
+  gap: 5px;
+  align-items: center;
+  flex: 1;
+  order: -1;
+}
+.rebuilt .tab {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  display: block;
+}
+.rebuilt .tab.selected {
+  background: #ffffff12;
+}
+.rebuilt .tab.selected:after {
+  display: none;
+}
+.rebuilt .season-download {
+  height: 36px;
+  min-width: 145px;
+  border-radius: 18px;
+}
+.rebuilt .episode,
+.rebuilt .episode.next {
+  height: 96px;
+}
+.rebuilt .still {
+  width: 124px;
+  height: 70px;
+  left: 136px;
+}
+.rebuilt .ep-copy {
+  left: 278px;
+  right: 248px;
+}
+.rebuilt .episode-face {
+  border-bottom: 0;
+  border-radius: 10px;
+  top: 2px;
+  bottom: 2px;
+}
+.rebuilt .ep-num strong,
+.rebuilt .episode.next .ep-num strong {
+  font-size: 22px;
+}
+.rebuilt .ep-state {
+  right: 165px;
+}
+.rebuilt .episode.next .ep-title {
+  font-size: 15px;
+}
+.rebuilt .episode.next .ep-desc {
+  -webkit-line-clamp: 1;
+}
+.rebuilt .episode.next .rail {
+  display: none;
+}
+.rebuilt .tu-next-ledger {
+  border-radius: 18px;
+  font-size: 12px;
+  color: #f0c44a;
+  white-space: nowrap;
+  padding: 9px 13px;
+  border: 1px solid #f0c44a55;
+}
+.rebuilt .tu-ledger-jump {
+  width: 110px;
+  height: 36px;
+  border-radius: 18px;
+  font-size: 12px;
+}
+.experimental .tu-dialog.speed-panel {
+  width: 240px;
+}
+.experimental .now-title {
+  font-size: 19px;
+}
+.experimental .tu-fixture {
+  color: #f0c44a;
+}
+.rebuilt .ledger > div:not(.season-download) {
+  order: 0;
+}
+.rebuilt .tabs {
+  order: 1;
+}
+.rebuilt .season-download {
+  order: 2;
+  flex: 0 0 145px;
+}
+.rebuilt .tu-next-ledger {
+  order: 3;
+}
+.rebuilt .tu-ledger-jump {
+  order: 4;
+}
+
+.tu-dialog.source-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  height: 720px;
+  width: 410px;
+  max-height: 720px;
+  max-width: 100%;
+  border-radius: 0;
+  padding: 18px 16px;
+  background: #0a0d12f0;
+}
+.source-drawer header h2 {
+  font-size: 17px;
+}
+.source-drawer .tu-row > .tu-chip {
+  flex: 1;
+  letter-spacing: 1px;
+  font-size: 11px;
+  border-radius: 7px;
+}
+.source-drawer .tu-tabs {
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.source-drawer .tu-tabs .tu-chip {
+  font-size: 11px;
+  padding: 5px 10px;
+}
+.source-drawer .drawer-episode {
+  height: 46px;
+  padding: 10px 6px;
+  display: grid;
+  grid-template-columns: 28px 1fr 52px;
+  font-size: 12px;
+}
+.source-drawer .drawer-episode > span:nth-child(2) {
+  text-align: left;
+}
+.source-drawer .drawer-source {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #ffffff10;
+  min-height: 64px;
+}
+.source-drawer .drawer-source .tu-choice {
+  border: 0;
+  font-size: 13px;
+}
+.source-drawer .drawer-copy {
+  border-radius: 50%;
+  padding: 6px;
+  font-size: 17px;
+}
+.source-drawer .selected {
+  border-left: 2px solid #f0c44a;
+  border-radius: 0;
+}
+.source-drawer .tu-muted {
+  font-size: 10px;
+}
+.tu-dialog.join-sheet {
+  width: 650px;
+  padding: 30px;
+}
+.join-sheet header h2 {
+  font-size: 25px;
+}
+.join-sheet #join-id {
+  height: 65px;
+  font-size: 24px;
+  letter-spacing: 2px;
+}
+.join-sheet #join-name {
+  height: 44px;
+}
+.join-sheet .tu-row .primary {
+  flex: 1;
+}
+/* The season placeholder must not constrain sticky headers to its own height. */
+#seasonPlace {
+  display: contents;
+}
+.stage .chrome {
+  top: 72px;
+}
+.stage .chrome[hidden] {
+  display: none;
+}
+.rebuilt #seasonPlace {
+  display: contents;
+}
+#seasonPlace[hidden] {
+  display: none;
+}
+/* Final screenshot reconciliation: honor native hidden state, retain overlay header while scrolling. */
+[hidden] {
+  display: none !important;
+}
+.tu-dialog.subtitles {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.tu-dialog.subtitles .tu-dialog-body {
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 4px;
+}
+.stage.scrolled .top-scrim {
+  height: 72px;
+  background: #07080b;
+}
+.tu-dialog.party header {
+  position: sticky;
+  top: -14px;
+  z-index: 3;
+  background: #0a0d12;
+  padding-top: 4px;
+}
+
+.tu-skip-pill {
+  position: absolute;
+  right: 28px;
+  bottom: 176px;
+  height: 42px;
+  z-index: 31;
+  background: #000d;
+  border: 1px solid #ffffff2e;
+  border-radius: 8px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tu-skip-pill strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.tu-skip-pill span {
+  font-size: 12px;
+  color: #c9c8d0;
+}
+.tu-season-trigger {
+  height: 38px;
+  border-radius: 19px;
+  padding: 0 16px;
+  min-width: 132px;
+  border: 1px solid #ffffff2e;
+  background: #ffffff0f;
+  text-align: left;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tu-season-trigger[aria-expanded="true"] {
+  border-color: #f0c44a;
+}
+.tu-season-cover {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.tu-season-menu {
+  position: absolute;
+  width: 236px;
+  max-height: 304px;
+  overflow: auto;
+  border-radius: 14px;
+  background: rgba(11, 13, 19, 0.97);
+  border: 1px solid #ffffff24;
+  padding: 6px;
+  box-shadow: 0 15px 40px #0008;
+  font:
+    13px "Segoe UI",
+    system-ui;
+}
+.tu-season-menu button {
+  display: block;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  text-align: left;
+  border-radius: 9px;
+  color: #c9c8d0;
+}
+.tu-season-menu button[aria-selected="true"] {
+  color: #f0c44a;
+  font-weight: 600;
+}
+.tu-season-menu button:focus {
+  background: #f0c44a1a;
+  outline: none;
+}

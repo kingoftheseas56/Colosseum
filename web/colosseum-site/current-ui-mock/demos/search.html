@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Colosseum · Search</title>
+    <link rel="stylesheet" href="../shared/catalog.css" />
+    <style>
+      .page {
+        top: 146px;
+      }
+      .searchbar {
+        position: absolute;
+        left: 54px;
+        right: 54px;
+        top: 44px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+      .searchbar > button {
+        background: none;
+        border: 0;
+        font-size: 25px;
+        padding: 10px;
+      }
+      .field {
+        height: 72px;
+        display: flex;
+        align-items: center;
+        flex: 1;
+        border: 1px solid #ffffff33;
+        background: #0005;
+        border-radius: 16px;
+        padding: 20px 22px;
+        gap: 15px;
+      }
+      .field img {
+        width: 21px;
+      }
+      .field input {
+        border: 0;
+        background: none;
+        font: 22px Fraunces;
+        outline: none;
+        flex: 1;
+        min-width: 0;
+      }
+      .field button {
+        border: 1px solid #ffffff33;
+        background: none;
+        padding: 5px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .chrome {
+        display: flex;
+        gap: 18px;
+      }
+      .chrome button {
+        background: none;
+        border: 0;
+      }
+      .chrome img {
+        width: 22px;
+      }
+      .section-label {
+        font-size: 12px;
+        letter-spacing: 2px;
+        color: #bbb9c3;
+        margin: 20px 0 16px;
+      }
+      .section-label.gold {
+        color: #f0c44a;
+      }
+      .topmatch {
+        height: 210px;
+        border: 1px solid #ffffff33;
+        border-radius: 18px;
+        background: #ffffff10;
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        padding: 22px 28px;
+      }
+      .topmatch > img {
+        width: 110px;
+        height: 165px;
+        object-fit: cover;
+        border-radius: 6px;
+      }
+      .topmatch .copy {
+        flex: 1;
+      }
+      .topmatch h2 {
+        font: 32px Fraunces;
+        margin-bottom: 15px;
+      }
+      .topmatch p {
+        color: #c9c8d0;
+      }
+      .topmatch button {
+        width: 116px;
+        height: 48px;
+        border: 0;
+        border-radius: 12px;
+        background: #f0c44a;
+        color: #241a05;
+        font-weight: 600;
+      }
+      .suggestions {
+        margin: 0 0 36px;
+      }
+      .surprise {
+        background: none;
+        border: 0;
+        color: #c9c8d0;
+        margin: 26px 0;
+        font: 18px Fraunces;
+      }
+      .grid {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 26px 22px;
+      }
+      .card > .open,
+      .card img {
+        width: 100%;
+      }
+      .card img {
+        height: 245px;
+      }
+      .fixture-note {
+        margin-top: 15px;
+      }
+      .recent-remove {
+        padding-left: 10px;
+        color: #c9c8d0;
+      }
+      .audio-mark {
+        position: absolute;
+        right: 10px;
+        top: 208px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #0009;
+        display: grid;
+        place-items: center;
+      }
+      #audio-results {
+        margin-top: 44px;
+      }
+      #audio-state {
+        padding: 20px;
+        border: 1px solid #ffffff33;
+        border-radius: 12px;
+      }
+      #audio-state button {
+        margin: 14px 0 0;
+      }
+      .biblio-search .topmatch {
+        height: 196px;
+      }
+      .biblio-search .topmatch > img {
+        width: 100px;
+        height: 150px;
+      }
+      .biblio-search #grid:empty {
+        padding: 0;
+      }
+      .biblio-search #jump button {
+        height: 48px;
+        padding: 0 22px;
+        font: 15px Fraunces;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wall"></div>
+    <header class="searchbar">
+      <button id="back" aria-label="Back">‹</button>
+      <form id="queryform" class="field">
+        <img src="../assets/icons/search.svg" alt="" /><input
+          id="query"
+          aria-label="Search titles"
+          autocomplete="off"
+          placeholder="Search…"
+        /><button type="button" id="clear" aria-label="Clear search">×</button
+        ><button type="button" id="esc">Esc</button>
+      </form>
+      <div class="chrome">
+        <button id="minimize" aria-label="Minimize search">
+          <img src="../assets/icons/minimize.svg" alt="" /></button
+        ><button id="fit" aria-label="Fit search">
+          <img src="../assets/icons/fullscreen-exit.svg" alt="" /></button
+        ><button id="close" aria-label="Close search">
+          <img src="../assets/icons/power.svg" alt="" />
+        </button>
+      </div>
+    </header>
+    <main class="page">
+      <section id="initial">
+        <p class="section-label" id="recent-title">RECENT SEARCHES</p>
+        <div id="recent" class="suggestions"></div>
+        <p class="section-label">TRY A GENRE</p>
+        <div id="genres" class="suggestions"></div>
+        <button class="surprise" id="surprise">✦ &nbsp; Surprise me</button>
+      </section>
+      <section id="results" hidden>
+        <p class="section-label gold" id="match-label">TOP MATCH</p>
+        <div id="topmatch" class="topmatch"></div>
+        <p class="section-label" id="result-label"></p>
+        <div id="grid" class="grid"></div>
+        <button id="more" class="surprise" hidden>See more ▾</button>
+      </section>
+      <section id="empty" class="empty" hidden></section>
+      <p class="fixture-note">Staged local search · No provider requests</p>
+    </main>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="../shared/catalog.js"></script>
+    <script src="../shared/search.js"></script>
+  </body>
+</html>

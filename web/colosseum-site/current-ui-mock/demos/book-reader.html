@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Book reader | Current Colosseum mock</title>
+    <!-- Original Brotherhood HTML composition retained and made interactive. Current source:
+ Colosseum 2916fe85812643c2e0ae45b0aec132cb6eb4e507. Staged data only.
+ Reader sample: Jane Austen, Pride and Prejudice (1813), public domain.
+ Artwork: authentic bundled Colosseum Feria assets; see assets provenance. -->
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/Fraunces-Regular.ttf") format("truetype");
+        font-display: swap;
+      }
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/Fraunces-Italic.ttf") format("truetype");
+        font-style: italic;
+        font-display: swap;
+      }
+      :root {
+        --gold: #f0c44a;
+        --reader-gold: #f0c24a;
+        --ink: #f7f7f5;
+        --dim: #c9c8d0;
+        --dimmer: #9a99a5;
+        --edge: rgba(255, 255, 255, 0.18);
+        --margin: 54px;
+        --paper-bg: #e9e4d8;
+        --paper-ink: #3a362c;
+        --paper-soft: #827968;
+        --ui: "Segoe UI", system-ui, sans-serif;
+        --display: Fraunces, Georgia, serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        background: #0d0e13;
+        color: var(--ink);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+        cursor: default;
+      }
+      .wall {
+        position: absolute;
+        inset: 0;
+        background: #18202a url("../assets/cold-ripple.jpg") center/cover
+          no-repeat;
+      }
+      .reader {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        isolation: isolate;
+        background: var(--paper-bg);
+      }
+      .page {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: var(--paper-bg);
+        will-change: transform;
+      }
+      .article {
+        position: absolute;
+        top: 113px;
+        left: 160px;
+        width: 960px;
+        color: var(--paper-ink);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 18px;
+        line-height: 1.6;
+        letter-spacing: 0;
+        text-align: justify;
+        hyphens: auto;
+      }
+      .article.continuation {
+        top: 99px;
+      }
+      .chno {
+        color: var(--paper-soft);
+        font-family: var(--ui);
+        font-size: 11px;
+        letter-spacing: 3.2px;
+        text-align: center;
+        font-weight: 600;
+        margin: 0 0 12px;
+      }
+      .article h1 {
+        font: 400 32px/1.2 var(--display);
+        text-align: center;
+        color: var(--paper-ink);
+        margin: 0 0 30px;
+      }
+      .prose p {
+        margin: 0;
+        font-weight: 400;
+      }
+      .prose p + p {
+        text-indent: 1.5em;
+      }
+      .article .first::first-letter {
+        float: left;
+        font-family: var(--display);
+        font-size: 2.65em;
+        line-height: 0.93;
+        margin: 4px 7px 0 0;
+        color: var(--paper-ink);
+      }
+      /* ReaderChrome.qml: each 11% edge has a 26px navigation chevron. */
+      .turn {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 11%;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        pointer-events: none;
+      }
+      .turn.prev {
+        left: 0;
+        padding-left: 22px;
+      }
+      .turn.next {
+        right: 0;
+        justify-content: flex-end;
+        padding-right: 22px;
+      }
+      .turn svg {
+        width: 26px;
+        height: 26px;
+        stroke: rgba(255, 255, 255, 0.26);
+        fill: none;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .scrim {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 130px;
+        z-index: 5;
+        pointer-events: none;
+      }
+      .scrim.top {
+        top: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(8, 8, 10, 0.72),
+          rgba(8, 8, 10, 0)
+        );
+      }
+      .scrim.bottom {
+        bottom: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(8, 8, 10, 0),
+          rgba(8, 8, 10, 0.78)
+        );
+      }
+      /* Reader2 TopBar.qml: 64px high, no pills, chapter plus seven icon verbs. */
+      .topbar {
+        position: absolute;
+        z-index: 8;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        color: #fff;
+        pointer-events: none;
+      }
+      .back {
+        position: absolute;
+        left: 22px;
+        top: 15px;
+        width: 32px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      .back svg {
+        width: 22px;
+        height: 22px;
+      }
+      .book-id {
+        position: absolute;
+        left: 470px;
+        width: 340px;
+        height: 64px;
+        top: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .book-id strong {
+        font: 400 17px/1 var(--display);
+        color: rgba(255, 255, 255, 0.84);
+      }
+      .book-id span {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+      .topright {
+        position: absolute;
+        right: 22px;
+        top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 32px;
+      }
+      .chapter {
+        width: 124px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: right;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.62);
+        padding-right: 4px;
+      }
+      .iconbtn {
+        position: relative;
+        width: 29px;
+        height: 29px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      .iconbtn svg {
+        width: 19px;
+        height: 19px;
+      }
+      .iconbtn .small {
+        width: 17px;
+        height: 17px;
+      }
+      svg.icon {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .iconbtn img {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        width: 19px;
+        height: 19px;
+        opacity: 0.78;
+        background: rgba(18, 18, 20, 0.01);
+      }
+      .iconbtn img + svg {
+        opacity: 0;
+      }
+      /* BottomRail.qml: 22px rail row, 8px gap, 18px metadata, 18px inset. */
+      .bottombar {
+        position: absolute;
+        z-index: 8;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 66px;
+        pointer-events: none;
+      }
+      .railrow {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        top: 0;
+        height: 22px;
+      }
+      .track {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 10px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.13);
+        border-radius: 2px;
+      }
+      .ticks {
+        position: absolute;
+        inset: 0;
+      }
+      .tickmark {
+        position: absolute;
+        top: -2px;
+        width: 1px;
+        height: 7px;
+        background: rgba(255, 255, 255, 0.22);
+      }
+      .railfill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 3px;
+        width: 1.4%;
+        border-radius: 2px;
+        background: var(--reader-gold);
+      }
+      .knob {
+        position: absolute;
+        top: 50%;
+        left: 1.4%;
+        height: 19px;
+        width: 19px;
+        margin-top: -9.5px;
+        margin-left: -9.5px;
+        border-radius: 50%;
+        background: rgba(240, 194, 74, 0.18);
+        display: grid;
+        place-items: center;
+      }
+      .knob::after {
+        content: "";
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--reader-gold);
+      }
+      .meta {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        top: 30px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+      .meta strong {
+        color: rgba(255, 255, 255, 0.62);
+        font-weight: 500;
+      }
+      .return-chip {
+        position: absolute;
+        right: 28px;
+        bottom: 77px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 99px;
+        background: rgba(16, 16, 19, 0.72);
+        height: 34px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.62);
+        opacity: 0;
+      }
+      .return-chip svg {
+        height: 15px;
+        width: 15px;
+      }
+      /* 348px appearance overlay, QML panelBg and identical internal row geometry. */
+      .panel {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: 348px;
+        z-index: 12;
+        transform: translateX(348px);
+        background: rgba(13, 13, 16, 0.86);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        border-left: 1px solid rgba(255, 255, 255, 0.07);
+        will-change: transform;
+      }
+      .panel h2 {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        font: 400 16px/1.2 var(--display);
+        color: rgba(255, 255, 255, 0.84);
+      }
+      .panel-viewport {
+        position: absolute;
+        top: 49px;
+        bottom: 22px;
+        left: 22px;
+        right: 22px;
+        overflow: hidden;
+      }
+      .form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .group-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.26);
+      }
+      .swatch-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .swatch {
+        height: 70px;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+      }
+      .swatch::before {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border: 2px solid transparent;
+        border-radius: 12px;
+        pointer-events: none;
+      }
+      .swatch.active::before {
+        border-color: var(--reader-gold);
+      }
+      .swatch b {
+        position: absolute;
+        bottom: 7px;
+        left: 7px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .swatch.paper {
+        background: #e9e4d8;
+        color: #565044;
+      }
+      .swatch.sepia {
+        background: #e5d5b8;
+        color: #6b5b40;
+      }
+      .swatch.slate {
+        background: #232830;
+        color: #9aa4b4;
+      }
+      .swatch.night {
+        background: #111013;
+        color: rgba(238, 233, 222, 0.6);
+      }
+      .swatch.contrast {
+        background: #000;
+        color: #fff;
+      }
+      .swatch.custom {
+        background: #111214;
+        color: #c9c5bc;
+      }
+      .font-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .font-card {
+        height: 62px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 9px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+      }
+      .font-card.active {
+        border-color: rgba(240, 194, 74, 0.6);
+      }
+      .font-card strong {
+        font-size: 19px;
+        font-weight: 400;
+        line-height: 23px;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      .font-card.active strong {
+        color: #fff;
+      }
+      .font-card em {
+        font-style: normal;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.26);
+      }
+      .font-card.literata strong {
+        font-family: Georgia, serif;
+      }
+      .font-card.fraunces strong {
+        font-family: var(--display);
+      }
+      .font-card.inter strong {
+        font-family: var(--ui);
+      }
+      .sliderrow {
+        height: 22px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .sliderrow .caption {
+        width: 78px;
+        flex: 0 0 78px;
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 12px;
+      }
+      .sliderrow .value {
+        width: 34px;
+        flex: 0 0 34px;
+        text-align: right;
+        color: rgba(255, 255, 255, 0.26);
+        font-size: 12px;
+      }
+      .sliderbar {
+        position: relative;
+        flex: 1;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .sliderbar .fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.34);
+      }
+      .sliderbar .ball {
+        position: absolute;
+        top: 50%;
+        height: 12px;
+        width: 12px;
+        border-radius: 50%;
+        background: #fff;
+        transform: translate(-50%, -50%);
+      }
+      .stepper {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        height: 34px;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      .step {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font:
+          400 15px Georgia,
+          serif;
+      }
+      .stepper .pct {
+        font-size: 13px;
+      }
+      .segrow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        height: 34px;
+      }
+      .segrow .caption {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.4);
+        width: 78px;
+      }
+      .invert-row {
+        height: 22px;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .invert-row .caption {
+        width: auto;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      .switch-track {
+        height: 20px;
+        width: 36px;
+        border-radius: 12px;
+        background: var(--reader-gold);
+        padding: 3px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .switch-track i {
+        width: 14px;
+        height: 14px;
+        background: #141416;
+        border-radius: 50%;
+      }
+      .segment {
+        flex: 1;
+        height: 34px;
+        padding: 3px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 8px;
+      }
+      .segment span {
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+      .segment span.on {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        color: #fff;
+      }
+      .tail {
+        height: 140px;
+        color: rgba(255, 255, 255, 0.22);
+        font-size: 12px;
+      }
+      .reset-veil {
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        background: #0c0c0e;
+        pointer-events: none;
+        opacity: 0;
+      }
+    </style>
+    <link rel="stylesheet" href="book-ui.css" />
+  </head>
+  <body>
+    <!-- Stage fallback beneath the opaque Reader2 paper, not a wallpaper painted over the book. -->
+    <div class="wall"></div>
+    <div class="reader" id="reader">
+      <div class="page" id="p1">
+        <article class="article">
+          <div class="chno">Chapter I</div>
+          <h1>Chapter One</h1>
+          <div class="prose">
+            <p class="first">
+              It is a truth universally acknowledged, that a single man in
+              possession of a good fortune, must be in want of a wife.
+            </p>
+            <p>
+              However little known the feelings or views of such a man may be on
+              his first entering a neighbourhood, this truth is so well fixed in
+              the minds of the surrounding families, that he is considered the
+              rightful property of some one or other of their daughters.
+            </p>
+            <p>
+              “My dear Mr. Bennet,” said his lady to him one day, “have you
+              heard that Netherfield Park is let at last?”
+            </p>
+            <p>Mr. Bennet replied that he had not.</p>
+            <p>
+              “But it is,” returned she; “for Mrs. Long has just been here, and
+              she told me all about it.”
+            </p>
+            <p>Mr. Bennet made no answer.</p>
+            <p>
+              “Do not you want to know who has taken it?” cried his wife
+              impatiently.
+            </p>
+            <p>“You want to tell me, and I have no objection to hearing it.”</p>
+            <p>This was invitation enough.</p>
+            <p>
+              “Why, my dear, you must know, Mrs. Long says that Netherfield is
+              taken by a young man of large fortune from the north of England;
+              that he came down on Monday in a chaise and four to see the place,
+              and was so much delighted with it, that he agreed with Mr. Morris
+              immediately; that he is to take possession before Michaelmas, and
+              some of his servants are to be in the house by the end of next
+              week.”
+            </p>
+          </div>
+        </article>
+      </div>
+      <div class="page" id="p2">
+        <article class="article continuation">
+          <div class="prose">
+            <p>“What is his name?”</p>
+            <p>“Bingley.”</p>
+            <p>“Is he married or single?”</p>
+            <p>
+              “Oh! single, my dear, to be sure! A single man of large fortune;
+              four or five thousand a year. What a fine thing for our girls!”
+            </p>
+            <p>“How so? how can it affect them?”</p>
+            <p>
+              “My dear Mr. Bennet,” replied his wife, “how can you be so
+              tiresome! You must know that I am thinking of his marrying one of
+              them.”
+            </p>
+            <p>“Is that his design in settling here?”</p>
+            <p>
+              “Design! Nonsense, how can you talk so! But it is very likely that
+              he may fall in love with one of them, and therefore you must visit
+              him as soon as he comes.”
+            </p>
+            <p>
+              “I see no occasion for that. You and the girls may go, or you may
+              send them by themselves, which perhaps will be still better; for,
+              as you are as handsome as any of them, Mr. Bingley might like you
+              the best of the party.”
+            </p>
+            <p>
+              “My dear, you flatter me. I certainly have had my share of beauty,
+              but I do not pretend to be anything extraordinary now. When a
+              woman has five grown-up daughters, she ought to give over thinking
+              of her own beauty.”
+            </p>
+          </div>
+        </article>
+      </div>
+      <div class="turn prev" id="leftTurn">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+      </div>
+      <div class="turn next" id="rightTurn">
+        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
+      </div>
+      <div class="scrim top" id="topScrim"></div>
+      <div class="scrim bottom" id="bottomScrim"></div>
+      <div class="topbar" id="topbar">
+        <div class="back">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+        </div>
+        <div class="book-id">
+          <strong>Pride and Prejudice</strong><span>Jane Austen</span>
+        </div>
+        <div class="topright">
+          <span class="chapter">Chapter I</span>
+          <span class="iconbtn"
+            ><img
+              src="../assets/icons/search.svg"
+              alt=""
+              onerror="
+                this.style.display = 'none';
+                this.nextElementSibling.style.opacity = '1';
+              " /><svg class="icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m16 16 5 5" /></svg
+          ></span>
+          <span class="iconbtn"
+            ><svg class="icon" viewBox="0 0 24 24">
+              <path d="M4 5h16M4 10h16M4 15h16M4 20h16" /></svg
+          ></span>
+          <span class="iconbtn" id="appearanceIcon"
+            ><svg class="icon" viewBox="0 0 24 24">
+              <path d="M4 19h16M6 16 12 3l6 13M8 12h8" /></svg
+          ></span>
+          <span class="iconbtn"
+            ><svg class="icon" viewBox="0 0 24 24">
+              <path d="M6 4h12v17l-6-4-6 4z" /></svg
+          ></span>
+          <span class="iconbtn"
+            ><img
+              src="../assets/icons/minimize.svg"
+              alt=""
+              onerror="
+                this.style.display = 'none';
+                this.nextElementSibling.style.opacity = '1';
+              " /><svg class="icon" viewBox="0 0 24 24">
+              <path d="M5 19h14" /></svg
+          ></span>
+          <span class="iconbtn"
+            ><img
+              src="../assets/icons/fullscreen-exit.svg"
+              alt=""
+              onerror="
+                this.style.display = 'none';
+                this.nextElementSibling.style.opacity = '1';
+              " /><svg class="icon" viewBox="0 0 24 24">
+              <path d="M9 4v5H4m11-5v5h5M9 20v-5H4m11 5v-5h5" /></svg
+          ></span>
+          <span class="iconbtn"
+            ><svg class="icon" viewBox="0 0 24 24">
+              <path d="M5 5l14 14M19 5 5 19" /></svg
+          ></span>
+        </div>
+      </div>
+      <div class="bottombar" id="bottombar">
+        <div class="railrow">
+          <div class="track">
+            <div class="ticks" id="ticks"></div>
+            <div class="railfill" id="fill"></div>
+            <div class="knob" id="knob"></div>
+          </div>
+        </div>
+        <div class="meta">
+          <div>Page <strong id="pageCount">1 of 8</strong> in chapter</div>
+          <div><strong id="bookPercent">0%</strong> of book</div>
+        </div>
+      </div>
+      <div class="return-chip" id="returnChip">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M5 9H2l4-5 4 5H7a9 9 0 1 1-2 10" /></svg
+        >Return to page 1
+      </div>
+      <aside class="panel" id="panel" aria-label="Appearance controls">
+        <h2>Appearance</h2>
+        <div class="panel-viewport">
+          <div class="form">
+            <section class="group">
+              <div class="group-label">Theme</div>
+              <div class="swatch-grid">
+                <div class="swatch paper active" id="paperSwatch">
+                  <b>Paper</b>
+                </div>
+                <div class="swatch sepia"><b>Sepia</b></div>
+                <div class="swatch slate"><b>Slate</b></div>
+                <div class="swatch night" id="nightSwatch"><b>Night</b></div>
+                <div class="swatch contrast"><b>Contrast</b></div>
+                <div class="swatch custom"><b>Custom</b></div>
+              </div>
+              <div class="invert-row" id="invertRow">
+                <span class="caption">Invert images in dark themes</span
+                ><span class="switch-track"><i></i></span>
+              </div>
+            </section>
+            <section class="group">
+              <div class="group-label">Typeface</div>
+              <div class="font-cards">
+                <div class="font-card literata active" id="literataCard">
+                  <strong>Aa</strong><em>Literata</em>
+                </div>
+                <div class="font-card fraunces" id="frauncesCard">
+                  <strong>Aa</strong><em>Fraunces</em>
+                </div>
+                <div class="font-card inter">
+                  <strong>Aa</strong><em>Inter</em>
+                </div>
+              </div>
+              <div class="sliderrow">
+                <span class="caption">Weight</span>
+                <div class="sliderbar">
+                  <span class="fill" style="width: 37.5%"></span
+                  ><span class="ball" style="left: 37.5%"></span>
+                </div>
+                <span class="value">400</span>
+              </div>
+            </section>
+            <section class="group">
+              <div class="group-label">Size</div>
+              <div class="stepper">
+                <span class="step">A−</span><span class="pct">100 %</span
+                ><span class="step">A+</span>
+              </div>
+            </section>
+            <section class="group">
+              <div class="group-label">Spacing</div>
+              <div class="sliderrow">
+                <span class="caption">Line</span>
+                <div class="sliderbar">
+                  <span class="fill" style="width: 50%"></span
+                  ><span class="ball" style="left: 50%"></span>
+                </div>
+                <span class="value">1.6</span>
+              </div>
+              <div class="sliderrow">
+                <span class="caption">Word</span>
+                <div class="sliderbar">
+                  <span class="fill" style="width: 0"></span
+                  ><span class="ball" style="left: 0"></span>
+                </div>
+                <span class="value">0.00</span>
+              </div>
+              <div class="sliderrow">
+                <span class="caption">Letter</span>
+                <div class="sliderbar">
+                  <span class="fill" style="width: 0"></span
+                  ><span class="ball" style="left: 0"></span>
+                </div>
+                <span class="value">0.00</span>
+              </div>
+              <div class="sliderrow">
+                <span class="caption">Paragraph</span>
+                <div class="sliderbar">
+                  <span class="fill" style="width: 0"></span
+                  ><span class="ball" style="left: 0"></span>
+                </div>
+                <span class="value">0.0</span>
+              </div>
+              <div class="segrow">
+                <span class="caption">Indent</span>
+                <div class="segment">
+                  <span class="on">Book</span><span>None</span
+                  ><span>Indent</span>
+                </div>
+              </div>
+            </section>
+            <section class="group">
+              <div class="group-label">Layout</div>
+              <div class="sliderrow">
+                <span class="caption">Margins</span>
+                <div class="sliderbar">
+                  <span class="ball" style="left: 30%"></span>
+                </div>
+                <span class="value">72</span>
+              </div>
+            </section>
+            <div class="tail">Reader appearance settings</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <div class="reset-veil" id="veil"></div>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="book-ui.js"></script>
+  </body>
+</html>

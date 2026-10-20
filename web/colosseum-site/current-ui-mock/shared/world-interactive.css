@@ -1,0 +1,103 @@
+.page {
+  overflow-y: auto !important;
+}
+.board {
+  position: relative !important;
+  transform: none !important;
+  padding-bottom: 110px;
+}
+.dock {
+  display: none !important;
+}
+.tabs span,
+.lens span,
+.cta span,
+.tile,
+.card,
+.head span,
+.filter span,
+.now b,
+.tog,
+.src {
+  cursor: pointer;
+}
+.tabs span:hover,
+.lens span:hover {
+  color: #f0c44a;
+}
+.card:hover .cov {
+  box-shadow: 0 0 0 2px #f0c44a;
+}
+.tile:hover {
+  box-shadow: 0 0 0 2px #f0c44a;
+}
+.hero {
+  position: relative;
+}
+.dots i {
+  cursor: pointer;
+}
+.slide {
+  width: 50%;
+}
+.tabs {
+  position: relative;
+}
+.tabslot {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: #141a1de8;
+  backdrop-filter: blur(20px);
+}
+.side {
+  cursor: pointer;
+}
+.world-next {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+}
+.world-next button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ffffff44;
+  border-radius: 50%;
+  background: #0006;
+  color: white;
+  cursor: pointer;
+}
+.mock-view-link {
+  display: block;
+  text-align: center;
+  margin: 24px 0 30px;
+  border: 1px solid #ffffff33;
+  background: #ffffff11;
+  border-radius: 12px;
+  padding: 13px;
+  color: white;
+  font: 14px "Segoe UI";
+  cursor: pointer;
+}
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #f0c44a;
+  outline-offset: 3px;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff55 transparent;
+}
+
+/* Current Main.qml vignette; cold-ripple luma .50379, adaptive extra .002925. */
+.wall::after {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.342925),
+    rgba(0, 0, 0, 0.282925) 50%,
+    rgba(0, 0, 0, 0.462925)
+  );
+}

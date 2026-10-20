@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colosseum</title>
+<link rel="icon" href="assets/colosseum.svg">
+<style>
+  @font-face{font-family:"Fraunces";src:url("assets/Fraunces-Regular.ttf") format("truetype");font-style:normal;font-display:swap}
+  @font-face{font-family:"Fraunces";src:url("assets/Fraunces-Italic.ttf") format("truetype");font-style:italic;font-display:swap}
+
+  /* Tokens lifted from the app: qml/Theme.qml, Glass.qml, TopBar.qml, RowIndexSidebar.qml */
+  :root{
+    --gold:#f0c44a; --gold-ink:#1a1408;
+    --ink:#f7f7f5; --ink-dim:#c9c8d0; --ink-dimmer:#9a99a5;
+    --edge:rgba(255,255,255,.18); --glass-tint:rgba(255,255,255,.10); --glass-hi:rgba(255,255,255,.14);
+    --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif; --display:"Fraunces",Georgia,serif;
+    --margin:54px; --bar-h:92px; --rail-open:240px; --rail-closed:52px;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--ui);color:var(--ink);background:#0a0b10;min-height:100vh;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;z-index:-2;background:url("assets/cold-ripple.jpg") center/cover no-repeat}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(6,7,11,.52),rgba(6,7,11,.74))}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+  .glass{background:linear-gradient(rgba(0,0,0,.14),rgba(0,0,0,.14)),var(--glass-tint);
+    -webkit-backdrop-filter:blur(26px) saturate(130%);backdrop-filter:blur(26px) saturate(130%);
+    border:1px solid var(--edge)}
+
+  /* ---- top bar ---- */
+  .topbar{position:sticky;top:0;z-index:20;height:var(--bar-h);padding:0 var(--margin);
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px}
+  /* once the page scrolls, content passing under the bar fades into a dark veil */
+  .topbar::before{content:"";position:absolute;inset:0 0 -22px 0;z-index:-1;opacity:0;transition:opacity .2s;pointer-events:none;
+    background:linear-gradient(rgba(8,9,13,.96) 0%,rgba(8,9,13,.93) 62%,rgba(8,9,13,0) 100%)}
+  .scrolled .topbar::before{opacity:1}
+  .top-actions{display:flex;align-items:center;justify-self:end;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px;justify-self:start}
+  .reddit,.github{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:var(--ink-dim);transition:color .16s,background .16s}
+  .reddit:hover,.github:hover{color:var(--ink);background:var(--glass-hi)}
+  .reddit svg,.github svg{width:22px;height:22px;fill:currentColor}
+  .brand img{width:34px;height:34px}
+  .brand span{font-family:var(--display);font-size:26px;letter-spacing:-.4px}
+  .pills{display:flex;align-items:center;gap:4px;padding:6px;border-radius:999px}
+  .pill{display:flex;align-items:center;justify-content:center;height:34px;padding:0 17px;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink-dim);
+    border:1px solid transparent;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
+  .pill:hover{color:var(--ink);background:var(--glass-hi);border-color:var(--edge)}
+  .pill[aria-current="page"]{background:var(--gold);color:var(--gold-ink);font-weight:600;border-color:transparent}
+  .get{display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 18px;border-radius:999px;
+    font-size:14px;font-weight:600;transition:background .16s}
+  .get:hover{background:linear-gradient(rgba(0,0,0,.06),rgba(0,0,0,.06)),var(--glass-hi)}
+  .get svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---- pages ---- */
+  .page{display:none;padding:0 var(--margin) 120px}
+  .page.on{display:block}
+  .kicker{font-size:10px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold)}
+  h1,h2{font-family:var(--display);font-weight:400;letter-spacing:-.02em}
+
+  /* ---- showcase: index rail + sections ---- */
+  .with-rail{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:start}
+  .rail{position:sticky;top:calc(var(--bar-h) + 12px);width:var(--rail-open);height:calc(100vh - var(--bar-h) - 44px);
+    transition:width .24s var(--ease)}
+  .rail::after{content:"";position:absolute;right:0;top:2px;bottom:2px;width:1px;
+    background:linear-gradient(transparent,rgba(255,255,255,.18) 10%,rgba(255,255,255,.10) 86%,transparent)}
+  .rail-brand{padding:24px 0 20px 12px;white-space:nowrap;overflow:hidden;transition:opacity .15s}
+  .rail-brand b{display:block;margin-top:5px;font-family:var(--display);font-weight:400;font-size:27px;letter-spacing:-.54px}
+  .rail-list{display:flex;flex-direction:column;gap:4px;padding-right:16px}
+  .row{position:relative;display:flex;align-items:center;gap:10px;height:46px;padding:0 12px;border-radius:12px;
+    text-align:left;font-size:14px;font-weight:600;color:var(--ink-dim);white-space:nowrap;transition:background .16s,color .16s}
+  .row svg{flex:none;width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .row span{overflow:hidden;text-overflow:ellipsis}
+  .row:hover{background:rgba(255,255,255,.07);color:var(--ink)}
+  .row.cur{background:rgba(255,255,255,.09);color:var(--ink)}
+  .row.cur svg{stroke:var(--gold)}
+  .row.cur::before{content:"";position:absolute;left:-1px;top:10px;bottom:10px;width:3px;border-radius:4px;background:var(--gold);
+    box-shadow:0 0 0 6px rgba(240,196,74,.14)}
+  .rail-toggle{position:absolute;right:-14px;top:18px;z-index:2;width:28px;height:28px;border-radius:14px;display:grid;place-items:center;opacity:.74}
+  .rail-toggle:hover{opacity:1}
+  .rail-toggle svg{width:15px;height:15px;stroke:var(--ink-dim);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .24s var(--ease)}
+  .rail.closed{width:var(--rail-closed)}
+  .rail.closed .rail-brand{opacity:0}
+  .rail.closed .rail-list{padding-right:4px}
+  .rail.closed .row span{display:none}
+  .rail.closed .rail-toggle svg{transform:rotate(180deg)}
+
+  .hero{padding:44px 0 76px;max-width:760px}
+  .hero h1{font-size:clamp(46px,6vw,82px);line-height:.98;margin:16px 0 22px}
+  .hero h1 em{font-style:italic;color:var(--gold)}
+  .hero p{font-size:18px;line-height:1.6;color:var(--ink-dim);max-width:600px}
+
+  .feature{padding:0 0 96px;scroll-margin-top:calc(var(--bar-h) + 12px)}
+  .feature h2{font-size:clamp(34px,3.6vw,50px);line-height:1.04;margin:12px 0 14px}
+  .feature p{font-size:16px;line-height:1.65;color:var(--ink-dim);max-width:600px}
+  .frame{position:relative;margin-top:30px;aspect-ratio:16/9;border-radius:18px;overflow:hidden;
+    border:1px solid var(--edge);box-shadow:0 26px 70px rgba(0,0,0,.5);background:rgba(8,9,13,.6)}
+  .frame img,.frame video{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+  .frame + .frame{margin-top:18px}
+  .frame.lead{margin:-36px 0 96px}
+  /* live recreations: a fixed 1280x720 stage, scaled to the frame */
+  .frame.demo iframe{position:absolute;left:0;top:0;width:1280px;height:720px;border:0;transform-origin:0 0;pointer-events:none}
+
+  /* Artwork keeps each frame meaningful until its real interactive demo is ready. */
+  .frame.demo:not(.demo-ready) iframe{opacity:0}
+  .demo-preview{position:absolute;inset:0;z-index:1;display:grid;place-items:center;overflow:hidden;
+    background:#10121b;pointer-events:none;transition:opacity .22s ease,visibility .22s}
+  .demo-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    filter:blur(14px) saturate(.9);transform:scale(1.09);opacity:.56}
+  .demo-preview::after{content:"";position:absolute;inset:0;background:
+    linear-gradient(90deg,rgba(6,7,12,.88) 0%,rgba(6,7,12,.45) 72%,rgba(6,7,12,.53) 100%)}
+  .demo-preview div{position:relative;z-index:1;text-align:center;padding:18px;max-width:90%}
+  .demo-preview strong{display:block;font:400 clamp(22px,3.2vw,40px)/1.15 var(--display);color:var(--ink)}
+  .demo-preview small{display:block;margin-top:12px;font:600 10px/1.5 var(--ui);
+    letter-spacing:1.8px;text-transform:uppercase;color:var(--gold)}
+  .demo-preview .demo-retry{display:none;pointer-events:auto;margin-top:14px;padding:9px 18px;border:1px solid var(--gold);border-radius:999px;color:var(--gold);font-size:12px;font-weight:600;background:rgba(0,0,0,.35)}
+  .frame.demo.demo-failed .demo-retry{display:inline-block}
+  .frame.demo.demo-ready .demo-preview{opacity:0;visibility:hidden}
+  .frame.demo .enter,.frame.demo .tag,.frame.demo .acts{z-index:3}
+  .frame.slot{display:grid;place-items:center;text-align:center}
+  .frame.slot b{display:block;font-family:var(--display);font-weight:400;font-size:26px;color:var(--ink-dim)}
+  .frame.slot small{display:block;margin-top:8px;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--ink-dimmer)}
+  .tag{position:absolute;left:14px;bottom:14px;padding:6px 11px;border-radius:999px;font-size:11px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--ink-dim)}
+
+  /* a frame is a preview until clicked. Awake, it is the visitor's to use, and offers Full screen and Done */
+  .frame.demo{cursor:pointer}
+  .enter,.acts button{height:32px;padding:0 14px;border-radius:999px;font-size:12.5px;font-weight:600;
+    display:flex;align-items:center;transition:background .16s,color .16s,opacity .16s}
+  .enter{position:absolute;right:14px;bottom:14px;opacity:.86}
+  .frame.demo:not(.live):hover .enter{opacity:1;background:var(--gold);color:var(--gold-ink)}
+  .frame.demo:not(.live):hover{border-color:rgba(240,196,74,.55)}
+  .acts{position:absolute;right:14px;bottom:14px;display:none;gap:8px;z-index:2}
+  .acts button:hover{background:var(--gold);color:var(--gold-ink)}
+  .frame.live{cursor:auto;border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 26px 70px rgba(0,0,0,.5)}
+  .frame.live iframe{pointer-events:auto}
+  .frame.live .enter,.frame.live .tag{display:none}
+  .frame.live .acts{display:flex}
+  .stage{position:fixed;inset:0;z-index:60;background:#05060a;display:none}
+  .stage.on{display:block}
+  /* held upright, a phone shows the page turned on its side so it fills the screen */
+  .stage-in{position:absolute;inset:0}
+  .stage.turn .stage-in{inset:0 auto auto 100%;transform-origin:0 0;transform:rotate(90deg)}
+  .stage iframe{position:absolute;left:50%;top:50%;width:1280px;height:720px;border:0;transform-origin:0 0}
+  .stage-close{position:absolute;right:14px;top:12px;z-index:2;height:32px;padding:0 14px;border-radius:999px;
+    font-size:12.5px;font-weight:600;opacity:.5;transition:opacity .16s}
+  .stage-close:hover{opacity:1}
+  body.staged{overflow:hidden}
+
+  /* ---- downloads ---- */
+  .lede{padding:44px 0 46px;max-width:720px}
+  .lede h1{font-size:clamp(40px,5vw,66px);line-height:1;margin:16px 0 18px}
+  .lede p{font-size:17px;line-height:1.6;color:var(--ink-dim)}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+  .card{border-radius:18px;padding:30px 28px 28px;display:flex;flex-direction:column;min-height:300px}
+  .card .os{width:44px;height:44px;fill:var(--ink);margin-bottom:22px}
+  .card h2{font-size:34px;margin:12px 0 10px}
+  .card p{font-size:15px;line-height:1.6;color:var(--ink-dim);flex:1}
+  .card .ver{font-size:13px;color:var(--ink-dimmer);margin:18px 0 14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 22px;border-radius:12px;font-size:15px;font-weight:600}
+  .btn.gold{background:var(--gold);color:var(--gold-ink)}
+  .btn.quiet{border:1px solid var(--edge);background:rgba(255,255,255,.08)}
+  .btn.wait{border:1px solid var(--edge);color:var(--ink-dim);cursor:default}
+  .card.soon{opacity:.62}
+  .card.soon .btn{border:1px solid var(--edge);color:var(--ink-dimmer);cursor:default}
+
+  /* ---- downloads: what to do once it is installed ---- */
+  .steps{margin-top:72px}
+  .steps h2{font-size:clamp(30px,3vw,42px);line-height:1.06;margin:12px 0 26px}
+  .steps ol{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;counter-reset:step}
+  .steps li{counter-increment:step;padding-top:14px;border-top:1px solid var(--edge)}
+  .steps li::before{content:counter(step);display:block;margin-bottom:8px;font-family:var(--display);font-size:30px;line-height:1;color:var(--gold)}
+  .steps b{display:block;margin-bottom:6px;font-size:16px;font-weight:600}
+  .steps p{font-size:14.5px;line-height:1.6;color:var(--ink-dim)}
+
+  /* ---- about ---- */
+  .essay{max-width:720px;padding:44px 0 0}
+  .essay h1{font-size:clamp(40px,5vw,66px);line-height:1;margin:16px 0 34px}
+  .essay p{font-family:var(--display);font-size:22px;line-height:1.55;color:var(--ink);margin-bottom:26px}
+  .essay h2{font-family:var(--ui);font-weight:600;font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);margin:44px 0 16px}
+  .essay blockquote{margin:6px 0 30px;padding:4px 0 4px 22px;border-left:2px solid var(--gold);font-family:var(--display);
+    font-style:italic;font-size:26px;line-height:1.4;color:var(--ink)}
+  .essay dl{margin:4px 0 28px;border-top:1px solid var(--edge)}
+  .essay dl div{display:grid;grid-template-columns:150px 1fr;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--edge)}
+  .essay dt{font-family:var(--display);font-size:22px;color:var(--ink)}
+  .essay dd{font-size:15px;color:var(--ink-dim)}
+  .essay p.plain{font-family:var(--ui);font-size:15px;color:var(--ink-dimmer)}
+
+  /* ---- phone ---- */
+  @media (max-width:860px){
+    /* the brand row scrolls away with the page; only the pill row stays stuck, 60px of it */
+    :root{--margin:16px;--bar-h:60px}
+    .topbar{height:auto;top:-48px;grid-template-columns:1fr auto;grid-template-rows:36px 46px;gap:8px;padding-top:10px;padding-bottom:8px}
+    .topbar::before{inset:0}
+    .hero .kicker{line-height:1.7;text-wrap:balance}
+    .enter{right:8px;bottom:8px;height:26px;padding:0 11px;font-size:11.5px;opacity:1}
+    .tag{left:8px;bottom:8px;padding:5px 9px;font-size:9.5px;letter-spacing:.8px}
+    .pill{padding:0 11px;font-size:13px}.pill .wide{display:none}
+    .brand img{width:28px;height:28px}.brand span{font-size:22px}
+    .top-actions{gap:8px}.reddit,.github{width:30px;height:30px}.reddit svg,.github svg{width:19px;height:19px}
+    .pills{grid-column:1/-1;grid-row:2;overflow-x:auto;justify-self:center;max-width:100%;scrollbar-width:none}
+    .get{height:34px;padding:0 14px}
+    .with-rail{display:block}
+    /* no index on a phone: the tabs are the one picker, the Showcase is one long scroll */
+    .rail{display:none}
+    .hero{padding:26px 0 50px}.feature{padding-bottom:64px}
+    .frame{border-radius:12px}
+    .cards{grid-template-columns:1fr}.card{min-height:0}
+    .essay p{font-size:19px}
+    .steps{margin-top:48px}.steps ol{grid-template-columns:1fr;gap:0}
+    .steps li{position:relative;padding:14px 0 16px 42px}.steps li::before{position:absolute;left:2px;top:14px;margin:0}
+  }
+  @media (max-width:380px){.topbar{column-gap:8px}.top-actions{gap:6px}.brand{gap:7px}.brand span{font-size:20px}.get{padding:0 10px;font-size:12.5px}.get svg{width:14px}}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+  /* Linux release notes: modal is outside the grid, so adjacent cards never resize. */
+  .linux-info-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    width:100%;margin-top:14px;padding:14px 0 0;border-top:1px solid var(--edge);
+    color:var(--ink-dim);font-size:13px;font-weight:600;line-height:1.4;text-align:left}
+  .linux-info-trigger span{display:flex;align-items:center;gap:9px}
+  .linux-info-trigger svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;
+    stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+  .linux-info-trigger:hover{color:var(--gold)}
+  body.linux-info-open{overflow:hidden}
+  .linux-info-dialog{width:min(760px,calc(100vw - 40px));max-height:min(92vh,820px);
+    max-height:min(92dvh,820px);margin:auto;padding:0;overflow-y:auto;overscroll-behavior:contain;
+    color:var(--ink);background:#15161c;border:1px solid rgba(255,255,255,.19);
+    border-radius:22px;box-shadow:0 32px 100px rgba(0,0,0,.76);color-scheme:dark}
+  .linux-info-dialog::backdrop{background:rgba(4,5,10,.78);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+  .linux-info-dialog .linux-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;
+    padding:32px 36px 25px;border-bottom:1px solid var(--edge)}
+  .linux-info-dialog .linux-eyebrow{color:var(--gold);font-size:10px;font-weight:650;letter-spacing:2px;text-transform:uppercase}
+  .linux-info-dialog h2{margin:11px 0 12px;font-family:var(--display);font-size:42px;line-height:1.08;font-weight:400}
+  .linux-info-dialog .linux-intro{max-width:540px;font-size:14px;line-height:1.65;color:var(--ink-dim)}
+  .linux-info-close{display:grid;place-items:center;flex:none;width:38px;height:38px;
+    border:1px solid var(--edge);border-radius:50%;background:rgba(255,255,255,.07);color:var(--ink)}
+  .linux-info-close:hover{background:rgba(255,255,255,.16)}
+  .linux-info-close svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round}
+  .linux-info-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:22px 36px}
+  .linux-info-facts div{min-width:0;padding:15px;border:1px solid rgba(255,255,255,.10);
+    border-radius:12px;background:rgba(255,255,255,.04)}
+  .linux-info-facts span{display:block;margin-bottom:8px;color:var(--ink-dimmer);
+    font-size:10px;letter-spacing:1.2px;text-transform:uppercase}
+  .linux-info-facts strong{font-size:13px;font-weight:650;line-height:1.4}
+  .linux-info-facts code{font-size:12px}
+  .linux-info-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:25px;padding:2px 36px 28px}
+  .linux-info-content section{min-width:0;padding-top:16px;border-top:1px solid var(--edge)}
+  .linux-info-content h3{margin-bottom:9px;font-family:var(--ui);font-size:13px;letter-spacing:.1px;font-weight:700}
+  .linux-info-content p{font-size:13.5px;line-height:1.65;color:var(--ink-dim)}
+  .linux-info-content code{font-size:12px;color:var(--ink)}
+  .linux-info-footer{padding:21px 36px 29px;border-top:1px solid var(--edge);background:rgba(255,255,255,.025)}
+  .linux-info-footer .linux-check-label{display:block;margin-bottom:10px;color:var(--ink-dimmer);
+    font-size:10px;letter-spacing:1.3px;text-transform:uppercase}
+  .linux-info-footer .linux-hash{display:block;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:11.5px;line-height:1.7;color:var(--ink-dim)}
+  .linux-info-links{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:17px}
+  .linux-info-links a{color:var(--gold);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+  .linux-info-links a:hover{color:#ffdf78}
+  @media(max-width:680px){
+    .linux-info-dialog{width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:16px}
+    .linux-info-dialog .linux-dialog-head{padding:22px 20px 18px;gap:8px}
+    .linux-info-dialog h2{font-size:33px}
+    .linux-info-facts{grid-template-columns:1fr;gap:7px;padding:16px 20px}
+    .linux-info-facts div{padding:12px 14px}
+    .linux-info-facts span{margin-bottom:4px}
+    .linux-info-content{grid-template-columns:1fr;gap:18px;padding:0 20px 24px}
+    .linux-info-footer{padding:19px 20px 24px}
+  }
+
+  /* Downloads: matched card rhythm, aligned footers, recognizable actions. */
+  :is(#page-downloads,#page-next .r119-install) .cards{align-items:stretch}
+  :is(#page-downloads,#page-next .r119-install) .cards .card{min-height:420px}
+  :is(#page-downloads,#page-next .r119-install) .cards .card .ver{margin:18px 0 14px}
+  :is(#page-downloads,#page-next .r119-install) .card-actions{
+    margin-top:auto;display:grid;grid-template-rows:50px 36px;gap:10px;align-content:end
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta{
+    width:100%;height:50px;min-height:50px;display:flex;align-items:center;justify-content:center;gap:10px;
+    padding:0 16px;border:1px solid rgba(255,255,255,.34);border-radius:12px;
+    background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.055));
+    color:var(--ink);font:700 14px/1.2 var(--ui);letter-spacing:.05px;text-align:center;
+    box-shadow:inset 0 1px rgba(255,255,255,.05);
+    transition:background .18s,border-color .18s,box-shadow .18s,transform .18s;
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta svg{width:17px;height:17px;flex:none;stroke:currentColor;
+    fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta:not(.disabled):hover{
+    background:rgba(255,255,255,.19);border-color:rgba(255,255,255,.64);transform:translateY(-1px)
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta:active{transform:translateY(0)}
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta.primary{
+    color:var(--gold-ink);border-color:var(--gold);
+    background:linear-gradient(180deg,#f8d473 0%,var(--gold) 62%,#e9b83b 100%);
+    box-shadow:inset 0 1px rgba(255,255,255,.45),0 5px 22px rgba(240,196,74,.13)
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta.primary:hover{
+    border-color:#ffe6a2;background:#ffda79;box-shadow:0 6px 25px rgba(240,196,74,.2)
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta.disabled,
+  :is(#page-downloads,#page-next .r119-install) .card-actions .download-cta.disabled:hover{
+    color:var(--ink-dimmer);border-color:rgba(255,255,255,.14);
+    background:rgba(255,255,255,.025);box-shadow:none;transform:none;cursor:default
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .linux-info-trigger{
+    min-height:36px;margin:0;padding:0 4px;border:0;border-radius:8px;
+    font-size:12.5px;font-weight:600;color:var(--ink-dim);
+    transition:color .16s,background .16s
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .linux-info-trigger:hover{
+    color:var(--gold);background:rgba(255,255,255,.055)
+  }
+  :is(#page-downloads,#page-next .r119-install) .card-actions .linux-info-trigger:focus-visible{outline-offset:1px}
+  :is(#page-downloads,#page-next .r119-install) .card-action-placeholder{display:block;min-height:36px;pointer-events:none}
+  @media(max-width:860px){
+    :is(#page-downloads,#page-next .r119-install) .cards .card{min-height:400px}
+  }
+</style>
+
+<style id="release119-style">
+:is(#page-next,#page-upcoming){max-width:1380px;margin:auto;padding:34px clamp(18px,4vw,58px) 90px;scroll-margin-top:110px}
+:is(#page-next,#page-upcoming) h1,:is(#page-next,#page-upcoming) h2{font-family:var(--display),Fraunces,Georgia,serif;font-weight:400;line-height:1.08}
+:is(#page-next,#page-upcoming) h1{font-size:clamp(44px,6.5vw,86px);margin:16px 0}
+:is(#page-next,#page-upcoming) h2{font-size:clamp(30px,4vw,54px);margin:9px 0}
+:is(#page-next,#page-upcoming) p{line-height:1.6}
+:is(#page-next,#page-upcoming) .r119-hero{padding:45px 0 38px;border-bottom:1px solid rgba(255,255,255,.16)}
+:is(#page-next,#page-upcoming) .r119-hero p{font-size:clamp(19px,2.2vw,27px);color:#dad7d2}
+:is(#page-next,#page-upcoming) .kicker{font-size:13px;letter-spacing:.15em;color:var(--gold);text-transform:uppercase}
+:is(#page-next,#page-upcoming) .r119-new{display:inline-block;background:var(--gold);color:#1a1408;border-radius:6px;padding:5px 9px;letter-spacing:.04em;margin-left:14px;font:700 12px var(--ui)}
+:is(#page-next,#page-upcoming) .r119-feature{padding:54px 0 62px;border-bottom:1px solid rgba(255,255,255,.14)}
+:is(#page-next,#page-upcoming) .r119-feature-top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 22px;margin-bottom:24px}
+:is(#page-next,#page-upcoming) .r119-feature-top .kicker{width:100%}
+:is(#page-next,#page-upcoming) .r119-status{color:var(--gold);font:600 13px var(--ui);border:1px dashed var(--gold);border-radius:99px;padding:8px 14px}
+:is(#page-next,#page-upcoming) .r119-panel{width:100%;aspect-ratio:2000/1415;position:relative;border:1px solid #ffffff38;border-radius:clamp(9px,1.5vw,20px);overflow:hidden;background:#0b0b0d;box-shadow:0 24px 70px #0009}
+:is(#page-next,#page-upcoming) .r119-panel iframe{position:absolute;inset:0;display:block;width:100%;height:100%;border:0;background:#0b0b0d}
+:is(#page-next,#page-upcoming) .r119-copy{font-size:clamp(16px,1.65vw,20px);max-width:920px;color:#d0cdd3;margin:23px 0 12px}
+:is(#page-next,#page-upcoming) .r119-actions{display:flex;flex-wrap:wrap;gap:13px 24px;align-items:center;margin-top:18px}
+:is(#page-next,#page-upcoming) .r119-tribute-link{display:inline-flex;align-items:center;justify-content:center;background:rgba(240,196,74,.13);border:1px solid #f0c44a8c;border-radius:999px;color:var(--gold);font:700 15px var(--ui);padding:13px 20px;text-decoration:none}
+:is(#page-next,#page-upcoming) .r119-tribute-link:hover{background:rgba(240,196,74,.23)}
+:is(#page-next,#page-upcoming) .r119-panel-view{color:#e8dfcf;font-size:14px;text-decoration:underline;text-underline-offset:4px}
+:is(#page-next,#page-upcoming) .r119-community{margin-top:24px;padding:21px 24px;border-left:3px solid var(--gold);background:#10141ba8;border-radius:0 14px 14px 0}
+:is(#page-next,#page-upcoming) .r119-community p{font-size:clamp(15px,1.5vw,18px);color:#d0cdd3;margin-top:8px}
+:is(#page-next,#page-upcoming) .r119-community a{color:var(--gold);text-decoration:underline}
+:is(#page-next,#page-upcoming) .r119-future-note{font-size:14px!important;color:#b9b5ba!important}
+:is(#page-next,#page-upcoming) .r119-install{margin-top:44px;padding:38px 0;background:none;border:0;border-radius:0}
+:is(#page-next,#page-upcoming) .r119-install p{color:#cac8cb;margin:15px 0 24px}
+:is(#page-next,#page-upcoming) .r119-install-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+:is(#page-next,#page-upcoming) .r119-upcoming{padding:80px 0 10px}
+:is(#page-next,#page-upcoming) .r119-upcoming h2{font-size:clamp(48px,6vw,80px)}
+:is(#page-next,#page-upcoming) .r119-community-footer{text-align:center;padding:75px 0 30px}
+:is(#page-next,#page-upcoming) .r119-primary{display:inline-block;margin-top:25px;background:var(--gold);color:#19140b;border-radius:99px;padding:16px 28px;font-weight:700}
+:is(#page-next,#page-upcoming) section{scroll-margin-top:110px}
+@media(max-width:760px){:is(#page-next,#page-upcoming) .r119-feature{padding:35px 0 45px}:is(#page-next,#page-upcoming) .r119-install-grid{grid-template-columns:1fr}:is(#page-next,#page-upcoming) .r119-feature-top{margin-bottom:16px}:is(#page-next,#page-upcoming) .r119-copy{margin-top:18px}:is(#page-next,#page-upcoming) .r119-hero{padding-top:20px}:is(#page-next,#page-upcoming) .r119-install{padding:25px 17px}:is(#page-next,#page-upcoming) .r119-upcoming{padding-top:65px}}
+</style>
+<style id="release119-nav-style">
+.pill[data-tab="next"]{gap:8px}
+.pill .nav-new{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;background:var(--gold);color:var(--gold-ink);font-size:9px;letter-spacing:.08em;font-weight:800;padding:3px 5px;line-height:1}
+.pill[aria-current="page"] .nav-new{background:#211908;color:var(--gold)}
+@media(min-width:861px) and (max-width:1230px){.pills{gap:1px}.pill{padding:0 10px;font-size:12.5px}.topbar{gap:12px}}
+@media(max-width:860px){.pills{justify-self:stretch;width:100%;scrollbar-width:none}.pill{padding:0 10px}}
+
+#r119-installer-controls .card h2{font-size:34px;margin:12px 0 10px}
+#r119-installer-controls .card p{font-size:15px;line-height:1.6;margin:0;color:var(--ink-dim)}
+#r119-installer-controls .card .ver{font-size:13px;color:var(--ink-dimmer)}
+#r119-installer-controls .download-cta:disabled{cursor:not-allowed}
+</style>
+<script>window.COLOSSEUM_119_INSTALLER_URLS={windows:"https://getcolosseum.world/download/v1.1.9/windows",linux:"https://getcolosseum.world/download/v1.1.9/linux"};</script></head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#showcase" data-tab="showcase"><img src="assets/colosseum.svg" alt=""><span>Colosseum</span></a>
+  <nav class="pills glass" aria-label="Site">
+    <a class="pill" href="#showcase" data-tab="showcase">Showcase</a>
+    <a class="pill" href="#downloads" data-tab="downloads">Downloads</a>
+    <a class="pill" href="#about" data-tab="about">About</a>
+    <a class="pill" href="#next" data-tab="next">1.1.9 <span class="nav-new">NEW</span></a>
+    <a class="pill" href="#upcoming" data-tab="upcoming">Coming Up</a>
+    <a class="pill" href="/tributes/">Tributes</a>
+  </nav>
+  <div class="top-actions">
+  <a class="get glass" href="#downloads" data-tab="downloads">
+      <svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Get 1.1.9
+    </a>
+    <a class="reddit" href="https://www.reddit.com/r/ColosseumApp/" target="_blank" rel="noopener noreferrer" aria-label="r/ColosseumApp on Reddit" title="r/ColosseumApp on Reddit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg></a>
+    <a class="github" href="https://github.com/kingoftheseas56/Colosseum" target="_blank" rel="noopener noreferrer" aria-label="Colosseum on GitHub" title="Colosseum on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.24c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.83 1.23 1.83 1.23 1.07 1.82 2.81 1.3 3.5.99.11-.77.42-1.3.76-1.6-2.67-.31-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.23-3.22-.12-.31-.53-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.4 11.4 0 0 1 6 0c2.3-1.55 3.29-1.23 3.29-1.23.65 1.66.24 2.87.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .3z" fill="currentColor"/></svg></a>
+  </div>
+</header>
+
+<!-- ============ SHOWCASE ============ -->
+<main class="page" id="page-showcase">
+  <div class="with-rail">
+    <aside class="rail" id="rail" aria-label="Showcase sections">
+      <button class="rail-toggle glass" id="railToggle" aria-label="Retract index"><svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></svg></button>
+      <div class="rail-brand"><div class="kicker">Showcase</div><b>Colosseum</b></div>
+      <div class="rail-list" id="railList"></div>
+    </aside>
+
+    <div>
+      <section class="hero">
+        <div class="kicker">Windows &amp; Linux 1.1.9</div>
+        <h1>Everything you watch and read, <em>under one roof.</em></h1>
+        <p>Manga, comics, books, films and series in one place, each with a reader or player built for it. Everything below is the app itself, recreated live. <span id="verb">Click</span> any frame to try it.</p>
+      </section>
+      <section class="feature" id="s-theatre" data-title="Theatre" data-icon="M3 6h18v12H3zM3 10h18M8 6v12M16 6v12">
+        <div class="kicker">World</div>
+        <h2>Theatre</h2>
+        <p>Films, series and anime. Browse the shelves, then open a show to its seasons, episodes and what is next up.</p>
+        <div class="frame demo"><iframe data-src="demos/theatre.html?auto=1" width="1280" height="720" tabindex="-1" title="Browsing the Theatre catalogue"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+        <div class="frame demo"><iframe data-src="demos/theatre-series.html" width="1280" height="720" tabindex="-1" title="A series page in Theatre"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-tankoban" data-title="Tankoban" data-icon="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z">
+        <div class="kicker">World</div>
+        <h2>Tankoban</h2>
+        <p>The manga and comics world. Browse the shelves, open a series, and pick up the chapter you stopped on.</p>
+        <div class="frame demo"><iframe data-src="demos/tankoban.html?auto=1" width="1280" height="720" tabindex="-1" title="Browsing the Tankoban catalogue"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+        <div class="frame demo"><iframe data-src="demos/manga-series.html" width="1280" height="720" tabindex="-1" title="A manga series page in Tankoban"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-biblio" data-title="Biblio" data-icon="M4 5h7v15H4zM13 5h7v15h-7zM11 5v15">
+        <div class="kicker">World</div>
+        <h2>Biblio</h2>
+        <p>The book world. Browse the shelves, then open a book to its editions and audiobooks.</p>
+        <div class="frame demo"><iframe data-src="demos/biblio.html?auto=1" width="1280" height="720" tabindex="-1" title="Browsing the Biblio catalogue"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+        <div class="frame demo"><iframe data-src="demos/book-page.html" width="1280" height="720" tabindex="-1" title="A book page in Biblio"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+
+
+      <section class="feature" id="s-player" data-title="Video player" data-icon="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM10 8.5v7l6-3.5z">
+        <div class="kicker">Player</div>
+        <h2>The video player</h2>
+        <p>Chapters on the timeline, a thumbnail as you scrub, subtitles and audio one click away. It gets out of the way when you stop touching it.</p>
+        <div class="frame demo"><iframe data-src="demos/video-player.html" width="1280" height="720" tabindex="-1" title="The video player"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-comic-reader" data-title="Comic reader" data-icon="M5 3h14v18H5zM5 10h14M12 10v11">
+        <div class="kicker">Reader</div>
+        <h2>The comic reader</h2>
+        <p>Page by page or one long strip, in either reading direction, picking up at the panel you left.</p>
+        <div class="frame demo"><iframe data-src="demos/comic-reader.html" width="1280" height="720" tabindex="-1" title="The comic and manga reader"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-book-reader" data-title="Book reader" data-icon="M4 6c3-1.5 5-1.5 8 0v13c-3-1.5-5-1.5-8 0zM12 6c3-1.5 5-1.5 8 0v13c-3-1.5-5-1.5-8 0z">
+        <div class="kicker">Reader</div>
+        <h2>The book reader</h2>
+        <p>Set the type the way you like it and read. Your place is kept across every book.</p>
+        <div class="frame demo"><iframe data-src="demos/book-reader.html" width="1280" height="720" tabindex="-1" title="The book reader"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-home" data-title="Home" data-icon="M4 11l8-7 8 7v9H4zM10 20v-6h4v6">
+        <div class="kicker">Home</div>
+        <h2>Home</h2>
+        <p>Where you start. What you were watching and reading is waiting where you left it.</p>
+        <div class="frame demo"><iframe data-src="demos/home.html" width="1280" height="720" tabindex="-1" title="The Colosseum Home screen"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-extensions" data-title="Extensions" data-icon="M9 4h6v4h4v6h-4v6H9v-6H5V8h4z">
+        <div class="kicker">Extensions</div>
+        <h2>Extensions</h2>
+        <p>Add what you want Colosseum to reach, world by world, from a store inside the app.</p>
+        <div class="frame demo"><iframe data-src="demos/extensions.html?auto=1" width="1280" height="720" tabindex="-1" title="The Extensions store"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-local" data-title="Your downloads" data-icon="M12 4v11M7 11l5 5 5-5M5 20h14">
+        <div class="kicker">Downloads</div>
+        <h2>Your downloads</h2>
+        <p>Everything you have saved, from every world, on one page.</p>
+        <div class="frame demo"><iframe data-src="demos/downloads.html?auto=1" width="1280" height="720" tabindex="-1" title="The Downloads page"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span></div>
+      </section>
+
+      <section class="feature" id="s-vault" data-title="Vault" data-icon="M4 4h16v16H4zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 9V7">
+        <div class="kicker">Vault</div>
+        <h2>Vault</h2>
+        <p>The files you already own, sorted into the same shelves as everything else.</p>
+        <div class="frame demo"><iframe data-src="demos/vault.html" width="1280" height="720" tabindex="-1" title="Vault, shown full"></iframe><span class="enter glass">Click to explore</span><span class="acts"><button class="full glass">Full screen</button><button class="leave glass">Done</button></span><span class="tag glass">Illustrative view</span></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- ============ DOWNLOADS ============ -->
+<main class="page" id="page-downloads">
+  <section class="lede">
+    <div class="kicker">Downloads</div>
+    <h1>Get Colosseum</h1>
+    <p>Colosseum 1.1.9 is available for Windows and Linux. Install manually to upgrade from 1.1.8. Linux is a single DEB installer with its notices included.</p>
+  </section>
+  <div class="cards">
+    <article class="card glass">
+      <svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8.4v8.4H3zM12.6 3H21v8.4h-8.4zM3 12.600h8.400V21H3zM12.6 12.600H21V21h-8.400z"/></svg>
+      <div class="kicker">Stable</div>
+      <h2>Windows</h2>
+      <p>Windows release. Install 1.1.9 manually once to upgrade from 1.1.8.</p>
+      <div class="ver">Version 1.1.9</div>
+      <div class="card-actions">
+      <a class="btn download-cta primary" href="https://getcolosseum.world/download/v1.1.9/windows"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 18v3h16v-3"/></svg><span>Download for Windows</span></a>
+      <span class="card-action-placeholder" aria-hidden="true"></span>
+    </div>
+    </article>
+    <article class="card glass"><svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.300c-2.2 0-3.6 1.7-3.6 4 0 1.2.200 2-.6 3.300C6.6 11.6 5 14 5 16.600c0 1.9 1.2 3.2 3.1 3.8 1.1.4 2.5.6 3.9.6s2.8-.2 3.9-.6c1.9-.6 3.1-1.9 3.1-3.8 0-2.6-1.6-5-2.8-7-.8-1.3-.6-2.1-.6-3.3 0-2.3-1.4-4-3.6-4zM10.5 5.500a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.600zm3 0a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.600zM10.6 7.900h2.800L12 9.300zM12 10.400c-1.7 0-3.3 2.9-3.3 5.6 0 2 1.4 3.3 3.3 3.300s3.3-1.3 3.3-3.300c0-2.7-1.6-5.6-3.3-5.600z"/><path d="M5.9 19.700c1.3-.7 3.1-.4 3.9.4.5.5.1 1.4-.9 1.5-1.2.1-2.7 0-3.3-.5-.5-.4-.3-1.1.3-1.400zM18.1 19.700c-1.3-.7-3.1-.4-3.9.4-.5.5-.1 1.4.9 1.5 1.2.1 2.7 0 3.3-.5.5-.4.3-1.1-.3-1.400z"/></svg>
+<div class="kicker">Available now</div><h2>Linux</h2><p>Single DEB installer for Linux amd64. Install directly with your package manager. Required notices are included.</p><div class="ver">Version 1.1.9 · .deb · 237.1 MB</div><div class="card-actions"><a class="btn download-cta secondary" href="https://getcolosseum.world/download/v1.1.9/linux"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 18v3h16v-3"/></svg><span>Download for Linux</span></a><a class="linux-info-trigger" href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9#install-on-linux" target="_blank" rel="noopener noreferrer">Installation details ↗</a></div></article>
+    <article class="card glass soon">
+      <svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M3.5 18a8.5 8.5 0 0 1 17 0zM8.3 13a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.200zm7.4 0a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.200z"/><path d="M7.3 10.6 5.4 7.300M16.7 10.600l1.9-3.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <div class="kicker">In the works</div>
+      <h2>Android</h2>
+      <p>Tablets first, phones after.</p>
+      <div class="ver">&nbsp;</div>
+      <div class="card-actions">
+      <span class="btn download-cta disabled" aria-disabled="true">Coming soon</span>
+      <span class="card-action-placeholder" aria-hidden="true"></span>
+    </div>
+    </article>
+  </div>
+
+  <section class="steps">
+    <div class="kicker">After you install</div>
+    <h2>Getting started</h2>
+    <ol>
+      <li><b>Open Colosseum</b><p>You land on Home. Whatever you were watching or reading waits there, where you left it.</p></li>
+      <li><b>Pick a world</b><p>Theatre for films, series and anime. Tankoban for manga and comics. Biblio for books and audiobooks.</p></li>
+      <li><b>Add extensions</b><p>The store inside the app adds what you want Colosseum to reach, world by world.</p></li>
+      <li><b>Bring your own files</b><p>Vault sorts the files you already own into the same shelves as everything else.</p></li>
+    </ol>
+  </section>
+</main>
+
+<!-- ============ ABOUT ============ -->
+<main class="page" id="page-about">
+  <section class="essay">
+    <div class="kicker">About</div>
+    <h1>Why Colosseum exists</h1>
+    <p>Colosseum is a desktop media app: a Stremio for comics, manga, books, audiobooks, TV, movies and anime. It is split into sub-apps dedicated to each medium.</p>
+    <dl>
+      <div><dt>Tankoban</dt><dd>Manga and comics</dd></div>
+      <div><dt>Biblio</dt><dd>Books and audiobooks</dd></div>
+      <div><dt>Theatre</dt><dd>Movies, TV and anime</dd></div>
+      <div><dt>Vault</dt><dd>Local media</dd></div>
+    </dl>
+    <p>Each one has its own library, and its own reader or player built in.</p>
+
+    <h2>How it started</h2>
+    <p>When I started building Colosseum it was called Tankoban, and it was manga-only. I was creating the app for myself. I still am.</p>
+    <p>Along the way I built five video players, four comic readers and two book readers. The functionality I wanted, I had achieved many times over. What I did not have was the ecosystem: something that ties all of it together.</p>
+
+    <h2>One app, not three</h2>
+    <p>People love their media organised, and not just movies or TV but all kinds. One app is always better than three. I wanted it to look and feel like an OS, with a taskbar and multiple sessions that you can minimise and jump between.</p>
+    <blockquote>A movie isn&rsquo;t a player screen that takes over the app until I close it. It just becomes another open session.</blockquote>
+    <p>It does a lot. The rule underneath is to hide that complexity within simplicity.</p>
+
+    <h2>A bookshelf, not a bin</h2>
+    <p>The place I get my comics from is a feed of around 72,000 uploads, with no series and barely any tags. It works as a source. As a catalogue it was unusable. So I matched those uploads to a proper comics database, series by series.</p>
+    <blockquote>Nobody wants to browse that bin. They want a bookshelf. I want a bookshelf.</blockquote>
+    <p>Manga gets the same treatment. Colosseum treats manga as actual books: volumes on a shelf, not a list of 287 chapters. Everywhere in the app, the work comes first and the source comes second.</p>
+
+    <h2>Free, and yours</h2>
+    <p>I always wanted free media catalogues and sources, like Stremio, for everything else I personally consume. Now I have it. Colosseum holds no films, books or comics of its own. What it reaches comes through sources, and every one of them can be removed.</p>
+    <p>If something feels incomplete, awkward or unnecessary, say so. You do not need to know how to code to contribute.</p>
+    <p class="plain">Made by one person and a very stubborn team of machines.</p>
+  </section>
+</main>
+
+<main class="page" id="page-next">
+<section class="r119-hero"><div class="kicker">Colosseum 1.1.9 <span class="r119-new">NEW</span></div><h1>Colosseum 1.1.9</h1><p>Universes, community catalogues and tributes.</p></section>
+<section class="r119-feature" id="r119-universes"><div class="r119-feature-top"><span class="kicker">Available in 1.1.9</span><h2>Universes</h2></div><div class="r119-panel"><iframe loading="lazy" src="demos/release119-panels/01-universes.html" title="Universes approved visual composition" scrolling="no"></iframe></div><p class="r119-copy">Explore a franchise's books, manga, films and shows in one place. Universe pages bring related stories together, with reading and viewing options connected to Colosseum's worlds.</p></section>
+<section class="r119-feature" id="r119-workers"><div class="r119-feature-top"><span class="kicker">Available in 1.1.9</span><h2>Universes + Workers</h2></div><div class="r119-panel"><iframe loading="lazy" src="demos/release119-panels/02-workers.html" title="Universes + Workers approved visual composition" scrolling="no"></iframe></div><p class="r119-copy">Universe catalogues are now delivered through Cloudflare Workers, allowing additions and corrections without an app update. Future community contributions will let users suggest franchises and submit their own Universe pages.</p><div class="r119-community"><strong>Community catalogue requests</strong><p>Missing a franchise? <a href="https://www.reddit.com/r/ColosseumApp/" target="_blank" rel="noopener noreferrer">Post your request on our subreddit</a>, and we&#39;ll add it to the catalogue.</p><p class="r119-future-note">Community-built Universe page submissions are planned for a future update.</p></div></section>
+<section class="r119-feature" id="r119-tributes"><div class="r119-feature-top"><span class="kicker">Available in 1.1.9</span><h2>Tributes</h2></div><div class="r119-panel"><iframe loading="lazy" src="demos/release119-panels/03-tributes.html" title="Tributes approved visual composition" scrolling="no"></iframe></div><p class="r119-copy">Explore dedicated experiences for Star Wars, Cosmere and One Piece, each designed around its franchise. Try the interactive demos on the website, or explore the full tributes in Colosseum.</p><div class="r119-actions"><a class="r119-tribute-link" href="/tributes/star-wars/">Visit Star Wars tribute ↗</a><a class="r119-tribute-link" href="/tributes/stormlight/">Visit Cosmere tribute ↗</a><a class="r119-tribute-link" href="/tributes/one-piece/">Visit One Piece tribute ↗</a></div></section>
+<section class="r119-install"><h2>Download Colosseum 1.1.9</h2><p>Windows and Linux 1.1.9 installers are available. Download the Windows EXE or the single Linux DEB.</p><div id="r119-installer-controls" class="cards r119-install-grid"><article class="card glass">
+      <svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8.4v8.4H3zM12.6 3H21v8.4h-8.4zM3 12.600h8.400V21H3zM12.6 12.600H21V21h-8.400z"/></svg>
+      <div class="kicker">Available now</div>
+      <h2>Windows</h2>
+      <p>Install 1.1.9 manually once when upgrading from 1.1.8.</p>
+      <div class="ver">Version 1.1.9 · .exe</div>
+      <div class="card-actions">
+      <button type="button" class="btn download-cta disabled r119-installer" data-platform="windows" disabled>Installer being finalized</button>
+      <span class="card-action-placeholder" aria-hidden="true"></span>
+    </div>
+    </article><article class="card glass"><svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.300c-2.2 0-3.6 1.7-3.6 4 0 1.2.200 2-.6 3.300C6.6 11.6 5 14 5 16.600c0 1.9 1.2 3.2 3.1 3.8 1.1.4 2.5.6 3.9.6s2.8-.2 3.9-.6c1.9-.6 3.1-1.9 3.1-3.8 0-2.6-1.6-5-2.8-7-.8-1.3-.6-2.1-.6-3.3 0-2.3-1.4-4-3.6-4zM10.5 5.500a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.600zm3 0a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.600zM10.6 7.900h2.800L12 9.300zM12 10.400c-1.7 0-3.3 2.9-3.3 5.6 0 2 1.4 3.3 3.3 3.300s3.3-1.3 3.3-3.300c0-2.7-1.6-5.6-3.3-5.600z"/><path d="M5.9 19.700c1.3-.7 3.1-.4 3.9.4.5.5.1 1.4-.9 1.5-1.2.1-2.7 0-3.3-.5-.5-.4-.3-1.1.3-1.400zM18.1 19.700c-1.3-.7-3.1-.4-3.9.4-.5.5-.1 1.4.9 1.5 1.2.1 2.7 0 3.3-.5.5-.4.3-1.1-.3-1.400z"/></svg>
+<div class="kicker">Available now</div><h2>Linux</h2><p>Single DEB installer for Linux amd64. Install directly with your package manager. Required notices are included.</p><div class="ver">Version 1.1.9 · .deb · 237.1 MB</div><div class="card-actions"><a class="btn download-cta secondary" href="https://getcolosseum.world/download/v1.1.9/linux"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 18v3h16v-3"/></svg><span>Download for Linux</span></a><a class="linux-info-trigger" href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9#install-on-linux" target="_blank" rel="noopener noreferrer">Installation details ↗</a></div></article></div></section>
+</main>
+
+<main class="page" id="page-upcoming">
+<section class="r119-upcoming"><span class="kicker">In development</span><h2>Coming Up</h2></section>
+<section class="r119-feature" id="r119-vinyl"><div class="r119-feature-top"><span class="kicker">Next</span><h2>Vinyl · 2.0.0</h2><span class="r119-status">In development</span></div><div class="r119-panel"><iframe loading="lazy" src="demos/release119-panels/04-vinyl.html" title="Vinyl · 2.0.0 approved visual composition" scrolling="no"></iframe></div><p class="r119-copy">Colosseum's upcoming music world brings together listening, artist catalogues, album pages, lyrics and annotations. Currently in development.</p></section>
+<section class="r119-feature" id="r119-feria"><div class="r119-feature-top"><span class="kicker">Next</span><h2>Feria · 2.0.1</h2><span class="r119-status">In development</span></div><div class="r119-panel"><iframe loading="lazy" src="demos/release119-panels/05-feria.html" title="Feria · 2.0.1 approved visual composition" scrolling="no"></iframe></div><p class="r119-copy">Discover and browse video, music and reading services within Colosseum. Feria combines a discovery page with an integrated browser and a planned sidebar for watchspaces, history and downloads.</p></section>
+<section class="r119-feature" id="r119-android"><div class="r119-feature-top"><span class="kicker">Beyond 2.0.1</span><h2>Android</h2><span class="r119-status">In development</span></div><div class="r119-panel"><iframe loading="lazy" src="demos/release119-panels/06-android.html" title="Android approved visual composition" scrolling="no"></iframe></div><p class="r119-copy">Colosseum is coming to Android. The tablet preview offers an early look at Tankoban on a smaller screen. Development is ongoing; a release date has not been announced.</p></section>
+<section class="r119-community-footer"><h2>Follow development and share your ideas</h2><a class="r119-primary" href="https://www.reddit.com/r/ColosseumApp/" target="_blank" rel="noopener noreferrer">Join our subreddit ↗</a></section></main>
+
+<div class="stage" id="stage"><div class="stage-in"><button class="stage-close glass">Back to the site</button><iframe src="about:blank" width="1280" height="720" title=""></iframe></div></div>
+
+<script>
+(function () {
+  // Compatibility notes are a modal, not expanding content in the download grid.
+  var linuxInfoButton = document.getElementById("linux-release-info");
+  var linuxInfoDialog = document.getElementById("linux-release-dialog");
+  if (linuxInfoButton && linuxInfoDialog && typeof linuxInfoDialog.showModal === "function") {
+    linuxInfoButton.addEventListener("click", function () {
+      linuxInfoDialog.showModal();
+      document.body.classList.add("linux-info-open");
+      linuxInfoDialog.querySelector(".linux-info-close").focus();
+    });
+    linuxInfoDialog.querySelector(".linux-info-close").addEventListener("click", function () {
+      linuxInfoDialog.close();
+    });
+    linuxInfoDialog.addEventListener("click", function (event) {
+      if (event.target === linuxInfoDialog) linuxInfoDialog.close();
+    });
+    linuxInfoDialog.addEventListener("close", function () {
+      document.body.classList.remove("linux-info-open");
+      linuxInfoButton.focus();
+    });
+  }
+
+  // Two explicit distribution slots: changing one HTTPS URL alone activates that platform.
+  function render119Installers() {
+    var urls=window.COLOSSEUM_119_INSTALLER_URLS||{};
+    document.querySelectorAll("#r119-installer-controls [data-platform]").forEach(function(control){
+      var platform=control.dataset.platform, url=urls[platform];
+      if(typeof url!=="string"||!/^https:\/\/[^\s]+$/.test(url)) return;
+      var link=document.createElement("a");
+      link.className="btn download-cta "+(platform==="windows"?"primary":"secondary")+" r119-installer ready";link.dataset.platform=platform;
+      link.href=url;link.rel="noopener noreferrer";
+      link.textContent=platform==="windows"?"Download for Windows":"Download for Linux";
+      control.replaceWith(link);
+    });
+  }
+  render119Installers();
+  var tabs = ["showcase", "downloads", "about", "next", "upcoming"];
+  function show(tab) {
+    if (tabs.indexOf(tab) < 0) tab = "showcase";
+    tabs.forEach(function (t) { document.getElementById("page-" + t).classList.toggle("on", t === tab); });
+    document.querySelectorAll(".pill").forEach(function (p) {
+      if (p.dataset.tab === tab) p.setAttribute("aria-current", "page"); else p.removeAttribute("aria-current");
+    });
+    var active = document.querySelector(".pills .pill[aria-current=page]");
+    if (active && matchMedia("(max-width:860px)").matches) {
+      var nav = active.parentElement;
+      var offset = active.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+      nav.scrollLeft = Math.max(0, offset - (nav.clientWidth-active.clientWidth)/2);
+    }
+    window.scrollTo(0, 0);
+    if (typeof fitDemos === "function") fitDemos();
+    if (tab === "showcase") primeDemos();
+    track();
+  }
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
+
+  // Index rail: built from the page's own sections, as RowIndexSidebar is in the app.
+  var rail = document.getElementById("rail"), list = document.getElementById("railList");
+  var sections = [].slice.call(document.querySelectorAll("#page-showcase .feature"));
+  var rows = sections.map(function (s) {
+    var b = document.createElement("button");
+    b.className = "row"; b.title = s.dataset.title;
+    b.innerHTML = '<svg viewBox="0 0 24 24"><path d="' + s.dataset.icon + '"/></svg><span>' + s.dataset.title + "</span>";
+    b.addEventListener("click", function () { s.scrollIntoView(); });
+    list.appendChild(b);
+    return b;
+  });
+
+  // Click a frame to explore it where it sits: its tour stops and it takes the mouse.
+  // Done, Esc, a click elsewhere, or scrolling it away hands it back. Full screen opens it large.
+  function tell(f, what) {
+    var w = f.querySelector("iframe").contentWindow;
+    if (w) w.postMessage({ colosseumTour: what }, "*");
+  }
+  function wake(f) { release(); loadDemo(demoFrames.indexOf(f), f.classList.contains("demo-failed")); f.classList.add("live"); tell(f, "stop"); }
+  function release() {
+    document.querySelectorAll(".frame.live").forEach(function (f) { f.classList.remove("live"); tell(f, "start"); });
+  }
+  var stage = document.getElementById("stage"), stageIn = stage.firstElementChild, stageFrame = stage.querySelector("iframe");
+  // On a phone a frame is too small to use where it sits, so a tap opens it large instead.
+  var phone = matchMedia("(max-width:860px)");
+  function word() {
+    document.querySelectorAll(".enter").forEach(function (e) { e.textContent = phone.matches ? "Tap to open" : "Click to explore"; });
+    document.getElementById("verb").textContent = phone.matches ? "Tap" : "Click";
+  }
+  if (phone.addEventListener) phone.addEventListener("change", word);
+  word();
+
+  // One immediately requested demo, two prewarmed next, and later sections warmed ahead.
+  var demoFrames = [].slice.call(document.querySelectorAll(".frame.demo"));
+  var demoAttempts = [];
+  var previewArt = [
+    "current-ui-mock/assets/fixtures/captures/theatre-posters/dune.jpg",
+    "assets/feria-apps/arcane-poster.jpg",
+    "current-ui-mock/assets/fixtures/captures/manga-covers/onepiece.jpg",
+    "assets/tankoban.webp",
+    "current-ui-mock/assets/feria/assets/dune-book.jpg",
+    "current-ui-mock/assets/feria/assets/phm-cover.jpg",
+    "assets/feria-apps/dune2-poster.jpg",
+    "current-ui-mock/assets/fixtures/captures/comic-covers/watchmen.jpg",
+    "current-ui-mock/assets/feria/assets/dune-book.jpg",
+    "current-ui-mock/assets/wallpaper/sagas/dune.jpg",
+    "current-ui-mock/assets/extensions/store-jolly-roger.jpg",
+    "assets/cold-ripple.jpg",
+    "current-ui-mock/assets/fixtures/captures/theatre-posters/batman.jpg"
+  ];
+  function loadDemo(index, retry) {
+    var frame = demoFrames[index];
+    if (!frame || (frame.classList.contains("demo-requested") && !retry)) return;
+    var iframe = frame.querySelector("iframe");
+    var src = iframe.getAttribute("data-src") || iframe.getAttribute("src");
+    if (!src || src === "about:blank") return;
+    frame.classList.remove("demo-failed", "demo-ready");
+    frame.classList.add("demo-requested");
+    var status = frame.querySelector(".demo-preview small");
+    if (status) status.textContent = "Preparing interactive preview";
+    var attempt = (demoAttempts[index] || 0) + 1;
+    demoAttempts[index] = attempt;
+    iframe.loading = "eager";
+    iframe.src = src;
+    iframe.removeAttribute("data-src");
+    setTimeout(function () {
+      if (demoAttempts[index] !== attempt || frame.classList.contains("demo-ready")) return;
+      frame.classList.add("demo-failed");
+      if (status) status.textContent = "Preview is taking too long";
+    }, 12000);
+  }
+  function primeDemos() {
+    for (var i = 0; i < Math.min(3, demoFrames.length); i++) loadDemo(i);
+  }
+  demoFrames.forEach(function (frame, index) {
+    var iframe = frame.querySelector("iframe");
+    var preview = document.createElement("div");
+    preview.className = "demo-preview";
+    var artwork = document.createElement("img");
+    artwork.alt = "";
+    artwork.loading = "lazy";
+    artwork.decoding = "async";
+    artwork.src = previewArt[index];
+    var body = document.createElement("div");
+    var label = document.createElement("strong");
+    label.textContent = iframe.title;
+    var status = document.createElement("small");
+    status.textContent = "Interactive preview available";
+    var retryButton = document.createElement("button");
+    retryButton.type = "button";
+    retryButton.className = "demo-retry";
+    retryButton.textContent = "Retry preview";
+    retryButton.addEventListener("click", function (event) {
+      event.stopPropagation();
+      loadDemo(index, true);
+    });
+    body.appendChild(label);
+    body.appendChild(status);
+    body.appendChild(retryButton);
+    preview.appendChild(artwork);
+    preview.appendChild(body);
+    iframe.insertAdjacentElement("afterend", preview);
+    iframe.addEventListener("load", function () {
+      if (!frame.classList.contains("demo-requested")) return;
+      try {
+        if (iframe.contentDocument && iframe.contentDocument.URL === "about:blank") return;
+      } catch (ignored) {}
+      frame.classList.remove("demo-failed");
+      frame.classList.add("demo-ready");
+      if (frame.classList.contains("live")) tell(frame, "stop");
+    });
+  });
+  if ("IntersectionObserver" in window) {
+    var warm = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting || !document.getElementById("page-showcase").classList.contains("on")) return;
+        var index = demoFrames.indexOf(entry.target);
+        for (var j = index; j < Math.min(index + 3, demoFrames.length); j++) loadDemo(j);
+        warm.unobserve(entry.target);
+      });
+    }, { rootMargin: phone.matches ? "700px 0px" : "1050px 0px", threshold: 0 });
+    demoFrames.forEach(function (frame) { warm.observe(frame); });
+  } else {
+    function warmByScroll() {
+      demoFrames.forEach(function (frame, index) {
+        var box = frame.getBoundingClientRect();
+        if (box.top < innerHeight + 900 && box.bottom > -500)
+          for (var j = index; j < Math.min(index + 3, demoFrames.length); j++) loadDemo(j);
+      });
+    }
+    window.addEventListener("scroll", warmByScroll, { passive: true });
+    window.addEventListener("resize", warmByScroll);
+    window.addEventListener("hashchange", warmByScroll);
+  }
+  function fitStage() {
+    var w = stage.clientWidth, h = stage.clientHeight, turn = h > w && w <= 860;
+    stage.classList.toggle("turn", turn);
+    stageIn.style.width = turn ? h + "px" : ""; stageIn.style.height = turn ? w + "px" : "";
+    if (turn) { var t = w; w = h; h = t; }
+    var k = Math.min(w / 1280, h / 720);
+    stageFrame.style.transform = "scale(" + k + ") translate(-50%,-50%)";
+  }
+  function openStage(src, title) {
+    stageFrame.title = title; stageFrame.src = src.replace(/[?&]auto=1/, "");
+    stage.classList.add("on"); document.body.classList.add("staged"); fitStage();
+    // Where the browser can turn the screen itself, let it; the sideways stage is the fallback.
+    var full = stage.requestFullscreen && stage.requestFullscreen();
+    if (full && full.then) full.then(function () {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(function () {});
+    }).catch(function () {});
+    stageFrame.focus();
+  }
+  function closeStage() {
+    if (!stage.classList.contains("on")) return false;
+    stage.classList.remove("on"); document.body.classList.remove("staged");
+    stageFrame.src = "about:blank";
+    if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
+    return true;
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target.closest(".stage-close")) { closeStage(); return; }
+    var f = e.target.closest(".frame.demo");
+    if (e.target.closest(".leave")) { release(); return; }
+    if (e.target.closest(".full")) {
+      var i = f.querySelector("iframe"); release(); openStage(i.getAttribute("src") || i.getAttribute("data-src"), i.title); return;
+    }
+    if (f && !f.classList.contains("live")) {
+      if (phone.matches) { var p = f.querySelector("iframe"); openStage(p.getAttribute("src") || p.getAttribute("data-src"), p.title); } else wake(f);
+      return;
+    }
+    if (!f) release();
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !closeStage()) release(); });
+  // Esc pressed inside the full-screen page never reaches the site, so listen there too.
+  stageFrame.addEventListener("load", function () {
+    try { stageFrame.contentWindow.addEventListener("keydown", function (e) { if (e.key === "Escape") closeStage(); }); } catch (x) {}
+  });
+  document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement) closeStage(); else fitStage(); });
+  window.addEventListener("resize", fitStage);
+  if ("IntersectionObserver" in window) {
+    var gone = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (!e.isIntersecting && e.target.classList.contains("live")) release(); });
+    }, { threshold: 0.2 });
+    document.querySelectorAll(".frame.demo").forEach(function (f) { gone.observe(f); });
+  }
+
+  document.getElementById("railToggle").addEventListener("click", function () {
+    var closed = rail.classList.toggle("closed");
+    this.setAttribute("aria-label", closed ? "Expand index" : "Retract index");
+    setTimeout(fitDemos, 260);
+  });
+  function track() {
+    document.body.classList.toggle("scrolled", window.scrollY > 8);
+    var line = window.innerHeight * 0.38, cur = -1;
+    sections.forEach(function (s, i) { if (s.getBoundingClientRect().top <= line) cur = i; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = sections.length - 1;
+    rows.forEach(function (r, i) {
+      var on = i === cur;
+      if (on && !r.classList.contains("cur") && list.scrollWidth > list.clientWidth)
+        list.scrollTo({ left: r.offsetLeft - 16, behavior: "smooth" });
+      r.classList.toggle("cur", on);
+    });
+  }
+  // Demo loops play only while on screen.
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) e.target.play().catch(function () {}); else e.target.pause(); });
+    }, { threshold: 0.35 });
+    document.querySelectorAll(".frame video").forEach(function (v) { io.observe(v); });
+  }
+  // A frame can start at zero width (hidden tab, hidden page), so each one is watched
+  // and rescaled whenever its own size changes, not only when the window does.
+  function fitDemo(f) {
+    if (f.clientWidth > 0) f.firstElementChild.style.transform = "scale(" + f.clientWidth / 1280 + ")";
+  }
+  function fitDemos() { document.querySelectorAll(".frame.demo").forEach(fitDemo); }
+  if ("ResizeObserver" in window) {
+    var ro = new ResizeObserver(function (es) { es.forEach(function (e) { fitDemo(e.target); }); });
+    document.querySelectorAll(".frame.demo").forEach(function (f) { ro.observe(f); });
+  } else window.addEventListener("resize", fitDemos);
+  window.addEventListener("scroll", track, { passive: true });
+  window.addEventListener("resize", track);
+  show(location.hash.slice(1));
+  fitDemos();
+})();
+</script>
+</body>
+</html>

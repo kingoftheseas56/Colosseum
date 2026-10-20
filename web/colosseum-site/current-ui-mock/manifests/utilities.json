@@ -1,0 +1,585 @@
+{
+  "group": "utilities",
+  "sourcePin": "2916fe85812643c2e0ae45b0aec132cb6eb4e507",
+  "routes": [
+    {
+      "id": "account.center",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Center",
+      "chrome": "none",
+      "params": {},
+      "sources": ["qml/account/AccountCenter.qml"],
+      "states": [
+        {
+          "id": "feria",
+          "params": {
+            "section": "feria"
+          },
+          "expect": "Separate Feria account doors"
+        },
+        {
+          "id": "pending-signout",
+          "params": {
+            "pendingSync": true
+          },
+          "expect": "Pending sync sign-out confirmation"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "account.signin",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Signin",
+      "chrome": "none",
+      "params": {
+        "mode": "signin"
+      },
+      "sources": ["qml/account/AccountSignIn.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.create",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Create",
+      "chrome": "none",
+      "params": {
+        "mode": "create"
+      },
+      "sources": ["qml/account/AccountCreate.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.recovery",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Recovery",
+      "chrome": "none",
+      "params": {
+        "section": "recovery"
+      },
+      "sources": ["qml/account/AccountRecoveryPage.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.devices",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Devices",
+      "chrome": "none",
+      "params": {
+        "section": "devices"
+      },
+      "sources": ["qml/account/AccountDevicesPage.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.security",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Security",
+      "chrome": "none",
+      "params": {
+        "section": "security"
+      },
+      "sources": ["qml/account/AccountSecurityPage.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.privacy",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Privacy",
+      "chrome": "none",
+      "params": {
+        "section": "privacy"
+      },
+      "sources": ["qml/account/AccountDataPrivacyPage.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.onboarding",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Onboarding",
+      "chrome": "none",
+      "params": {
+        "mode": "welcome"
+      },
+      "sources": ["qml/account/AccountOnboarding.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.recover",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Recover",
+      "chrome": "none",
+      "params": {
+        "mode": "recover"
+      },
+      "sources": ["qml/account/AccountRecovery.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.approval",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Approval",
+      "chrome": "none",
+      "params": {
+        "mode": "approval"
+      },
+      "sources": ["qml/account/AccountDeviceApproval.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "account.key",
+      "file": "demos/account.html",
+      "title": "Account \u00b7 Key",
+      "chrome": "none",
+      "params": {
+        "mode": "key"
+      },
+      "sources": ["qml/account/AccountRecoveryKey.qml"],
+      "states": [],
+      "actions": []
+    },
+    {
+      "id": "connections.center",
+      "file": "demos/utility.html",
+      "title": "Connections \u00b7 Center",
+      "chrome": "default",
+      "params": {
+        "page": "connections"
+      },
+      "sources": ["qml/TrackerSyncCenterPage.qml"],
+      "states": [
+        {
+          "id": "dossier",
+          "params": {
+            "overlay": "dossier"
+          },
+          "expect": "Tracker dossier"
+        },
+        {
+          "id": "import",
+          "params": {
+            "overlay": "import"
+          },
+          "expect": "Individual/bulk import choices"
+        },
+        {
+          "id": "preferences",
+          "params": {
+            "overlay": "preferences"
+          },
+          "expect": "Sync preferences"
+        },
+        {
+          "id": "match",
+          "params": {
+            "overlay": "match"
+          },
+          "expect": "Find exact title"
+        },
+        {
+          "id": "export",
+          "params": {
+            "overlay": "export"
+          },
+          "expect": "Review outgoing changes"
+        },
+        {
+          "id": "disconnect",
+          "params": {
+            "overlay": "disconnect"
+          },
+          "expect": "Disconnect confirmation"
+        },
+        {
+          "id": "remove-imported",
+          "params": {
+            "overlay": "remove-imported"
+          },
+          "expect": "Imported data cleanup"
+        },
+        {
+          "id": "approval-code",
+          "params": {
+            "overlay": "connect"
+          },
+          "expect": "Inert provider approval code"
+        }
+      ],
+      "actions": [
+        {
+          "selector": "[data-action=dossier-trakt]",
+          "expect": "Trakt dossier"
+        }
+      ]
+    },
+    {
+      "id": "connections.stremio",
+      "file": "demos/utility.html",
+      "title": "Connections \u00b7 Stremio",
+      "chrome": "none",
+      "params": {
+        "page": "stremio"
+      },
+      "sources": ["qml/StremioSyncPanel.qml"],
+      "states": [
+        {
+          "id": "notConnected",
+          "params": {
+            "state": "notConnected"
+          },
+          "expect": "notConnected state"
+        },
+        {
+          "id": "connecting",
+          "params": {
+            "state": "connecting"
+          },
+          "expect": "connecting state"
+        },
+        {
+          "id": "syncing",
+          "params": {
+            "state": "syncing"
+          },
+          "expect": "syncing state"
+        },
+        {
+          "id": "reconnectRequired",
+          "params": {
+            "state": "reconnectRequired"
+          },
+          "expect": "reconnectRequired state"
+        },
+        {
+          "id": "syncFailed",
+          "params": {
+            "state": "syncFailed"
+          },
+          "expect": "syncFailed state"
+        },
+        {
+          "id": "paused",
+          "params": {
+            "state": "paused"
+          },
+          "expect": "paused state"
+        },
+        {
+          "id": "unavailable",
+          "params": {
+            "state": "unavailable"
+          },
+          "expect": "unavailable state"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "activity",
+      "file": "demos/utility.html",
+      "title": "Activity",
+      "chrome": "default",
+      "params": {
+        "page": "activity"
+      },
+      "sources": ["qml/HistoryHighlightsStatsPage.qml"],
+      "states": [
+        {
+          "id": "highlights",
+          "params": {
+            "section": "highlights"
+          },
+          "expect": "Monthly portrait"
+        },
+        {
+          "id": "stats",
+          "params": {
+            "section": "stats"
+          },
+          "expect": "Lifetime stats"
+        },
+        {
+          "id": "empty",
+          "params": {
+            "empty": true
+          },
+          "expect": "No activity"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "wallpaper",
+      "file": "demos/utility.html",
+      "title": "Wallpaper",
+      "chrome": "default",
+      "params": {
+        "page": "wallpaper"
+      },
+      "sources": ["qml/WallpaperSearch.qml"],
+      "states": [
+        {
+          "id": "preview",
+          "params": {
+            "overlay": "preview"
+          },
+          "expect": "Wallpaper preview and scope"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "settings",
+      "file": "demos/utility.html",
+      "title": "Settings",
+      "chrome": "default",
+      "params": {
+        "page": "settings"
+      },
+      "sources": [
+        "qml/ContentPreferences.qml",
+        "qml/TheatreRowPreferences.qml",
+        "qml/Main.qml"
+      ],
+      "states": [
+        {
+          "id": "rows",
+          "params": {
+            "overlay": "rows"
+          },
+          "expect": "Independent catalogue row preferences"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "update",
+      "file": "demos/utility.html",
+      "title": "Update",
+      "chrome": "none",
+      "params": {
+        "page": "update"
+      },
+      "sources": ["qml/UpdatePage.qml", "qml/update/UpdateLivingGallery.qml"],
+      "states": [
+        {
+          "id": "idle",
+          "params": {
+            "state": "idle"
+          },
+          "expect": "idle update state"
+        },
+        {
+          "id": "checking",
+          "params": {
+            "state": "checking"
+          },
+          "expect": "checking update state"
+        },
+        {
+          "id": "current",
+          "params": {
+            "state": "current"
+          },
+          "expect": "current update state"
+        },
+        {
+          "id": "downloading",
+          "params": {
+            "state": "downloading"
+          },
+          "expect": "downloading update state"
+        },
+        {
+          "id": "paused",
+          "params": {
+            "state": "paused"
+          },
+          "expect": "paused update state"
+        },
+        {
+          "id": "verifying",
+          "params": {
+            "state": "verifying"
+          },
+          "expect": "verifying update state"
+        },
+        {
+          "id": "ready",
+          "params": {
+            "state": "ready"
+          },
+          "expect": "ready update state"
+        },
+        {
+          "id": "installing",
+          "params": {
+            "state": "installing"
+          },
+          "expect": "installing update state"
+        },
+        {
+          "id": "failed",
+          "params": {
+            "state": "failed"
+          },
+          "expect": "failed update state"
+        },
+        {
+          "id": "unverified",
+          "params": {
+            "state": "unverified"
+          },
+          "expect": "unverified update state"
+        },
+        {
+          "id": "manual",
+          "params": {
+            "state": "manual"
+          },
+          "expect": "manual update state"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "coverage": [
+    {
+      "id": "account.center",
+      "route": "account.center",
+      "source": "qml/account/AccountCenter.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.signin",
+      "route": "account.signin",
+      "source": "qml/account/AccountSignIn.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.create",
+      "route": "account.create",
+      "source": "qml/account/AccountCreate.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.recovery",
+      "route": "account.recovery",
+      "source": "qml/account/AccountRecoveryPage.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.devices",
+      "route": "account.devices",
+      "source": "qml/account/AccountDevicesPage.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.security",
+      "route": "account.security",
+      "source": "qml/account/AccountSecurityPage.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.privacy",
+      "route": "account.privacy",
+      "source": "qml/account/AccountDataPrivacyPage.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.onboarding",
+      "route": "account.onboarding",
+      "source": "qml/account/AccountOnboarding.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.recover",
+      "route": "account.recover",
+      "source": "qml/account/AccountRecovery.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.approval",
+      "route": "account.approval",
+      "source": "qml/account/AccountDeviceApproval.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "account.key",
+      "route": "account.key",
+      "source": "qml/account/AccountRecoveryKey.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "connections.center",
+      "route": "connections.center",
+      "source": "qml/TrackerSyncCenterPage.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "connections.stremio",
+      "route": "connections.stremio",
+      "source": "qml/StremioSyncPanel.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "activity",
+      "route": "activity",
+      "source": "qml/HistoryHighlightsStatsPage.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "wallpaper",
+      "route": "wallpaper",
+      "source": "qml/WallpaperSearch.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "settings",
+      "route": "settings",
+      "source": "qml/ContentPreferences.qml, qml/TheatreRowPreferences.qml, qml/Main.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    },
+    {
+      "id": "update",
+      "route": "update",
+      "source": "qml/UpdatePage.qml, qml/update/UpdateLivingGallery.qml",
+      "status": "implemented",
+      "notes": "Source-derived browser UI with in-memory fixture transitions; see utilities review for native boundaries."
+    }
+  ],
+  "limitations": [
+    "All account authentication, password changes, recovery, approvals, deletion, exports and sync operations are inert in-memory demonstrations. Never enter real secrets.",
+    "Connections use fixture provider capabilities, receipt/progress/import and export data; no OAuth, tokens, credentials, service requests or clipboard writes occur.",
+    "Activity uses three deterministic sample records; no native ActivityStore or real user history is read.",
+    "Wallpaper native animated scene is a labeled static preview; public search/pagination is limited to bundled local images. Preview selection is stored only in the mock session.",
+    "Settings is an integration utility surface for native preferences. ContentPreferences.showExplicit is read-only true in the pinned source, and is shown disabled rather than inventing a working toggle.",
+    "Update gallery uses labeled DEMO release chapters and deterministic native-state projections, without real version claims, download, signature verification or installation.",
+    "Native save-file export dialogs are represented by a reviewable fixture export; no external account or local media is touched."
+  ]
+}

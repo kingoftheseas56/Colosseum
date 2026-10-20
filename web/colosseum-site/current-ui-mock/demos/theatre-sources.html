@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sources · Theatre fixture</title>
+    <style>
+      @font-face {
+        font-family: Fraunces;
+        src: url("../assets/Fraunces-Regular.ttf");
+      }
+      body {
+        margin: 0;
+        background: #050506;
+        color: #f7f7f5;
+        font:
+          14px "Segoe UI",
+          system-ui;
+        --gold: #f0c44a;
+      }
+    </style>
+    <link rel="stylesheet" href="theatre-ui.css" />
+  </head>
+  <body>
+    <script src="../shared/mock-runtime.js"></script>
+    <script src="../shared/catalog.js"></script>
+    <script src="theatre-ui.js"></script>
+    <script>
+      TheatreUI.sourceSheet({ ...MockUI.params, onClose: () => MockUI.back() });
+      MockUI.ready();
+    </script>
+  </body>
+</html>

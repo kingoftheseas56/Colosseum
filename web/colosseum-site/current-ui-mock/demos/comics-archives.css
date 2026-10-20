@@ -1,0 +1,143 @@
+/* Main.qml mounts each board/index as a full page, not inside series detail. */
+.comic-archive-page {
+  background:
+    linear-gradient(#070a1099, #050609ef),
+    url("../assets/cold-ripple.jpg") center/cover;
+}
+.comic-archive-page .source-top {
+  height: 84px;
+  background: linear-gradient(#030509d9, transparent);
+  z-index: 10;
+  gap: 20px;
+}
+.comic-archive-page .source-top > [data-action="back"] {
+  margin-right: auto;
+}
+.comic-archive-page .source-top .cancel {
+  margin-left: 0;
+  font-size: 0;
+  width: 22px;
+  padding: 0;
+}
+.comic-archive-page .source-top img {
+  width: 22px;
+  height: 22px;
+  opacity: 0.72;
+}
+.archive-window-action {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+.comic-archive-page .comics-scroll {
+  inset: 0;
+  padding: 96px 54px 48px;
+}
+.archive-heading .eyebrow {
+  font-size: 11px;
+  letter-spacing: 3px;
+}
+.archive-heading h1 {
+  font: 600 48px var(--display);
+  margin: 10px 0;
+}
+.archive-heading p {
+  font-size: 14px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.archive-heading p strong {
+  color: var(--ink);
+}
+.archive-heading p button {
+  font-size: 14px;
+  color: var(--dim);
+}
+.archive-heading p button:hover {
+  color: var(--gold);
+}
+.archive-taxonomy {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-top: 40px;
+}
+.archive-box {
+  position: relative;
+  height: 112px;
+  border-radius: 14px;
+  border: 1px solid var(--edge);
+  background-color: #222;
+  background-size: cover;
+  background-position: center 20%;
+  overflow: hidden;
+  text-align: left;
+  padding: 13px;
+}
+.archive-box strong {
+  position: absolute;
+  left: 13px;
+  bottom: 13px;
+  font: 600 16px var(--display);
+  text-shadow: 0 1px 3px #000;
+}
+.archive-box small {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  font-size: 11px;
+  color: #ffffffd1;
+}
+.archive-box:hover {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.archive-index-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 24px 18px;
+  margin-top: 26px;
+}
+.archive-index-card {
+  padding: 0;
+  text-align: center;
+  min-width: 0;
+}
+.archive-index-card img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  border: 1px solid #ffffff1a;
+  border-radius: 10px;
+  display: block;
+}
+.archive-index-card strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dim);
+  margin-top: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.archive-index-card small {
+  display: block;
+  font-size: 11px;
+  color: var(--dimmer);
+  margin-top: 3px;
+}
+.archive-index-card:hover strong {
+  color: var(--gold);
+}
+.archive-state {
+  grid-column: 1/-1;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: var(--dim);
+}

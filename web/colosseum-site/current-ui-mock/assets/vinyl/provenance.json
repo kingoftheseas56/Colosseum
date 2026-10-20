@@ -1,0 +1,339 @@
+{
+  "sourcePin": "bf3becf16c4288e9fce591ac45e9c179d846ae21",
+  "sourceRoot": "tests/fixtures/",
+  "notes": "Copied existing local assets unchanged; original README attribution retained. Metadata and projections are fixture data, not production ranking. Artist pictures are representative album art.",
+  "files": [
+    {
+      "path": "cold-ripple.jpg",
+      "sha256": "e53040f1ed25876fc96a0dd5ec6554b81b778adf69e803443d6c6d3d59b15e8c"
+    },
+    {
+      "path": "vinyl-pages/README.md",
+      "sha256": "b14d320a6250e37ef6000aff06c4f7bbdb727dd744d893573c29da7e7f46475e"
+    },
+    {
+      "path": "vinyl-pages/bad.jpg",
+      "sha256": "4a7dea258032ea6c629295b1d9cd38e7bbd8c9d27bc0cb123695627dc1c58256"
+    },
+    {
+      "path": "vinyl-pages/dangerous.jpg",
+      "sha256": "584b96447577f5e6f6cbfdf08e1a73316791754dff913e224bd7b73cc9a25d83"
+    },
+    {
+      "path": "vinyl-pages/eminem-show-cover.jpg",
+      "sha256": "931712e3f5ac4b614ef61fe2f2888ebe627223ed31d7a43cc9341baff7bc7e84"
+    },
+    {
+      "path": "vinyl-pages/history.jpg",
+      "sha256": "e0b311651f291e4c06bf01dc52907d933f7d71cc19d33a40bc18e76330c52b90"
+    },
+    {
+      "path": "vinyl-pages/invincible.jpg",
+      "sha256": "8cd128ee80d33b2d98ef2c66d18b877a1e77a33211c57f7abc28ea397c829fbd"
+    },
+    {
+      "path": "vinyl-pages/off-the-wall.jpg",
+      "sha256": "baa8ef28ffcfdac4248884e3be2d074a35b216751c2c609c478992e43dcad4b1"
+    },
+    {
+      "path": "vinyl-pages/sagara-sangamam-backdrop.png",
+      "sha256": "dbc8a5af637746c61b7a9db218078fd3d7d3822d94aa877110e65b97d58dc7f7"
+    },
+    {
+      "path": "vinyl-pages/sagara-sangamam-poster.jpg",
+      "sha256": "e0ace93b0347a3a0ff53dcd1d6fc10c0362b71d84ba2e9300799edb3b89ee31c"
+    },
+    {
+      "path": "vinyl-pages/thriller-25.jpg",
+      "sha256": "818870c81cd656b50b2701fa96e513b4496def9b4935b141dd8b3fb803d1c8e6"
+    },
+    {
+      "path": "vinyl-pages/thriller-40.jpg",
+      "sha256": "0b44f004a264fd7583b899c3b2382db6fe5599ef68df474ab9cd5f87b94ec3e7"
+    },
+    {
+      "path": "vinyl-pages/thriller-special.jpg",
+      "sha256": "f644981d66a93d16e0018e0bc31f26f7b81839e2398650498a808f4ece512d20"
+    },
+    {
+      "path": "vinyl-pages/thriller.jpg",
+      "sha256": "d1e16a895c856a3760142c944f29c2a09e9099996537c04cf5a49e6ccbcc1930"
+    },
+    {
+      "path": "vinyl-pages/video-beat-it.jpg",
+      "sha256": "b07973149a471575420d8414383c1896d246f6ff849404cb89174d2fd647dc44"
+    },
+    {
+      "path": "vinyl-pages/video-billie-jean.jpg",
+      "sha256": "467ba412f40cf24b5047b38efa7011ea15f8252c6a1f57fc57a4935d4eb3958a"
+    },
+    {
+      "path": "vinyl-pages/video-thriller.jpg",
+      "sha256": "365af3fc8e73e3becdb7e393fa63946d37b129b29ad32dd75fc9e699e093d834"
+    },
+    {
+      "path": "vinyl-world/Catalogue.js",
+      "sha256": "32174ec9698484ee8bcace35454359aa86ff8def89d932f26a2a1f67c58a2e60"
+    },
+    {
+      "path": "vinyl-world/README.md",
+      "sha256": "a8c944785615a8306931ebf4837ec68f44931f48578d2806c154531111711afd"
+    },
+    {
+      "path": "vinyl-world/catalogue.json",
+      "sha256": "7f363f074e1fdfc63d2ae63fbe55def89f491cf3189319f057b151e742f1ecc8"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_0JJ1LXBTQTC.jpg",
+      "sha256": "c07fa9117d7421cd103554cead665820e2427d16cafbc9e15b59d304c6af8b6c"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_1SbgcDGdrT4.jpg",
+      "sha256": "1001ce93101c41a71c95bca0135bf47c3e701a4e3153ce7f5bc64c10839628cc"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_1X1w2p5pgW0.jpg",
+      "sha256": "6e8250846ed134705602f3682ba1ad538c4a8c7ac15a4044bf197ed0e3c599a4"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_3jGuGO44ziy.jpg",
+      "sha256": "d79555cf608eefe3ea6d7a52bac0d719e049d49b1c0c0d0d89834aefdbb6a1be"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_3khwVTxUcDb.jpg",
+      "sha256": "65ffce74cb707959bc4bc43bb29fe184390cf46721e14f87938bbd623aeda73e"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_4L5VumVqPLu.jpg",
+      "sha256": "27bb78a67dc65bfb246f01fdc529c58605e431d80f3bad0fe751a7bf3c6483e7"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_6pEdKESQLeh.jpg",
+      "sha256": "caa31e05aad89a69bb918ff16644f4720dbf0181c134a0ba7f19f73a8ca8163a"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_74EFmf0sBVs.jpg",
+      "sha256": "409923e259a65a63ea23ab7c34de32fe12ba4d713c1ea8327c809763ccc6cbe2"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_7Eqd3VY0SGr.jpg",
+      "sha256": "ec0d59418f06abb24d19cefc95f8e6282b93c3609604518587c0ba4522ddd3ec"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_7ltM34kr0mH.jpg",
+      "sha256": "b3ecb8ad8df5bdf8ab57f75f60c24772936c4ede4535811c9656bbdb1b490e63"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_8G34qEx8tZK.jpg",
+      "sha256": "64b5bcf5883279ce0216853c87a7b4e000ea5ca838be55014bef43dae14d6c99"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_BAWniMjKTZx.jpg",
+      "sha256": "1b06be0992ecfc7d56b9172e64fded87b01e694aee1c65c371e9e2925e9e5103"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_BZdFfPLotHS.jpg",
+      "sha256": "daef3baec4ee466481ba5d4772df102fe309f6690045d178cfb982350db9bddb"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_CEsAJuezLwa.jpg",
+      "sha256": "aeeb6d3a251e8fe023455006aec964174f6288e0d32ab3942b324ac5d646e989"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_DFHGzeiRf7Y.jpg",
+      "sha256": "adfcc83a8f4e671d216fcc0ab69f8e3a536b9ba6195acb25a49d18027a710faf"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_DtiEtdF30C4.jpg",
+      "sha256": "1882e36f30bbabd2d80d7bb1d353d0b665924d3084b17d391c9996cd9c08657a"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_E4GfUXfDfhy.jpg",
+      "sha256": "054e4e41144964261765076c31539118afe733bf1f14510608eb49189628ab4c"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_E9Diy6kXmlV.jpg",
+      "sha256": "a76e72276715457b36cdfc033998e450e114029f9dab13dc64dddb244ffd69d7"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_EAezTjkpoJI.jpg",
+      "sha256": "141ca68bce668f3857fa8e4d2f22a02aa3e0703be6d11854bff2015f84f3b661"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_GXKcP94m4I0.jpg",
+      "sha256": "eca68e6def827623f838c1bef2f08491a3ec6bd78362b0a9212bb32b44a09123"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_GiCznD7rPGz.jpg",
+      "sha256": "deb670fa185141dced619e78c54032fa21c5da6f8cd665190175667c99dc3d22"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_H7hXbSZvh9z.jpg",
+      "sha256": "47e1f8329a877bc090374c0a76a2c55803c0409850df97b4afabf7741228b3e6"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_HvkCGrHIae2.jpg",
+      "sha256": "949579bdc8b8cfb04045aa3222be881a360b49328f8ed6902820fa339f02fbb7"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_K8qWMWVqXGi.jpg",
+      "sha256": "b8e4d37163ad86ea70ec6eb546130f9d98bc5d127ad0853b8063d61d75324bae"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_KNAgjIM7e09.jpg",
+      "sha256": "e2fc45fb0653de2ca76f1f887c48d57d7da08bf687534e8783bbc0384009d851"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_KipiERroY8i.jpg",
+      "sha256": "ed626c7530559cc74fb079e01c3e7025b10384d388cd6ff105e334fd1724a87b"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_NWtCRQBRP38.jpg",
+      "sha256": "4bd281e71c2a953a1371af3c379de1b1b2bbd4143db88ae5c9f0f9acfc4e1927"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_OlDsQnYS8Vu.jpg",
+      "sha256": "b87d0e6fa63344aa8d5bed407eb011a0483dd40237393dee498f22c9204c80c6"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_PdZ3r5GOhEX.jpg",
+      "sha256": "d1f97eaa318acbee91ce8be906a056df4776c7ef1319f547b3919afab3c7cf00"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_QFpeH3GzBe4.jpg",
+      "sha256": "546108c0848681aedf9c709a15618df8e42b9e8fe4c2606fa9d919d00bd79536"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_TKsnx0yK3wu.jpg",
+      "sha256": "e43a49cf18e8f2f93c9b4acb4b27fda45e70007303f21274ff99b5d80d5f93d5"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_TeNNqIVw9cn.jpg",
+      "sha256": "255ba62e13192c7b21c0584f82849f7356a3e281b4efed9ae180ddc771a7056f"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_TrOpWVKgpyE.jpg",
+      "sha256": "a40390de3b516d65520ff0233d8fba5b16d5c33bd893d160f196eb44db7def00"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_W5qN7flBszY.jpg",
+      "sha256": "33f33b0b1c738e24c3670bb1ad22285cedaccaee508460aafea83b12f9d8a31e"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_Y5ebh1nnQs5.jpg",
+      "sha256": "9e47708290b7f02b55e8098a01ffcebfdc4b00694ba2d631d9f8677ae9532378"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_Zn4e2Zq4oVK.jpg",
+      "sha256": "0b0b78ffcd079e7ecf433c3f4e22bf8d20a15733e6087749ed13b31f6f7faada"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_cMoxENuJa8v.jpg",
+      "sha256": "d336bb7938c4396a868ca849427ccdd41d3fb72dc6166f83d74c2f17b3e15a45"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_crTmGTk8aGZ.jpg",
+      "sha256": "31887e1745dcd8a5b12e01dc3e4998ecdd643c426aa595c9e849220a2fc53a2c"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_cvxEwRqFR5u.jpg",
+      "sha256": "90532d01cc43e3a2ff28c13b5e219e8d49f81936729610cbec309be6ad80ea19"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_dhgE6kiAvRR.jpg",
+      "sha256": "e148aaffd28680bbb9d1ad48d396ead1e8affdd7f1da60a0c132f8d1263f69a0"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_dqWTncCjkSp.jpg",
+      "sha256": "fc7244be991d1b049436b6c1e0743422d7344b33e918ea760438f2ee17d798b8"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_eSklbXQTF0P.jpg",
+      "sha256": "0503a47992281e2e2f1f633be103dc4e9acbb39432d61296f1067f637a21ac32"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_gLzsNqMumEh.jpg",
+      "sha256": "c55ff6608298f09db1cbb657c504a9db8a138622afa18cac832d80e776a76e2f"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_gdubPaMNURy.jpg",
+      "sha256": "0ed5bae39ada0e54a83bae0060b6ad45bdf90d30f07e1bc945e32179daa1e9e9"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_goT56UMoafX.jpg",
+      "sha256": "4431805592497da454f04b64e7e0d7b58e834d5002459342c735b36d5c72d1e3"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_hNBlvm0CJrV.jpg",
+      "sha256": "70583d0113dd796a4ee09c63bc4bfe339653843790b088d55cbc375a94f4d457"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_iNbKdKjDqyr.jpg",
+      "sha256": "aab4b3f0b887c58552029b8813ae9f0b07f428631ea1927c8267c6d82f95060a"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_jsf02DoFTS3.jpg",
+      "sha256": "9e361ec6e2d945fa7220ed47abd56545b4efcbd1513ddc860874e302535083ba"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_k1b1fqv47ir.jpg",
+      "sha256": "ec3f02c3f1c92a38ce5b08ce0b49bfdd52041e9379895c643d42651f5c81c656"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_k3jg1y2f6MF.jpg",
+      "sha256": "6b91d127eca122c898e7082b20b54a38b36c77bc5d283b7b395509a5828454dd"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_lzArHgbY5cu.jpg",
+      "sha256": "3561b346418b992475c8c411b699019ffc364b6b79b38bff484a0eb2408a83c2"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_nVOvQM1ODKM.jpg",
+      "sha256": "7e2efd36d0e6b3f9618a6b91d3a25d0b79e842ea4aaaad411b24d92c03838c56"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_pah6lCBHIMA.jpg",
+      "sha256": "097ac5e67e85b5104fd1a39a509041dd6bde2b705bbd92f2c61032d07a92c3d5"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_prJElj3cxDf.jpg",
+      "sha256": "d889cc1238c8c210ce7ef7502c941741b505aa6bfc947e6cc9ca6de8ad3ab8ac"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_pytqecL3fsM.jpg",
+      "sha256": "c36b2e64eafafddbf30610ca6086bacdb1ddb1c4ac98b852b255ae6eb7d8afdc"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_r3jEPg0hFsW.jpg",
+      "sha256": "196fcf909a1ad23f06a950e9bd7dcba06f916bcf2f2d90edf349fbafb83ac8c0"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_rCyhCrbXXz7.jpg",
+      "sha256": "7d691dc667b6b46ef07c5e681a189edf53d5865639a69881c983fcb67fe61c35"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_rOOa1dXXpDB.jpg",
+      "sha256": "9fe51faef5b2c842298f62d2defbcd176dd68f82ac252de5ef1a3afdd2251b21"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_ssu6fPzQdWm.jpg",
+      "sha256": "bd4c213cebcbaba9b61760c071444f520f9ed2d90dfcdc8ef68f73deb2282a11"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_tQfaWH32ovE.jpg",
+      "sha256": "3d9ff4918e1d09defd7918c3dad44395c84caf4c37374072111d5d6a4b1d8e9a"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_x1NV6TpyFIK.jpg",
+      "sha256": "3d830be2c2c7152412473c889a02082062cae4ab3d2860b41eb473e456403d94"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_xndVtgBEhzL.jpg",
+      "sha256": "268172ebfefcd59039d9793a6430aa6c38d2e1e0a03a2f0ba676c825e9b6ea76"
+    },
+    {
+      "path": "vinyl-world/covers/MPREb_yXhSI4FCUo6.jpg",
+      "sha256": "c0f66bb990108851644a05f74274ccc5f5f399d847681590f7702fb2ef1e4d7d"
+    }
+  ]
+}

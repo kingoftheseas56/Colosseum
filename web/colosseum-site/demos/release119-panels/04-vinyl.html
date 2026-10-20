@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Colosseum Vinyl 2.0.0</title>
+<style>
+@font-face{font-family:Fraunces;src:url(../../assets/Fraunces-Regular.ttf)}
+:root{--gold:#f0c44a;--ink:#f6f5f2;--dim:#c4c3cb;--ui:"Segoe UI",Arial,sans-serif;--serif:Fraunces,Georgia,serif}
+*{box-sizing:border-box;margin:0}
+html,body{width:2000px;height:1415px;background:#0b0b0d;overflow:hidden}
+body{position:relative;color:var(--ink);font-family:var(--ui)}
+.bg{position:absolute;inset:-60px;background:url(../../release119/v-song.png) center/cover;filter:blur(44px) saturate(.9) brightness(.55)}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,12,.3) 0%,rgba(10,10,12,.45) 40%,rgba(8,8,10,.85) 100%)}
+header{position:absolute;top:42px;left:72px;right:72px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:18px;font-family:var(--serif);letter-spacing:.42em;font-size:25px;color:var(--gold)}
+.brand img{width:52px}
+.pill{height:50px;padding:0 30px;border-radius:25px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:18px;color:var(--gold);background:rgba(30,30,34,.72);border:1.5px solid rgba(240,196,74,.35)}
+.pill.dash{border-style:dashed;border-color:rgba(240,196,74,.6)}
+.eyebrow{position:absolute;left:72px;top:140px;font-size:17px;font-weight:600;letter-spacing:.32em;color:var(--gold)}
+h1{position:absolute;left:72px;top:170px;font-family:var(--serif);font-weight:400;font-size:132px;line-height:1;letter-spacing:-.02em}
+h1 small{font-family:var(--ui);font-size:40px;font-weight:600;color:var(--gold);letter-spacing:0;margin-left:18px;vertical-align:52%}
+.lede{position:absolute;right:72px;top:206px;font-family:var(--serif);font-size:44px;color:#ecebe8;text-align:right}
+.win{position:absolute;border-radius:18px;overflow:hidden;background:#111;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1.5px rgba(255,255,255,.14)}
+.win img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top}
+.tag{position:absolute;left:16px;bottom:16px;font-size:12px;font-weight:700;letter-spacing:.18em;color:var(--gold);background:rgba(10,10,12,.88);border:1.5px solid rgba(240,196,74,.5);border-radius:18px;padding:7px 13px}
+.hl{box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 2px rgba(240,196,74,.75),0 0 60px rgba(240,196,74,.22)}
+
+.a1{left:72px;top:342px;width:895px;height:503px}
+.hm{left:995px;top:342px;width:933px;height:503px}
+.a2{left:72px;top:875px;width:470px;height:415px}
+.al{left:72px;top:875px;width:914px;height:480px}
+.sg{left:1014px;top:875px;width:914px;height:480px}
+.al img,.sg img{object-fit:contain!important;object-position:center!important}
+.a2 img{object-fit:cover;object-position:left top!important}
+.hm img{object-fit:contain;object-position:center!important}
+.source-note{position:absolute;bottom:24px;left:72px;right:72px;color:#aaa8ae;font-size:16px;text-align:right}
+</style></head><body>
+<div class="bg"></div><div class="shade"></div>
+<header>
+  <div class="brand"><img src="../../assets/colosseum.svg" alt="">COLOSSEUM</div>
+  <div class="pill">Vinyl 2.0.0</div>
+  <div class="pill dash">In development</div>
+</header>
+<div class="eyebrow">COMING NEXT</div>
+<h1>Vinyl<small>2.0.0</small></h1>
+<p class="lede">Colosseum's music world.</p>
+<div class="win a1"><img src="../../release119/v-home.png" alt=""><span class="tag">HOME</span></div>
+<div class="win hm"><img src="../../release119/v-artist-hero.png" alt="" style="object-position:left center"><span class="tag">ARTIST</span></div>
+<div class="win al"><img src="../../release119/v-album.png" alt="" style="object-position:12% top"><span class="tag">ALBUM</span></div>
+<div class="win sg hl"><img src="../../release119/v-song.png" alt="" style="object-position:78% center"><span class="tag">LYRICS AND ANNOTATIONS</span></div>
+<p class="source-note">Development previews</p><style id="artboard-responsive-fit">html{width:100%!important;height:100%!important;overflow:hidden!important}body{transform-origin:top left!important}</style>
+<script id="artboard-fit">(()=>{function fit(){const w=innerWidth,h=innerHeight,scale=Math.min(w/2000,h/1415);document.body.style.transform='scale('+scale+')';}addEventListener('resize',fit);fit();})();</script></body></html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Comic and manga reader (Colosseum 1.1.8 recreation)</title>
+<!--
+  One fixed 1280x720, non-interactive, scripted recreation of the v1.1.8
+  comic reader. The backend's real pages are replaced by CSS-only neutral
+  panel diagrams. QML sources and staged choices are documented in the report.
+  The page never reads a personal library or names a download provider.
+-->
+<style>
+@font-face{font-family:Fraunces;src:url("../assets/Fraunces-Regular.ttf") format("truetype")}
+:root{--gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;--edge:rgba(255,255,255,.18);--ui:"Segoe UI",system-ui,sans-serif;--display:Fraunces,Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:#000}
+body{position:relative;color:var(--ink);font-family:var(--ui);user-select:none;cursor:default}
+.wall{position:absolute;inset:0;background:#141720 url("../assets/cold-ripple.jpg") center/cover no-repeat}
+#stage{position:absolute;inset:0;background:#000;overflow:hidden;isolation:isolate}
+svg.icon{display:block;width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#icons{position:absolute;width:0;height:0;overflow:hidden}
+#spread,#strip{position:absolute;inset:0;overflow:hidden;background:#000}
+.spread-set{position:absolute;inset:0;display:flex;opacity:0}
+.spread-set.active{opacity:1}
+.paper{position:relative;flex:none;width:640px;height:915px;overflow:hidden;background:#adb1b5;color:#2e3439}
+.paper::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(110deg,rgba(255,255,255,.15),transparent 36%,rgba(0,0,0,.08) 100%);pointer-events:none}
+.paper-grid{position:absolute;inset:10px;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:22% 25% 23% 1fr;gap:9px;background:#404448}
+.panel{position:relative;overflow:hidden;background:linear-gradient(140deg,#9ca3a8,#747c83 62%,#bcc0c4);border:1px solid rgba(16,24,32,.11)}
+.panel::before{content:"";position:absolute;width:125%;height:52%;left:-7%;top:47%;transform:rotate(-15deg);background:linear-gradient(110deg,transparent,rgba(226,228,229,.20) 48%,rgba(49,56,60,.12) 49%,transparent 84%)}
+.panel::after{content:"";position:absolute;inset:0;opacity:.28;background:repeating-linear-gradient(153deg,transparent 0 24px,rgba(42,49,56,.13) 25px 26px,transparent 27px 48px)}
+.panel:nth-child(2n){background:linear-gradient(130deg,#c7cace,#92989d 52%,#757c83)}
+.panel:nth-child(3n){background:linear-gradient(48deg,#727a81,#adb4b9 68%,#d4d7d9)}
+.paper[data-variant="0"] .p1,.paper[data-variant="2"] .p3{grid-column:1/7}
+.paper[data-variant="0"] .p1{grid-row:1}
+.paper[data-variant="0"] .p2{grid-area:2/1/3/5}.paper[data-variant="0"] .p3{grid-area:2/5/3/7}
+.paper[data-variant="0"] .p4{grid-area:3/1/4/3}.paper[data-variant="0"] .p5{grid-area:3/3/4/7}.paper[data-variant="0"] .p6{grid-area:4/1/5/7}
+.paper[data-variant="1"] .p1{grid-area:1/1/2/4}.paper[data-variant="1"] .p2{grid-area:1/4/2/7}
+.paper[data-variant="1"] .p3{grid-area:2/1/3/7}.paper[data-variant="1"] .p4{grid-area:3/1/4/5}
+.paper[data-variant="1"] .p5{grid-area:3/5/4/7}.paper[data-variant="1"] .p6{grid-area:4/1/5/7}
+.paper[data-variant="2"] .p1{grid-area:1/1/2/3}.paper[data-variant="2"] .p2{grid-area:1/3/2/7}
+.paper[data-variant="2"] .p3{grid-row:2}.paper[data-variant="2"] .p4{grid-area:3/1/4/4}
+.paper[data-variant="2"] .p5{grid-area:3/4/4/7}.paper[data-variant="2"] .p6{grid-area:4/1/5/7}
+.paper-num{position:absolute;z-index:1;right:26px;top:119px;padding:7px 10px;background:rgba(15,20,25,.66);font:600 12px/1 var(--ui);letter-spacing:1.4px;color:#f1f0ed}
+.paper-num strong{font-weight:700;font-size:20px;letter-spacing:0;margin-left:6px}
+.paper:last-child{box-shadow:inset -1px 0 0 #222}
+.spine{position:absolute;left:631px;top:0;width:18px;height:915px;z-index:2;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.035),rgba(0,0,0,.12) 45%,rgba(0,0,0,.12) 55%,rgba(0,0,0,.035))}
+#strip{opacity:0}
+#strip-stack{position:absolute;top:0;left:141px;width:998px;will-change:transform}
+#strip-stack .paper{width:998px;height:1426px}
+#strip-stack .paper-grid{inset:13px;gap:11px}
+#strip-stack .paper-num{top:120px}
+#strip-stack .paper + .paper{border-top:1px solid #363a3f}
+#chrome{position:absolute;inset:0;z-index:10;opacity:1;pointer-events:none}
+.titlebar{position:absolute;top:0;left:0;right:0;height:38px;background:rgba(5,5,6,.92);display:flex;align-items:center}
+.back{position:absolute;left:14px;top:0;height:38px;display:flex;align-items:center;gap:7px;color:var(--dim);font-size:13px}
+.back .icon{width:16px;height:16px}
+.book-label{position:absolute;left:115px;right:134px;top:0;height:38px;display:flex;align-items:center;color:var(--dim);font-size:12px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.window-verbs{position:absolute;right:10px;top:4px;height:30px;display:flex;gap:2px}
+.window-verbs span{width:30px;height:30px;display:grid;place-items:center;color:var(--ink)}
+.window-verbs .icon{width:15px;height:15px}
+.commandstrip{position:absolute;top:38px;left:0;right:0;height:46px;background:rgba(8,8,9,.90);border-bottom:1px solid rgba(255,255,255,.07)}
+.commands{position:absolute;right:26px;top:0;height:46px;display:flex;align-items:center;gap:26px}
+.cmd{display:flex;align-items:center;gap:9px;height:30px;white-space:nowrap;font-size:14px;color:var(--dim)}
+.cmd.active{color:var(--gold);font-weight:600}
+.cmd .icon{width:18px;height:18px}
+.topfade{position:absolute;top:84px;left:0;right:0;height:26px;background:linear-gradient(rgba(0,0,0,.42),transparent)}
+.nav{position:absolute;top:84px;bottom:54px;width:60px;display:grid;place-items:center;color:rgba(255,255,255,.87)}
+.nav svg{width:34px;height:34px;filter:drop-shadow(2px 2px 1px rgba(0,0,0,.55))}
+.nav.left{left:0}.nav.right{right:0}
+.side-scroll{position:absolute;right:8px;top:114px;bottom:78px;width:3px;border-radius:2px;background:rgba(255,255,255,.12)}
+.side-thumb{position:absolute;left:-2.5px;top:0;width:8px;height:52px;border-radius:5px;background:rgba(255,255,255,.38)}
+.title-toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);height:42px;padding:0 22px;display:flex;align-items:center;justify-content:center;max-width:calc(100% - 120px);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--ink);font-size:19px;background:rgba(5,5,6,.82)}
+.bottomfade{position:absolute;bottom:54px;left:0;right:0;height:40px;background:linear-gradient(transparent,rgba(0,0,0,.46))}
+.rail{position:absolute;left:0;right:0;bottom:0;height:54px;background:rgba(240,196,74,.94);color:#17130a;font-size:17px}
+.rail-arrow{position:absolute;top:12px;width:30px;height:30px;display:grid;place-items:center}
+.rail-arrow .icon{width:19px;height:19px}
+.rail-arrow.prev{left:16px}.rail-arrow.next{right:16px}
+.count{position:absolute;top:0;height:54px;display:flex;align-items:center;white-space:nowrap}
+.count.current{left:60px;font-weight:700}.count.total{right:60px;font-weight:400}
+.scrub{position:absolute;left:140px;right:133px;top:20px;height:14px}
+.scrub-track{position:absolute;left:0;right:0;top:5px;height:3px;border-radius:2px;background:rgba(23,19,10,.42)}
+.scrub-fill{height:100%;width:0%;border-radius:2px;background:#17130a}
+.scrub-knob{position:absolute;left:0;top:-1.5px;width:16px;height:16px;transform:translateX(-50%);border-radius:50%;background:var(--gold);border:3px solid #17130a}
+.scrub-tick{position:absolute;left:57%;top:-4px;height:11px;width:2px;background:rgba(23,19,10,.55)}
+#layout-popover{position:absolute;left:770px;top:92px;width:322px;z-index:21;padding:14px 16px;border-radius:12px;color:var(--dim);background:rgba(9,10,13,.96);border:1px solid rgba(255,255,255,.18);opacity:0;display:none}
+.choice{height:32px;display:flex;align-items:center;gap:10px;font-size:13px}
+.choice .icon{width:16px;height:16px}.choice.selected{color:var(--gold);font-weight:600}
+.long-controls{margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06);display:none}
+.control-head{height:22px;display:flex;align-items:center;justify-content:space-between;color:var(--dim);font-size:12px}
+.control-head strong{font-size:12px;color:var(--gold)}
+.small-track{height:3px;margin:7px 1px 14px;background:rgba(255,255,255,.12);position:relative;border-radius:2px}
+.small-track i{display:block;width:63%;height:3px;background:var(--gold);border-radius:2px}
+.small-track::after{content:"";position:absolute;top:-4px;left:63%;width:11px;height:11px;border-radius:50%;background:var(--gold)}
+.control-row{height:32px;display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.chip{padding:4px 8px;border:1px solid rgba(255,255,255,.11);border-radius:7px;color:var(--dimmer);font-size:12px}
+.chip.on{color:var(--gold);border-color:rgba(240,196,74,.55);background:rgba(240,196,74,.08)}
+.separator{height:1px;background:rgba(255,255,255,.06);margin:4px 0}
+#pages-overlay{position:absolute;z-index:22;left:0;right:0;bottom:54px;height:229px;background:rgba(6,6,8,.93);border-top:1px solid rgba(255,255,255,.07);opacity:0;display:none;overflow:hidden}
+#pages-flow{position:absolute;inset:10px 0 8px;display:flex;justify-content:center;gap:12px;align-items:flex-start;overflow:hidden}
+.thumb-cell{height:211px;flex:none;display:flex;align-items:center;flex-direction:column}
+.thumb{position:relative;overflow:hidden;background:#858b91;border:1px solid rgba(255,255,255,.12);opacity:.72}
+.thumb-current .thumb{opacity:1;border:2px solid var(--gold)}
+.thumb-diagram{position:absolute;inset:4px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:39% 28% 1fr;gap:3px;background:#53575b}
+.thumb-diagram i{background:linear-gradient(142deg,#ced0d3,#798087);display:block}
+.thumb-diagram i:nth-child(1){grid-column:1/3}.thumb-diagram i:nth-child(3){background:#a3aaaf}
+.thumb-num{position:absolute;bottom:5px;right:5px;font-size:10px;color:#222;font-weight:700;background:rgba(233,235,237,.7);padding:1px 3px}
+.thumb-bookmark{position:absolute;right:3px;top:3px;color:var(--gold);font-size:13px}
+.thumb-caption{margin-top:8px;font-size:12px;color:var(--dim)}
+.thumb-current .thumb-caption{font-size:14px;color:var(--gold);font-weight:700}
+.pages-edge{position:absolute;top:0;bottom:0;width:110px;z-index:2;pointer-events:none}
+.pages-edge.left{left:0;background:linear-gradient(90deg,rgba(6,6,8,.93),transparent)}
+.pages-edge.right{right:0;background:linear-gradient(270deg,rgba(6,6,8,.93),transparent)}
+</style>
+</head>
+<body>
+<svg id="icons" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-pages" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></symbol>
+  <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+  <symbol id="i-paired" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></symbol>
+  <symbol id="i-strip" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="5" rx="1"/><rect x="6" y="9.5" width="12" height="5" rx="1"/><rect x="6" y="16.5" width="12" height="5" rx="1"/></symbol>
+  <symbol id="i-single" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="1"/></symbol>
+  <symbol id="i-rtl" viewBox="0 0 24 24"><path d="M21 7H3m0 0 4-4M3 7l4 4M21 17H3m0 0 4-4m-4 4 4 4"/></symbol>
+</svg>
+<div class="wall" aria-hidden="true"></div>
+<main id="stage" aria-label="Scripted Colosseum comic reader preview">
+  <div id="spread" aria-hidden="true"></div>
+  <div id="strip" aria-hidden="true"><div id="strip-stack"></div></div>
+  <div id="chrome">
+    <div class="titlebar">
+      <div class="back"><svg class="icon"><use href="#i-back"/></svg>Library</div>
+      <div class="book-label">One Piece&nbsp;&nbsp;·&nbsp;&nbsp;Chapter 1090</div>
+      <div class="window-verbs"><span><svg class="icon"><use href="#i-min"/></svg></span><span><svg class="icon"><use href="#i-max"/></svg></span><span><svg class="icon"><use href="#i-close"/></svg></span></div>
+    </div>
+    <div class="commandstrip">
+      <div class="commands">
+        <div class="cmd"><svg class="icon"><use href="#i-bookmark"/></svg>Bookmark</div>
+        <div class="cmd" id="pagesCmd"><svg class="icon"><use href="#i-pages"/></svg>Pages</div>
+        <div class="cmd"><svg class="icon"><use href="#i-loupe"/></svg>Loupe</div>
+        <div class="cmd"><svg class="icon"><use href="#i-image"/></svg>Image</div>
+        <div class="cmd" id="layoutCmd"><svg class="icon"><use id="layoutIcon" href="#i-paired"/></svg><span id="layoutLabel">Paired pages</span></div>
+        <div class="cmd"><svg class="icon"><use href="#i-rtl"/></svg>Manga order</div>
+      </div>
+    </div>
+    <div class="topfade"></div>
+    <div class="nav left"><svg class="icon"><use href="#i-back"/></svg></div>
+    <div class="nav right"><svg class="icon"><use href="#i-next"/></svg></div>
+    <div class="side-scroll"><div id="sideThumb" class="side-thumb"></div></div>
+    <div class="title-toast">One Piece</div>
+    <div class="bottomfade"></div>
+    <div class="rail">
+      <div class="rail-arrow prev"><svg class="icon"><use href="#i-back"/></svg></div>
+      <div class="count current" id="currentCount">7–8</div>
+      <div class="scrub"><div class="scrub-track"><div id="scrubFill" class="scrub-fill"></div><div class="scrub-tick"></div><div class="scrub-knob" id="scrubKnob"></div></div></div>
+      <div class="count total">176</div>
+      <div class="rail-arrow next"><svg class="icon"><use href="#i-next"/></svg></div>
+    </div>
+  </div>
+  <div id="layout-popover">
+    <div class="choice" id="choiceSingle"><svg class="icon"><use href="#i-single"/></svg>Single page</div>
+    <div class="choice" id="choicePaired"><svg class="icon"><use href="#i-paired"/></svg>Paired pages</div>
+    <div class="choice" id="choiceStrip"><svg class="icon"><use href="#i-strip"/></svg>Long strip</div>
+    <div class="long-controls" id="longControls">
+      <div class="control-head"><span>Portrait width</span><strong>78%</strong></div>
+      <div class="small-track"><i></i></div>
+      <div class="control-row"><span>Page spacing</span><span><span class="chip on">Seamless</span> <span class="chip">Breathing room</span></span></div>
+      <div class="separator"></div>
+      <div class="control-row"><span>Auto-scroll</span><span class="chip">Start</span></div>
+      <div class="control-head"><span>Speed</span><strong>1×</strong></div>
+      <div class="small-track"><i style="width:27%"></i></div>
+    </div>
+  </div>
+  <div id="pages-overlay"><div id="pages-flow"></div><div class="pages-edge left"></div><div class="pages-edge right"></div></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  // A script, not a UI: no controls receive pointer/keyboard handlers.
+  var $ = function (id) { return document.getElementById(id); };
+  function paper(n, extra) {
+    return '<div class="paper ' + (extra || '') + '" data-variant="' + (n % 3) + '">' +
+      '<div class="paper-grid"><i class="panel p1"></i><i class="panel p2"></i><i class="panel p3"></i>' +
+      '<i class="panel p4"></i><i class="panel p5"></i><i class="panel p6"></i></div>' +
+      '<div class="paper-num">PAGE<strong>' + String(n).padStart(2,'0') + '</strong></div></div>';
+  }
+  // Right-to-left manga order: each unit's earlier page is on the right.
+  var spreads = [[8, 7], [10, 9], [12, 11]];
+  $('spread').innerHTML = spreads.map(function (pair) {
+    return '<div class="spread-set">' + paper(pair[0], '') + paper(pair[1], '') + '<div class="spine"></div></div>';
+  }).join('');
+  var spreadEls = Array.prototype.slice.call(document.querySelectorAll('.spread-set'));
+  $('strip-stack').innerHTML = [13, 14, 15, 16, 17].map(function (n) { return paper(n, 'strip-paper'); }).join('');
+  // CSS-only thumbnails. The centre cell follows the shown page.
+  function thumbnails(center) {
+    var html = '';
+    for (var d = -5; d <= 5; d++) {
+      var n = center + d, dist = Math.abs(d);
+      var scale = Math.max(.52, 1 - dist * .10);
+      var w = Math.round(121 * scale), h = Math.round(173 * scale);
+      var pad = Math.round((173 - h) / 2);
+      html += '<div class="thumb-cell ' + (d === 0 ? 'thumb-current' : '') + '" style="width:' + w +
+        'px;padding-top:' + pad + 'px"><div class="thumb" style="width:' + w + 'px;height:' + h +
+        'px"><div class="thumb-diagram"><i></i><i></i><i></i><i></i></div><div class="thumb-num">' +
+        n + '</div>' + (n === 12 ? '<span class="thumb-bookmark">◆</span>' : '') +
+        '</div><div class="thumb-caption">' + n + '</div></div>';
+    }
+    return html;
+  }
+  var thumbCenter = -1;
+  var LOOP = 17000;
+  function clamp(x) { return Math.max(0, Math.min(1, x)); }
+  function ease(p) { p = clamp(p); return p < .5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2; }
+  function inOut(t, a, b, f) { return clamp((t-a)/f) * clamp((b-t)/f); }
+  // ALL moving parts are derived from this one deterministic loop position.
+  function frame(time) {
+    var t = ((time % LOOP) + LOOP) % LOOP;
+    var longStrip = t >= 6900 && t < 16200;
+    var spreadIndex = t < 2300 ? 0 : t < 3950 ? 1 : t < 16200 ? 2 : 0;
+    for (var s = 0; s < spreadEls.length; s++) spreadEls[s].classList.toggle('active', s === spreadIndex);
+    $('spread').style.opacity = longStrip ? '0' : '1';
+    $('strip').style.opacity = longStrip ? '1' : '0';
+    // v1.1.8 edge page-turn arrows belong to paged layouts, not Long Strip.
+    Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (el) {
+      el.style.display = longStrip ? 'none' : 'grid';
+    });
+    var scroll = t < 8200 ? 0 : t < 11700 ? Math.round(1675 * ease((t-8200)/3500)) : 1675;
+    $('strip-stack').style.transform = 'translateY(' + (-scroll) + 'px)';
+    var current = longStrip ? (scroll < 550 ? 13 : scroll < 1160 ? 14 : 15) : [7,9,11][spreadIndex];
+    var ratio = longStrip ? (scroll / (1426*5 - 720)) : ((current - 1) / 175);
+    ratio = clamp(ratio);
+    $('currentCount').textContent = longStrip ? String(current) : (current + '–' + (current + 1));
+    $('scrubFill').style.width = (ratio * 100) + '%';
+    $('scrubKnob').style.left = (ratio * 100) + '%';
+    $('sideThumb').style.top = Math.round(ratio * 476) + 'px';
+    $('layoutLabel').textContent = longStrip ? 'Long strip' : 'Paired pages';
+    $('layoutIcon').setAttribute('href', longStrip ? '#i-strip' : '#i-paired');
+    var chromeAlpha = t < 1200 ? 1 : t < 1600 ? 1-ease((t-1200)/400)
+      : t < 4900 ? 0 : t < 5230 ? ease((t-4900)/330)
+      : t < 10100 ? 1 : t < 10500 ? 1-ease((t-10100)/400)
+      : t < 12400 ? 0 : t < 12750 ? ease((t-12400)/350) : 1;
+    $('chrome').style.opacity = String(chromeAlpha);
+    var layoutAlpha = inOut(t, 5530, 7920, 150);
+    $('layout-popover').style.display = layoutAlpha > 0 ? 'block' : 'none';
+    $('layout-popover').style.opacity = String(layoutAlpha);
+    $('layoutCmd').classList.toggle('active', layoutAlpha > 0);
+    $('choicePaired').classList.toggle('selected', !longStrip);
+    $('choiceStrip').classList.toggle('selected', longStrip);
+    $('longControls').style.display = longStrip ? 'block' : 'none';
+    if (layoutAlpha > 0) {
+      var pos = $('layoutCmd').getBoundingClientRect();
+      $('layout-popover').style.left = Math.round(Math.max(12,Math.min(946,pos.left+pos.width/2-161))) + 'px';
+    }
+    var pagesAlpha = inOut(t, 12900, 15100, 130);
+    $('pages-overlay').style.display = pagesAlpha > 0 ? 'block' : 'none';
+    $('pages-overlay').style.opacity = String(pagesAlpha);
+    $('pagesCmd').classList.toggle('active', pagesAlpha > 0);
+    if (pagesAlpha > 0 && thumbCenter !== current) {
+      $('pages-flow').innerHTML = thumbnails(current);
+      thumbCenter = current;
+    }
+  }
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var seek = /[?&]t=(\d+)/.exec(location.search);
+  if (seek || still) { frame(seek ? +seek[1] : 0); return; }
+  var running = false, start = 0, held = 0;
+  function tick(now) {
+    if (!running) return;
+    frame((now-start) % LOOP);
+    requestAnimationFrame(tick);
+  }
+  function play(on) {
+    if (on === running) return;
+    running = on;
+    if (on) { start = performance.now()-held; requestAnimationFrame(tick); }
+    else held = (performance.now()-start) % LOOP;
+  }
+  if ('IntersectionObserver' in window)
+    new IntersectionObserver(function (entries) { play(entries[0].isIntersecting); }, {threshold:.3}).observe(document.documentElement);
+  else play(true);
+})();
+</script>
+</body>
+</html>
