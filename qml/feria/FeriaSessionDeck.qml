@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtWebEngine
 import "PorticoData.js" as ProviderData
 
@@ -40,6 +41,7 @@ Item {
             deck.quiescenceFailed("A browser is still closing. Sign-out has not run; retry after it closes.")
     }
     signal message(string sessionId, string text)
+    signal closeConsentRequested(string sessionId, var consent)
 
     FeriaBrowserDownloads {
         id: regularDownloads
@@ -133,14 +135,98 @@ Item {
         return sessions.openBrowser(descriptor, true, false, activate !== false)
     }
     function closeTab(id) {
+        return requestClose(id)
+    }
+    function requestClose(id) {
         var entry = entries[id]
-        if (entry && entry.browser) entry.browser.triggerWebAction(WebEngineView.RequestClose)
-        else sessions.close(id)
+        if (!ready || !entry || entry.retiring) return false
+        if (!entry.browser) { sessions.close(id); return true }
+        return entry.closeController.begin()
+    }
+    function closeConsent(id) {
+        var entry = entries[id]
+        return entry && !entry.retiring ? entry.closeController.consent : null
+    }
+    function answerClose(id, ticket, leave) {
+        var entry = entries[id]
+        return ready && entry && !entry.retiring && entry.closeController.answer(ticket, leave)
+    }
+    function moveToDesktop(id, dialogWindow, geometry) {
+        var entry = entries[id]
+        if (!ready || !entry || entry.retiring || !entry.browser || entry.closeController.pending) return false
+        if (entry.hostWindow) return raiseSession(id)
+        var host = desktopFactory.createObject(deck, {deck: deck, sessionId: id, dialogWindow: !!dialogWindow})
+        if (!host) return false
+        entry.hostWindow = host
+        entry.hostMode = "desktop"
+        // Only visual parenting changes. The retained entry/Loader/QML context
+        // remain alive under the deck; never destroy/recreate or replay a URL.
+        entry.parent = host.contentItem
+        applyRequestedGeometry(id, geometry || Qt.rect(host.x, host.y, host.width, host.height))
+        host.show()
+        entry.browser.wakePage()
+        entry.browser.forceActiveFocus()
+        host.requestActivate()
+        return true
+    }
+    function presentFullSize(id, target) {
+        var entry = entries[id]
+        if (!ready || !entry || entry.retiring || !entry.browser || !target
+                || entry.hostWindow || entry.closeController.pending) return false
+        entry.hostMode = "full-size"
+        entry.parent = target
+        entry.browser.wakePage()
+        return true
+    }
+    function returnToEmbedded(id) {
+        var entry = entries[id]
+        if (!ready || !entry || entry.retiring || entry.closeController.pending) return false
+        entry.parent = deck
+        entry.hostMode = "embedded"
+        var host = entry.hostWindow
+        entry.hostWindow = null
+        if (host) { host.retiring = true; host.hide(); host.destroy() }
+        sessions.switchTo(id)
+        if (entry.browser) { entry.browser.wakePage(); entry.browser.forceActiveFocus() }
+        return true
+    }
+    function raiseSession(id) {
+        var entry = entries[id]
+        if (!ready || !entry || entry.retiring) return false
+        if (entry.hostWindow) {
+            if (entry.hostWindow.visibility === Window.Minimized) entry.hostWindow.showNormal()
+            else entry.hostWindow.show()
+            entry.hostWindow.raise()
+            entry.hostWindow.requestActivate()
+        }
+        sessions.switchTo(id)
+        return true
+    }
+    function applyRequestedGeometry(id, geometry) {
+        var entry = entries[id]
+        if (!entry || entry.retiring || !entry.hostWindow) return false
+        var host = entry.hostWindow
+        var bounds = policy.boundedWindowGeometry(geometry, host)
+        host.x = bounds.x; host.y = bounds.y
+        host.width = bounds.width; host.height = bounds.height
+        return true
+    }
+    Component { id: desktopFactory; FeriaDesktopHost {} }
+    function reopenClosedSpace(providerId) {
+        if (!ready || !providerId) return ""
+        var index = closedTabs.findIndex(function(d) { return d.providerId === providerId && !d.privateBrowsing })
+        if (index < 0) return ""
+        var descriptor = Object.assign({}, closedTabs[index])
+        delete descriptor.id; delete descriptor.adoptWindowRequest
+        var id = sessions.openBrowser(descriptor, true)
+        if (id) closedTabs = closedTabs.filter(function(_, i) { return i !== index })
+        return id
     }
     function openWindow(sourceId, request) {
         var source = entries[sourceId]
         if (!source || source.retiring || !source.browser || !ready || !request.userInitiated) return
         if (request.destination !== WebEngineNewWindowRequest.InNewWindow
+            && request.destination !== WebEngineNewWindowRequest.InNewDialog
             && request.destination !== WebEngineNewWindowRequest.InNewTab
             && request.destination !== WebEngineNewWindowRequest.InNewBackgroundTab) {
             source.browser.openPopup(request)
@@ -164,8 +250,21 @@ Item {
         // state requires openIn(), rather than reopening just its URL.
         if (ready && policy.storageRoot === originRoot && entries[sourceId] === source
             && entry && entry.browser && entry.browser.profile === originProfile) {
+            // Qt 6.11.1 WebEngineQuickWidgetDelegate::ActiveFocusOnPress keeps
+            // its creation-view pointer after adoption. Preserve that QObject
+            // until this child's engine view is destroyed (not its session ID).
+            entry.originEntry = source
+            ++source.dependentPages
             request.openIn(entry.browser)
             entry.browser.adoptingWindowRequest = false
+            if (request.destination === WebEngineNewWindowRequest.InNewWindow
+                    || request.destination === WebEngineNewWindowRequest.InNewDialog) {
+                if (!moveToDesktop(id, request.destination === WebEngineNewWindowRequest.InNewDialog,
+                                   request.requestedGeometry)) {
+                    sessions.close(id)
+                    message(sourceId, "Could not open the browser window")
+                }
+            }
         }
         else { if (id) sessions.close(id); message(sourceId, "Could not open the new tab") }
     }
@@ -190,10 +289,7 @@ Item {
         if (last) sessions.switchTo(last)
     }
     function restoreClosedTab() {
-        if (!closedTabs.length || !ready) return
-        var descriptor = closedTabs[0]
-        closedTabs = closedTabs.slice(1)
-        sessions.openBrowser(descriptor, true)
+        return activeEntry ? reopenClosedSpace(activeEntry.descriptor.providerId) : ""
     }
     function considerRestore() {
         if (!ready || restoredProfile) return
@@ -387,16 +483,50 @@ Item {
             property string token: ""
             property bool retiring: false
             property bool immersive: false
+            property string hostMode: "embedded"
+            property var hostWindow: null
+            property var originEntry: null
+            property int dependentPages: 0
+            property bool drained: false
+            readonly property alias closeController: closeController
             property string errorText: ""
             property var pendingNavigation: null
             readonly property var browser: browserLoader.item
             anchors.fill: parent
-            visible: !retiring && deck.displayed && deck.sessions.activeId === sessionId && !deck.suppressed
+            visible: !retiring && (hostWindow
+                ? hostWindow.visible && hostWindow.visibility !== Window.Minimized
+                : deck.displayed && deck.sessions.activeId === sessionId && !deck.suppressed)
+            FeriaCloseController { id: closeController; browser: entry.browser; sessionId: entry.sessionId }
+            Connections {
+                target: closeController
+                function onConsentChanged() {
+                    if (closeController.consent) deck.closeConsentRequested(entry.sessionId, closeController.consent)
+                }
+            }
+            function destroyWhenDrained() {
+                if (retiring && drained && dependentPages === 0)
+                    Qt.callLater(function() { if (entry.retiring && entry.drained && entry.dependentPages === 0) entry.destroy() })
+            }
             function retire() {
                 if (retiring) return
                 retiring = true
-                if (browser) browser.prepareForClose()
-                else destroy()
+                closeController.cancel()
+                entry.parent = deck
+                var host = hostWindow
+                hostWindow = null
+                if (host) { host.retiring = true; host.hide(); host.destroy() }
+                if (browser) {
+                    browser.prepareForClose()
+                    if (dependentPages > 0) browser.url = "about:blank"
+                } else { drained = true; destroyWhenDrained() }
+            }
+            Component.onDestruction: {
+                var origin = originEntry
+                // Release after the child Loader/engine delegate has died.
+                if (origin) Qt.callLater(function() {
+                    --origin.dependentPages
+                    origin.destroyWhenDrained()
+                })
             }
             Component.onCompleted: {
                 token = deck.accountStore.beginSessionVisit(sessionId, {
@@ -408,6 +538,7 @@ Item {
             Loader {
                 id: browserLoader
                 anchors.fill: parent
+                anchors.leftMargin: closePane.width
                 active: entry.token.length > 0 && (entry.descriptor.privateBrowsing
                     ? deck.privateProfile !== null && (!deck.privateProfileRetiring || browserLoader.item !== null)
                     : deck.sharedProfile !== null)
@@ -424,6 +555,7 @@ Item {
                     resumePosition: Number(entry.descriptor.position || 0)
                     resumeLocator: entry.descriptor.locator || null
                     suppressed: !entry.visible
+                    closeController: entry.closeController
                     freezeBackground: deck.accountStore.browserPreferences.freezeBackground !== false
                 }
                 onStatusChanged: if (status === Loader.Error) entry.errorText = "The browser could not start."
@@ -435,12 +567,21 @@ Item {
                     })
                 }
             }
+            FeriaCloseConsent {
+                id: closePane
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                controller: entry.closeController
+            }
             Connections {
                 target: entry.browser
                 function onSafeToDestroy() {
-                    if (entry.retiring) Qt.callLater(function() { entry.destroy() })
+                    entry.drained = true
+                    entry.destroyWhenDrained()
                 }
                 function onStarted(location) {
+                    entry.closeController.cancel()
                     entry.errorText = ""
                     if (!entry.descriptor.privateBrowsing) deck.policy.rememberOrigin(entry.descriptor.providerId, location)
                     deck.sessions.updateBrowser(entry.sessionId, location, "")
@@ -453,6 +594,7 @@ Item {
                         location, entry.browser ? entry.browser.title : "")
                 }
                 function onWindowCloseRequested() { deck.sessions.close(entry.sessionId) }
+                function onGeometryChangeRequested(geometry) { deck.applyRequestedGeometry(entry.sessionId, geometry) }
                 function onTabRequested(request) { deck.openWindow(entry.sessionId, request) }
                 function onMessage(text) { deck.message(entry.sessionId, text) }
                 function onTitleChanged() {

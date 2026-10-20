@@ -13,6 +13,7 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     property var sharedProfile: null
+    property var closeController: null
     readonly property alias pageTools: pageToolsController
     FeriaPageTools { id: pageToolsController; browser: browser }
     readonly property alias browserRequests: requestsController
@@ -316,7 +317,8 @@ WebEngineView {
         if (!request.userInitiated) { message("Popup blocked"); return }
         // Until a separately owned window host exists, keep ordinary new-window
         // destinations in the canonical retained deck. Never parent them to the opener.
-        if (sharedProfile && (request.destination === WebEngineNewWindowRequest.InNewWindow
+        if (sharedProfile && (request.destination === WebEngineNewWindowRequest.InNewDialog
+            || request.destination === WebEngineNewWindowRequest.InNewWindow
             || request.destination === WebEngineNewWindowRequest.InNewTab
             || request.destination === WebEngineNewWindowRequest.InNewBackgroundTab))
             tabRequested(request)

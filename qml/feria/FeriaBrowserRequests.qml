@@ -249,6 +249,7 @@ Item {
             if (!root.active) { request.accepted = true; request.dialogReject() }
         }
         function onJavaScriptDialogRequested(request) {
+            if (root.browser.closeController && root.browser.closeController.capture(request)) return
             if (!root.active) { request.accepted = true; request.dialogReject() }
         }
         function onNavigationRequested(request) { if (request.isMainFrame) root.cancelPending() }

@@ -6,6 +6,7 @@
 #include <QVariantMap>
 #include <QStringList>
 #include <QSet>
+#include <QRect>
 
 // Shared by both browser hosts, including authentication popups.
 class FeriaBrowserPolicy final : public QObject
@@ -73,6 +74,8 @@ public:
 
     Q_INVOKABLE bool allowsNavigation(const QUrl &url) const { return allows(url); }
     Q_INVOKABLE QUrl navigationUrl(const QString &text) const;
+    Q_INVOKABLE QRect windowWorkArea(QObject *window = nullptr) const;
+    Q_INVOKABLE QRect boundedWindowGeometry(const QRect &requested, QObject *window = nullptr) const;
     Q_INVOKABLE QUrl omniboxUrl(const QString &text, const QString &searchEngine = QStringLiteral("duckduckgo")) const;
     static bool allows(const QUrl &url)
     {

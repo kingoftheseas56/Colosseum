@@ -1,6 +1,9 @@
 #include "FeriaBrowserPolicy.h"
 #include <QRegularExpression>
 #include <QUrlQuery>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QWindow>
 #ifdef FERIA_HAS_WEBVIEW2
 #include "provider-host/FeriaHostItem.h"
 #include <qqml.h>
@@ -19,6 +22,25 @@ bool hostWithPort(const QString &text) {
         QRegularExpression::CaseInsensitiveOption);
     return hostPort.match(text).hasMatch();
 }
+}
+
+QRect FeriaBrowserPolicy::windowWorkArea(QObject *object) const
+{
+    const auto *window = qobject_cast<QWindow *>(object);
+    const QScreen *screen = window ? window->screen() : QGuiApplication::primaryScreen();
+    return screen ? screen->availableGeometry() : QRect(0, 0, 1280, 720);
+}
+
+QRect FeriaBrowserPolicy::boundedWindowGeometry(const QRect &requested, QObject *window) const
+{
+    const QRect area = windowWorkArea(window);
+    const int width = qBound(qMin(320, area.width()), requested.width() > 0 ? requested.width() : 900,
+                             qMin(1600, area.width()));
+    const int height = qBound(qMin(240, area.height()), requested.height() > 0 ? requested.height() : 700,
+                              qMin(1000, area.height()));
+    const int x = qBound(area.x(), requested.x(), area.x() + area.width() - width);
+    const int y = qBound(area.y(), requested.y(), area.y() + area.height() - height);
+    return QRect(x, y, width, height);
 }
 
 QUrl FeriaBrowserPolicy::navigationUrl(const QString &text) const

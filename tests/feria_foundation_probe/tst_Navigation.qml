@@ -103,17 +103,18 @@ Item {
             tryVerify(function() { return deck.entries[c].browser.documentReady }, 10000)
             compare(js(deck.entries[c].browser, "window.opener === null"), true)
         }
-        function test_siteWindowKeepsExistingHost() {
+        function test_siteDialogGetsCanonicalHost() {
             var a = open("/a"), page = deck.entries[a].browser
             js(page, "document.querySelector('button').onclick=function(){window.open('/dialog','fixture-dialog','width=420,height=300')}")
             mouseClick(page, 80, 220)
-            tryVerify(function() { return page.popups.length === 1 }, 10000)
-            var popup = page.popups[0]
-            tryCompare(popup.view, "title", "Fixture /dialog", 10000)
-            compare(popup.view.profile, page.profile)
-            compare(Sessions.browsers().length, 1)
-            popup.close()
-            tryVerify(function() { return page.popups.length === 0 }, 5000)
+            tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
+            var id = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
+            tryVerify(function() { return deck.entries[id] && deck.entries[id].hostWindow
+                && deck.entries[id].browser.title === "Fixture /dialog" }, 10000)
+            compare(deck.entries[id].browser.profile, page.profile)
+            compare(page.popups.length, 0)
+            verify(deck.requestClose(id))
+            tryVerify(function() { return !deck.entries[id] }, 5000)
         }
         function test_newWindowSurvives_data() {
             return [{tag: "minimize", closeOpener: false}, {tag: "close-opener", closeOpener: true}]
