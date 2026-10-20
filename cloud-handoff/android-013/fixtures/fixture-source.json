@@ -1,0 +1,18 @@
+{
+  "task": "nuvio-glm-local-streaming-20261020",
+  "phase": "fixture-source-generation",
+  "at": "2026-10-20T11:17:27.249946+05:30",
+  "directory": "C:\\nuvio-streaming-fixture-20261020",
+  "avi": {
+    "path": "C:\\nuvio-streaming-fixture-20261020\\frames.avi",
+    "bytes": 48390932,
+    "sha256": "33b3cab70f212720a77a49046a813baf223d1386953cae8adccfd1e38e9c085b",
+    "spec": "320x180 RGB24 uncompressed, 8 fps, 35s, 280 frames"
+  },
+  "wav": {
+    "path": "C:\\nuvio-streaming-fixture-20261020\\tone.wav",
+    "bytes": 560044,
+    "sha256": "d6c9d31cbf3d3f2a1be3b2fc8c6709e0986f0b49c24d76e33eaa5745affe5b2a",
+    "spec": "8000 Hz mono 16-bit PCM; 440 Hz beep each second; 880 Hz overlay each 5 s"
+  }
+}

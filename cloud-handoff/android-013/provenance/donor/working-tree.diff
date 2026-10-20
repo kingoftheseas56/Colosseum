@@ -1,0 +1,1769 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fd78423..c818111 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -59,6 +59,10 @@ if(NUVIO_ENGINE_ENABLE_LIBTORRENT)
+     )
+     target_link_libraries(nuvio_engine PRIVATE $<BUILD_INTERFACE:torrent-rasterbar>)
+     target_compile_definitions(nuvio_engine PRIVATE NUVIO_ENGINE_HAS_LIBTORRENT=1)
++    if(NUVIO_ENGINE_BUILD_TESTS)
++        # Internal waiter/HTTP-writer control exists only in test builds.
++        target_compile_definitions(nuvio_engine PRIVATE NUVIO_ENGINE_INTEGRITY_TEST_SEAM=1)
++    endif()
+     if(APPLE)
+         find_package(OpenSSL REQUIRED)
+         find_library(NUVIO_SECURITY_FRAMEWORK Security REQUIRED)
+@@ -88,6 +92,12 @@ target_include_directories(
+ )
+ 
+ target_compile_features(nuvio_engine PUBLIC cxx_std_20)
++# NDK r27c libc++ provides C++20 stop_token/jthread, but gates them behind
++# this opt-in until the implementation is no longer experimental. Retain the
++# same cancellation/lifecycle implementation used by the host build.
++if(ANDROID)
++    target_compile_definitions(nuvio_engine PRIVATE _LIBCPP_ENABLE_EXPERIMENTAL=1)
++endif()
+ target_link_libraries(nuvio_engine PUBLIC Threads::Threads)
+ if(WIN32)
+     target_link_libraries(nuvio_engine PRIVATE ws2_32 bcrypt crypt32)
+@@ -96,7 +106,7 @@ if(WIN32)
+         target_sources(nuvio_engine PRIVATE cmake/nuvio-engine-windows.def)
+     endif()
+ endif()
+-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NUVIO_ENGINE_BUILD_SHARED)
++if((CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID) AND NUVIO_ENGINE_BUILD_SHARED)
+     target_link_options(
+         nuvio_engine
+         PRIVATE
+diff --git a/cmake/Dependencies.cmake b/cmake/Dependencies.cmake
+index 8a04890..a3fc32f 100644
+--- a/cmake/Dependencies.cmake
++++ b/cmake/Dependencies.cmake
+@@ -104,26 +104,72 @@ function(nuvio_engine_add_libtorrent)
+         "nuvio_metadata_pipeline"
+         "nuvio_hedge_blocks"
+     )
++    # Pin the full source tree before touching it. A source-directory override
++    # must not silently substitute a different libtorrent revision.
++    execute_process(
++        COMMAND git rev-parse HEAD
++        WORKING_DIRECTORY "${nuvio_libtorrent_SOURCE_DIR}"
++        OUTPUT_VARIABLE nuvio_libtorrent_revision
++        OUTPUT_STRIP_TRAILING_WHITESPACE
++        RESULT_VARIABLE nuvio_libtorrent_revision_result
++        ERROR_QUIET
++    )
++    if(NOT nuvio_libtorrent_revision_result EQUAL 0 OR
++       NOT nuvio_libtorrent_revision STREQUAL "740a0b9aeabe00e762cc0efe4a0f27593db2550b")
++        message(FATAL_ERROR "libtorrent source is not the pinned 740a0b9 revision")
++    endif()
++
+     list(LENGTH nuvio_libtorrent_patches nuvio_libtorrent_patch_count)
++    list(LENGTH nuvio_libtorrent_patch_files nuvio_libtorrent_file_count)
++    list(LENGTH nuvio_libtorrent_patch_sentinels nuvio_libtorrent_sentinel_count)
++    if(NOT nuvio_libtorrent_patch_count EQUAL 12 OR
++       NOT nuvio_libtorrent_file_count EQUAL nuvio_libtorrent_patch_count OR
++       NOT nuvio_libtorrent_sentinel_count EQUAL nuvio_libtorrent_patch_count)
++        message(FATAL_ERROR "Pinned libtorrent patch table must contain twelve complete entries")
++    endif()
+     math(EXPR nuvio_libtorrent_last_patch "${nuvio_libtorrent_patch_count} - 1")
+     foreach(nuvio_libtorrent_patch_index RANGE 0 ${nuvio_libtorrent_last_patch})
+         list(GET nuvio_libtorrent_patches ${nuvio_libtorrent_patch_index} nuvio_libtorrent_patch)
+         list(GET nuvio_libtorrent_patch_files ${nuvio_libtorrent_patch_index} nuvio_libtorrent_patch_file)
+         list(GET nuvio_libtorrent_patch_sentinels ${nuvio_libtorrent_patch_index} nuvio_libtorrent_patch_sentinel)
+-        file(
+-            READ
+-            "${nuvio_libtorrent_SOURCE_DIR}/${nuvio_libtorrent_patch_file}"
+-            nuvio_libtorrent_patch_source
++        # The tracked patches contain LF bytes, but Windows core.autocrlf
++        # checks out CRLF. git apply treats CRLF hunk deletions as different
++        # source text, so use an LF copy in the build tree on every configure.
++        # This normalizes only line endings; divergent hunks must still fail.
++        get_filename_component(nuvio_libtorrent_patch_name "${nuvio_libtorrent_patch}" NAME)
++        file(READ "${nuvio_libtorrent_patch}" nuvio_libtorrent_patch_text)
++        string(REPLACE "\r\n" "\n" nuvio_libtorrent_patch_text "${nuvio_libtorrent_patch_text}")
++        string(FIND "${nuvio_libtorrent_patch_text}" "\r" nuvio_libtorrent_bare_cr)
++        if(NOT nuvio_libtorrent_bare_cr EQUAL -1)
++            message(FATAL_ERROR "Pinned libtorrent patch has invalid line endings: ${nuvio_libtorrent_patch_name}")
++        endif()
++        set(nuvio_libtorrent_patch_dir "${CMAKE_CURRENT_BINARY_DIR}/nuvio-libtorrent-patches")
++        file(MAKE_DIRECTORY "${nuvio_libtorrent_patch_dir}")
++        set(nuvio_libtorrent_prepared_patch
++            "${nuvio_libtorrent_patch_dir}/${nuvio_libtorrent_patch_name}"
+         )
+-        string(
+-            FIND
+-            "${nuvio_libtorrent_patch_source}"
+-            "${nuvio_libtorrent_patch_sentinel}"
+-            nuvio_libtorrent_patch_position
++        # CMake file(WRITE) emits host-native CRLF on Windows, so explicitly
++        # require UNIX newlines and verify the materialized bytes unchanged.
++        string(SHA256 nuvio_libtorrent_expected_sha "${nuvio_libtorrent_patch_text}")
++        file(CONFIGURE OUTPUT "${nuvio_libtorrent_prepared_patch}"
++             CONTENT "${nuvio_libtorrent_patch_text}" @ONLY NEWLINE_STYLE UNIX)
++        file(SHA256 "${nuvio_libtorrent_prepared_patch}" nuvio_libtorrent_actual_sha)
++        if(NOT nuvio_libtorrent_actual_sha STREQUAL nuvio_libtorrent_expected_sha)
++            message(FATAL_ERROR "Pinned libtorrent patch normalization changed content: ${nuvio_libtorrent_patch_name}")
++        endif()
++        # A textual sentinel is insufficient evidence: it can survive a
++        # partially applied or drifted patch. The full reverse check proves
++        # every hunk is already present on repeat configure.
++        execute_process(
++            COMMAND git apply --unidiff-zero --reverse --check "${nuvio_libtorrent_prepared_patch}"
++            WORKING_DIRECTORY "${nuvio_libtorrent_SOURCE_DIR}"
++            RESULT_VARIABLE nuvio_libtorrent_already_applied
++            OUTPUT_QUIET
++            ERROR_QUIET
+         )
+-        if(nuvio_libtorrent_patch_position EQUAL -1)
++        if(NOT nuvio_libtorrent_already_applied EQUAL 0)
+             execute_process(
+-                COMMAND git apply --unidiff-zero --check "${nuvio_libtorrent_patch}"
++                COMMAND git apply --unidiff-zero --check "${nuvio_libtorrent_prepared_patch}"
+                 WORKING_DIRECTORY "${nuvio_libtorrent_SOURCE_DIR}"
+                 RESULT_VARIABLE nuvio_libtorrent_patch_needed
+                 OUTPUT_QUIET
+@@ -131,18 +177,24 @@ function(nuvio_engine_add_libtorrent)
+             )
+             if(NOT nuvio_libtorrent_patch_needed EQUAL 0)
+                 get_filename_component(
+-                    nuvio_libtorrent_patch_name
+-                    "${nuvio_libtorrent_patch}"
+-                    NAME
++                    nuvio_libtorrent_patch_name "${nuvio_libtorrent_patch}" NAME
+                 )
+-                message(FATAL_ERROR "Pinned libtorrent patch does not apply: ${nuvio_libtorrent_patch_name}")
++                message(FATAL_ERROR "Pinned libtorrent patch diverged: ${nuvio_libtorrent_patch_name}")
+             endif()
+             execute_process(
+-                COMMAND git apply --unidiff-zero "${nuvio_libtorrent_patch}"
++                COMMAND git apply --unidiff-zero "${nuvio_libtorrent_prepared_patch}"
+                 WORKING_DIRECTORY "${nuvio_libtorrent_SOURCE_DIR}"
+                 COMMAND_ERROR_IS_FATAL ANY
+             )
+         endif()
++        file(READ "${nuvio_libtorrent_SOURCE_DIR}/${nuvio_libtorrent_patch_file}"
++             nuvio_libtorrent_patch_source)
++        string(FIND "${nuvio_libtorrent_patch_source}"
++               "${nuvio_libtorrent_patch_sentinel}"
++               nuvio_libtorrent_patch_position)
++        if(nuvio_libtorrent_patch_position EQUAL -1)
++            message(FATAL_ERROR "Pinned libtorrent patch is missing its postcondition: ${nuvio_libtorrent_patch}")
++        endif()
+     endforeach()
+ 
+     set(BUILD_SHARED_LIBS OFF)
+diff --git a/include/nuvio_engine/nuvio_engine.h b/include/nuvio_engine/nuvio_engine.h
+index 10e59e7..5d4e447 100644
+--- a/include/nuvio_engine/nuvio_engine.h
++++ b/include/nuvio_engine/nuvio_engine.h
+@@ -232,6 +232,14 @@ NUVIO_ENGINE_API void nuvio_engine_stream_stats_init_sized(
+     nuvio_engine_stream_stats* stats,
+     uint32_t struct_size
+ );
++/* Task-streaming-pass diagnostics (not part of the stable API table):
++ * writes the live session's effective discovery settings and listener state
++ * into `out` (NUL-terminated). Returns bytes written; 0 when unavailable. */
++NUVIO_ENGINE_API size_t nuvio_engine_session_diagnostics(
++    const nuvio_engine* engine,
++    char* out,
++    size_t out_size
++);
+ NUVIO_ENGINE_API nuvio_engine_status nuvio_engine_create(
+     const nuvio_engine_config* config,
+     nuvio_engine** engine
+diff --git a/src/core/engine.cpp b/src/core/engine.cpp
+index a87c866..4c0b71f 100644
+--- a/src/core/engine.cpp
++++ b/src/core/engine.cpp
+@@ -270,6 +270,21 @@ void nuvio_engine_stream_stats_init_sized(
+     initialize_structure(stats, struct_size);
+ }
+ 
++std::size_t nuvio_engine_session_diagnostics(
++    const nuvio_engine* const engine,
++    char* const out,
++    const std::size_t out_size
++) {
++    if (engine == nullptr || out == nullptr || out_size == 0) {
++        return 0;
++    }
++    const std::string diagnostics = engine->runtime->session_diagnostics();
++    const std::size_t written = std::min(out_size - 1, diagnostics.size());
++    std::memcpy(out, diagnostics.data(), written);
++    out[written] = '\0';
++    return written;
++}
++
+ nuvio_engine_status nuvio_engine_create(
+     const nuvio_engine_config* const config,
+     nuvio_engine** const engine
+diff --git a/src/core/engine_runtime.cpp b/src/core/engine_runtime.cpp
+index 2a8c4ca..6bda915 100644
+--- a/src/core/engine_runtime.cpp
++++ b/src/core/engine_runtime.cpp
+@@ -287,6 +287,9 @@ void EngineRuntime::process_command(Command command) {
+         case CommandType::remove_torrent:
+             backend_->remove_torrent(command.request_id, command.torrent_id);
+             break;
++        case CommandType::verify_session:
++            command.verification->set_value(backend_->session_diagnostics());
++            break;
+         }
+     } catch (const std::exception& error) {
+         push_event({
+@@ -407,6 +410,23 @@ void EngineRuntime::refresh_stats() {
+     }
+ }
+ 
++std::string EngineRuntime::session_diagnostics() {
++    if (!backend_) return {};
++    auto result = std::make_shared<std::promise<std::string>>();
++    auto future = result->get_future();
++    {
++        std::lock_guard lock(command_mutex_);
++        if (stopping_ || commands_.size() >= command_capacity_) return {};
++        Command command{};
++        command.type = CommandType::verify_session;
++        command.verification = std::move(result);
++        commands_.push_back(std::move(command));
++    }
++    command_ready_.notify_one();
++    if (future.wait_for(std::chrono::seconds(4)) != std::future_status::ready) return {};
++    return future.get();
++}
++
+ void EngineRuntime::push_event(torrent::BackendEvent backend_event) {
+     if (backend_event.type == torrent::BackendEventType::metadata_ready) {
+         std::lock_guard lock(metadata_mutex_);
+diff --git a/src/core/engine_runtime.hpp b/src/core/engine_runtime.hpp
+index d6eb057..3821fc1 100644
+--- a/src/core/engine_runtime.hpp
++++ b/src/core/engine_runtime.hpp
+@@ -6,6 +6,7 @@
+ #include <cstddef>
+ #include <cstdint>
+ #include <deque>
++#include <future>
+ #include <memory>
+ #include <mutex>
+ #include <optional>
+@@ -60,6 +61,8 @@ public:
+         std::uint64_t& request_id
+     );
+     [[nodiscard]] nuvio_engine_stats get_stats();
++    /* Task-streaming-pass diagnostics; empty when the backend has none. */
++    [[nodiscard]] std::string session_diagnostics();
+     [[nodiscard]] nuvio_engine_status get_stream_stats(
+         const std::string& stream_id,
+         nuvio_engine_stream_stats& stats
+@@ -76,6 +79,7 @@ private:
+         stop_stream,
+         reclaim_disk_cache,
+         remove_torrent,
++        verify_session,
+     };
+ 
+     struct Command {
+@@ -87,6 +91,7 @@ private:
+         std::uint32_t file_index = 0;
+         torrent::TorrentFileInfo file;
+         std::uint64_t target_bytes = 0;
++        std::shared_ptr<std::promise<std::string>> verification;
+     };
+ 
+     [[nodiscard]] nuvio_engine_status enqueue(Command command, std::uint64_t& request_id);
+diff --git a/src/torrent/libtorrent_backend.cpp b/src/torrent/libtorrent_backend.cpp
+index bb2d232..9b6dca7 100644
+--- a/src/torrent/libtorrent_backend.cpp
++++ b/src/torrent/libtorrent_backend.cpp
+@@ -6,6 +6,7 @@
+ #include <algorithm>
+ #include <chrono>
+ #include <cctype>
++#include <cstdlib>
+ #include <filesystem>
+ #include <functional>
+ #include <limits>
+@@ -30,6 +31,8 @@
+ #include <libtorrent/read_resume_data.hpp>
+ #include <libtorrent/session.hpp>
+ #include <libtorrent/session_params.hpp>
++
++#include <sstream>
+ #include <libtorrent/settings_pack.hpp>
+ #include <libtorrent/torrent_status.hpp>
+ #include <libtorrent/torrent_flags.hpp>
+@@ -101,15 +104,46 @@ int bounded_rate(const std::uint64_t value) {
+     ));
+ }
+ 
++// Synthetic fixture tests set NUVIO_ENGINE_DISABLE_DISCOVERY so their torrent
++// sessions can never bootstrap public DHT/router, LSD, UPnP or NAT-PMP
++// traffic; production builds leave it unset and keep internet peer transport.
++bool discovery_disabled_by_environment() {
++    const char* flag = std::getenv("NUVIO_ENGINE_DISABLE_DISCOVERY");
++    return flag != nullptr && *flag != '\0';
++}
++
+ lt::settings_pack make_settings(const ProtocolBackendConfig& config) {
+     lt::settings_pack settings;
+     const auto profile = torrent_profile_settings(config.torrent_profile);
+     settings.set_str(lt::settings_pack::user_agent, "Nuvio Engine/0.1.5");
+-    settings.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:0,[::]:0");
+-    settings.set_bool(lt::settings_pack::enable_dht, true);
+-    settings.set_bool(lt::settings_pack::enable_lsd, true);
+-    settings.set_bool(lt::settings_pack::enable_upnp, true);
+-    settings.set_bool(lt::settings_pack::enable_natpmp, true);
++    const bool discovery_disabled = discovery_disabled_by_environment();
++    // The synthetic fixture must not create an all-interface listener:
++    // otherwise Windows Firewall prompts even though DHT/LSD are disabled.
++    // Production peer transport retains its existing listen interfaces.
++    settings.set_str(
++        lt::settings_pack::listen_interfaces,
++        discovery_disabled ? "127.0.0.1:0" : "0.0.0.0:0,[::]:0"
++    );
++    settings.set_bool(lt::settings_pack::enable_dht, !discovery_disabled);
++#if defined(__ANDROID__)
++    // Android profile: local peer discovery and NAT port mapping stay off so
++    // the engine never announces itself beyond explicitly configured trackers
++    // and DHT. Internet peer transport itself is unchanged.
++    constexpr bool local_mapping_enabled = false;
++#else
++    const bool local_mapping_enabled = !discovery_disabled;
++#endif
++    settings.set_bool(lt::settings_pack::enable_lsd, local_mapping_enabled);
++    settings.set_bool(lt::settings_pack::enable_upnp, local_mapping_enabled);
++    settings.set_bool(lt::settings_pack::enable_natpmp, local_mapping_enabled);
++    if (discovery_disabled) {
++        // Task-only isolation hardening: with discovery disabled the session
++        // must also carry no DHT bootstrap targets and accept no PEX peers,
++        // so even a hypothetical later enable_dht flip could not reach the
++        // public network through this session.
++        settings.set_str(lt::settings_pack::dht_bootstrap_nodes, "");
++        settings.set_int(lt::settings_pack::max_pex_peers, 0);
++    }
+     settings.set_bool(lt::settings_pack::announce_to_all_tiers, true);
+     settings.set_bool(lt::settings_pack::announce_to_all_trackers, true);
+     settings.set_bool(lt::settings_pack::close_redundant_connections, false);
+@@ -176,6 +210,7 @@ SessionBootstrap make_session_bootstrap(const ProtocolBackendConfig& config) {
+ #if !defined(_WIN32)
+     bootstrap.params.disk_io_constructor = lt::posix_disk_io_constructor;
+ #endif
++    if (!discovery_disabled_by_environment()) {
+     try {
+         const auto state = storage::read_bounded_file(
+             state_root(config) / "session.dht",
+@@ -191,6 +226,7 @@ SessionBootstrap make_session_bootstrap(const ProtocolBackendConfig& config) {
+     } catch (const std::exception& error) {
+         bootstrap.diagnostic = std::string("ignored persisted DHT state: ") + error.what();
+     }
++    }
+     return bootstrap;
+ }
+ 
+@@ -237,11 +273,54 @@ public:
+         : LibtorrentBackend(config, make_session_bootstrap(config)) {
+     }
+ 
++    // Called only on EngineRuntime's owning worker thread, never on a copied
++    // construction pack. The session handle's getters are current-session reads.
++    [[nodiscard]] std::string session_diagnostics() override {
++        const auto effective = session_.get_settings();
++        const auto count = session_.get_torrents().size();
++        const bool dht = session_.is_dht_running();
++        const bool listening = session_.is_listening();
++        const auto listen = effective.get_str(lt::settings_pack::listen_interfaces);
++        const auto bootstrap = effective.get_str(lt::settings_pack::dht_bootstrap_nodes);
++        const auto pex = effective.get_int(lt::settings_pack::max_pex_peers);
++        const bool safe = isolated_session_ &&
++            !effective.get_bool(lt::settings_pack::enable_dht) &&
++            !effective.get_bool(lt::settings_pack::enable_lsd) &&
++            !effective.get_bool(lt::settings_pack::enable_upnp) &&
++            !effective.get_bool(lt::settings_pack::enable_natpmp) &&
++            listen == "127.0.0.1:0" &&
++            bootstrap.empty() && pex == 0 && !dht && listening;
++        std::ostringstream out;
++        out << "isolation_pass=" << (safe ? "true" : "false")
++            << "; session_instance=" << static_cast<const void*>(&session_)
++            << "; torrent_count=" << count
++            << "; enable_dht=" << (effective.get_bool(lt::settings_pack::enable_dht) ? "true" : "false")
++            << "; enable_lsd=" << (effective.get_bool(lt::settings_pack::enable_lsd) ? "true" : "false")
++            << "; enable_upnp=" << (effective.get_bool(lt::settings_pack::enable_upnp) ? "true" : "false")
++            << "; enable_natpmp=" << (effective.get_bool(lt::settings_pack::enable_natpmp) ? "true" : "false")
++            << "; listen_interfaces=\"" << listen
++            << "\"; dht_bootstrap_nodes=\"" << bootstrap
++            << "\"; max_pex_peers=" << pex
++            << "; live_dht_running=" << (dht ? "true" : "false")
++            << "; live_listening=" << (listening ? "true" : "false")
++            << "; live_listen_port=" << session_.listen_port()
++            << "; libtorrent=" << LIBTORRENT_VERSION;
++        return out.str();
++    }
++
+     void add_torrent(
+         const std::uint64_t request_id,
+         TorrentInput input,
+         const std::string&
+     ) override {
++        if (isolated_session_) {
++            if (session_diagnostics().find("isolation_pass=true") == std::string::npos) {
++                throw std::runtime_error("fixture admission denied: current session is not isolated");
++            }
++            if (input.type != TorrentInputType::torrent_data) {
++                throw std::runtime_error("fixture admission denied: metadata file required");
++            }
++        }
+         const auto metadata_started_at = std::chrono::steady_clock::now();
+         const auto source_type = input.type;
+         auto source_params = input.type == TorrentInputType::magnet
+@@ -251,6 +330,16 @@ public:
+         if (!is_canonical_torrent_id(id)) {
+             throw std::runtime_error("torrent source has no canonical info hash");
+         }
++        if (isolated_session_) {
++            if (!source_params.ti || !source_params.ti->priv() ||
++                source_params.trackers.size() != 1 ||
++                source_params.trackers.front() != "http://127.0.0.1:51413/announce" ||
++                !source_params.http_seeds.empty() || !source_params.url_seeds.empty() ||
++                !source_params.dht_nodes.empty() || !source_params.peers.empty() ||
++                std::filesystem::exists(resume_path(id))) {
++                throw std::runtime_error("fixture admission denied: unsafe source endpoints or saved state");
++            }
++        }
+         focus_torrent(id);
+ 
+         const auto existing = handles_.find(id);
+@@ -780,6 +869,7 @@ private:
+           ),
+           warm_torrent_timeout_(config.warm_torrent_timeout_milliseconds),
+           disk_cache_(payload_directory_, config.disk_cache_capacity_bytes),
++          isolated_session_(discovery_disabled_by_environment()),
+           session_(std::move(bootstrap.params)) {
+         if (!bootstrap.diagnostic.empty()) {
+             queued_events_.push_back({
+@@ -1811,6 +1901,7 @@ private:
+     bool shutting_down_ = false;
+     bool dht_ready_ = false;
+     bool fast_session_tick_ = false;
++    bool isolated_session_ = false;
+     lt::session session_;
+     std::unique_ptr<LibtorrentStreamBridge> stream_bridge_;
+ };
+diff --git a/src/torrent/libtorrent_stream_bridge.cpp b/src/torrent/libtorrent_stream_bridge.cpp
+index 3e218b9..86762ba 100644
+--- a/src/torrent/libtorrent_stream_bridge.cpp
++++ b/src/torrent/libtorrent_stream_bridge.cpp
+@@ -6,7 +6,6 @@
+ #include "scheduler/demand_window.hpp"
+ #include "scheduler/stream_demand_plan.hpp"
+ #include "security/random_bytes.hpp"
+-#include "storage/payload_reader.hpp"
+ 
+ #include <algorithm>
+ #include <atomic>
+@@ -23,7 +22,9 @@
+ #include <mutex>
+ #include <optional>
+ #include <span>
++#include <stop_token>
+ #include <stdexcept>
++#include <thread>
+ #include <string>
+ #include <string_view>
+ #include <unordered_map>
+@@ -493,7 +494,6 @@ struct LibtorrentStreamBridge::Impl {
+         if (last_piece > std::numeric_limits<std::uint32_t>::max()) {
+             return;
+         }
+-        std::optional<storage::PayloadReader> payload;
+         for (auto piece = first_piece;
+              piece <= last_piece && !token.stop_requested() &&
+                  !demand_state->cancelled.load();
+@@ -515,7 +515,6 @@ struct LibtorrentStreamBridge::Impl {
+                     static_cast<std::uint32_t>(piece),
+                     slice,
+                     bounded_demand_range(route, range, current_absolute - route.file_offset),
+-                    payload,
+                     writer,
+                     token
+                 )) {
+@@ -531,7 +530,6 @@ struct LibtorrentStreamBridge::Impl {
+         const std::uint32_t piece,
+         const PieceSlice slice,
+         const http::ByteRange demand_range,
+-        std::optional<storage::PayloadReader>& payload,
+         const http::LoopbackServer::Writer& writer,
+         const std::stop_token token
+     ) {
+@@ -554,92 +552,137 @@ struct LibtorrentStreamBridge::Impl {
+             }
+             waiter->ready.notify_all();
+         });
+-        const auto abandon = [&] {
+-            std::lock_guard lock(waiter->mutex);
+-            waiter->cancelled = true;
+-        };
+-        auto cursor = slice.begin;
+-        auto deadline = std::chrono::steady_clock::now() + piece_wait_timeout;
+-        auto payload_readable = !payload.has_value() || payload->is_open();
+-        std::vector<char> buffer;
+-        while (cursor < slice.end) {
+-            std::shared_ptr<std::vector<char>> verified;
+-            std::uint64_t unverified_end = cursor;
+-            {
+-                std::unique_lock lock(waiter->mutex);
+-                const auto unverified_ready = [&] {
+-                    return payload_readable &&
+-                        finished_run_end(waiter->finished_blocks, cursor, slice.end) > cursor;
+-                };
+-                waiter->ready.wait_until(lock, deadline, [&] {
++        // Only whole-piece hash-verified bytes may reach the HTTP client.
++        // block_finished alerts race hash verification: a finished block can
++        // still be retracted by a later hash_failed alert, and bytes already
++        // handed to the writer can never be clawed back, so partial-piece
++        // progress must never gate delivery.
++        std::shared_ptr<std::vector<char>> verified;
++        {
++            std::unique_lock lock(waiter->mutex);
++            waiter->ready.wait_until(
++                lock,
++                std::chrono::steady_clock::now() + piece_wait_timeout,
++                [&] {
+                     return waiter->done || token.stop_requested() ||
+-                        demand_state->cancelled.load() || unverified_ready();
+-                });
+-                if (token.stop_requested() || demand_state->cancelled.load() ||
+-                    (waiter->done && !waiter->error.empty())) {
+-                    waiter->cancelled = true;
+-                    return false;
+-                }
+-                if (waiter->done) {
+-                    verified = waiter->data;
+-                } else if (unverified_ready()) {
+-                    unverified_end = finished_run_end(
+-                        waiter->finished_blocks,
+-                        cursor,
+-                        slice.end
+-                    );
+-                } else {
+-                    waiter->cancelled = true;
+-                    return false;
+-                }
+-            }
+-            if (verified) {
+-                if (slice.end > verified->size()) {
+-                    return false;
++                        demand_state->cancelled.load();
+                 }
+-                const auto bytes = std::span<const char>(*verified).subspan(
+-                    static_cast<std::size_t>(cursor),
+-                    static_cast<std::size_t>(slice.end - cursor)
+-                );
+-                if (!writer(bytes)) {
+-                    return false;
+-                }
+-                add_delivered_bytes(route.counters, static_cast<std::uint64_t>(bytes.size()));
+-                return true;
+-            }
+-            if (!payload.has_value()) {
+-                payload.emplace(route.payload_path);
+-            }
+-            buffer.resize(static_cast<std::size_t>(unverified_end - cursor));
+-            const auto absolute = slice.piece_start + cursor;
+-            if (absolute < route.file_offset ||
+-                !payload->read_exact(absolute - route.file_offset, buffer)) {
+-                payload_readable = false;
+-                continue;
+-            }
+-            if (!writer(buffer)) {
+-                abandon();
++            );
++            if (token.stop_requested() || demand_state->cancelled.load() ||
++                !waiter->done || !waiter->error.empty()) {
++                waiter->cancelled = true;
+                 return false;
+             }
+-            add_delivered_bytes(route.counters, static_cast<std::uint64_t>(buffer.size()));
+-            cursor = unverified_end;
+-            deadline = std::chrono::steady_clock::now() + piece_wait_timeout;
++            verified = waiter->data;
++        }
++        if (!verified || slice.end > verified->size()) {
++            return false;
+         }
+-        abandon();
++        const auto bytes = std::span<const char>(*verified).subspan(
++            static_cast<std::size_t>(slice.begin),
++            static_cast<std::size_t>(slice.end - slice.begin)
++        );
++        if (!writer(bytes)) {
++            std::lock_guard lock(waiter->mutex);
++            waiter->cancelled = true;
++            return false;
++        }
++        add_delivered_bytes(route.counters, static_cast<std::uint64_t>(bytes.size()));
+         return true;
+     }
+ 
+-    static std::uint64_t finished_run_end(
+-        const std::vector<bool>& blocks,
+-        const std::uint64_t cursor,
+-        const std::uint64_t limit
++#if defined(NUVIO_ENGINE_INTEGRITY_TEST_SEAM)
++    LibtorrentStreamBridge::IntegrityDeliveryObservation test_piece_delivery(
++        const std::filesystem::path& payload_path,
++        const std::vector<char>& verified_piece,
++        const std::uint64_t slice_begin,
++        const std::uint64_t slice_end,
++        const bool cancel_before_verification
+     ) {
+-        auto block = cursor / block_bytes;
+-        while (block < blocks.size() && blocks[static_cast<std::size_t>(block)]) {
+-            ++block;
++        if (verified_piece.empty() || verified_piece.size() > UINT32_MAX ||
++            slice_begin >= slice_end || slice_end > verified_piece.size()) {
++            throw std::invalid_argument("invalid integrity test slice");
++        }
++        // Test-only stimuli. serve_piece is the actual production HTTP
++        // delivery decision, with its production command, waiter and writer.
++        StreamRoute route{};
++        route.torrent_id = "loopback-integrity-test";
++        route.stream_id = "controlled-reader";
++        route.file_size = verified_piece.size();
++        route.piece_size = static_cast<std::uint32_t>(verified_piece.size());
++        route.payload_path = payload_path;
++        auto demand = std::make_shared<DemandState>();
++        std::mutex received_mutex;
++        std::vector<char> received;
++        http::LoopbackServer::Writer writer = [&](std::span<const char> bytes) {
++            std::lock_guard lock(received_mutex);
++            received.insert(received.end(), bytes.begin(), bytes.end());
++            return true;
++        };
++        std::atomic_bool served{false};
++        const auto demand_id = next_demand_id.fetch_add(1);
++        std::jthread consumer([&](const std::stop_token token) {
++            served.store(serve_piece(
++                demand_id, demand, route, 0,
++                PieceSlice{0, slice_begin, slice_end},
++                http::ByteRange{slice_begin, slice_end - 1},
++                writer, token
++            ));
++        });
++
++        std::shared_ptr<PieceWaiter> waiter;
++        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
++        while (!waiter && std::chrono::steady_clock::now() < deadline) {
++            {
++                std::lock_guard lock(commands_mutex);
++                for (auto it = commands.begin(); it != commands.end(); ++it) {
++                    if (it->demand_id == demand_id && it->waiter) {
++                        waiter = it->waiter;
++                        commands.erase(it);
++                        break;
++                    }
++                }
++            }
++            if (!waiter) std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        }
++        if (!waiter) {
++            consumer.request_stop();
++            consumer.join();
++            throw std::runtime_error("production serve_piece did not enqueue a waiter");
++        }
++
++        std::vector<bool> unverified_blocks(
++            (verified_piece.size() + block_bytes - 1) / block_bytes, false
++        );
++        unverified_blocks[0] = true;
++        publish_blocks(waiter, unverified_blocks);
++        // Deliberately hold the verified read_piece completion; the old
++        // speculative path would send readable, still-unverified bytes.
++        std::this_thread::sleep_for(std::chrono::milliseconds(500));
++        LibtorrentStreamBridge::IntegrityDeliveryObservation result;
++        {
++            std::lock_guard lock(received_mutex);
++            result.before_verification = received;
++        }
++        if (cancel_before_verification) {
++            consumer.request_stop();
++        } else {
++            complete_waiter(
++                waiter,
++                std::make_shared<std::vector<char>>(verified_piece),
++                {}
++            );
+         }
+-        return std::min(block * block_bytes, limit);
++        consumer.join();
++        {
++            std::lock_guard lock(received_mutex);
++            result.after_completion = received;
++        }
++        result.recorded_delivered_bytes = route.counters->delivered_bytes.load();
++        result.serve_succeeded = served.load();
++        return result;
+     }
++#endif
+ 
+     bool enqueue(HttpCommand command) {
+         if (shutting_down.load()) {
+@@ -1638,6 +1681,19 @@ void LibtorrentStreamBridge::set_wakeup(std::function<void()> wake) {
+     impl_->set_wakeup(std::move(wake));
+ }
+ 
++#if defined(NUVIO_ENGINE_INTEGRITY_TEST_SEAM)
++LibtorrentStreamBridge::IntegrityDeliveryObservation
++LibtorrentStreamBridge::test_piece_delivery(
++    const std::filesystem::path& path,
++    const std::vector<char>& verified,
++    const std::uint64_t begin,
++    const std::uint64_t end,
++    const bool cancel
++) {
++    return impl_->test_piece_delivery(path, verified, begin, end, cancel);
++}
++#endif
++
+ LibtorrentStreamBridge::~LibtorrentStreamBridge() = default;
+ 
+ PreparedStream LibtorrentStreamBridge::register_stream(
+diff --git a/src/torrent/libtorrent_stream_bridge.hpp b/src/torrent/libtorrent_stream_bridge.hpp
+index 19c87e4..862e08a 100644
+--- a/src/torrent/libtorrent_stream_bridge.hpp
++++ b/src/torrent/libtorrent_stream_bridge.hpp
+@@ -1,8 +1,10 @@
+ #ifndef NUVIO_ENGINE_LIBTORRENT_STREAM_BRIDGE_HPP
+ #define NUVIO_ENGINE_LIBTORRENT_STREAM_BRIDGE_HPP
+ 
++#include <cstddef>
+ #include <cstdint>
+ #include <chrono>
++#include <filesystem>
+ #include <functional>
+ #include <memory>
+ #include <string>
+@@ -68,6 +70,24 @@ public:
+     [[nodiscard]] StreamBridgeStats statistics();
+     void shutdown();
+ 
++#if defined(NUVIO_ENGINE_INTEGRITY_TEST_SEAM)
++    // Compiled only in the host test build. Drives serve_piece's actual
++    // waiter, read command and writer with held whole-piece completion.
++    struct IntegrityDeliveryObservation {
++        std::vector<char> before_verification;
++        std::vector<char> after_completion;
++        std::uint64_t recorded_delivered_bytes = 0;
++        bool serve_succeeded = false;
++    };
++    [[nodiscard]] IntegrityDeliveryObservation test_piece_delivery(
++        const std::filesystem::path& readable_unverified_payload,
++        const std::vector<char>& verified_piece,
++        std::uint64_t slice_begin,
++        std::uint64_t slice_end,
++        bool cancel_before_verification
++    );
++#endif
++
+ private:
+     struct Impl;
+     std::unique_ptr<Impl> impl_;
+diff --git a/src/torrent/protocol_backend.hpp b/src/torrent/protocol_backend.hpp
+index 0629e17..2c39f10 100644
+--- a/src/torrent/protocol_backend.hpp
++++ b/src/torrent/protocol_backend.hpp
+@@ -171,6 +171,11 @@ public:
+     }
+     [[nodiscard]] virtual std::vector<BackendEvent> pop_events() = 0;
+     [[nodiscard]] virtual BackendStats statistics() = 0;
++    /* Task-streaming-pass diagnostics: effective session settings of the
++     * live session. Default: unavailable (empty string). */
++    [[nodiscard]] virtual std::string session_diagnostics() {
++        return {};
++    }
+ };
+ 
+ [[nodiscard]] std::unique_ptr<ProtocolBackend> create_protocol_backend(
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 157451c..7d3aa4d 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -51,3 +51,44 @@ add_test(NAME nuvio_engine_c_api_smoke COMMAND nuvio_engine_c_api_smoke)
+ if(WIN32)
+     target_link_libraries(nuvio_engine_tests PRIVATE ws2_32 bcrypt)
+ endif()
++
++if(TARGET torrent-rasterbar)
++    # End-to-end loopback regression: real engine + fixture seeder + loopback
++    # tracker; requires libtorrent headers, so it only builds with the
++    # libtorrent backend enabled.
++    add_executable(
++        nuvio_engine_stream_integrity
++        test_main.cpp
++        stream_integrity_regression_test.cpp
++    )
++    target_link_libraries(
++        nuvio_engine_stream_integrity
++        PRIVATE
++            Nuvio::Engine
++            torrent-rasterbar
++    )
++    target_compile_features(nuvio_engine_stream_integrity PRIVATE cxx_std_20)
++    target_compile_definitions(nuvio_engine_stream_integrity PRIVATE NUVIO_ENGINE_INTEGRITY_TEST_SEAM=1)
++    target_include_directories(
++        nuvio_engine_stream_integrity
++        PRIVATE
++            ${CMAKE_CURRENT_SOURCE_DIR}
++            ${PROJECT_SOURCE_DIR}/src
++    )
++    if(MSVC)
++        target_compile_options(nuvio_engine_stream_integrity PRIVATE /W4 /permissive-)
++    else()
++        target_compile_options(
++            nuvio_engine_stream_integrity
++            PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow
++        )
++    endif()
++    if(WIN32)
++        target_link_libraries(nuvio_engine_stream_integrity PRIVATE ws2_32 bcrypt)
++    endif()
++    add_test(NAME nuvio_engine_stream_integrity COMMAND nuvio_engine_stream_integrity)
++    set_tests_properties(
++        nuvio_engine_stream_integrity
++        PROPERTIES TIMEOUT 300
++    )
++endif()
+diff --git a/tests/stream_integrity_regression_test.cpp b/tests/stream_integrity_regression_test.cpp
+new file mode 100644
+index 0000000..ba2294c
+--- /dev/null
++++ b/tests/stream_integrity_regression_test.cpp
+@@ -0,0 +1,927 @@
++// End-to-end regression for the HTTP streaming read path: the engine's real
++// production serve path only delivers whole-piece hash-verified bytes.
++//
++// Fixture strategy (mirrors engine_api_test's payload-cache seeding): the
++// fixture payload is pre-placed in the engine's payload cache directory, so
++// libtorrent's check-in pass verifies pieces 0..1 while the corrupt piece 2
++// fails its whole-piece hash. The healthy torrent must stream the full
++// payload, honor Range (seek) requests, and survive a client disconnect
++// mid-stream; the corrupt torrent must stall the HTTP body exactly at the
++// verified boundary instead of streaming unverified blocks.
++//
++// No peers, no trackers, no discovery: discovery is force-disabled
++// (NUVIO_ENGINE_DISABLE_DISCOVERY=1) so this fixture can never bootstrap
++// public DHT/LSD/UPnP/NAT-PMP traffic.
++#include "test_support.hpp"
++
++#include "nuvio_engine/nuvio_engine.h"
++#include "torrent/libtorrent_stream_bridge.hpp"
++
++#include <libtorrent/alert_types.hpp>
++#include <libtorrent/bencode.hpp>
++#include <libtorrent/create_torrent.hpp>
++#include <libtorrent/hex.hpp>
++#include <libtorrent/info_hash.hpp>
++#include <libtorrent/load_torrent.hpp>
++#include <libtorrent/session.hpp>
++#include <libtorrent/settings_pack.hpp>
++#include <libtorrent/torrent_flags.hpp>
++#include <libtorrent/torrent_info.hpp>
++
++#include <atomic>
++#include <chrono>
++#include <cstdint>
++#include <cstdlib>
++#include <filesystem>
++#include <fstream>
++#include <iostream>
++#include <mutex>
++#include <optional>
++#include <stdexcept>
++#include <string>
++#include <thread>
++#include <vector>
++
++#if defined(_WIN32)
++#include <winsock2.h>
++#include <ws2tcpip.h>
++#else
++#include <arpa/inet.h>
++#include <netinet/in.h>
++#include <sys/socket.h>
++#include <sys/time.h>
++#include <unistd.h>
++#endif
++
++#if defined(_WIN32)
++const bool discovery_guard = [] {
++    return _putenv("NUVIO_ENGINE_DISABLE_DISCOVERY=1") == 0;
++}();
++#else
++const bool discovery_guard = [] {
++    return setenv("NUVIO_ENGINE_DISABLE_DISCOVERY", "1", 1) == 0;
++}();
++#endif
++
++namespace {
++
++using Clock = std::chrono::steady_clock;
++
++constexpr std::uint64_t piece_bytes = 32 * 1024;
++constexpr std::uint64_t file_bytes = 5 * piece_bytes;
++constexpr std::uint64_t corrupt_piece = 2;
++constexpr std::uint64_t corrupt_offset = corrupt_piece * piece_bytes + 4096;
++constexpr std::uint64_t corrupt_length = 64;
++
++class WinsockGuard {
++public:
++#if defined(_WIN32)
++    WinsockGuard() {
++        WSADATA data{};
++        initialized_ = WSAStartup(MAKEWORD(2, 2), &data) == 0;
++    }
++
++    ~WinsockGuard() {
++        if (initialized_) {
++            WSACleanup();
++        }
++    }
++
++private:
++    bool initialized_ = false;
++#endif
++};
++
++const WinsockGuard winsock_guard{};
++
++class FixtureDirectories {
++public:
++    FixtureDirectories() {
++        const auto nonce = Clock::now().time_since_epoch().count();
++        root_ = std::filesystem::temp_directory_path() /
++            ("nuvio-stream-integrity-" + std::to_string(nonce));
++        data_ = root_ / "data";
++        cache_ = root_ / "cache";
++        std::filesystem::create_directories(data_);
++        std::filesystem::create_directories(cache_);
++    }
++
++    ~FixtureDirectories() {
++        std::error_code ignored;
++        std::filesystem::remove_all(root_, ignored);
++    }
++
++    [[nodiscard]] const std::filesystem::path& root() const { return root_; }
++    [[nodiscard]] const std::filesystem::path& data() const { return data_; }
++    [[nodiscard]] const std::filesystem::path& cache() const { return cache_; }
++
++private:
++    std::filesystem::path root_;
++    std::filesystem::path data_;
++    std::filesystem::path cache_;
++};
++
++std::string make_payload() {
++    std::string payload;
++    payload.resize(file_bytes);
++    for (std::uint64_t index = 0; index < file_bytes; ++index) {
++        payload[static_cast<std::size_t>(index)] =
++            static_cast<char>((index * 31 + 7) & 0xFF);
++    }
++    return payload;
++}
++
++struct FixtureTorrent {
++    std::string torrent_bytes;
++    std::string torrent_id;
++};
++
++// Builds a v1 torrent whose piece hashes describe the HEALTHY payload.
++// CacheSeeded* shapes place bytes into the engine's payload cache (the
++// check-in path); Peer* shapes leave the engine's cache empty and put the
++// bytes in an in-process loopback seeder instead, so blocks reach the engine
++// through the real per-block download path (block_finished alerts fire).
++enum class SeederShape {
++    CacheSeededHealthy,
++    CacheSeededCorrupt,
++    PeerHealthy,
++    PeerCorruptPiece,
++    PeerCorruptFirstPiece,
++    PeerCorruptFirstPieceWithUnverifiedDisk,
++};
++
++FixtureTorrent make_fixture_torrent(
++    const FixtureDirectories& directories,
++    const std::string& payload,
++    const SeederShape shape,
++    const std::optional<std::uint16_t> &tracker_port = {}
++) {
++    const auto staging = directories.root() / "staging";
++    std::filesystem::create_directories(staging);
++    {
++        std::ofstream output(staging / "fixture.bin", std::ios::binary);
++        output.write(payload.data(), static_cast<std::streamsize>(payload.size()));
++    }
++
++    lt::file_storage files;
++    files.add_file("fixture.bin", static_cast<std::int64_t>(payload.size()));
++    lt::create_torrent creator(
++        files,
++        static_cast<int>(piece_bytes),
++        lt::create_torrent::v1_only
++    );
++    if (tracker_port.has_value()) {
++        creator.add_tracker(
++            "http://127.0.0.1:" + std::to_string(*tracker_port) + "/announce"
++        );
++    }
++    lt::set_piece_hashes(creator, staging.string());
++    const lt::entry encoded = creator.generate();
++    std::string torrent;
++    lt::bencode(std::back_inserter(torrent), encoded);
++
++    const lt::torrent_info info(
++        reinterpret_cast<const char*>(torrent.data()), static_cast<int>(torrent.size())
++    );
++    const auto torrent_id = lt::aux::to_hex(info.info_hashes().v1);
++
++    auto served = payload;
++    if (shape == SeederShape::CacheSeededCorrupt ||
++        shape == SeederShape::PeerCorruptPiece) {
++        // The torrent hashes describe the healthy payload; flipping bytes in
++        // the served copy makes piece 2 fail whole-piece hash verification.
++        for (std::uint64_t index = 0; index < corrupt_length; ++index) {
++            served[static_cast<std::size_t>(corrupt_offset + index)] =
++                static_cast<char>(0x5A);
++        }
++    } else if (shape == SeederShape::PeerCorruptFirstPiece ||
++               shape == SeederShape::PeerCorruptFirstPieceWithUnverifiedDisk) {
++        // A full-size file with a subtle corruption inside piece 0's second
++        // block: the peer happily serves every block (block_finished alerts
++        // fire for the whole piece) while the piece hash can NEVER pass —
++        // precisely the speculative-delivery window the hardening closed.
++        for (std::uint64_t index = 0; index < corrupt_length; ++index) {
++            served[static_cast<std::size_t>(piece_bytes - 256 + index)] =
++                static_cast<char>(0x5A);
++        }
++    }
++    if (shape == SeederShape::PeerHealthy ||
++        shape == SeederShape::PeerCorruptPiece ||
++        shape == SeederShape::PeerCorruptFirstPiece ||
++        shape == SeederShape::PeerCorruptFirstPieceWithUnverifiedDisk) {
++        // Peer-driven fixture: the seeder holds the bytes and the engine's
++        // own cache stays empty so every block arrives through the real
++        // download path.
++        const auto seeder_dir = directories.root() / "seeder";
++        std::filesystem::create_directories(seeder_dir);
++        std::ofstream output(seeder_dir / "fixture.bin", std::ios::binary);
++        output.write(served.data(), static_cast<std::streamsize>(served.size()));
++        return {torrent, torrent_id};
++    }
++    const auto engine_payload_directory =
++        directories.cache() / "payload" / torrent_id;
++    std::filesystem::create_directories(engine_payload_directory);
++    {
++        std::ofstream output(engine_payload_directory / "fixture.bin", std::ios::binary);
++        output.write(served.data(), static_cast<std::streamsize>(served.size()));
++    }
++    return {torrent, torrent_id};
++}
++
++class EngineSession {
++public:
++    explicit EngineSession(const FixtureDirectories& directories) {
++        const auto data = directories.data().string();
++        const auto cache = directories.cache().string();
++        nuvio_engine_config config;
++        nuvio_engine_config_init(&config);
++        config.data_directory = data.c_str();
++        config.cache_directory = cache.c_str();
++        config.memory_cache_capacity_bytes = 4 * 1024 * 1024;
++        config.disk_cache_capacity_bytes = 8 * 1024 * 1024;
++        config.listen_port = 0;
++        config.upload_mode = NUVIO_ENGINE_UPLOAD_DISABLED;
++        config.torrent_profile = NUVIO_ENGINE_TORRENT_PROFILE_SOFT;
++        const auto status = nuvio_engine_create(&config, &engine_);
++        if (status != NUVIO_ENGINE_STATUS_OK) {
++            throw std::runtime_error(
++                "engine create failed: " +
++                std::string(nuvio_engine_status_message(status))
++            );
++        }
++    }
++
++    ~EngineSession() {
++        if (engine_ != nullptr) {
++            nuvio_engine_destroy(engine_);
++        }
++    }
++
++    EngineSession(const EngineSession&) = delete;
++    EngineSession& operator=(const EngineSession&) = delete;
++
++    void add_from_bytes(const std::string& torrent) {
++        nuvio_engine_torrent_request request;
++        nuvio_engine_torrent_request_init(&request);
++        request.source_type = NUVIO_ENGINE_TORRENT_SOURCE_DATA;
++        request.torrent_data = reinterpret_cast<const std::uint8_t*>(torrent.data());
++        request.torrent_data_size = torrent.size();
++        std::uint64_t request_id = 0;
++        const auto status = nuvio_engine_add_torrent(engine_, &request, &request_id);
++        if (status != NUVIO_ENGINE_STATUS_OK) {
++            throw std::runtime_error(
++                "add_torrent failed: " +
++                std::string(nuvio_engine_status_message(status))
++            );
++        }
++    }
++
++
++
++    std::string wait_for_stream_url() {
++        const auto deadline = Clock::now() + std::chrono::seconds(30);
++        std::string torrent_id;
++        bool prepared_requested = false;
++        std::string last_error;
++        while (Clock::now() < deadline) {
++            nuvio_engine_event event;
++            nuvio_engine_event_init(&event);
++            const auto status = nuvio_engine_poll_event(engine_, &event);
++            if (status == NUVIO_ENGINE_STATUS_NO_EVENT) {
++                std::this_thread::sleep_for(std::chrono::milliseconds(20));
++                continue;
++            }
++            if (status != NUVIO_ENGINE_STATUS_OK) {
++                throw std::runtime_error("poll_event failed");
++            }
++            if (event.type == NUVIO_ENGINE_EVENT_TORRENT_METADATA_READY &&
++                !prepared_requested) {
++                torrent_id = event.torrent_id;
++                size_t file_count = 0;
++                if (nuvio_engine_get_file_count(engine_, event.torrent_id, &file_count) !=
++                        NUVIO_ENGINE_STATUS_OK ||
++                    file_count == 0) {
++                    throw std::runtime_error("no files in fixture torrent");
++                }
++                nuvio_engine_file file;
++                nuvio_engine_file_init(&file);
++                if (nuvio_engine_get_file(engine_, event.torrent_id, 0, &file) !=
++                    NUVIO_ENGINE_STATUS_OK) {
++                    throw std::runtime_error("get_file failed");
++                }
++                nuvio_engine_stream_request request;
++                nuvio_engine_stream_request_init(&request);
++                request.torrent_id = torrent_id.c_str();
++                request.file_index = 0;
++                request.filename_hint = file.path;
++                std::uint64_t request_id = 0;
++                const auto prepared_status =
++                    nuvio_engine_prepare_stream(engine_, &request, &request_id);
++                if (prepared_status != NUVIO_ENGINE_STATUS_OK) {
++                    throw std::runtime_error(
++                        std::string("prepare_stream failed: ") +
++                        nuvio_engine_status_message(prepared_status)
++                    );
++                }
++                prepared_requested = true;
++                continue;
++            }
++            if (event.type == NUVIO_ENGINE_EVENT_STREAM_PREPARED &&
++                prepared_requested) {
++                return event.stream_url;
++            }
++            if (event.type == NUVIO_ENGINE_EVENT_TORRENT_ERROR) {
++                last_error = event.message;
++            }
++        }
++        throw std::runtime_error(
++            std::string("no STREAM_PREPARED event (torrent_id=") + torrent_id +
++            (last_error.empty() ? std::string() : (", error: " + last_error)) +
++            ")"
++        );
++    }
++
++private:
++    nuvio_engine* engine_ = nullptr;
++};
++
++#if defined(_WIN32)
++using NativeSocket = SOCKET;
++constexpr NativeSocket kInvalidSocket = INVALID_SOCKET;
++#define CLOSE_SOCKET closesocket
++#else
++using NativeSocket = int;
++constexpr NativeSocket kInvalidSocket = -1;
++#define CLOSE_SOCKET close
++#endif
++
++struct Fetched {
++    std::string headers;
++    std::string body;
++    bool closed_by_server = false;
++};
++
++Fetched fetch(
++    const std::string& url,
++    const std::optional<std::string>& range_header,
++    const std::chrono::milliseconds deadline,
++    const std::optional<std::uint64_t> stop_after_body_bytes
++) {
++    if (url.rfind("http://127.0.0.1:", 0) != 0) {
++        throw std::runtime_error("unexpected stream url: " + url);
++    }
++    const auto target_position = url.find('/', 17);
++    if (target_position == std::string::npos) {
++        throw std::runtime_error("stream url without target: " + url);
++    }
++    const auto port = static_cast<std::uint16_t>(
++        std::stoi(url.substr(17, target_position - 17))
++    );
++    const auto target = url.substr(target_position);
++
++    const auto client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
++    if (client == kInvalidSocket) {
++        throw std::runtime_error("fetch: socket failed");
++    }
++#if defined(_WIN32)
++    constexpr DWORD receive_timeout = 200;
++#else
++    constexpr timeval receive_timeout{0, 200 * 1000};
++#endif
++    setsockopt(
++        client,
++        SOL_SOCKET,
++        SO_RCVTIMEO,
++        reinterpret_cast<const char*>(&receive_timeout),
++        sizeof(receive_timeout)
++    );
++    sockaddr_in address{};
++    address.sin_family = AF_INET;
++    address.sin_port = htons(port);
++    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
++    if (connect(client, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
++        CLOSE_SOCKET(client);
++        throw std::runtime_error("fetch: connect failed");
++    }
++
++    std::string request = "GET " + target + " HTTP/1.1\r\nHost: 127.0.0.1\r\n";
++    if (range_header.has_value()) {
++        request += "Range: " + *range_header + "\r\n";
++    }
++    request += "Connection: close\r\n\r\n";
++    std::size_t offset = 0;
++    while (offset < request.size()) {
++        const auto sent = send(
++            client,
++            request.data() + offset,
++            static_cast<int>(request.size() - offset),
++            0
++        );
++        if (sent <= 0) {
++            CLOSE_SOCKET(client);
++            throw std::runtime_error("fetch: send failed");
++        }
++        offset += static_cast<std::size_t>(sent);
++    }
++
++    Fetched fetched;
++    std::string raw;
++    const auto stop_at = Clock::now() + deadline;
++    char chunk[16 * 1024];
++    while (Clock::now() < stop_at) {
++        const auto received = recv(client, chunk, sizeof(chunk), 0);
++        if (received > 0) {
++            raw.append(chunk, static_cast<std::size_t>(received));
++            const auto separator = raw.find("\r\n\r\n");
++            if (separator != std::string::npos) {
++                fetched.headers = raw.substr(0, separator + 4);
++                fetched.body = raw.substr(separator + 4);
++            }
++            if (stop_after_body_bytes.has_value() &&
++                fetched.body.size() >= stop_after_body_bytes.value()) {
++                CLOSE_SOCKET(client);
++                return fetched;
++            }
++            continue;
++        }
++        if (received == 0) {
++            fetched.closed_by_server = true;
++            CLOSE_SOCKET(client);
++            return fetched;
++        }
++    }
++    CLOSE_SOCKET(client);
++    return fetched;
++}
++
++void run_stream_integrity_regression(const bool corrupt) {
++    const std::string payload = make_payload();
++    FixtureDirectories directories;
++    const auto fixture = make_fixture_torrent(
++        directories,
++        payload,
++        corrupt ? SeederShape::CacheSeededCorrupt : SeederShape::CacheSeededHealthy
++    );
++
++    EngineSession engine(directories);
++    engine.add_from_bytes(fixture.torrent_bytes);
++    const auto url = engine.wait_for_stream_url();
++
++    const auto corrupt_piece_start = corrupt_piece * piece_bytes;
++    if (!corrupt) {
++        // Full verified delivery: stop as soon as the whole payload arrived;
++        // the engine keeps the route anchored after the last byte, so a
++        // server-side close is not part of the contract under test here.
++        const auto complete =
++            fetch(url, {}, std::chrono::seconds(30), payload.size());
++        std::cout << "healthy headers=" << complete.headers.size()
++                  << " body=" << complete.body.size() << std::endl;
++        nuvio::test::expect_equal(
++            complete.body.size(),
++            payload.size(),
++            "streamed body size",
++            "payload size"
++        );
++        nuvio::test::expect_true(
++            complete.body == payload,
++            "streamed body should equal the seeded payload"
++        );
++
++        // Seek: a mid-file Range request must return the matching verified slice.
++        const auto sought = fetch(
++            url,
++            std::string("bytes=") + std::to_string(piece_bytes) + "-" +
++                std::to_string(piece_bytes + 100),
++            std::chrono::seconds(30),
++            101
++        );
++        nuvio::test::expect_true(
++            sought.body == payload.substr(
++                static_cast<std::size_t>(piece_bytes),
++                101
++            ),
++            "range request should return the requested verified slice"
++        );
++
++        // Cancellation: dropping the connection mid-stream must not wedge the
++        // engine; destruction below exercises demand teardown.
++        const auto cancelled = fetch(url, {}, std::chrono::seconds(30), piece_bytes);
++        nuvio::test::expect_true(
++            cancelled.body.size() >= piece_bytes,
++            "cancelled stream should have delivered at least one verified piece"
++        );
++        return;
++    }
++
++    const auto first_pass =
++        fetch(url, {}, std::chrono::seconds(8), {});
++    std::cout << "corrupt regression first pass body bytes: "
++              << first_pass.body.size() << std::endl;
++    if (first_pass.body.empty() ||
++        first_pass.body.size() > corrupt_piece_start) {
++        throw std::runtime_error(
++            "body must stall at the verified boundary before the corrupt piece (got " +
++            std::to_string(first_pass.body.size()) + " bytes)"
++        );
++    }
++    const auto second_pass =
++        fetch(url, {}, std::chrono::seconds(8), {});
++    if (second_pass.body.size() != first_pass.body.size() ||
++        second_pass.body.size() > corrupt_piece_start) {
++        throw std::runtime_error(
++            "body must make no unverified progress past the corrupt piece (got " +
++            std::to_string(second_pass.body.size()) + " bytes after " +
++            std::to_string(first_pass.body.size()) + " bytes)"
++        );
++    }
++    nuvio::test::expect_true(
++        first_pass.body == payload.substr(0, first_pass.body.size()),
++        "delivered prefix must match the verified payload bytes"
++    );
++}
++
++// --- Peer-driven probes: real block_finished delivery through a loopback peer -
++//
++// The check-in fixtures above verify pieces from disk before any demand; they
++// can never exercise the speculative block_finished window that the hardening
++// removed. These scenarios route every byte through an in-process loopback
++// tracker + seeder so the engine's production serve path sees partial and
++// corrupt blocks exactly as a real swarm delivers them.
++
++class LoopbackTracker {
++public:
++    LoopbackTracker() {
++        sockaddr_in address{};
++        address.sin_family = AF_INET;
++        address.sin_port = 0;
++        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
++        listen_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
++        if (listen_ == kInvalidSocket) {
++            throw std::runtime_error("tracker: socket failed");
++        }
++        if (bind(listen_, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0 ||
++            listen(listen_, 16) != 0) {
++            CLOSE_SOCKET(listen_);
++            throw std::runtime_error("tracker: bind/listen failed");
++        }
++        sockaddr_in bound{};
++        int bound_size = sizeof(bound);
++        if (getsockname(
++                listen_, reinterpret_cast<sockaddr*>(&bound), &bound_size
++            ) != 0) {
++            CLOSE_SOCKET(listen_);
++            throw std::runtime_error("tracker: getsockname failed");
++        }
++        port_ = ntohs(bound.sin_port);
++        thread_ = std::thread([this] { serve(); });
++    }
++
++    ~LoopbackTracker() {
++        stop_ = true;
++        CLOSE_SOCKET(listen_);
++        if (thread_.joinable()) {
++            thread_.join();
++        }
++    }
++
++    void register_peer(const std::uint16_t peer_port) {
++        std::lock_guard lock(mutex_);
++        peer_port_ = peer_port;
++    }
++
++    [[nodiscard]] std::uint16_t port() const { return port_; }
++
++private:
++    void serve() {
++        while (!stop_.load()) {
++            const auto client = accept(listen_, nullptr, nullptr);
++            if (client == kInvalidSocket) {
++                return;
++            }
++            handle(client);
++            CLOSE_SOCKET(client);
++        }
++    }
++
++    void handle(const NativeSocket client) {
++        std::string request;
++        char chunk[2048];
++        while (request.find("\r\n\r\n") == std::string::npos &&
++               request.size() < 8192) {
++#if defined(_WIN32)
++            const int received = recv(client, chunk, sizeof(chunk), 0);
++#else
++            const ssize_t received = recv(client, chunk, sizeof(chunk), 0);
++#endif
++            if (received <= 0) {
++                return;
++            }
++            request.append(chunk, static_cast<std::size_t>(received));
++        }
++        if (request.rfind("GET /announce", 0) != 0) {
++            return;
++        }
++        std::uint16_t peer = 0;
++        {
++            std::lock_guard lock(mutex_);
++            peer = peer_port_;
++        }
++        if (peer == 0) {
++            return;
++        }
++        // Never hand a peer its own address: with libtorrent's default one
++        // connection per IP, the seeder's self-connection would permanently
++        // occupy its 127.0.0.1 slot and every engine connection would be
++        // rejected at the handshake.
++        const auto port_mark = request.find("&port=");
++        const auto announcer_port_end = port_mark == std::string::npos
++            ? std::string::npos
++            : request.find('&', port_mark + 6);
++        std::string body;
++        const bool announcer_is_seeder =
++            port_mark != std::string::npos &&
++            request.substr(port_mark + 6,
++                (announcer_port_end == std::string::npos
++                     ? request.find(' ', port_mark + 6)
++                     : announcer_port_end) - (port_mark + 6)) ==
++                std::to_string(peer);
++        if (announcer_is_seeder) {
++            body = "d8:completei1e10:incompletei0e8:intervali5e5:peers0:e";
++        } else {
++            const std::string peer_bytes{
++                static_cast<char>(0x7F), static_cast<char>(0x00),
++                static_cast<char>(0x00), static_cast<char>(0x01),
++                static_cast<char>((peer >> 8) & 0xFF),
++                static_cast<char>(peer & 0xFF)};
++            body =
++                "d8:completei1e10:incompletei1e8:intervali5e5:peers6:" +
++                peer_bytes + "e";
++        }
++        const std::string response =
++            "HTTP/1.1 200 OK\r\nContent-Length: " +
++            std::to_string(body.size()) +
++            "\r\nConnection: close\r\n\r\n" + body;
++        std::size_t offset = 0;
++        while (offset < response.size()) {
++            const auto sent = send(
++                client,
++                response.data() + offset,
++                static_cast<int>(response.size() - offset),
++                0
++            );
++            if (sent <= 0) {
++                return;
++            }
++            offset += static_cast<std::size_t>(sent);
++        }
++    }
++
++    NativeSocket listen_ = kInvalidSocket;
++    std::uint16_t port_ = 0;
++    std::uint16_t peer_port_ = 0;
++    std::mutex mutex_;
++    std::atomic<bool> stop_{false};
++    std::thread thread_;
++};
++
++// Seeds the fixture bytes on loopback. seed_mode keeps libtorrent from
++// checking the seeder's files, so a corrupt file is served verbatim —
++// exactly the hostile peer the hardening must survive.
++class SeederSession {
++public:
++    SeederSession(
++        const std::string &torrent_bytes,
++        const std::filesystem::path &save_path
++    ) {
++        lt::settings_pack settings;
++        settings.set_str(
++            lt::settings_pack::listen_interfaces,
++            "127.0.0.1:0"
++        );
++        settings.set_bool(lt::settings_pack::enable_dht, false);
++        settings.set_bool(lt::settings_pack::enable_lsd, false);
++        settings.set_bool(lt::settings_pack::enable_upnp, false);
++        settings.set_bool(lt::settings_pack::enable_natpmp, false);
++        settings.set_int(
++            lt::settings_pack::alert_mask,
++            static_cast<std::int64_t>(lt::alert_category::status |
++                                      lt::alert_category::error |
++                                      lt::alert_category::connect)
++        );
++        session_ = std::make_unique<lt::session>(settings);
++        const std::vector<char> buffer(torrent_bytes.begin(), torrent_bytes.end());
++        auto params = lt::load_torrent_buffer(buffer);
++        params.save_path = save_path.string();
++        params.flags |= lt::torrent_flags::seed_mode;
++        session_->add_torrent(params);
++        port_ = static_cast<std::uint16_t>(session_->listen_port());
++    }
++
++    ~SeederSession() = default;
++
++    [[nodiscard]] std::uint16_t port() const { return port_; }
++
++
++
++private:
++    std::unique_ptr<lt::session> session_;
++    std::uint16_t port_ = 0;
++};
++
++void run_peer_driven_regression(const SeederShape shape) {
++    const std::string payload = make_payload();
++    FixtureDirectories directories;
++    LoopbackTracker tracker;
++    const auto fixture = make_fixture_torrent(
++        directories, payload, shape, tracker.port()
++    );
++    SeederSession seeder(
++        fixture.torrent_bytes, directories.root() / "seeder"
++    );
++    tracker.register_peer(seeder.port());
++
++    EngineSession engine(directories);
++    engine.add_from_bytes(fixture.torrent_bytes);
++    const auto url = engine.wait_for_stream_url();
++
++    if (shape == SeederShape::PeerCorruptFirstPieceWithUnverifiedDisk) {
++        // Adversarial disk race: a partial/unverified payload file is already
++        // readable while the loopback peer supplies corrupt blocks. The
++        // speculative PayloadReader previously regarded finished blocks as
++        // sufficient to publish these bytes. This is NOT a verified cache
++        // seed; neither source can produce a valid piece hash.
++        auto partial = payload;
++        for (std::uint64_t index = 0; index < corrupt_length; ++index) {
++            partial[static_cast<std::size_t>(piece_bytes - 256 + index)] =
++                static_cast<char>(0x5A);
++        }
++        const auto disk_path = directories.cache() / "payload" /
++            fixture.torrent_id / "fixture.bin";
++        std::filesystem::create_directories(disk_path.parent_path());
++        std::ofstream output(disk_path, std::ios::binary);
++        output.write(partial.data(), static_cast<std::streamsize>(partial.size()));
++        output.close();
++        if (!output) throw std::runtime_error("unverified-disk fixture write failed");
++    }
++
++    if (shape == SeederShape::PeerHealthy) {
++        // Verified bytes AFTER the piece actually verifies, over the real
++        // download path: full payload, Range seek, and mid-stream cancel.
++        const auto complete =
++            fetch(url, {}, std::chrono::seconds(30), payload.size());
++        nuvio::test::expect_equal(
++            complete.body.size(),
++            payload.size(),
++            "peer-streamed body size",
++            "payload size"
++        );
++        nuvio::test::expect_true(
++            complete.body == payload,
++            "peer-streamed body should equal the healthy payload"
++        );
++        const auto sought = fetch(
++            url,
++            std::string("bytes=") + std::to_string(piece_bytes) + "-" +
++                std::to_string(piece_bytes + 100),
++            std::chrono::seconds(30),
++            101
++        );
++        nuvio::test::expect_true(
++            sought.body == payload.substr(
++                static_cast<std::size_t>(piece_bytes),
++                101
++            ),
++            "peer range request should return the requested verified slice"
++        );
++        const auto cancelled =
++            fetch(url, {}, std::chrono::seconds(30), piece_bytes);
++        nuvio::test::expect_true(
++            cancelled.body.size() >= piece_bytes,
++            "cancelled peer stream should have delivered a verified piece"
++        );
++        return;
++    }
++
++    if (shape == SeederShape::PeerCorruptFirstPiece ||
++        shape == SeederShape::PeerCorruptFirstPieceWithUnverifiedDisk) {
++        // The peer serves every block of piece 0 (each block_finished fires)
++        // but the piece hash can never pass: NOT ONE byte may reach the HTTP
++        // client. This is the exact window the speculative block_finished
++        // path used to serve from disk before verification.
++        const auto stalled = fetch(url, {}, std::chrono::seconds(6), {});
++        if (!stalled.body.empty()) {
++            throw std::runtime_error(
++                "partial piece was served before whole-piece verification (got " +
++                std::to_string(stalled.body.size()) + " bytes)"
++            );
++        }
++        return;
++    }
++
++    // PeerCorruptPiece: healthy pieces 0..1 verify through the real download
++    // path; piece 2 blocks arrive but never verify, so the body must stall
++    // exactly at the verified boundary and only verified bytes may appear.
++    const auto corrupt_piece_start = corrupt_piece * piece_bytes;
++    const auto first_pass = fetch(url, {}, std::chrono::seconds(10), {});
++    if (first_pass.body.empty() ||
++        first_pass.body.size() > corrupt_piece_start) {
++        throw std::runtime_error(
++            "peer-corrupt body must stall at the verified boundary (got " +
++            std::to_string(first_pass.body.size()) + " bytes)"
++        );
++    }
++    const auto second_pass = fetch(url, {}, std::chrono::seconds(10), {});
++    if (second_pass.body.size() > corrupt_piece_start) {
++        throw std::runtime_error(
++            "peer-corrupt body made unverified progress past the corrupt piece (got " +
++            std::to_string(second_pass.body.size()) + " bytes)"
++        );
++    }
++    nuvio::test::expect_true(
++        first_pass.body == payload.substr(0, first_pass.body.size()),
++        "peer-corrupt delivered prefix must match the verified payload bytes"
++    );
++}
++
++} // namespace
++
++NUVIO_TEST("verified-only stream delivery with seek and cancellation") {
++    run_stream_integrity_regression(false);
++}
++
++NUVIO_TEST("corrupt piece never streams before hash verification") {
++    run_stream_integrity_regression(true);
++}
++
++NUVIO_TEST("peer blocks of an unverifiable piece are never served") {
++    run_peer_driven_regression(SeederShape::PeerCorruptFirstPiece);
++}
++
++NUVIO_TEST("peer corrupt blocks with readable unverified disk never stream") {
++    run_peer_driven_regression(SeederShape::PeerCorruptFirstPieceWithUnverifiedDisk);
++}
++
++NUVIO_TEST("peer corrupt blocks never stream past the verified boundary") {
++    run_peer_driven_regression(SeederShape::PeerCorruptPiece);
++}
++
++NUVIO_TEST("peer healthy torrent streams verified payload with seek and cancel") {
++    run_peer_driven_regression(SeederShape::PeerHealthy);
++}
++
++#if defined(NUVIO_ENGINE_INTEGRITY_TEST_SEAM)
++NUVIO_TEST("production waiter holds readable finished blocks until piece hash verification") {
++    FixtureDirectories directories;
++    const auto path = directories.root() / "readable-unverified-payload.bin";
++    std::vector<char> verified(32 * 1024);
++    for (std::size_t i = 0; i < verified.size(); ++i) {
++        verified[i] = static_cast<char>('A' + (i % 26));
++    }
++    auto unverified = verified;
++    unverified[4096] = static_cast<char>(verified[4096] ^ 0x2a);
++    {
++        std::ofstream output(path, std::ios::binary);
++        nuvio::test::expect_true(bool(output), "fixture file should be writable");
++        output.write(unverified.data(), static_cast<std::streamsize>(unverified.size()));
++        nuvio::test::expect_true(bool(output), "fixture file should be readable by the old path");
++    }
++    nuvio::torrent::LibtorrentStreamBridge bridge(
++        0, 2 * 1024 * 1024, 2 * 1024 * 1024, std::chrono::minutes(5)
++    );
++    const auto check = [&](const std::uint64_t begin, const std::uint64_t end,
++                           const bool cancel) {
++        const auto result = bridge.test_piece_delivery(
++            path, verified, begin, end, cancel
++        );
++        std::cout << "PRODUCTION_WAITER_OBSERVATION begin=" << begin
++                  << " end=" << end << " cancel=" << cancel
++                  << " before_verified=" << result.before_verification.size()
++                  << " after_completion=" << result.after_completion.size()
++                  << " delivered_counter=" << result.recorded_delivered_bytes
++                  << " served=" << result.serve_succeeded << '\n';
++        nuvio::test::expect_true(
++            result.before_verification.empty(),
++            "UNSAFE: production waiter delivered finished-block bytes before hash verification"
++        );
++        if (cancel) {
++            nuvio::test::expect_true(
++                !result.serve_succeeded && result.after_completion.empty(),
++                "cancelled waiter must never deliver or claim completion"
++            );
++        } else {
++            const std::vector<char> expected(
++                verified.begin() + static_cast<std::ptrdiff_t>(begin),
++                verified.begin() + static_cast<std::ptrdiff_t>(end)
++            );
++            nuvio::test::expect_true(
++                result.serve_succeeded && result.after_completion == expected &&
++                result.recorded_delivered_bytes == expected.size(),
++                "after whole-piece completion exact verified bytes must reach the writer"
++            );
++        }
++    };
++    check(0, 8192, false);
++    check(4096, 12288, false); // seek within an unverified finished block
++    check(0, 8192, true);       // cancellation before whole-piece verification
++}
++#endif

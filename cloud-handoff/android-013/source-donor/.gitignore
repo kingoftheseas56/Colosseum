@@ -1,0 +1,39 @@
+# Build output
+/build/
+**/.build/
+/out/
+/.cxx/
+/.gradle/
+**/build/
+**/.cxx/
+**/.gradle/
+**/.kotlin/
+**/.deps/
+**/.swiftpm/
+local.properties
+
+# IDE and host files
+.DS_Store
+.idea/
+*.swp
+
+# Generated packages
+*.aar
+*.xcframework.zip
+/platform/apple/NuvioEngine.xcframework/
+/platform/macos/dist/
+/platform/linux/dist/
+/platform/windows/dist/
+*.dll
+*.dylib
+*.so
+
+# Runtime state used by tests and samples
+/.nuvio-engine/
+/test-output/
+
+# Local-only inputs; never ship or commit extracted application bundles
+/.local-artifacts/
+/AGENTS.md
+
+/docs/

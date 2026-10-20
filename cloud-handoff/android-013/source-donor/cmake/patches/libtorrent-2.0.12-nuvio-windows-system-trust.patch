@@ -1,0 +1,34 @@
+diff --git a/src/session_impl.cpp b/src/session_impl.cpp
+index de793d8b1..d9f32254a 100644
+--- a/src/session_impl.cpp
++++ b/src/session_impl.cpp
+@@ -640,28 +640,3 @@ void session_impl::start_session()
+ #if defined TORRENT_WINDOWS && defined TORRENT_USE_OPENSSL && !defined TORRENT_WINRT
+-		// TODO: come up with some abstraction to do this for gnutls as well
+-		// load certificates from the windows system certificate store
+-		X509_STORE* store = X509_STORE_new();
+-		if (store)
+-		{
+-			HCERTSTORE system_store = CertOpenSystemStoreA(0, "ROOT");
+-			// this is best effort
+-			if (system_store)
+-			{
+-				CERT_CONTEXT const* ctx = nullptr;
+-				while ((ctx = CertEnumCertificatesInStore(system_store, ctx)) != nullptr)
+-				{
+-					unsigned char const* cert_ptr = reinterpret_cast<unsigned char const*>(ctx->pbCertEncoded);
+-					X509* x509 = d2i_X509(nullptr, &cert_ptr, ctx->cbCertEncoded);
+-					// this is best effort
+-					if (!x509) continue;
+-					X509_STORE_add_cert(store, x509);
+-					X509_free(x509);
+-				}
+-				CertFreeCertificateContext(ctx);
+-				CertCloseStore(system_store, 0);
+-			}
+-		}
+-
+-		SSL_CTX* ssl_ctx = m_ssl_ctx.native_handle();
+-		SSL_CTX_set_cert_store(ssl_ctx, store);
++		// Nuvio's callback evaluates the live Windows store without replacing an explicit PEM store.
+ #endif

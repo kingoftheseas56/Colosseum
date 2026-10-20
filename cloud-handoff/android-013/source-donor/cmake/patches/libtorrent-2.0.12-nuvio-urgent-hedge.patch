@@ -1,0 +1,108 @@
+diff --git a/include/libtorrent/torrent.hpp b/include/libtorrent/torrent.hpp
+--- a/include/libtorrent/torrent.hpp
++++ b/include/libtorrent/torrent.hpp
+@@ -1260,0 +1261,4 @@
++		void nuvio_hedge_urgent();
++		void nuvio_hedge_blocks(std::vector<peer_connection*> const& peers
++			, std::set<peer_connection*>& with_requests);
++
+diff --git a/src/torrent.cpp b/src/torrent.cpp
+--- a/src/torrent.cpp
++++ b/src/torrent.cpp
+@@ -5325,0 +5326,88 @@
++	void torrent::nuvio_hedge_urgent()
++	{
++		if (m_abort || m_time_critical_pieces.empty() || !has_picker() || upload_mode())
++			return;
++		std::vector<peer_connection*> peers;
++		for (auto* p : m_connections)
++			if (p->can_request_time_critical()) peers.push_back(p);
++		std::set<peer_connection*> with_requests;
++		nuvio_hedge_blocks(peers, with_requests);
++		for (auto* p : with_requests) p->send_block_requests();
++	}
++
++	void torrent::nuvio_hedge_blocks(std::vector<peer_connection*> const& peers
++		, std::set<peer_connection*>& with_requests)
++	{
++		int const nuvio_hedge_window = 4;
++		std::int64_t const nuvio_hedge_ms = 750;
++		if (m_time_critical_pieces.empty() || peers.empty() || !has_picker()) return;
++		piece_index_t const piece = m_time_critical_pieces.front().piece;
++		auto const queue = m_picker->get_download_queue();
++		auto const dp = std::find_if(queue.begin(), queue.end()
++			, [piece](piece_picker::downloading_piece const& d) { return d.index == piece; });
++		if (dp == queue.end()) return;
++		auto const blocks = m_picker->blocks_for_piece(*dp);
++		int const count = m_picker->blocks_in_piece(piece);
++		int const start = count > 0 ? m_picker->block_start(piece) % count : 0;
++		int const bs = block_size();
++		int considered = 0;
++		for (int k = 0; k < count && considered < nuvio_hedge_window; ++k)
++		{
++			int const index = (start + k) % count;
++			auto const& info = blocks[index];
++			if (info.state == piece_picker::block_info::state_finished
++				|| info.state == piece_picker::block_info::state_writing)
++				continue;
++			++considered;
++			if (info.state != piece_picker::block_info::state_requested) continue;
++			if (info.num_peers >= 2) continue;
++			piece_block const block(piece, index);
++			auto* holder = info.peer != nullptr
++				? static_cast<peer_connection*>(info.peer->connection) : nullptr;
++			std::int64_t eta_ms = std::numeric_limits<std::int32_t>::max();
++			if (holder != nullptr)
++			{
++				auto const& hdq = holder->download_queue();
++				auto const& hrq = holder->request_queue();
++				auto const in_dq = std::find_if(hdq.begin(), hdq.end(), aux::has_block(block));
++				std::int64_t ahead = 0;
++				if (in_dq != hdq.end())
++				{
++					ahead = (in_dq - hdq.begin()) + 1;
++				}
++				else
++				{
++					auto const in_rq = std::find_if(hrq.begin(), hrq.end(), aux::has_block(block));
++					ahead = std::int64_t(hdq.size()) + (in_rq - hrq.begin()) + 1;
++				}
++				int const rate = std::max(holder->statistics().download_payload_rate(), 1);
++				eta_ms = ahead * bs * 1000 / rate;
++			}
++			if (eta_ms < nuvio_hedge_ms) continue;
++			peer_connection* best = nullptr;
++			std::int64_t best_cost = eta_ms / 2;
++			for (auto* c : peers)
++			{
++				if (c == holder || !c->has_piece(piece)) continue;
++				auto const& cdq = c->download_queue();
++				auto const& crq = c->request_queue();
++				if (std::find_if(cdq.begin(), cdq.end(), aux::has_block(block)) != cdq.end()) continue;
++				if (std::find_if(crq.begin(), crq.end(), aux::has_block(block)) != crq.end()) continue;
++				int const crate = c->statistics().download_payload_rate();
++				std::int64_t const cost = crate > 0
++					? (std::int64_t(cdq.size()) + 1) * bs * 1000 / crate
++					: (cdq.empty() ? 300 : std::numeric_limits<std::int32_t>::max());
++				if (cost < best_cost)
++				{
++					best = c;
++					best_cost = cost;
++				}
++			}
++			if (best != nullptr
++				&& best->add_request(block, peer_connection::time_critical | peer_connection::busy))
++			{
++				with_requests.insert(best);
++			}
++		}
++	}
++
+@@ -11034,0 +11123 @@
++		nuvio_hedge_blocks(peers, peers_with_requests);
+diff --git a/src/session_impl.cpp b/src/session_impl.cpp
+--- a/src/session_impl.cpp
++++ b/src/session_impl.cpp
+@@ -3470,0 +3471,2 @@
++		for (auto const& t : m_torrents) t->nuvio_hedge_urgent();
++

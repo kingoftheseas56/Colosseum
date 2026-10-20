@@ -1,0 +1,21 @@
+diff --git a/src/piece_picker.cpp b/src/piece_picker.cpp
+--- a/src/piece_picker.cpp
++++ b/src/piece_picker.cpp
+@@ -2047,0 +2048,15 @@
++		if (m_dirty) update_pieces();
++		for (auto nuvio_top = m_pieces.begin();
++			nuvio_top != m_pieces.end() && piece_priority(*nuvio_top) == top_priority; ++nuvio_top)
++		{
++			if (!is_piece_free(*nuvio_top, pieces)) continue;
++			ret |= picker_log_alert::prio_sequential_pieces;
++			num_blocks = add_blocks(*nuvio_top, pieces
++				, interesting_blocks, backup_blocks
++				, backup_blocks2, num_blocks
++				, prefer_contiguous_blocks, peer, ignored_pieces
++				, options & ~prioritize_partials);
++			ignored_pieces.push_back(*nuvio_top);
++			if (num_blocks <= 0) return ret;
++		}
++
+@@ -2073,0 +2089 @@
++				if (contains(ignored_pieces, dp.index)) continue;

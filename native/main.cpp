@@ -1135,6 +1135,18 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
+#ifdef Q_OS_ANDROID
+    // Opt-in Nuvio playback backend lifecycle: gate new torrent work on the
+    // app state PlatformRuntime already owns (quiesce in the background,
+    // reconstruct fresh engine state on the next explicit foreground demand).
+    // The startup warmUp() call below stays a no-op on Android: the backend
+    // is born only on an explicit play()/prefetch(), never at launch.
+    QObject::connect(
+        platformRuntime,
+        &Colosseum::Platform::Runtime::applicationStateChanged,
+        stream,
+        [platformRuntime, stream]() { stream->setForeground(platformRuntime->foreground()); });
+#endif
     // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
     // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
     // bootstrap + tracker announce + handshake + unchoke) at the exact moment Play was pressed, which

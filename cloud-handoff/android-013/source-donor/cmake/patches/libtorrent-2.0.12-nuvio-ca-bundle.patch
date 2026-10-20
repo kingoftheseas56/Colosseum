@@ -1,0 +1,30 @@
+diff --git a/include/libtorrent/settings_pack.hpp b/include/libtorrent/settings_pack.hpp
+index b3d6f3374..00e9b5389 100644
+--- a/include/libtorrent/settings_pack.hpp
++++ b/include/libtorrent/settings_pack.hpp
+@@ -400,0 +401,4 @@ namespace aux {
++			// Nuvio Engine supplies a platform-exported PEM trust store for
++			// HTTPS tracker and web-seed certificate verification.
++			nuvio_ssl_ca_bundle,
++
+diff --git a/src/session_impl.cpp b/src/session_impl.cpp
+index 6f017e6cd..b1b54a80d 100644
+--- a/src/session_impl.cpp
++++ b/src/session_impl.cpp
+@@ -613,0 +614,8 @@ bool ssl_server_name_callback(ssl::stream_handle_type stream_handle, std::string
++		auto const& nuvio_ca_bundle =
++			m_settings.get_str(settings_pack::nuvio_ssl_ca_bundle);
++		if (!nuvio_ca_bundle.empty())
++		{
++			ec.clear();
++			m_ssl_ctx.load_verify_file(nuvio_ca_bundle, ec);
++			if (ec) throw system_error(ec, "failed to load Nuvio TLS trust store");
++		}
+diff --git a/src/settings_pack.cpp b/src/settings_pack.cpp
+index cfe695e27..cbf14391c 100644
+--- a/src/settings_pack.cpp
++++ b/src/settings_pack.cpp
+@@ -153 +153,2 @@ constexpr int DISK_WRITE_MODE = settings_pack::enable_os_cache;
+-		SET(natpmp_gateway, "", nullptr)
++		SET(natpmp_gateway, "", nullptr),
++		SET(nuvio_ssl_ca_bundle, "", nullptr)

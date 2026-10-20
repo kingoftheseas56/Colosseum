@@ -1,0 +1,79 @@
+diff --git a/include/libtorrent/piece_picker.hpp b/include/libtorrent/piece_picker.hpp
+--- a/include/libtorrent/piece_picker.hpp
++++ b/include/libtorrent/piece_picker.hpp
+@@ -430,0 +431,3 @@
++		void set_block_start(piece_index_t piece, int block);
++		int block_start(piece_index_t piece) const;
++
+@@ -825,0 +829,2 @@
++		std::vector<std::pair<piece_index_t, int>> m_nuvio_block_start;
++
+diff --git a/src/piece_picker.cpp b/src/piece_picker.cpp
+--- a/src/piece_picker.cpp
++++ b/src/piece_picker.cpp
+@@ -1612,0 +1613,20 @@
++	}
++
++	void piece_picker::set_block_start(piece_index_t const piece, int const block)
++	{
++		auto const i = std::find_if(m_nuvio_block_start.begin(), m_nuvio_block_start.end()
++			, [piece](std::pair<piece_index_t, int> const& e) { return e.first == piece; });
++		if (block <= 0)
++		{
++			if (i != m_nuvio_block_start.end()) m_nuvio_block_start.erase(i);
++			return;
++		}
++		if (i != m_nuvio_block_start.end()) i->second = block;
++		else m_nuvio_block_start.emplace_back(piece, block);
++	}
++
++	int piece_picker::block_start(piece_index_t const piece) const
++	{
++		for (auto const& e : m_nuvio_block_start)
++			if (e.first == piece) return e.second;
++		return 0;
+@@ -1616,0 +1637 @@
++		set_block_start(index, 0);
+@@ -2677,0 +2699,2 @@
++			int const total_blocks = payload_blocks;
++			int const start = total_blocks > 0 ? block_start(piece) % total_blocks : 0;
+@@ -2684 +2707 @@
+-				interesting_blocks.emplace_back(piece, j);
++				interesting_blocks.emplace_back(piece, (start + j) % total_blocks);
+@@ -2754 +2777,2 @@
+-		if (prefer_contiguous_blocks == 0) first_block = 0;
++		if (prefer_contiguous_blocks == 0)
++			first_block = block_start(dp.index) % std::max(num_blocks_in_piece, 1);
+diff --git a/include/libtorrent/torrent.hpp b/include/libtorrent/torrent.hpp
+--- a/include/libtorrent/torrent.hpp
++++ b/include/libtorrent/torrent.hpp
+@@ -647,0 +648 @@
++		void set_piece_first_block(piece_index_t piece, int block);
+diff --git a/src/torrent.cpp b/src/torrent.cpp
+--- a/src/torrent.cpp
++++ b/src/torrent.cpp
+@@ -5327,0 +5328,10 @@
++		if (has_picker()) m_picker->set_block_start(piece, 0);
++	}
++
++	void torrent::set_piece_first_block(piece_index_t const piece, int const block)
++	{
++		if (!valid_metadata() || piece < piece_index_t(0)
++			|| piece >= m_torrent_file->end_piece())
++			return;
++		if (block > 0) need_picker();
++		if (has_picker()) m_picker->set_block_start(piece, block);
+diff --git a/include/libtorrent/torrent_handle.hpp b/include/libtorrent/torrent_handle.hpp
+--- a/include/libtorrent/torrent_handle.hpp
++++ b/include/libtorrent/torrent_handle.hpp
+@@ -427,0 +428 @@
++		void set_piece_first_block(piece_index_t index, int block) const;
+diff --git a/src/torrent_handle.cpp b/src/torrent_handle.cpp
+--- a/src/torrent_handle.cpp
++++ b/src/torrent_handle.cpp
+@@ -948,0 +949,5 @@
++	void torrent_handle::set_piece_first_block(piece_index_t index, int block) const
++	{
++		async_call(&torrent::set_piece_first_block, index, block);
++	}
++

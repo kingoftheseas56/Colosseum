@@ -1,0 +1,15 @@
+diff --git a/src/session_impl.cpp b/src/session_impl.cpp
+index 6bd5a19e2..5e692098c 100644
+--- a/src/session_impl.cpp
++++ b/src/session_impl.cpp
+@@ -174,0 +175,4 @@
++#if defined TORRENT_USE_OPENSSL && defined TORRENT_WINDOWS && !defined TORRENT_WINRT
++extern "C" void nuvio_windows_configure_tls_trust(SSL_CTX*);
++#endif
++
+@@ -630,0 +635,5 @@ void session_impl::start_session()
++#if defined TORRENT_USE_OPENSSL && defined TORRENT_WINDOWS && !defined TORRENT_WINRT
++		if (nuvio_ca_bundle.empty())
++			nuvio_windows_configure_tls_trust(m_ssl_ctx.native_handle());
++#endif
++

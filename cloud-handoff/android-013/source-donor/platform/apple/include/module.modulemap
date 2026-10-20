@@ -1,0 +1,4 @@
+module CNuvioEngine [system] {
+    header "nuvio_engine/nuvio_engine.h"
+    export *
+}

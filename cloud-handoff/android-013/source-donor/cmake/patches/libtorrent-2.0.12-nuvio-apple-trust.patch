@@ -1,0 +1,15 @@
+diff --git a/src/session_impl.cpp b/src/session_impl.cpp
+index b1b54a80d..6bd5a19e2 100644
+--- a/src/session_impl.cpp
++++ b/src/session_impl.cpp
+@@ -170,0 +171,4 @@
++#if defined TORRENT_USE_OPENSSL && defined __APPLE__
++extern "C" void nuvio_apple_configure_tls_trust(SSL_CTX*);
++#endif
++
+@@ -621,0 +626,5 @@ void session_impl::start_session()
++#if defined TORRENT_USE_OPENSSL && defined __APPLE__
++		if (nuvio_ca_bundle.empty())
++			nuvio_apple_configure_tls_trust(m_ssl_ctx.native_handle());
++#endif
++

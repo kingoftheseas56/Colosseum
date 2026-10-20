@@ -1,0 +1,610 @@
+diff --git a/native/CMakeLists.txt b/native/CMakeLists.txt
+index 9f9a1be..bccbccf 100644
+--- a/native/CMakeLists.txt
++++ b/native/CMakeLists.txt
+@@ -12,6 +12,24 @@ option(COLOSSEUM_UPDATE_TESTING
+     "Use the test-only update public key for isolated fixture builds"
+     OFF)
+ 
++# Minimal focused-test project for the opt-in Android Nuvio playback backend:
++# returns before every unrelated desktop dependency while still compiling the
++# PRODUCTION adapter sources (shared list in cmake/NuvioBackendTests.cmake).
++option(COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY
++    "Configure only the focused Nuvio stream backend tests and stop"
++    OFF)
++if(COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY)
++    find_package(Qt6 REQUIRED COMPONENTS Core Test)
++    set(CMAKE_AUTOMOC ON)
++    include(CTest)
++    set(COLOSSEUM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
++    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NuvioBackendTests.cmake")
++    colosseum_add_nuvio_backend_tests()
++    return()
++endif()
++
++include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NuvioBackend.cmake")
++
+ # 1.1.9 no-account edition switch (2026-10-14). ON: account sign-in,
+ # registration and account-sync entry points are hidden, no account-service
+ # traffic can be constructed (the endpoint resolves to nothing, remembered
+diff --git a/native/cmake/android.cmake b/native/cmake/android.cmake
+index 6cea8b1..d287fe2 100644
+--- a/native/cmake/android.cmake
++++ b/native/cmake/android.cmake
+@@ -31,6 +31,29 @@ target_sources(colosseum PRIVATE
+     player/powerstore.h
+ )
+ 
++# Opt-in Nuvio torrent playback backend (see cmake/NuvioBackend.cmake): the
++# adapter sources join the app target only when the hardened, stamp-verified
++# private engine artifact is configured. OFF keeps the unavailable stub.
++if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
++    target_sources(colosseum PRIVATE
++        player/nuvioengineapi.cpp
++        player/nuvioengineapi.h
++        player/nuviostreambackend.cpp
++        player/nuviostreambackend.h
++    )
++    target_include_directories(colosseum PRIVATE
++        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nuvio-engine/include"
++    )
++    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ANDROID_NUVIO_BACKEND=1)
++    # Package the private engine library so the runtime QLibrary load from the
++    # app's nativeLibraryDir resolves; it is never linked into libcolosseum.
++    set_property(
++        TARGET colosseum
++        APPEND
++        PROPERTY QT_ANDROID_EXTRA_LIBS "${COLOSSEUM_NUVIO_ENGINE_LIBRARY}"
++    )
++endif()
++
+ # Android needs the same source-shaped runtime tree as desktop, but APKs cannot
+ # read a checkout beside the native library. Build a generated package overlay
+ # whose assets/colosseum-runtime tree is filtered for Android and can be copied
+diff --git a/native/main.cpp b/native/main.cpp
+index b7dcd70..ad093f9 100644
+--- a/native/main.cpp
++++ b/native/main.cpp
+@@ -1135,6 +1135,18 @@ int main(int argc, char *argv[]) {
+     // runtime only spawns on the first Stream.play() call.
+     auto *stream = new StreamServer(&backendServices);
+     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
++#ifdef Q_OS_ANDROID
++    // Opt-in Nuvio playback backend lifecycle: gate new torrent work on the
++    // app state PlatformRuntime already owns (quiesce in the background,
++    // reconstruct fresh engine state on the next explicit foreground demand).
++    // The startup warmUp() call below stays a no-op on Android: the backend
++    // is born only on an explicit play()/prefetch(), never at launch.
++    QObject::connect(
++        platformRuntime,
++        &Colosseum::Platform::Runtime::applicationStateChanged,
++        stream,
++        [platformRuntime, stream]() { stream->setForeground(platformRuntime->foreground()); });
++#endif
+     // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
+     // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
+     // bootstrap + tracker announce + handshake + unchoke) at the exact moment Play was pressed, which
+diff --git a/native/platform/android/build.gradle b/native/platform/android/build.gradle
+index 420a2a5..caa4d86 100644
+--- a/native/platform/android/build.gradle
++++ b/native/platform/android/build.gradle
+@@ -84,6 +84,9 @@ android {
+     packagingOptions {
+         jniLibs {
+             useLegacyPackaging = legacyPackaging
++            // The hardened Nuvio engine's verified SHA-256 must survive APK
++            // packaging unchanged. Other JNI libraries retain normal stripping.
++            keepDebugSymbols.add('**/libnuvio_engine.so')
+         }
+     }
+ 
+diff --git a/native/player/streamserver.h b/native/player/streamserver.h
+index e58d65b..cc5816e 100644
+--- a/native/player/streamserver.h
++++ b/native/player/streamserver.h
+@@ -16,14 +16,26 @@
+ #ifndef COLOSSEUM_STREAMSERVER_H
+ #define COLOSSEUM_STREAMSERVER_H
+ 
++#include <QByteArray>
+ #include <QList>
+ #include <QObject>
+ #include <QString>
+ #include <QVariantMap>
+ 
++// The Android facade shape (backend member + Android declarations) is active
++// on Android, and also on a host build that defines
++// COLOSSEUM_ANDROID_NUVIO_BACKEND purely to compile the facade translation
++// unit in focused tests. That host shape is compile/behavior coverage only;
++// desktop production never defines the macro.
++#if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
++#include <memory>
++namespace Colosseum::Nuvio { class NuvioStreamBackend; }
++#endif
++
+ class QProcess;
+ class QNetworkAccessManager;
+ class QTimer;
++class QFileSystemWatcher;
+ 
+ class StreamServer : public QObject
+ {
+@@ -35,8 +47,19 @@ public:
+     explicit StreamServer(QObject *parent = nullptr);
+     ~StreamServer() override;
+ 
++#if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
++    // Android: ready/starting delegate to the opt-in Nuvio backend (see
++    // streamserver_android.cpp); the desktop inline accessors below stay the
++    // single source of truth for the runtime-child implementation.
++    bool ready() const;
++    bool starting() const;
++    // PlatformRuntime lifecycle gate: the backend quiesces in the background
++    // and reconstructs fresh engine state on the next explicit demand.
++    void setForeground(bool foreground);
++#else
+     bool ready() const { return m_port > 0; }
+     bool starting() const { return m_starting; }
++#endif
+     bool engineUnavailable() const { return m_engineUnavailable; }
+ 
+     // Start the stream (spawning the runtime if needed) and emit streamReady when the
+@@ -80,14 +103,35 @@ Q_SIGNALS:
+     void streamError(const QString &message);
+     // keys: peers, unchoked, downloaded, downloadSpeed, streamProgress, streamLen
+     void streamStats(const QString &infoHash, int fileIdx, const QVariantMap &stats);
++    // Task-only (nuvio-glm-local-streaming-20261020): raised when a task
++    // trigger file requests a fixture play; QML opens the real player route.
++    void fixturePlayRequested(const QString &infoHash, int fileIdx, const QString &title);
+ 
+ private:
++#if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
++#ifdef COLOSSEUM_ANDROID_NUVIO_BACKEND
++    std::unique_ptr<Colosseum::Nuvio::NuvioStreamBackend> m_backend;
++    // Task-only fixture trigger plumbing (task-owned file in app storage).
++    QByteArray m_pendingFixtureTorrentData;
++    QString m_pendingFixtureInfoHash;
++    bool m_diagnosticTask = false;
++    QFileSystemWatcher *m_triggerWatcher = nullptr;
++    QTimer *m_triggerDebounce = nullptr;
++    void handleTriggerFile();
++#endif
++    bool m_engineUnavailable = false;
++    // Reflects runtime engine-unavailability (library resolve failure at
++    // construction, engine create failure later) into the facade property
++    // and its change notification.
++    void setEngineUnavailable(bool unavailable);
++#else
+     struct Pending {
+         QString infoHash;
+         int fileIdx;
+         bool fetch = false;   // true -> answer with fetchReady (download), not streamReady
+     };
+ 
++
+     void ensureStarted();                 // adopt a running official server, else launch our own
+     void launchChild();                   // spawn the platform Stremio runtime + server.js ourselves
+     void setEngineUnavailable(bool unavailable);
+@@ -112,6 +156,7 @@ private:
+     int m_statsIdx = -1;
+     bool m_statsInflight = false;
+     int m_consecutiveHealthRestarts = 0;
++#endif // Q_OS_ANDROID
+ };
+ 
+ #endif // COLOSSEUM_STREAMSERVER_H
+diff --git a/native/player/streamserver_android.cpp b/native/player/streamserver_android.cpp
+index 450d187..5a0040f 100644
+--- a/native/player/streamserver_android.cpp
++++ b/native/player/streamserver_android.cpp
+@@ -1,5 +1,343 @@
+ #include "streamserver.h"
+ 
++#ifdef COLOSSEUM_ANDROID_NUVIO_BACKEND
++
++#include "nuviostreambackend.h"
++
++#include <QDebug>
++#include <QCryptographicHash>
++
++#include <QStandardPaths>
++
++#ifdef Q_OS_ANDROID
++#include <QCoreApplication>
++#include <QJniObject>
++#include <QDir>
++#include <QFile>
++#include <QFileSystemWatcher>
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QTimer>
++#include <QtCore/qcoreapplication_platform.h>
++#endif
++
++#include <QDir>
++#include <QFileInfo>
++
++namespace {
++
++constexpr auto kUnavailableMessage = "Colosseum Server is not available: the nuvio engine library is missing";
++
++QString androidContextNativeLibraryDir() {
++#ifdef Q_OS_ANDROID
++    const auto context = QNativeInterface::QAndroidApplication::context();
++    if (!context.isValid()) {
++        return {};
++    }
++    const QJniObject contextObject = context;
++    const auto info = contextObject.callObjectMethod(
++        "getApplicationInfo",
++        "()Landroid/content/pm/ApplicationInfo;"
++    );
++    if (!info.isValid()) {
++        return {};
++    }
++    const auto dir = info.getObjectField("nativeLibraryDir", "Ljava/lang/String;");
++    return dir.toString();
++#else
++    return {};
++#endif
++}
++
++QString androidCurrentPackage() {
++#ifdef Q_OS_ANDROID
++    const auto context = QNativeInterface::QAndroidApplication::context();
++    if (!context.isValid()) return {};
++    const QJniObject obj = context;
++    return obj.callObjectMethod("getPackageName", "()Ljava/lang/String;").toString();
++#else
++    return {};
++#endif
++}
++
++bool exportAndroidTrustBundle(const QString &pemPath) {
++#ifdef Q_OS_ANDROID
++    QDir().mkpath(QFileInfo(pemPath).absolutePath());
++    return QJniObject::callStaticMethod<jboolean>(
++        "org/colosseum/player/NuvioAndroidTrust",
++        "exportTo",
++        "(Ljava/lang/String;)Z",
++        QJniObject::fromString(pemPath).object<jstring>()
++    );
++#else
++    Q_UNUSED(pemPath)
++    return true;
++#endif
++}
++
++} // namespace
++
++StreamServer::StreamServer(QObject *parent)
++    : QObject(parent) {
++    const auto appData =
++        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
++        QStringLiteral("/nuvio");
++    const auto pemPath = appData + QStringLiteral("/tls/android-ca.pem");
++
++    Colosseum::Nuvio::NuvioStreamBackend::Configuration configuration;
++    configuration.dataDirectory = appData + QStringLiteral("/data");
++    configuration.cacheDirectory =
++        QStandardPaths::writableLocation(QStandardPaths::CacheLocation) +
++        QStringLiteral("/nuvio");
++    configuration.tlsCaBundlePath = pemPath;
++    // The fixture and diagnostic APIs exist only in this explicitly named,
++    // independently signed debug package. Production packages keep defaults.
++    m_diagnosticTask =
++        androidCurrentPackage() == QStringLiteral("org.qtproject.example.colosseum.nuvio010isolated");
++    bool taskDirectoriesReady = true;
++    if (m_diagnosticTask) {
++        qputenv("NUVIO_ENGINE_DISABLE_DISCOVERY", "1");
++        configuration.requireFixtureIsolation = true;
++        configuration.dataDirectory = appData + QStringLiteral("/resume011-data");
++        configuration.cacheDirectory =
++            QStandardPaths::writableLocation(QStandardPaths::CacheLocation) +
++            QStringLiteral("/nuvio/resume011-cache");
++        taskDirectoriesReady = QDir().mkpath(configuration.dataDirectory) &&
++                               QDir().mkpath(configuration.cacheDirectory);
++        qInfo() << "[nuvio011] diagnostic package, isolated fresh payload/cache roots"
++                << configuration.dataDirectory << configuration.cacheDirectory
++                << "created" << taskDirectoriesReady;
++    }
++
++    // The Android system trust roots must be exported to a private PEM before
++    // the native engine is created; certificate verification is never
++    // disabled. A failed export leaves the backend unavailable.
++    if (!taskDirectoriesReady || !exportAndroidTrustBundle(pemPath)) {
++        m_engineUnavailable = true;
++        m_backend.reset(); // no engine without trust roots
++    } else {
++        const QString engineLibraryPath =
++            androidContextNativeLibraryDir() + QStringLiteral("/libnuvio_engine.so");
++        m_backend = std::make_unique<Colosseum::Nuvio::NuvioStreamBackend>(
++            engineLibraryPath,
++            configuration,
++            this
++        );
++        // Task010-correction evidence: the eager loadEngineApi outcome must be
++        // observable (resolved path + API-table availability) without a session.
++        qInfo() << QStringLiteral("[nuvio] startup engine path: %1, api available: %2")
++                       .arg(engineLibraryPath,
++                            m_backend->available() ? QStringLiteral("true")
++                                                   : QStringLiteral("false"));
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::readyChanged,
++            this,
++            &StreamServer::readyChanged
++        );
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::startingChanged,
++            this,
++            &StreamServer::startingChanged
++        );
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::engineUnavailableChanged,
++            this,
++            &StreamServer::engineUnavailableChanged
++        );
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::streamReady,
++            this,
++            [this](const QString &url, const QString &infoHash, int fileIdx) {
++                // Task-only: the loopback route target embeds an unguessable
++                // stream token, so external Range verification of the same
++                // Nuvio URL needs the exact route identity logged here. The
++                // diagnostic package alone logs it; production stays silent.
++                if (m_diagnosticTask) {
++                    qInfo() << "[nuvio011] streamReady url:" << url
++                            << "infoHash:" << infoHash << "fileIdx:" << fileIdx;
++                }
++                emit streamReady(url, infoHash, fileIdx);
++            }
++        );
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::fetchReady,
++            this,
++            &StreamServer::fetchReady
++        );
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::streamError,
++            this,
++            &StreamServer::streamError
++        );
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::streamStats,
++            this,
++            &StreamServer::streamStats
++        );
++        // Runtime engine-unavailability (an engine create failure after a
++        // successful library load) must be reflected by the facade property
++        // and its notification, not merely forwarded as an unrelated signal.
++        connect(
++            m_backend.get(),
++            &Colosseum::Nuvio::NuvioStreamBackend::engineUnavailableChanged,
++            this,
++            [this] {
++                setEngineUnavailable(m_backend && m_backend->engineUnavailable());
++            }
++        );
++        setEngineUnavailable(!m_backend->available());
++        if (m_diagnosticTask) {
++        // Task-only fixture trigger: watch the app-private files directory
++        // for nuvio010-trigger.json (written over ADB via run-as). Only this
++        // task-owned file ever drives the fixture seams.
++        const QString triggerDir =
++            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
++        QDir().mkpath(triggerDir);
++        m_triggerWatcher = new QFileSystemWatcher(QStringList(triggerDir), this);
++        m_triggerDebounce = new QTimer(this);
++        m_triggerDebounce->setSingleShot(true);
++        m_triggerDebounce->setInterval(600);
++        connect(m_triggerWatcher, &QFileSystemWatcher::directoryChanged,
++                this, [this] { m_triggerDebounce->start(); });
++        connect(m_triggerDebounce, &QTimer::timeout, this, &StreamServer::handleTriggerFile);
++        }
++    }
++}
++
++void StreamServer::handleTriggerFile() {
++    if (!m_diagnosticTask) return;
++    const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
++        + QStringLiteral("/nuvio011-trigger.json");
++    QFile file(path);
++    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
++        return;
++    }
++    const auto document = QJsonDocument::fromJson(file.readAll());
++    if (!document.isObject()) {
++        return;
++    }
++    const auto object = document.object();
++    const QString op = object.value(QStringLiteral("op")).toString();
++    if (op == QLatin1String("verify")) {
++        qInfo() << "[nuvio] trigger: verify received";
++        if (m_backend) {
++            m_backend->verifyIsolation();
++        }
++        return;
++    }
++    if (op == QLatin1String("play")) {
++        const QString infoHash = object.value(QStringLiteral("infoHash")).toString();
++        const int fileIdx = object.value(QStringLiteral("fileIdx")).toInt(-1);
++        const QString title =
++            object.value(QStringLiteral("title")).toString(QStringLiteral("Nuvio 011 fixture"));
++        const QString sourcePath =
++            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
++            QStringLiteral("/nuvio011-fixture.torrent");
++        QFile torrentFile(sourcePath);
++        const auto expectedTorrentSha = QByteArrayLiteral(
++            "52c22b666c86a4c1cb7a92a4b18ab49654a8b2b9dc7ad15d44b88e994acad71b");
++        if (infoHash != QStringLiteral("79afbaf5c4e39bca900c8154cf3fa282a5019e8a") ||
++            fileIdx != 0 || !torrentFile.open(QIODevice::ReadOnly) ||
++            torrentFile.size() != 3436) {
++            qWarning() << "[nuvio011] fixture trigger rejected: identity or metadata unavailable";
++            return;
++        }
++        const auto contents = torrentFile.readAll();
++        if (QCryptographicHash::hash(contents, QCryptographicHash::Sha256).toHex() !=
++            expectedTorrentSha) {
++            qWarning() << "[nuvio011] fixture trigger rejected: torrent hash mismatch";
++            return;
++        }
++        qInfo() << "[nuvio011] verified private torrent metadata:" << infoHash
++                << "bytes" << contents.size();
++        m_pendingFixtureTorrentData = contents;
++        m_pendingFixtureInfoHash = infoHash;
++        emit fixturePlayRequested(infoHash, fileIdx, title);
++        return;
++    }
++    qWarning() << "[nuvio] trigger: unknown op";
++}
++
++StreamServer::~StreamServer() = default;
++
++void StreamServer::setEngineUnavailable(bool unavailable) {
++    if (m_engineUnavailable == unavailable) {
++        return;
++    }
++    m_engineUnavailable = unavailable;
++    emit engineUnavailableChanged();
++}
++
++bool StreamServer::ready() const {
++    return m_backend && m_backend->ready();
++}
++
++bool StreamServer::starting() const {
++    return m_backend && m_backend->starting();
++}
++
++void StreamServer::play(const QString &infoHash, int fileIdx) {
++    if (!m_backend) {
++        // kUnavailableMessage is a constant, not a literal token, so it must
++        // not go through QStringLiteral.
++        emit streamError(QString::fromLatin1(kUnavailableMessage));
++        return;
++    }
++    // Fixed, hash-pinned private .torrent metadata is routed through the
++    // application's existing Stream demand rather than a direct player URL.
++    if (m_diagnosticTask && !m_pendingFixtureTorrentData.isEmpty() &&
++        m_pendingFixtureInfoHash == infoHash) {
++        const QByteArray metadata = std::exchange(m_pendingFixtureTorrentData, QByteArray());
++        m_pendingFixtureInfoHash.clear();
++        m_backend->playTorrentData(metadata, infoHash, fileIdx);
++        return;
++    }
++    m_backend->play(infoHash, fileIdx);
++}
++
++void StreamServer::prefetch(const QString &infoHash, int fileIdx) {
++    if (!m_backend) {
++        emit streamError(QString::fromLatin1(kUnavailableMessage));
++        return;
++    }
++    m_backend->prefetch(infoHash, fileIdx);
++}
++
++void StreamServer::warmUp() {
++    // Deliberately lazy: never starts torrent networking at app startup.
++}
++
++QString StreamServer::streamUrl(const QString &infoHash, int fileIdx) const {
++    return m_backend ? m_backend->streamUrl(infoHash, fileIdx) : QString();
++}
++
++void StreamServer::watchStats(const QString &infoHash, int fileIdx) {
++    if (m_backend) {
++        m_backend->watchStats(infoHash, fileIdx);
++    }
++}
++
++void StreamServer::unwatchStats() {
++    if (m_backend) {
++        m_backend->unwatchStats();
++    }
++}
++
++void StreamServer::setForeground(bool foreground) {
++    if (m_backend) {
++        m_backend->setForeground(foreground);
++    }
++}
++
++#else // stub: Android streaming unavailable
++
+ namespace {
+ const QString kUnavailableMessage = QStringLiteral(
+     "Colosseum Server is not available on Android yet");
+@@ -13,6 +351,21 @@ StreamServer::StreamServer(QObject *parent)
+ 
+ StreamServer::~StreamServer() = default;
+ 
++bool StreamServer::ready() const
++{
++    return false;
++}
++
++bool StreamServer::starting() const
++{
++    return false;
++}
++
++void StreamServer::setForeground(bool foreground)
++{
++    Q_UNUSED(foreground)
++}
++
+ void StreamServer::setEngineUnavailable(bool unavailable)
+ {
+     if (m_engineUnavailable == unavailable)
+@@ -56,3 +409,5 @@ void StreamServer::watchStats(const QString &infoHash, int fileIdx)
+ void StreamServer::unwatchStats()
+ {
+ }
++
++#endif // COLOSSEUM_ANDROID_NUVIO_BACKEND
+diff --git a/qml/Main.qml b/qml/Main.qml
+index 4dcb212..e9d43e4 100644
+--- a/qml/Main.qml
++++ b/qml/Main.qml
+@@ -2402,6 +2402,17 @@ Window {
+                                      streamCandidates || [], playbackContext || ({}))
+     }
+ 
++    // Task-only (nuvio-glm-local-streaming-20261020): a task-owned fixture
++    // demand from the Android facade opens the REAL player route; the
++    // facade forwards the fixture magnet through Stream.play itself.
++    Connections {
++        target: (typeof Stream !== "undefined") ? Stream : null
++        ignoreUnknownSignals: true
++        function onFixturePlayRequested(infoHash, fileIdx, title) {
++            win.openPlayer(infoHash, fileIdx, title || "Nuvio task fixture", "", "", "", [], null)
++        }
++    }
++
+     function openWatchPartyRoomSource() {
+         if (typeof WatchPartyUi === "undefined" || !WatchPartyUi.inRoom)
+             return false
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 51ed5cd..e6e3c55 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -4835,3 +4835,12 @@ foreach(_test_catalogue_target IN LISTS _test_catalogue_targets)
+         target_link_libraries(${_test_catalogue_target} PRIVATE Qt6::Network)
+     endif()
+ endforeach()
++
++# Focused tests for the opt-in Android Nuvio playback backend: compiles the
++# production adapter sources and the Android facade translation unit against
++# an injected scripted C API provider (no engine library, no network). The
++# shared source list and target live in native/cmake/NuvioBackendTests.cmake
++# so the minimal COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY project builds the
++# identical target.
++include("${COLOSSEUM_NATIVE_DIR}/cmake/NuvioBackendTests.cmake")
++colosseum_add_nuvio_backend_tests()

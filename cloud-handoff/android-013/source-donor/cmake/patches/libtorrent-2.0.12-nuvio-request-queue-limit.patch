@@ -1,0 +1,9 @@
+diff --git a/src/bt_peer_connection.cpp b/src/bt_peer_connection.cpp
+--- a/src/bt_peer_connection.cpp
++++ b/src/bt_peer_connection.cpp
+@@ -2066,2 +2066,3 @@
+-		int const reqq = int(root.dict_find_int_value("reqq"));
+-		if (reqq > 0) max_out_request_queue(reqq);
++		int const nuvio_reqq = int(root.dict_find_int_value("reqq"));
++		if (nuvio_reqq > 0) max_out_request_queue(std::min(nuvio_reqq
++			, m_settings.get_int(settings_pack::max_out_request_queue)));

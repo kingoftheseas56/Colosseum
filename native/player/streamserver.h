@@ -16,14 +16,26 @@
 #ifndef COLOSSEUM_STREAMSERVER_H
 #define COLOSSEUM_STREAMSERVER_H
 
+#include <QByteArray>
 #include <QList>
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
 
+// The Android facade shape (backend member + Android declarations) is active
+// on Android, and also on a host build that defines
+// COLOSSEUM_ANDROID_NUVIO_BACKEND purely to compile the facade translation
+// unit in focused tests. That host shape is compile/behavior coverage only;
+// desktop production never defines the macro.
+#if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+#include <memory>
+namespace Colosseum::Nuvio { class NuvioStreamBackend; }
+#endif
+
 class QProcess;
 class QNetworkAccessManager;
 class QTimer;
+class QFileSystemWatcher;
 
 class StreamServer : public QObject
 {
@@ -35,8 +47,19 @@ public:
     explicit StreamServer(QObject *parent = nullptr);
     ~StreamServer() override;
 
+#if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+    // Android: ready/starting delegate to the opt-in Nuvio backend (see
+    // streamserver_android.cpp); the desktop inline accessors below stay the
+    // single source of truth for the runtime-child implementation.
+    bool ready() const;
+    bool starting() const;
+    // PlatformRuntime lifecycle gate: the backend quiesces in the background
+    // and reconstructs fresh engine state on the next explicit demand.
+    void setForeground(bool foreground);
+#else
     bool ready() const { return m_port > 0; }
     bool starting() const { return m_starting; }
+#endif
     bool engineUnavailable() const { return m_engineUnavailable; }
 
     // Start the stream (spawning the runtime if needed) and emit streamReady when the
@@ -80,13 +103,34 @@ Q_SIGNALS:
     void streamError(const QString &message);
     // keys: peers, unchoked, downloaded, downloadSpeed, streamProgress, streamLen
     void streamStats(const QString &infoHash, int fileIdx, const QVariantMap &stats);
+    // Task-only (nuvio-glm-local-streaming-20261020): raised when a task
+    // trigger file requests a fixture play; QML opens the real player route.
+    void fixturePlayRequested(const QString &infoHash, int fileIdx, const QString &title);
 
 private:
+#if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+#ifdef COLOSSEUM_ANDROID_NUVIO_BACKEND
+    std::unique_ptr<Colosseum::Nuvio::NuvioStreamBackend> m_backend;
+    // Task-only fixture trigger plumbing (task-owned file in app storage).
+    QByteArray m_pendingFixtureTorrentData;
+    QString m_pendingFixtureInfoHash;
+    bool m_diagnosticTask = false;
+    QFileSystemWatcher *m_triggerWatcher = nullptr;
+    QTimer *m_triggerDebounce = nullptr;
+    void handleTriggerFile();
+#endif
+    bool m_engineUnavailable = false;
+    // Reflects runtime engine-unavailability (library resolve failure at
+    // construction, engine create failure later) into the facade property
+    // and its change notification.
+    void setEngineUnavailable(bool unavailable);
+#else
     struct Pending {
         QString infoHash;
         int fileIdx;
         bool fetch = false;   // true -> answer with fetchReady (download), not streamReady
     };
+
 
     void ensureStarted();                 // adopt a running official server, else launch our own
     void launchChild();                   // spawn the platform Stremio runtime + server.js ourselves
@@ -112,6 +156,7 @@ private:
     int m_statsIdx = -1;
     bool m_statsInflight = false;
     int m_consecutiveHealthRestarts = 0;
+#endif // Q_OS_ANDROID
 };
 
 #endif // COLOSSEUM_STREAMSERVER_H

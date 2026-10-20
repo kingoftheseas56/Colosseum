@@ -1,0 +1,7 @@
+NUVIO_ENGINE_0.1 {
+    global:
+        nuvio_engine_*;
+        Java_com_nuvio_engine_internal_NativeBridge_*;
+    local:
+        *;
+};

@@ -1,0 +1,39 @@
+diff --git a/src/ut_metadata.cpp b/src/ut_metadata.cpp
+--- a/src/ut_metadata.cpp
++++ b/src/ut_metadata.cpp
+@@ -137,0 +138,25 @@
++		int nuvio_metadata_request(bool const has_metadata, std::vector<int> const& sent)
++		{
++			if (m_requested_metadata.empty())
++			{
++				if (std::find(sent.begin(), sent.end(), 0) != sent.end()) return -1;
++				m_requested_metadata.resize(1);
++				++m_requested_metadata[0].num_requests;
++				if (has_metadata) m_requested_metadata[0].last_request = aux::time_now();
++				return 0;
++			}
++			int best = -1;
++			for (int piece = 0; piece < m_requested_metadata.end_index(); ++piece)
++			{
++				auto const& entry = m_requested_metadata[piece];
++				if (entry.num_requests == std::numeric_limits<int>::max()) continue;
++				if (std::find(sent.begin(), sent.end(), piece) != sent.end()) continue;
++				if (best == -1 || entry.num_requests < m_requested_metadata[best].num_requests)
++					best = piece;
++			}
++			if (best == -1) return -1;
++			++m_requested_metadata[best].num_requests;
++			if (has_metadata) m_requested_metadata[best].last_request = aux::time_now();
++			return best;
++		}
++
+@@ -429 +454,2 @@
+-			if (!m_torrent.valid_metadata()
++			int const nuvio_metadata_pipeline = 8;
++			while (!m_torrent.valid_metadata()
+@@ -431 +457 @@
+-				&& m_sent_requests.size() < 2
++				&& int(m_sent_requests.size()) < nuvio_metadata_pipeline
+@@ -434 +460 @@
+-				int const piece = m_tp.metadata_request(m_pc.has_metadata());
++				int const piece = m_tp.nuvio_metadata_request(m_pc.has_metadata(), m_sent_requests);

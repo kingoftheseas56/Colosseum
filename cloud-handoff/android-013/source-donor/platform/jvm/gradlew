@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+exec "$script_directory/../android/gradlew" -p "$script_directory" "$@"

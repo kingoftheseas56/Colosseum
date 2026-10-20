@@ -1,0 +1,6 @@
+NUVIO_ENGINE_1.0 {
+    global:
+        nuvio_engine_*;
+    local:
+        *;
+};

@@ -1,0 +1,70 @@
+#< CLIXML
+test_candidate_matches_overlay (__main__.AndroidRuntimePackaging.test_candidate_matches_overlay) ... ok
+test_overlay_main_qml_equals_source (__main__.AndroidRuntimePackaging.test_overlay_main_qml_equals_source) ... ok
+test_overlay_qml_build_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_qml_build_manifest_consistent) ... ok
+test_overlay_runtime_files_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_runtime_files_manifest_consistent) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.995s
+
+OK
+test_candidate_matches_overlay (__main__.AndroidRuntimePackaging.test_candidate_matches_overlay) ... FAIL
+test_overlay_main_qml_equals_source (__main__.AndroidRuntimePackaging.test_overlay_main_qml_equals_source) ... ok
+test_overlay_qml_build_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_qml_build_manifest_consistent) ... ok
+test_overlay_runtime_files_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_runtime_files_manifest_consistent) ... ok
+
+======================================================================
+FAIL: test_candidate_matches_overlay (__main__.AndroidRuntimePackaging.test_candidate_matches_overlay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\NuvioTask008\repos\app-standalone\tests\test_android_runtime_packaging.py", line 155, in test_candidate_matches_overlay
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        members.get(rel), overlay[rel], f"packaged runtime member drift: {rel}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: '314ce4a640727507229348ec18392bb93f10e71bbe88b7c552a200aa51602a18' != '44daafd5d4980a7cff3551e187ea8a9acb6636affbf0693d925eac0d09a80357'
+- 314ce4a640727507229348ec18392bb93f10e71bbe88b7c552a200aa51602a18
++ 44daafd5d4980a7cff3551e187ea8a9acb6636affbf0693d925eac0d09a80357
+ : packaged runtime member drift: assets/colosseum-runtime/qml-build.manifest
+
+----------------------------------------------------------------------
+Ran 4 tests in 3.214s
+
+FAILED (failures=1)
+
+PASS test_android_glue_uses_resolvable_applicationinfo_signature
+PASS test_android_sources_only_join_the_target_behind_the_option
+PASS test_async_completions_are_correlated_by_request_id
+PASS test_backend_option_defaults_off_and_is_android_only
+PASS test_background_lifecycle_uses_platform_runtime
+PASS test_enabling_requires_hardened_artifact
+PASS test_libtorrent_patch_sources_allow_windows_crlf_but_reject_bare_cr
+PASS test_native_test_compiles_production_sources
+PASS test_package_gate_rejects_empty_stamp
+PASS test_package_gate_rejects_foreign_patch_identity
+PASS test_package_gate_rejects_forged_stamp_fields
+PASS test_package_gate_rejects_missing_provenance_fields
+PASS test_package_gate_rejects_missing_stamp
+PASS test_package_gate_rejects_self_consistent_header_only_artifact
+PASS test_package_gate_rejects_stale_artifact_bytes
+PASS test_package_gate_rejects_wrong_abi
+PASS test_pinned_headers_and_notices_are_vendored
+PASS test_pinned_patch_line_endings_are_portable_without_hunk_changes
+PASS test_prepare_rejects_modified_patch_drift
+PASS test_prepare_rejects_wrong_pinned_commit
+PASS test_prepare_script_is_pin_aware_and_fail_closed
+PASS test_prepare_script_pins_the_commit_not_just_the_tag
+PASS test_prepare_script_sentinel_lists_are_contradiction_free
+PASS test_qml_seam_contract_is_preserved
+PASS test_stub_api_table_loads_from_private_library_only
+PASS test_stub_is_preserved_when_option_off
+PASS test_tls_export_helper_exports_system_roots
+PASS test_upload_disabled_and_budgets_explicit
+PASS test_urls_are_validated_loopback_only
+PASS test_vendored_patch_applies_to_pristine_pinned_donor
+PASS test_warmup_and_startup_do_not_start_networking
+EXECUTED_CASES=31 SKIPPED_CASES=0
+{"positive_exit":0,"negative_exit":1,"contract_exit":0}
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S="progress" RefId="1"><TNRef RefId="0" /><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>

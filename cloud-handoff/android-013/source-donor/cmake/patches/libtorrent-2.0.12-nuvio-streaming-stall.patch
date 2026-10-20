@@ -1,0 +1,17 @@
+diff --git a/src/torrent.cpp b/src/torrent.cpp
+--- a/src/torrent.cpp
++++ b/src/torrent.cpp
+@@ -11088,6 +11088,7 @@
+-				// if it's been more than half of the typical download time
+-				// of a piece since we requested the last block, allow
+-				// one more request per block
+-				if (m_average_piece_time > 0)
+-					timed_out = int(total_milliseconds(now - i.last_requested)
+-						/ std::max(int(m_average_piece_time + m_piece_time_deviation / 2), 1));
++				int const nuvio_stall_budget_ms = 1000;
++				int const stall_budget = m_average_piece_time > 0
++					? std::min(int(m_average_piece_time + m_piece_time_deviation / 2)
++						, nuvio_stall_budget_ms)
++					: nuvio_stall_budget_ms;
++				timed_out = int(total_milliseconds(now - i.last_requested)
++					/ std::max(stall_budget, 1));

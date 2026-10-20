@@ -2402,6 +2402,17 @@ Window {
                                      streamCandidates || [], playbackContext || ({}))
     }
 
+    // Task-only (nuvio-glm-local-streaming-20261020): a task-owned fixture
+    // demand from the Android facade opens the REAL player route; the
+    // facade forwards the fixture magnet through Stream.play itself.
+    Connections {
+        target: (typeof Stream !== "undefined") ? Stream : null
+        ignoreUnknownSignals: true
+        function onFixturePlayRequested(infoHash, fileIdx, title) {
+            win.openPlayer(infoHash, fileIdx, title || "Nuvio task fixture", "", "", "", [], null)
+        }
+    }
+
     function openWatchPartyRoomSource() {
         if (typeof WatchPartyUi === "undefined" || !WatchPartyUi.inRoom)
             return false

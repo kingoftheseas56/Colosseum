@@ -1,0 +1,25 @@
+LIBRARY nuvio_engine
+EXPORTS
+    nuvio_engine_add_torrent
+    nuvio_engine_api_version
+    nuvio_engine_config_init_sized
+    nuvio_engine_create
+    nuvio_engine_destroy
+    nuvio_engine_event_init_sized
+    nuvio_engine_file_init_sized
+    nuvio_engine_get_file
+    nuvio_engine_get_file_count
+    nuvio_engine_get_stats
+    nuvio_engine_get_stream_stats
+    nuvio_engine_poll_event
+    nuvio_engine_prepare_stream
+    nuvio_engine_protocol_backend_version
+    nuvio_engine_reclaim_disk_cache
+    nuvio_engine_remove_torrent
+    nuvio_engine_stats_init_sized
+    nuvio_engine_status_message
+    nuvio_engine_stop_stream
+    nuvio_engine_stream_request_init_sized
+    nuvio_engine_stream_stats_init_sized
+    nuvio_engine_torrent_request_init_sized
+    nuvio_engine_version_string

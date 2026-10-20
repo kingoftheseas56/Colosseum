@@ -1,0 +1,1143 @@
+{
+  "task": "claude-android-cloud-013-20261020",
+  "authority": "Hemanth explicit baseline publication instruction, 2026-10-20",
+  "branch": "codex/android-cloud-baseline-013-20261020",
+  "upstream_app": "fdd23f09e8b631f5c165e84d969895c99f520a28",
+  "original_payload_sha256": "0638a8244b3cab0aca60f4679a0d2541a9489e95cc5ffe7696e00bc2c192ca96",
+  "integration": false,
+  "omitted_generated_bytecode": [
+    "cloud-handoff/android-013/__pycache__/verify_source.cpython-311.pyc"
+  ],
+  "files": [
+    {
+      "path": "cloud-handoff/android-013/CLOUD-ENVIRONMENT.md",
+      "bytes": 8080,
+      "sha256": "018df311a8c94a79b71c1a42c0a432e8052e3a63f79ec137bf2a0f6a20fd67b6"
+    },
+    {
+      "path": "cloud-handoff/android-013/CLOUD-SOURCE-MANIFEST.json",
+      "bytes": 2431813,
+      "sha256": "d56adc31fee3431d405de9060de765c8e48e229ada08e30939acafb81ceb070e"
+    },
+    {
+      "path": "cloud-handoff/android-013/DONOR-GIT-SHALLOW.txt",
+      "bytes": 41,
+      "sha256": "1a1d9655c5ba59b8b4f1731127ffdecd52c07300f37773863264f3c5c6e15e00"
+    },
+    {
+      "path": "cloud-handoff/android-013/HANDOFF.md",
+      "bytes": 23989,
+      "sha256": "e3b87b3705aeed8d1932e2cba909a201fc7f33dd4518e13ca100d758f0214051"
+    },
+    {
+      "path": "cloud-handoff/android-013/PUBLICATION-AUTHORITY.md",
+      "bytes": 1915,
+      "sha256": "456578d6efc53af08870f9f89086834ab987476eb1f5a8ae52d2c9665754fff0"
+    },
+    {
+      "path": "cloud-handoff/android-013/PUBLISH-BASELINE.md",
+      "bytes": 4767,
+      "sha256": "ce6e877255b50705ba7ce0e3ce9de648cb36e04424e502e3600a016f20dbf24e"
+    },
+    {
+      "path": "cloud-handoff/android-013/README.md",
+      "bytes": 2841,
+      "sha256": "c14cecff9ce809a2a7df108bed5dc9a3d3ad1b259a504898d2bac660a103b758"
+    },
+    {
+      "path": "cloud-handoff/android-013/SOURCE-MANIFEST.json",
+      "bytes": 1258967,
+      "sha256": "6a25f0143f383045f5bfd2615b31f1f93a45d4f469b21b516de6b3b0fc08b62b"
+    },
+    {
+      "path": "cloud-handoff/android-013/SOURCE-RECEIPT.json",
+      "bytes": 287,
+      "sha256": "451379117cb5a16d766b1ac2d09f76cd01713c86c13f2a7c5455348598f8554e"
+    },
+    {
+      "path": "cloud-handoff/android-013/START-PROMPT.txt",
+      "bytes": 408,
+      "sha256": "cd44932ec926c87f9c506f9582ea8ba00c5e8e0880e34ff9af141567a1753112"
+    },
+    {
+      "path": "cloud-handoff/android-013/cloud-environment-setup.sh",
+      "bytes": 967,
+      "sha256": "8a3831dd2a7dc0b3c49d0f6d814ebbb737f4ecf1087840b32defe04dde8bbef7"
+    },
+    {
+      "path": "cloud-handoff/android-013/donor-pristine-pin.bundle",
+      "bytes": 245463,
+      "sha256": "f716939dd1e1ec3d71610c96db4537aecf41accba5fd037141457b82dbdf7cd1"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/REPLY-GLM-NUVIO-012.md",
+      "bytes": 11966,
+      "sha256": "092b56a183867e5dea2df42cb24872acb7f6faa42c8bc6c4e5e046089d97422a"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/REPLY-GLM-NUVIO-012.md.done",
+      "bytes": 309,
+      "sha256": "faab438d96da4c80b8794a0a69e7946579020d8d39a68bc44674cc323fe06f24"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/nuvio-startup-correction-independent-acceptance.md",
+      "bytes": 8725,
+      "sha256": "3423f447976cbc7a5d06936ca884aa95c8595e4d33367193666dba72f8c6dff4"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/nuvio-task008-independent-acceptance.md",
+      "bytes": 9797,
+      "sha256": "e8188fe901f8c7371c69c403c209c5ea28a48a0da4b5378b0eaaddb73a2cea4d"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/nuvio-task012-independent-review.md",
+      "bytes": 8807,
+      "sha256": "1605f59dc2a92499b0b8bb5d06cc3b5a9d21e994fcff5a8bf79aba69eeb66181"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/nuvio012-parent-artifact-check.json",
+      "bytes": 7961,
+      "sha256": "1c796e9ea62cdedcc2de3834757ad4dc882cbbd6aac19b473da49e195be79ff7"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/nuvio012-parent-rerun.log",
+      "bytes": 4537,
+      "sha256": "cc89fe4594b57f09d939284f8c18ef20990c38ca4332a41f52ea009748b1950f"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/nuvio012-parent-resume-app-log.txt",
+      "bytes": 12623,
+      "sha256": "17fc4f546419a67d4cf9ebedf08ce4f4bc99197fc4dff5dee79e9ee4fb05c0e3"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/PARENT-PREPARATION-REVIEW.md",
+      "bytes": 5300,
+      "sha256": "9f62a8a57fe426f1500c3914a72887ac6b07436c8b94e4ec37d099d633a0f437"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-donor-restore-v2.log",
+      "bytes": 971,
+      "sha256": "f3e7c4ba8a273c899ea140809f616f740b5f3f4e65bf5d879e98b97d40ed2b4e"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-donor-restore-v3.log",
+      "bytes": 491,
+      "sha256": "3adba0d034a72c9884c9de936da909c5e23fd7114fd5a392ed7922eb7b293437"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-donor-restore.log",
+      "bytes": 1408,
+      "sha256": "154ba5c988a2b2d02339fcc3327fdabb554aa3bfb6664215a60ef96db672fe27"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-final-donor-prepare.log",
+      "bytes": 149,
+      "sha256": "506b964f4be9f28f8ceb6c903e0fafbf5b59dec72defa853b8a14040dc43b34c"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-final-donor-restore.log",
+      "bytes": 485,
+      "sha256": "497ee3e3164f62327da8e56705370b4c810195406a61d7d8ee1bc976ce0f042d"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-restored-contracts-v2.log",
+      "bytes": 1917,
+      "sha256": "386ae6a842b749634b134775fd0cb2aef3f3703e50a19d88fc3e90a22c41ff90"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-restored-contracts-v3.log",
+      "bytes": 1724,
+      "sha256": "1bbeed3fc5b4c61d70746b6ef98158e4acb2615c3b6fd03d18f143626008b8b8"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/claude-android-013-restored-contracts.log",
+      "bytes": 1917,
+      "sha256": "386ae6a842b749634b134775fd0cb2aef3f3703e50a19d88fc3e90a22c41ff90"
+    },
+    {
+      "path": "cloud-handoff/android-013/evidence/preparation/full-source-restore.json",
+      "bytes": 65,
+      "sha256": "330d253c48096ee9f7f479451e7c83c922fe0227ccda8a1cee495f056346c8f6"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/fixture-source-v3.json",
+      "bytes": 426,
+      "sha256": "b14c061e937e7e66e8128d4007af2b0b362bb07f52d7a50677c9aa0ee19d21d6"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/fixture-source.json",
+      "bytes": 725,
+      "sha256": "f245ec0347c366cfd631c22287ad41d44bc0bb1c668266db982188295bed69d8"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/fixture-torrent.json",
+      "bytes": 662,
+      "sha256": "5f1dc36e3dc22da6dbf8500b56420e398e996f02dfc2178555fb1069a4877149"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/fixture.mp4",
+      "bytes": 2628657,
+      "sha256": "77c5d5876f5c2f1b69ef2e3e1286df47262cf55fd6391e8c5bf081a55058b02a"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/fixture.torrent",
+      "bytes": 3404,
+      "sha256": "76d4bb365df6bc3b0606a840008fc5c0d8f6f00717d95c173f1c72901b7b2edf"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/nuvio_seed_012.py",
+      "bytes": 4867,
+      "sha256": "0c0d486bfb65a1260c8439f8a41aa5bf8a43ea53282b18eab7df52ab91cd759d"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/probe_seed_012.py",
+      "bytes": 2016,
+      "sha256": "a7cfcb00cc05e11e54478524454689aa1d4ec73f63f252305f09eba1570acdd5"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/tracker_012.py",
+      "bytes": 1572,
+      "sha256": "eb5622ad7644180e428d495863ddc1979e0e4d647ecdefdd3cb3cdd57b63510e"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/trigger-play-012.json",
+      "bytes": 117,
+      "sha256": "feeb77b960a89ef3f06150d0a68baeb2afbe3eb58e72269361044e19b9667a0e"
+    },
+    {
+      "path": "cloud-handoff/android-013/fixtures/trigger-verify-012.json",
+      "bytes": 15,
+      "sha256": "2f2c2ab9abcce0295dce0016cce8a0db45cdfd0f3c11c65cf8bb00a49e653c2d"
+    },
+    {
+      "path": "cloud-handoff/android-013/provenance/app/git-modes.txt",
+      "bytes": 466049,
+      "sha256": "0d4a95c402d2a7a875cba9441afa355555080588f2044a772fe7679a9292a239"
+    },
+    {
+      "path": "cloud-handoff/android-013/provenance/app/git-status.txt",
+      "bytes": 1210,
+      "sha256": "9cb02a384f0090bdfdde9ab21b667ba3e1d1dd451a2d8823f0fede95ae70d9cd"
+    },
+    {
+      "path": "cloud-handoff/android-013/provenance/app/working-tree.diff",
+      "bytes": 24158,
+      "sha256": "18da9b5321788dde0b411d9dbbf273a91f11c296258cf6497c578e15367d2015"
+    },
+    {
+      "path": "cloud-handoff/android-013/provenance/donor/git-modes.txt",
+      "bytes": 13686,
+      "sha256": "e139c6c8ed9bbdc08a10e1793f64953a8ee26eb03913574d2f2c36d676c2cddf"
+    },
+    {
+      "path": "cloud-handoff/android-013/provenance/donor/git-status.txt",
+      "bytes": 30536,
+      "sha256": "1e90a11ffe95c84bb79cfac54528fdd9c621aa832eacf1e518d9bbd694f7c1ab"
+    },
+    {
+      "path": "cloud-handoff/android-013/provenance/donor/working-tree.diff",
+      "bytes": 73195,
+      "sha256": "83c5e3bc3b2892df6fdfdf604d5591c94cce9a083aad6e670b8e8ff853f99482"
+    },
+    {
+      "path": "cloud-handoff/android-013/restore_donor.py",
+      "bytes": 3956,
+      "sha256": "3b4aa439f3057be85296c27b61ecdc1dd5d44fdf70ec6aa30b3af41e740a6840"
+    },
+    {
+      "path": "cloud-handoff/android-013/restore_source.py",
+      "bytes": 1984,
+      "sha256": "1c6704af7bfb6d6408540867baecd6c30afd690f1da412617dfaf59d007009f3"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/.dockerignore",
+      "bytes": 215,
+      "sha256": "35ed588607ffb36faa1a9dd9e6081fca228bb032cca83700d7f8ead41ff165d1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/.gitignore",
+      "bytes": 543,
+      "sha256": "70538fe761fabcc49bb40bf51add8475cf8698be79c8b30f760b808237296986"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/CMakeLists.txt",
+      "bytes": 6052,
+      "sha256": "aa0348b44ac3ba05c9fe9eadaa7732f1a3c80d5250f5e335f5a0bf3f8a81e4d4"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/CMakePresets.json",
+      "bytes": 1144,
+      "sha256": "c65def2d8c3c5883c539578e4b82156dd63510b1d48d5ffa5ef175dff70f7689"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/LICENSE",
+      "bytes": 35148,
+      "sha256": "8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/README.md",
+      "bytes": 842,
+      "sha256": "f9fc5cbe7af0cf6fdf633fa5164d41b52e77191e4dc1a0d9fbbd599b86fd0a83"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/THIRD_PARTY_NOTICES.md",
+      "bytes": 3033,
+      "sha256": "6d499da8f51253c2b41b0bf14bb4b612271d0c5776457163904fec5f449a2ec6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/Dependencies.cmake",
+      "bytes": 10279,
+      "sha256": "a2d50ef32ed1db666b7f1264c0f6c9541b380d4cb7e4ed9a0656524c95141b0c"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/nuvio-engine-apple.exports",
+      "bytes": 684,
+      "sha256": "c831433e88702136923def2ee5d9d567fee402136fbc2f6253795f870588113b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/nuvio-engine-linux.map",
+      "bytes": 80,
+      "sha256": "941564aec7496fb44e239c6b2692154a0ded12e026ae49e2179b9aada3b7e072"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/nuvio-engine-windows.def",
+      "bytes": 782,
+      "sha256": "b2dd4c16103751a9389fac52f35e1a39dcbbd42e06fadcea9a7a1f0962deab09"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/openssl-windows-targets.conf",
+      "bytes": 380,
+      "sha256": "62d9a961be7bb60880e23b8d6affd3e085413a9991fcde0801133466407ae0e1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-macos-route-bounds.patch",
+      "bytes": 1377,
+      "sha256": "6d30fbcb2fec9c471b8f95abb2d865397616d493407d3c56710e380451e0e927"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-apple-trust.patch",
+      "bytes": 504,
+      "sha256": "f1c1f7a98adff8f96664345cdc06fa07e53fb42041e182e410fa1ac8f68bc1e6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-block-start.patch",
+      "bytes": 2969,
+      "sha256": "eecd3fd3420eac815e74a556278d0f15812b22dde4f7993af9c974d2be5a24b6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-ca-bundle.patch",
+      "bytes": 1273,
+      "sha256": "fec95a0af185c962a0c27f8e51d662a567b5d9c111a8c8cfaf4d3cab685d4fe8"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-connect-boost.patch",
+      "bytes": 429,
+      "sha256": "52f5d122968334b7e83428c25f68d31086eca3b1624ffb5cf9d53ce61906323b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-metadata-pipeline.patch",
+      "bytes": 1539,
+      "sha256": "eceee6448e0dec1553011f76418c4a7375e09e5fb2bfefab06a40dbe857716c4"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-request-queue-limit.patch",
+      "bytes": 458,
+      "sha256": "de7e2f223a8ed182ce0481ee451faf9b6d95ba01cf3e9029d283295b28e30683"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-streaming-stall.patch",
+      "bytes": 789,
+      "sha256": "fd1645d9b388744fcc03302417a0a602b965e8e6535894790301ea21de071d47"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-top-priority-first.patch",
+      "bytes": 791,
+      "sha256": "c46f2437a9591d3d6570cc43560ef47f5a516099bd5775a3d8158b6e26103d35"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-urgent-hedge.patch",
+      "bytes": 4228,
+      "sha256": "fb6f633faf84e3e0c0ba22aa4d366521c5a9166f33a3ef7ecfec0129ba27e951"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-windows-system-trust.patch",
+      "bytes": 1308,
+      "sha256": "f1b3d5b0fcca2dae8658c5f78421cf4653f73c112899c70a3bfa59880f4b6a6b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/patches/libtorrent-2.0.12-nuvio-windows-trust.patch",
+      "bytes": 572,
+      "sha256": "662fb3ee3d3d59f429f6b29a4094e792e52d403e94af74927d07291799fc3515"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/cmake/windows-llvm-mingw-toolchain.cmake",
+      "bytes": 1097,
+      "sha256": "bbf540379ababfde11d7d40f58b555200d3146561fab4c7a448a244cf0109bf7"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/include/nuvio_engine/byte_range.hpp",
+      "bytes": 816,
+      "sha256": "65fd723ed7957dfee8599c460fa362ca0c4169584a28125577f32fb823b1cb02"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/include/nuvio_engine/export.h",
+      "bytes": 559,
+      "sha256": "2ebae4984a2cb8339bf742c30dc85dc9296e42d940d47771207d4741d24ac895"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/include/nuvio_engine/file_selection.hpp",
+      "bytes": 853,
+      "sha256": "acfc479f3e326b4cb2d417e61a9d35c3631e49c4907f0e45a99d74ffb43c2a31"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/include/nuvio_engine/http_protocol.hpp",
+      "bytes": 1509,
+      "sha256": "b27378f8192ada3fa2dd0eb3e0d4dfb460c335175ec7ad20d29db4c787a6f2ac"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/include/nuvio_engine/nuvio_engine.h",
+      "bytes": 10527,
+      "sha256": "9b0e730ad3fbea21e2013b9e24e16bed8c04ce4abd1bcdd32dafe237fc85dd77"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/include/nuvio_engine/piece_scheduler.hpp",
+      "bytes": 942,
+      "sha256": "5a16e9ca6aacc17bf17bebd1e80a5a183b36011f2e84ef903166ab9e7aad0098"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/build.gradle.kts",
+      "bytes": 121,
+      "sha256": "5231aff13670fed24c86c20532a713d9ae95f9443f09d340d14cbb28198841dd"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/build.gradle.kts",
+      "bytes": 5647,
+      "sha256": "dcbbad961489a39aed3d141203cc75587b323ba9d835913551d8ac304886d28b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/consumer-rules.pro",
+      "bytes": 347,
+      "sha256": "f44897960dbdda357073471f0d50a306c9850fef811ab38f71be96aaab7819ca"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/androidTest/kotlin/com/nuvio/engine/NuvioEngineInstrumentedTest.kt",
+      "bytes": 1703,
+      "sha256": "82e59cd88b95f0b980149354f02c51155e26efbb66e8cac63f2b0ddb1bc6846e"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/AndroidManifest.xml",
+      "bytes": 188,
+      "sha256": "4ec698c1582d49f016e6d9355399e068b752baf42c1da4f0c775b2155b8f579d"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/cpp/CMakeLists.txt",
+      "bytes": 1249,
+      "sha256": "b9139da3ac9061f15e9c9262c37fee678622eaa3f1a7e6f0ca21cc0562f1935e"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/cpp/exports.map",
+      "bytes": 135,
+      "sha256": "cda6fb56fd8d3a2a31f56930a66a184acd78f95e7637e293d537e4c596af1710"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/cpp/jni_bridge.cpp",
+      "bytes": 21196,
+      "sha256": "80f03aa7ad7ed1b5260eb494ce7da734a2ab9bc2c083a5428e916926c8d08ffa"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/kotlin/com/nuvio/engine/NuvioEngine.kt",
+      "bytes": 20453,
+      "sha256": "e12a25956398bebf8ac8b53006c66ea7ddcbf5398d6a922165ccd46f5bcdeb61"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/kotlin/com/nuvio/engine/NuvioEngineConfig.kt",
+      "bytes": 2299,
+      "sha256": "41728232836a0401eb3e89e57a7110e01b70dbdc73ff539b055ee821c09501a2"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/kotlin/com/nuvio/engine/NuvioModels.kt",
+      "bytes": 4167,
+      "sha256": "f014be0ddbcf73e5c77d6f01341afeede386e23ba2bd3ebbf34637bf656c21e1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/kotlin/com/nuvio/engine/internal/AndroidTrustStore.kt",
+      "bytes": 3210,
+      "sha256": "354922470decec957c4a003b651d65a9003a036c402d8fe2d98cb90e74880587"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/main/kotlin/com/nuvio/engine/internal/NativeBridge.kt",
+      "bytes": 2332,
+      "sha256": "27658a3f99c058949d267966c0fc692679d5a417202fd67dcfaf228e499a8201"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/engine/src/test/kotlin/com/nuvio/engine/NuvioEngineConfigTest.kt",
+      "bytes": 1935,
+      "sha256": "e797e0259fce5efc59934766d1bfe62d9c376f7bcf3c4c2a1a11899c6b4431a8"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/gradle.properties",
+      "bytes": 126,
+      "sha256": "30835c8c2a754680c6b990b1ab193807e37ab02f553561f06c4a79fa13763956"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/gradle/wrapper/gradle-wrapper.jar",
+      "bytes": 43705,
+      "sha256": "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/gradle/wrapper/gradle-wrapper.properties",
+      "bytes": 338,
+      "sha256": "3b6b8df392b92f86332d907707f3d952a32c8d6e1fedabafe2b5ec3d933a78c4"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/gradlew",
+      "bytes": 8752,
+      "sha256": "734b3879d3501dce471cf0522d3bcbafe76873d9fc5129345b67fb43bd15e933"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/gradlew.bat",
+      "bytes": 2872,
+      "sha256": "2209f919a22528af59a2af2ad97e8d056cca18e39f7d87aa3fd549a73b180150"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/android/settings.gradle.kts",
+      "bytes": 343,
+      "sha256": "73e4e6ad2ea176946d42a746bef1a717c4f455d40b2ef3de196bf273bac2dc0a"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/Package.swift",
+      "bytes": 850,
+      "sha256": "2d9640d796c27e652aa0189d2de64f833ed42b29a12c29b5f090e62ee1de2e94"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/Sources/NuvioEngine/NativeSupport.swift",
+      "bytes": 2165,
+      "sha256": "231c1817e574623639278db6fc184e65bd8f132d129e16337b93f72ff72de844"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/Sources/NuvioEngine/NuvioEngine.swift",
+      "bytes": 24728,
+      "sha256": "74a137b5d4c104df574d3e2747170585641d15f77aaa40c5d162278f2e600987"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/Sources/NuvioEngine/NuvioEngineConfiguration.swift",
+      "bytes": 4144,
+      "sha256": "c1d6c9118ab2120be80935a39ec9ef1147d14712fba64db0c5cc24fa3e2eb672"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/Sources/NuvioEngine/NuvioModels.swift",
+      "bytes": 6522,
+      "sha256": "7a7e77c63f05732932a99f4859db19344d2a46281be901a98c54e78a0a6cb2e0"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/Tests/NuvioEngineTests/NuvioEngineTests.swift",
+      "bytes": 6857,
+      "sha256": "e5e21800c4dcab80633c320fdb37300a159df4fe88094ffc974332b25fb727d2"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/apple/include/module.modulemap",
+      "bytes": 87,
+      "sha256": "3ae0877bf0225c6ee721eac5ac8a3921fdfd8bca1b71c0372c9a72d14be211f0"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/build.gradle.kts",
+      "bytes": 1547,
+      "sha256": "1e8388f705a05e0f6225e8ca5532c78a21a7fa3295b8728b71ad4edb18c0b423"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/gradlew",
+      "bytes": 156,
+      "sha256": "1cdfdc6ca4abd3933bfdeb47edd4c56038f2a8efe2bd57eb8af72056e067dae1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/gradlew.bat",
+      "bytes": 59,
+      "sha256": "8e1e17f50e8e198453946d2cd03a904e09faa6c6c5b4206f478352df6f0fc4d7"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/settings.gradle.kts",
+      "bytes": 286,
+      "sha256": "c25bab73d5a0848c855d151fbbf7e898542df01e6cd4aa4558f9ff5b73f8318d"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioEngine.kt",
+      "bytes": 16850,
+      "sha256": "87afb09c44d6354fd48d8e0017979b56f4cf9f6902749051faedd3cd248979f4"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioEngineConfig.kt",
+      "bytes": 2924,
+      "sha256": "d84904ad2501ed83e2abcbf03bcde62fe9cc5c5ced34881e137bd5749260bcd2"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioEngineRuntime.kt",
+      "bytes": 1798,
+      "sha256": "279fac5352414097e845d48e2dd05beafd9ed0830caf14e154495a34db68745c"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioModels.kt",
+      "bytes": 4167,
+      "sha256": "f014be0ddbcf73e5c77d6f01341afeede386e23ba2bd3ebbf34637bf656c21e1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/internal/JnaNativeLibrary.kt",
+      "bytes": 2788,
+      "sha256": "f11d7d3e8946f2f7ca223fb323004f565dce2469bd0ca3d1fde5814d1ac438ab"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/internal/JnaNativeTypes.kt",
+      "bytes": 9774,
+      "sha256": "3925f0d3a9f13edef0ae86bcecd0c1e5dec2e8ca31c944b3f2aab0685ec14a75"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/internal/JnaNuvioNativeApi.kt",
+      "bytes": 14191,
+      "sha256": "20fdfe60badfcef24816534feecb89d0bf877ad15fba8e5a076693ccebecb69e"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/main/kotlin/com/nuvio/engine/internal/NuvioNativeApi.kt",
+      "bytes": 1936,
+      "sha256": "37ce3d3b78c0f8d89f601680189119a8271d28b3460e0fc38fbf60198bb4b24e"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineConfigTest.kt",
+      "bytes": 3377,
+      "sha256": "2abf8986a772ad45e40858f3391eb952f36a6da326a2ed3882910a2c538f8f0c"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineJvmSignalIntegrationTest.kt",
+      "bytes": 4073,
+      "sha256": "e330e820f8d0263ec7e0c96b99b43ac5a9aba0ba823f35b93c8358df4e64174f"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineLifecycleTest.kt",
+      "bytes": 10785,
+      "sha256": "e0d8f4102d5208742f3f76960615d966515f9aedfca5a65b78bd092290b42e76"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineNativeIntegrationTest.kt",
+      "bytes": 10682,
+      "sha256": "701b6ebfae0303e7a4176d52424b71b1aa87fde7ca0ca33d6535043de56600b7"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineRuntimeTest.kt",
+      "bytes": 1627,
+      "sha256": "3eafc5b2f9a05904e6870efa1aa1893061fb55295c9a6e90e25c0a029a62f173"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/internal/FakeNuvioNativeApi.kt",
+      "bytes": 4170,
+      "sha256": "a442a131f858ad035e1db688890809940eab812a3281a365d95af37ff1d423cc"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/jvm/src/test/kotlin/com/nuvio/engine/internal/JnaNativeLayoutTest.kt",
+      "bytes": 1406,
+      "sha256": "0106b6986d856ea6b489cd4aabdc12dba73a1bd7d9f0b02247b93c9272f69e51"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/linux/Dockerfile",
+      "bytes": 1947,
+      "sha256": "42f5632e2480eff7c057f6cf329ce325a1e509eac59aa24fde39d1c6422abce4"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/windows/Dockerfile",
+      "bytes": 2262,
+      "sha256": "0cf5a1bb8c80a59cd82ec7db2a0b6a7b629cacfc79f70723200e1423a17d5526"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/platform/windows/Dockerfile.wine",
+      "bytes": 296,
+      "sha256": "9630787b42354a72d7149ddf37510046025b02958319444cd7cb1bac4f5ff8b8"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-android-openssl.sh",
+      "bytes": 6127,
+      "sha256": "99738ea43cac08409df25f4b48c9a159dfda9244ad5e9e943687abab7e66105f"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-apple-openssl.sh",
+      "bytes": 7097,
+      "sha256": "cdfe4bfdc3933cc3c68222657c560856e5670aff366c007260b6f396d5ad5f8f"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-apple-xcframework.sh",
+      "bytes": 5568,
+      "sha256": "da47b55a3f5208718dc3424c6a98089418338070b797f0024cc9954672497807"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-linux-openssl.sh",
+      "bytes": 4210,
+      "sha256": "4ab717a6419e7305fee019d4dd9599b4b1bba0b13cb11f66a161262ee45874a6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-linux-package-in-container.sh",
+      "bytes": 5235,
+      "sha256": "c6425ab698e542dede3e90835b230e691b944d0fa2d05fe7a272d1ed56091041"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-linux-packages.sh",
+      "bytes": 835,
+      "sha256": "a4cc1081d4823e4c8152582ed1f84e0afae07e475711834686c243614b852e65"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-macos-package.sh",
+      "bytes": 5457,
+      "sha256": "e4ae3e648ea851d55b941c9ea23dd00e89ad8fb4ad7e3018a867df1124b47ccb"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-windows-openssl.sh",
+      "bytes": 4953,
+      "sha256": "c0673ab5243acef0ab5594d8ef6f136814acde3b9cc690bad8ef5b584e71446a"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-windows-package-in-container.sh",
+      "bytes": 5781,
+      "sha256": "0ad9f2a1f9dea37d6cd49e93978cfc27a6b24ae2165b74d703044513c0d3aebe"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/build-windows-packages.sh",
+      "bytes": 778,
+      "sha256": "f9b49b9c483f62f3f17da9c325a740241d1a94a1885a8bd418edc9157a0e9afc"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/create-deterministic-zip.py",
+      "bytes": 1592,
+      "sha256": "b238930bb6ba296e78a1aa4637248183b05e72808d1cad2ef8976dee1ceaa23e"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/prepare-apple-dependencies.sh",
+      "bytes": 151,
+      "sha256": "7c39a9c9f6d9b73bc4c5d2502436c37e858691bff7cf47bfa34a0c95347d811c"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/prepare-native-dependencies.sh",
+      "bytes": 7102,
+      "sha256": "d13c85a0f126002e43960c97515a0001f241fd783ef2fbeeb9742d34adff3804"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/smoke-apple-xcframework.sh",
+      "bytes": 1954,
+      "sha256": "d92afd0ae11513335c08eda2763bbb137b97823520d76dfa5deaabe0043e8e6d"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/smoke-windows-x86_64.sh",
+      "bytes": 2090,
+      "sha256": "a80042c05e809a1f73ae7e8b0a97f5d414a22a371d66398e30637958564350c6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/verify-android-aar.sh",
+      "bytes": 4323,
+      "sha256": "8c24d9e40fa3f241b95da3dd87ad26fcfcdb695d78654b426f9b94bcf33a9eff"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/verify-apple-swift-package.sh",
+      "bytes": 1711,
+      "sha256": "454916b6f96f5cdf64d2e62716a796ba6e9894fe49075ab9465b4f7c2f8732f0"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/verify-apple-xcframework.sh",
+      "bytes": 5938,
+      "sha256": "31fd2eaea6f487384b387ce07b0eb9574dd46dfe120a94cc4d1f5d56afce0ff1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/verify-linux-package-in-container.sh",
+      "bytes": 6487,
+      "sha256": "ba596c7e5ad86a22bb679f9809af77f8112420c70b2d0800f1242bec8baa4698"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/verify-macos-package.sh",
+      "bytes": 6318,
+      "sha256": "a6f5175aeba541284f865dea49e87cb4de71f876494a445b970154fc2d9c5907"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/scripts/verify-windows-package-in-container.sh",
+      "bytes": 5836,
+      "sha256": "ed9207be7a7f5b6a3db3d84ded0db8224d8cdf0af5976d4cfda7e306c96ebad7"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/cache/disk_cache_manager.cpp",
+      "bytes": 11093,
+      "sha256": "081caa87235cc932485d7d5d4b5cca0e4678a3bac446946e587b72b60694c149"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/cache/disk_cache_manager.hpp",
+      "bytes": 1231,
+      "sha256": "4aec0e434bcb869fa1bdf535f5c3f705f172375f655b37f17d070a922289f1e1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/cache/verified_piece_cache.cpp",
+      "bytes": 3215,
+      "sha256": "a3bbd5771fdb2aa3f2b5534e70bb9d428723671cacf5f44e8c84b71762d8c2c2"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/cache/verified_piece_cache.hpp",
+      "bytes": 1745,
+      "sha256": "698d832bf0a0bd386e1e41372129ddd9f56ac2cadd63146b8ec0a8aace53eebc"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/core/engine.cpp",
+      "bytes": 24167,
+      "sha256": "7e1e6ec58880e2f871ff7a33b59e75fd7b065faea0cd295e64fc6d1a99cb3191"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/core/engine_runtime.cpp",
+      "bytes": 18323,
+      "sha256": "49cff7877ddcf6b218e63ecde0aaa549741f5ba5c8efd6b7cb2def3f47ccb5b6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/core/engine_runtime.hpp",
+      "bytes": 4059,
+      "sha256": "d01c852d083e3c7afd7fb9e9451d0255838ee66e2ee9c2ea6584d0444a8a10df"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/http/byte_range.cpp",
+      "bytes": 3503,
+      "sha256": "ce4176dcf73d54150c0d3531962dd02347e6045442fe52a7eb830a4c86327d39"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/http/http_protocol.cpp",
+      "bytes": 10834,
+      "sha256": "303c9617529fa3ad30b2327355ff14db60e4de28188064123c16877c7f6c7c13"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/http/loopback_server.cpp",
+      "bytes": 20525,
+      "sha256": "398a73d5e812872a872e3fadef4a150ba6c860b3c5ef17d3557513210d5cd41a"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/http/loopback_server.hpp",
+      "bytes": 1007,
+      "sha256": "99a800c4ed1248dcf199a02b40ae1951f5c079d977096d933a663646c1ef2440"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/scheduler/demand_window.hpp",
+      "bytes": 360,
+      "sha256": "71d9f34bc4c6dc90403687c1f08500c067d875dd4e0a67119fd27c6c0e8cbef0"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/scheduler/piece_scheduler.cpp",
+      "bytes": 4986,
+      "sha256": "2d31c112e48adf1f8f063feedaa7fe4c3f920dde45ab8fe5be79662af6129584"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/scheduler/stream_demand_plan.cpp",
+      "bytes": 4222,
+      "sha256": "9f90c3e572ab88b571ba1df021adcfa04b1ceb65b2acfe59d82fc68211e89f1d"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/scheduler/stream_demand_plan.hpp",
+      "bytes": 1072,
+      "sha256": "8575f925c4526258ecef3cbaeaac4d632febca69970cdfed8e144067fe0deda9"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/security/apple_trust.cpp",
+      "bytes": 4650,
+      "sha256": "eeb4638ec2ec71812e9b9d761fd53a2272f8eb023a7f6d83c7f1fc6a9f386f89"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/security/random_bytes.cpp",
+      "bytes": 2823,
+      "sha256": "048cf9e1de10c954df7ad6bfdc46efc6cc536d9fd90372295bc0f16a3694160a"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/security/random_bytes.hpp",
+      "bytes": 223,
+      "sha256": "ab4ca5de0e4e08e898acd21d37eee68a20d298aaf4f432d73458097b3130a707"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/security/windows_trust.cpp",
+      "bytes": 6171,
+      "sha256": "57c2475ea1557b0dd07836778a98fc73303e2d0e9b102a347064de39504ca5b8"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/storage/atomic_file.cpp",
+      "bytes": 7307,
+      "sha256": "61a16a8ea1449edfebba6046e7e4e5f35c2ac2dbef481b5ba8b1e67bec087db1"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/storage/atomic_file.hpp",
+      "bytes": 518,
+      "sha256": "4f96e16f2a1d6e23a9a432fe8ad3751818a0ac63b6e3dfad398dcaab06c06b39"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/storage/payload_reader.cpp",
+      "bytes": 3151,
+      "sha256": "17a4414264fa11c69a38b8fc905742c210bf7b92d5decad93b044dc1d1c95bcc"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/storage/payload_reader.hpp",
+      "bytes": 802,
+      "sha256": "428ce812bbad9dd3ce8ceb304d165188817fabc3a72244069cdfa98d567decf5"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/torrent/file_selection.cpp",
+      "bytes": 2790,
+      "sha256": "e784125b90307ad2479209f61c650da0310d08a342c14788cd0466f5375ca1a8"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/torrent/libtorrent_backend.cpp",
+      "bytes": 79578,
+      "sha256": "327cacf54e979655083d01738ad3692aaef5dd24c241d389481bc5aca4358a25"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/torrent/libtorrent_stream_bridge.cpp",
+      "bytes": 65962,
+      "sha256": "08ef54c3c04ca355771447098e3f280968ea63e0f03eb2a1b9e7772fde610559"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/torrent/libtorrent_stream_bridge.hpp",
+      "bytes": 3100,
+      "sha256": "583ac15381d4d6602b7dee15d2d253a7f9bdce1e43770f172442a786512a7b6b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/torrent/protocol_backend.hpp",
+      "bytes": 6378,
+      "sha256": "e7292fddf1d2e9168f8d38f09926d1387faa109990e83ec7c81800b372354553"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/src/torrent/protocol_backend_stub.cpp",
+      "bytes": 183,
+      "sha256": "033d0afde7eddfcc99d1eae3bba4e2eaca38f855236367226ab8a253749b85e6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/CMakeLists.txt",
+      "bytes": 3388,
+      "sha256": "ec5ab6582b29510a597de860cd2c76af87036c63d0cd0485d6348f447c89d49d"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/apple_c_api_smoke.cpp",
+      "bytes": 890,
+      "sha256": "bd75d6aca46a117fae89748180b4c8ac0047bda884c10e5590ff386e0eb36c82"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/atomic_file_test.cpp",
+      "bytes": 2535,
+      "sha256": "c63422d16b3cce73dcc59d96eec96d447287e12b72e64fed00a6e79c10962943"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/byte_range_test.cpp",
+      "bytes": 2256,
+      "sha256": "8991685d316244b31378b2e4ff24d7b59258b5dc6d688e207449832c10fb0302"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/c_api_smoke.c",
+      "bytes": 5787,
+      "sha256": "b8f2083db2ef9dd641fdd29bf2950c007a9c0b7ab4873b4a38d1b9ed751a5f97"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/disk_cache_manager_test.cpp",
+      "bytes": 7576,
+      "sha256": "daab7bf352717eb9d68290dd2f150da7dc13163907a2800ed5a726d498787f39"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/disk_cache_policy_integration_test.cpp",
+      "bytes": 11257,
+      "sha256": "fee8dd435f9e909727c76c32726b969c439ef983101d22dfa29f77fa607cee9a"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/engine_api_test.cpp",
+      "bytes": 80795,
+      "sha256": "e8100bdd01533981e8ac6035313170871b48764f2812f8a79e6202908929ee01"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/file_selection_test.cpp",
+      "bytes": 1946,
+      "sha256": "1ee974ad232db327922dd515668f9ee4756b2dde1803033e8edc62be43ffb2b7"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/http_protocol_test.cpp",
+      "bytes": 4930,
+      "sha256": "2420875ed41c39ff2df1b0dcc3abf785a6da1e8d235ec26ebb367d67886a4d5f"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/loopback_server_test.cpp",
+      "bytes": 8924,
+      "sha256": "def4f412067cfe50fde8bd87336b9b7c185547fff06a8433bf0776512a66c89b"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/payload_reader_test.cpp",
+      "bytes": 2887,
+      "sha256": "633cf19e45e021a47e34988e650279c9d8bb259da88c1a1f11dffd312a7e891f"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/piece_scheduler_test.cpp",
+      "bytes": 3974,
+      "sha256": "27343d24e0eef8ddc32139a4946093590ab5de1e1c3049e1280cc7a6cb44ffd9"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/random_bytes_test.cpp",
+      "bytes": 1013,
+      "sha256": "d77ae474148ca20c9e62a5fff1a5e9859b2ce7bcd4be48c37d6a861e8bd847b6"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/stream_demand_plan_test.cpp",
+      "bytes": 11372,
+      "sha256": "3bd2c4d03b19f4041bc8591ec3a3a74ad549852babd039c24e09651571b16e54"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/stream_integrity_regression_test.cpp",
+      "bytes": 35081,
+      "sha256": "5f50196e2409de5e3833499cb4fca9cfdde42fb70d15325457a4fad693e7e941"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/test_main.cpp",
+      "bytes": 4145,
+      "sha256": "a0bf76c794db2c31d5b123e6f8ad15ab86fe0b816a276778bba8bacb93dfa739"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/test_support.hpp",
+      "bytes": 1714,
+      "sha256": "4355ad2a28e32e2d184b42cf746c5c0c4a252774ae5fcb308849e36cdf5d8f3a"
+    },
+    {
+      "path": "cloud-handoff/android-013/source-donor/tests/verified_piece_cache_test.cpp",
+      "bytes": 1762,
+      "sha256": "11daf77a4f7528e78dfe5e50ea60e9ed24932d15d282dbcff75b27f045d9954c"
+    },
+    {
+      "path": "cloud-handoff/android-013/verify_source.py",
+      "bytes": 1715,
+      "sha256": "ff86007668d1f4c33b0dc477233ad4de33a8037ad560f1618fc3c11ac30d8660"
+    },
+    {
+      "path": "docs/build/android-nuvio.md",
+      "bytes": 6754,
+      "sha256": "f0473d20ebee8d119cd4bcb62b37bf7088d95397dbfdeb71eec22cc8fd270e45"
+    },
+    {
+      "path": "native/CMakeLists.txt",
+      "bytes": 145795,
+      "sha256": "be2bc5585cd5cab2c9e37689396f15b314529d3c5fd3d9b2f75b47d5e98a49b3"
+    },
+    {
+      "path": "native/cmake/NuvioBackend.cmake",
+      "bytes": 3163,
+      "sha256": "fbeeb38090eb0aeedc56dbbcefb2b8ae2315509c7e9a4ef6cbec50f49ecade3c"
+    },
+    {
+      "path": "native/cmake/NuvioBackendTests.cmake",
+      "bytes": 2763,
+      "sha256": "81730730b02221a49506a9f844661521a4e6dbcf7d121e21ce8febc5736be9cd"
+    },
+    {
+      "path": "native/cmake/android.cmake",
+      "bytes": 10920,
+      "sha256": "f8dae8011635ae25e02d1efaaf2feaf42cad61d03637333c8d2f56e56edc6099"
+    },
+    {
+      "path": "native/main.cpp",
+      "bytes": 121919,
+      "sha256": "1d4b4ecd88f69d8b3ad15d428608151402dc552a62a0e68640b5ff1a02d1eac8"
+    },
+    {
+      "path": "native/platform/android/build.gradle",
+      "bytes": 3126,
+      "sha256": "9b0c524cec7c917260ea2d143b35a9bb2b65a1b9af3d7d0f745d5f891b45e9da"
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/player/NuvioAndroidTrust.java",
+      "bytes": 3538,
+      "sha256": "2f87697bcccfc15a875789efd66ed52750d1309667077fbffa4c84e672e17d62"
+    },
+    {
+      "path": "native/player/nuvioengineapi.cpp",
+      "bytes": 3132,
+      "sha256": "325bb8994f149011af1e8e32d39b98eca4e6432acbc7cc7df63fd47597f55fda"
+    },
+    {
+      "path": "native/player/nuvioengineapi.h",
+      "bytes": 4260,
+      "sha256": "6400f73fb7b72c04871da1e0ba478eb133a0097f45fa005d79e69c80ff23d627"
+    },
+    {
+      "path": "native/player/nuviostreambackend.cpp",
+      "bytes": 46081,
+      "sha256": "20103fba9e44722b28623522514c3278ab2aa153aa5f83e043612033be1d6006"
+    },
+    {
+      "path": "native/player/nuviostreambackend.h",
+      "bytes": 6649,
+      "sha256": "69ffa6a8e3e8e5e4cfb2b1a063e7d63fa8ba3275737ac2ee49459b5b6f7d3b6e"
+    },
+    {
+      "path": "native/player/streamserver.h",
+      "bytes": 8280,
+      "sha256": "8b47894cf81f7b4acaaa6b7675d73d096c0fd625b2e9cf1ec6c7af0ee0ac5685"
+    },
+    {
+      "path": "native/player/streamserver_android.cpp",
+      "bytes": 14444,
+      "sha256": "c0d25234682b1b93ce861aa4a902ba04578ce7e9556be627dffe0dcc6cec12ea"
+    },
+    {
+      "path": "native/player/streamserver_android.cpp.pre012.bak",
+      "bytes": 13806,
+      "sha256": "2c2bf46752a15668b8c4d10ba321ec20fbac038329aedc81eb8843f16f31ff11"
+    },
+    {
+      "path": "native/third_party/nuvio-engine/LICENSE",
+      "bytes": 35821,
+      "sha256": "81cbae84a29ce7e770bf2bc7b178e50bda0ce8de6067aba661b0bc7b05b562f8"
+    },
+    {
+      "path": "native/third_party/nuvio-engine/SOURCE_MANIFEST.md",
+      "bytes": 4233,
+      "sha256": "54f5d1c4d0c04918d482640929161bd8b6daea0541b50283162eb4483d306f52"
+    },
+    {
+      "path": "native/third_party/nuvio-engine/THIRD_PARTY_NOTICES.md",
+      "bytes": 3090,
+      "sha256": "f3a560f437d1a2ce42c42ef74302f69a20ccfaccb494f344de5526832238d11f"
+    },
+    {
+      "path": "native/third_party/nuvio-engine/include/nuvio_engine/export.h",
+      "bytes": 583,
+      "sha256": "67b4d36590953dcd1a74055ae89f5ac9684300cb8e6bff75d5f87a3b4f533ce7"
+    },
+    {
+      "path": "native/third_party/nuvio-engine/include/nuvio_engine/nuvio_engine.h",
+      "bytes": 10165,
+      "sha256": "5fe3f10803ec3b8f63fff456095d8bef42398309dc4ba04c464ad1db3c9c9ee5"
+    },
+    {
+      "path": "native/third_party/nuvio-engine/patches/0001-android-hardening.patch",
+      "bytes": 73195,
+      "sha256": "83c5e3bc3b2892df6fdfdf604d5591c94cce9a083aad6e670b8e8ff853f99482"
+    },
+    {
+      "path": "qml/Main.qml",
+      "bytes": 299214,
+      "sha256": "5de6d3696c84f37433becb0cde6fa420d3a76d5436516ef8705a6bf6117417d6"
+    },
+    {
+      "path": "scripts/android/prepare_nuvio_engine.py",
+      "bytes": 16867,
+      "sha256": "d834273f6486e592880ccd14a51b0059746d238af420e7ed1a78a9a4a670a279"
+    },
+    {
+      "path": "scripts/android/verify_nuvio_hardened_artifact.py",
+      "bytes": 10782,
+      "sha256": "bb53b819c4ac57a66422fd536b153dc740940fc79009be2f4c048432470d14ef"
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "bytes": 267097,
+      "sha256": "2b753c2eba5d3c8ce2a57015321556fe5cb1265fe4f41ac8343eef690322ba63"
+    },
+    {
+      "path": "tests/auto/player/tst_nuvio_stream_backend.cpp",
+      "bytes": 40665,
+      "sha256": "20c05c074b8c0e4ba889846ee66933b52f887f54df6704be7747f14ebeee94de"
+    },
+    {
+      "path": "tests/test_android_nuvio_backend_contract.py",
+      "bytes": 25347,
+      "sha256": "7257970543f7ae21ba1833ebbefaa148842bc42748b497b962877ae967a93a6d"
+    },
+    {
+      "path": "tests/test_android_runtime_packaging.py",
+      "bytes": 6873,
+      "sha256": "863aa3d9d9a67dc21214bb004b7736722ab9e9522e80673822724ca3fb926b17"
+    }
+  ]
+}

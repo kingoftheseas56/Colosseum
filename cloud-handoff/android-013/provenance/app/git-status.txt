@@ -1,0 +1,28 @@
+ M native/CMakeLists.txt
+ M native/cmake/android.cmake
+ M native/main.cpp
+ M native/platform/android/build.gradle
+ M native/player/streamserver.h
+ M native/player/streamserver_android.cpp
+ M qml/Main.qml
+ M tests/CMakeLists.txt
+?? docs/build/android-nuvio.md
+?? native/cmake/NuvioBackend.cmake
+?? native/cmake/NuvioBackendTests.cmake
+?? native/platform/android/src/org/colosseum/player/NuvioAndroidTrust.java
+?? native/player/nuvioengineapi.cpp
+?? native/player/nuvioengineapi.h
+?? native/player/nuviostreambackend.cpp
+?? native/player/nuviostreambackend.h
+?? native/player/streamserver_android.cpp.pre012.bak
+?? native/third_party/nuvio-engine/LICENSE
+?? native/third_party/nuvio-engine/SOURCE_MANIFEST.md
+?? native/third_party/nuvio-engine/THIRD_PARTY_NOTICES.md
+?? native/third_party/nuvio-engine/include/nuvio_engine/export.h
+?? native/third_party/nuvio-engine/include/nuvio_engine/nuvio_engine.h
+?? native/third_party/nuvio-engine/patches/0001-android-hardening.patch
+?? scripts/android/prepare_nuvio_engine.py
+?? scripts/android/verify_nuvio_hardened_artifact.py
+?? tests/auto/player/tst_nuvio_stream_backend.cpp
+?? tests/test_android_nuvio_backend_contract.py
+?? tests/test_android_runtime_packaging.py

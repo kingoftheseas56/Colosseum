@@ -1,0 +1,16 @@
+{
+  "task": "nuvio-glm-local-streaming-20261020",
+  "phase": "fixture-torrent",
+  "at": "2026-10-20T11:22:48.747549+05:30",
+  "source": "C:\\nuvio-streaming-fixture-20261020\\fixture.mp4",
+  "source_sha256": "77c5d5876f5c2f1b69ef2e3e1286df47262cf55fd6391e8c5bf081a55058b02a",
+  "source_bytes": 2628657,
+  "piece_length": 16384,
+  "piece_count": 161,
+  "last_piece_bytes": 7217,
+  "private": true,
+  "info_hash_v1": "79afbaf5c4e39bca900c8154cf3fa282a5019e8a",
+  "torrent_path": "C:\\nuvio-streaming-fixture-20261020\\fixture.torrent",
+  "torrent_sha256": "76d4bb365df6bc3b0606a840008fc5c0d8f6f00717d95c173f1c72901b7b2edf",
+  "torrent_bytes": 3404
+}

@@ -84,6 +84,9 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging = legacyPackaging
+            // The hardened Nuvio engine's verified SHA-256 must survive APK
+            // packaging unchanged. Other JNI libraries retain normal stripping.
+            keepDebugSymbols.add('**/libnuvio_engine.so')
         }
     }
 

@@ -1,0 +1,11 @@
+{
+  "task": "nuvio-glm-local-streaming-20261020",
+  "phase": "fixture-source-generation-v3",
+  "at": "2026-10-20T11:21:58.784467+05:30",
+  "avi": {
+    "path": "C:\\nuvio-streaming-fixture-20261020\\fixture2stream.avi",
+    "bytes": 48957766,
+    "sha256": "fcb07341eff963be05a3e6491c354814156b8b9bd3f86a445f78ae7d8046876b",
+    "spec": "2-stream interleaved AVI: 320x180 RGB24 8fps 35s + PCM 8kHz mono 16-bit"
+  }
+}

@@ -1,0 +1,16 @@
+diff --git a/src/torrent.cpp b/src/torrent.cpp
+--- a/src/torrent.cpp
++++ b/src/torrent.cpp
+@@ -3794 +3794,2 @@
+-		while (want_peers() && conns > 0)
++		int nuvio_boost_attempts = 0;
++		while (want_peers() && nuvio_boost_attempts < conns)
+@@ -3797,2 +3797,0 @@
+-			--conns;
+-			--m_connect_boost_counter;
+@@ -3806 +3805 @@
+-				continue;
++				break;
+@@ -3807,0 +3807,2 @@
++			++nuvio_boost_attempts;
++			--m_connect_boost_counter;

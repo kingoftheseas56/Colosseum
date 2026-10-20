@@ -1,0 +1,310 @@
+{
+  "apk": "C:\\nuvio-streaming-fixture-20261020\\resume012\\android-package-012b-debug.apk",
+  "apk_sha256": "1dd3961d96c52c1476ac9ddf2031c178d28648bcfde1a3e6ccd12ed4906e65aa",
+  "runtime": {
+    "members": 739,
+    "listed_hashes_match": true,
+    "bundle_sha256": "53a9f8f841fe00cb2ca49033952ff5014334266b1ec1fea8dee23124859725a2",
+    "bundle_matches": true,
+    "qml_sha256": "89dee2b721449a62f7356d5973b7c78c327595f7298aef5672009567e06d6363",
+    "qml_manifest_matches": true,
+    "main_sha256": "5de6d3696c84f37433becb0cde6fa420d3a76d5436516ef8705a6bf6117417d6",
+    "fixture_handler_present": true
+  },
+  "native": {
+    "lib/arm64-v8a/libnuvio_engine.so": {
+      "bytes": 139307488,
+      "sha256": "2cf8de34f2d585aee3f7ad86c763a49671deaf0b05a901bed74c985b906bbc4b"
+    },
+    "lib/arm64-v8a/libcolosseum_arm64-v8a.so": {
+      "bytes": 42845448,
+      "sha256": "64f56f812da819d0d7015d1bb6929849428856416770ad34efbb1330655270b8"
+    }
+  },
+  "screenshots": {
+    "band-runB-m1.png": {
+      "sha256": "0b92e87038790fb52205fdb75bf774af8f0b9a5e01c5958957a940357dcaa63b",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runB-m2.png": {
+      "sha256": "7a6ea67b40445a18420d6146f3bd023a641d5e07a9c9d3313c5dae2b408aa8e6",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runB-seekb.png": {
+      "sha256": "b56d947932afbf6322fec8f963915cd8b92be7296a9615ae753a8e959d2162eb",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runB-seekf.png": {
+      "sha256": "8cfed52e6525cde22395f1be3ef4c0c3d6d753489f00bdff8cd808eeee4a3a55",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runC-end.png": {
+      "sha256": "708e89b2729599934c13b67830ead87a95a9cbc579d90ba7cb4b1b4e9340afd5",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runC-m1.png": {
+      "sha256": "8cd2f28519dc81e61a093ef53a0843099661d26911069ac359d73eb221ede81a",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runC-m2.png": {
+      "sha256": "7a6ea67b40445a18420d6146f3bd023a641d5e07a9c9d3313c5dae2b408aa8e6",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runC-seekb.png": {
+      "sha256": "39468d24118866ccf4e23bffc3156cdcae3294953ebd276c35b950f31a0c2654",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runC-seekf.png": {
+      "sha256": "5abc1625102ca393529470af18d626b5d79b5d92887bdfe41a2a76e090ab030f",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "band-runD-resumed.png": {
+      "sha256": "ac9bd51ce9da55aef54555fddf3fad13e5d52241afa4494cccf31c1dca402336",
+      "size": [
+        1460,
+        300
+      ]
+    },
+    "crop-bottom.png": {
+      "sha256": "cae0edf30d77e01989a459cf0e879efa78dfb6e03c58405050f64e755abf638d",
+      "size": [
+        1200,
+        500
+      ]
+    },
+    "crop-runB-m1-diff.png": {
+      "sha256": "4874c4e89d55bf148f5ebbf8479ba0b61894e174a93806aa3a294609d282b515",
+      "size": [
+        1200,
+        1936
+      ]
+    },
+    "crop-runB-m2-diff.png": {
+      "sha256": "4cbb80ce833a7c16547b4f37454c434227b386a0cd6f7731008890f1072a2226",
+      "size": [
+        1200,
+        1936
+      ]
+    },
+    "crop-topleft.png": {
+      "sha256": "ac4295f139658724f42db127311a171a7618c380deacd1af879ff7087d56ad41",
+      "size": [
+        500,
+        400
+      ]
+    },
+    "runA-afterclose.png": {
+      "sha256": "7d3a458e159c76021f98aefb9f1e33b5322c0d70b05dc664654ea0e4304d755b",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runA-afterclose2.png": {
+      "sha256": "7d3a458e159c76021f98aefb9f1e33b5322c0d70b05dc664654ea0e4304d755b",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runA-afterclose3.png": {
+      "sha256": "7d3a458e159c76021f98aefb9f1e33b5322c0d70b05dc664654ea0e4304d755b",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runA-closed.png": {
+      "sha256": "3fea9dbdec287ce7c076b0d2f7d2da61cd075a55a56f42fe2a1df65b9e14be98",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runA-controls.png": {
+      "sha256": "7d3a458e159c76021f98aefb9f1e33b5322c0d70b05dc664654ea0e4304d755b",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runA-t0.png": {
+      "sha256": "7fc38b72b40848b79a6701fbc2e7142a92364558c57563cdfd1f8e37b899f997",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runA-t1.png": {
+      "sha256": "7d3a458e159c76021f98aefb9f1e33b5322c0d70b05dc664654ea0e4304d755b",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runB-bg.png": {
+      "sha256": "d45a6cebe99db0de0ee95d37f7a47615d2d9c769b40695893995a59eee5a46e0",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runB-m1.png": {
+      "sha256": "63e29d2cf7905d135addee544b234a6195d9093e0a5684ab9112398d5d98f78a",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runB-m2.png": {
+      "sha256": "7fc38b72b40848b79a6701fbc2e7142a92364558c57563cdfd1f8e37b899f997",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runB-resumed.png": {
+      "sha256": "19438141aa755b4c9bde5875c3e73f4f7cf59c45063b8a3a156fefbb6a4f4223",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runB-seekb.png": {
+      "sha256": "5090f2ef1312b2dc6f8e0c4ab1a9097da943d5105c3e985949c2e49adb98660f",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runB-seekf.png": {
+      "sha256": "68975d7c61e264dfed4d3ec5fae213b2faed1f7cb5a6650737387a80f053c1e7",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-bg.png": {
+      "sha256": "5c2a93584d7d0925264a3237f04794c7e8e68f4819a58510b9dc06a0b8165771",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-closed.png": {
+      "sha256": "0b8f23ec4ea8a3bb36ea1709db7d01162da1c479d688a9a57882cbae96f823e4",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-end.png": {
+      "sha256": "e28bc30bb5e1b6bd63d7943c90837aacfab2afc50f2e531c12526506d506a0ac",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-m1.png": {
+      "sha256": "63d64378f86ae8f61b2b5243fd202320b1a86c08c9fece8257cd37070814e9c5",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-m2.png": {
+      "sha256": "7fc38b72b40848b79a6701fbc2e7142a92364558c57563cdfd1f8e37b899f997",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-resumed.png": {
+      "sha256": "5f06b42825fd60ad934aa8cbdc5ffb73de3e8e392660e36374993dd73997debd",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-seekb.png": {
+      "sha256": "b0dfb6ebf1a3685fcbd36439cd3b788677c5fea6fe1a1c8d78840a5c2410c376",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runC-seekf.png": {
+      "sha256": "d7e7772b069806d8368bf4452fd994556dd64a2551ae308ff065dffe428fcbd8",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runD-bg.png": {
+      "sha256": "65265a98547c6730b3cea115e72de564236f2927915086e4becb0a600ecc578d",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "runD-resumed.png": {
+      "sha256": "88b2a52906a93a8982a314dfea2524971887f87a292473aa5d03964ffe350849",
+      "size": [
+        1200,
+        2000
+      ]
+    },
+    "screen-postrun1-012.png": {
+      "sha256": "f762042df2cda1df1eab4335bea69f5c769f36fc9537e7c3cda861b29018b3fd",
+      "size": [
+        1200,
+        2000
+      ]
+    }
+  },
+  "identical_png_groups": [
+    [
+      "band-runB-m2.png",
+      "band-runC-m2.png"
+    ],
+    [
+      "runA-afterclose.png",
+      "runA-afterclose2.png",
+      "runA-afterclose3.png",
+      "runA-controls.png",
+      "runA-t1.png"
+    ],
+    [
+      "runA-t0.png",
+      "runB-m2.png",
+      "runC-m2.png"
+    ]
+  ]
+}

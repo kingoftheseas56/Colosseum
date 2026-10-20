@@ -4835,3 +4835,12 @@ foreach(_test_catalogue_target IN LISTS _test_catalogue_targets)
         target_link_libraries(${_test_catalogue_target} PRIVATE Qt6::Network)
     endif()
 endforeach()
+
+# Focused tests for the opt-in Android Nuvio playback backend: compiles the
+# production adapter sources and the Android facade translation unit against
+# an injected scripted C API provider (no engine library, no network). The
+# shared source list and target live in native/cmake/NuvioBackendTests.cmake
+# so the minimal COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY project builds the
+# identical target.
+include("${COLOSSEUM_NATIVE_DIR}/cmake/NuvioBackendTests.cmake")
+colosseum_add_nuvio_backend_tests()

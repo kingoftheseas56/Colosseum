@@ -1,0 +1,24 @@
+diff --git a/src/enum_net.cpp b/src/enum_net.cpp
+index 4652f8964..e027b4743 100644
+--- a/src/enum_net.cpp
++++ b/src/enum_net.cpp
+@@ -499,0 +500 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
++		char* const message_end = reinterpret_cast<char*>(rtm) + rtm->rtm_msglen;
+@@ -507,0 +509,2 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
++			char* const current = reinterpret_cast<char*>(sa);
++			if (current + offsetof(sockaddr, sa_data) > message_end) return false;
+@@ -512 +515 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
+-			sa = reinterpret_cast<sockaddr*>(reinterpret_cast<char*>(sa) + ROUNDUP(sa->sa_len));
++			std::size_t const length = ROUNDUP(sa->sa_len);
+@@ -514,0 +518,3 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
++
++			if (length > std::size_t(message_end - current)) return false;
++			sa = reinterpret_cast<sockaddr*>(current + length);
+@@ -1210,0 +1217 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
++		if (std::size_t(end - next) < sizeof(rt_msghdr)) break;
+@@ -1211,0 +1219,5 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
++		if (rtm->rtm_msglen < sizeof(rt_msghdr)
++			|| rtm->rtm_msglen > std::size_t(end - next))
++		{
++			break;
++		}

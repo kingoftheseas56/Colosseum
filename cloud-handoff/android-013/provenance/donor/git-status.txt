@@ -1,0 +1,375 @@
+ M .dockerignore
+ M .gitignore
+ M CMakeLists.txt
+ M CMakePresets.json
+ M LICENSE
+ M README.md
+ M THIRD_PARTY_NOTICES.md
+ M cmake/Dependencies.cmake
+ M cmake/nuvio-engine-apple.exports
+ M cmake/nuvio-engine-linux.map
+ M cmake/nuvio-engine-windows.def
+ M cmake/openssl-windows-targets.conf
+ M cmake/patches/libtorrent-2.0.12-macos-route-bounds.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-apple-trust.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-block-start.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-ca-bundle.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-connect-boost.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-metadata-pipeline.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-request-queue-limit.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-streaming-stall.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-top-priority-first.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-urgent-hedge.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-windows-system-trust.patch
+ M cmake/patches/libtorrent-2.0.12-nuvio-windows-trust.patch
+ M cmake/windows-llvm-mingw-toolchain.cmake
+ M include/nuvio_engine/byte_range.hpp
+ M include/nuvio_engine/export.h
+ M include/nuvio_engine/file_selection.hpp
+ M include/nuvio_engine/http_protocol.hpp
+ M include/nuvio_engine/nuvio_engine.h
+ M include/nuvio_engine/piece_scheduler.hpp
+ M platform/android/build.gradle.kts
+ M platform/android/engine/build.gradle.kts
+ M platform/android/engine/consumer-rules.pro
+ M platform/android/engine/src/androidTest/kotlin/com/nuvio/engine/NuvioEngineInstrumentedTest.kt
+ M platform/android/engine/src/main/AndroidManifest.xml
+ M platform/android/engine/src/main/cpp/CMakeLists.txt
+ M platform/android/engine/src/main/cpp/exports.map
+ M platform/android/engine/src/main/cpp/jni_bridge.cpp
+ M platform/android/engine/src/main/kotlin/com/nuvio/engine/NuvioEngine.kt
+ M platform/android/engine/src/main/kotlin/com/nuvio/engine/NuvioEngineConfig.kt
+ M platform/android/engine/src/main/kotlin/com/nuvio/engine/NuvioModels.kt
+ M platform/android/engine/src/main/kotlin/com/nuvio/engine/internal/AndroidTrustStore.kt
+ M platform/android/engine/src/main/kotlin/com/nuvio/engine/internal/NativeBridge.kt
+ M platform/android/engine/src/test/kotlin/com/nuvio/engine/NuvioEngineConfigTest.kt
+ M platform/android/gradle.properties
+ M platform/android/gradle/wrapper/gradle-wrapper.properties
+ M platform/android/gradlew
+ M platform/android/gradlew.bat
+ M platform/android/settings.gradle.kts
+ M platform/apple/Package.swift
+ M platform/apple/Sources/NuvioEngine/NativeSupport.swift
+ M platform/apple/Sources/NuvioEngine/NuvioEngine.swift
+ M platform/apple/Sources/NuvioEngine/NuvioEngineConfiguration.swift
+ M platform/apple/Sources/NuvioEngine/NuvioModels.swift
+ M platform/apple/Tests/NuvioEngineTests/NuvioEngineTests.swift
+ M platform/apple/include/module.modulemap
+ M platform/jvm/build.gradle.kts
+ M platform/jvm/gradlew
+ M platform/jvm/gradlew.bat
+ M platform/jvm/settings.gradle.kts
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioEngine.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioEngineConfig.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioEngineRuntime.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/NuvioModels.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/internal/JnaNativeLibrary.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/internal/JnaNativeTypes.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/internal/JnaNuvioNativeApi.kt
+ M platform/jvm/src/main/kotlin/com/nuvio/engine/internal/NuvioNativeApi.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineConfigTest.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineJvmSignalIntegrationTest.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineLifecycleTest.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineNativeIntegrationTest.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/NuvioEngineRuntimeTest.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/internal/FakeNuvioNativeApi.kt
+ M platform/jvm/src/test/kotlin/com/nuvio/engine/internal/JnaNativeLayoutTest.kt
+ M platform/linux/Dockerfile
+ M platform/windows/Dockerfile
+ M platform/windows/Dockerfile.wine
+ M scripts/build-android-openssl.sh
+ M scripts/build-apple-openssl.sh
+ M scripts/build-apple-xcframework.sh
+ M scripts/build-linux-openssl.sh
+ M scripts/build-linux-package-in-container.sh
+ M scripts/build-linux-packages.sh
+ M scripts/build-macos-package.sh
+ M scripts/build-windows-openssl.sh
+ M scripts/build-windows-package-in-container.sh
+ M scripts/build-windows-packages.sh
+ M scripts/create-deterministic-zip.py
+ M scripts/prepare-apple-dependencies.sh
+ M scripts/prepare-native-dependencies.sh
+ M scripts/smoke-apple-xcframework.sh
+ M scripts/smoke-windows-x86_64.sh
+ M scripts/verify-android-aar.sh
+ M scripts/verify-apple-swift-package.sh
+ M scripts/verify-apple-xcframework.sh
+ M scripts/verify-linux-package-in-container.sh
+ M scripts/verify-macos-package.sh
+ M scripts/verify-windows-package-in-container.sh
+ M src/cache/disk_cache_manager.cpp
+ M src/cache/disk_cache_manager.hpp
+ M src/cache/verified_piece_cache.cpp
+ M src/cache/verified_piece_cache.hpp
+ M src/core/engine.cpp
+ M src/core/engine_runtime.cpp
+ M src/core/engine_runtime.hpp
+ M src/http/byte_range.cpp
+ M src/http/http_protocol.cpp
+ M src/http/loopback_server.cpp
+ M src/http/loopback_server.hpp
+ M src/scheduler/demand_window.hpp
+ M src/scheduler/piece_scheduler.cpp
+ M src/scheduler/stream_demand_plan.cpp
+ M src/scheduler/stream_demand_plan.hpp
+ M src/security/apple_trust.cpp
+ M src/security/random_bytes.cpp
+ M src/security/random_bytes.hpp
+ M src/security/windows_trust.cpp
+ M src/storage/atomic_file.cpp
+ M src/storage/atomic_file.hpp
+ M src/storage/payload_reader.cpp
+ M src/storage/payload_reader.hpp
+ M src/torrent/file_selection.cpp
+ M src/torrent/libtorrent_backend.cpp
+ M src/torrent/libtorrent_stream_bridge.cpp
+ M src/torrent/libtorrent_stream_bridge.hpp
+ M src/torrent/protocol_backend.hpp
+ M src/torrent/protocol_backend_stub.cpp
+ M tests/CMakeLists.txt
+ M tests/apple_c_api_smoke.cpp
+ M tests/atomic_file_test.cpp
+ M tests/byte_range_test.cpp
+ M tests/c_api_smoke.c
+ M tests/disk_cache_manager_test.cpp
+ M tests/disk_cache_policy_integration_test.cpp
+ M tests/engine_api_test.cpp
+ M tests/file_selection_test.cpp
+ M tests/http_protocol_test.cpp
+ M tests/loopback_server_test.cpp
+ M tests/payload_reader_test.cpp
+ M tests/piece_scheduler_test.cpp
+ M tests/random_bytes_test.cpp
+ M tests/stream_demand_plan_test.cpp
+ A tests/stream_integrity_regression_test.cpp
+ M tests/test_main.cpp
+ M tests/test_support.hpp
+ M tests/verified_piece_cache_test.cpp
+?? build-android/arm64-v8a/.ninja_deps
+?? build-android/arm64-v8a/.ninja_log
+?? build-android/arm64-v8a/CMakeCache.txt
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CMakeCCompiler.cmake
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CMakeCXXCompiler.cmake
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CMakeDetermineCompilerABI_C.bin
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CMakeDetermineCompilerABI_CXX.bin
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CMakeSystem.cmake
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CompilerIdC/CMakeCCompilerId.c
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CompilerIdC/CMakeCCompilerId.o
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CompilerIdCXX/CMakeCXXCompilerId.cpp
+?? build-android/arm64-v8a/CMakeFiles/4.4.3/CompilerIdCXX/CMakeCXXCompilerId.o
+?? build-android/arm64-v8a/CMakeFiles/CMakeConfigureLog.yaml
+?? build-android/arm64-v8a/CMakeFiles/Export/e71b41628d18fc1748308585a0643886/NuvioEngineTargets-release.cmake
+?? build-android/arm64-v8a/CMakeFiles/Export/e71b41628d18fc1748308585a0643886/NuvioEngineTargets.cmake
+?? build-android/arm64-v8a/CMakeFiles/InstallScripts.json
+?? build-android/arm64-v8a/CMakeFiles/TargetDirectories.txt
+?? build-android/arm64-v8a/CMakeFiles/cmake.check_cache
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/cache/disk_cache_manager.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/cache/verified_piece_cache.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/core/engine.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/core/engine_runtime.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/http/byte_range.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/http/http_protocol.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/http/loopback_server.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/scheduler/piece_scheduler.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/scheduler/stream_demand_plan.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/security/random_bytes.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/storage/atomic_file.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/storage/payload_reader.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/torrent/file_selection.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/torrent/libtorrent_backend.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/nuvio_engine.dir/src/torrent/libtorrent_stream_bridge.cpp.o
+?? build-android/arm64-v8a/CMakeFiles/rules.ninja
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/Export/3120ee627214a64104748d2207948443/LibtorrentRasterbarTargets-release.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/Export/3120ee627214a64104748d2207948443/LibtorrentRasterbarTargets.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/deps/try_signal/signal_error_code.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/deps/try_signal/try_signal.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/add_torrent_params.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/alert.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/alert_manager.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/announce_entry.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/assert.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bandwidth_limit.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bandwidth_manager.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bandwidth_queue_entry.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bdecode.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bitfield.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bloom_filter.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/bt_peer_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/chained_buffer.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/choker.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/close_reason.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/copy_file.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/cpuid.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/crc32c.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/create_torrent.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/directory.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disabled_disk_io.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disk_buffer_holder.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disk_buffer_pool.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disk_interface.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disk_io_thread_pool.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disk_job_fence.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/disk_job_pool.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/drive_info.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/add_scalar.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/fe.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/ge.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/hasher512.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/key_exchange.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/keypair.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/sc.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/sha512.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/sign.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ed25519/verify.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/entry.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/enum_net.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/error_code.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/escape_string.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ffs.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/file.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/file_progress.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/file_storage.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/file_view_pool.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/fingerprint.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/generate_peer_id.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/gzip.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/hash_picker.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/hasher.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/hex.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/http_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/http_parser.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/http_seed_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/http_tracker_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/i2p_stream.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/identify_client.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/instantiate_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ip_filter.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ip_helpers.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ip_notifier.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ip_voter.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/dht_settings.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/dht_state.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/dht_storage.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/dht_tracker.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/dos_blocker.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/ed25519.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/find_data.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/get_item.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/get_peers.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/item.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/msg.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/node.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/node_entry.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/node_id.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/put_data.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/refresh.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/routing_table.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/rpc_manager.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/sample_infohashes.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/kademlia/traversal_algorithm.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/listen_socket_handle.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/load_torrent.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/lsd.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/magnet_uri.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/merkle.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/merkle_tree.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/mmap.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/mmap_disk_io.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/mmap_disk_job.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/mmap_storage.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/natpmp.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/packet_buffer.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/parse_url.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/part_file.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/path.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/pe_crypto.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/peer_class.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/peer_class_set.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/peer_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/peer_connection_handle.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/peer_info.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/peer_list.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/performance_counters.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/piece_picker.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/platform_util.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/posix_disk_io.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/posix_part_file.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/posix_storage.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/proxy_base.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/proxy_settings.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/puff.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/random.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/read_resume_data.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/receive_buffer.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/request_blocks.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/resolve_links.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/resolver.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session_call.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session_handle.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session_impl.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session_params.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session_settings.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/session_stats.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/settings_pack.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/sha1.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/sha1_hash.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/sha256.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/smart_ban.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/socket_io.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/socket_type.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/socks5_stream.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ssl.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/stack_allocator.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/stat.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/stat_cache.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/storage_utils.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/string_util.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/time.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/timestamp_history.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/torrent.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/torrent_handle.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/torrent_info.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/torrent_peer.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/torrent_peer_allocator.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/torrent_status.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/tracker_manager.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/truncate.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/udp_socket.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/udp_tracker_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/upnp.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ut_metadata.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/ut_pex.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/utf8.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/utp_socket_manager.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/utp_stream.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/version.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/web_connection_base.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/web_peer_connection.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/write_resume_data.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/CMakeFiles/torrent-rasterbar.dir/src/xml_parse.cpp.o
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/LibtorrentRasterbar/LibtorrentRasterbarConfigVersion.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/LibtorrentRasterbar/LibtorrentRasterbarTargets.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/bindings/cmake_install.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/cmake_install.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/libtorrent-rasterbar.a
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/torrent-rasterbar-pkgconfig/compile-settings-expanded.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/torrent-rasterbar-pkgconfig/compile-settings.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-build/torrent-rasterbar-pkgconfig/generate-pkg-config.cmake
+?? build-android/arm64-v8a/_deps/nuvio_libtorrent-src/
+?? build-android/arm64-v8a/build.ninja
+?? build-android/arm64-v8a/cmake_install.cmake
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-macos-route-bounds.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-apple-trust.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-block-start.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-ca-bundle.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-connect-boost.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-metadata-pipeline.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-request-queue-limit.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-streaming-stall.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-top-priority-first.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-urgent-hedge.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-windows-system-trust.patch
+?? build-android/arm64-v8a/nuvio-libtorrent-patches/libtorrent-2.0.12-nuvio-windows-trust.patch
