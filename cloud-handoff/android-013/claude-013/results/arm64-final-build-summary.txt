@@ -1,0 +1,12 @@
+  -- File: /root/c013/build-android/arm64-v8a/android-build//build/outputs/apk/debug/android-build-debug.apk
+PACKAGING_GATE_OK tests=6 skipped=0
+ANDROID_RUNTIME_BUNDLE_OK /root/c013/build-android/arm64-v8a/android-build/build/outputs/apk/debug/android-build-debug.apk
+OPENSSL_RUNTIME_PAIR_OK dir=/tmp/colosseum-apk-openssl.UTUQF5 ssl_needed_crypto=1 internal_symbols_resolved=1
+APK_OPENSSL_RUNTIME_PAIR_OK apk=/root/c013/build-android/arm64-v8a/android-build/build/outputs/apk/debug/android-build-debug.apk abi=arm64-v8a
+Signer #1 certificate DN: CN=Colosseum task013 Cloud diagnostic debug, O=Colosseum diagnostic
+Signer #1 certificate SHA-256 digest: c339570417e3ed3f3aa41aaea68fc602153826c60c8c231b38bf672b9479741e
+8307da040620a0d5013063e347c18943529dab71cd008653ded4385313d3cb1e  colosseum-arm64-v8a-debug.apk
+real	4m3.965s
+user	10m20.754s
+sys	0m57.460s
+source_commit=37fbb576d4444657f442377abbbd1d596078fd71

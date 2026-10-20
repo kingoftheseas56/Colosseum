@@ -1,0 +1,24 @@
+apk=colosseum-arm64-v8a-debug.apk bytes=253345182 sha256=8307da040620a0d5013063e347c18943529dab71cd008653ded4385313d3cb1e
+package: name='org.qtproject.example.colosseum.nuvio013cloud' versionCode='1' versionName='1.1.9' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+targetSdkVersion:'36'
+native-code: 'arm64-v8a'
+Signer #1 certificate DN: CN=Colosseum task013 Cloud diagnostic debug, O=Colosseum diagnostic
+Signer #1 certificate SHA-256 digest: c339570417e3ed3f3aa41aaea68fc602153826c60c8c231b38bf672b9479741e
+zipalign_16k=OK
+lib ABIs: lib/arm64-v8a/ 
+engine_member_sha256=736ccdf86844a44d68a6843a8dd6d04dba22a50ff0ccda92ffc38000e121851a
+engine_prefix_sha256=736ccdf86844a44d68a6843a8dd6d04dba22a50ff0ccda92ffc38000e121851a
+app_member_sha256=6c08f06b2ea570b4d189d8f275cf82ee571e93a6c842422a0e34c551fec074d5
+/tmp/eng.so: ELF 64-bit LSB shared object, ARM aarch64
+runtime_members=739
+bundleSha256=30797815280611e227b8451442c3d85da95ce1f233ec1da67754bb20a88a0d40
+qmlTreeSha256=c2bfb33d96d709c41ecf13e254eabdcdbc4a6d57d3473e41193fb127f26ef994
+overlay bundle: bundleSha256=30797815280611e227b8451442c3d85da95ce1f233ec1da67754bb20a88a0d40
+ANDROID_ABI:STRING=arm64-v8a
+CMAKE_BUILD_TYPE:STRING=Debug
+COLOSSEUM_ANDROID_NUVIO_BACKEND:BOOL=ON
+COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC:BOOL=OFF
+COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE:STRING=org.qtproject.example.colosseum.nuvio013cloud
+verified hardened nuvio engine: abi=arm64-v8a source=99a18601fa12 library=/root/c013/nuvio-prefix/android/arm64-v8a/lib/libnuvio_engine.so
+11-    OFF
+40-        OFF
