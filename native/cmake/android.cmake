@@ -52,6 +52,22 @@ if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
         APPEND
         PROPERTY QT_ANDROID_EXTRA_LIBS "${COLOSSEUM_NUVIO_ENGINE_LIBRARY}"
     )
+    # Task-only fixture/diagnostic seams exist solely in an explicitly named,
+    # separately signed diagnostic package. Empty (default) keeps the product
+    # package identity and compiles the seams out of reach.
+    set(COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE "" CACHE STRING
+        "Diagnostic-only Android package id that enables the Nuvio fixture seams")
+    if(COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE)
+        if(NOT COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE MATCHES
+                "^org[.]qtproject[.]example[.]colosseum[.]nuvio[0-9a-z]+$")
+            message(FATAL_ERROR
+                "COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE must be a distinct org.qtproject.example.colosseum.nuvio<id> package")
+        endif()
+        set_property(TARGET colosseum PROPERTY
+            QT_ANDROID_PACKAGE_NAME "${COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE}")
+        target_compile_definitions(colosseum PRIVATE
+            COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE="${COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE}")
+    endif()
 endif()
 
 # Android needs the same source-shaped runtime tree as desktop, but APKs cannot

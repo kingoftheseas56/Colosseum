@@ -129,8 +129,12 @@ def prove_patch_applies_to_pristine_pin(source: pathlib.Path, patch: pathlib.Pat
     try:
         archive_path = pristine / "pin.tar"
         with archive_path.open("wb") as handle:
+            # Export the committed blobs byte for byte: the hardened working
+            # donor may carry core.autocrlf=true, which would otherwise turn
+            # this "pristine" extraction into CRLF working-tree bytes.
             exporter = subprocess.Popen(
-                ["git", "archive", "--format=tar", PINNED_SOURCE_COMMIT],
+                ["git", "-c", "core.autocrlf=false", "archive", "--format=tar",
+                 PINNED_SOURCE_COMMIT],
                 cwd=str(source),
                 stdout=subprocess.PIPE,
             )

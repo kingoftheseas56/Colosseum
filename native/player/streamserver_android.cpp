@@ -92,16 +92,20 @@ StreamServer::StreamServer(QObject *parent)
     configuration.tlsCaBundlePath = pemPath;
     // The fixture and diagnostic APIs exist only in this explicitly named,
     // independently signed debug package. Production packages keep defaults.
+#ifdef COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE
     m_diagnosticTask =
-        androidCurrentPackage() == QStringLiteral("org.qtproject.example.colosseum.nuvio010isolated");
+        androidCurrentPackage() == QStringLiteral(COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE);
+#else
+    m_diagnosticTask = false;
+#endif
     bool taskDirectoriesReady = true;
     if (m_diagnosticTask) {
         qputenv("NUVIO_ENGINE_DISABLE_DISCOVERY", "1");
         configuration.requireFixtureIsolation = true;
-        configuration.dataDirectory = appData + QStringLiteral("/resume011-data");
+        configuration.dataDirectory = appData + QStringLiteral("/diag013-data");
         configuration.cacheDirectory =
             QStandardPaths::writableLocation(QStandardPaths::CacheLocation) +
-            QStringLiteral("/nuvio/resume011-cache");
+            QStringLiteral("/nuvio/diag013-cache");
         taskDirectoriesReady = QDir().mkpath(configuration.dataDirectory) &&
                                QDir().mkpath(configuration.cacheDirectory);
         qInfo() << "[nuvio011] diagnostic package, isolated fresh payload/cache roots"
@@ -195,7 +199,7 @@ StreamServer::StreamServer(QObject *parent)
         setEngineUnavailable(!m_backend->available());
         if (m_diagnosticTask) {
         // Task-only fixture trigger: watch the app-private files directory
-        // for nuvio010-trigger.json (written over ADB via run-as). Only this
+        // for nuvio013-trigger.json (written over ADB via run-as). Only this
         // task-owned file ever drives the fixture seams.
         const QString triggerDir =
             QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -214,7 +218,7 @@ StreamServer::StreamServer(QObject *parent)
 void StreamServer::handleTriggerFile() {
     if (!m_diagnosticTask) return;
     const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        + QStringLiteral("/nuvio011-trigger.json");
+        + QStringLiteral("/nuvio013-trigger.json");
     QFile file(path);
     if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
         return;
@@ -236,16 +240,17 @@ void StreamServer::handleTriggerFile() {
         const QString infoHash = object.value(QStringLiteral("infoHash")).toString();
         const int fileIdx = object.value(QStringLiteral("fileIdx")).toInt(-1);
         const QString title =
-            object.value(QStringLiteral("title")).toString(QStringLiteral("Nuvio 011 fixture"));
+            object.value(QStringLiteral("title")).toString(QStringLiteral("Nuvio 013 fixture"));
         const QString sourcePath =
             QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-            QStringLiteral("/nuvio011-fixture.torrent");
+            QStringLiteral("/nuvio013-fixture.torrent");
         QFile torrentFile(sourcePath);
         const auto expectedTorrentSha = QByteArrayLiteral(
-            "52c22b666c86a4c1cb7a92a4b18ab49654a8b2b9dc7ad15d44b88e994acad71b");
-        if (infoHash != QStringLiteral("79afbaf5c4e39bca900c8154cf3fa282a5019e8a") ||
+            "0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0");
+        // Task 013 synthetic fixture (cloud-handoff/android-013/claude-013/fixture013).
+        if (infoHash != QStringLiteral("7f13e4dfe42445a675cccb6fda1e7549babad2a8") ||
             fileIdx != 0 || !torrentFile.open(QIODevice::ReadOnly) ||
-            torrentFile.size() != 3436) {
+            torrentFile.size() != 2262) {
             qWarning() << "[nuvio011] fixture trigger rejected: identity or metadata unavailable";
             return;
         }

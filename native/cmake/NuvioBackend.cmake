@@ -31,9 +31,27 @@ if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
             "COLOSSEUM_ANDROID_NUVIO_BACKEND=ON requires COLOSSEUM_NUVIO_ENGINE_PREFIX: prepare the hardened engine with scripts/android/prepare_nuvio_engine.py. An unpatched release AAR is never acceptable."
         )
     endif()
+    # arm64-v8a is the product ABI. x86_64 exists only as an explicit,
+    # separately labelled emulator diagnostic; it is validated with its own
+    # ELF identity and never stands in for the ARM64 artifact.
+    option(
+        COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC
+        "Allow the hardened Nuvio backend in an x86_64 emulator diagnostic build"
+        OFF
+    )
+    if(ANDROID_ABI STREQUAL "arm64-v8a")
+        set(COLOSSEUM_NUVIO_ENGINE_ABI "arm64-v8a")
+    elseif(ANDROID_ABI STREQUAL "x86_64" AND COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC)
+        set(COLOSSEUM_NUVIO_ENGINE_ABI "x86_64")
+    else()
+        message(
+            FATAL_ERROR
+            "COLOSSEUM_ANDROID_NUVIO_BACKEND supports arm64-v8a; ANDROID_ABI=${ANDROID_ABI} requires COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC=ON (x86_64 only)."
+        )
+    endif()
     set(
         COLOSSEUM_NUVIO_ENGINE_LIBRARY
-        "${COLOSSEUM_NUVIO_ENGINE_PREFIX}/android/arm64-v8a/lib/libnuvio_engine.so"
+        "${COLOSSEUM_NUVIO_ENGINE_PREFIX}/android/${COLOSSEUM_NUVIO_ENGINE_ABI}/lib/libnuvio_engine.so"
     )
     set(
         COLOSSEUM_NUVIO_ENGINE_STAMP
@@ -60,7 +78,7 @@ if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
             "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_LIST_DIR}/../../scripts/android/verify_nuvio_hardened_artifact.py"
             --prefix "${COLOSSEUM_NUVIO_ENGINE_PREFIX}"
-            --abi arm64-v8a
+            --abi "${COLOSSEUM_NUVIO_ENGINE_ABI}"
         RESULT_VARIABLE _nuvio_artifact_verification
         OUTPUT_VARIABLE _nuvio_artifact_verification_out
         ERROR_VARIABLE _nuvio_artifact_verification_err
