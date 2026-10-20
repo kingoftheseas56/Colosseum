@@ -177,7 +177,11 @@ StreamServer::StreamServer(QObject *parent)
             m_backend.get(),
             &Colosseum::Nuvio::NuvioStreamBackend::streamError,
             this,
-            &StreamServer::streamError
+            [this](const QString &message) {
+                if (m_diagnosticTask)
+                    qWarning() << "[nuvio013] streamError:" << message;
+                emit streamError(message);
+            }
         );
         connect(
             m_backend.get(),
@@ -215,6 +219,32 @@ StreamServer::StreamServer(QObject *parent)
     }
 }
 
+// Task 013 synthetic fixture (cloud-handoff/android-013/claude-013/fixture013):
+// the only metadata the diagnostic package admits, pinned by identity and bytes.
+QByteArray StreamServer::loadPinnedFixture(const QString &infoHash, int fileIdx) const {
+    const QString sourcePath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
+        QStringLiteral("/nuvio013-fixture.torrent");
+    QFile torrentFile(sourcePath);
+    const auto expectedTorrentSha = QByteArrayLiteral(
+        "0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0");
+    if (infoHash != QStringLiteral("7f13e4dfe42445a675cccb6fda1e7549babad2a8") ||
+        fileIdx != 0 || !torrentFile.open(QIODevice::ReadOnly) ||
+        torrentFile.size() != 2262) {
+        qWarning() << "[nuvio011] fixture trigger rejected: identity or metadata unavailable";
+        return {};
+    }
+    const auto contents = torrentFile.readAll();
+    if (QCryptographicHash::hash(contents, QCryptographicHash::Sha256).toHex() !=
+        expectedTorrentSha) {
+        qWarning() << "[nuvio011] fixture trigger rejected: torrent hash mismatch";
+        return {};
+    }
+    qInfo() << "[nuvio011] verified private torrent metadata:" << infoHash
+            << "bytes" << contents.size();
+    return contents;
+}
+
 void StreamServer::handleTriggerFile() {
     if (!m_diagnosticTask) return;
     const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
@@ -241,27 +271,9 @@ void StreamServer::handleTriggerFile() {
         const int fileIdx = object.value(QStringLiteral("fileIdx")).toInt(-1);
         const QString title =
             object.value(QStringLiteral("title")).toString(QStringLiteral("Nuvio 013 fixture"));
-        const QString sourcePath =
-            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-            QStringLiteral("/nuvio013-fixture.torrent");
-        QFile torrentFile(sourcePath);
-        const auto expectedTorrentSha = QByteArrayLiteral(
-            "0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0");
-        // Task 013 synthetic fixture (cloud-handoff/android-013/claude-013/fixture013).
-        if (infoHash != QStringLiteral("7f13e4dfe42445a675cccb6fda1e7549babad2a8") ||
-            fileIdx != 0 || !torrentFile.open(QIODevice::ReadOnly) ||
-            torrentFile.size() != 2262) {
-            qWarning() << "[nuvio011] fixture trigger rejected: identity or metadata unavailable";
+        const auto contents = loadPinnedFixture(infoHash, fileIdx);
+        if (contents.isEmpty())
             return;
-        }
-        const auto contents = torrentFile.readAll();
-        if (QCryptographicHash::hash(contents, QCryptographicHash::Sha256).toHex() !=
-            expectedTorrentSha) {
-            qWarning() << "[nuvio011] fixture trigger rejected: torrent hash mismatch";
-            return;
-        }
-        qInfo() << "[nuvio011] verified private torrent metadata:" << infoHash
-                << "bytes" << contents.size();
         m_pendingFixtureTorrentData = contents;
         m_pendingFixtureInfoHash = infoHash;
         emit fixturePlayRequested(infoHash, fileIdx, title);
@@ -303,6 +315,18 @@ void StreamServer::play(const QString &infoHash, int fileIdx) {
         m_pendingFixtureInfoHash.clear();
         m_backend->playTorrentData(metadata, infoHash, fileIdx);
         return;
+    }
+    if (m_diagnosticTask) {
+        // A fixture re-demand (foreground return after the background quiesce
+        // destroyed the session): prove isolation on the new session, then
+        // admit the same pinned metadata. The worker runs both in order.
+        const auto metadata = loadPinnedFixture(infoHash, fileIdx);
+        if (!metadata.isEmpty()) {
+            qInfo() << "[nuvio013] fixture re-demand: verify then admit on the current session";
+            m_backend->verifyIsolation();
+            m_backend->playTorrentData(metadata, infoHash, fileIdx);
+            return;
+        }
     }
     m_backend->play(infoHash, fileIdx);
 }

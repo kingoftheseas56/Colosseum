@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Surface;
 
 import androidx.media3.common.AudioAttributes;
@@ -23,8 +24,11 @@ import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.extractor.metadata.Chapter;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSpec;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -126,6 +130,8 @@ public final class Media3PlayerHost {
             DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(false)
                 .setDefaultRequestProperties(safeHeaders);
+            if (appContext.getPackageName().contains(".nuvio"))
+                httpFactory.setTransferListener(new LoopbackTransferLog(generation));
             DefaultDataSource.Factory dataSourceFactory =
                 new DefaultDataSource.Factory(appContext, httpFactory);
             DefaultMediaSourceFactory mediaSourceFactory =
@@ -869,6 +875,57 @@ public final class Media3PlayerHost {
     private static native void nativeOnVideoSize(
         long nativeHandle, long generation, int width, int height, float pixelWidthHeightRatio);
     private static native void nativeOnFirstFrame(long nativeHandle, long generation);
+
+    /**
+     * Diagnostic-package evidence: correlates each Media3 loopback HTTP read with
+     * its byte range and transferred bytes. Only the port and a short route-token
+     * prefix are logged, never the full stream URL.
+     */
+    private static final class LoopbackTransferLog implements TransferListener {
+        private final long generation;
+        private long transferred;
+
+        LoopbackTransferLog(long generation) {
+            this.generation = generation;
+        }
+
+        private static String route(DataSpec spec) {
+            Uri uri = spec.uri;
+            if (!"127.0.0.1".equals(uri.getHost()))
+                return null;
+            String token = uri.getLastPathSegment();
+            String prefix = token == null ? "" : token.substring(0, Math.min(8, token.length()));
+            return uri.getPort() + "/" + prefix;
+        }
+
+        @Override
+        public void onTransferInitializing(DataSource source, DataSpec spec, boolean isNetwork) {}
+
+        @Override
+        public void onTransferStart(DataSource source, DataSpec spec, boolean isNetwork) {
+            String route = route(spec);
+            if (route == null)
+                return;
+            transferred = 0;
+            Log.i("ColosseumMedia3Http", "open gen=" + generation + " route=" + route
+                + " position=" + spec.position + " length=" + spec.length);
+        }
+
+        @Override
+        public void onBytesTransferred(DataSource source, DataSpec spec, boolean isNetwork,
+                int bytes) {
+            transferred += bytes;
+        }
+
+        @Override
+        public void onTransferEnd(DataSource source, DataSpec spec, boolean isNetwork) {
+            String route = route(spec);
+            if (route == null)
+                return;
+            Log.i("ColosseumMedia3Http", "close gen=" + generation + " route=" + route
+                + " position=" + spec.position + " bytes=" + transferred);
+        }
+    }
     private static native void nativeOnSeekDiscontinuity(
         long nativeHandle, long generation, long oldPositionMs, long newPositionMs);
     private static native void nativeOnTracks(

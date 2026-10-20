@@ -62,7 +62,12 @@ bool PowerStore::applyPlatformInhibit(bool on, const QString &reason) {
         },
         QDeadlineTimer(1000));
     future.waitForFinished();
-    return future.isFinished() && future.result().toBool();
+    // A runnable the Android UI thread did not reach before the deadline (a
+    // busy activity transition) leaves a cancelled future with no result;
+    // result() would then dereference a missing item and crash the process.
+    if (future.isCanceled() || future.resultCount() == 0)
+        return false;
+    return future.result().toBool();
 #elif defined(Q_OS_LINUX)
     if (on) {
         if (m_linuxInhibitor && m_linuxInhibitor->state() != QProcess::NotRunning)

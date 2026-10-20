@@ -123,6 +123,7 @@ private:
     QFileSystemWatcher *m_triggerWatcher = nullptr;
     QTimer *m_triggerDebounce = nullptr;
     void handleTriggerFile();
+    QByteArray loadPinnedFixture(const QString &infoHash, int fileIdx) const;
 #endif
     bool m_engineUnavailable = false;
     // Reflects runtime engine-unavailability (library resolve failure at

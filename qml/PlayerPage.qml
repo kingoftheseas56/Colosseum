@@ -327,6 +327,11 @@ Item {
     property double recoveryNoVideoSince: 0
     property double wakeReconnectLastTickAt: 0
     property real wakeReconnectPendingSeek: -1
+    // The Stream route currently loaded (onStreamReady). Android retires it when
+    // the app is backgrounded, so a foreground return must re-demand it.
+    property string streamRouteUrl: ""
+    property string streamRouteHash: ""
+    property int streamRouteFileIdx: 0
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -1676,6 +1681,26 @@ Item {
         }
     }
 
+    // Android background quiesce retires the Stream route, so restoring Media3
+    // on the old loopback URL could only fail. Re-demand the same source and
+    // reopen at the pre-background position (onStreamReady -> onFileLoaded).
+    function restoreRetiredStreamRoute() {
+        if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
+            return false
+        if (typeof Stream === "undefined" || !root.streamRouteUrl.length || root.errored)
+            return false
+        if (root.currentPlaybackUrl !== root.streamRouteUrl)
+            return false
+        if (Stream.streamUrl(root.streamRouteHash, root.streamRouteFileIdx) === root.streamRouteUrl)
+            return false
+        root.wakeReconnectPendingSeek = mpv.position > 1 ? mpv.position : -1
+        root.resetRecoveryWatch()
+        root.statusMsg = "Reconnecting stream..."
+        streamWatchdog.restart()
+        Stream.play(root.streamRouteHash, root.streamRouteFileIdx)
+        return true
+    }
+
     function tickWakeReconnect() {
         if (root.recoveryExcluded())
             return
@@ -2786,6 +2811,7 @@ Item {
         root.closeMenus()
         root.clearActiveDirectHeaders()
         mpv.stopPlayback()
+        root.streamRouteUrl = ""
         // A real close ends the stream's demand; minimize never reaches here.
         if (typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3667,6 +3693,8 @@ Item {
             target: PlatformRuntime
             enabled: PlatformRuntime.android
             function onApplicationStateChanged() {
+                if (root.restoreRetiredStreamRoute())
+                    return
                 mpv.setHostLifecycleState(PlatformRuntime.applicationState)
             }
             function onSurfaceAvailableChanged() {
@@ -3934,6 +3962,9 @@ Item {
             root.statusMsg = "Buffering..."
             root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
+            root.streamRouteUrl = url || ""
+            root.streamRouteHash = String(infoHash || "")
+            root.streamRouteFileIdx = Number(fileIdx || 0)
             streamWatchdog.restart()
             root.streamStatsSeen = false
             root.streamStatsPeers = 0
