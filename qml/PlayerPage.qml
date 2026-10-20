@@ -2786,6 +2786,9 @@ Item {
         root.closeMenus()
         root.clearActiveDirectHeaders()
         mpv.stopPlayback()
+        // A real close ends the stream's demand; minimize never reaches here.
+        if (typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
         root.starting = false
         root.errored = false
         root.statusMsg = ""

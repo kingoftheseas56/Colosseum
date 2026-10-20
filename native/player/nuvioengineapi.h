@@ -88,6 +88,7 @@ struct EngineApi {
             destroy != nullptr && add_torrent != nullptr && poll_event != nullptr &&
             get_file_count != nullptr && get_file != nullptr &&
             prepare_stream != nullptr && stop_stream != nullptr &&
+            remove_torrent != nullptr &&
             get_stats != nullptr && get_stream_stats != nullptr;
     }
 };

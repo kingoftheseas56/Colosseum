@@ -110,11 +110,16 @@ struct FakeEngine {
     std::uint64_t downloadRate = 65536;
 
     int createCount = 0;
+    std::uint32_t lastInactivityTimeoutMs = 0xffffffffu;
     int destroyCount = 0;
     int addTorrentCount = 0;
     int prepareCount = 0;
     std::uint64_t nextRequestId = 0;
     QStringList stopStreamIds;
+    QStringList removedTorrentIds;
+    // When set, TORRENT_REMOVED completions are held for the test to release.
+    bool holdRemoved = false;
+    std::vector<nuvio_engine_event> heldRemoved;
 
     std::deque<nuvio_engine_event> events;
     std::optional<nuvio_engine_event> heldPrepared;
@@ -145,6 +150,9 @@ struct FakeEngine {
         prepareCount = 0;
         nextRequestId = 0;
         stopStreamIds.clear();
+        removedTorrentIds.clear();
+        holdRemoved = false;
+        heldRemoved.clear();
         events.clear();
         heldPrepared.reset();
     }
@@ -171,6 +179,8 @@ std::atomic<int> g_liveFakeEngines{0};
 void fake_config_init(nuvio_engine_config *config, uint32_t size) {
     std::memset(config, 0, size);
     config->struct_size = size;
+    // Mirror the engine's defaulted idle route expiry (30 s).
+    config->stream_inactivity_timeout_milliseconds = 30'000;
 }
 
 void fake_torrent_request_init(nuvio_engine_torrent_request *request, uint32_t size) {
@@ -210,12 +220,13 @@ const char *fake_status_message(nuvio_engine_status) {
     return "fake status";
 }
 
-nuvio_engine_status fake_create(const nuvio_engine_config *, nuvio_engine **engine) {
+nuvio_engine_status fake_create(const nuvio_engine_config *config, nuvio_engine **engine) {
     int delay = 0;
     nuvio_engine_status result = NUVIO_ENGINE_STATUS_OK;
     {
         std::lock_guard lock(fake().mutex);
         ++fake().createCount;
+        fake().lastInactivityTimeoutMs = config->stream_inactivity_timeout_milliseconds;
         fake().createEntered = true;
         delay = fake().createDelayMs;
         result = fake().createResult;
@@ -338,6 +349,17 @@ nuvio_engine_status fake_stop_stream(nuvio_engine *, const char *streamId, uint6
     return NUVIO_ENGINE_STATUS_OK;
 }
 
+nuvio_engine_status fake_remove_torrent(nuvio_engine *, const char *torrentId, uint64_t *) {
+    std::lock_guard lock(fake().mutex);
+    fake().removedTorrentIds << QString::fromUtf8(torrentId);
+    auto event = fake().makeEvent(NUVIO_ENGINE_EVENT_TORRENT_REMOVED, torrentId);
+    if (fake().holdRemoved)
+        fake().heldRemoved.push_back(event);
+    else
+        fake().pushEvent(event);
+    return NUVIO_ENGINE_STATUS_OK;
+}
+
 nuvio_engine_status fake_get_stats(nuvio_engine *, nuvio_engine_stats *stats) {
     std::lock_guard lock(fake().mutex);
     fake_stats_init(stats, sizeof(*stats));
@@ -379,6 +401,7 @@ EngineApi fakeApi() {
     api.get_file = fake_get_file;
     api.prepare_stream = fake_prepare_stream;
     api.stop_stream = fake_stop_stream;
+    api.remove_torrent = fake_remove_torrent;
     api.get_stats = fake_get_stats;
     api.get_stream_stats = fake_get_stream_stats;
     return api;
@@ -407,6 +430,12 @@ private slots:
     void validMetadataAndPreparePublishLoopbackUrl();
     void staleRequestCompletionIsSuppressedAndRetired();
     void rapidSourceSwitchRetiresPriorRoute();
+    void stopRetiresRouteAndRemovesTorrent();
+    void stopDuringInflightPrepareSuppressesAndRemoves();
+    void stopKeepsPrefetchOwnedTorrent();
+    void replayAfterStopWaitsForPendingRemoval();
+    void playerOwnedRoutesDoNotIdleExpire();
+    void engineStoppedActiveRouteIsNotReused();
     void prefetchDoesNotHijackActivePlayback();
     // Receiving-review probes: these two reproduced accepted P1 defects and
     // must never regress.
@@ -514,6 +543,132 @@ void TestNuvioStreamBackend::rapidSourceSwitchRetiresPriorRoute() {
     QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString());
     QCOMPARE(backend.streamUrl(kInfoHashB, 0), QString::fromLatin1(kUrlB));
     QTRY_VERIFY_WITH_TIMEOUT(fake().stopStreamIds.contains(QString::fromLatin1("stream-1")), 10000);
+    // Replacing the source must also end the prior torrent's session demand.
+    QTRY_VERIFY_WITH_TIMEOUT(fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashA)), 10000);
+    QVERIFY(!fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashB)));
+}
+
+void TestNuvioStreamBackend::stopRetiresRouteAndRemovesTorrent() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy readyChanged(&backend, &NuvioStreamBackend::readyChanged);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 10000);
+    backend.stop();
+    QTRY_VERIFY_WITH_TIMEOUT(fake().stopStreamIds.contains(QString::fromLatin1("stream-1")), 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend.ready(), 10000);
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString());
+    QTest::qWait(300);
+    QCOMPARE(ready.count(), 1);
+    // Exactly one removal; a later play reconstructs demand from scratch.
+    QCOMPARE(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().addTorrentCount, 2);
+}
+
+void TestNuvioStreamBackend::stopDuringInflightPrepareSuppressesAndRemoves() {
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashA);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy errors(&backend, &NuvioStreamBackend::streamError);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(backend.starting(), 10000);
+    backend.stop();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend.starting(), 10000);
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        fake().pushEvent(*fake().heldPrepared);
+        fake().heldPrepared.reset();
+    }
+    // The late completion belongs to nobody: its route is retired and no
+    // publication or error reaches the closed player.
+    QTRY_VERIFY_WITH_TIMEOUT(fake().stopStreamIds.contains(QString::fromLatin1("stream-1")), 10000);
+    QTest::qWait(300);
+    QCOMPARE(ready.count(), 0);
+    QCOMPARE(errors.count(), 0);
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString());
+}
+
+void TestNuvioStreamBackend::stopKeepsPrefetchOwnedTorrent() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.prefetch(kInfoHashB, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    backend.stop();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    QTest::qWait(300);
+    // The download owner's torrent and route survive the player closing.
+    QVERIFY(!fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashB)));
+    QVERIFY(!fake().stopStreamIds.contains(QString::fromLatin1("stream-2")));
+}
+
+void TestNuvioStreamBackend::replayAfterStopWaitsForPendingRemoval() {
+    FakeEngineReset reset;
+    fake().holdRemoved = true;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.stop();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    // Reopened before the engine finished removing the torrent.
+    backend.play(kInfoHashA, 0);
+    QTest::qWait(300);
+    QCOMPARE(fake().addTorrentCount, 1);
+    QCOMPARE(ready.count(), 1);
+    QVERIFY(backend.starting());
+    {
+        std::lock_guard lock(fake().mutex);
+        for (const auto &event : fake().heldRemoved) fake().pushEvent(event);
+        fake().heldRemoved.clear();
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().addTorrentCount, 2);
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), ready.at(1).at(0).toString());
+}
+
+void TestNuvioStreamBackend::playerOwnedRoutesDoNotIdleExpire() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    // A fully buffered file leaves its route idle while playback continues;
+    // the backend retires routes explicitly, so engine idle expiry is off.
+    QCOMPARE(fake().lastInactivityTimeoutMs, 0u);
+}
+
+void TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QCOMPARE(fake().prepareCount, 1);
+    {
+        std::lock_guard lock(fake().mutex);
+        auto event = fake().makeEvent(NUVIO_ENGINE_EVENT_STREAM_STOPPED, kInfoHashA);
+        std::snprintf(event.stream_id, sizeof(event.stream_id), "%s", "stream-1");
+        fake().pushEvent(event);
+    }
+    // The engine no longer serves that route: it must not be published again.
+    QTRY_COMPARE_WITH_TIMEOUT(backend.streamUrl(kInfoHashA, 0), QString(), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(!backend.ready(), 10000);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().prepareCount, 2);
 }
 
 void TestNuvioStreamBackend::prefetchDoesNotHijackActivePlayback() {

@@ -57,6 +57,7 @@ private:
     std::shared_ptr<std::atomic<quint64>> m_pendingFrameGeneration;
     QJniObject m_bridge;
     bool m_surfacePublished = false;
+    quint64 m_latchedFrames = 0;
 
     unsigned int m_program = 0;
     unsigned int m_textureId = 0;

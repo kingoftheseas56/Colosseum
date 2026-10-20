@@ -117,6 +117,9 @@ public:
     void playTorrentData(const QByteArray &data, const QString &infoHash, int fileIdx);
     void verifyIsolation();
     void prefetch(const QString &infoHash, int fileIdx);
+    // The player closed: supersede in-flight foreground demand, retire the
+    // foreground route and remove torrents no prefetch or demand still owns.
+    void stop();
 
     // Deliberately does not start torrent networking.
     void warmUp();

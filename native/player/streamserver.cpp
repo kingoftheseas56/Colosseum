@@ -509,6 +509,10 @@ void StreamServer::unwatchStats()
     m_statsIdx = -1;
 }
 
+void StreamServer::stopDemand()
+{
+}
+
 void StreamServer::pollStats()
 {
     if (m_port <= 0 || m_statsHash.isEmpty() || m_statsInflight)

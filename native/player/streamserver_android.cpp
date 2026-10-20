@@ -9,15 +9,15 @@
 
 #include <QStandardPaths>
 
-#ifdef Q_OS_ANDROID
-#include <QCoreApplication>
-#include <QJniObject>
-#include <QDir>
 #include <QFile>
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
+
+#ifdef Q_OS_ANDROID
+#include <QCoreApplication>
+#include <QJniObject>
 #include <QtCore/qcoreapplication_platform.h>
 #endif
 
@@ -341,6 +341,12 @@ void StreamServer::setForeground(bool foreground) {
     }
 }
 
+void StreamServer::stopDemand() {
+    if (m_backend) {
+        m_backend->stop();
+    }
+}
+
 #else // stub: Android streaming unavailable
 
 namespace {
@@ -412,6 +418,10 @@ void StreamServer::watchStats(const QString &infoHash, int fileIdx)
 }
 
 void StreamServer::unwatchStats()
+{
+}
+
+void StreamServer::stopDemand()
 {
 }
 

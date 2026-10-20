@@ -662,7 +662,10 @@ void AndroidMedia3Item::handleVideoSize(quint64 generation, int width, int heigh
     if (!m_state.accepts(generation))
         return;
     const auto before = m_state.snapshot();
-    if (!m_state.noteVideoSize(generation, width, height))
+    const bool accepted = m_state.noteVideoSize(generation, width, height);
+    qInfo() << "Media3 video size" << width << "x" << height << "ratio" << pixelRatio
+            << "generation" << generation << "accepted" << accepted;
+    if (!accepted)
         return;
     const double ratio = std::isfinite(pixelRatio) && pixelRatio > 0.0 ? pixelRatio : 1.0;
     m_videoSize = QSize(std::max(0, int(std::lround(width * ratio))), std::max(0, height));

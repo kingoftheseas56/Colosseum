@@ -2,11 +2,15 @@
 
 #include <QLibrary>
 
+#include <algorithm>
+
 #include <QByteArray>
 #include <QMetaObject>
 #include <functional>
 #include <memory>
+#include <set>
 #include <utility>
+#include <vector>
 #include <QUrl>
 
 namespace Colosseum::Nuvio {
@@ -198,7 +202,7 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
         quint64 epoch = 0;
     };
 
-    enum class TaskKind { Demand, Quiesce, VerifyIsolation };
+    enum class TaskKind { Demand, Quiesce, VerifyIsolation, Stop };
 
     struct Task {
         TaskKind kind = TaskKind::Demand;
@@ -227,8 +231,11 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
     std::string m_verifiedSessionId; // set only by empty-session verify on this instance
     QString engineLibraryPathForDiagnostics;
     void retireStream(const ActiveStream &stream);
-    void retireActiveRoute();
+    QString retireActiveRoute();
+    bool torrentStillOwned(const QString &torrentId);
+    void releaseTorrentIfUnowned(const QString &torrentId);
     void handleDemand(Task task);
+    void handleStop();
     void issueChain(const Task &task);
     void issueWaitingDemands(const QString &torrentId);
     void failChain(DemandChain &chain, const QString &message);
@@ -273,6 +280,7 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
     std::map<QString, DemandChain> m_chains;          // worker-only
     std::optional<DeferredDemand> m_deferredPrefetch; // worker-only
     std::vector<DeferredDemand> m_waiting;            // worker-only
+    std::set<QString> m_removing;       // worker-only: remove_torrent awaiting TORRENT_REMOVED
     bool m_statsWatched = false;        // m_queueMutex
     QString m_statsInfoHash;
     int m_statsFileIdx = -1;
@@ -421,6 +429,15 @@ void NuvioStreamBackend::prefetch(const QString &infoHash, int fileIdx) {
     task.fetch = true;
     m_state->enqueueTask(std::move(task));
 }
+void NuvioStreamBackend::stop() {
+    if (!available()) return;
+    WorkerState::Task task;
+    task.kind = WorkerState::TaskKind::Stop;
+    // Fences queued foreground publications and in-flight completions.
+    task.generation = ++m_state->m_generation;
+    task.epoch = m_state->m_epoch.load();
+    m_state->enqueueTask(std::move(task));
+}
 void NuvioStreamBackend::warmUp() {
     // Deliberately lazy: startup warm-up must not start torrent networking.
 }
@@ -507,6 +524,9 @@ void NuvioStreamBackend::WorkerState::workerLoop() {
             case TaskKind::VerifyIsolation:
                 handleVerifyIsolation();
                 break;
+            case TaskKind::Stop:
+                handleStop();
+                break;
             }
             if (shutdown) {
                 break;
@@ -541,6 +561,11 @@ bool NuvioStreamBackend::WorkerState::ensureEngineCreated(QString *diagnostic) {
     config.memory_cache_capacity_bytes = m_configuration.memoryCacheBytes;
     config.disk_cache_capacity_bytes = m_configuration.diskCacheBytes;
     config.listen_port = 0;
+    // Routes are retired explicitly (player close, source switch, background
+    // quiesce). The engine's idle expiry would otherwise erase the route of a
+    // fully buffered file while it still plays, so a later seek, re-buffer or
+    // reload received 404 from its own loopback server.
+    config.stream_inactivity_timeout_milliseconds = 0;
     config.upload_mode = NUVIO_ENGINE_UPLOAD_DISABLED;
     config.torrent_profile = NUVIO_ENGINE_TORRENT_PROFILE_BALANCED;
     config.tls_ca_bundle_path = caBundle.isEmpty() ? nullptr : caBundle.constData();
@@ -613,13 +638,13 @@ void NuvioStreamBackend::WorkerState::retireStream(const ActiveStream &stream) {
     m_api.stop_stream(m_engine, stream.streamId.toUtf8().constData(), &requestId);
 }
 
-void NuvioStreamBackend::WorkerState::retireActiveRoute() {
+QString NuvioStreamBackend::WorkerState::retireActiveRoute() {
     ActiveStream retired;
     {
         std::lock_guard lock(m_stateMutex);
         retired = m_active;
         if (retired.infoHash.isEmpty()) {
-            return;
+            return {};
         }
         m_active = ActiveStream{};
     }
@@ -638,6 +663,59 @@ void NuvioStreamBackend::WorkerState::retireActiveRoute() {
         m_deferredPrefetch.reset();
         enqueueTask(std::move(task));
     }
+    return retired.infoHash;
+}
+
+bool NuvioStreamBackend::WorkerState::torrentStillOwned(const QString &torrentId) {
+    if (m_chains.count(torrentId) != 0) return true;
+    for (const auto &waiting : m_waiting)
+        if (waiting.infoHash == torrentId) return true;
+    if (m_deferredPrefetch.has_value() && m_deferredPrefetch->infoHash == torrentId) return true;
+    {
+        std::lock_guard lock(m_stateMutex);
+        if (m_active.infoHash == torrentId || m_prefetchRoute.infoHash == torrentId) return true;
+    }
+    std::lock_guard lock(m_queueMutex);
+    for (const auto &queued : m_queue)
+        if (queued.kind == TaskKind::Demand && queued.infoHash == torrentId) return true;
+    return false;
+}
+
+// stop_stream only retires a loopback route; the torrent itself keeps its
+// session demand until it is removed. A torrent no route, chain or queued
+// demand owns is removed so closing or replacing playback ends its transfer.
+void NuvioStreamBackend::WorkerState::releaseTorrentIfUnowned(const QString &torrentId) {
+    if (m_engine == nullptr || torrentId.isEmpty() || torrentStillOwned(torrentId)) return;
+    std::uint64_t requestId = 0;
+    const auto status =
+        m_api.remove_torrent(m_engine, torrentId.toUtf8().constData(), &requestId);
+    if (status == NUVIO_ENGINE_STATUS_OK) m_removing.insert(torrentId);
+    qInfo() << "[nuvio013] released torrent" << torrentId << "status"
+            << QString::fromUtf8(m_api.status_message(status));
+}
+
+void NuvioStreamBackend::WorkerState::handleStop() {
+    std::vector<QString> released;
+    for (auto chain = m_chains.begin(); chain != m_chains.end();) {
+        if (!chain->second.fetch) {
+            released.push_back(chain->first);
+            chain = m_chains.erase(chain);
+        } else {
+            ++chain;
+        }
+    }
+    m_waiting.erase(std::remove_if(m_waiting.begin(), m_waiting.end(),
+        [&](const DeferredDemand &waiting) {
+            if (waiting.fetch) return false;
+            released.push_back(waiting.infoHash);
+            return true;
+        }), m_waiting.end());
+    const auto retired = retireActiveRoute();
+    if (!retired.isEmpty()) released.push_back(retired);
+    setStarting(false);
+    qInfo() << "[nuvio013] stop: retired route" << retired << "foreground demands"
+            << released.size();
+    for (const auto &torrentId : released) releaseTorrentIfUnowned(torrentId);
 }
 
 void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
@@ -707,6 +785,14 @@ void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
         }
     }
 
+    // Re-adding a torrent whose removal is still pending would revive the
+    // handle being torn down; wait for the engine's TORRENT_REMOVED instead.
+    if (m_removing.count(task.infoHash) != 0) {
+        m_waiting.push_back(DeferredDemand{task.infoHash, task.fileIdx, task.fetch, task.generation, task.epoch});
+        if (!task.fetch) setStarting(true);
+        return;
+    }
+
     const auto chainIt = m_chains.find(task.infoHash);
     if (chainIt != m_chains.end()) {
         auto &chain = chainIt->second;
@@ -720,7 +806,8 @@ void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
                 // Promote the in-flight prefetch to the foreground start; its
                 // completion must publish streamReady, not fetchReady.
                 chain.fetch = false;
-                retireActiveRoute();
+                const auto retiredTorrent = retireActiveRoute();
+                if (retiredTorrent != task.infoHash) releaseTorrentIfUnowned(retiredTorrent);
                 setStarting(true);
             }
             chain.superseded = false;
@@ -736,7 +823,8 @@ void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
     }
 
     if (!task.fetch) {
-        retireActiveRoute();
+        const auto retiredTorrent = retireActiveRoute();
+        if (retiredTorrent != task.infoHash) releaseTorrentIfUnowned(retiredTorrent);
         // Playing the prefetched source promotes the remembered route
         // instead of re-preparing it (the engine would replace the route).
         bool promoted = false;
@@ -878,6 +966,7 @@ void NuvioStreamBackend::WorkerState::failChain(DemandChain &chain, const QStrin
         finishStartup(message, generation);
     }
     issueWaitingDemands(torrentId);
+    releaseTorrentIfUnowned(torrentId);
 }
 
 void NuvioStreamBackend::WorkerState::completeChain(DemandChain &chain, const ActiveStream &route) {
@@ -889,6 +978,7 @@ void NuvioStreamBackend::WorkerState::completeChain(DemandChain &chain, const Ac
         !m_foreground.load()) {
         retireStream(route);
         issueWaitingDemands(torrentId);
+        releaseTorrentIfUnowned(torrentId);
         return;
     }
     if (wasFetch) {
@@ -1034,6 +1124,7 @@ void NuvioStreamBackend::WorkerState::processEvents() {
                 });
                 m_chains.erase(chainIt);
                 issueWaitingDemands(torrentId);
+                releaseTorrentIfUnowned(torrentId);
                 break;
             }
             const ActiveStream route{
@@ -1045,6 +1136,29 @@ void NuvioStreamBackend::WorkerState::processEvents() {
                 chain.generation,
             };
             completeChain(chain, route);
+            break;
+        }
+        case NUVIO_ENGINE_EVENT_STREAM_STOPPED: {
+            // The engine no longer serves this route: never publish or reuse it.
+            const auto stoppedId = QString::fromUtf8(event.stream_id);
+            bool activeStopped = false;
+            {
+                std::lock_guard lock(m_stateMutex);
+                if (!stoppedId.isEmpty() && m_active.streamId == stoppedId) {
+                    m_active = ActiveStream{};
+                    activeStopped = true;
+                }
+                if (!stoppedId.isEmpty() && m_prefetchRoute.streamId == stoppedId)
+                    m_prefetchRoute = ActiveStream{};
+            }
+            if (activeStopped) {
+                qInfo() << "[nuvio013] engine stopped the active route" << stoppedId;
+                setReady(false);
+            }
+            break;
+        }
+        case NUVIO_ENGINE_EVENT_TORRENT_REMOVED: {
+            if (m_removing.erase(torrentId) != 0) issueWaitingDemands(torrentId);
             break;
         }
         case NUVIO_ENGINE_EVENT_TORRENT_ERROR: {
@@ -1147,6 +1261,7 @@ void NuvioStreamBackend::WorkerState::quiesce() {
     }
     m_chains.clear();
     m_waiting.clear();
+    m_removing.clear();
     m_deferredPrefetch.reset();
     if (m_engine != nullptr) {
         // Ordinary background transition: destruction happens here, on the

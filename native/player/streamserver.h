@@ -94,6 +94,11 @@ public:
     Q_INVOKABLE void watchStats(const QString &infoHash, int fileIdx);
     Q_INVOKABLE void unwatchStats();
 
+    // The player closed for good (minimize never calls this): on Android the
+    // Nuvio backend retires the route and removes the torrent's session
+    // demand. The desktop runtime keeps its own torrent lifetime (no-op).
+    Q_INVOKABLE void stopDemand();
+
 Q_SIGNALS:
     void readyChanged();
     void startingChanged();
