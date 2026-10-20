@@ -39,10 +39,10 @@ Item {
     Row {
         objectName: "vinylSongBrowseActions"
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 4; spacing: 8
-        VinylWorldButton { objectName: "vinylSongPlay"; visible: root.browseMode; label: "Play"; onTriggered: root.playRequested() }
-        VinylWorldButton { objectName: "vinylSongLyrics"; label: "Lyrics"; enabled: root.pageData.hasLyrics; selected: root.pageData.lyricsShown; onTriggered: root.pageData.lyricsShown=!root.pageData.lyricsShown }
-        VinylWorldButton { objectName: "vinylSongNotes"; label: "Notes"; enabled: root.pageData.hasNotes; selected: root.pageData.autoNotes; onTriggered: {root.pageData.autoNotes=!root.pageData.autoNotes;root.pageData.lyricsShown=true;} }
-        VinylWorldButton { objectName: "vinylSongCredits"; label: "Credits"; enabled: root.pageData.playingCredits.length>0; onTriggered: root.creditsRequested() }
+        VinylWorldButton { objectName: "vinylSongPlay"; visible: root.browseMode; label: "Play"; symbol: "play"; onTriggered: root.playRequested() }
+        VinylWorldButton { objectName: "vinylSongLyrics"; label: "Lyrics"; symbol: "lyrics"; enabled: root.pageData.hasLyrics; selected: root.pageData.lyricsShown; onTriggered: root.pageData.lyricsShown=!root.pageData.lyricsShown }
+        VinylWorldButton { objectName: "vinylSongNotes"; label: "Notes"; symbol: "notes"; enabled: root.pageData.hasNotes; selected: root.pageData.autoNotes; onTriggered: {root.pageData.autoNotes=!root.pageData.autoNotes;root.pageData.lyricsShown=true;} }
+        VinylWorldButton { objectName: "vinylSongCredits"; label: "Credits"; symbol: "credits"; enabled: root.pageData.playingCredits.length>0; onTriggered: root.creditsRequested() }
     }
     Item {
         id: room
@@ -124,22 +124,14 @@ Item {
                     font.pixelSize: Math.min(34, Window.height * 0.038)
                     wrapMode: Text.WordWrap
                 }
-                Text {
+                VinylArtistLinks {
                     objectName: "vinylSongArtist"
                     width: parent.width
-                    text: root.pageData.playingEdition.artist
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 14
-                    wrapMode: Text.WordWrap
-                    KeyboardAction {
-                        focusOnPointer: false
-                        objectName: "vinylSongArtistLink"
-                        anchors.fill: parent
-                        visible: root.artistNavigationEnabled
-                        accessibleName: parent.text
-                        onTriggered: root.artistRequested(accessibleName)
-                    }
+                    names: root.pageData.playingTrack.artists || root.pageData.playingEdition.artists || (root.pageData.playingEdition.sourceAlbum && root.pageData.playingEdition.sourceAlbum.artists) || []
+                    fallbackName: root.pageData.playingEdition.artist
+                    navigationEnabled: root.artistNavigationEnabled
+                    fontSize: 14
+                    onArtistRequested: name => root.artistRequested(name)
                 }
             }
         }

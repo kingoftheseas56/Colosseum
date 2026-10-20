@@ -491,7 +491,7 @@ Item {
                 focusOnPointer: false
                 id: playAction
                 objectName: "vinylArtistPlay"
-                width: 118
+                width: 46
                 height: 46
                 focusRadius: 9
                 focusPrimary: true
@@ -509,25 +509,12 @@ Item {
                     radius: 9
                     color: theme.gold
                 }
-                Row {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    spacing: 8
-                    Image {
-                        width: 16
-                        height: 16
-                        anchors.verticalCenter: parent.verticalCenter
-                        source: "data:image/svg+xml," + encodeURIComponent(
-                            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#17181c">'
-                            + (root.artistData.demoPlaying ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l14 8-14 8z"/>') + '</svg>')
-                    }
-                    Text {
-                        text: root.artistData.demoPlaying ? "Pause" : "Play"
-                        color: "#17181c"
-                        font.family: theme.ui
-                        font.pixelSize: 14
-                        font.weight: Font.Bold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                    width: 20
+                    height: 20
+                    symbol: root.artistData.demoPlaying ? "pause" : "play"
+                    color: "#17181c"
                 }
             }
 
@@ -535,7 +522,7 @@ Item {
                 focusOnPointer: false
                 id: shuffleAction
                 objectName: "vinylArtistShuffle"
-                width: 116
+                width: 46
                 height: 46
                 focusRadius: 9
                 spaceActivates: true
@@ -554,13 +541,12 @@ Item {
                     border.width: 1
                     border.color: shuffleAction.interactionActive ? Qt.rgba(1, 1, 1, 0.34) : theme.edge
                 }
-                Text {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    text: "⇄  Shuffle"
+                    width: 20
+                    height: 20
+                    symbol: "shuffle"
                     color: theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 14
-                    font.weight: Font.Bold
                 }
             }
 
@@ -574,7 +560,6 @@ Item {
                 spaceActivates: true
                 enabled: root.artistData.saveEnabled !== false
                 opacity: enabled ? 1 : 0.4
-                accessibleDescription: enabled ? "" : "Artist saving is not available yet"
                 accessibleName: root.artistData.saved ? "Unsave artist" : "Save artist"
                 onTriggered: root.artistData.toggleSaved()
                 onActiveFocusChanged: if (activeFocus) root.itemFocused(save)
@@ -587,13 +572,12 @@ Item {
                     border.width: 1
                     border.color: root.artistData.saved ? theme.gold : theme.edge
                 }
-                Text {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    text: root.artistData.saved ? "♥" : "♡"
+                    width: 20
+                    height: 20
+                    symbol: root.artistData.saved ? "saved" : "save"
                     color: root.artistData.saved ? theme.gold : theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 17
-                    font.weight: Font.Bold
                 }
             }
 
@@ -601,7 +585,7 @@ Item {
                 focusOnPointer: false
                 id: create
                 objectName: "vinylArtistCreatePlaylist"
-                width: 146
+                width: 46
                 height: 46
                 focusRadius: 9
                 spaceActivates: true
@@ -616,13 +600,12 @@ Item {
                     border.width: 1
                     border.color: theme.edge
                 }
-                Text {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    text: "+ Create playlist"
+                    width: 20
+                    height: 20
+                    symbol: "queue"
                     color: theme.gold
-                    font.family: theme.ui
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
                 }
             }
         }

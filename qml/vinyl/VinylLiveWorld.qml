@@ -72,7 +72,13 @@ Item {
     }
     function showRecordArtist(name,record) {
         var at=(record.artists || []).indexOf(name);
-        showArtist(at>=0 && (record.artistIds || [])[at] ? {name:name,id:record.artistIds[at]} : name);
+        if(at>=0 && (record.artistIds || [])[at]) {showArtist({name:name,id:record.artistIds[at]});return;}
+        var tracks=record.tracks || [];
+        for(var i=0;i<tracks.length;i++) {
+            var index=(tracks[i].artists || []).indexOf(name);
+            if(index>=0 && (tracks[i].artistIds || [])[index]) {showArtist({name:name,id:tracks[i].artistIds[index]});return;}
+        }
+        showArtist(name);
     }
     function activateItem(item) {
         if(item.kind==="artists") {showArtist({id:item.artistId || "",name:item.artist || item.title});return;}
@@ -166,11 +172,11 @@ Item {
     }
     Flow {
         id:navigation;objectName:"vinylNavigation";x:theme.margin;y:top.y+top.height+24;width:parent.width-2*x;spacing:12
-        VinylWorldButton {id:openFiles;objectName:"vinylOpenFiles";label:root.importing ? "Opening…" : "Open local music";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioDialog.open()}
-        VinylWorldButton {id:openFolder;objectName:"vinylOpenFolder";label:"Open music folder";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioFolderDialog.open()}
-        VinylWorldButton {id:nowPlaying;objectName:"vinylNowPlaying";label:"Now playing";backdrop:vinylBackdrop;visible:session.playingIndex>=0;onTriggered:root.showSong()}
-        VinylWorldButton {objectName:"vinylQueueButton";label:"Queue · "+session.queue.length;backdrop:vinylBackdrop;onTriggered:queuePanel.open()}
-        VinylWorldButton {objectName:"vinylCatalogueMode";label:worldData.onlineMode ? "Local library" : "Search catalogue";backdrop:vinylBackdrop;onTriggered:{session.cancelBrowse();worldData.onlineMode=!worldData.onlineMode;query.forceActiveFocus();}}
+        VinylWorldButton {id:openFiles;objectName:"vinylOpenFiles";label:root.importing ? "Opening…" : "Open local music";symbol:"musicFiles";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioDialog.open()}
+        VinylWorldButton {id:openFolder;objectName:"vinylOpenFolder";label:"Open music folder";symbol:"musicFolder";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioFolderDialog.open()}
+        VinylWorldButton {id:nowPlaying;objectName:"vinylNowPlaying";label:"Now playing";symbol:"nowPlaying";backdrop:vinylBackdrop;visible:session.playingIndex>=0;onTriggered:root.showSong()}
+        VinylWorldButton {objectName:"vinylQueueButton";label:"Queue · "+session.queue.length;symbol:"queue";backdrop:vinylBackdrop;onTriggered:queuePanel.open()}
+        VinylWorldButton {objectName:"vinylCatalogueMode";label:worldData.onlineMode ? "Local library" : "Search catalogue";symbol:"search";backdrop:vinylBackdrop;onTriggered:{session.cancelBrowse();worldData.onlineMode=!worldData.onlineMode;query.forceActiveFocus();}}
     }
     Item {
         id:libraryHeader;objectName:"vinylLibraryHeader";x:theme.margin;y:navigation.y+navigation.height+22;width:parent.width-2*x;height:44;visible:root.worldVisible
@@ -182,12 +188,12 @@ Item {
             background:Glass {objectName:"vinylSearchGlass";backdrop:vinylBackdrop;radius:12;tint:0.06;scrim:0.18}
             FocusRing {anchors.fill:parent;shown:query.activeFocus && [Qt.TabFocusReason,Qt.BacktabFocusReason,Qt.ShortcutFocusReason].indexOf(query.focusReason)>=0;radius:12}
         }
-        VinylWorldButton {id:sortButton;x:query.width+12;anchors.verticalCenter:parent.verticalCenter;objectName:"vinylSort";label:worldData.sortOrder==="title" ? "Sort: Title" : "Sort: Year";backdrop:vinylBackdrop;onTriggered:worldData.sortOrder=worldData.sortOrder==="title" ? "year" : "title"}
+        VinylWorldButton {id:sortButton;x:query.width+12;anchors.verticalCenter:parent.verticalCenter;objectName:"vinylSort";label:worldData.sortOrder==="title" ? "Sort: Title" : "Sort: Year";symbol:"sort";backdrop:vinylBackdrop;onTriggered:worldData.sortOrder=worldData.sortOrder==="title" ? "year" : "title"}
         VinylWorldButton {
             id:recentSearchButton; objectName:"vinylRecentSearches"
             x:sortButton.x+sortButton.width+12; anchors.verticalCenter:parent.verticalCenter
             visible:worldData.recentSearches.length>0
-            label:"Recent searches";backdrop:vinylBackdrop
+            label:"Recent searches";symbol:"search";backdrop:vinylBackdrop
             onTriggered:recentSearchMenu.open()
         }
         Menu {
@@ -258,9 +264,9 @@ Item {
     Row {
         objectName:"vinylStatusRow";x:root.footerLeft;y:root.contentBottom+8;width:parent.width-x-theme.margin;spacing:12
         Text {objectName:"vinylStatus";width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0)-(catalogueRetry.visible ? catalogueRetry.width+12 : 0);text:session.persistenceError || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || session.browseError || (session.browsing ? "Loading catalogue…" : root.page==="artist" ? artistData.catalogueStatus : worldData.onlineMode ? session.catalogueNotice : root.importStatus));color:!root.importing && (session.error || session.browseError) ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
-        VinylWorldButton {id:cancelImport;objectName:"vinylCancelImport";label:"Cancel import";backdrop:vinylBackdrop;visible:root.importing;onTriggered:{session.cancelImport();root.importStatus="Import cancelled. Your library was kept."}}
-        VinylWorldButton {id:catalogueRetry;objectName:"vinylCatalogueRetry";label:"Retry catalogue";backdrop:vinylBackdrop;visible:root.page==="artist" && artistData.online && !artistData.loading && !!artistData.catalogueStatus;onTriggered:if(artistData.catalogueService)artistData.catalogueService.retryArtist()}
-        VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";backdrop:vinylBackdrop;visible:session.error!=="";onTriggered:session.retry()}
+        VinylWorldButton {id:cancelImport;objectName:"vinylCancelImport";label:"Cancel import";symbol:"cancel";backdrop:vinylBackdrop;visible:root.importing;onTriggered:{session.cancelImport();root.importStatus="Import cancelled. Your library was kept."}}
+        VinylWorldButton {id:catalogueRetry;objectName:"vinylCatalogueRetry";label:"Retry catalogue";symbol:"retry";backdrop:vinylBackdrop;visible:root.page==="artist" && artistData.online && !artistData.loading && !!artistData.catalogueStatus;onTriggered:if(artistData.catalogueService)artistData.catalogueService.retryArtist()}
+        VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";symbol:"retry";backdrop:vinylBackdrop;visible:session.error!=="";onTriggered:session.retry()}
     }
     VinylCreditsPopup {id:creditsPopup;pageData:session;backdrop:vinylBackdrop;x:Math.max(0,root.width-width-theme.margin);y:Math.max(0,bar.y-height-12)}
     VinylQueuePanel {id:queuePanel;pageData:session;backdrop:vinylBackdrop;onSongRequested:root.showSong()}

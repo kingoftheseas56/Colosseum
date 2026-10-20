@@ -17,11 +17,8 @@ Flickable {
     readonly property string currentSectionKey: sidebar.currentIndex >= 0 ? sidebar.visibleRows[sidebar.currentIndex].key : ""
     readonly property real inset: Math.max(54, (width - 1280) / 2)
     readonly property real usable: width - 2 * inset
-    // Preserve the approved artwork size when it fits. In a short native page,
-    // reserve the measured text/actions and the hero's 24px top/bottom padding.
-    readonly property real coverSize: Math.max(72, Math.min(334, height * 0.5,
-        height - 48 - albumTitle.implicitHeight - albumArtist.height
-        - albumFacts.implicitHeight - albumActionsRow.height - albumInfoColumn.spacing * 4))
+    readonly property real coverSize: Math.min(334, albumInfoColumn.width, Math.max(200, height * 0.65))
+    readonly property bool albumDetailsFit: albumInfoColumn.height + 48 <= height
     signal videoRequested(int track)
     signal songRequested(int track)
     property bool songNavigationEnabled: false
@@ -65,10 +62,12 @@ Flickable {
         id: hero
         x: root.inset
         width: root.usable
-        height: Math.max(root.height, trackList.height + 30)
+        height: Math.max(root.height, trackList.height + 30, albumInfoColumn.height + 48)
         Column {
             id: albumInfoColumn
-            y: Math.min(Math.max(24, root.contentY + 24), Math.max(24, hero.height - height - 20))
+            y: root.albumDetailsFit
+                ? Math.min(Math.max(24, root.contentY + 24), Math.max(24, hero.height - height - 20))
+                : 24
             width: root.usable * 0.4
             spacing: 14
             RoundedPosterImage {
@@ -88,22 +87,19 @@ Flickable {
                 font.pixelSize: Math.min(44, root.height * 0.067)
                 wrapMode: Text.WordWrap
             }
-            KeyboardAction {
-                focusOnPointer: false
+            VinylArtistLinks {
                 id: albumArtist
                 objectName: "vinylAlbumArtist"
-                enabled: root.artistNavigationEnabled
-                opacity: enabled ? 1 : 0.5
                 width: parent.width
-                height: 24
-                accessibleName: root.pageData.shownEdition.artist
-                onTriggered: root.pageData.artistRequested(accessibleName)
-                Text {
-                    text: root.pageData.shownEdition.artist
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 16
-                }
+                height: implicitHeight
+                navigationEnabled: root.artistNavigationEnabled
+                names: root.pageData.shownEdition.artists
+                    || (root.pageData.shownEdition.sourceAlbum
+                        ? root.pageData.shownEdition.sourceAlbum.artists : [])
+                    || []
+                fallbackName: root.pageData.shownEdition.artist
+                fontSize: 16
+                onArtistRequested: name => root.pageData.artistRequested(name)
             }
             Text {
                 id: albumFacts
@@ -125,9 +121,9 @@ Flickable {
                         focusOnPointer: false
                         required property string modelData
                         objectName: "vinylAlbum" + modelData
-                        width: Math.min(76,(albumInfoColumn.width-30)/4)
+                        width: 40
                         height: 36
-                        accessibleName: modelData
+                        accessibleName: modelData === "Save" && root.pageData.saved ? "Saved" : modelData
                         enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : modelData === "Queue" ? root.trackCount>0 : root.saveEnabled
                         opacity: enabled ? 1 : 0.35
                         onTriggered: {
@@ -146,12 +142,15 @@ Flickable {
                             color: parent.modelData === "Play" ? theme.gold : theme.glassTint
                             border.color: theme.edge
                         }
-                        Text {
+                        VinylControlIcon {
                             anchors.centerIn: parent
-                            text: parent.modelData === "Save" && root.pageData.saved ? "Saved" : parent.modelData
-                            color: parent.modelData === "Play" ? theme.biblioWashBottom : theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 11
+                            symbol: parent.modelData === "Play" ? "play"
+                                : parent.modelData === "Shuffle" ? "shuffle"
+                                : parent.modelData === "Save" ? (root.pageData.saved ? "saved" : "save")
+                                : "queue"
+                            color: parent.modelData === "Play" ? theme.biblioWashBottom
+                                : parent.modelData === "Save" && root.pageData.saved ? theme.gold
+                                : theme.inkDim
                         }
                     }
                 }

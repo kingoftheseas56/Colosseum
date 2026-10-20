@@ -10,6 +10,8 @@ KeyboardAction {
     property string badge: ""
     property string artObjectName: ""
     property bool darkCaptionSurface: true
+    pointerEnabled: shape !== "square"
+    showFocusFrame: shape !== "square"
 
     readonly property real artHeight: width * (shape === "wide" ? 9 / 16 : 1)
     readonly property real artRadius: shape === "round" ? width / 2 : (shape === "wide" ? 9 : 13)
@@ -23,9 +25,30 @@ KeyboardAction {
 
     Theme { id: theme }
 
+    // Album sleeves share the catalogue card used by the main worlds.
+    Loader {
+        anchors.fill: parent
+        active: card.shape === "square"
+        sourceComponent: Component {
+            CataloguePosterCard {
+                visualProfile: "gallery"
+                artworkRatio: 1
+                artworkObjectName: card.artObjectName
+                item: ({title:String(card.record.title || ""),
+                    cover:card.artistData.artwork(card.record.cover),
+                    author:String(card.record.subtitle || "")})
+                showAuthorAtRest: true
+                keyboardFocused: card.activeFocus
+                onActivated: card.cardRequested(card.record)
+                Accessible.ignored: true
+            }
+        }
+    }
+
     // Artwork container with composed HTML-parity fallback (.cover-fallback / .film-fallback)
     Rectangle {
         id: coverFrame
+        visible: card.shape !== "square"
         width: parent.width
         height: card.artHeight
         radius: card.artRadius
@@ -81,10 +104,10 @@ KeyboardAction {
         RoundedPosterImage {
             id: poster
             visible: sources.length > 0
-            objectName: card.artObjectName
+            objectName: card.shape !== "square" ? card.artObjectName : ""
             anchors.fill: parent
             radius: card.artRadius
-            sources: card.artistData && card.record && card.artistData.artwork(card.record.cover)
+            sources: card.shape !== "square" && card.artistData && card.record && card.artistData.artwork(card.record.cover)
                 ? [card.artistData.artwork(card.record.cover)] : []
             hovered: card.interactionActive
         }
@@ -131,6 +154,7 @@ KeyboardAction {
     // Protects 15px/12px caption legibility over bright blurred artist photographs.
     Rectangle {
         id: captionPlate
+        visible: card.shape !== "square"
         y: card.artHeight
         width: parent.width
         height: Math.max(card.shape === "round" ? 68 : 78, captionColumn.implicitHeight + 16)

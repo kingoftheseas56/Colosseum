@@ -46,12 +46,7 @@ Flickable {
         Qt.callLater(function() {
             root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, hero.height - artistTitleBar.height));
         });
-        if (focusTabButton) {
-            var idx = valid.indexOf(tabKey);
-            var btn = tabRepeater.itemAt(idx);
-            if (btn)
-                btn.forceActiveFocus(Qt.TabFocusReason);
-        }
+        if (focusTabButton) artistTabs.forceActiveFocus(Qt.TabFocusReason);
     }
 
     function focusAlbumTileAt(targetIndex) {
@@ -340,7 +335,7 @@ Flickable {
                         color: theme.edge
                     }
 
-                    // Controls: shared All releases picker + ONE Sort toggle
+                    // Shared All releases picker
                     Row {
                         id: discographyControls
                         anchors.left: parent.left
@@ -372,35 +367,7 @@ Flickable {
                             onPicked: key => root.artistData.selectReleaseCategory(key)
                         }
 
-                        // ONE Sort button (.control-btn parity)
-                        KeyboardAction {
-                            focusOnPointer: false
-                            id: sort
-                            objectName: "vinylArtistSort"
-                            width: 148
-                            height: 39
-                            focusRadius: 9
-                            spaceActivates: true
-                            accessibleName: root.artistData.newestFirst ? "Sort oldest first" : "Sort newest first"
-                            onTriggered: root.artistData.newestFirst = !root.artistData.newestFirst
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 9
-                                color: sort.interactionActive
-                                    ? Qt.rgba(0.11, 0.12, 0.16, 0.88)
-                                    : Qt.rgba(0.063, 0.067, 0.09, 0.78)
-                                border.width: 1
-                                border.color: sort.interactionActive ? theme.inkDimmer : theme.edge
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.artistData.newestFirst ? "Newest first  ↓" : "Oldest first  ↑"
-                                color: sort.interactionActive ? theme.gold : theme.ink
-                                font.family: theme.ui
-                                font.pixelSize: 13
-                                font.weight: Font.DemiBold
-                            }
-                        }
+
                     }
                 }
 
@@ -775,7 +742,7 @@ Flickable {
     }
 
     // Pinned Sticky Artist Tab Bar (.tabbar parity: 58px height, sticks below 76px header)
-    Rectangle {
+    Item {
         id: stickyTabBar
         objectName: "vinylArtistTabBar"
         visible: root.selectedCategory === ""
@@ -784,113 +751,23 @@ Flickable {
         width: root.width
         height: 58
         z: 30
-        color: Qt.rgba(0.031, 0.035, 0.055, 0.88)
-
-        Rectangle {
-            anchors.top: parent.top
-            width: parent.width
-            height: 1
-            color: theme.edge
-        }
-        Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: theme.edge
-        }
-
-        // Left: Albums / Singles / Videos / Live tabs
-        Row {
-            id: tabListRow
-            x: root.gutter
+        WorldTabBar {
+            id: artistTabs
+            objectName: "vinylArtistSharedTabs"
+            anchors.left: parent.left; anchors.leftMargin: root.gutter
+            anchors.right: searchButton.left; anchors.rightMargin: 20
             height: parent.height
-            spacing: 22
-
-            Repeater {
-                id: tabRepeater
-                readonly property var tabs: [
-                    {key: "albums", label: "Albums", count: root.artistData.allDiscographyCards.length},
-                    {key: "singles", label: "Singles", count: root.artistData.singlesRows.length},
-                    {key: "videos", label: "Videos", count: root.artistData.media.videos.length},
-                    {key: "live", label: "Live", count: root.artistData.liveCards.length}
-                ]
-                model: tabs.length
-                delegate: KeyboardAction {
-                    focusOnPointer: false
-                    id: tabBtn
-                    readonly property var modelData: tabRepeater.tabs[index]
-                    required property int index
-
-                    readonly property bool isCurrentTab: root.artistData.activeTab === modelData.key
-                    objectName: "vinylArtistTab_" + modelData.key
-                    width: tabRowInner.implicitWidth + 28
-                    height: 40
-                    y: (tabListRow.height - height) / 2
-                    focusRadius: 12
-                    focusPrimary: isCurrentTab
-                    spaceActivates: true
-                    accessibleName: modelData.label + " tab"
-                    Accessible.checkable: true
-                    Accessible.checked: isCurrentTab
-                    onTriggered: root.switchTab(modelData.key, false)
-
-                    Keys.onLeftPressed: event => {
-                        var keys = ["albums", "singles", "videos", "live"];
-                        var nextKey = keys[(tabBtn.index + keys.length - 1) % keys.length];
-                        root.switchTab(nextKey, true);
-                        event.accepted = true;
-                    }
-                    Keys.onRightPressed: event => {
-                        var keys = ["albums", "singles", "videos", "live"];
-                        var nextKey = keys[(tabBtn.index + 1) % keys.length];
-                        root.switchTab(nextKey, true);
-                        event.accepted = true;
-                    }
-                    Keys.onPressed: event => {
-                        if (event.key === Qt.Key_Home) {
-                            root.switchTab("albums", true);
-                            event.accepted = true;
-                        } else if (event.key === Qt.Key_End) {
-                            root.switchTab("live", true);
-                            event.accepted = true;
-                        }
-                    }
-
-                    // Match the gold active pill and quiet hover of WorldTabBar.
-                    Rectangle {
-                        objectName: tabBtn.objectName + "_selection"
-                        anchors.fill: parent
-                        radius: tabBtn.focusRadius
-                        color: tabBtn.isCurrentTab ? theme.gold
-                            : tabBtn.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                    }
-                    Row {
-                        id: tabRowInner
-                        anchors.centerIn: parent
-                        spacing: 7
-                        Text {
-                            text: tabBtn.modelData.label
-                            color: tabBtn.isCurrentTab
-                                ? "#17120a"
-                                : (tabBtn.interactionActive ? Qt.rgba(0.969, 0.969, 0.961, 0.92) : theme.inkDimmer)
-                            font.family: theme.ui
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            visible: Number(tabBtn.modelData.count) > 0
-                            text: String(tabBtn.modelData.count)
-                            color: tabBtn.isCurrentTab ? "#17120a" : theme.inkDimmer
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-
-                }
-            }
+            backdrop: root.backdrop
+            track: root.contentY
+            compact: true
+            focusOnPointer: false
+            tabPrefix: "vinylArtistTab"
+            tabModel: [
+                {key:"albums",label:"Albums"}, {key:"singles",label:"Singles"},
+                {key:"videos",label:"Videos"}, {key:"live",label:"Live"}
+            ]
+            currentTab: root.artistData.activeTab
+            onTabRequested: tab => root.switchTab(tab, false)
         }
 
         // Right: Artist-scoped Search pill (.search-btn parity)
@@ -901,7 +778,7 @@ Flickable {
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.min(240, searchBtnRow.implicitWidth + 28)
+            width: 40
             height: 40
             focusRadius: 20
             spaceActivates: true
@@ -918,27 +795,12 @@ Flickable {
                 border.color: searchButton.interactionActive ? theme.inkDimmer : theme.edge
             }
 
-            Row {
-                id: searchBtnRow
+            VinylControlIcon {
                 anchors.centerIn: parent
-                spacing: 8
-                Text {
-                    text: "⌕"
-                    color: theme.gold
-                    font.family: theme.ui
-                    font.pixelSize: 14
-                    font.weight: Font.Bold
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    text: "Search " + root.artistData.record.name
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                width: 20
+                height: 20
+                symbol: "search"
+                color: theme.gold
             }
         }
     }

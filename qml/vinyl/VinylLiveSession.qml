@@ -8,7 +8,7 @@ import Colosseum.Vinyl 1.0
 Item {
     id: root
     objectName: "vinylLiveSession"
-    property var emptyEdition: ({id:"", name:"", title:"", artist:"", year:"", cover:"", about:"", discs:[[]], credits:[]})
+    property var emptyEdition: ({id:"", name:"", title:"", artist:"", artists:[], artistIds:[], year:"", cover:"", about:"", discs:[[]], credits:[]})
     property var shownEdition: emptyEdition
     readonly property var activeQueueRow: queueIndex>=0 && queueIndex<queue.length ? queue[queueIndex] : null
     readonly property var playingEdition: activeQueueRow ? activeQueueRow.edition : emptyEdition
@@ -275,12 +275,14 @@ Item {
         discNumbers.sort((a,b)=>a-b);if(!discNumbers.length) discNumbers=[1];
         var discs=discNumbers.map(d => ts.filter(t => Math.max(1,Number(t.disc)||1)===d).map(t => ({
             id:t.id,title:t.title || "Untitled track",artist:(t.artists || artists).join(" · "),seconds:Number(t.seconds)||0,
+            artists:(t.artists || artists).slice(),artistIds:(t.artistIds || []).slice(),
             available:t.available!==false,localPath:t.localPath || "",externalIds:t.externalIds || {},
             disc:d,number:t.number || 0,lyrics:t.lyrics,notes:t.notes,credits:t.credits})));
         var seconds=ts.reduce((n,t)=>n+(Number(t.seconds)||0),0);
         return {id:edition.id || album.id,albumId:album.id,browseId:album.browseId || album.id,origin:album.origin || "local",
             sourceAlbum:album,name:album.title || "Untitled audio",title:edition.title || album.title || "Untitled audio",subtitle:edition.title || album.title || "Untitled audio",
             artist:artists.join(" · "),year:album.year || "",cover:album.cover || "",about:typeof album.about==="string" ? album.about : (typeof album.notes==="string" ? album.notes : ""),
+            artists:artists.slice(),artistIds:(album.artistIds || []).slice(),
             notes:album.notes || "",credits:creditGroups(edition.credits || album.credits || []),discNumbers:discNumbers,
             length:seconds>0 ? formatTime(seconds) : "",discs:discs};
     }
