@@ -1,0 +1,68 @@
+test_candidate_matches_overlay (__main__.AndroidRuntimePackaging.test_candidate_matches_overlay) ... skipped 'no NUVIO_ANDROID_PACKAGING_CANDIDATE supplied'
+test_overlay_main_qml_equals_source (__main__.AndroidRuntimePackaging.test_overlay_main_qml_equals_source) ... ok
+test_overlay_matches_source_rules (__main__.AndroidRuntimePackaging.test_overlay_matches_source_rules) ... FAIL
+test_overlay_qml_build_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_qml_build_manifest_consistent) ... FAIL
+test_overlay_runtime_files_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_runtime_files_manifest_consistent) ... FAIL
+test_stale_missing_and_extra_members_are_reported (__main__.OverlayDriftNegativeControl.test_stale_missing_and_extra_members_are_reported) ... ok
+
+======================================================================
+FAIL: test_overlay_matches_source_rules (__main__.AndroidRuntimePackaging.test_overlay_matches_source_rules)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/Colosseum/tests/test_android_runtime_packaging.py", line 183, in test_overlay_matches_source_rules
+    self.assertEqual(drift, [], "generated overlay differs from source: " + "; ".join(drift[:20]))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['changed qml/TopBar.qml'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'changed qml/TopBar.qml'
+
+- ['changed qml/TopBar.qml']
++ [] : generated overlay differs from source: changed qml/TopBar.qml
+
+======================================================================
+FAIL: test_overlay_qml_build_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_qml_build_manifest_consistent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/Colosseum/tests/test_android_runtime_packaging.py", line 150, in test_overlay_qml_build_manifest_consistent
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        tree,
+        ^^^^^
+        packaged,
+        ^^^^^^^^^
+        "qml-build.manifest tree hash does not match the overlay qml tree",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: 'aead5ccbea820355b0979a9e6c82a5a17936d644ed32901db8ef0b9f2e05baab' != 'f55358b2a4d6ac2be23041e80b522385d5db2bb4bdd2df7294e433a9d63dd2d3'
+- aead5ccbea820355b0979a9e6c82a5a17936d644ed32901db8ef0b9f2e05baab
++ f55358b2a4d6ac2be23041e80b522385d5db2bb4bdd2df7294e433a9d63dd2d3
+ : qml-build.manifest tree hash does not match the overlay qml tree
+
+======================================================================
+FAIL: test_overlay_runtime_files_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_runtime_files_manifest_consistent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/Colosseum/tests/test_android_runtime_packaging.py", line 165, in test_overlay_runtime_files_manifest_consistent
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        bundle,
+        ^^^^^^^
+        packaged,
+        ^^^^^^^^^
+        "runtime-files.manifest bundle hash does not match the overlay runtime tree",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: '9bf4a8ef674a5722c57a2c394a5f0407a102b4ebc81fd20f83c5558d2d262db1' != 'aa0cdf80fa078ae6b01a301ce4f8f32c201f03659b7e380d071717bc2e40d50c'
+- 9bf4a8ef674a5722c57a2c394a5f0407a102b4ebc81fd20f83c5558d2d262db1
++ aa0cdf80fa078ae6b01a301ce4f8f32c201f03659b7e380d071717bc2e40d50c
+ : runtime-files.manifest bundle hash does not match the overlay runtime tree
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.665s
+
+FAILED (failures=3, skipped=1)
+PACKAGING_GATE_FAILED skipped=1 failures=3 errors=0

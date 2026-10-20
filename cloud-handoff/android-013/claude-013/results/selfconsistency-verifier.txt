@@ -1,0 +1,3 @@
+ANDROID_PACKAGED_QML_FILES 400
+ANDROID_SHARED_SHELL_DESKTOP_REFERENCES +android/Taskbar.qml,ExtensionsChainPage.qml,Main.qml,ShellBackPolicy.js,account/AccountCenter.qml
+ANDROID_RUNTIME_BUNDLE_OK /root/c013/negative-control/stale-selfconsistent.apk

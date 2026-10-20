@@ -1,0 +1,14 @@
+## installed vs built 2026-10-20T22:49:02Z
+9e30c0a0f83dfca0d3b4fb0ef0e1bd82602cab6b02b65546ec3763f2211b8ef6
+9e30c0a0f83dfca0d3b4fb0ef0e1bd82602cab6b02b65546ec3763f2211b8ef6
+    versionCode=1 minSdk=28 targetSdk=36
+    versionName=1.1.9
+    lastUpdateTime=2026-10-20 22:04:41
+## reverse before cleanup
+host-19 tcp:51413 tcp:51413
+host-19 tcp:51412 tcp:51412
+
+## reverse after cleanup
+
+## owned fixture processes
+none

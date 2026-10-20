@@ -1,0 +1,28 @@
+test_candidate_matches_overlay (__main__.AndroidRuntimePackaging.test_candidate_matches_overlay) ... FAIL
+test_overlay_main_qml_equals_source (__main__.AndroidRuntimePackaging.test_overlay_main_qml_equals_source) ... ok
+test_overlay_matches_source_rules (__main__.AndroidRuntimePackaging.test_overlay_matches_source_rules) ... ok
+test_overlay_qml_build_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_qml_build_manifest_consistent) ... ok
+test_overlay_runtime_files_manifest_consistent (__main__.AndroidRuntimePackaging.test_overlay_runtime_files_manifest_consistent) ... ok
+test_stale_missing_and_extra_members_are_reported (__main__.OverlayDriftNegativeControl.test_stale_missing_and_extra_members_are_reported) ... ok
+
+======================================================================
+FAIL: test_candidate_matches_overlay (__main__.AndroidRuntimePackaging.test_candidate_matches_overlay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/Colosseum/tests/test_android_runtime_packaging.py", line 218, in test_candidate_matches_overlay
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        members.get(rel), overlay[rel], f"packaged runtime member drift: {rel}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: 'f759c33eb74a2f788ba5f942ac7f13cc2c6c8e03dde5485bbf04a3902f35a04e' != '67968f718e2a514215931cc5d372a5ec13937afa8e14db15cb7e6e84ea915cf4'
+- f759c33eb74a2f788ba5f942ac7f13cc2c6c8e03dde5485bbf04a3902f35a04e
++ 67968f718e2a514215931cc5d372a5ec13937afa8e14db15cb7e6e84ea915cf4
+ : packaged runtime member drift: assets/colosseum-runtime/qml-build.manifest
+
+----------------------------------------------------------------------
+Ran 6 tests in 1.158s
+
+FAILED (failures=1)
+PACKAGING_GATE_FAILED skipped=0 failures=1 errors=0

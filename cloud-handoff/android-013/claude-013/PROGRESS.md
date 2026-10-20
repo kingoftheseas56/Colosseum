@@ -71,12 +71,25 @@ Runs (logs/screenshots retained for the evidence bundle, not committed):
   admission PASS, new route, full refetch; close: route retired, torrent released.
   Restore position bug (6) found here; one AAC decoder watchdog timeout after resume
   (`previous call to queue exceeded timeout`), environment-suspected, not reproduced.
-- rep1-3: running on APK `9e30c0a0…` (source `d833e45`).
+- rep1-3 (APK `9e30c0a0…`, source `d833e45`, x86_64 API 33, fixture infohash
+  `7f13e4df…`): all 3 completed, 0 timeouts, 0 fatal, 0 HTTP 404, 0 playback errors, PID
+  stable across background and close, isolation PASS on distinct sessions
+  (`0x70948ea8e2d0`, `0x70948e998e70`, `0x70948e9a29b0`), re-demand after foreground,
+  2 x 1,691,605 bytes served, 0 pieces after close, uploaded=0, torrent released on close.
+  rep1 frames: 13.583 -> 31.250, seek fwd 51.083 (W=10), seek back exactly 9.000, prebg
+  18.333 -> fg 27.166 -> 39.083 (position restored). rep2/rep3: the app's own
+  "Resume from 0:40/0:38" prompt (progress kept from the previous rep) paused start at
+  00.000, so start progression and the back-seek target frame were not captured; fwd seek
+  W=10 (50.083/50.583), back-seek Range open at byte 252,388 then W=02 playback,
+  post-resume progression 25.166 -> 35.916 / 26.166 -> 37.333.
+  Summaries: `results/rep*-eval.json`; raw evidence sent via the file route.
+- Cleanup: owned `adb reverse` mappings removed, no owned fixture processes, emulator stopped
+  (`results/final-ownership.txt`). Installed APK == built APK (`9e30c0a0…`).
 
 ## Known baseline failure (not task 013)
 `tests/test_android_media3_item_contract.py` fails identically on the import:
 expects `qmlRegisterType<AndroidMedia3Item>` in `native/main.cpp` (unchanged).
 
 ## Next
-Evaluate rep1-3 -> ARM64 final rebuild + package verification -> checkpoint + restore
+ARM64 final rebuild (running) + package verification -> checkpoint + restore
 drill -> evidence bundle -> REPLY-CLAUDE-ANDROID-013.md + .done.
