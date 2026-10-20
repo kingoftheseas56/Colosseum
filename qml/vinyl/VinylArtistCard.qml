@@ -2,6 +2,7 @@ import QtQuick
 import ".."
 
 KeyboardAction {
+    focusOnPointer: false
     id: card
     required property var record
     required property var artistData
@@ -30,7 +31,7 @@ KeyboardAction {
         radius: card.artRadius
         color: card.record && card.record.fallbackTint ? card.record.fallbackTint : "#262c3a"
         border.width: 1
-        border.color: card.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : Qt.rgba(1, 1, 1, 0.12)
+        border.color: card.interactionActive ? theme.edge : Qt.rgba(1, 1, 1, 0.12)
         clip: true
 
         Rectangle {
@@ -140,7 +141,7 @@ KeyboardAction {
             ? Qt.rgba(0.024, 0.027, 0.043, 0.84)
             : "transparent"
         border.width: (card.darkCaptionSurface && card.shape !== "round") ? 1 : 0
-        border.color: card.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.32) : Qt.rgba(1, 1, 1, 0.06)
+        border.color: card.interactionActive ? theme.edge : Qt.rgba(1, 1, 1, 0.06)
 
         Column {
             id: captionColumn
@@ -153,7 +154,7 @@ KeyboardAction {
                 width: parent.width
                 text: String(card.record.title || "")
                 textFormat: Text.PlainText
-                color: card.interactionActive ? theme.gold : theme.ink
+                color: theme.ink
                 font.family: theme.ui
                 font.pixelSize: 15
                 font.weight: Font.DemiBold

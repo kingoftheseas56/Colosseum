@@ -155,6 +155,7 @@ Column {
                     }
 
                     KeyboardAction {
+                        focusOnPointer: false
                         id: play
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesRow_" + row.index)
@@ -290,6 +291,7 @@ Column {
 
                     // Release / Album column (.track-album parity)
                     KeyboardAction {
+                        focusOnPointer: false
                         id: album
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesAlbum_" + row.index)

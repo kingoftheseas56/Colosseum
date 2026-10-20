@@ -488,6 +488,7 @@ Item {
             spacing: 12
 
             KeyboardAction {
+                focusOnPointer: false
                 id: playAction
                 objectName: "vinylArtistPlay"
                 width: 118
@@ -531,6 +532,7 @@ Item {
             }
 
             KeyboardAction {
+                focusOnPointer: false
                 id: shuffleAction
                 objectName: "vinylArtistShuffle"
                 width: 116
@@ -563,6 +565,7 @@ Item {
             }
 
             KeyboardAction {
+                focusOnPointer: false
                 id: save
                 objectName: "vinylArtistSave"
                 width: 46
@@ -595,6 +598,7 @@ Item {
             }
 
             KeyboardAction {
+                focusOnPointer: false
                 id: create
                 objectName: "vinylArtistCreatePlaylist"
                 width: 146

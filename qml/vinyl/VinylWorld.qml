@@ -53,11 +53,11 @@ Item {
         listReturnY=pageFlick.contentY
         listReturnFocus=Window.window ? Window.window.activeFocusItem : null
         listHome=home;listKey=key
-        Qt.callLater(function(){root.pageFlick.contentY=Math.max(0,root.contentTop-root.dockedInset);list.focusCurrent()})
+        Qt.callLater(function(){root.pageFlick.contentY=Math.max(0,root.contentTop-root.dockedInset);root.forceActiveFocus(Qt.OtherFocusReason)})
     }
     function backFromList() {
         listKey=""
-        Qt.callLater(function(){root.pageFlick.contentY=root.listReturnY;if(root.listReturnFocus)root.listReturnFocus.forceActiveFocus()})
+        Qt.callLater(function(){root.pageFlick.contentY=root.listReturnY;var target=root.listReturnFocus;if(target && target.visible && target.enabled && target.accessibleName!==undefined)target.forceActiveFocus(Qt.TabFocusReason);else root.forceActiveFocus(Qt.OtherFocusReason)})
     }
     Theme { id: theme }
     FeaturedCarousel {

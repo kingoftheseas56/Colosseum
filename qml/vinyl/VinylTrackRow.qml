@@ -2,6 +2,7 @@ import QtQuick
 import ".."
 
 KeyboardAction {
+    focusOnPointer: false
     id: root
     required property var pageData
     required property int trackIndex
@@ -17,6 +18,8 @@ KeyboardAction {
     enabled: track.available !== false
     opacity: enabled ? 1 : 0.4
     height: artistLine ? 62 : 57
+    // Match the chapter/episode lists: the row wash carries keyboard focus.
+    showFocusFrame: false
     onTriggered: pageData.playTrack(trackIndex)
     Theme {
         id: theme

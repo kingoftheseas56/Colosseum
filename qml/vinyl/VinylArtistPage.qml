@@ -73,14 +73,15 @@ Flickable {
             root.albumRequested(card.album);
             return;
         }
-        dialogReturnItem = originItem || null;
+        dialogReturnItem = originItem && originItem.activeFocus ? originItem : null;
         releaseDetailDialog.selection = card;
         releaseDetailDialog.open();
     }
 
     function openSearchDialog(originItem) {
         releasePicker.closePopup(false);
-        dialogReturnItem = originItem || searchButton;
+        var origin = originItem || searchButton;
+        dialogReturnItem = origin.activeFocus ? origin : null;
         searchDialog.query = "";
         searchDialog.open();
     }
@@ -93,7 +94,7 @@ Flickable {
                 if (target)
                     target.forceActiveFocus(Qt.PopupFocusReason);
             });
-        }
+        } else root.forceActiveFocus(Qt.OtherFocusReason);
     }
 
     function categoryAvailable(category) {
@@ -137,7 +138,7 @@ Flickable {
             root.albumRequested(record.album);
             return;
         }
-        dialogReturnItem = originItem || null;
+        dialogReturnItem = originItem && originItem.activeFocus ? originItem : null;
         mediaDialog.selection = record;
         mediaDialog.open();
     }
@@ -373,6 +374,7 @@ Flickable {
 
                         // ONE Sort button (.control-btn parity)
                         KeyboardAction {
+                            focusOnPointer: false
                             id: sort
                             objectName: "vinylArtistSort"
                             width: 148
@@ -388,7 +390,7 @@ Flickable {
                                     ? Qt.rgba(0.11, 0.12, 0.16, 0.88)
                                     : Qt.rgba(0.063, 0.067, 0.09, 0.78)
                                 border.width: 1
-                                border.color: sort.interactionActive ? theme.gold : theme.edge
+                                border.color: sort.interactionActive ? theme.inkDimmer : theme.edge
                             }
                             Text {
                                 anchors.centerIn: parent
@@ -690,6 +692,7 @@ Flickable {
                             Repeater {
                                 model: root.artistData.filters.length
                                 delegate: KeyboardAction {
+                                    focusOnPointer: false
                                     readonly property var modelData: root.artistData.filters[index]
                                     objectName: "vinylArtistFilter_" + modelData.key
                                     width: filterText.implicitWidth + 24; height: 34
@@ -813,6 +816,7 @@ Flickable {
                 ]
                 model: tabs.length
                 delegate: KeyboardAction {
+                    focusOnPointer: false
                     id: tabBtn
                     readonly property var modelData: tabRepeater.tabs[index]
                     required property int index
@@ -891,6 +895,7 @@ Flickable {
 
         // Right: Artist-scoped Search pill (.search-btn parity)
         KeyboardAction {
+            focusOnPointer: false
             id: searchButton
             objectName: "vinylArtistSearchButton"
             anchors.right: parent.right
@@ -910,7 +915,7 @@ Flickable {
                     ? Qt.rgba(1, 1, 1, 0.12)
                     : Qt.rgba(0.063, 0.067, 0.09, 0.68)
                 border.width: 1
-                border.color: searchButton.interactionActive ? theme.gold : theme.edge
+                border.color: searchButton.interactionActive ? theme.inkDimmer : theme.edge
             }
 
             Row {
@@ -980,6 +985,7 @@ Flickable {
             spacing: 12
 
             BackAction {
+                focusOnPointer: false
                 id: headerBackButton
                 objectName: "vinylArtistHeaderBack"
                 label: "Vinyl"
@@ -1016,6 +1022,7 @@ Flickable {
             spacing: 10
 
             KeyboardAction {
+                focusOnPointer: false
                 id: moreButton
                 objectName: "vinylArtistMoreButton"
                 width: 40
@@ -1069,6 +1076,7 @@ Flickable {
                 spacing: 2
 
                 KeyboardAction {
+                    focusOnPointer: false
                     id: createPlaylistMenuAction
                     enabled: root.artistData.playlistEnabled !== false
                     opacity: enabled ? 1 : 0.4
@@ -1081,7 +1089,7 @@ Flickable {
                     accessibleName: "Create playlist"
                     onTriggered: {
                         root.systemMenuOpen = false;
-                        root.dialogReturnItem = moreButton;
+                        root.dialogReturnItem = moreButton.activeFocus ? moreButton : null;
                         playlistName.text = "";
                         createDialog.open();
                     }
@@ -1096,6 +1104,7 @@ Flickable {
                 }
 
                 KeyboardAction {
+                    focusOnPointer: false
                     objectName: "vinylArtistSavedPlaylistsMenu"
                     spaceActivates: true
                     focusRadius: 8
@@ -1108,6 +1117,7 @@ Flickable {
                 }
 
                 KeyboardAction {
+                    focusOnPointer: false
                     id: topOfPageAction
                     objectName: "vinylArtistTopOfPageAction"
                     width: parent.width
@@ -1242,6 +1252,7 @@ Flickable {
             spacing: 8
 
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistHudPrev"
                 width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Previous track"
@@ -1253,6 +1264,7 @@ Flickable {
                 Image { anchors.centerIn: parent; width: 16; height: 16; source: "../../assets/icons/lucide/skip-back.svg" }
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistHudPlay"
                 width: 42; height: 42; focusRadius: 21; focusPrimary: true; spaceActivates: true
                 accessibleName: root.artistData.demoPlaying ? "Pause visual demo" : "Play visual demo"
@@ -1270,6 +1282,7 @@ Flickable {
                 }
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistHudNext"
                 width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Next track"
@@ -1368,6 +1381,7 @@ Flickable {
                 text: root.artistData.liveMode ? "No playable local tracks are available for this release." : "This is a release in the artist collection. The album and song detail players belong to their own Vinyl rooms; this prototype does not invent an album track list."
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistReleaseReferenceLink"
                 visible: !!(releaseDetailDialog.selection.sourceUrl && String(releaseDetailDialog.selection.sourceUrl).length > 0)
                 width: parent.width
@@ -1420,6 +1434,7 @@ Flickable {
                 text: root.artistData.liveMode ? "No playable local file is available for this media." : "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistMediaSource"
                 visible: !root.artistData.liveMode && !!mediaDialog.selection.sourceUrl
                 width: parent.width; height: 40

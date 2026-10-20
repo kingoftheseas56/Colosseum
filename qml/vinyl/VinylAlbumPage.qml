@@ -28,7 +28,7 @@ Flickable {
     property bool queueActionsEnabled: false
     function focusPrimaryControl() {
         var play = albumActions.itemAt(0);
-        if (play) play.forceActiveFocus();
+        if (play) play.forceActiveFocus(Qt.TabFocusReason);
     }
     clip: true
     contentWidth: width
@@ -89,6 +89,7 @@ Flickable {
                 wrapMode: Text.WordWrap
             }
             KeyboardAction {
+                focusOnPointer: false
                 id: albumArtist
                 objectName: "vinylAlbumArtist"
                 enabled: root.artistNavigationEnabled
@@ -121,6 +122,7 @@ Flickable {
                     id: albumActions
                     model: root.queueActionsEnabled ? ["Play", "Shuffle", "Save", "Queue"] : ["Play", "Shuffle", "Save"]
                     delegate: KeyboardAction {
+                        focusOnPointer: false
                         required property string modelData
                         objectName: "vinylAlbum" + modelData
                         width: Math.min(76,(albumInfoColumn.width-30)/4)
@@ -167,6 +169,7 @@ Flickable {
                 Repeater {
                     model: root.pageData.shownEdition.discs.length
                     delegate: KeyboardAction {
+                        focusOnPointer: false
                         required property int index
                         objectName: "vinylDisc_" + index
                         width: 75
@@ -189,18 +192,11 @@ Flickable {
                     required property int index
                     trackIndex: index
                     pageData: root.pageData
-                    width: trackList.width - (root.songNavigationEnabled ? 105 : 0)
+                    width: trackList.width - (root.queueActionsEnabled ? 40 : 0)
                     KeyboardAction {
-                        objectName: "vinylSongDetails_" + index
-                        visible: root.songNavigationEnabled
-                        x: parent.width+8; width: 60; height: parent.height
-                        accessibleName: "Song details"
-                        onTriggered: root.songRequested(index)
-                        Text {anchors.centerIn: parent;text:"Details";color:theme.inkDim;font.family:theme.ui;font.pixelSize:11}
-                    }
-                    KeyboardAction {
+                        focusOnPointer: false
                         objectName:"vinylTrackQueue_"+index;visible:root.queueActionsEnabled
-                        x:parent.width+72;width:32;height:parent.height;accessibleName:"Add track to queue"
+                        x:parent.width+8;width:32;height:parent.height;accessibleName:"Add track to queue"
                         onTriggered:root.pageData.enqueueTrack(index,false)
                         Text {anchors.centerIn:parent;text:"+";color:theme.inkDim;font.family:theme.ui;font.pixelSize:18}
                     }

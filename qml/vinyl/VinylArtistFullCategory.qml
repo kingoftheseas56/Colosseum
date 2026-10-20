@@ -40,6 +40,7 @@ Column {
         width: parent.width
         height: 56
         KeyboardAction {
+            focusOnPointer: false
             id: back
             objectName: "vinylArtistFullBack"
             width: 94; height: 40

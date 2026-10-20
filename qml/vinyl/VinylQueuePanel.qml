@@ -28,6 +28,15 @@ Popup {
     }
     onClosed: {rowMenu.close();if(returnFocus)returnFocus.forceActiveFocus(Qt.PopupFocusReason);}
     Theme { id: theme }
+    function controlIcon(symbol, selected) {
+        var paths = {
+            shuffle: '<path d="m18 3 3 3-3 3M18 15l3 3-3 3M3 6h3c5 0 7 12 12 12h3M3 18h3c2 0 3-2 5-5M14 8c1-1 2-2 4-2h3"/>',
+            repeat: '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/>',
+            clear: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>'
+        };
+        return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="'
+            + (selected ? theme.gold : theme.inkDim) + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + paths[symbol] + '</svg>');
+    }
     background: Glass {backdrop:root.backdrop;radius:22;tint:0.1;scrim:0.94}
     Overlay.modal: Rectangle {color:Qt.rgba(0,0,0,0.55)}
 
@@ -35,10 +44,11 @@ Popup {
         id: action
         property string label: ""
         property url icon: ""
+        property string symbol: ""
         property bool iconOnly: false
         property bool subtleFocus: false
         property bool selected: false
-        width: iconOnly || icon.toString().length ? 34 : Math.max(44,caption.implicitWidth+20)
+        width: iconOnly || symbol.length || icon.toString().length ? 34 : Math.max(44,caption.implicitWidth+20)
         height: 34
         focusRadius: 8
         focusOnPointer: false
@@ -47,8 +57,9 @@ Popup {
         opacity: enabled ? 1 : 0.3
         Rectangle {anchors.fill:parent;radius:8;color:action.interactionActive ? theme.glassTint : "transparent"}
         Rectangle {x:0;anchors.verticalCenter:parent.verticalCenter;width:2;height:16;radius:1;color:theme.inkDim;visible:action.subtleFocus&&action.activeFocus}
-        Image {anchors.centerIn:parent;width:16;height:16;source:action.icon;visible:action.icon.toString().length>0;opacity:0.85}
-        Text {id:caption;anchors.centerIn:parent;visible:!action.iconOnly&&!action.icon.toString().length;text:action.label;textFormat:Text.PlainText;color:action.selected ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12}
+        Image {anchors.centerIn:parent;width:16;height:16;source:action.symbol.length ? root.controlIcon(action.symbol,action.selected) : action.icon;visible:action.symbol.length>0||action.icon.toString().length>0;opacity:0.85}
+        Rectangle {anchors.horizontalCenter:parent.horizontalCenter;y:parent.height-3;width:3;height:3;radius:2;color:theme.gold;visible:action.selected}
+        Text {id:caption;anchors.centerIn:parent;visible:!action.iconOnly&&!action.symbol.length&&!action.icon.toString().length;text:action.label;textFormat:Text.PlainText;color:action.selected ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12}
     }
     contentItem: Item {
         Item {
@@ -66,9 +77,13 @@ Popup {
             y:heading.height+14;width:parent.width;spacing:6
             Action {objectName:"vinylQueuePrevious";label:"Previous track";icon:"../../assets/icons/lucide/skip-back.svg";enabled:root.pageData.canPrevious;onTriggered:root.pageData.next(-1)}
             Action {objectName:"vinylQueueNext";label:"Next track";icon:"../../assets/icons/lucide/skip-forward.svg";enabled:root.pageData.canNext;onTriggered:root.pageData.next(1)}
-            Action {objectName:"vinylQueueShuffle";label:"Shuffle";selected:root.pageData.shuffleEnabled;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
-            Action {objectName:"vinylQueueRepeat";label:root.pageData.repeatMode==="off" ? "Repeat" : "Repeat: "+root.pageData.repeatMode;selected:root.pageData.repeatMode!=="off";onTriggered:root.pageData.cycleRepeat()}
-            Action {objectName:"vinylQueueClear";label:"Clear";enabled:root.pageData.queue.length>0;onTriggered:root.pageData.clearQueue()}
+            Action {objectName:"vinylQueueShuffle";symbol:"shuffle";label:"Shuffle";selected:root.pageData.shuffleEnabled;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
+            Action {
+                objectName:"vinylQueueRepeat";symbol:"repeat";label:"Repeat: "+root.pageData.repeatMode
+                selected:root.pageData.repeatMode!=="off";onTriggered:root.pageData.cycleRepeat()
+                Text {anchors.centerIn:parent;visible:root.pageData.repeatMode==="one";text:"1";font.family:theme.ui;font.pixelSize:9;font.bold:true;color:theme.gold}
+            }
+            Action {objectName:"vinylQueueClear";symbol:"clear";label:"Clear queue";enabled:root.pageData.queue.length>0;onTriggered:root.pageData.clearQueue()}
         }
         Rectangle {id:rule;y:controls.y+controls.height+12;width:parent.width;height:1;color:theme.edge;opacity:0.45}
         ListView {

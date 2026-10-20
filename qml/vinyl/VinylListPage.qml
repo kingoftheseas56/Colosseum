@@ -14,7 +14,7 @@ Item {
     function focusCurrent() {
         var item=cards.itemAt(Math.max(0,Math.min(currentIndex,cards.count-1)));
         if(item) item.forceActiveFocus();
-        else listBack.forceActiveFocus();
+        else listBack.focusControl(Qt.TabFocusReason);
     }
     function reveal(index) {
         var item=cards.itemAt(index);
@@ -46,6 +46,7 @@ Item {
         width: parent.width
         height: 50
         BackAction {
+            focusOnPointer: false
             id: listBack
             objectName: "vinylListBack"
             visible: root.showBack

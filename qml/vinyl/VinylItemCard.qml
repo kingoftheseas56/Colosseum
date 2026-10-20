@@ -1,6 +1,7 @@
 import QtQuick
 import ".."
 KeyboardAction {
+    focusOnPointer: false
     id: root
     required property var worldData
     required property var item

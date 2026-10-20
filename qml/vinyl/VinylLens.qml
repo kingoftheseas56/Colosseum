@@ -84,22 +84,31 @@ Item {
         property real maxVisibleHeight: 350
         property bool opensAbove: false
         property Item focusReturn: null
+        property bool keyboardEntry: false
         focus: true
         padding: 12
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        onAboutToShow: keyboardEntry=!!focusReturn && focusReturn.activeFocus
         onOpened: {
+            if (!keyboardEntry) { options.forceActiveFocus(Qt.PopupFocusReason); return; }
+            focusOption();
+        }
+        function focusOption() {
             for (var i=0;i<optionButtons.count;i++) {
                 var option=optionButtons.itemAt(i)
                 if (option && option.enabled && option.selected) {
-                    option.forceActiveFocus(Qt.PopupFocusReason)
+                    option.forceActiveFocus(Qt.TabFocusReason)
                     return
                 }
             }
             var first=optionButtons.itemAt(0)
-            if (first) first.forceActiveFocus(Qt.PopupFocusReason)
+            if (first) first.forceActiveFocus(Qt.TabFocusReason)
         }
-        onClosed: if (focusReturn && focusReturn.visible && focusReturn.enabled)
-                      focusReturn.forceActiveFocus(Qt.PopupFocusReason)
+        onClosed: {
+            if (keyboardEntry && focusReturn && focusReturn.visible && focusReturn.enabled)
+                focusReturn.forceActiveFocus(Qt.TabFocusReason)
+            else root.forceActiveFocus(Qt.OtherFocusReason)
+        }
         function clampToViewport() {
             if (!root.pageFlick) { menu.maxVisibleHeight = 350; return }
             // A popup's own y is not settled before its first open, so the
@@ -123,6 +132,8 @@ Item {
             contentHeight: options.implicitHeight
             Column {
                 id: options
+                Keys.onDownPressed: menu.focusOption()
+                Keys.onUpPressed: menu.focusOption()
                 width: parent.width
                 spacing: 5
                 Repeater {

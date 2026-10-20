@@ -1,6 +1,7 @@
 import QtQuick
 import ".."
 KeyboardAction {
+    focusOnPointer: false
     id: root
     property string label: ""
     property bool selected: false
@@ -21,9 +22,7 @@ KeyboardAction {
     Rectangle {
         anchors.fill: parent
         radius: 12
-        color: root.selected ? theme.gold : "transparent"
-        border.width: root.interactionActive ? 1 : 0
-        border.color: theme.gold
+        color: root.selected ? theme.gold : root.interactionActive ? theme.glassTint : "transparent"
     }
     Text {
         id: caption

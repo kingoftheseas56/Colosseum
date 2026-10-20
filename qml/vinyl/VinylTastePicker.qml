@@ -58,6 +58,7 @@ Item {
                 background: Item {}
             }
             KeyboardAction {
+                focusOnPointer: false
                 width: 32; height: 40
                 anchors.right: parent.right
                 visible: root.query.length>0
@@ -114,6 +115,7 @@ Item {
                 id:artistCards
                 model: root.offered
                 delegate: KeyboardAction {
+                    focusOnPointer: false
                     required property var modelData
                     required property int index
                     objectName: "vinylPickerArtist_"+index

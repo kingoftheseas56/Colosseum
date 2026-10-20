@@ -19,11 +19,12 @@ Item {
     readonly property real cardHeight: Math.max(96, Math.min(470, Window.height * 0.48, height - 140, width * 0.48))
     signal backRequested
     signal albumRequested
-    function focusBackControl() { backAction.forceActiveFocus(); }
+    function focusBackControl() { backAction.focusControl(Qt.TabFocusReason); }
     Theme {
         id: theme
     }
     BackAction {
+        focusOnPointer: false
         id: backAction
         objectName: "vinylSongBack"
         x: theme.margin
@@ -33,7 +34,6 @@ Item {
         height: 44
         Keys.onReturnPressed: root.backRequested()
         Keys.onEnterPressed: root.backRequested()
-        FocusRing { anchors.fill: parent; shown: backAction.activeFocus; radius: 7 }
         onTriggered: root.backRequested()
     }
     Row {
@@ -85,6 +85,7 @@ Item {
                 border.color: theme.edge
             }
             KeyboardAction {
+                focusOnPointer: false
                 anchors.fill: parent
                 accessibleName: "Open album"
                 onTriggered: root.albumRequested()
@@ -132,6 +133,7 @@ Item {
                     font.pixelSize: 14
                     wrapMode: Text.WordWrap
                     KeyboardAction {
+                        focusOnPointer: false
                         objectName: "vinylSongArtistLink"
                         anchors.fill: parent
                         visible: root.artistNavigationEnabled

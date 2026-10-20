@@ -46,6 +46,7 @@ Popup {
                 color:theme.ink;font.family:theme.display;font.pixelSize:28;elide:Text.ElideRight
             }
             KeyboardAction {
+                focusOnPointer: false
                 id: closeAction;objectName:"vinylArtistSearchClose";anchors.right:parent.right
                 width:40;height:40;focusRadius:20;accessibleName:"Close search";onTriggered:root.close()
                 Rectangle {anchors.fill:parent;radius:20;color:closeAction.interactionActive ? theme.glassHi : theme.glassTint;border.width:1;border.color:theme.edge}
@@ -59,7 +60,7 @@ Popup {
             placeholderText:"Albums, tracks and videos"
             background:Rectangle {radius:14;color:"#191c24";border.width:1;border.color:theme.edge}
             Image {x:16;anchors.verticalCenter:parent.verticalCenter;width:18;height:18;source:"../../assets/icons/search.svg";opacity:0.7}
-            FocusRing {anchors.fill:parent;radius:14;shown:input.activeFocus}
+            FocusRing {anchors.fill:parent;radius:14;shown:input.activeFocus && [Qt.TabFocusReason,Qt.BacktabFocusReason,Qt.ShortcutFocusReason].indexOf(input.focusReason)>=0}
             Keys.onDownPressed:event=>{root.focusResult(0);event.accepted=true;}
             onAccepted:root.activate(0)
         }
@@ -75,6 +76,7 @@ Popup {
             boundsBehavior:Flickable.StopAtBounds
             ScrollGlide {flick:results}
             delegate:KeyboardAction {
+                focusOnPointer: false
                 id:row;required property int index
                 readonly property var match:root.matches[index]
                 objectName:"vinylArtistSearchResult_"+index
