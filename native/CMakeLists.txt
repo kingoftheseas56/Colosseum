@@ -33,7 +33,7 @@ option(COLOSSEUM_NO_ACCOUNT_EDITION
 set(COLOSSEUM_CONTENT_API_URL "" CACHE STRING
     "Qualified HTTPS semantic catalogue endpoint; empty disables remote enrichment")
 option(COLOSSEUM_ENABLE_VINYL_QUALIFICATION
-    "Allow the Vinyl environment opt-in in non-shipping qualification builds" OFF)
+    "Restrict Vinyl to an environment opt-in in non-shipping qualification builds" OFF)
 option(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
     "Enable isolated synthetic Vinyl lifecycle fixtures; never production default" OFF)
 

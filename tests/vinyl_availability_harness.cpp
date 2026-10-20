@@ -11,7 +11,7 @@ int main() {
 #ifdef COLOSSEUM_ENABLE_VINYL_QUALIFICATION
         const bool expected = value == "1";
 #else
-        const bool expected = false;
+        const bool expected = true;
 #endif
         if (Colosseum::vinylLiveEnabled() != expected) {
             std::fprintf(stderr, "Unexpected Vinyl availability for env=%s\n", value.constData());

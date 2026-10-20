@@ -99,11 +99,13 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 **Consumes/produces:** preserves `VinylLiveEnabled`, `worldSourceFor("Vinyl")` and the existing world loader; enables the normal desktop path without enabling synthetic fixtures.
 
-- [ ] Finish review and commit the existing availability change; keep Android disabled until its own milestone.
-- [ ] Preserve the fixture/qualification packaging guards and ordinary offline/local launch.
-- [ ] Pin the recognized artist reference and matching artwork for comparison; retain current app fixes rather than copying the old snapshot wholesale.
-- [ ] Capture the normal app entry and its actual empty-library state, with build/profile identity recorded.
-- [ ] Record this as availability accepted, not complete-mode acceptance.
+- [x] Finish review and commit the existing availability change; keep Android disabled until its own milestone.
+- [x] Preserve the fixture/qualification packaging guards and ordinary offline/local launch.
+- [x] Pin the recognized artist reference and matching artwork for comparison; retain current app fixes rather than copying the old snapshot wholesale.
+- [x] Capture the normal app entry and its actual empty-library state, with build/profile identity recorded.
+- [x] Record this as availability accepted, not complete-mode acceptance.
+
+**Status (2026-10-20): M0 accepted.** The ordinary desktop build opens Vinyl with both qualification and synthetic fixtures OFF. Hemanth confirmed entry and supplied the actual empty-library screenshot. Release/qualification availability checks were rerun during closeout: 2/2 passed. The earlier full-app build and packaging-policy checks are retained evidence; audible playback, import and restart remain later gates. The recognized visual reference is the Arc 62 artist-native-windows-qualify-20261015 A snapshot with its matching artwork, identified in this conversation; it is not the current production page implementation. This branch still requires main-branch integration and release qualification.
 
 **Exit gate:** a normal build opens Vinyl from the app's own navigation with qualification/test fixtures OFF and the Vinyl environment variable unset. A native preview is insufficient.
 

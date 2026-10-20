@@ -58,7 +58,7 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
-# Qualification builds must never turn a Coming Soon world into a release feature.
+# Qualification builds must never ship development-only gates or synthetic fixtures.
 for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES; do
   if grep -Eq "^${option}:BOOL=ON$" "$BUILD_DIR/CMakeCache.txt"; then
     echo "refusing to package ${option}=ON build"
