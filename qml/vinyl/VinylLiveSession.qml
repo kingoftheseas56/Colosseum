@@ -271,6 +271,29 @@ Item {
     property var pendingIdentitySource: null
     signal identityDecisionRequested(var ceremony)
     signal importFinished(var outcome)
+    property bool importing: false
+    property int importProcessed: 0
+    property int importTotal: 0
+    property int importRequest: -1
+    property int importProfileGeneration: -1
+    property var importPaths: []
+    property var importSource: null
+    onSourceChanged: {if(importSource && importSource!==source) cancelImport();}
+    function cancelImport() {
+        var owner=importSource;
+        importRequest=-1;importing=false;importPaths=[];importSource=null;
+        if(owner && owner.cancelImport) owner.cancelImport();
+    }
+    function importFilesAsync(paths) {
+        if(shuttingDown || !profileActive) return -1;
+        cancelImport();cancelImportIdentity();browseError="";
+        if(!source || !source.startImport) {importFiles(paths);return 1;}
+        importSource=source;importPaths=Array.prototype.slice.call(paths);
+        importProfileGeneration=profileGeneration;importProcessed=0;importTotal=0;importing=true;
+        importRequest=source.startImport(paths);
+        if(importRequest<0) {cancelImport();browseError="The local import could not start.";}
+        return importRequest;
+    }
     function cancelImportIdentity(userCancelled) {
         if(userCancelled && pendingImportCeremony)
             browseError="Import cancelled. Open local music and choose these files again when you are ready to decide their identity.";
@@ -292,24 +315,30 @@ Item {
         var generation=profileGeneration, importGeneration=importIdentityGeneration, importSource=source;
         Qt.callLater(function() {
             if(!root.shuttingDown && root.profileActive && generation===root.profileGeneration
-                    && importGeneration===root.importIdentityGeneration && importSource===root.source) root.importFiles(paths);
+                    && importGeneration===root.importIdentityGeneration && importSource===root.source) root.importFilesAsync(paths);
         });
         return true;
     }
     function importFiles(paths) {
         if(shuttingDown || !profileActive) return {imported:0,errors:[]};
+        cancelImport();
         cancelImportIdentity();
         if (!source || !source.importFiles) {
             browseError="Local audio import is unavailable.";
             return {imported:0,errors:[browseError]};
         }
-        var result=plainData(source.importFiles(paths));
+        return applyImportResult(plainData(source.importFiles(paths)),paths);
+    }
+    function applyImportResult(result,paths) {
         if(!result) {browseError="The local import returned invalid data.";return {imported:0,errors:[browseError]};}
         var errors=(result.errors || []).slice();
         var albums=result.albums || [];
-        var count=0, replaced=result.replacedManifestPaths || [], removeIds=[];
+        var count=0, replaced=result.replacedManifestPaths || [], removeIds=(result.replacedAlbumIds || []).slice();
         var entries=albums.map(album=>{
             var prior=library.find(entry=>entry.id===album.id);
+            if(!prior) prior=library.find(entry=>removeIds.indexOf(entry.id)>=0
+                && (entry.payload && entry.payload.album && entry.payload.album.tracks || []).some(track=>
+                    (album.tracks || []).some(next=>next.id===track.id)));
             return {id:album.id,type:"album",title:album.title,cover:album.cover || "",
                 artist:(album.artists || []).join(" · "),browseId:album.id,
                 payload:{version:1,album:album,saved:!prior || !prior.payload || prior.payload.saved!==false}};
@@ -334,7 +363,7 @@ Item {
             pendingImportCeremony=ceremonies[0];pendingIdentitySource=source;
             identityDecisionRequested(pendingImportCeremony);
         }
-        var outcome={imported:count,errors:errors,pendingIdentity:ceremonies.length>0};
+        var outcome={imported:count>0 ? (result.importedTracks===undefined ? count : result.importedTracks) : 0,albums:count,errors:errors,pendingIdentity:ceremonies.length>0};
         importFinished(outcome);
         return outcome;
     }
@@ -581,7 +610,7 @@ Item {
 
     function clearProfile() {
         if(shuttingDown) return;
-        profileGeneration++;cancelImportIdentity();snapshot();activityEnd(false);
+        profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
         resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
         shownEdition=emptyEdition;results=[];library=[];saved=false;browsing=false;browseError="";
@@ -591,11 +620,23 @@ Item {
     function suspendPlayback(reason) {if(shuttingDown || !profileActive) return;snapshot();backend.suspend();cancelQueueRequest();}
     function shutdown() {
         if(shuttingDown) return;
-        snapshot();activityEnd(false);shuttingDown=true;resetting=true;
+        cancelImport();snapshot();activityEnd(false);shuttingDown=true;resetting=true;
         browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();
     }
     Connections {
         target: root.source
+        ignoreUnknownSignals: true
+        function onImportProgress(id,processed,total,fileName) {
+            if(id===root.importRequest && root.importSource===root.source && root.importProfileGeneration===root.profileGeneration) {
+                root.importProcessed=processed;root.importTotal=total;
+            }
+        }
+        function onImportCompleted(id,result) {
+            if(root.shuttingDown || !root.profileActive || id!==root.importRequest
+                || root.importSource!==root.source || root.importProfileGeneration!==root.profileGeneration) return;
+            var paths=root.importPaths.slice();root.importRequest=-1;root.importing=false;root.importPaths=[];root.importSource=null;
+            root.applyImportResult(root.plainData(result),paths);
+        }
         function onCompleted(lane,id,data,failure) {
             if(root.shuttingDown || root.resetting || !root.profileActive) return;
             data=root.plainData(data);
@@ -625,5 +666,5 @@ Item {
     }
     Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
     Component.onCompleted: {restore();refreshLibrary();}
-    Component.onDestruction: { if(source) source.cancel("browse");backend.shutdown(); }
+    Component.onDestruction: { cancelImport();if(source) source.cancel("browse");backend.shutdown(); }
 }

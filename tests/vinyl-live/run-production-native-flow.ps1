@@ -47,7 +47,7 @@ try {
         $stdout = Join-Path $runDirectory "$phase.stdout.log"; $stderr = Join-Path $runDirectory "$phase.stderr.log"
         $arguments = @($driver,$phase,$audioA,$audioB) | ForEach-Object { '"' + $_ + '"' }
         $process = Start-Process -FilePath $AppPath -ArgumentList $arguments -WorkingDirectory (Split-Path $AppPath) `
-            -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+            -WindowStyle Normal -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
         $deadline = [DateTime]::UtcNow.AddSeconds(180)
         while (!$process.WaitForExit(1000)) {
             if ([DateTime]::UtcNow -gt $deadline) { $process.Kill(); throw "Actual app timed out in $phase; logs: $runDirectory" }

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Effects
 import ".."
 
 Flickable {
@@ -72,31 +71,12 @@ Flickable {
             y: Math.min(Math.max(24, root.contentY + 24), Math.max(24, hero.height - height - 20))
             width: root.usable * 0.4
             spacing: 14
-            Rectangle {
-                id: coverMask
+            RoundedPosterImage {
+                objectName: "vinylAlbumCover"
                 width: root.coverSize
                 height: width
                 radius: 18
-                visible: false
-                color: theme.ink
-                layer.enabled: true
-            }
-            Item {
-                width: root.coverSize
-                height: width
-                Rectangle { anchors.fill: parent; radius: 18; color: theme.glassTint; border.color: theme.edge }
-                Text { anchors.centerIn: parent; text: "♪"; font.pixelSize: parent.width * 0.24; color: theme.inkDimmer }
-                Image {
-                    anchors.fill: parent
-                    objectName: "vinylAlbumCover"
-                    layer.enabled: true
-                    layer.effect: MultiEffect {
-                        maskEnabled: true
-                        maskSource: coverMask
-                    }
-                    source: root.pageData.artwork(root.pageData.shownEdition.cover)
-                    fillMode: Image.PreserveAspectFit
-                }
+                sources: root.pageData.shownEdition.cover ? [root.pageData.artwork(root.pageData.shownEdition.cover)] : []
             }
             Text {
                 id: albumTitle

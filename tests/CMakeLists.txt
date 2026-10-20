@@ -4950,25 +4950,59 @@ add_executable(vinyl_local_source_harness
     vinyl_local_source_harness.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp")
 set_target_properties(vinyl_local_source_harness PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_local_source_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(vinyl_local_source_harness PRIVATE Qt6::Core)
+target_link_libraries(vinyl_local_source_harness PRIVATE Qt6::Core Libmpv::Libmpv)
 add_test(NAME colosseum.vinyl_local_source COMMAND vinyl_local_source_harness)
 set_tests_properties(colosseum.vinyl_local_source PROPERTIES
     LABELS "unit;vinyl;local;identity" TIMEOUT 60)
+
+set(VINYL_TEST_FFMPEG "" CACHE FILEPATH "ffmpeg used only to generate temporary Vinyl test audio")
+if(NOT VINYL_TEST_FFMPEG)
+    find_program(_vinyl_test_ffmpeg NAMES ffmpeg ffmpeg.exe)
+    if(_vinyl_test_ffmpeg)
+        set(VINYL_TEST_FFMPEG "${_vinyl_test_ffmpeg}")
+    endif()
+endif()
+add_executable(vinyl_tagged_import_harness
+    vinyl-tagged-import/tst_vinyl_tagged_import.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_tagged_import_harness PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_tagged_import_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_tagged_import_harness PRIVATE Qt6::Core Qt6::Test Libmpv::Libmpv)
+add_test(NAME colosseum.vinyl_tagged_import COMMAND vinyl_tagged_import_harness)
+set_tests_properties(colosseum.vinyl_tagged_import PROPERTIES
+    LABELS "vinyl;local;metadata" TIMEOUT 120
+    ENVIRONMENT "VINYL_TEST_FFMPEG=${VINYL_TEST_FFMPEG}")
 
 # Local session state machine uses its dedicated fake MpvItem module only.
 add_executable(vinyl_native_session_bridge
     vinyl-native-session-bridge/runner.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
 set_target_properties(vinyl_native_session_bridge PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_native_session_bridge PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(vinyl_native_session_bridge PRIVATE Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest)
+target_link_libraries(vinyl_native_session_bridge PRIVATE colosseum_vinyl_app colosseum_vinyl_backend
+    Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest MpvQt::MpvQt)
+target_compile_definitions(vinyl_native_session_bridge PRIVATE
+    VINYL_CONTRACT_IMPORTS="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+if(MSVC)
+    target_compile_options(vinyl_native_session_bridge PRIVATE /utf-8)
+    target_compile_options(vinyl_local_source_harness PRIVATE /utf-8)
+    target_compile_options(vinyl_tagged_import_harness PRIVATE /utf-8)
+endif()
 add_test(NAME colosseum.qml.vinyl_native_session_bridge
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge"
@@ -4977,6 +5011,12 @@ set_tests_properties(colosseum.qml.vinyl_native_session_bridge PROPERTIES
     LABELS "qml;vinyl;local;native-adapter"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 60)
+add_test(NAME colosseum.qml.vinyl_live_world_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_live_world.qml")
+set_tests_properties(colosseum.qml.vinyl_live_world_native PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 
 add_test(NAME colosseum.qml.vinyl_local_session
     COMMAND colosseum_qml_tests

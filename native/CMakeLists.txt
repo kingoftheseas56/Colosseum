@@ -3062,6 +3062,7 @@ endforeach()
 # current StreamServer has no donor request-scoped manifest/stream/cancel contract.
 target_sources(colosseum PRIVATE
     vinyl/VinylLocalSource.h vinyl/VinylLocalSource.cpp
+    vinyl/VinylMusicMetadata.h vinyl/VinylMusicMetadata.cpp
     vinyl/VinylProvider.h)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
 add_library(colosseum_vinyl_app STATIC

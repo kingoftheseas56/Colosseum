@@ -1,4 +1,9 @@
 #include "VinylLocalSource.h"
+#include "VinylMusicMetadata.h"
+#include <QThread>
+#include <QCryptographicHash>
+#include <QRegularExpression>
+#include <functional>
 #include "engine/VaultIdentity.h"
 #include <QDateTime>
 #include <QDir>
@@ -33,64 +38,225 @@ VinylLocalSource::VinylLocalSource(VaultIdentity *identity, QObject *parent, int
     connect(this, &VinylLocalSource::profileLeaving, this, [this] { cancelAll(); ++m_revision; m_albums.clear(); m_tracks.clear(); m_artists.clear(); });
     connect(this, &VinylLocalSource::shuttingDown, this, &VinylLocalSource::cancelAll);
 }
-QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
-    QVariantList albums, ceremonies; QStringList errors, replacedManifestPaths; QSet<QString> seen;
-    static const QSet<QString> extensions = {"mp3","flac","wav","ogg","opus","m4a","aac","aiff","aif","wma","ape","alac","m4b"};
-    for (const auto &input : inputs) {
-        QString path = localPath(input);
-        if (path.isEmpty()) { errors.append(QStringLiteral("Only local audio files can be imported.")); continue; }
-        const QString problem = fileError(path);
-        if (!problem.isEmpty()) { errors.append(problem); continue; }
-        QFileInfo file(path);
-        if (file.fileName().endsWith(".vinyl.json", Qt::CaseInsensitive)) {
-            QString error;
-            const auto releases = importManifest(file.canonicalFilePath(), &error, &ceremonies);
-            if (!error.isEmpty()) errors.append(error);
-            else {
-                replacedManifestPaths.append(file.canonicalFilePath());
-                for (const auto &release : releases) {
-                    const QString id = release.toMap().value("id").toString();
-                    if (!seen.contains(id)) { seen.insert(id); albums.append(release); }
-                }
-            }
+
+namespace {
+const QSet<QString> audioExtensions={"mp3","flac","wav","ogg","opus","m4a","aac","aiff","aif","wma","ape","alac","m4b"};
+QVariantMap inspectMusic(const QStringList &inputs, bool folders, const std::atomic_bool *cancel,
+    const std::function<void(int,int,const QString &)> &progress={}) {
+    QStringList paths,errors;QSet<QString> seen,visited;
+    auto cancelled=[&]{return cancel&&cancel->load();};
+    QStringList pending=inputs;int entries=0;
+    while(!pending.isEmpty()&&!cancelled()){
+        const QString input=pending.takeLast(),path=localPath(input);QFileInfo file(path);
+        if(path.isEmpty()){errors.append("Only local audio files can be imported.");continue;}
+        if(++entries>50000){errors.append("The folder selection exceeds 50,000 entries. Import smaller folders.");break;}
+        if(file.isDir()&&folders){
+            const auto canonical=file.canonicalFilePath();
+            if(file.isSymLink()||visited.contains(canonical))continue;visited.insert(canonical);
+            const auto children=QDir(path).entryInfoList(QDir::AllEntries|QDir::NoDotAndDotDot|QDir::Hidden,QDir::Name);
+            for(const auto &child:children)if(!child.isSymLink()&&(child.isDir()||audioExtensions.contains(child.suffix().toLower())||child.fileName().endsWith(".vinyl.json",Qt::CaseInsensitive)))pending.append(child.absoluteFilePath());
             continue;
         }
-        if (!extensions.contains(file.suffix().toLower())) { errors.append(QStringLiteral("Unsupported audio file type: %1").arg(file.fileName())); continue; }
-        path = file.canonicalFilePath();
-        if (!m_identity) { errors.append(QStringLiteral("Local file identity is unavailable.")); continue; }
-        bool pendingIdentity = false;
-        for (const auto &pendingValue : m_identity->pendingCeremonies()) {
-            if (pendingValue.toMap().value("newPath").toString() == path) {
-                ceremonies.append(pendingValue); pendingIdentity = true; break;
+        const auto problem=fileError(path);if(!problem.isEmpty()){errors.append(problem);continue;}
+        if(!audioExtensions.contains(file.suffix().toLower())&&!file.fileName().endsWith(".vinyl.json",Qt::CaseInsensitive)){
+            errors.append(QStringLiteral("Unsupported audio file type: %1").arg(file.fileName()));continue;
+        }
+        const auto canonical=file.canonicalFilePath(),key=VaultIdentity::normalizePath(canonical);
+        if(seen.contains(key))continue;seen.insert(key);paths.append(canonical);
+        if(paths.size()>=10000){errors.append("Import limited to 10,000 files. Import smaller folders to continue.");break;}
+    }
+    std::sort(paths.begin(),paths.end());QVariantList records;
+    for(int index=0;index<paths.size()&&!cancelled();++index){
+        const auto path=paths[index];const QFileInfo before(path);
+        QVariantMap record;
+        if(!path.endsWith(".vinyl.json",Qt::CaseInsensitive))record=VinylMusicMetadata::read(path,cancel);
+        record.insert("localPath",path);record.insert("fileSize",before.size());record.insert("modifiedMs",before.lastModified().toMSecsSinceEpoch());
+        records.append(record);if(progress)progress(index+1,paths.size(),before.fileName());
+    }
+    return {{"records",records},{"errors",errors}};
+}
+QString musicHash(const QVariantList &parts) {
+    return QString::fromLatin1(QCryptographicHash::hash(QJsonDocument::fromVariant(parts).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
+}
+QVariantMap organizeAlbum(QVariantMap album, QVariantList tracks) {
+    if(!album.value("albumArtistTagged").toBool()){
+        QStringList artists;for(const auto &track:tracks)for(const auto &name:track.toMap().value("artists").toStringList())
+            if(!artists.contains(name))artists.append(name);
+        std::sort(artists.begin(),artists.end());QStringList artistIds;
+        for(const auto &name:artists)artistIds.append("vinyl:local-artist:"+musicHash({name.toCaseFolded()}));
+        album["artists"]=artists;album["artistIds"]=artistIds;
+        if(!artists.isEmpty())album["artist"]=QVariantMap{{"id",artistIds.first()},{"name",artists.first()}};
+    }
+    std::sort(tracks.begin(),tracks.end(),[](const QVariant &a,const QVariant &b){
+        const auto x=a.toMap(),y=b.toMap();
+        const int xd=x.value("disc",1).toInt(),yd=y.value("disc",1).toInt();if(xd!=yd)return xd<yd;
+        const int xn=x.value("taggedNumber",x.value("number",0)).toInt(),yn=y.value("taggedNumber",y.value("number",0)).toInt();
+        if(xn!=yn)return xn>0&&(yn==0||xn<yn);
+        return x.value("localPath").toString()<y.value("localPath").toString();
+    });
+    QVariantList discs,discTracks;int discNumber=-1;
+    for(auto &value:tracks){auto track=value.toMap();const int disc=track.value("disc",1).toInt();
+        if(disc!=discNumber&&!discTracks.isEmpty()){discs.append(QVariantMap{{"number",discNumber},{"title",QString("Disc %1").arg(discNumber)},{"tracks",discTracks}});discTracks.clear();}
+        discNumber=disc;if(track.value("number").toInt()<=0)track["number"]=discTracks.size()+1;
+        value=track;discTracks.append(track);
+    }
+    if(!discTracks.isEmpty())discs.append(QVariantMap{{"number",discNumber},{"title",QString("Disc %1").arg(discNumber)},{"tracks",discTracks}});
+    const auto editionId=album.value("id").toString()+":local";
+    const QVariantMap edition{{"id",editionId},{"title","Local files"},{"tracks",tracks},{"discs",discs}};
+    album["tracks"]=tracks;album["discs"]=discs;album["editions"]=QVariantList{edition};return album;
+}
+}
+
+VinylLocalSource::~VinylLocalSource() {
+    cancelImport();for(auto *worker:m_importWorkers){worker->wait();delete worker;}
+}
+int VinylLocalSource::startImport(const QStringList &inputs) {
+    cancelImport();const int request=++m_serial;m_importRequest=request;
+    const auto cancelled=std::make_shared<std::atomic_bool>(false);m_importCancelled=cancelled;
+    auto *worker=QThread::create([this,inputs,request,cancelled]{
+        auto inspection=inspectMusic(inputs,true,cancelled.get(),[this,request,cancelled](int processed,int total,const QString &name){
+            QMetaObject::invokeMethod(this,[this,request,cancelled,processed,total,name]{
+                if(!cancelled->load()&&m_importRequest==request)emit importProgress(request,processed,total,name);
+            },Qt::QueuedConnection);
+        });
+        if(cancelled->load())return;
+        QMetaObject::invokeMethod(this,[this,request,cancelled,inspection]{
+            if(cancelled->load()||m_importRequest!=request)return;
+            m_importRequest=-1;const auto result=finishImport(inspection);emit importCompleted(request,result);
+        },Qt::QueuedConnection);
+    });
+    m_importWorkers.append(worker);
+    connect(worker,&QThread::finished,this,[this,worker]{m_importWorkers.removeOne(worker);worker->deleteLater();});
+    worker->start();return request;
+}
+void VinylLocalSource::cancelImport() {
+    m_importRequest=-1;if(m_importCancelled)m_importCancelled->store(true);
+}
+QVariantMap VinylLocalSource::importFiles(const QStringList &inputs) {
+    // Compatibility seam for bounded native callers; the product uses startImport.
+    return finishImport(inspectMusic(inputs,false,nullptr));
+}
+QVariantMap VinylLocalSource::finishImport(const QVariantMap &inspection) {
+    QVariantList albums,ceremonies;QStringList errors=inspection.value("errors").toStringList(),replacedManifests,replacedIds;
+    QHash<QString,QVariantMap> changed;QSet<QString> seen;int imported=0;
+    QSet<QString> manifestFiles,manifestTrackIds;
+    QHash<QString,QVariantMap> inspectedFiles;
+    for(const auto &value:inspection.value("records").toList())inspectedFiles.insert(value.toMap().value("localPath").toString(),value.toMap());
+    // Explicit catalogues win over automatic tags when a folder contains both.
+    // Validate them first; a malformed catalogue must not hide loose audio.
+    for(const auto &value:inspection.value("records").toList()){
+        const auto path=value.toMap().value("localPath").toString();
+        if(!path.endsWith(".vinyl.json",Qt::CaseInsensitive))continue;
+        const auto record=value.toMap();const QFileInfo manifest(path);
+        if(manifest.size()!=record.value("fileSize").toLongLong()||manifest.lastModified().toMSecsSinceEpoch()!=record.value("modifiedMs").toLongLong()){
+            errors.append("This catalogue changed during import: "+path);continue;
+        }
+        bool changedReference=false;
+        QFile json(path);
+        if(json.open(QIODevice::ReadOnly)&&json.size()<=2*1024*1024){
+            const auto root=QJsonDocument::fromJson(json.readAll()).object();
+            const auto releases=root.contains("releases")?root.value("releases").toArray():QJsonArray{root};
+            for(const auto &release:releases)for(const auto &edition:release.toObject().value("editions").toArray())for(const auto &item:edition.toObject().value("tracks").toArray()){
+                const QFileInfo audio(QDir(manifest.canonicalPath()).filePath(item.toObject().value("file").toString()));
+                const auto prior=inspectedFiles.value(audio.canonicalFilePath());
+                if(!prior.isEmpty()&&(audio.size()!=prior.value("fileSize").toLongLong()||audio.lastModified().toMSecsSinceEpoch()!=prior.value("modifiedMs").toLongLong()))changedReference=true;
             }
         }
-        if (pendingIdentity) {
-            errors.append(QStringLiteral("This file needs an identity decision before import: %1").arg(path)); continue;
+        if(changedReference){errors.append("Audio referenced by this catalogue changed during import: "+path);continue;}
+        QString error;const auto releases=importManifest(path,&error,&ceremonies);
+        // importManifest observes identities on the owner thread. Recheck its
+        // materialized paths before admitting them to Collection as well; a
+        // modification between validation and observation must not silently
+        // substitute a newer file. Playback separately revalidates Vault facts.
+        if(error.isEmpty())for(const auto &release:releases)for(const auto &edition:release.toMap().value("editions").toList())for(const auto &item:edition.toMap().value("tracks").toList()){
+            const auto audio=item.toMap().value("localPath").toString();const auto prior=inspectedFiles.value(audio);const QFileInfo current(audio);
+            if(!prior.isEmpty()&&(current.size()!=prior.value("fileSize").toLongLong()||current.lastModified().toMSecsSinceEpoch()!=prior.value("modifiedMs").toLongLong()))
+                error="Audio referenced by this catalogue changed during import: "+path;
         }
-        const auto observation = m_identity->observeFile(path, file.size(), file.lastModified().toMSecsSinceEpoch());
-        if (observation.value("prompt").toBool()) {
-            ceremonies.append(observation);
-            errors.append(QStringLiteral("This file needs an identity decision before import: %1").arg(path)); continue;
+        if(!error.isEmpty())errors.append(error);else{
+            replacedManifests.append(path);
+            for(const auto &release:releases){albums.append(release);
+                for(const auto &edition:release.toMap().value("editions").toList())for(const auto &track:edition.toMap().value("tracks").toList()){
+                    const auto audio=track.toMap().value("localPath").toString();
+                    manifestTrackIds.insert(track.toMap().value("id").toString());
+                    if(!manifestFiles.contains(audio)){manifestFiles.insert(audio);++imported;}
+                }
+            }
         }
-        if (!observation.value("error").toString().isEmpty()) {
-            errors.append(observation.value("error").toString()); continue;
-        }
-        const auto trackId = observation.value("id").toString();
-        if (trackId.isEmpty() || seen.contains(trackId)) continue;
-        seen.insert(trackId);
-        const QString title = file.completeBaseName();
-        // Loose audio is an explicit single-track local release, not inferred tags.
-        const QString albumId = QStringLiteral("vinyl:local-release:") + trackId;
-        const QVariantMap track{{"id",trackId},{"title",title},{"artists",QStringList{QStringLiteral("Unknown artist")}},
-            {"seconds",0},{"available",true},{"localPath",path},{"externalIds",QVariantMap{}}};
-        albums.append(QVariantMap{{"id",albumId},{"browseId",albumId},{"title",title},
-            {"artists",QStringList{QStringLiteral("Unknown artist")}},
-            {"artistIds",QStringList{QStringLiteral("vinyl:local-artist:unknown")}},
-            {"artist",QVariantMap{{"id",QStringLiteral("vinyl:local-artist:unknown")},{"name",QStringLiteral("Unknown artist")}}},
-            {"year",QStringLiteral("Local file")},
-            {"cover",QString()},{"origin",QStringLiteral("local")},{"tracks",QVariantList{track}},{"externalIds",QVariantMap{}}});
     }
-    return {{"albums",albums},{"errors",errors},{"replacedManifestPaths",replacedManifestPaths},{"identityCeremonies",ceremonies}};
+    for(auto it=m_albums.cbegin();it!=m_albums.cend();++it){
+        if(!it.value().value("manifestPath").toString().isEmpty())continue;
+        auto oldTracks=it.value().value("tracks").toList();bool removed=false;
+        for(int index=oldTracks.size()-1;index>=0;--index)if(manifestTrackIds.contains(oldTracks[index].toMap().value("id").toString())){oldTracks.removeAt(index);removed=true;}
+        if(removed){auto old=it.value();old["tracks"]=oldTracks;changed.insert(it.key(),old);replacedIds.append(it.key());}
+    }
+    // Keep the shared registry on its owner thread, with one durable write for
+    // the batch rather than serializing its growing JSON once per audio file.
+    QHash<QString,QVariantMap> observations;
+    if(m_identity){
+        QList<VaultIdentity::FileFacts> facts;
+        for(const auto &value:inspection.value("records").toList()){
+            const auto record=value.toMap();const auto path=record.value("localPath").toString();const QFileInfo file(path);
+            if(path.endsWith(".vinyl.json",Qt::CaseInsensitive)||manifestFiles.contains(path)||!fileError(path).isEmpty()
+                ||file.size()!=record.value("fileSize").toLongLong()||file.lastModified().toMSecsSinceEpoch()!=record.value("modifiedMs").toLongLong())continue;
+            facts.append({path,file.size(),file.lastModified().toMSecsSinceEpoch()});
+        }
+        const auto results=m_identity->observeFiles(facts);
+        for(int index=0;index<facts.size();++index)observations.insert(facts[index].path,results[index]);
+    }
+    for(const auto &value:inspection.value("records").toList()){
+        auto track=value.toMap();const auto path=track.value("localPath").toString();const QFileInfo file(path);
+        if(path.endsWith(".vinyl.json",Qt::CaseInsensitive)||manifestFiles.contains(path))continue;
+        if(file.size()!=track.take("fileSize").toLongLong()||file.lastModified().toMSecsSinceEpoch()!=track.take("modifiedMs").toLongLong()||!fileError(path).isEmpty()){
+            errors.append("This file changed or became unavailable during import: "+path);continue;
+        }
+        if(!m_identity){errors.append("Local file identity is unavailable.");continue;}
+        bool pending=false;for(const auto &ceremony:m_identity->pendingCeremonies())if(ceremony.toMap().value("newPath").toString()==path){ceremonies.append(ceremony);pending=true;break;}
+        if(pending){errors.append("This file needs an identity decision before import: "+path);continue;}
+        const auto observation=observations.value(path);
+        if(observation.value("prompt").toBool()){ceremonies.append(observation);errors.append("This file needs an identity decision before import: "+path);continue;}
+        const auto id=observation.value("id").toString();
+        if(id.isEmpty()){errors.append(observation.value("error","Local identity could not be saved.").toString());continue;}
+        if(seen.contains(id))continue;seen.insert(id);++imported;
+        const auto title=track.take("albumTitle").toString();
+        const auto taggedArtists=track.take("albumArtists").toStringList();
+        const auto artistNames=taggedArtists.isEmpty()?track.value("artists").toStringList():taggedArtists;
+        const auto releaseId=track.take("releaseMbid").toString();
+        QString directory=file.absolutePath();const int disc=track.value("disc",1).toInt();
+        if(track.value("hasDiscTag").toBool()&&QRegularExpression(QString("^(?:cd|disc|disk)[ _-]*0*%1$").arg(disc),QRegularExpression::CaseInsensitiveOption)
+            .match(QFileInfo(directory).fileName()).hasMatch())directory=QFileInfo(directory).absolutePath();
+        const auto group=musicHash({title.toCaseFolded(),taggedArtists.join("\n").toCaseFolded(),track.value("year"),releaseId,VaultIdentity::normalizePath(directory)});
+        const QString albumId=title.isEmpty()?QString("vinyl:local-release:")+id:QString("vinyl:local-album:")+group;
+        QVariantMap album=changed.value(albumId,m_albums.value(albumId));
+        if(album.isEmpty()){
+            const auto artistId=QString("vinyl:local-artist:")+musicHash({artistNames.join("\n").toCaseFolded()});
+            album={{"id",albumId},{"browseId",albumId},{"title",title.isEmpty()?track.value("title"):title},{"artists",artistNames},
+                {"artistIds",QStringList{artistId}},{"artist",QVariantMap{{"id",artistId},{"name",artistNames.join(" · ")}}},
+                {"year",track.value("year")},{"genre",track.value("genre")},{"cover",track.value("cover")},
+                {"origin","local"},{"localGroupKey",group},{"albumArtistTagged",track.value("albumArtistTagged")},{"externalIds",QVariantMap{}}};
+        }
+        if(album.value("cover").toString().isEmpty())album["cover"]=track.value("cover");
+        album["discTotal"]=std::max(album.value("discTotal").toInt(),track.value("discTotal").toInt());
+        track["taggedNumber"]=track.value("number",0);track["id"]=id;track["available"]=true;track["externalIds"]=QVariantMap{};
+        auto tracks=album.value("tracks").toList();bool replaced=false;
+        for(auto &old:tracks)if(old.toMap().value("id")==id){old=track;replaced=true;break;}
+        if(!replaced)tracks.append(track);
+        album["tracks"]=tracks;changed.insert(albumId,album);
+        // Upgrade old filename-only records and move changed grouping atomically
+        // through Collection. Queue snapshots keep their existing Vault IDs.
+        for(auto it=m_albums.cbegin();it!=m_albums.cend();++it){
+            if(it.key()==albumId||!it.value().value("manifestPath").toString().isEmpty())continue;
+            auto old=changed.value(it.key(),it.value());auto oldTracks=old.value("tracks").toList();bool removed=false;
+            for(int index=oldTracks.size()-1;index>=0;--index)if(oldTracks[index].toMap().value("id")==id){oldTracks.removeAt(index);removed=true;}
+            if(removed){replacedIds.append(it.key());old["tracks"]=oldTracks;changed.insert(it.key(),old);}
+        }
+    }
+    auto ids=changed.keys();std::sort(ids.begin(),ids.end());
+    for(const auto &id:ids)if(!changed.value(id).value("tracks").toList().isEmpty())
+        albums.append(organizeAlbum(changed.value(id),changed.value(id).value("tracks").toList()));
+    replacedIds.removeDuplicates();
+    return {{"albums",albums},{"errors",errors},{"replacedManifestPaths",replacedManifests},
+        {"replacedAlbumIds",replacedIds},{"importedTracks",imported},{"identityCeremonies",ceremonies}};
 }
 bool VinylLocalSource::decideImportIdentity(const QString &relationship, const QString &choice) {
     return m_identity && m_identity->decideFileCeremony(relationship, choice);
@@ -326,8 +492,10 @@ void VinylLocalSource::setAlbums(const QVariantList &entries) {
     for (const auto &id : ids) {
         auto album = m_albums.value(id);
         QStringList artistIds;
+        const auto suppliedIds=album.value("artistIds").toStringList();int artistIndex=0;
         for (const auto &name : album.value("artists").toStringList()) {
-            QString artistId = album.value("artist").toMap().value("id").toString();
+            QString artistId = suppliedIds.value(artistIndex++);
+            if(artistId.isEmpty())artistId=album.value("artist").toMap().value("id").toString();
             if (artistId.isEmpty()) artistId = QStringLiteral("vinyl:local-artist:unknown");
             artistIds.append(artistId);
             auto artist = m_artists.value(artistId);
@@ -391,7 +559,7 @@ int VinylLocalSource::request(const QString &lane,const QString &operation,const
     return id;
 }
 void VinylLocalSource::cancel(const QString &lane) { m_pending.remove(lane); }
-void VinylLocalSource::cancelAll() { m_pending.clear(); }
+void VinylLocalSource::cancelAll() { m_pending.clear();cancelImport(); }
 QVariant VinylLocalSource::read(const QString &operation,const QString &value,QString *error) const {
     if (operation == "artists") {
         QVariantList result; auto ids = m_artists.keys(); std::sort(ids.begin(),ids.end());

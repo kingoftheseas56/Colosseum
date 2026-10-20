@@ -14,6 +14,7 @@ Main {
     property int flowHistorySeconds: 0
     property bool flowReplaced: false
     property var repeatPlayer: null
+    property int windowWarmupTicks: 0
     Connections {
         target: ProfileActivity
         function onIntegrityError(code,detail) { root.failFlow("Activity rejected: "+code+" "+detail); }
@@ -29,6 +30,8 @@ Main {
             root.flowTicks++;
             if(root.flowTicks>600){root.failFlow("timeout");return;}
             if(root.flowStage==="profile") {
+                if(!root.visible)return;
+                if(++root.windowWarmupTicks<4){root.requestActivate();return;}
                 if(AccountController.busy)return;
                 if(AccountController.onboardingRequired) {AccountController.continueWithoutAccount();return;}
                 root.openWorld("Vinyl");root.flowStage="world";return;
@@ -75,7 +78,7 @@ Main {
                 if(s.queue[s.queueIndex].queueId!==root.currentOccurrence){root.failFlow("replacement changed the occurrence");return;}
                 console.log("VINYL_NATIVE_REPLACE_OK");root.flowStage="playing";return;
             }
-            if(root.flowStage==="playing" && s.loaded && s.position>11) {
+            if(root.flowStage==="playing" && s.loaded && s.position>11 && root.listeningSeconds()>=10) {
                 s.enqueueTrack(0,false);s.enqueueTrack(0,false);
                 if(s.queue.length!==3 || s.queue[0].queueId===s.queue[1].queueId){root.failFlow("occurrences");return;}
                 root.currentOccurrence=s.queue[s.queueIndex].queueId;

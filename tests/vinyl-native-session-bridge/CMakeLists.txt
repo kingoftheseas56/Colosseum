@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Network Qml Quick QuickTest)
 find_package(MpvQt REQUIRED)
 include("${CMAKE_CURRENT_LIST_DIR}/../../native/vinyl/backend/CMakeLists.txt")
-add_executable(vinyl_native_session_bridge runner.cpp ../../native/vinyl/VinylLocalSource.cpp ../../native/vinyl/VinylLocalSource.h ../../native/engine/VaultIdentity.cpp ../../native/engine/VaultIdentity.h
+add_executable(vinyl_native_session_bridge runner.cpp ../../native/vinyl/VinylLocalSource.cpp ../../native/vinyl/VinylLocalSource.h ../../native/vinyl/VinylMusicMetadata.cpp ../../native/engine/VaultIdentity.cpp ../../native/engine/VaultIdentity.h
     ../../native/vinyl/VinylBackendSession.cpp ../../native/vinyl/VinylBackendSession.h
     ../../native/player/mpvitem.cpp ../../native/player/mpvitem.h ../../native/player/mpvproperties.h)
 target_include_directories(vinyl_native_session_bridge PRIVATE ../../native)

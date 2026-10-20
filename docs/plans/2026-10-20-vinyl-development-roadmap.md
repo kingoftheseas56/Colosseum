@@ -37,7 +37,7 @@
 |---|---|---|
 | App entry | `native/main.cpp`, `qml/Main.qml`, `qml/TopBar.qml`, `native/vinyl/VinylAvailability.h` | M0 desktop availability is accepted at `008aeb812` on the development branch. The ordinary full app opens Vinyl without qualification or fixture flags. Main-branch integration and release remain separate. |
 | Actual music host | `qml/vinyl/VinylLiveWorld.qml` | Real routes exist for Home/Discover/Library, Album, Artist and Song, plus file import, identity decisions, player and queue. This is the implementation path to extend. |
-| Local import | `native/vinyl/VinylLocalSource.{h,cpp}` | Normal audio import exists, but loose files are currently represented as filename-titled, single-track releases by `Unknown artist`, with no parsed tags or cover. Metadata-rich manifests are supported; a manifest must not become a normal user's prerequisite. |
+| Local import | `native/vinyl/VinylLocalSource.{h,cpp}`, `VinylMusicMetadata.*` | M1 reads tags/duration/artwork asynchronously, groups local albums/discs, and preserves identities across partial/repeat imports. Hemanth's Illmatic FLAC folder passed actual-app receiving as one Nas album with ten tracks. Physical Windows picker selection remains unverified. |
 | Listening session | `native/vinyl/VinylBackendSession.*`, `qml/vinyl/VinylLiveSession.qml` | M0F adopts the native queue/session/seek/checkpoint path through existing mpv and profile stores. Actual-app import/play/replacement/repeat/seek/cold-restore/resume/privacy/clear passed with normal exits. Ordinary picker and metadata usability remain M1. |
 | Online catalogue | `scripts/vinyl/provider.py`, `native/vinyl/VinylProvider.h` | Python has artist, release, video and identity operations. The production wrapper currently admits only search/album/resolve; the actual session defaults to the local source. Online artist capability is not yet connected by these facts. |
 | Torrent playback | `VinylTorrentProvider`, `MusicTorrentMatcher`, `MusicTorrentQueryPlanner` | Source exists, but the app build explicitly excludes the adapter because current StreamServer lacks the donor's request-scoped manifest/file/cancel contract. This is a real integration blocker. |
@@ -45,7 +45,7 @@
 | Frontend reference | Recognized native artist capture and its matching `trees/A` snapshot | The reference has matching artwork assets. It differs from current production QML. It is a design reference with historical runtime defects, not a safe wholesale replacement for newer app code. |
 | Advanced features | BC/BD/BE/BF/BG backend artifacts and existing QML presentation | Substantial reusable components exist. Their presence is not evidence of live provider integration or working app controls. |
 
-Fresh results cover M0 availability, M0R backend receiving and M0F native adoption. The exact M0F app decoded PCM through WASAPI and passed three normal-exit app phases; see its receiving report for hashes and scope. Human ear audibility, ordinary picker usability, online sources, main-branch landing and release are separate checks.
+Fresh results cover M0 availability, M0R backend receiving, M0F native adoption and M1 tagged local import. M1 passed seven focused targets and two actual-app journeys (Illmatic FLAC and native PCM regression), each with three normal-exit phases. See [M1 receiving](../reviews/2026-10-20-vinyl-m1-receiving.md) for exact hashes and limits. Human ear audibility, physical Windows picker selection, online sources, main-branch landing and release are separate checks.
 
 ## Reuse map: authored backend to product owner
 
@@ -149,18 +149,21 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 ### M1 — Make the local listening journey genuinely usable
 
+**Status:** implementation and automated actual-app receiving accepted; the physical Windows picker interaction in the exit gate remains unverified. See [receiving report](../reviews/2026-10-20-vinyl-m1-receiving.md).
+
 **Outcome:** an ordinary folder/selection of tagged music becomes a meaningful library and plays through the app without a hand-authored manifest.
 
 **Files/owners:** `VinylLocalSource.{h,cpp}`, `VinylLiveWorld.qml`, `VinylLiveSession.qml`, `VinylLiveWorldData.qml`, `VinylLiveArtistData.qml`, existing VaultIdentity, Collection, Session, Progress, activity/history and mpv owners. Reuse BA0–BA3 contracts where they fill a demonstrated gap.
 
 **Interfaces:** keep `importFiles(QStringList)` and `decideImportIdentity(relationship, choice)` at the import boundary; preserve `request/cancel/completed` lifecycle and current persisted occurrence identities.
 
-- [ ] Add actual title/album/album-artist/track-artist/disc/track/duration/artwork extraction behind the local source, reusing existing media facilities where suitable. Keep extraction asynchronous and tagless files usable; do not guess missing identities from filenames.
-- [ ] Group tracks into the correct local releases and editions. Review existing records before changing schema; preserve file identity and playlist occurrences.
-- [ ] Complete real picker import, repeat import, changed-file Cancel/Same Media/New Media, missing/unreadable media and mixed-success feedback. Folder traversal, if offered, must be cancellable and must avoid cycles.
-- [ ] Exercise Library → Album → Song → Artist → Back inside the full app while playing; connect queue actions, shuffle/repeat, seek, next/previous and EOF to the existing session.
-- [ ] Refine shared player, spacing, scrolling, artwork loading and focus in those actual routes as each defect appears.
-- [ ] Verify profile isolation, final pending writes, paused cold restore and normal shutdown on this exact build.
+- [x] Add actual title/album/album-artist/track-artist/disc/track/duration/artwork extraction behind the local source, reusing existing media facilities where suitable. Keep extraction asynchronous and tagless files usable; do not guess missing identities from filenames. Embedded FLAC art and conventional sidecars are covered; not all container artwork is qualified.
+- [x] Group tagged tracks into local albums/discs, preserving file identity and existing queue occurrences. Repeat/partial import and prior automatic-record migration are covered; canonical online editions remain M2.
+- [x] Wire file/folder dialogs, repeat import, changed-file Cancel/Same Media/New Media, missing/unreadable media and mixed-success feedback. Cancellable folder traversal avoids cycles; these contracts are covered by focused checks.
+- [ ] Qualify physical file/folder selection through the default Windows picker. Current actual-app receiving invokes the production import command programmatically; native UI automation was unavailable.
+- [x] Exercise Library → Album → Song → Artist → Back inside the full app while playing; receive existing queue/repeat/seek/EOF behavior again on this build.
+- [x] Fix the observed album hero artwork failure in the actual route using the existing rounded image renderer. Broader cross-page visual refinement remains M5.
+- [x] Verify profile isolation, final pending writes, paused cold restore and normal shutdown on this exact build.
 
 **Checks to extend/reuse:** `tests/vinyl_local_source_harness.cpp`, `tests/vinyl-native-session-bridge/`, `tests/vinyl-local-session/`, personal/session harnesses, plus tagged/tagless/multi-disc/duplicate/missing-file fixtures.
 
@@ -335,4 +338,4 @@ Primary sequence: **M0 → M0R → M0F → M1 → M2 → M3 → M4 → M5 → M6
 
 ## First execution slice
 
-M0, M0R and M0F are accepted on the development branch. Next is M1's ordinary metadata-rich import and app usability on the adopted native path, using the recovered artist page as its visual target. In the same early window, settle M3's exact StreamServer compatibility contract. Main-branch landing and release qualification remain explicit receiving steps.
+M0, M0R and M0F are accepted on the development branch. M1 implementation and automated actual-app receiving are accepted, with physical Windows picker interaction still unverified. Next development is M2's real catalogue/Artist integration, alongside the bounded M3 StreamServer compatibility investigation. Main-branch landing and release qualification remain explicit receiving steps.

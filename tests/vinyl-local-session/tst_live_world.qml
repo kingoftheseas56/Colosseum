@@ -7,7 +7,7 @@ TestCase {
     property var host
     property var world
     property var collection
-    Component {id:storeFactory;QtObject {property var entries:[];function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}}}
+    Component {id:storeFactory;QtObject {property var entries:[];function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}function add(world,entry){entries=entries.concat([entry]);return true;}function replaceItems(world,removeIds,replacements){entries=entries.filter(function(e){return removeIds.indexOf(e.id)<0;}).concat(replacements);return true;}}}
     QtObject { id:preferences
         property bool vinylTasteAnswered:false
         property var vinylTasteArtistIds:[]
@@ -19,21 +19,43 @@ TestCase {
     Component {id:windowFactory;Window {width:1280;height:720;visible:true}}
     Component {id:sourceFactory;QtObject {
         property int serial:0
+        property int importStarts:0
+        property int importCancels:0
+        property int identityDecisions:0
+        property int lastImportId:0
+        property var importPaths:[]
         property int cataloguePageVersion:0
         property var importOutcome: ({albums:[],errors:[]})
         function importFiles(paths) {return importOutcome;}
+        function startImport(paths) {importStarts++;importPaths=paths.slice();lastImportId=++serial;return lastImportId;}
+        function cancelImport() {importCancels++;}
+        function decideImportIdentity(relationship,choice) {identityDecisions++;return true;}
         signal completed(string lane,int requestId,var data,string error)
+        signal importCompleted(int id,var result)
+        signal importProgress(int id,int processed,int total,string fileName)
         signal profileLeaving()
         signal profileEntered()
         signal checkpointRequested()
         signal shuttingDown()
         function request(lane,op,id){return ++serial}
-        function cancel(lane){}
+        function cancel(lane: string){}
         function setAlbums(values){}
     }}
     function record(index,artistId) {return {id:"album-"+index,title:"Album "+("00"+index).slice(-3),origin:"local",artists:["Local Artist"],artistIds:[artistId || "artist-one"],year:2000+index%20,genre:index%2 ? "Folk" : "Jazz",tracks:[{id:"track-"+index,title:"Song "+index,artists:["Local Artist"],seconds:80,lyrics:[{text:"First supplied line"},{text:"Second supplied line"}],notes:{0:[{text:"Supplied note"}]},credits:[{role:"Performer",names:["Local Artist"]}]}]};}
     function seed(count) {var records=[];for(var i=0;i<count;i++)records.push({id:"album-"+i,payload:{album:record(i)}});collection.entries=records;world.session.refreshLibrary();wait(0);return records;}
     function item(name){return findChild(world,name)}
+    function pixelAt(shot,point) {
+        // grabImage returns device pixels on native Windows (150% here),
+        // while mapToItem returns logical coordinates. Window-frame clipping
+        // can shorten the image height, so derive both axes from its width.
+        var scale=shot.width/world.width;
+        return shot.pixel(Math.floor(point.x*scale),Math.floor(point.y*scale));
+    }
+    function probeVisible(pixel) {
+        // Native fractional-DPI composition slightly dims this marker (248–252
+        // rather than 255). Test presence, including in the negative control.
+        return pixel.r>=0.96 && pixel.b>=0.96 && pixel.g<=0.02;
+    }
     function init(){host=windowFactory.createObject(test);source=sourceFactory.createObject(test);var c=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");compare(c.status,Component.Ready,c.errorString());world=c.createObject(host.contentItem,{width:1280,height:720});world.session.source=source;preferences.setVinylTaste(false,[]);world.worldData.preferencesStore=preferences;collection=storeFactory.createObject(test);world.session.collectionStore=collection;wait(0);}
     function cleanup(){
         // Detach/destroy the item tree while its Window and injected owners still
@@ -55,15 +77,57 @@ TestCase {
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
     }
     Component { id:clipProbeFactory; Rectangle { width:8; height:8; color:"#ff00ff"; z:1000 } }
-    function test_importErrorSurvivesLibraryNavigationAndRetryStatusUpdates() {
-        source.importOutcome={albums:[],errors:["This audio file no longer exists: /missing.wav"]};
-        world.importLocalFiles(["/missing.wav"]);tryCompare(world,"importing",false);
-        verify(world.importStatus.indexOf("no longer exists")>=0);
-        verify(world.session.browseError.indexOf("no longer exists")>=0);
-        world.session.importFinished({imported:1,errors:[]});
-        compare(world.importStatus,"Opened 1 local audio file.");
-        world.session.importFinished({imported:0,errors:["Identity decision required"],pendingIdentity:true});
-        verify(world.importStatus.indexOf("cancel and open these files again")>=0);
+    function test_asyncImportControlsProgressCancelAndAlbumAwareStatus() {
+        var fileDialog=item("vinylOpenFilesDialog");
+        verify(item("vinylOpenFiles")!==null);
+        verify(item("vinylOpenFolder")!==null);
+        verify(item("vinylOpenFolderDialog")!==null);
+        verify(fileDialog.nameFilters[0].indexOf("*.ape")>=0 && fileDialog.nameFilters[0].indexOf("*.m4b")>=0);
+        world.importLocalFiles(["file:///music/Album"]);
+        compare(source.importStarts,1);
+        compare(source.importPaths,["file:///music/Album"]);
+        tryCompare(world,"importing",true);
+        compare(world.page,"library");
+        source.importProgress(source.lastImportId,2,4,"track.flac");
+        tryCompare(world.session,"importProcessed",2);
+        tryVerify(function(){return item("vinylStatus").text.indexOf("2 of 4 files")>=0;});
+        var firstId=source.lastImportId;
+        source.importCompleted(firstId,{importedTracks:7,albums:[record(0),record(1)],errors:[]});
+        tryCompare(world,"importing",false);
+        tryVerify(function(){return world.importStatus.indexOf("7 tracks")>=0 && world.importStatus.indexOf("2 albums")>=0;});
+
+        world.importLocalFiles(["file:///music/Album"]);
+        tryCompare(source,"importStarts",2);
+        var identityRequest=source.lastImportId;
+        source.importCompleted(identityRequest,{importedTracks:0,albums:[],errors:[],identityCeremonies:[{relationship:"relationship-1"}]});
+        tryCompare(world,"importing",false);
+        verify(world.importStatus.indexOf("Choose an identity option")>=0);
+        verify(world.session.decideImportIdentity("relationship-1","existing"));
+        tryCompare(source,"importStarts",3);
+        compare(source.importPaths,["file:///music/Album"]);
+        tryCompare(world,"importing",true);
+        source.importCompleted(source.lastImportId,{importedTracks:3,albums:[record(2)],errors:[]});
+        tryCompare(world,"importing",false);
+        tryVerify(function(){return world.importStatus.indexOf("3 tracks")>=0 && world.importStatus.indexOf("1 album")>=0;});
+
+        world.importLocalFiles(["/cancel-me"]);
+        tryCompare(world,"importing",true);
+        var cancelButton=item("vinylCancelImport");
+        verify(cancelButton.visible && cancelButton.enabled && cancelButton.width>0 && cancelButton.height>0);
+        verify(cancelButton.activate(Qt.MouseFocusReason));
+        tryCompare(world,"importing",false);
+        compare(source.importCancels,1);
+        compare(world.importStatus,"Import cancelled. Your library was kept.");
+        tryCompare(item("vinylStatus"),"text","Import cancelled. Your library was kept.");
+
+        world.importLocalFiles(["/source-replaced"]);
+        tryCompare(world,"importing",true);
+        var replacement=sourceFactory.createObject(test);
+        world.session.source=replacement;
+        tryCompare(world,"importing",false);
+        compare(source.importCancels,2);
+        world.session.source=source;
+        replacement.destroy();
     }
     function test_dockedTabsClipScrollingTaste_data() {
         return [{tag:"narrow",width:1024},{tag:"wide",width:1280}];
@@ -79,13 +143,13 @@ TestCase {
         waitForRendering(world);verify(tabs.visible);
         var point=probe.mapToItem(world,4,4);
         var shot=grabImage(world);
-        verify(!Qt.colorEqual(shot.pixel(point.x,point.y),"#ff00ff"),
+        verify(!probeVisible(pixelAt(shot,point)),
                "Scrolling taste content must not paint inside the sticky tab viewport");
         // The same content must paint and remain interactive below that strip.
         world.worldScroll.contentY=searchY-world.worldView.dockedInset-10;
         waitForRendering(world);
         point=probe.mapToItem(world,4,4);shot=grabImage(world);
-        compare(shot.pixel(point.x,point.y),"#ff00ff");
+        verify(probeVisible(pixelAt(shot,point)),"Unclipped probe must remain visible");
         probe.destroy();
         world.worldView.syncPickerPlacement();wait(0);
         mouseClick(search,search.width/2,search.height/2);
@@ -116,7 +180,8 @@ TestCase {
             var probe=clipProbeFactory.createObject(target,{x:4,y:4});
             waitForRendering(world);
             var point=probe.mapToItem(world,4,4);
-            compare(grabImage(world).pixel(point.x,point.y),"#ff00ff");
+            var shot=grabImage(world);
+            verify(probeVisible(pixelAt(shot,point)),cases[i].tab+" content probe must remain visible");
             probe.destroy();
         }
     }
@@ -302,7 +367,7 @@ TestCase {
         world.goBack();compare(world.session.shownAlbumId,"album-0");
     }
     function test_playbackIdentityUnaffectedByBrowse(){
-        seed(3);world.session.playingEdition=world.session.normalize(record(0));world.session.playingIndex=0;
+        seed(3);world.session.playAlbum(record(0),0);
         world.showBrowseSong(record(2),0);compare(item("vinylSongPage").songTitle,"Song 2");compare(world.session.playingTrack.title,"Song 0");
         world.showSong();compare(item("vinylSongPage").songTitle,"Song 0");world.goBack();compare(item("vinylSongPage").songTitle,"Song 2");
     }

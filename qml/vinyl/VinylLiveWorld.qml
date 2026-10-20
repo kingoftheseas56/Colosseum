@@ -17,7 +17,12 @@ Item {
     property alias worldScroll: worldScroll
     property alias worldView: world
     property string importStatus: ""
-    property bool importing: false
+    readonly property bool importing: session.importing
+    readonly property string importProgressText: {
+        var processed = Number(session.importProcessed) || 0;
+        var total = Number(session.importTotal) || 0;
+        return total > 0 ? "Opening local music (" + processed + " of " + total + " files)…" : "Opening local music…";
+    }
     property var routeStack: []
     property bool browsingSong: false
     property bool restoringRoute: false
@@ -89,35 +94,27 @@ Item {
         return false;
     }
     function updateImportStatus(outcome) {
-        var count=outcome ? outcome.imported : 0, errors=outcome && outcome.errors || [];
-        importStatus=count>0 ? "Opened " + count + (count===1 ? " local audio file." : " local audio files.") : "";
+        var count=outcome ? Math.max(0, Number(outcome.imported) || 0) : 0;
+        var albums=outcome ? Math.max(0, Number(outcome.albums) || 0) : 0;
+        var errors=outcome && outcome.errors || [];
+        importStatus=count>0 ? "Imported " + count + (count===1 ? " track" : " tracks") : "";
+        if(albums>0) importStatus += (importStatus ? "; updated " : "Updated ") + albums + (albums===1 ? " album." : " albums.");
+        else if(importStatus) importStatus += ".";
         if(outcome && outcome.pendingIdentity)
-            importStatus += (importStatus ? "\n" : "") + "Choose an identity option to finish importing, or cancel and open these files again later.";
+            importStatus += (importStatus ? "\n" : "") + "Choose an identity option to finish importing.";
         if(errors.length) importStatus += (importStatus ? "\n" : "") + errors.join("\n");
-        if(!importStatus) importStatus="No audio files were added.";
+        if(!importStatus) importStatus=albums>0 ? "Updated " + albums + (albums===1 ? " album." : " albums.") : "No tracks were added.";
     }
     function importLocalFiles(paths) {
-        if (!paths || !paths.length || importing) return;
-        var importGeneration = session.profileGeneration;
-        var importSource = session.source;
-        importing = true;
-        importStatus = "Opening local audio…";
-        // Defer one event-loop turn so the busy state can paint before the bounded
-        // local inspection. No filename or developer fixture is seeded here.
-        Qt.callLater(function() {
-            try {
-                if (session.profileGeneration !== importGeneration || session.source !== importSource) {
-                    importStatus = "Open cancelled because the profile changed. Choose the files again.";
-                    return;
-                }
-                showLibrary();
-                updateImportStatus(session.importFiles(paths));
-            } catch (error) {
-                importStatus = "Could not open these files. " + String(error);
-            } finally {
-                importing = false;
-            }
-        });
+        if (!paths || !paths.length || session.importing) return;
+        showLibrary();
+        importStatus = "Opening local music…";
+        try {
+            var importId = session.importFilesAsync(paths);
+            if (importId <= 0) importStatus = "Could not start the local import.";
+        } catch (error) {
+            importStatus = "Could not open local music. " + String(error);
+        }
     }
     Keys.onEscapePressed: event => {event.accepted=root.goBack();}
     Theme {id:theme}
@@ -128,16 +125,22 @@ Item {
         onPlaybackRequested: root.playbackRequested()
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})
         onQueueRequested: queuePanel.open()
-        onProfileGenerationChanged: {recentSearchMenu.close();artistData.open({id:"",name:""});root.routeStack=[];world.listKey="";root.page="library";world.setTab("library");}
+        onProfileGenerationChanged: {root.importStatus="";recentSearchMenu.close();artistData.open({id:"",name:""});root.routeStack=[];world.listKey="";root.page="library";world.setTab("library");}
+        onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
     VinylLiveWorldData {id:worldData;session:session;onItemRequested: item => root.activateItem(item);onResumeRequested:root.showSong()}
     VinylLiveArtistData {id:artistData;session:session}
     VinylBrowseSongData {id:browseSong;session:session}
     FileDialog {
         id:audioDialog;objectName:"vinylOpenFilesDialog";title:"Open local music";fileMode:FileDialog.OpenFiles
-        nameFilters:["Local music (*.vinyl.json *.flac *.mp3 *.m4a *.aac *.ogg *.opus *.wav *.aiff *.aif *.wma *.alac)","All files (*)"]
+        nameFilters:["Local music (*.vinyl.json *.flac *.mp3 *.m4a *.m4b *.aac *.ogg *.opus *.wav *.aiff *.aif *.wma *.ape *.alac)","All files (*)"]
         onAccepted: root.importLocalFiles(selectedFiles.map(function(file){return String(file)}))
         onRejected: openFiles.forceActiveFocus()
+    }
+    FolderDialog {
+        id:audioFolderDialog;objectName:"vinylOpenFolderDialog";title:"Open a local music folder"
+        onAccepted: root.importLocalFiles([String(selectedFolder)])
+        onRejected: openFolder.forceActiveFocus()
     }
     VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
     TopBar {
@@ -153,6 +156,7 @@ Item {
     Flow {
         id:navigation;objectName:"vinylNavigation";x:theme.margin;y:top.y+top.height+24;width:parent.width-2*x;spacing:12
         VinylWorldButton {id:openFiles;objectName:"vinylOpenFiles";label:root.importing ? "Opening…" : "Open local music";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioDialog.open()}
+        VinylWorldButton {id:openFolder;objectName:"vinylOpenFolder";label:"Open music folder";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioFolderDialog.open()}
         VinylWorldButton {id:nowPlaying;objectName:"vinylNowPlaying";label:"Now playing";backdrop:vinylBackdrop;visible:session.playingIndex>=0;onTriggered:root.showSong()}
         VinylWorldButton {objectName:"vinylQueueButton";label:"Queue · "+session.queue.length;backdrop:vinylBackdrop;onTriggered:queuePanel.open()}
     }
@@ -239,7 +243,8 @@ Item {
     }
     Row {
         objectName:"vinylStatusRow";x:root.footerLeft;y:root.contentBottom+8;width:parent.width-x-theme.margin;spacing:12
-        Text {objectName:"vinylStatus";width:parent.width-(retry.visible ? retry.width+12 : 0);text:session.persistenceError || artistData.persistenceError || worldData.persistenceError || session.error || session.browseError || (root.importing ? "Opening local music…" : session.browsing ? "Opening release…" : root.importStatus);color:session.error || session.browseError ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
+        Text {objectName:"vinylStatus";width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0);text:session.persistenceError || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || session.browseError || (session.browsing ? "Opening release…" : root.importStatus));color:!root.importing && (session.error || session.browseError) ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
+        VinylWorldButton {id:cancelImport;objectName:"vinylCancelImport";label:"Cancel import";backdrop:vinylBackdrop;visible:root.importing;onTriggered:{session.cancelImport();root.importStatus="Import cancelled. Your library was kept."}}
         VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";backdrop:vinylBackdrop;visible:session.error!=="";onTriggered:session.retry()}
     }
     VinylCreditsPopup {id:creditsPopup;pageData:session;backdrop:vinylBackdrop;x:Math.max(0,root.width-width-theme.margin);y:Math.max(0,bar.y-height-12)}
