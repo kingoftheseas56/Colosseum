@@ -4961,6 +4961,26 @@ set_tests_properties(colosseum.vinyl_local_source PROPERTIES
     LABELS "unit;vinyl;local;identity" TIMEOUT 60)
 
 set(VINYL_TEST_FFMPEG "" CACHE FILEPATH "ffmpeg used only to generate temporary Vinyl test audio")
+add_executable(vinyl_catalogue_source_test
+    vinyl-catalogue/tst_catalogue_source.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylCatalogueSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylCatalogueSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_catalogue_source_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_catalogue_source_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(vinyl_catalogue_source_test PRIVATE VINYL_FAKE_TRANSPORT="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-catalogue/fake_transport.py")
+target_link_libraries(vinyl_catalogue_source_test PRIVATE colosseum_vinyl_backend Qt6::Core Qt6::Network Qt6::Test Libmpv::Libmpv)
+if(MSVC)
+    target_compile_options(vinyl_catalogue_source_test PRIVATE /utf-8)
+endif()
+add_test(NAME colosseum.vinyl_catalogue_source COMMAND vinyl_catalogue_source_test)
+set_tests_properties(colosseum.vinyl_catalogue_source PROPERTIES TIMEOUT 60 LABELS "vinyl;catalogue;native-adapter")
 if(NOT VINYL_TEST_FFMPEG)
     find_program(_vinyl_test_ffmpeg NAMES ffmpeg ffmpeg.exe)
     if(_vinyl_test_ffmpeg)

@@ -7,7 +7,7 @@ TestCase {
     property var host
     property var world
     property var collection
-    Component {id:storeFactory;QtObject {property var entries:[];function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}function add(world,entry){entries=entries.concat([entry]);return true;}function replaceItems(world,removeIds,replacements){entries=entries.filter(function(e){return removeIds.indexOf(e.id)<0;}).concat(replacements);return true;}}}
+    Component {id:storeFactory;QtObject {property var entries:[];function setVinylArtistSaved(artist,saved){entries=entries.filter(function(e){return e.id!==artist.id;});if(saved)entries=entries.concat([{id:artist.id,type:"artist",title:artist.name,payload:{artistId:artist.id}}]);return true;}function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}function add(world,entry){entries=entries.concat([entry]);return true;}function replaceItems(world,removeIds,replacements){entries=entries.filter(function(e){return removeIds.indexOf(e.id)<0;}).concat(replacements);return true;}}}
     QtObject { id:preferences
         property bool vinylTasteAnswered:false
         property var vinylTasteArtistIds:[]
@@ -18,6 +18,17 @@ TestCase {
     property var source
     Component {id:windowFactory;Window {width:1280;height:720;visible:true}}
     Component {id:sourceFactory;QtObject {
+        property var artist: ({})
+        property var artistAlbums: []
+        property var artistSingles: []
+        property var artistMedia: ({})
+        property var artistIdentity: ({})
+        property bool artistBusy:false
+        property bool cached:false
+        property string artistError:""
+        property var lastArtistRef: ({})
+        function openArtist(value){lastArtistRef=value;artist={name:value.name,id:value.id,relatedArtists:[{id:"UCedvOgsKFzcK3hA5taf3KoQ",name:"Shared name"}]};}
+        function leaveArtist(){artist={};artistIdentity={};}
         property int serial:0
         property int importStarts:0
         property int importCancels:0
@@ -77,6 +88,44 @@ TestCase {
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
     }
     Component { id:clipProbeFactory; Rectangle { width:8; height:8; color:"#ff00ff"; z:1000 } }
+    function test_onlineArtistSaveKeyStaysStable() {
+        world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
+        var key=world.artistData.canonicalArtistId;
+        verify(world.artistData.toggleSaved());tryCompare(world.artistData,"saved",true);
+        source.artistIdentity={mbid:"11111111-1111-4111-8111-111111111111"};
+        compare(world.artistData.canonicalArtistId,key);compare(world.artistData.saved,true);
+        verify(world.artistData.toggleSaved());verify(!collection.has("Vinyl",key));
+    }
+    function test_artistSelectionMatchesWorldPills() {
+        seed(2);world.showArtist("Local Artist");
+        var page=item("vinylArtistPage"),albums=item("vinylArtistTab_albums"),videos=item("vinylArtistTab_videos");
+        verify(albums!==null && videos!==null);
+        page.switchTab("albums",true);waitForRendering(world);
+        compare(albums.focusPrimary,true);compare(albums.focusInset,-2);
+        compare(findChild(albums,"vinylArtistTab_albums_selection").color,"#f0c44a");
+        compare(findChild(videos,"vinylArtistTab_videos_selection").color,"#00000000");
+        verify(albums.width>60 && albums.height===40,"Pill reserves space around the caption");
+        page.switchTab("videos",true);waitForRendering(world);
+        compare(videos.focusPrimary,true);compare(albums.focusPrimary,false);
+        compare(findChild(videos,"vinylArtistTab_videos_selection").color,"#f0c44a");
+        compare(videos.Accessible.checked,true);
+    }
+    function test_onlineArtistPlayLoadsAnAdmittedAlbumThroughExistingSession(){
+        world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
+        source.artistAlbums=[{id:"album-0",browseId:"MPRE_test",title:"Album",origin:"youtube-music",artists:["Artist"],artistIds:["ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"],tracks:[]}];
+        verify(world.artistData.playable);
+        world.artistData.toggleDemoPlayback();verify(world.session.queueRequest>=0);
+        source.completed("queue",world.session.queueRequest,record(0),"");
+        tryCompare(world.session,"playingIndex",0);compare(world.session.playingTrack.id,"track-0");
+    }
+    function test_relatedArtistRetainsKnownProviderIdentity_data(){return [{tag:"shelf",full:false},{tag:"category",full:true}];}
+    function test_relatedArtistRetainsKnownProviderIdentity(data){
+        world.showArtist({id:"ytm:artist:UCfM3zsQsOnfWNUppiycmBuw",name:"Artist"});
+        var page=item("vinylArtistPage"),row=world.artistData.media.relatedArtists[0];
+        if(data.full){page.openCategory("related");wait(0);var card=item("vinylArtistFullCategory_0");verify(card!==null);card.cardRequested(row);}
+        else item("vinylArtistRelatedSection").activated(row);
+        compare(source.lastArtistRef.id,"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ");
+    }
     function test_asyncImportControlsProgressCancelAndAlbumAwareStatus() {
         var fileDialog=item("vinylOpenFilesDialog");
         verify(item("vinylOpenFiles")!==null);
@@ -205,7 +254,11 @@ TestCase {
         world.worldView.setTab("discover");wait(0);
         world.pushRoute();
         var trigger=item("vinylFilter_decade"),menu=item("vinylFilterMenu");
-        trigger.forceActiveFocus();keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
+        // A newly resized native Window may not yet own OS keyboard focus.
+        host.requestActivate();tryCompare(host,"active",true);
+        waitForRendering(world);
+        trigger.forceActiveFocus();tryCompare(trigger,"activeFocus",true);
+        keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
         var scroll=item("vinylFilterMenuScroll");
         verify(scroll.contentHeight>scroll.height,"All decades require scrolling in this viewport");
         var popupTop=menu.contentItem.mapToItem(world,0,0).y-menu.topPadding;

@@ -29,7 +29,7 @@ Column {
     signal backRequested()
     signal albumRequested(var album)
     signal songRequested(var song)
-    signal artistRequested(string name)
+    signal artistRequested(var artist)
     signal mediaRequested(var record)
     signal itemFocused(var item)
     spacing: 28
@@ -94,7 +94,7 @@ Column {
                     else if (root.category === "videos")
                         root.mediaRequested(record)
                     else if (root.category === "related")
-                        root.artistRequested(record.title)
+                        root.artistRequested(record.artistRef || record.title)
                 }
                 onActiveFocusChanged: if (activeFocus) root.itemFocused(tile)
             }

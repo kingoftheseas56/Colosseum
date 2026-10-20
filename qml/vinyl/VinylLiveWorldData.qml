@@ -27,8 +27,9 @@ Item {
     Component.onCompleted: loadTaste()
     Connections { target: root.preferencesStore; ignoreUnknownSignals:true; function onVinylTasteChanged() { root.loadTaste(); } }
 
-    readonly property bool catalogueReachable: true
-    readonly property var catalogue: ({albums: session.library.map(function(entry) {
+    property bool onlineMode: false
+    readonly property bool catalogueReachable: !session.browseError
+    readonly property var catalogue: ({albums: onlineMode ? session.onlineAlbums : session.library.map(function(entry) {
         var a = entry.payload && entry.payload.album ? entry.payload.album : entry;
         return Object.assign({}, a, {artists:a.artists || [], tracks:(a.tracks || []).map(function(t) {
             return Object.assign({},t,{artists:t.artists || a.artists || []});
@@ -37,6 +38,7 @@ Item {
     property var lens: ({kind:"albums",genre:"",decade:"",country:"",language:""})
     property string query: ""
     function refreshSearch() {
+        if(onlineMode) return;
         if(!session.pagedSearchSupported) return;
         if(query.trim()) session.search(query);
         else if(session.browseOperation==="search") session.cancelBrowse();
@@ -48,17 +50,18 @@ Item {
     property var pickerDraft: []
     property string pickerQuery: ""
     readonly property string tasteNotice: "Taste choices are saved to this profile."
-    readonly property string lensTitle: [lens.language,lens.decade,lens.genre,lens.country].filter(function(v){return !!v}).join(" · ") || "Local music"
+    readonly property string lensTitle: [lens.language,lens.decade,lens.genre,lens.country].filter(function(v){return !!v}).join(" · ") || (onlineMode ? "Catalogue matches" : "Local music")
     readonly property var albums: catalogue.albums.filter(function(a) {
         // Keep the existing local view while a replacement page chain loads; never
         // expose a partial page as a complete result or alter lens/sort semantics.
+        if(onlineMode) return Lists.matches(a,lens);
         var complete=session.pagedSearchSupported && session.searchComplete && session.searchQuery===query.trim();
         var included=!complete || session.results.some(function(record){return record.id===a.id;});
         return included && Lists.matches(a,lens) && (!query.trim() || (a.title+" "+a.artists.join(" ")+" "+(a.tracks || []).map(function(t){return t.title}).join(" ")).toLowerCase().indexOf(query.trim().toLowerCase())>=0);
     }).sort(function(a,b) {
         return sortOrder === "year" ? (Number(b.year)||0)-(Number(a.year)||0) || String(a.title).localeCompare(String(b.title)) : String(a.title).localeCompare(String(b.title));
     })
-    readonly property var shelves: [{key:"local-"+lens.kind,title:"Local "+lens.kind,icon:"threads",kind:lens.kind,items:project(albums,lens.kind)}]
+    readonly property var shelves: [{key:"local-"+lens.kind,title:(onlineMode ? "Catalogue " : "Local ")+lens.kind,icon:"threads",kind:lens.kind,items:project(albums,lens.kind)}]
     readonly property var homeRows: {
         var preferred=albums.filter(function(a){return picks.some(function(name){return (a.artistIds || []).indexOf(name)>=0 || (!(a.artistIds || []).length && a.artists.indexOf(name)>=0)})});
         var result=[];
@@ -79,6 +82,7 @@ Item {
     signal resumeRequested()
     function artwork(url) { return url || ""; }
     function project(records,kind) {
+        if(onlineMode && kind==="artists") return session.onlineArtists.map(function(a){return {id:a.id,artistId:a.id,artist:a.name,title:a.name,cover:a.cover || "",kind:"artists",origin:a.origin};});
         if(kind==="artists") {
             var seen={},result=[];
             records.forEach(function(a){a.artists.forEach(function(name,index){
@@ -98,7 +102,7 @@ Item {
     }
     function row(key,home) {
         if(key==="library") return {key:key,title:"Your library",kind:"albums",items:project(albums,"albums")};
-        if(key.indexOf("local-")===0) {var kind=key.slice(6);return {key:key,title:"Local "+kind,kind:kind,items:project(albums,kind)};}
+        if(key.indexOf("local-")===0) {var kind=key.slice(6);return {key:key,title:(onlineMode ? "Catalogue " : "Local ")+kind,kind:kind,items:project(albums,kind)};}
         return homeRows.concat(shelves).find(function(r){return r.key===key}) || {key:key,title:"Collection",items:[]};
     }
     function listItems(key) {return row(key,false).items;}

@@ -3056,13 +3056,14 @@ endforeach()
 # live in tests/CMakeLists.txt, never here. include(CTest) defines BUILD_TESTING
 # (default ON); OFF skips registration entirely and changes nothing else — the
 # harness targets above build either way, exactly as before this seam existed.
-# Vinyl's local adapter consumes the existing Vault identity. The plain Python
-# transport remains available for later connection but local playback never uses it.
+# Vinyl local files use Vault identity; the optional catalogue helper has an
+# app-owned runtime. A missing online dependency never disables local listening.
 # Deferred VinylTorrentProvider sources remain in the repository, excluded here:
 # current StreamServer has no donor request-scoped manifest/stream/cancel contract.
 target_sources(colosseum PRIVATE
     vinyl/VinylLocalSource.h vinyl/VinylLocalSource.cpp
     vinyl/VinylMusicMetadata.h vinyl/VinylMusicMetadata.cpp
+    vinyl/VinylCatalogueSource.h vinyl/VinylCatalogueSource.cpp
     vinyl/VinylProvider.h)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
 add_library(colosseum_vinyl_app STATIC
@@ -3074,6 +3075,19 @@ if(MSVC)
     target_compile_options(colosseum_vinyl_app PRIVATE /utf-8)
 endif()
 target_link_libraries(colosseum PRIVATE colosseum_vinyl_app)
+set(COLOSSEUM_VINYL_RUNTIME_DIR "" CACHE PATH "Prepared app-owned Vinyl Python runtime (optional online catalogue)")
+add_custom_command(TARGET colosseum POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/vinyl/provider.py" "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl/provider.py"
+    VERBATIM)
+if(COLOSSEUM_VINYL_RUNTIME_DIR)
+    if(NOT EXISTS "${COLOSSEUM_VINYL_RUNTIME_DIR}/python.exe" AND WIN32)
+        message(FATAL_ERROR "COLOSSEUM_VINYL_RUNTIME_DIR must contain the prepared python.exe")
+    endif()
+    add_custom_command(TARGET colosseum POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${COLOSSEUM_VINYL_RUNTIME_DIR}" "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl/runtime"
+        VERBATIM)
+endif()
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"

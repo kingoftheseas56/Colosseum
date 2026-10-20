@@ -221,7 +221,7 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(videos["source"], "artist page videos shelf (no playlist handle returned)")
         self.assertTrue(videos["fallback"])
         self.assertEqual(videos["fallbackReason"], "no playlist handle returned")
-        self.assertTrue(videos["complete"])
+        self.assertFalse(videos["complete"])
         self.assertEqual(len(videos["items"]), 4)
         self.assertTrue(all(v["duration"] is None and v["seconds"] is None for v in videos["items"]))
         self.assertTrue(all(not v["live"] for v in videos["items"]))

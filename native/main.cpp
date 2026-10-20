@@ -162,6 +162,7 @@
 #include "feria/FeriaBrowserRuntime.h"
 #include "feria/FeriaAccountStore.h"
 #include "vinyl/VinylProvider.h"
+#include "vinyl/VinylCatalogueSource.h"
 #include "vinyl/VinylLocalSource.h"
 #include "vinyl/VinylBackendSession.h"
 #include "vinyl/VinylAvailability.h"
@@ -1730,12 +1731,16 @@ int main(int argc, char *argv[]) {
     qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl", 1, 0, "VinylBackendSession");
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylLocalSource, &VinylLocalSource::shuttingDown);
-    // Preserve the deferred external adapters without making local playback use them.
+    // Prefer the assembled app's helper/runtime; source-tree launches retain an
+    // explicit resource-root fallback. Never resolve Python through PATH.
+    const auto vinylBundledHelper = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("scripts/vinyl/provider.py");
     auto *vinylProvider = new VinylProvider(
-        QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
-            .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
+        QFileInfo::exists(vinylBundledHelper) ? vinylBundledHelper :
+            QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
+                .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylProvider, &VinylProvider::shuttingDown);
+    auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
     // VinylTorrentProvider is preserved as a deferred donor adapter only. It
     // requires request-scoped StreamServer APIs absent from the current owner;
     // do not replace that shared owner or expose a nonfunctional provider.
@@ -1956,6 +1961,7 @@ int main(int argc, char *argv[]) {
 #endif
 #if !defined(Q_OS_ANDROID)
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylCatalogueSource"), vinylCatalogueSource);
     const auto bindVinylScope = [&engine, accountRuntime] {
         engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
             accountRuntime->profileStores()->activeProfile().profileId());

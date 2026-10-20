@@ -5,6 +5,8 @@ KeyboardAction {
     property string label: ""
     property bool selected: false
     property Item backdrop: null
+    focusRadius: 12
+    focusPrimary: selected
     implicitWidth: caption.implicitWidth + 28
     implicitHeight: 38
     accessibleName: label
@@ -31,5 +33,6 @@ KeyboardAction {
         opacity: root.enabled ? 1 : 0.35
         font.family: theme.ui
         font.pixelSize: 13
+        font.weight: root.selected ? Font.DemiBold : Font.Normal
     }
 }

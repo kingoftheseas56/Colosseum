@@ -90,7 +90,10 @@ def album_card(record, browse_id=None):
             "origin": "youtube-music", "title": record.get("title", ""),
             "artists": artists(record), "year": str(record.get("year") or ""),
             "cover": cover(record), "explicit": bool(record.get("isExplicit")),
-            "type": record.get("type", "Album")}
+            "type": record.get("type", "Album"),
+            "artistIds": [("ytm:artist:" + a["id"]) if a.get("id") else ""
+                          for a in record.get("artists", []) if a.get("name")],
+            "providerIds": {"youtube-music": key}}
 
 
 def normalize_album(record, key):
@@ -382,6 +385,7 @@ def normalize_artist(raw_artist, songs_playlist=None, requested_channel_id=None,
         "channelId": resolved_cid,
         "requestedChannelId": requested_channel_id or resolved_cid,
         "name": artist_name,
+        "biography": str(raw_artist.get("description") or "")[:50000],
         "images": images,
         "thumbnails": images,
         "songs": songs,
@@ -495,7 +499,7 @@ def fetch_artist_videos(client, channel_id, fetched_at=None):
 
     playlist_id = vsec.get("browseId")
     if playlist_id:
-        vpl = _call_provider(client.get_playlist, playlist_id, limit=60)
+        vpl = _call_provider(client.get_playlist, playlist_id, limit=None)
         if not isinstance(vpl, dict) or not isinstance(vpl.get("tracks"), list):
             raise ProviderUnavailableError("Failed to fetch artist videos playlist.")
         raw_videos = vpl["tracks"]
@@ -510,7 +514,7 @@ def fetch_artist_videos(client, channel_id, fetched_at=None):
         source = "artist page videos shelf (no playlist handle returned)"
         fallback = True
         fallback_reason = "no playlist handle returned"
-        complete = True
+        complete = False
 
     items, videos, live = [], [], []
     for v in raw_videos:
@@ -540,11 +544,6 @@ def fetch_artist_videos(client, channel_id, fetched_at=None):
         }
         items.append(rec)
         (live if is_live else videos).append(rec)
-
-    if len(live) < 2:
-        order_map = {r["videoId"]: idx for idx, r in enumerate(items)}
-        videos = sorted(videos + live, key=lambda r: order_map.get(r["videoId"], 0))
-        live = []
 
     return {
         "channelId": resolved_cid,
@@ -679,7 +678,12 @@ class MusicBrainzClient:
             ]
             if not search_entries:
                 raise ArtistNotFoundError(f"Artist '{name_query}' not found in MusicBrainz.")
-            mbid = search_entries[0]["id"]
+            exact_name = lambda text: unicodedata.normalize("NFKC", text).casefold().strip()
+            exact = [a for a in search_entries if exact_name(a["name"]) == exact_name(name_query)
+                     and str(a.get("score")) == "100"]
+            if len(exact) != 1:
+                raise ProviderUnavailableError("Artist identity is ambiguous. Catalogue browsing is still available.")
+            mbid = exact[0]["id"]
 
         rgs = []
         offset = 0
@@ -959,6 +963,17 @@ def handle(request, client=None, mb_client=None):
     if client is None:
         from ytmusicapi import YTMusic
         client = YTMusic(location=request.get("region", "IN"))
+    if operation == "catalogueSearch":
+        if not 1 <= len(value) <= 300:
+            raise InvalidArgumentError("Enter an album or artist name")
+        found = _call_provider(client.search, value, filter="artists", limit=24)
+        artist_rows = [{"id": "ytm:artist:" + a["browseId"], "channelId": a["browseId"],
+                        "name": a.get("artist") or a.get("title") or "", "cover": cover(a),
+                        "origin": "youtube-music"} for a in found if a.get("browseId")]
+        return {"artists": artist_rows,
+                "albums": [album_card(a) for a in _call_provider(client.search, value, filter="albums", limit=24)
+                           if a.get("browseId")][:24], "complete": False,
+                "source": "youtube-music", "fetchedAt": now_iso(fetched_at)}
     if operation == "search":
         if not 1 <= len(value) <= 300:
             raise ValueError("Enter an album or artist name")
@@ -982,7 +997,10 @@ def handle(request, client=None, mb_client=None):
 
 def main():
     try:
-        request = json.loads(sys.stdin.buffer.read(8193))
+        raw = sys.stdin.buffer.read(1024 * 1024 + 1)
+        if len(raw) > 1024 * 1024:
+            raise InvalidArgumentError("Catalogue request is too large")
+        request = json.loads(raw)
         response = {"ok": True, "data": handle(request)}
     except ImportError:
         response = {"ok": False, "error": "Vinyl's catalogue helper is not installed.", "errorCode": "missing_dependency"}

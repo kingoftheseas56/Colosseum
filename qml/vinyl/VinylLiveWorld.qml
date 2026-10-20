@@ -49,7 +49,7 @@ Item {
     function pushRoute() {routeStack=routeStack.concat([captureRoute()]);}
     function focusLibrary() {Qt.callLater(function(){world.focusCurrent();});}
     function showLibrary() {
-        session.cancelBrowse();session.refreshLibrary();routeStack=[];world.setTab("library");page="library";world.parkPage(Math.max(0,world.contentTop-world.dockedInset));focusLibrary();
+        session.cancelBrowse();session.refreshLibrary();worldData.onlineMode=false;routeStack=[];world.setTab("library");page="library";world.parkPage(Math.max(0,world.contentTop-world.dockedInset));focusLibrary();
     }
     function openAlbum(id) {pendingAlbumRoute=captureRoute();session.openAlbum(id);}
     function showSong() {
@@ -159,6 +159,7 @@ Item {
         VinylWorldButton {id:openFolder;objectName:"vinylOpenFolder";label:"Open music folder";backdrop:vinylBackdrop;enabled:!root.importing;onTriggered:audioFolderDialog.open()}
         VinylWorldButton {id:nowPlaying;objectName:"vinylNowPlaying";label:"Now playing";backdrop:vinylBackdrop;visible:session.playingIndex>=0;onTriggered:root.showSong()}
         VinylWorldButton {objectName:"vinylQueueButton";label:"Queue · "+session.queue.length;backdrop:vinylBackdrop;onTriggered:queuePanel.open()}
+        VinylWorldButton {objectName:"vinylCatalogueMode";label:worldData.onlineMode ? "Local library" : "Search catalogue";backdrop:vinylBackdrop;onTriggered:{session.cancelBrowse();worldData.onlineMode=!worldData.onlineMode;query.forceActiveFocus();}}
     }
     Item {
         id:libraryHeader;objectName:"vinylLibraryHeader";x:theme.margin;y:navigation.y+navigation.height+22;width:parent.width-2*x;height:44;visible:root.worldVisible
@@ -166,7 +167,7 @@ Item {
             id:query;objectName:"vinylSearchInput";width:Math.max(140,Math.min(600,parent.width-sortButton.width-12-(recentSearchButton.visible ? recentSearchButton.width+12 : 0)));height:44
             text:worldData.query;onTextEdited:worldData.query=text
             color:theme.ink;placeholderTextColor:theme.inkDimmer;font.family:theme.ui;font.pixelSize:14;padding:14;selectByMouse:true
-            placeholderText:"Filter your local music";onAccepted:{worldData.rememberSearch();world.focusCurrent()}
+            placeholderText:worldData.onlineMode ? "Search artists and albums" : "Filter your local music";onAccepted:{worldData.rememberSearch();if(worldData.onlineMode)session.searchCatalogue(text);else world.focusCurrent()}
             background:Glass {objectName:"vinylSearchGlass";backdrop:vinylBackdrop;radius:12;tint:0.06;scrim:0.18}
             FocusRing {anchors.fill:parent;shown:query.activeFocus;radius:12}
         }
@@ -189,7 +190,7 @@ Item {
                     required property int index
                     objectName:"vinylRecentSearch_"+index
                     text:modelData
-                    onTriggered:{worldData.query=modelData;worldData.rememberSearch();world.focusCurrent();}
+                    onTriggered:{worldData.query=modelData;worldData.rememberSearch();if(worldData.onlineMode)session.searchCatalogue(modelData);else world.focusCurrent();}
                 }
                 onObjectAdded:(index,object)=>recentSearchMenu.insertItem(index,object)
                 onObjectRemoved:(index,object)=>recentSearchMenu.removeItem(object)
@@ -243,8 +244,9 @@ Item {
     }
     Row {
         objectName:"vinylStatusRow";x:root.footerLeft;y:root.contentBottom+8;width:parent.width-x-theme.margin;spacing:12
-        Text {objectName:"vinylStatus";width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0);text:session.persistenceError || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || session.browseError || (session.browsing ? "Opening release…" : root.importStatus));color:!root.importing && (session.error || session.browseError) ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
+        Text {objectName:"vinylStatus";width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0)-(catalogueRetry.visible ? catalogueRetry.width+12 : 0);text:session.persistenceError || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || session.browseError || (session.browsing ? "Loading catalogue…" : root.page==="artist" ? artistData.catalogueStatus : worldData.onlineMode ? session.catalogueNotice : root.importStatus));color:!root.importing && (session.error || session.browseError) ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
         VinylWorldButton {id:cancelImport;objectName:"vinylCancelImport";label:"Cancel import";backdrop:vinylBackdrop;visible:root.importing;onTriggered:{session.cancelImport();root.importStatus="Import cancelled. Your library was kept."}}
+        VinylWorldButton {id:catalogueRetry;objectName:"vinylCatalogueRetry";label:"Retry catalogue";backdrop:vinylBackdrop;visible:root.page==="artist" && artistData.online && !artistData.loading && !!artistData.catalogueStatus;onTriggered:if(artistData.catalogueService)artistData.catalogueService.retryArtist()}
         VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";backdrop:vinylBackdrop;visible:session.error!=="";onTriggered:session.retry()}
     }
     VinylCreditsPopup {id:creditsPopup;pageData:session;backdrop:vinylBackdrop;x:Math.max(0,root.width-width-theme.margin);y:Math.max(0,bar.y-height-12)}

@@ -11,7 +11,7 @@ Flickable {
 
     signal albumRequested(var album)
     signal songRequested(var song)
-    signal artistRequested(string name)
+    signal artistRequested(var artist)
     signal backRequested()
 
     property real gutter: width < 720 ? 24 : width < 1100 ? 36 : 54
@@ -69,7 +69,7 @@ Flickable {
     function activateDiscographyCard(card, originItem) {
         if (!card)
             return;
-        if (card.playable && card.album && card.album.tracks && card.album.tracks.length > 0) {
+        if (card.browsable || (card.playable && card.album && card.album.tracks && card.album.tracks.length > 0)) {
             root.albumRequested(card.album);
             return;
         }
@@ -763,7 +763,7 @@ Flickable {
                     artistData: root.artistData
                     prefix: "vinylArtistRelated"
                     shape: "round"
-                    onActivated: record => root.artistRequested(record.title)
+                    onActivated: record => root.artistRequested(record.artistRef || record.title)
                     onSeeAllRequested: root.openCategory("related")
                     onItemFocused: item => root.reveal(item)
                 }
@@ -836,12 +836,15 @@ Flickable {
 
                     readonly property bool isCurrentTab: root.artistData.activeTab === modelData.key
                     objectName: "vinylArtistTab_" + modelData.key
-                    width: tabRowInner.implicitWidth + 8
-                    height: 58
-                    focusRadius: 8
-                    focusInset: 6
+                    width: tabRowInner.implicitWidth + 28
+                    height: 40
+                    y: (tabListRow.height - height) / 2
+                    focusRadius: 12
+                    focusPrimary: isCurrentTab
                     spaceActivates: true
                     accessibleName: modelData.label + " tab"
+                    Accessible.checkable: true
+                    Accessible.checked: isCurrentTab
                     onTriggered: root.switchTab(modelData.key, false)
 
                     Keys.onLeftPressed: event => {
@@ -866,6 +869,14 @@ Flickable {
                         }
                     }
 
+                    // Match the gold active pill and quiet hover of WorldTabBar.
+                    Rectangle {
+                        objectName: tabBtn.objectName + "_selection"
+                        anchors.fill: parent
+                        radius: tabBtn.focusRadius
+                        color: tabBtn.isCurrentTab ? theme.gold
+                            : tabBtn.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                    }
                     Row {
                         id: tabRowInner
                         anchors.centerIn: parent
@@ -873,7 +884,7 @@ Flickable {
                         Text {
                             text: tabBtn.modelData.label
                             color: tabBtn.isCurrentTab
-                                ? theme.ink
+                                ? "#17120a"
                                 : (tabBtn.interactionActive ? Qt.rgba(0.969, 0.969, 0.961, 0.92) : theme.inkDimmer)
                             font.family: theme.ui
                             font.pixelSize: 14
@@ -883,7 +894,7 @@ Flickable {
                         Text {
                             visible: Number(tabBtn.modelData.count) > 0
                             text: String(tabBtn.modelData.count)
-                            color: tabBtn.isCurrentTab ? theme.gold : theme.inkDimmer
+                            color: tabBtn.isCurrentTab ? "#17120a" : theme.inkDimmer
                             font.family: theme.ui
                             font.pixelSize: 11
                             font.weight: Font.Bold
@@ -891,16 +902,6 @@ Flickable {
                         }
                     }
 
-                    // Active 3px gold bottom bar (.tab.active::after parity)
-                    Rectangle {
-                        visible: tabBtn.isCurrentTab
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 3
-                        radius: 2
-                        color: theme.gold
-                    }
                 }
             }
         }

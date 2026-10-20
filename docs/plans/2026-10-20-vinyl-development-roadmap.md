@@ -39,13 +39,15 @@
 | Actual music host | `qml/vinyl/VinylLiveWorld.qml` | Real routes exist for Home/Discover/Library, Album, Artist and Song, plus file import, identity decisions, player and queue. This is the implementation path to extend. |
 | Local import | `native/vinyl/VinylLocalSource.{h,cpp}`, `VinylMusicMetadata.*` | M1 reads tags/duration/artwork asynchronously, groups local albums/discs, and preserves identities across partial/repeat imports. Hemanth's Illmatic FLAC folder passed actual-app receiving as one Nas album with ten tracks. Physical Windows picker selection remains unverified. |
 | Listening session | `native/vinyl/VinylBackendSession.*`, `qml/vinyl/VinylLiveSession.qml` | M0F adopts the native queue/session/seek/checkpoint path through existing mpv and profile stores. Actual-app import/play/replacement/repeat/seek/cold-restore/resume/privacy/clear passed with normal exits. Ordinary picker and metadata usability remain M1. |
-| Online catalogue | `scripts/vinyl/provider.py`, `native/vinyl/VinylProvider.h` | Python has artist, release, video and identity operations. The production wrapper currently admits only search/album/resolve; the actual session defaults to the local source. Online artist capability is not yet connected by these facts. |
+| Online catalogue | `scripts/vinyl/provider.py`, `native/vinyl/VinylProvider.h`, `VinylCatalogueSource.*` | M2 connects real YouTube Music search, Artist shelves, complete release/video continuations and full albums/versions through the ordinary app. MusicBrainz is optional identity/grouping enrichment. Cached restart and local listening with the helper unavailable passed. Global search is explicitly limited. |
 | Torrent playback | `VinylTorrentProvider`, `MusicTorrentMatcher`, `MusicTorrentQueryPlanner` | Source exists, but the app build explicitly excludes the adapter because current StreamServer lacks the donor's request-scoped manifest/file/cancel contract. This is a real integration blocker. |
-| Rich artist backend | Artist read, artwork, personal, media and composed-service artifacts | M0R received and tested these sources in the shared backend library. The full live catalogue/Artist adapters remain M2; being compiled does not establish live page integration. |
+| Rich artist backend | Artist read, artwork, personal, media and composed-service artifacts | M2 adapts the accepted ArtistServiceBridge to authoritative MusicBrainz snapshots and the current Collection owner; real provider data fills the existing Artist page. Provider saves keep stable keys with external identity metadata. Exact canonical recording/edition playback remains unavailable without a verified mapping; in-app video and final visual qualification remain later gates. |
 | Frontend reference | Recognized native artist capture and its matching `trees/A` snapshot | The reference has matching artwork assets. It differs from current production QML. It is a design reference with historical runtime defects, not a safe wholesale replacement for newer app code. |
 | Advanced features | BC/BD/BE/BF/BG backend artifacts and existing QML presentation | Substantial reusable components exist. Their presence is not evidence of live provider integration or working app controls. |
 
 Fresh results cover M0 availability, M0R backend receiving, M0F native adoption and M1 tagged local import. M1 passed seven focused targets and two actual-app journeys (Illmatic FLAC and native PCM regression), each with three normal-exit phases. See [M1 receiving](../reviews/2026-10-20-vinyl-m1-receiving.md) for exact hashes and limits. Human ear audibility, physical Windows picker selection, online sources, main-branch landing and release are separate checks.
+
+M2 additionally passed nine focused targets and eight final actual-app phases: real catalogue/cached restart, helper-unavailable Illmatic listening, and native queue/history regression. See [M2 receiving](../reviews/2026-10-21-vinyl-m2-receiving.md). This qualifies catalogue browsing and Artist queue admission, not remote audio decoding or installed release packaging.
 
 ## Reuse map: authored backend to product owner
 
@@ -171,18 +173,20 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 ### M2 — Connect online catalogue, identity and the real Artist service
 
+**Status:** Windows development-app catalogue/Artist receiving accepted. YouTube Music remains primary; MusicBrainz is optional enrichment. See [implementation and decisions](2026-10-20-vinyl-m2-implementation.md) and [receiving report](../reviews/2026-10-21-vinyl-m2-receiving.md).
+
 **Outcome:** provider-neutral search and artist browsing expose real artists, albums, editions, singles, videos and live releases in the existing pages.
 
 **Files/owners:** `scripts/vinyl/provider.py`, `native/vinyl/VinylProvider.h`, `native/main.cpp`, `VinylLiveSession.qml`, `VinylLiveWorldData.qml`, `VinylLiveArtistData.qml`, `VinylArtistData.qml`; promote the needed BG1/BG2 and composed Artist interfaces into the native build with bounded adapters.
 
 **Interfaces:** preserve independent browse/play cancellation; adapt `ICatalogueClient` typed IDs/pages and `ArtistServiceBridge` requests/results to the existing QObject/QML boundary. The wrapper must accept the implemented artist operations and their required payloads rather than dropping them at its current search/album/resolve allowlist.
 
-- [ ] Review the exact composed-service repair and donor dependencies; promote only the required source, replacing fake and standalone personal/playback ports with current app owners.
-- [ ] Connect YouTube Music catalogue data and existing MusicBrainz identity/edition mapping. Provider IDs, local file IDs, recordings and release occurrences must remain distinguishable.
-- [ ] Add real runtime adapters for search, album, artist, complete release continuations, videos/live and artist identity. Preserve request generations, cancellation, typed errors, rate limiting and bounded retries.
-- [ ] Bind artist save/play requests to Collection and the current session. Keep already loaded items playable while another discography page loads.
-- [ ] Provide usable loading/empty/error/cached/offline states and artwork fallbacks. Do not report a partial page chain as a complete catalogue.
-- [ ] Make the external helper portable and launchable from the packaged app; an arbitrary system `python` and developer machine dependencies cannot be the release contract.
+- [x] Review the exact composed-service repair and dependencies; adapt the accepted bridge through current Collection/session ownership rather than the factory's independent personal bytes/player ports.
+- [x] Connect YouTube Music and existing MusicBrainz identity/group/version enrichment, retaining distinct provider/Vault/canonical identities. Provider-version grouping is not an attested concrete MusicBrainz recording/edition occurrence.
+- [x] Add runtime search, album, Artist, complete release/video continuations and identity requests, preserving latest-request/profile fences and independent cancellation. Reuse helper error envelopes and MusicBrainz rate limiting/backoff; expose deliberate failure states through the existing QObject callback.
+- [x] Bind artist saves to Collection with a stable provider key and external identity metadata. Bind Play/Shuffle to real release admission through the existing session; local playback continued while all canonical group pages loaded. Artist-wide sequencing remains later work.
+- [x] Receive loading/empty/error/cached/offline states and artwork fallbacks. Global search and inline video shelves without continuations remain explicitly limited/partial.
+- [x] Add an app-owned, hash-pinned Windows runtime preparation/staging contract and test ordinary app-relative launch. Clean-machine installer/distribution qualification remains M8; no PATH Python fallback is the production contract.
 
 **Checks:** provider tests in `tests/vinyl-live/test_provider.py`, artist model-replacement/page/live-artist tests, promoted typed client/bridge tests, then a real catalogue browse in the full app with provider errors and pagination exercised.
 
@@ -338,4 +342,4 @@ Primary sequence: **M0 → M0R → M0F → M1 → M2 → M3 → M4 → M5 → M6
 
 ## First execution slice
 
-M0, M0R and M0F are accepted on the development branch. M1 implementation and automated actual-app receiving are accepted, with physical Windows picker interaction still unverified. Next development is M2's real catalogue/Artist integration, alongside the bounded M3 StreamServer compatibility investigation. Main-branch landing and release qualification remain explicit receiving steps.
+M0, M0R, M0F and M1 implementation/automated receiving are accepted on the development branch; M1's physical Windows picker interaction remains unverified. M2 catalogue/Artist receiving is accepted with real and cached data in the ordinary app. Next is M3's StreamServer compatibility and torrent-preferred/YouTube-fallback transport qualification. Main-branch landing and release qualification remain explicit receiving steps.

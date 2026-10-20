@@ -15,7 +15,12 @@ Item {
     readonly property string shownEditionId: shownEdition.id
     readonly property string shownAlbumId: shownEdition.albumId || shownEdition.id
     readonly property string playingEditionId: playingEdition.id
-    readonly property var editions: shownEdition.sourceAlbum ? normalizeEditions(shownEdition.sourceAlbum) : []
+    readonly property var editions: {
+        if(!shownEdition.sourceAlbum) return [];
+        var result=normalizeEditions(shownEdition.sourceAlbum);
+        (shownEdition.sourceAlbum.providerEditions || []).forEach(function(e){if(e.browseId!==shownEdition.browseId)result.push({id:e.browseId,browseId:e.browseId,title:e.title});});
+        return result;
+    }
     property int shownDisc: 0
     readonly property int playingDisc: activeQueueRow ? activeQueueRow.discIndex : 0
     readonly property int playingIndex: activeQueueRow ? activeQueueRow.trackIndex : -1
@@ -30,6 +35,7 @@ Item {
     readonly property string repeatMode: backend.repeatMode
     property var unshuffledIds: []
     property int queueRequest: -1
+    property var pendingCataloguePlay: null
     property string queueAlbumId: ""
     property bool queueInsertNext: false
     property var pendingEnqueues: []
@@ -42,7 +48,9 @@ Item {
     readonly property real duration: backend.duration
     property alias paused: backend.paused
     readonly property string sourceState: backend.sourceState
-    readonly property string qualityLabel: backend.qualityLabel
+    readonly property string qualityLabel: playingEdition.origin==="youtube-music"
+        ? (sourceState==="resolving" ? "Resolving audio…" : backend.qualityLabel==="Local audio" ? "Audio source" : backend.qualityLabel)
+        : backend.qualityLabel
     readonly property string error: backend.error
     property string browseError: ""
     property bool browsing: false
@@ -58,7 +66,17 @@ Item {
     property string browseOperation: ""
     property string browseValue: ""
     property int playRequest: -1
-    property var source: typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null
+    property var source: typeof VinylCatalogueSource !== "undefined" ? VinylCatalogueSource : (typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null)
+    property var onlineArtists: []
+    property var onlineAlbums: []
+    property bool searchingOnline: false
+    property string catalogueNotice: ""
+    function searchCatalogue(query) {
+        if(shuttingDown || !profileActive || !source) return;
+        cancelBrowse();browseError="";searchingOnline=true;browsing=true;browseOperation="catalogueSearch";
+        browseRequest=source.request("browse","catalogueSearch",String(query || "").trim());
+        if(browseRequest<0) {browsing=false;browseError="Catalogue search is unavailable.";}
+    }
     property var collectionStore: typeof Collection !== "undefined" ? Collection : null
     property var progressStore: typeof Progress !== "undefined" ? Progress : null
     property var activitySink: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
@@ -159,7 +177,7 @@ Item {
     readonly property var notes: noteGroups(playingTrack.notes || playingEdition.notes)
     readonly property var videos: []
     readonly property var moreAlbums: []
-    readonly property var information: shownEdition.id ? [["source","Source","Local library"],["tracks","Tracks",totalTracks(shownEdition)],["length","Length",shownEdition.length || "Unknown"]] : []
+    readonly property var information: shownEdition.id ? [["source","Source",shownEdition.origin==="local" ? "Local library" : "Music catalogue"],["tracks","Tracks",totalTracks(shownEdition)],["length","Length",shownEdition.length || "Unknown"]] : []
     readonly property bool timedLyrics: lyrics.length > 0 && lyrics.every(l => typeof l.time === "number")
     readonly property int currentLineIndex: {
         if (!timedLyrics) return -1;
@@ -195,6 +213,7 @@ Item {
     function selectDisc(index) { if (Number.isInteger(index) && index>=0 && index<shownEdition.discs.length) shownDisc=index; }
     function selectEdition(id) {
         var e=editions.find(e => e.id===id); if(!e) return;
+        if(!e.discs && e.browseId) {openAlbum(e.browseId);return;}
         shownEdition=e;shownDisc=0;editionSelected();
     }
     function trackArtists(index) { var t=tracks[index];return t && t.artist !== shownEdition.artist ? t.artist : ""; }
@@ -259,7 +278,7 @@ Item {
             available:t.available!==false,localPath:t.localPath || "",externalIds:t.externalIds || {},
             disc:d,number:t.number || 0,lyrics:t.lyrics,notes:t.notes,credits:t.credits})));
         var seconds=ts.reduce((n,t)=>n+(Number(t.seconds)||0),0);
-        return {id:edition.id || album.id,albumId:album.id,browseId:album.id,origin:album.origin || "local",
+        return {id:edition.id || album.id,albumId:album.id,browseId:album.browseId || album.id,origin:album.origin || "local",
             sourceAlbum:album,name:album.title || "Untitled audio",title:edition.title || album.title || "Untitled audio",subtitle:edition.title || album.title || "Untitled audio",
             artist:artists.join(" · "),year:album.year || "",cover:album.cover || "",about:typeof album.about==="string" ? album.about : (typeof album.notes==="string" ? album.notes : ""),
             notes:album.notes || "",credits:creditGroups(edition.credits || album.credits || []),discNumbers:discNumbers,
@@ -368,6 +387,7 @@ Item {
         return outcome;
     }
     function refreshSource() {
+        if(source && source.setCollectionStore) source.setCollectionStore(collectionStore);
         if (!source || !source.setAlbums) return;
         // Native setAlbums accumulates track sources across entries, while the last
         // album/track with a canonical ID wins. Retain distinct session snapshots
@@ -431,7 +451,7 @@ Item {
     }
     function refreshLibrary() {
         if (!collectionStore) {library=[];saved=false;return;}
-        library=(plainData(collectionStore.items("Vinyl")) || []).filter(e => e.payload && e.payload.album && e.payload.album.origin === "local");
+        library=(plainData(collectionStore.items("Vinyl")) || []).filter(e => e.payload && e.payload.album);
         refreshSource();
         var selected=library.find(entry=>entry.id===shownAlbumId);
         saved=!!selected && selected.payload.saved!==false;
@@ -456,7 +476,13 @@ Item {
             title:t.title,artist:t.artist,seconds:t.seconds,cover:e.cover,track:t,edition:e};
     }
     function editionRows(e) {var rows=[];e.discs.forEach((d,di)=>d.forEach((t,i)=>rows.push(rowFor(e,di,i))));return rows;}
-    function cancelQueueRequest() {queueRequest=-1;pendingEnqueues=[];if(source) source.cancel("queue");}
+    function cancelQueueRequest() {queueRequest=-1;pendingCataloguePlay=null;pendingEnqueues=[];if(source) source.cancel("queue");}
+    function playCatalogueAlbum(id,shuffleOrder) {
+        if(shuttingDown || !profileActive || !source) return;
+        cancelQueueRequest();browseError="";refreshSource();queueAlbumId=id;
+        pendingCataloguePlay={shuffle:!!shuffleOrder};queueRequest=source.request("queue","album",id);
+        if(queueRequest<0){pendingCataloguePlay=null;browseError="This catalogue release could not be loaded.";}
+    }
     function playTrack(index) { startQueue(index,false); }
     function playAlbum(album,index,editionId) {
         if(shuttingDown || !profileActive) return;
@@ -613,7 +639,7 @@ Item {
         profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
         resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
-        shownEdition=emptyEdition;results=[];library=[];saved=false;browsing=false;browseError="";
+        shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";
         resetting=false;sourceKind="";fallbackReason="";
         if(source && source.setAlbums) source.setAlbums([]);
     }
@@ -643,6 +669,11 @@ Item {
             if (lane==="browse" && id>=0 && id===root.browseRequest) {
                 root.browseRequest=-1;root.browseError=failure;
                 if (failure) {root.browsing=false;root.searchBuffer=[];return;}
+                if(root.browseOperation==="catalogueSearch") {
+                    root.browsing=false;root.onlineArtists=data.artists || [];root.onlineAlbums=data.albums || [];
+                    root.catalogueNotice=(data._cached ? "Offline · cached catalogue. " : "") + "Showing catalogue search matches; search is limited.";
+                    return;
+                }
                 if (root.browseOperation==="search") {
                     if(root.pagedSearchSupported) root.acceptSearchPage(data);
                     else {root.results=Array.isArray(data) ? data : [];root.searchComplete=true;root.browsing=false;}
@@ -653,9 +684,11 @@ Item {
                 else root.browseError="The local album record is invalid.";
             } else if(lane==="queue" && id>=0 && id===root.queueRequest) {
                 root.queueRequest=-1;
+                var play=root.pendingCataloguePlay;root.pendingCataloguePlay=null;
                 if(failure || !root.validAlbum(data) || (data.id!==root.queueAlbumId && data.browseId!==root.queueAlbumId)) root.browseError=failure || "The queued album is invalid.";
+                else if(play) {if(play.shuffle)root.shuffleAlbum(data);else root.playAlbum(data,0);}
                 else root.appendRows(root.editionRows(root.normalize(data)),root.queueInsertNext);
-                root.dispatchNextEnqueue();
+                if(!play)root.dispatchNextEnqueue();
 
             }
         }

@@ -164,11 +164,12 @@ Column {
                         focusRadius: 8
                         focusInset: -4
                         spaceActivates: true
-                        enabled: !root.artistData.liveMode || !row.isCompact || row.modelData.playable
+                        enabled: !root.artistData.liveMode || !row.isCompact || row.modelData.playable || (row.albumPayload && row.albumPayload.origin==="youtube-music")
                         accessibleName: row.isCompact
-                            ? (row.trackTitle + ", " + String(row.modelData.year || "") + (root.artistData.liveMode ? "; play local track" : "; queue demonstration track"))
+                            ? (row.trackTitle + ", " + String(row.modelData.year || "") + (row.albumPayload && row.albumPayload.origin==="youtube-music" ? "; open catalogue release" : root.artistData.liveMode ? "; play local track" : "; queue demonstration track"))
                             : ("Play " + row.trackTitle)
                         onTriggered: {
+                            if(row.isCompact && row.albumPayload && row.albumPayload.origin==="youtube-music") {root.albumRequested(row.albumPayload);return;}
                             if (row.isCompact) {
                                 root.artistData.queueDemoSong(row.index);
                                 if (row.modelData.playable && row.songPayload)
@@ -299,10 +300,10 @@ Column {
                         height: parent.height
                         focusRadius: 6
                         focusInset: -4
-                        enabled: !row.isCompact || !!(row.albumPayload && row.albumPayload.tracks && row.albumPayload.tracks.length > 0)
+                        enabled: !row.isCompact || !!(row.albumPayload && (row.albumPayload.origin==="youtube-music" || (row.albumPayload.tracks && row.albumPayload.tracks.length > 0)))
                         accessibleName: "Open " + row.releaseTitle
                         onTriggered: {
-                            if (row.albumPayload && row.albumPayload.tracks && row.albumPayload.tracks.length > 0)
+                            if (row.albumPayload && (row.albumPayload.origin==="youtube-music" || (row.albumPayload.tracks && row.albumPayload.tracks.length > 0)))
                                 root.albumRequested(row.albumPayload);
                         }
                         onActiveFocusChanged: if (activeFocus) root.itemFocused(album)
