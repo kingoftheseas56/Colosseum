@@ -133,7 +133,7 @@ void VinylTorrentProvider::startNextQuery()
     m_searchHandle = m_search->startSearch(QStringLiteral("music"), QStringLiteral("all"),
                                          m_queries.at(m_queryIndex++), 5);
     if (m_searchHandle.isEmpty()) { startNextQuery(); return; }
-    m_stage.start(qMin(3000, m_deadlineMs));
+    m_stage.start(qMin(1000, m_deadlineMs));
 }
 
 void VinylTorrentProvider::finishSearch()
@@ -159,9 +159,9 @@ void VinylTorrentProvider::tryNextCandidate()
     ++m_attempted;
     m_match = {};
     m_streamToken = QStringLiteral("vinyl-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
-    // Give metadata more of the bounded budget than catalogue discovery. Cold
-    // swarms can still miss the total deadline; the caller owns that fallback.
-    m_stage.start(qMin(15000, m_deadlineMs));
+    // Cold/unreachable swarms must not hold up a single-song play action.
+    // The overall deadline remains authoritative across every candidate/query.
+    m_stage.start(qMin(3000, m_deadlineMs));
     if(m_candidate.magnetUri.isEmpty())m_stream->requestManifest(m_streamToken,m_candidate.infoHash);
     else m_stream->requestMagnetManifest(m_streamToken,m_candidate.infoHash,m_candidate.magnetUri);
 }

@@ -64,7 +64,12 @@ signals:
 private slots:
     void torrentCompleted(int requestId,const QVariantMap &data,const QString &error);
 private:
-    struct Pending {int id;int transportId;bool local;QString operation,value;bool torrent=false;QString fallbackReason;};
+    struct Pending {
+        int id;int transportId;bool local;QString operation,value;
+        bool torrent=false;QString fallbackReason;
+        int fallbackTransportId=-1;bool fallbackReady=false;
+        QVariant fallbackData;QString fallbackError;
+    };
     VinylLocalSource *m_local;VinylProvider *m_provider;QPointer<CollectionStore> m_collection;
     int m_serial=0;QHash<QString,Pending> m_pending;
     QHash<QString,QVariantMap> m_albums;QHash<QString,QString> m_videos;

@@ -96,13 +96,25 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         }
         int transport=-1;
         if(!QMetaObject::invokeMethod(m_torrent,"resolve",Qt::DirectConnection,Q_RETURN_ARG(int,transport),Q_ARG(QVariantMap,intent))||transport<0)return -1;
-        m_pending.insert(lane,{id,transport,false,operation,value,true,{}});return id;
+        m_pending.insert(lane,{id,transport,false,operation,value,true,{}});
+        // Resolve, but do not play, YouTube while the preferred torrent gets its
+        // short head start. Playback URLs remain ephemeral and request-scoped.
+        const int fallback=m_provider->request("playFallback","resolve",remoteValue);
+        auto &pending=m_pending[lane];pending.fallbackTransportId=fallback;
+        if(fallback<0){pending.fallbackReady=true;pending.fallbackError="The fallback source is unavailable.";}
+        return id;
     }
     const int transport=local?m_local->request(lane,operation,value,options):m_provider->request(lane,operation=="resolveFallback"?"resolve":operation,remoteValue);
     if(transport<0)return -1;
     m_pending.insert(lane,{id,transport,local,operation,value});return id;
 }
 void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &data,const QString &error,bool local){
+    if(lane=="playFallback"&&!local){
+        auto it=m_pending.find("play");
+        if(it==m_pending.end()||it->fallbackTransportId!=id)return;
+        if(it->torrent){it->fallbackReady=true;it->fallbackData=data;it->fallbackError=error;return;}
+        accept("play",id,data,error,false);return;
+    }
     if(!m_pending.contains(lane))return;const auto pending=m_pending.value(lane);
     if(pending.torrent||pending.local!=local||pending.transportId!=id)return;m_pending.remove(lane);
     QVariant result=data;
@@ -123,14 +135,17 @@ void VinylCatalogueSource::torrentCompleted(int requestId,const QVariantMap &dat
     if(sender()!=m_torrent||it==m_pending.end()||!it->torrent||it->transportId!=requestId)return;
     if(error.isEmpty()&&data.value("provider")=="torrent"&&!data.value("url").toString().isEmpty()){
         const auto pending=*it;m_pending.erase(it);auto result=data;result["trackId"]=pending.value;
+        m_provider->cancel("playFallback");
         emit completed("play",pending.id,result,{});return;
     }
     it->torrent=false;it->fallbackReason=error.isEmpty()?QStringLiteral("The torrent source returned no playable file."):error;
-    it->transportId=m_provider->request("play","resolve",m_videos.value(it->value));
+    it->transportId=it->fallbackTransportId;
     if(it->transportId<0){const auto pending=*it;m_pending.erase(it);emit completed("play",pending.id,{},"The fallback source is unavailable.");}
+    else if(it->fallbackReady){const auto pending=*it;accept("play",pending.transportId,pending.fallbackData,pending.fallbackError,false);}
 }
 void VinylCatalogueSource::cancel(const QString &lane){
     m_pending.remove(lane);if(lane=="play"&&m_torrent)QMetaObject::invokeMethod(m_torrent,"cancel",Qt::DirectConnection);
+    if(lane=="play")m_provider->cancel("playFallback");
     m_local->cancel(lane);m_provider->cancel(lane);
 }
 void VinylCatalogueSource::cancelAll(){for(const auto &lane:m_pending.keys())cancel(lane);m_local->cancelImport();leaveArtist();}
