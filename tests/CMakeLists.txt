@@ -3991,6 +3991,23 @@ set_tests_properties(colosseum.qttest.profile_preferences_sync PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
 
+add_executable(tst_vinyl_feedback_snapshot
+    auto/account/tst_vinyl_feedback_snapshot.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h")
+target_include_directories(tst_vinyl_feedback_snapshot PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vinyl_feedback_snapshot PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_vinyl_feedback_snapshot PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.qttest.vinyl_feedback_snapshot
+         COMMAND tst_vinyl_feedback_snapshot)
+set_tests_properties(colosseum.qttest.vinyl_feedback_snapshot PROPERTIES
+    LABELS "unit;qttest;vinyl;preferences"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 
 # ── Tankoban reader-preference codec/adapter contract (Bundle 8C) ──
 # Production registration remains fail-closed until the concrete
@@ -5023,3 +5040,32 @@ add_test(NAME colosseum.feria_runtime_integration COMMAND feria_runtime_integrat
     testShutdownRefusesWorkAndRunsAdapterOnce
     testAdmissionIsRefusedOffTheOwnerThread)
 add_test(NAME colosseum.feria_operations_integration COMMAND feria_operations_integration_test)
+
+# M0F: the same native facade and existing player implementation used by the app.
+if(TARGET colosseum_vinyl_app)
+    foreach(vinyl_check IN ITEMS facade mpv_events)
+        if(vinyl_check STREQUAL "facade")
+            set(vinyl_check_source "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-facade/test_facade.cpp")
+        else()
+            set(vinyl_check_source "${CMAKE_CURRENT_SOURCE_DIR}/auto/player/tst_mpvitem_native_events.cpp")
+        endif()
+        add_executable(tst_vinyl_native_${vinyl_check} "${vinyl_check_source}"
+            "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+            "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+            "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h")
+        target_include_directories(tst_vinyl_native_${vinyl_check} PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+        target_compile_definitions(tst_vinyl_native_${vinyl_check} PRIVATE
+            VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+        target_link_libraries(tst_vinyl_native_${vinyl_check} PRIVATE
+            colosseum_vinyl_app colosseum_vinyl_backend
+            Qt6::Core Qt6::Gui Qt6::Network Qt6::Quick Qt6::Test MpvQt::MpvQt)
+        set_target_properties(tst_vinyl_native_${vinyl_check} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+        add_test(NAME colosseum.qttest.vinyl_native_${vinyl_check}
+            COMMAND tst_vinyl_native_${vinyl_check})
+        set_tests_properties(colosseum.qttest.vinyl_native_${vinyl_check} PROPERTIES
+            LABELS "vinyl;qttest" TIMEOUT 45
+            ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+            ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+    endforeach()
+endif()

@@ -176,10 +176,13 @@ DerivationResult<RecommendationDerivationOutput> deriveRecommendationInputs(
                 QStringLiteral("BA4 event escaped its profile ledger"));
         }
 
-        const auto entity =
-            CanonicalEntityRef::from(event.context().recordingMbid());
-        auto &aggregate = aggregateFor(entity);
         const auto &occurrence = event.context().occurrence();
+        const auto &recording = occurrence.canonicalRecording();
+        if (!recording.has_value())
+            continue;
+
+        const auto entity = CanonicalEntityRef::from(*recording);
+        auto &aggregate = aggregateFor(entity);
 
         if (event.kind() == ListenEventKind::Start) {
             if (!event.context().continuationOf().has_value()) {

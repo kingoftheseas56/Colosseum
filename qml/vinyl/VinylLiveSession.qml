@@ -1,6 +1,7 @@
 import QtQuick
 import Colosseum.Player
 import Colosseum.Activity
+import Colosseum.Vinyl 1.0
 
 // UI adapter over the existing mpv and profile Progress/Collection owners.
 // Fixture presentation data never enters this path.
@@ -9,39 +10,40 @@ Item {
     objectName: "vinylLiveSession"
     property var emptyEdition: ({id:"", name:"", title:"", artist:"", year:"", cover:"", about:"", discs:[[]], credits:[]})
     property var shownEdition: emptyEdition
-    property var playingEdition: emptyEdition
+    readonly property var activeQueueRow: queueIndex>=0 && queueIndex<queue.length ? queue[queueIndex] : null
+    readonly property var playingEdition: activeQueueRow ? activeQueueRow.edition : emptyEdition
     readonly property string shownEditionId: shownEdition.id
     readonly property string shownAlbumId: shownEdition.albumId || shownEdition.id
     readonly property string playingEditionId: playingEdition.id
     readonly property var editions: shownEdition.sourceAlbum ? normalizeEditions(shownEdition.sourceAlbum) : []
     property int shownDisc: 0
-    property int playingDisc: 0
-    property int playingIndex: -1
+    readonly property int playingDisc: activeQueueRow ? activeQueueRow.discIndex : 0
+    readonly property int playingIndex: activeQueueRow ? activeQueueRow.trackIndex : -1
     readonly property var tracks: shownEdition.discs[shownDisc] || []
     readonly property var playingTrack: (playingEdition.discs[playingDisc] || [])[playingIndex] || ({title:"", seconds:0})
-    property var queue: []
-    property int queueIndex: -1
+    readonly property var queue: plainData(backend.rows) || []
+    readonly property int queueIndex: backend.activeIndex
     readonly property bool canPrevious: queueIndex>0 || (queueIndex>=0 && repeatMode==="all")
     readonly property bool canNext: (queueIndex>=0 && queueIndex+1<queue.length) || (queueIndex>=0 && repeatMode==="all")
     property int queueSerial: 0
-    property bool shuffleEnabled: false
-    property string repeatMode: "off"
+    readonly property bool shuffleEnabled: backend.shuffled
+    readonly property string repeatMode: backend.repeatMode
     property var unshuffledIds: []
     property int queueRequest: -1
     property string queueAlbumId: ""
     property bool queueInsertNext: false
     property var pendingEnqueues: []
-    property var player: null
-    property bool loaded: false
-    property real resumeSeconds: 0
-    property bool seekPending: false
-    readonly property real position: loaded && player && !seekPending ? player.position : resumeSeconds
-    property real measuredDuration: 0
-    readonly property real duration: loaded && player && player.duration > 0 ? player.duration : (measuredDuration > 0 ? measuredDuration : playingTrack.seconds)
-    property bool paused: true
-    property string sourceState: "idle"
-    property string qualityLabel: "Local audio"
-    property string error: ""
+    readonly property var player: backend.player
+    readonly property bool loaded: backend.loaded
+    readonly property real resumeSeconds: backend.position
+    readonly property bool seekPending: backend.seekPending
+    readonly property real position: backend.position
+    readonly property real measuredDuration: backend.duration
+    readonly property real duration: backend.duration
+    property alias paused: backend.paused
+    readonly property string sourceState: backend.sourceState
+    readonly property string qualityLabel: backend.qualityLabel
+    readonly property string error: backend.error
     property string browseError: ""
     property bool browsing: false
     property var results: []
@@ -61,6 +63,19 @@ Item {
     property var progressStore: typeof Progress !== "undefined" ? Progress : null
     property var activitySink: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
     property var activityPreferences: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
+    VinylBackendSession {
+        id: backend
+        objectName: "vinylBackendSession"
+        source: root.source
+        surface: root
+        collectionStore: root.collectionStore
+        preferences: root.activityPreferences
+        profileScope: typeof VinylProfileScope !== "undefined" ? VinylProfileScope : "local-test"
+        onPlaybackRequested: {root.manualNoteLine=-1;root.videoShown=false;root.sourceKind=root.playingEdition.origin || "local";root.playbackRequested();}
+        onPlaybackEnding: natural => root.activityEnd(natural)
+        onDiscontinuity: seconds => root.activityDiscontinuity(seconds)
+    }
+    onLoadedChanged: { if(loaded) activityBegin(); }
     readonly property bool activityEnabled: profileActive && !shuttingDown && activitySink!==null
         && (!activityPreferences || activityPreferences.keepActivityHistory!==false)
     property bool activityActive: false
@@ -78,14 +93,17 @@ Item {
             activityRecorder.begin({world:"vinyl",kind:"music",titleKey:row.albumId,
                 itemKey:JSON.stringify([row.albumId,row.editionId,row.discIndex,row.trackIndex,row.trackId]),
                 title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session"},activitySink.newSessionId());
-            activityActive=true;activityDiscontinuity(position);
+            backend.beginListeningFacts();activityActive=true;activityDiscontinuity(position);
             activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));
-        } catch(failure) {activityActive=false;}
+        } catch(failure) {console.warn("Vinyl Activity begin",failure);activityActive=false;}
     }
     function activitySample(consuming) {
         if(!activityActive || !activityEnabled || !player || !loaded) return;
-        try {activityRecorder.sample(Math.round(position*1000),Math.round(duration*1000),1000,
-            !seekPending && sourceState==="playing" && (consuming===undefined ? !paused : consuming));} catch(failure) {}
+        var advancing=!seekPending && sourceState==="playing" && (consuming===undefined ? !paused : consuming);
+        try {
+            var qualified=backend.qualifyListeningSample(advancing);
+            activityRecorder.sample(Math.round(position*1000),Math.round(duration*1000),1000,qualified);
+        } catch(failure) {console.warn("Vinyl Activity sample",failure);}
     }
     function activityDiscontinuity(seconds) {
         if(!activityActive) return;
@@ -98,6 +116,7 @@ Item {
             if(natural) activityRecorder.naturalEof(Math.round(position*1000),Math.round(duration*1000));
             activityRecorder.endSession(Math.round(position*1000),Math.round(duration*1000));
         } catch(failure) {}
+        backend.endListeningFacts(natural);
         activityActive=false;
     }
     function scheduleActivityBegin() {
@@ -397,14 +416,13 @@ Item {
             payload:{version:1,album:shownEdition.sourceAlbum}};
         // Imported metadata remains the local catalogue; saving is membership,
         // not deletion of the only owned browse/source record.
-        entry.payload=Object.assign({},entry.payload,{saved:!saved});
-        var ok=collectionStore.add("Vinyl",entry);
+        var ok=backend.setSavedAlbum(entry,!saved);
         if (!ok) browseError="The album could not be saved. Try again.";
         refreshLibrary();
     }
     function showPlayingAlbum() { shownEdition=playingEdition;shownDisc=playingDisc;refreshLibrary();editionSelected(); }
     function rowFor(e,d,i) {
-        var t=e.discs[d][i];return {queueId:"queue:"+(++queueSerial),albumId:e.albumId,editionId:e.id,
+        var t=e.discs[d][i];return {queueId:"queue:"+(++queueSerial),albumId:e.albumId || e.id,editionId:e.id,
             discNumber:(e.discNumbers || [])[d] || d+1,discIndex:d,trackIndex:i,trackId:t.id,
             title:t.title,artist:t.artist,seconds:t.seconds,cover:e.cover,track:t,edition:e};
     }
@@ -418,7 +436,7 @@ Item {
         if(!edition) return;
         var rows=editionRows(edition);index=index===undefined ? 0 : index;
         if(!Number.isInteger(index)||index<0||index>=rows.length||index>=10000) return;
-        snapshot();cancelQueueRequest();queue=rows.slice(0,10000);queueIndex=-1;shuffleEnabled=false;unshuffledIds=queue.map(r=>r.queueId);playQueue(index,true);
+        snapshot();cancelQueueRequest();refreshSource();backend.replaceRows(rows.slice(0,10000),index,false);snapshot();
     }
     function shuffleAlbum(album) {if(!validAlbum(album)) return;playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
     function playSongs(songs,shuffleOrder) {
@@ -441,19 +459,18 @@ Item {
             if(ref) rows.push(rowFor(prepared.edition,ref.d,ref.i));
         });
         if(!rows.length) return;
-        if(shuffleOrder) for(var i=rows.length-1;i>0;--i) {var j=Math.floor(Math.random()*(i+1));var x=rows[i];rows[i]=rows[j];rows[j]=x;}
-        snapshot();cancelQueueRequest();queue=rows;queueIndex=-1;shuffleEnabled=!!shuffleOrder;unshuffledIds=rows.map(r=>r.queueId);playQueue(0,true);
+        snapshot();cancelQueueRequest();refreshSource();backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
     }
     function togglePause() {if(playingIndex>=0) paused=!paused;}
     function shuffle() { startQueue(0,true); }
     function startQueue(index,shuffleOrder) {
         if(shuttingDown || !profileActive) return;
-        if (!Number.isInteger(index) || index<0 || index>=tracks.length) return;
-        snapshot();cancelQueueRequest();var rows=editionRows(shownEdition);
+        if(!Number.isInteger(index) || index<0 || index>=tracks.length) return;
+        var rows=editionRows(shownEdition);
         var selected=rows.findIndex(r=>r.discIndex===shownDisc && r.trackIndex===index);
-        if(selected>=10000) {browseError="This track exceeds the queue limit.";return;}queue=rows.slice(0,10000);queueIndex=selected;shuffleEnabled=false;unshuffledIds=rows.map(r=>r.queueId);
-        if(shuffleOrder) {queueIndex=-1;setShuffle(true);queueIndex=0;}
-        playQueue(queueIndex,true);
+        if(selected<0 || selected>=10000) {browseError="This track exceeds the queue limit.";return;}
+        snapshot();cancelQueueRequest();refreshSource();
+        backend.replaceRows(rows.slice(0,10000),selected,!!shuffleOrder);snapshot();
     }
     function enqueueTrack(index,playNext) {
         if(shuttingDown || !profileActive) return;
@@ -480,135 +497,38 @@ Item {
         }
     }
     function appendRows(rows,playNext) {
-        if(shuttingDown || !profileActive) return;
-        rows=rows.slice(0,Math.max(0,10000-queue.length));
-        if(!rows.length) {browseError="The queue is full (10,000 tracks).";return;}
-        var copy=queue.slice();var at=playNext && queueIndex>=0 ? queueIndex+1 : copy.length;
-        copy.splice.apply(copy,[at,0].concat(rows));queue=copy;
-        unshuffledIds=unshuffledIds.concat(rows.map(r=>r.queueId));snapshot();
+        if(!backend.appendRows(rows.slice(0,Math.max(0,10000-queue.length)),playNext))
+            browseError="The tracks could not be queued.";
+        snapshot();
     }
     function playQueue(index,skipSnapshot) {
-        if(shuttingDown || !profileActive) return;
-        if(!Number.isInteger(index) || index<0 || index>=queue.length) return;
-        if(!skipSnapshot) snapshot();var row=queue[index];queueIndex=index;playingEdition=row.edition;
-        playingDisc=row.discIndex;playingIndex=row.trackIndex;manualNoteLine=-1;videoShown=false;beginTrack(0);
+        if(!skipSnapshot) snapshot();
+        backend.playQueue(index);snapshot();
     }
-    function removeQueue(index) {
-        if(shuttingDown || !profileActive) return;
-        if(!Number.isInteger(index) || index<0 || index>=queue.length) return;
-        snapshot();var current=index===queueIndex, wasPaused=paused, copy=queue.slice();copy.splice(index,1);queue=copy;
-        if(!copy.length) {clearQueue();return;}
-        if(index<queueIndex) queueIndex--;
-        else if(current) {playQueue(Math.min(index,copy.length-1),true);paused=wasPaused;}
-        snapshot();
-    }
-    function moveQueue(from,to) {
-        if(shuttingDown || !profileActive) return;
-        if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<0||from>=queue.length||to>=queue.length) return;
-        var id=queueIndex>=0 ? queue[queueIndex].queueId : "", copy=queue.slice(), row=copy.splice(from,1)[0];
-        copy.splice(to,0,row);queue=copy;queueIndex=copy.findIndex(r=>r.queueId===id);
-        unshuffledIds=copy.map(r=>r.queueId);snapshot();
-    }
-    function clearQueue() {
-        if(shuttingDown || !profileActive) return;
-        snapshot();resetting=true;retirePlayer();cancelQueueRequest();queue=[];queueIndex=-1;playingIndex=-1;playingDisc=0;
-        playingEdition=emptyEdition;resumeSeconds=0;measuredDuration=0;paused=true;sourceState="idle";error="";
-        unshuffledIds=[];resetting=false;snapshot();
-    }
-    function setShuffle(enabled) {
-        if(shuttingDown || !profileActive) return;
-        enabled=!!enabled;if(shuffleEnabled===enabled) return;
-        var copy=queue.slice(), id=queueIndex>=0 ? copy[queueIndex].queueId : "";
-        if(enabled) {
-            unshuffledIds=copy.map(r=>r.queueId);
-            // Played history/current remain stable; randomize only the upcoming tail.
-            for(var i=copy.length-1;i>queueIndex+1;--i) {var j=queueIndex+1+Math.floor(Math.random()*(i-queueIndex));var x=copy[i];copy[i]=copy[j];copy[j]=x;}
-        } else copy.sort((a,b)=>unshuffledIds.indexOf(a.queueId)-unshuffledIds.indexOf(b.queueId));
-        queue=copy;queueIndex=copy.findIndex(r=>r.queueId===id);shuffleEnabled=enabled;snapshot();
-    }
-    function cycleRepeat() {repeatMode=repeatMode==="off" ? "all" : repeatMode==="all" ? "one" : "off";snapshot();}
-    function retirePlayer() {
-        activityEnd(false);epoch++;
-        var old=player; player=null; loaded=false; seekPending=false;
-        if (old) {old.pause=true;old.destroy();}
-        playRequest=-1;if (source) source.cancel("play");
-        audioAdvanced=false;
-    }
-    function beginTrack(seconds) {
-        if(shuttingDown || !profileActive) return;
-        retirePlayer(); measuredDuration=0; resumeSeconds=Math.max(0,seconds); error="";
-        sourceState="finding"; qualityLabel="Local audio";fallbackReason="";
-        sourceKind=playingEdition.origin || "local";
-        playbackRequested();paused=false;
-        if (!source || !playingTrack.id || playingTrack.available===false) {
-            playbackFailed("This track has no playable local source.");return;
-        }
-        refreshSource();
-        playRequest=source.request("play","resolve",playingTrack.id);
-        if (playRequest<0) playbackFailed("The audio source could not be requested.");
-        snapshot();
-    }
-    function playbackFailed(message) {
-        activityEnd(false);error=message;sourceState="error";paused=true;
-        if (player) player.pause=true;
-    }
-    function loadAudio(url,headers) {
-        if(shuttingDown || !profileActive) return;
-        player=audioComponent.createObject(root,{generation:epoch});
-        player.loadFileWithHeaders(url,headers || {});player.pause=paused;
-    }
-    function next(delta) {
-        if(!queue.length || queueIndex<0) return;
-        var index=queueIndex+(delta<0 ? -1 : 1);
-        if(index<0 || index>=queue.length) {
-            if(repeatMode==="all") index=(index+queue.length)%queue.length;
-            else return;
-        }
-        playQueue(index);
-    }
-    function handleNaturalEnd() {
-        if(shuttingDown || !profileActive) return;
-        activityEnd(true);
-        if(repeatMode==="one") {playQueue(queueIndex);return;}
-        if(queueIndex+1<queue.length || repeatMode==="all") {next(1);return;}
-        resumeSeconds=duration;loaded=false;sourceState="ended";paused=true;snapshot();
-    }
-    function retry() { if (playingIndex>=0) beginTrack(position); }
-    function seek(seconds) {
-        if (!loaded || !player || sourceState!=="playing") return;
-        activitySample();resumeSeconds=Math.max(0,Math.min(duration,seconds));activityDiscontinuity(resumeSeconds);seekPending=true;
-        player.seekExact(resumeSeconds);
-    }
+    function removeQueue(index) {snapshot();backend.removeQueue(index);snapshot();}
+    function moveQueue(from,to) {backend.moveQueue(from,to);snapshot();}
+    function clearQueue() {snapshot();cancelQueueRequest();backend.clearQueue();snapshot();}
+    function setShuffle(enabled) {backend.setShuffle(enabled);snapshot();}
+    function cycleRepeat() {backend.cycleRepeat();snapshot();}
+    function next(delta) {snapshot();backend.next(delta);snapshot();}
+    function retry() {refreshSource();backend.retry();}
+    function seek(seconds) {activitySample();backend.seek(seconds);}
     onPausedChanged: {
-        if (resetting || shuttingDown || !profileActive) return;
-        if (!paused && sourceState!=="finding" && playingIndex>=0
-                && (!player || sourceState==="error" || sourceState==="ended"))
-            beginTrack(sourceState==="ended" ? 0 : position);
+        if(resetting || shuttingDown || !profileActive) return;
         if(activityActive) {
             if(paused) activitySample(true);
             activityDiscontinuity(position);
             try {activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));} catch(failure) {}
         }
-        if (player) player.pause=paused;
         snapshot();
     }
     function snapshot() {
-        if (resetting || shuttingDown || !profileActive || !progressStore) return;
-        // Serialize each edition once: queue rows hold references, avoiding quadratic album copies.
-        var editionTable=[], keys=new Map(), compact=[];
-        queue.forEach(row=>{
-            var index=keys.get(row.edition);
-            if(index===undefined) {index=editionTable.length;keys.set(row.edition,index);editionTable.push(row.edition);}
-            compact.push({queueId:row.queueId,editionKey:index,discIndex:row.discIndex,trackIndex:row.trackIndex});
-        });
-        var resume={version:2,editionTable:editionTable,queue:compact,queueIndex:queueIndex,
-            unshuffledIds:unshuffledIds,shuffleEnabled:shuffleEnabled,repeatMode:repeatMode,
-            position:position,duration:duration,trackId:playingIndex>=0 ? playingTrack.id : "",completed:sourceState==="ended"};
+        if(resetting || shuttingDown || !profileActive || !progressStore) return;
+        var resume=backend.checkpoint();
+        if(!resume.backendState) return;
         if(playingEditionId && playingIndex>=0) progressStore.recordSilent({kind:"music",id:playingEditionId,title:playingTrack.title,
             caption:playingEdition.name,sub:playingTrack.artist,cover:playingEdition.cover,
             progress:duration>0 ? position/duration : 0,resume:resume});
-        // One authoritative queue checkpoint, including an explicit empty queue.
-        // Per-edition Continue/history records must never resurrect a cleared session.
         progressStore.recordSilent({kind:"music-session",id:"vinyl",resume:resume});
     }
     function restore(entry) {
@@ -619,15 +539,21 @@ Item {
         var recent=plainData(entry ? [entry] : singleton ? [stored] : progressStore.recent("music",1)) || [];
         if (!recent.length) return;
         var r=recent[0].resume;
+        if(r && r.version===3) {
+            if(backend.restoreCheckpoint(r)) {
+                if(queueIndex>=0) {shownEdition=playingEdition;shownDisc=playingDisc;}
+                else if(queue.length) shownEdition=queue[0].edition;
+                refreshLibrary();editionSelected();
+            }
+            return;
+        }
         if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || r.queue.length>10000) return;
         var qi=r.queueIndex, rows=r.queue;
         if(!Number.isInteger(qi)||qi< -1||qi>=rows.length||!Number.isFinite(r.position)) return;
         if(!rows.length) {
             if(!singleton || qi!==-1) return;
-            resetting=true;retirePlayer();queue=[];queueIndex=-1;playingEdition=emptyEdition;playingIndex=-1;
-            resumeSeconds=0;measuredDuration=0;paused=true;sourceState="idle";
-            shuffleEnabled=!!r.shuffleEnabled;repeatMode=["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off";
-            unshuffledIds=[];resetting=false;return;
+            backend.restoreLegacy([],-1,false,[],["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",0,0);
+            return;
         }
         if(qi===-1 && !singleton) return;
         if(r.version===2 && Array.isArray(r.editionTable)) {
@@ -642,78 +568,31 @@ Item {
         }
         if(rows.some(row=>!row || !row.edition || !row.edition.discs || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !(row.edition.discs[row.discIndex] || [])[row.trackIndex] || row.trackId!==row.edition.discs[row.discIndex][row.trackIndex].id) || (qi>=0 && rows[qi].trackId!==r.trackId)) return;
         var remapped=Object.create(null);
-        resetting=true;retirePlayer();queue=rows.map(row=>{var copy=Object.assign({},row);copy.queueId="queue:"+(++queueSerial);remapped[row.queueId]=copy.queueId;return copy;});queueIndex=qi;playingEdition=qi>=0 ? rows[qi].edition : emptyEdition;shownEdition=qi>=0 ? playingEdition : rows[0].edition;
-        playingDisc=qi>=0 ? rows[qi].discIndex : 0;shownDisc=playingDisc;playingIndex=qi>=0 ? rows[qi].trackIndex : -1;
-        shuffleEnabled=!!r.shuffleEnabled;repeatMode=["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off";
-        unshuffledIds=Array.isArray(r.unshuffledIds) ? r.unshuffledIds.map(id=>remapped[id]).filter(id=>!!id) : queue.map(row=>row.queueId);resumeSeconds=r.completed ? 0 : Math.max(0,r.position);
-        measuredDuration=Math.max(0,Number(r.duration) || 0);
-        paused=true;sourceState="paused";resetting=false;refreshLibrary();editionSelected();
+        var migrated=rows.map(row=>{var copy=Object.assign({},row);copy.queueId="queue:"+(++queueSerial);remapped[row.queueId]=copy.queueId;return copy;});
+        var order=Array.isArray(r.unshuffledIds) ? r.unshuffledIds.map(id=>remapped[id]).filter(id=>!!id) : migrated.map(row=>row.queueId);
+        if(order.length!==migrated.length) order=migrated.map(row=>row.queueId);
+        if(backend.restoreLegacy(migrated,qi,!!r.shuffleEnabled,order,
+            ["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",
+            r.completed ? 0 : Math.max(0,r.position),Math.max(0,Number(r.duration)||0))) {
+            shownEdition=qi>=0 ? playingEdition : rows[0].edition;shownDisc=playingDisc;
+            refreshLibrary();editionSelected();snapshot();
+        }
     }
+
     function clearProfile() {
         if(shuttingDown) return;
-        profileGeneration++;
-        cancelImportIdentity();
-        snapshot();activityEnd(false);profileActive=false;resetting=true;retirePlayer();cancelBrowse();cancelQueueRequest();
-        shownDisc=0;playingDisc=0;shuffleEnabled=false;repeatMode="off";unshuffledIds=[];manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
-        shownEdition=emptyEdition;playingEdition=emptyEdition;playingIndex=-1;queue=[];queueIndex=-1;
-        results=[];library=[];saved=false;browsing=false;error="";browseError="";resumeSeconds=0;measuredDuration=0;
-        paused=true;sourceState="idle";resetting=false;
-        sourceKind="";fallbackReason="";
-        if (source && source.setAlbums) source.setAlbums([]);
+        profileGeneration++;cancelImportIdentity();snapshot();activityEnd(false);
+        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();
+        shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
+        shownEdition=emptyEdition;results=[];library=[];saved=false;browsing=false;browseError="";
+        resetting=false;sourceKind="";fallbackReason="";
+        if(source && source.setAlbums) source.setAlbums([]);
     }
-    function suspendPlayback(reason) {
-        if(shuttingDown || !profileActive) return;
-        var savedPosition=position, savedDuration=duration;
-        snapshot();resetting=true;retirePlayer();cancelQueueRequest();
-        resumeSeconds=savedPosition;measuredDuration=savedDuration;
-        paused=true;sourceState=playingIndex>=0 ? "paused" : "idle";resetting=false;
-    }
+    function suspendPlayback(reason) {if(shuttingDown || !profileActive) return;snapshot();backend.suspend();cancelQueueRequest();}
     function shutdown() {
-        if(shuttingDown || !profileActive) return;
-        // Checkpoint the live clock/queue once before closing the terminal fence.
-        var finalPosition=position, finalDuration=duration;
+        if(shuttingDown) return;
         snapshot();activityEnd(false);shuttingDown=true;resetting=true;
-        // Invalidate every lane before cancel/pause can deliver reentrant callbacks.
-        browseRequest=-1;queueRequest=-1;playRequest=-1;pendingEnqueues=[];
-        retirePlayer();cancelBrowse();cancelQueueRequest();
-        resumeSeconds=finalPosition;measuredDuration=finalDuration;
-        paused=true;sourceState="paused";
-    }
-    Component {
-        id: audioComponent
-        MpvItem {
-            objectName: "vinylMpvPlayer"
-            property int generation: -1
-            width:1; height:1; visible:false
-            function current() { return !root.shuttingDown && !root.resetting && root.player===this && generation===root.epoch; }
-            onFileLoaded: {
-                if (!current()) return;
-                root.loaded=true;root.sourceState="playing";
-                if (duration>0) root.measuredDuration=duration;
-                pause=root.paused;
-                if (root.resumeSeconds>0) {root.seekPending=true;seekExact(root.resumeSeconds);}
-                root.activityBegin();
-            }
-            onDurationChanged: {
-                if (current() && duration>0) root.measuredDuration=duration;
-            }
-            onPositionChanged: {
-                if (!current() || !root.loaded) return;
-                if (root.seekPending && Math.abs(position-root.resumeSeconds)<2) root.seekPending=false;
-                if (!root.seekPending && audioTracks.length>0 && position>root.resumeSeconds+0.1) root.audioAdvanced=true;
-            }
-            onEndFile: reason => {
-                if (!current() || !root.loaded || root.sourceState!=="playing") return;
-                if (reason==="eof") {
-                    root.handleNaturalEnd();
-                }
-                else if (reason==="error") root.playbackFailed("Playback stopped. Retry this track.");
-            }
-            onPlaybackError: (code,message) => {
-                if (!current()) return;
-                root.playbackFailed("The audio could not be decoded or played. Retry this track or import another file.");
-            }
-        }
+        browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();
     }
     Connections {
         target: root.source
@@ -736,27 +615,15 @@ Item {
                 if(failure || !root.validAlbum(data) || (data.id!==root.queueAlbumId && data.browseId!==root.queueAlbumId)) root.browseError=failure || "The queued album is invalid.";
                 else root.appendRows(root.editionRows(root.normalize(data)),root.queueInsertNext);
                 root.dispatchNextEnqueue();
-            } else if (lane==="play" && id>=0 && id===root.playRequest) {
-                root.playRequest=-1;
-                if (failure || !data || data.trackId!==root.playingTrack.id || typeof data.url!=="string" || !data.url.length) {
-                    root.sourceState="error";root.error=failure || "The source did not match this track.";root.paused=true;return;
-                }
-                root.qualityLabel=data.qualityLabel || "Local audio";
-                root.loadAudio(data.url,data.headers);
+
             }
         }
         function onProfileLeaving() { root.clearProfile(); }
-        function onProfileEntered() { root.profileActive=true;root.restore();root.refreshLibrary(); }
+        function onProfileEntered() { root.profileActive=true;backend.profileScope=typeof VinylProfileScope!=="undefined" ? VinylProfileScope : "local-test";root.restore();root.refreshLibrary(); }
         function onCheckpointRequested() { root.snapshot(); }
         function onShuttingDown() { root.shutdown(); }
     }
     Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
-    Timer {
-        objectName:"vinylStartupTimer"
-        interval:15000
-        running:!root.shuttingDown && !root.resetting && root.player!==null && !root.audioAdvanced && !root.paused && root.sourceState!=="error"
-        onTriggered:root.playbackFailed("The audio did not start in time. Retry this track.")
-    }
     Component.onCompleted: {restore();refreshLibrary();}
-    Component.onDestruction: { if (source) source.cancel("browse"); retirePlayer(); }
+    Component.onDestruction: { if(source) source.cancel("browse");backend.shutdown(); }
 }

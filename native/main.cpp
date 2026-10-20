@@ -163,6 +163,7 @@
 #include "feria/FeriaAccountStore.h"
 #include "vinyl/VinylProvider.h"
 #include "vinyl/VinylLocalSource.h"
+#include "vinyl/VinylBackendSession.h"
 #include "vinyl/VinylAvailability.h"
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
 #include "devtools/VinylTestProfileController.h"
@@ -1726,6 +1727,7 @@ int main(int argc, char *argv[]) {
     vinylResolutionDelayMs = VinylTestProfileController(instanceAppData, {}, {}).resolutionDelayMs();
 #endif
     auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices, vinylResolutionDelayMs);
+    qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl", 1, 0, "VinylBackendSession");
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylLocalSource, &VinylLocalSource::shuttingDown);
     // Preserve the deferred external adapters without making local playback use them.
@@ -1954,6 +1956,13 @@ int main(int argc, char *argv[]) {
 #endif
 #if !defined(Q_OS_ANDROID)
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
+    const auto bindVinylScope = [&engine, accountRuntime] {
+        engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
+            accountRuntime->profileStores()->activeProfile().profileId());
+    };
+    bindVinylScope();
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     &engine, bindVinylScope);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylProvider"), vinylProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"),
         Colosseum::vinylLiveEnabled());

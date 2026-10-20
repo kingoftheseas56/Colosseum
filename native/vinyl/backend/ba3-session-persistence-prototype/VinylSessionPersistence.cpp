@@ -66,7 +66,7 @@ bool sameReleaseContext(
 bool sameOccurrence(const QueueOccurrence &left, const QueueOccurrence &right)
 {
     return left.occurrenceId() == right.occurrenceId()
-        && left.recordingMbid() == right.recordingMbid()
+        && left.sameMusicIdentity(right)
         && sameReleaseContext(left.releaseContext(), right.releaseContext());
 }
 
@@ -162,6 +162,49 @@ QJsonObject occurrenceToJsonV2(
                    displaySnapshotToJson(*displaySnapshot));
     else
         out.insert(QStringLiteral("displaySnapshot"), QJsonValue::Null);
+    return out;
+}
+
+QJsonObject occurrenceToJsonV3(
+    const QueueOccurrence &occurrence,
+    const catalogue::LastKnownDisplaySnapshot *displaySnapshot)
+{
+    QJsonObject out;
+    out.insert(QStringLiteral("occurrenceId"),
+               occurrence.occurrenceId().value());
+    if (occurrence.localIdentity().isEmpty()) {
+        out.insert(QStringLiteral("identityKind"), QStringLiteral("canonical"));
+        out.insert(QStringLiteral("recordingMbid"),
+                   occurrence.recordingMbid().toString());
+    } else {
+        out.insert(QStringLiteral("identityKind"), QStringLiteral("local"));
+        out.insert(QStringLiteral("localIdentity"), occurrence.localIdentity());
+        if (occurrence.canonicalRecording().has_value()) {
+            out.insert(QStringLiteral("verifiedRecordingMbid"),
+                       occurrence.canonicalRecording()->toString());
+        } else {
+            out.insert(QStringLiteral("verifiedRecordingMbid"), QJsonValue::Null);
+        }
+    }
+
+    if (occurrence.releaseContext().has_value()) {
+        out.insert(QStringLiteral("releaseContext"),
+                   releaseContextToJson(*occurrence.releaseContext()));
+    } else {
+        out.insert(QStringLiteral("releaseContext"), QJsonValue::Null);
+    }
+    if (occurrence.enqueueOrigin().has_value()) {
+        out.insert(QStringLiteral("enqueueOrigin"),
+                   enqueueOriginToJson(*occurrence.enqueueOrigin()));
+    } else {
+        out.insert(QStringLiteral("enqueueOrigin"), QJsonValue::Null);
+    }
+    if (displaySnapshot) {
+        out.insert(QStringLiteral("displaySnapshot"),
+                   displaySnapshotToJson(*displaySnapshot));
+    } else {
+        out.insert(QStringLiteral("displaySnapshot"), QJsonValue::Null);
+    }
     return out;
 }
 
@@ -599,6 +642,168 @@ SessionPersistenceResult<QueueOccurrence> occurrenceFromJsonV2(
     return SessionPersistenceResult<QueueOccurrence>::success(*rebuilt.value);
 }
 
+SessionPersistenceResult<QueueOccurrence> occurrenceFromJsonV3(
+    const QJsonObject &object,
+    int index)
+{
+    const QString field = QStringLiteral("queue.items[%1]").arg(index);
+    const QString unknown = firstUnknownKey(
+        object,
+        {"occurrenceId", "identityKind", "localIdentity", "recordingMbid",
+         "verifiedRecordingMbid", "releaseContext", "enqueueOrigin",
+         "displaySnapshot"});
+    if (!unknown.isEmpty()) {
+        return malformed<QueueOccurrence>(
+            field + QLatin1Char('.') + unknown,
+            QStringLiteral("Unknown queue-item field in schema v3."));
+    }
+
+    const QJsonValue occurrenceValue =
+        object.value(QStringLiteral("occurrenceId"));
+    if (!occurrenceValue.isString()) {
+        return malformed<QueueOccurrence>(
+            field + QStringLiteral(".occurrenceId"),
+            QStringLiteral("Expected a queue occurrence ID string."));
+    }
+    const auto occurrenceId = QueueOccurrenceId::parse(occurrenceValue.toString());
+    if (!occurrenceId.ok()) {
+        return malformed<QueueOccurrence>(
+            field + QStringLiteral(".occurrenceId"),
+            QStringLiteral("Persisted queue occurrence ID is invalid."));
+    }
+
+    const QJsonValue identityKindValue =
+        object.value(QStringLiteral("identityKind"));
+    if (!identityKindValue.isString()) {
+        return malformed<QueueOccurrence>(
+            field + QStringLiteral(".identityKind"),
+            QStringLiteral("Expected canonical or local identity kind."));
+    }
+    const QString identityKind = identityKindValue.toString();
+    const bool localIdentity = identityKind == QStringLiteral("local");
+    if (!localIdentity && identityKind != QStringLiteral("canonical")) {
+        return malformed<QueueOccurrence>(
+            field + QStringLiteral(".identityKind"),
+            QStringLiteral("Unsupported queue-item identity kind."));
+    }
+    if (!localIdentity
+        && (object.contains(QStringLiteral("localIdentity"))
+            || object.contains(QStringLiteral("verifiedRecordingMbid")))) {
+        return malformed<QueueOccurrence>(
+            field + QStringLiteral(".identityKind"),
+            QStringLiteral("Canonical queue items must not carry local identity fields."));
+    }
+
+    std::optional<RecordingMbid> canonicalRecording;
+    if (localIdentity) {
+        if (object.contains(QStringLiteral("recordingMbid"))) {
+            return malformed<QueueOccurrence>(
+                field + QStringLiteral(".recordingMbid"),
+                QStringLiteral("Local queue items must use the verified mapping field."));
+        }
+        const QJsonValue localValue =
+            object.value(QStringLiteral("localIdentity"));
+        if (!localValue.isString()) {
+            return malformed<QueueOccurrence>(
+                field + QStringLiteral(".localIdentity"),
+                QStringLiteral("Local queue items require a local identity string."));
+        }
+        if (!object.contains(QStringLiteral("verifiedRecordingMbid"))) {
+            return malformed<QueueOccurrence>(
+                field + QStringLiteral(".verifiedRecordingMbid"),
+                QStringLiteral("Local queue items require a verified mapping field or null."));
+        }
+        const QJsonValue recordingValue =
+            object.value(QStringLiteral("verifiedRecordingMbid"));
+        if (!recordingValue.isNull()) {
+            if (!recordingValue.isString()) {
+                return malformed<QueueOccurrence>(
+                    field + QStringLiteral(".verifiedRecordingMbid"),
+                    QStringLiteral("Verified local recording mapping must be a string or null."));
+            }
+            const auto parsedRecording = RecordingMbid::parse(
+                recordingValue.toString());
+            if (!parsedRecording.ok()) {
+                return malformed<QueueOccurrence>(
+                    field + QStringLiteral(".verifiedRecordingMbid"),
+                    QStringLiteral("Verified local recording mapping is invalid."));
+            }
+            canonicalRecording = *parsedRecording.value;
+        }
+    } else {
+        const auto parsedRecording = requiredMbid<RecordingMbid>(
+            object, QStringLiteral("recordingMbid"),
+            field + QStringLiteral(".recordingMbid"));
+        if (!parsedRecording.ok()) {
+            return SessionPersistenceResult<QueueOccurrence>::failure(
+                parsedRecording.error.code,
+                parsedRecording.error.field,
+                parsedRecording.error.detail);
+        }
+        canonicalRecording = *parsedRecording.value;
+    }
+
+    std::optional<ReleaseTrackCoordinate> releaseContext;
+    const QJsonValue contextValue =
+        object.value(QStringLiteral("releaseContext"));
+    if (!contextValue.isNull()) {
+        if (!contextValue.isObject()) {
+            return malformed<QueueOccurrence>(
+                field + QStringLiteral(".releaseContext"),
+                QStringLiteral("Expected release context object or null."));
+        }
+        const auto parsedContext = releaseContextFromJson(
+            contextValue.toObject(), field + QStringLiteral(".releaseContext"));
+        if (!parsedContext.ok()) {
+            return SessionPersistenceResult<QueueOccurrence>::failure(
+                parsedContext.error.code,
+                parsedContext.error.field,
+                parsedContext.error.detail);
+        }
+        releaseContext = *parsedContext.value;
+    }
+
+    std::optional<EnqueueOrigin> origin;
+    const QJsonValue originValue =
+        object.value(QStringLiteral("enqueueOrigin"));
+    if (!originValue.isNull()) {
+        if (!originValue.isObject()) {
+            return malformed<QueueOccurrence>(
+                field + QStringLiteral(".enqueueOrigin"),
+                QStringLiteral("Enqueue origin must be object or null."));
+        }
+        const auto parsedOrigin = enqueueOriginFromJson(
+            originValue.toObject(), field + QStringLiteral(".enqueueOrigin"));
+        if (!parsedOrigin.ok()) {
+            return SessionPersistenceResult<QueueOccurrence>::failure(
+                parsedOrigin.error.code,
+                parsedOrigin.error.field,
+                parsedOrigin.error.detail);
+        }
+        origin = *parsedOrigin.value;
+    }
+
+    const auto occurrence = localIdentity
+        ? QueueOccurrence::createLocal(
+              *occurrenceId.value,
+              object.value(QStringLiteral("localIdentity")).toString(),
+              std::move(canonicalRecording),
+              std::move(releaseContext),
+              std::move(origin))
+        : QueueOccurrence::create(
+              *occurrenceId.value,
+              *canonicalRecording,
+              std::move(releaseContext),
+              std::move(origin));
+    if (!occurrence.ok()) {
+        return SessionPersistenceResult<QueueOccurrence>::failure(
+            ErrorCode::InvalidQueueState,
+            field,
+            QStringLiteral("Persisted queue occurrence violates BA1 identity invariants."));
+    }
+    return SessionPersistenceResult<QueueOccurrence>::success(*occurrence.value);
+}
+
 SessionPersistenceResult<catalogue::LastKnownDisplaySnapshot>
 displaySnapshotFromJson(
     const QJsonObject &object,
@@ -720,6 +925,13 @@ SessionPersistenceResult<QByteArray> VinylSessionPersistence::capture(
 {
     if (queue.size() > boundary::MaxQueueItems || displaySnapshots.size() > boundary::MaxQueueItems)
         return SessionPersistenceResult<QByteArray>::failure(ErrorCode::InvalidQueueState, QStringLiteral("queue"), QStringLiteral("Queue exceeds item budget."));
+    int snapshotVersion = SchemaVersion;
+    for (const QueueOccurrence &occurrence : queue.items()) {
+        if (!occurrence.localIdentity().isEmpty()) {
+            snapshotVersion = MaximumSupportedVersion;
+            break;
+        }
+    }
     QHash<QString, catalogue::LastKnownDisplaySnapshot> displayByOccurrence;
     for (const QueueDisplaySnapshot &entry : displaySnapshots) {
         if (!boundary::display(entry.display.primaryText, entry.display.artistCredit)
@@ -741,7 +953,9 @@ SessionPersistenceResult<QByteArray> VinylSessionPersistence::capture(
             displayByOccurrence.constFind(occurrence.occurrenceId().value());
         const catalogue::LastKnownDisplaySnapshot *display =
             it == displayByOccurrence.constEnd() ? nullptr : &it.value();
-        items.append(occurrenceToJsonV2(occurrence, display));
+        items.append(snapshotVersion == 3
+                         ? occurrenceToJsonV3(occurrence, display)
+                         : occurrenceToJsonV2(occurrence, display));
     }
 
     QJsonObject queueObject;
@@ -847,7 +1061,7 @@ SessionPersistenceResult<QByteArray> VinylSessionPersistence::capture(
 
     QJsonObject root;
     root.insert(QStringLiteral("schema"), schemaName());
-    root.insert(QStringLiteral("version"), SchemaVersion);
+    root.insert(QStringLiteral("version"), snapshotVersion);
     root.insert(QStringLiteral("profileScopeId"), profileId.value());
     root.insert(QStringLiteral("queue"), queueObject);
     root.insert(QStringLiteral("resume"), resumeValue);
@@ -903,7 +1117,8 @@ VinylSessionPersistence::restore(
             QStringLiteral("Session snapshot version is unsupported."));
     }
     const int version = versionValue.toInt(-1);
-    if (version < MinimumSupportedVersion || version > SchemaVersion) {
+    if (version < MinimumSupportedVersion
+        || version > MaximumSupportedVersion) {
         return SessionPersistenceResult<RestoredSessionState>::failure(
             ErrorCode::UnsupportedVersion,
             QStringLiteral("version"),
@@ -982,14 +1197,16 @@ VinylSessionPersistence::restore(
         const QJsonObject itemObject = items.at(i).toObject();
         auto occurrence = version == 1
             ? occurrenceFromJson(itemObject, i)
-            : occurrenceFromJsonV2(itemObject, i);
+            : version == 2
+                ? occurrenceFromJsonV2(itemObject, i)
+                : occurrenceFromJsonV3(itemObject, i);
         if (!occurrence.ok()) {
             return SessionPersistenceResult<RestoredSessionState>::failure(
                 occurrence.error.code, occurrence.error.field,
                 occurrence.error.detail);
         }
 
-        if (version == 2) {
+        if (version >= 2) {
             const QJsonValue displayValue =
                 itemObject.value(QStringLiteral("displaySnapshot"));
             if (!displayValue.isNull()) {
@@ -1048,7 +1265,7 @@ VinylSessionPersistence::restore(
         }
     }
 
-    if (version == 2) {
+    if (version >= 2) {
         const QJsonValue shuffleValue =
             queueObject.value(QStringLiteral("shuffle"));
         if (!shuffleValue.isNull()) {
@@ -1180,7 +1397,7 @@ VinylSessionPersistence::restore(
             if (!convertedMs.has_value())
                 return SessionPersistenceResult<RestoredSessionState>::failure(ErrorCode::InvalidResumeState, QStringLiteral("resume.positionSeconds"));
             positionMs = *convertedMs;
-        } else if (version == 2
+        } else if (version >= 2
                    && resumeObject.contains(QStringLiteral("positionMs"))) {
             const auto parsedPosition = nonNegativeIntegerMs(
                 resumeObject.value(QStringLiteral("positionMs")),
@@ -1199,7 +1416,7 @@ VinylSessionPersistence::restore(
     }
 
     SessionCoordinatorIntent coordinatorIntent;
-    if (version == 2) {
+    if (version >= 2) {
         const QJsonValue coordinatorValue =
             root.value(QStringLiteral("coordinator"));
         if (!coordinatorValue.isObject()) {

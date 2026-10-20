@@ -4,6 +4,8 @@
 #include <QDebug>
 
 #include <cstdlib>
+#include <optional>
+#include <stdexcept>
 
 namespace {
 
@@ -340,6 +342,85 @@ int main(int argc, char **argv)
             derived.observations(),
             BehavioralSignalKind::RecommendationAvoidance) == 0,
         "recommendation avoidance must not be fabricated from non-listening");
+
+    ListenEventLedger localLedger(profileA);
+    ListenEventRecorder localRecorder(localLedger);
+    const QueueOccurrence unmappedLocalOccurrence = mustQueue(
+        QueueOccurrence::createLocal(
+            occurrenceId(QStringLiteral("occ-local-unmapped")),
+            QStringLiteral("vault:recommendation-unmapped"),
+            std::nullopt,
+            std::nullopt,
+            EnqueueOrigin(
+                EnqueueOriginKind::User,
+                batchId(QStringLiteral("batch-local-unmapped")))),
+        "unmapped local recommendation occurrence should construct");
+    PlaybackSession unmappedLocalPlayback;
+    const auto unmappedLocalToken = mustPlayback(
+        unmappedLocalPlayback.beginOccurrence(unmappedLocalOccurrence),
+        "unmapped local recommendation playback should begin");
+    const auto unmappedLocalContext = mustListen(
+        ListenContext::create(
+            profileA,
+            listenSession(QStringLiteral("session-local-unmapped")),
+            unmappedLocalOccurrence,
+            unmappedLocalToken,
+            playInstance(QStringLiteral("play-local-unmapped"))),
+        "unmapped local recommendation context should construct");
+    requireStatus(
+        localRecorder.start(
+            unmappedLocalContext, 4600000, 720000, 0, 1000),
+        "unmapped local listen fact should remain in the transient ledger");
+
+    const QueueOccurrence mappedLocalOccurrence = mustQueue(
+        QueueOccurrence::createLocal(
+            occurrenceId(QStringLiteral("occ-local-mapped")),
+            QStringLiteral("vault:recommendation-mapped"),
+            std::optional<RecordingMbid>{recordingA},
+            std::nullopt,
+            EnqueueOrigin(
+                EnqueueOriginKind::User,
+                batchId(QStringLiteral("batch-local-mapped")))),
+        "verified mapped local recommendation occurrence should construct");
+    PlaybackSession mappedLocalPlayback;
+    const auto mappedLocalToken = mustPlayback(
+        mappedLocalPlayback.beginOccurrence(mappedLocalOccurrence),
+        "mapped local recommendation playback should begin");
+    const auto mappedLocalContext = mustListen(
+        ListenContext::create(
+            profileA,
+            listenSession(QStringLiteral("session-local-mapped")),
+            mappedLocalOccurrence,
+            mappedLocalToken,
+            playInstance(QStringLiteral("play-local-mapped"))),
+        "mapped local recommendation context should construct");
+    requireStatus(
+        localRecorder.start(
+            mappedLocalContext, 4610000, 721000, 0, 1000),
+        "mapped local listen fact should remain in the transient ledger");
+
+    std::optional<DerivationResult<RecommendationDerivationOutput>> localDerived;
+    bool localDerivationThrew = false;
+    try {
+        localDerived.emplace(deriveRecommendationInputs(localLedger, config));
+    } catch (const std::bad_optional_access &) {
+        localDerivationThrew = true;
+    }
+    require(!localDerivationThrew,
+            "recommendation derivation must skip an unmapped local event instead of throwing");
+    require(localDerived.has_value() && localDerived->ok(),
+            "unmapped local history should not fail the rest of recommendation derivation");
+    const RecommendationDerivationOutput &localOutput = *localDerived->value;
+    require(localOutput.aggregates().size() == 1,
+            "only the mapped local event should contribute canonical affinity");
+    const auto *mappedLocalAggregate = localOutput.findAggregate(canonicalA);
+    require(mappedLocalAggregate != nullptr
+                && mappedLocalAggregate->playCount() == 1,
+            "verified local-to-canonical mapping should contribute to its canonical aggregate");
+    require(countSignal(
+                localOutput.observations(),
+                BehavioralSignalKind::DeliberateQueue) == 1,
+            "unmapped local history must not fabricate canonical recommendation signals");
 
     ListenEventLedger failureLedger(profileA);
     ListenEventRecorder failureRecorder(failureLedger);

@@ -914,6 +914,14 @@ ListenPersistenceResult<QByteArray> VinylListenEventPersistence::capture(
                 QStringLiteral("events.sequence"),
                 QStringLiteral("Live ledger sequence must be contiguous."));
         }
+        const QueueOccurrence &occurrence = event.context().occurrence();
+        if (!occurrence.localIdentity().isEmpty()
+            || !occurrence.canonicalRecording().has_value()) {
+            return ListenPersistenceResult<QByteArray>::failure(
+                ErrorCode::InvalidState,
+                QStringLiteral("events.occurrence.identity"),
+                QStringLiteral("BA4 snapshot persistence does not support host-local occurrence identities."));
+        }
         events.append(eventToJson(event));
         ++expectedSequence;
     }

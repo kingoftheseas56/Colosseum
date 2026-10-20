@@ -3063,6 +3063,16 @@ endforeach()
 target_sources(colosseum PRIVATE
     vinyl/VinylLocalSource.h vinyl/VinylLocalSource.cpp
     vinyl/VinylProvider.h)
+include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
+add_library(colosseum_vinyl_app STATIC
+    vinyl/VinylBackendSession.h vinyl/VinylBackendSession.cpp)
+target_include_directories(colosseum_vinyl_app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(colosseum_vinyl_app PRIVATE colosseum_vinyl_backend
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick MpvQt::MpvQt)
+if(MSVC)
+    target_compile_options(colosseum_vinyl_app PRIVATE /utf-8)
+endif()
+target_link_libraries(colosseum PRIVATE colosseum_vinyl_app)
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"

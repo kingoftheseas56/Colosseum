@@ -11,6 +11,7 @@ vinyl_w4_superbuild_link_smoke
 vinyl_w4_ba0_contract vinyl_w4_ba1_contract vinyl_w4_ba2a_contract
 vinyl_w4_ba2b_contract vinyl_w4_ba2c_contract vinyl_w4_ba2c_adversarial_contract
 vinyl_w4_ba2d_bridge_contract vinyl_w4_ba3_contract
+vinyl_host_local_identity_contract
 vinyl_w4_ba4_ledger_contract vinyl_w4_ba4_persistence_contract
 vinyl_w4_ba5_library_contract vinyl_w4_ba5_playlist_contract vinyl_w4_ba5_persistence_contract
 vinyl_w4_bb1_contract vinyl_w4_bb2_contract vinyl_w4_bb3_contract
@@ -63,7 +64,7 @@ def main():
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
-    print(f"M0R inventory accepted: {len(EXPECTED_TESTS)} required tests, none disabled")
+    print(f"Vinyl backend inventory accepted: {len(EXPECTED_TESTS)} required tests, none disabled")
     return 0
 
 

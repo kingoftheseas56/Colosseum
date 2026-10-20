@@ -113,6 +113,11 @@ public:
     Q_PROPERTY(QUrl currentUrl READ currentUrl NOTIFY currentUrlChanged)
     QUrl currentUrl() const;
 
+    // Monotonic generation for the current load request. Native event replies
+    // carry this value so consumers can reject work from a replaced stream.
+    Q_PROPERTY(quint64 playbackGeneration READ playbackGeneration NOTIFY playbackGenerationChanged)
+    quint64 playbackGeneration() const;
+
     // Decoded-frame truth (Agent Visibility Phase 2, Slice J1-Video-Seam, 2026-08-13):
     // the SAME two mpv properties MediaAdmissionProbe.cpp:59-60 observes on its own
     // headless handle ("dwidth"/"dheight"), mirrored here on the LIVE playing instance
@@ -164,6 +169,9 @@ public:
     Q_INVOKABLE void refreshAudioOutput();
     Q_INVOKABLE QVariant playbackStat(const QString &name);
     Q_INVOKABLE void seekExact(double value);
+    // Token-aware counterpart for native playback adapters. Runs on MpvQt's
+    // existing controller thread and reports whether libmpv accepted the seek.
+    Q_INVOKABLE void seekExactTracked(double seconds, quint64 requestSerial);
     Q_INVOKABLE void seekStep(double delta);
     Q_INVOKABLE void frameStep();
     Q_INVOKABLE void frameBackStep();
@@ -194,6 +202,7 @@ public:
 Q_SIGNALS:
     void mediaTitleChanged();
     void currentUrlChanged();
+    void playbackGenerationChanged();
     void positionChanged();
     void durationChanged();
     void pauseChanged();
@@ -218,6 +227,10 @@ Q_SIGNALS:
     void fileLoaded();
     void endFile(QString reason);
     void playbackError(QString code, QString message);
+    void nativePlaybackEvent(const QString &kind, qint64 entryId,
+                             double positionSeconds, double durationSeconds,
+                             quint64 loadGeneration, qint64 monotonicMs);
+    void trackedSeekReply(quint64 requestSerial, bool success, quint64 loadGeneration);
     void videoReconfig();
     void decodedDimensionsChanged();
     // One aggregated stats map (mpv property names as keys) per requestPlaybackStatsAsync()
@@ -228,6 +241,8 @@ private:
     friend class tst_journey_play_video;
     void setupConnections();
     void handlePlaybackEvent(const mpv_event &event);
+    void emitNativePlaybackEvent(const QString &kind, qint64 entryId,
+                                 quint64 generation);
     void refreshDecodedDimensions();
     // Shared body of loadFile / loadFileWithHeaders: update currentUrl, emit, issue `loadfile`.
     void issueLoadFile(const QString &file);

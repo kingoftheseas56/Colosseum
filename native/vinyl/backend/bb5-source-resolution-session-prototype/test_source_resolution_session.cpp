@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
+#include <stdexcept>
 
 namespace {
 
@@ -853,6 +854,57 @@ void verifyProfileSessionBinding(const vinyl::RecordingMbid &canonical,
     require(during.engine.loads.isEmpty(), "profile change fences the engine handoff");
 }
 
+void verifyLocalQueueIdentityRequiresCanonicalRecording(
+    const vinyl::RecordingMbid &canonical,
+    const vinyl::SelectableSourceCandidate &candidate)
+{
+    using namespace vinyl;
+
+    const QueueOccurrence unmapped = mustQueue(
+        QueueOccurrence::createLocal(
+            occurrenceId("local-unmapped-occurrence"),
+            QStringLiteral("vault:bb5-unmapped-track")),
+        "host-local occurrence should construct without an invented MBID");
+    HarnessContext unmappedContext(profile("local-unmapped-profile"));
+    appendAndActivate(
+        unmappedContext, {unmapped}, unmapped.occurrenceId());
+
+    std::optional<SourceResolutionResult<SourceResolutionRequest>> result;
+    bool threw = false;
+    try {
+        result.emplace(
+            unmappedContext.sources.beginForActive({candidate}, true));
+    } catch (const std::bad_optional_access &) {
+        threw = true;
+    }
+    require(!threw,
+            "BB5 must return a typed failure for an unmapped local occurrence, not throw");
+    require(result.has_value() && !result->ok()
+                && result->error.code
+                    == SourceResolutionErrorCode::CandidateNotSelectable
+                && result->error.field
+                    == QStringLiteral("activeOccurrence.canonicalRecording"),
+            "BB5 must report that an unmapped local occurrence cannot select a canonical source");
+    require(!unmappedContext.sources.pendingRequest().has_value()
+                && unmappedContext.engine.loads.isEmpty(),
+            "an unmapped local occurrence must not arm a source request or playback");
+
+    const QueueOccurrence mapped = mustQueue(
+        QueueOccurrence::createLocal(
+            occurrenceId("local-mapped-occurrence"),
+            QStringLiteral("vault:bb5-mapped-track"),
+            std::optional<RecordingMbid>{canonical}),
+        "verified local mapping should construct");
+    HarnessContext mappedContext(profile("local-mapped-profile"));
+    appendAndActivate(mappedContext, {mapped}, mapped.occurrenceId());
+    armPending(mappedContext);
+    const auto mappedResult =
+        mappedContext.sources.beginForActive({candidate}, true);
+    require(mappedResult.ok()
+                && mappedResult.value->recordingMbid() == canonical,
+            "BB5 may resolve a host-local occurrence through its verified canonical mapping");
+}
+
 void verifyExpiry(
     const vinyl::RecordingMbid &canonical,
     const vinyl::SelectableSourceCandidate &high,
@@ -1238,6 +1290,7 @@ int main(int argc, char **argv)
 
     verifyExactGate(canonical, other);
     verifyDeterministicSelection(canonical, high, low);
+    verifyLocalQueueIdentityRequiresCanonicalRecording(canonical, high);
     if (QCoreApplication::arguments().contains("--profile-binding")) {
         verifyProfileSessionBinding(canonical, high); return 0;
     }

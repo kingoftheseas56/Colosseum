@@ -16,12 +16,19 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QtMath>
+#include <chrono>
 #include <functional>
 
 #include "mpvproperties.h"
 #include "http_header_fields.h"
 
 namespace {
+qint64 monotonicMillisecondsSinceEpoch() noexcept
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
 // A second client on the SAME core preserves the native playback event payloads
 // which MpvQt 1.2.0 discards. Do not consume MpvQt's own event queue.
 class PlaybackEvents final : public QObject
@@ -33,6 +40,10 @@ public:
         m_client = mpv_create_client(controller->mpv(), "colosseum-playback");
         if (!m_client)
             qFatal("Could not create native playback event client");
+        if (mpv_request_event(m_client, MPV_EVENT_SEEK, 1) < 0
+            || mpv_request_event(m_client, MPV_EVENT_PLAYBACK_RESTART, 1) < 0) {
+            qFatal("Could not subscribe to native playback seek events");
+        }
         mpv_set_wakeup_callback(m_client, [](void *context) {
             auto *self = static_cast<PlaybackEvents *>(context);
             QMetaObject::invokeMethod(self, [self] { self->drain(); }, Qt::QueuedConnection);
@@ -263,6 +274,8 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
             : end.reason == MPV_END_FILE_REASON_ERROR ? QStringLiteral("error") : QString();
         if (reason.isEmpty())
             return;
+        emitNativePlaybackEvent(QStringLiteral("ended-") + reason,
+                                end.playlist_entry_id, generation);
         QMetaObject::invokeMethod(this, [this, generation, reason] {
             if (generation != m_decodeGeneration)
                 return;
@@ -271,6 +284,18 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
             if (reason == QLatin1String("error"))
                 Q_EMIT playbackError(QStringLiteral("unknown"), reason);
         }, Qt::QueuedConnection);
+        return;
+    }
+    if (event.event_id == MPV_EVENT_SEEK
+        || event.event_id == MPV_EVENT_PLAYBACK_RESTART) {
+        if (!state.started || state.streamEntry < 0
+            || state.streamEntry != state.expectedEntry) {
+            return;
+        }
+        emitNativePlaybackEvent(
+            event.event_id == MPV_EVENT_SEEK ? QStringLiteral("seek-start")
+                                             : QStringLiteral("restart"),
+            state.streamEntry, generation);
         return;
     }
     // Untagged-event invariant, verified against linked mpv 7b8915bc1:
@@ -287,6 +312,7 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
         return;
     if (event.event_id == MPV_EVENT_FILE_LOADED) {
         state.loaded = true;
+        emitNativePlaybackEvent(QStringLiteral("loaded"), state.streamEntry, generation);
         QMetaObject::invokeMethod(this, [this, generation] {
             if (generation == m_decodeGeneration)
                 Q_EMIT fileLoaded();
@@ -301,6 +327,28 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
                 Q_EMIT videoReconfig();
         }, Qt::QueuedConnection);
     }
+}
+
+void MpvItem::emitNativePlaybackEvent(const QString &kind, qint64 entryId,
+                                     quint64 generation)
+{
+    Q_ASSERT(QThread::currentThread() == m_decodeWorker);
+    auto *controller = mpvController();
+    const qint64 monotonicMs = monotonicMillisecondsSinceEpoch();
+    double position = controller->getProperty(MpvProperties::self()->Position).toDouble();
+    double duration = controller->getProperty(MpvProperties::self()->Duration).toDouble();
+    if (!qIsFinite(position) || position < 0.0)
+        position = 0.0;
+    if (!qIsFinite(duration) || duration < 0.0)
+        duration = 0.0;
+
+    QMetaObject::invokeMethod(this, [this, kind, entryId, position, duration,
+                                     generation, monotonicMs] {
+        if (generation == m_decodeGeneration) {
+            Q_EMIT nativePlaybackEvent(kind, entryId, position, duration,
+                                       generation, monotonicMs);
+        }
+    }, Qt::QueuedConnection);
 }
 
 void MpvItem::setDecodedDimensions(int width, int height)
@@ -482,6 +530,7 @@ void MpvItem::loadSource(const QString &url, const QVariantMap &headers)
 void MpvItem::issueLoadFile(const QString &file)
 {
     const auto generation = ++m_decodeGeneration;
+    Q_EMIT playbackGenerationChanged();
     auto url = QUrl::fromUserInput(file);
     if (m_currentUrl != url) {
         m_currentUrl = url;
@@ -572,6 +621,46 @@ void MpvItem::seekExact(double value)
                           << QString::number(qMax(0.0, value), 'f', 3)
                           << QStringLiteral("absolute")
                           << QStringLiteral("exact"));
+}
+
+void MpvItem::seekExactTracked(double seconds, quint64 requestSerial)
+{
+    const quint64 generation = m_decodeGeneration;
+    const auto state = m_decodeEvents;
+    auto *controller = mpvController();
+    const double target = qMax(0.0, seconds);
+    QMetaObject::invokeMethod(controller,
+        [controller, state, generation, requestSerial, target] {
+            // Keep the same lifetime fence used by PlaybackEvents while touching
+            // the item or queuing a reply. The command runs on the controller
+            // thread and is rejected if this load has gone stale.
+            QMutexLocker lock(&state->lifetime);
+            auto *targetItem = state->target;
+            if (!targetItem)
+                return;
+
+            bool success = state->generation == generation
+                && state->expectedEntry >= 0;
+            if (success) {
+                const QVariant result = controller->command(
+                    QStringList{QStringLiteral("seek"),
+                                QString::number(target, 'f', 3),
+                                QStringLiteral("absolute"),
+                                QStringLiteral("exact")});
+                if (result.metaType() == QMetaType::fromType<ErrorReturn>())
+                    success = result.value<ErrorReturn>().error >= 0;
+            }
+
+            QMetaObject::invokeMethod(targetItem,
+                [targetItem, requestSerial, success, generation] {
+                    // A reply can outlive a replacement load. Never let it
+                    // complete work for the newer stream.
+                    if (generation == targetItem->m_decodeGeneration) {
+                        Q_EMIT targetItem->trackedSeekReply(requestSerial, success,
+                                                            generation);
+                    }
+                }, Qt::QueuedConnection);
+        }, Qt::QueuedConnection);
 }
 
 void MpvItem::seekStep(double delta)
@@ -1050,6 +1139,11 @@ QString MpvItem::formattedPosition() const
 QUrl MpvItem::currentUrl() const
 {
     return m_currentUrl;
+}
+
+quint64 MpvItem::playbackGeneration() const
+{
+    return m_decodeGeneration;
 }
 
 int MpvItem::decodedWidth() const

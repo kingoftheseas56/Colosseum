@@ -32,7 +32,7 @@ bool isMbid(const std::string& s) {
             if (s[i] != '-') return false;
         } else if (!isHex(s[i])) return false;
     }
-    return true;
+    return lower(s) != "00000000-0000-0000-0000-000000000000";
 }
 
 bool digest(const std::string& value, const std::string& prefix, std::size_t digits) {

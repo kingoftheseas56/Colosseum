@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <limits>
+#include <stdexcept>
 
 namespace {
 
@@ -203,6 +204,79 @@ int main(int argc, char **argv)
             "durable BA4 format must not persist PlaybackWorkToken");
     require(bytes.contains("\"kind\":\"failure\""),
             "BA4 v3 durable format must persist playback failure distinctly");
+
+    const QueueOccurrence localOccurrence = mustQueue(
+        QueueOccurrence::createLocal(
+            mustQueue(
+                QueueOccurrenceId::parse(QStringLiteral("local-occ-unmapped")),
+                "local occurrence ID should parse"),
+            QStringLiteral("vault:ba4-unmapped-track")),
+        "unmapped host-local occurrence should construct");
+    PlaybackSession localPlayback;
+    const PlaybackWorkToken localToken = mustPlayback(
+        localPlayback.beginOccurrence(localOccurrence),
+        "unmapped local playback should begin");
+    const ListenContext localContext = mustListen(
+        ListenContext::create(
+            profile,
+            session(QStringLiteral("local-listen-session")),
+            localOccurrence,
+            localToken,
+            mustDomain(
+                PlayInstanceId::parse(QStringLiteral("local-play-instance")),
+                "local play instance should parse")),
+        "unmapped local listen context should construct");
+    ListenEventLedger localLedger(profile);
+    ListenEventRecorder localRecorder(localLedger);
+    require(localRecorder.start(
+                localContext, 100000, 1000, 0, 1000).ok,
+            "unmapped local event should remain valid in the transient ledger");
+    ListenPersistenceResult<QByteArray> localCapture;
+    bool localCaptureThrew = false;
+    try {
+        localCapture = VinylListenEventPersistence::capture(localLedger);
+    } catch (const std::bad_optional_access &) {
+        localCaptureThrew = true;
+    }
+    require(!localCaptureThrew,
+            "BA4 capture must return a typed error instead of throwing on an unmapped local occurrence");
+    require(!localCapture.ok()
+                && localCapture.error.code == ListenPersistenceErrorCode::InvalidState,
+            "BA4 persistence must reject a host-local occurrence it cannot represent");
+
+    const QueueOccurrence mappedLocalOccurrence = mustQueue(
+        QueueOccurrence::createLocal(
+            mustQueue(
+                QueueOccurrenceId::parse(QStringLiteral("local-occ-mapped")),
+                "mapped local occurrence ID should parse"),
+            QStringLiteral("vault:ba4-mapped-track"),
+            std::optional<RecordingMbid>{recording}),
+        "verified mapped local occurrence should construct");
+    PlaybackSession mappedLocalPlayback;
+    const PlaybackWorkToken mappedLocalToken = mustPlayback(
+        mappedLocalPlayback.beginOccurrence(mappedLocalOccurrence),
+        "mapped local playback should begin");
+    const ListenContext mappedLocalContext = mustListen(
+        ListenContext::create(
+            profile,
+            session(QStringLiteral("mapped-local-listen-session")),
+            mappedLocalOccurrence,
+            mappedLocalToken,
+            mustDomain(
+                PlayInstanceId::parse(QStringLiteral("mapped-local-play-instance")),
+                "mapped local play instance should parse")),
+        "mapped local listen context should construct");
+    ListenEventLedger mappedLocalLedger(profile);
+    ListenEventRecorder mappedLocalRecorder(mappedLocalLedger);
+    require(mappedLocalRecorder.start(
+                mappedLocalContext, 100000, 1000, 0, 1000).ok,
+            "mapped local event should remain valid in the transient ledger");
+    const auto mappedLocalCapture =
+        VinylListenEventPersistence::capture(mappedLocalLedger);
+    require(!mappedLocalCapture.ok()
+                && mappedLocalCapture.error.code
+                    == ListenPersistenceErrorCode::InvalidState,
+            "BA4 must reject mapped local identities rather than serialize them as canonical-only history");
 
     const RestoredListenLedger restored = mustPersist(
         VinylListenEventPersistence::restore(profile, bytes),

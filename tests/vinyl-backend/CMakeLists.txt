@@ -74,6 +74,8 @@ add_w4_contract(vinyl_w4_ba2d_bridge_contract
     "${BA2D_DIR}/test_colosseum_mpv_bridge.cpp")
 add_w4_contract(vinyl_w4_ba3_contract
     "${BA3_DIR}/test_vinyl_session_persistence.cpp")
+add_w4_contract(vinyl_host_local_identity_contract
+    "${COLOSSEUM_ROOT}/tests/vinyl-backend/test_host_local_identity.cpp")
 add_w4_contract(vinyl_w4_ba4_ledger_contract
     "${BA4_DIR}/test_vinyl_listen_event_ledger.cpp")
 add_w4_contract(vinyl_w4_ba4_persistence_contract

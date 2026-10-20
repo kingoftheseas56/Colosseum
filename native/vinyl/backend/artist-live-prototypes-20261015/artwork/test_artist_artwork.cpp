@@ -9,6 +9,7 @@ using namespace vinyl::artwork;
 namespace {
 constexpr const char* mf = "188711ed-c99b-439c-844a-ca831f63a727";
 constexpr const char* doc = "535f74d5-8328-40ff-9cea-568ef916b3c8";
+constexpr const char* nilUuid = "00000000-0000-0000-0000-000000000000";
 int passed = 0;
 int failed = 0;
 
@@ -74,6 +75,16 @@ bool modeAndCount(const Decision& decision, DisplayMode mode, std::size_t count)
 
 int main() {
     ArtistArtworkResolver resolver;
+    check(!ArtistArtworkResolver::isCanonicalArtistMbid(nilUuid),
+          "nil-uuid-is-not-a-canonical-artist-mbid");
+    auto nilArtist = makeRequest();
+    nilArtist.artistMbid = nilUuid;
+    const auto nilDecision = resolver.resolve(nilArtist);
+    check(modeAndCount(nilDecision, DisplayMode::ArtistComposition, 0) &&
+          std::find(nilDecision.rejectionReasons.cbegin(), nilDecision.rejectionReasons.cend(),
+                    "invalid-request-artist-mbid") != nilDecision.rejectionReasons.cend(),
+          "nil-uuid-request-fails-closed");
+
     auto empty = resolver.resolve(makeRequest());
     check(modeAndCount(empty, DisplayMode::ArtistComposition, 0) &&
           empty.fallback.name == "MF DOOM" && !empty.fallback.monogram.empty() &&

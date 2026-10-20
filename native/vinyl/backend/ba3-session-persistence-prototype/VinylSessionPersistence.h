@@ -121,7 +121,9 @@ class VinylSessionPersistence final
 {
 public:
     static constexpr int MinimumSupportedVersion = 1;
+    // Canonical-only captures stay at v2; host-local identities require v3.
     static constexpr int SchemaVersion = 2;
+    static constexpr int MaximumSupportedVersion = 3;
 
     static QString schemaName();
 

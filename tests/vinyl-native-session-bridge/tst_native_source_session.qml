@@ -108,7 +108,7 @@ TestCase {
         console.log("Bridge array diagnostics",Array.isArray(rawAlbum.tracks),Array.isArray(rawAlbum.artists),Array.isArray(rawAlbum.editions));
         session.openAlbum(rawAlbum.id);tryCompare(session,"browsing",false);
         compare(session.browseError,"");compare(session.shownAlbumId,rawAlbum.id);compare(session.tracks.length,1);
-        session.playTrack(0);tryVerify(()=>session.player!==null);compare(session.player.loadedUrl.indexOf("file:"),0);
+        session.playTrack(0);tryVerify(()=>session.player!==null);compare(String(session.player.currentUrl).indexOf("file:"),0);
     }
     function test_nativeSearchAndQueuedAlbum() {
         session.search("");tryCompare(session,"browsing",false);compare(session.results.length,1);

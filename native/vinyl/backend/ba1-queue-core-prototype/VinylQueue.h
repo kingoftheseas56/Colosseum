@@ -14,6 +14,7 @@ namespace vinyl {
 enum class QueueErrorCode {
     None,
     InvalidOccurrenceId,
+    InvalidLocalIdentity,
     DuplicateOccurrenceId,
     OccurrenceNotFound,
     IndexOutOfRange,
@@ -217,9 +218,24 @@ public:
         RecordingMbid recording,
         std::optional<ReleaseTrackCoordinate> releaseContext = std::nullopt,
         std::optional<EnqueueOrigin> enqueueOrigin = std::nullopt);
+    static QueueResult<QueueOccurrence> createLocal(
+        QueueOccurrenceId occurrenceId,
+        const QString &localIdentity,
+        std::optional<RecordingMbid> verifiedRecording = std::nullopt,
+        std::optional<ReleaseTrackCoordinate> releaseContext = std::nullopt,
+        std::optional<EnqueueOrigin> enqueueOrigin = std::nullopt);
 
     const QueueOccurrenceId &occurrenceId() const noexcept { return m_occurrenceId; }
-    const RecordingMbid &recordingMbid() const noexcept { return m_recording; }
+    const RecordingMbid &recordingMbid() const
+    {
+        return m_canonicalRecording.value();
+    }
+    const QString &localIdentity() const noexcept { return m_localIdentity; }
+    const std::optional<RecordingMbid> &canonicalRecording() const noexcept
+    {
+        return m_canonicalRecording;
+    }
+    bool sameMusicIdentity(const QueueOccurrence &other) const noexcept;
     const std::optional<ReleaseTrackCoordinate> &releaseContext() const noexcept
     {
         return m_releaseContext;
@@ -231,18 +247,21 @@ public:
 
 private:
     QueueOccurrence(QueueOccurrenceId occurrenceId,
-                    RecordingMbid recording,
+                    QString localIdentity,
+                    std::optional<RecordingMbid> canonicalRecording,
                     std::optional<ReleaseTrackCoordinate> releaseContext,
                     std::optional<EnqueueOrigin> enqueueOrigin)
         : m_occurrenceId(std::move(occurrenceId))
-        , m_recording(std::move(recording))
+        , m_localIdentity(std::move(localIdentity))
+        , m_canonicalRecording(std::move(canonicalRecording))
         , m_releaseContext(std::move(releaseContext))
         , m_enqueueOrigin(std::move(enqueueOrigin))
     {
     }
 
     QueueOccurrenceId m_occurrenceId;
-    RecordingMbid m_recording;
+    QString m_localIdentity;
+    std::optional<RecordingMbid> m_canonicalRecording;
     std::optional<ReleaseTrackCoordinate> m_releaseContext;
     std::optional<EnqueueOrigin> m_enqueueOrigin;
 };

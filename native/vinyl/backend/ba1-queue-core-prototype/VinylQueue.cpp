@@ -12,6 +12,8 @@ QString queueErrorCodeName(QueueErrorCode code)
         return QStringLiteral("none");
     case QueueErrorCode::InvalidOccurrenceId:
         return QStringLiteral("invalid_occurrence_id");
+    case QueueErrorCode::InvalidLocalIdentity:
+        return QStringLiteral("invalid_local_identity");
     case QueueErrorCode::DuplicateOccurrenceId:
         return QStringLiteral("duplicate_occurrence_id");
     case QueueErrorCode::OccurrenceNotFound:
@@ -143,9 +145,66 @@ QueueResult<QueueOccurrence> QueueOccurrence::create(
 
     return QueueResult<QueueOccurrence>::success(
         QueueOccurrence(std::move(occurrenceId),
-                        std::move(recording),
+                        QString(),
+                        std::optional<RecordingMbid>(std::move(recording)),
                         std::move(releaseContext),
                         std::move(enqueueOrigin)));
+}
+
+QueueResult<QueueOccurrence> QueueOccurrence::createLocal(
+    QueueOccurrenceId occurrenceId,
+    const QString &localIdentity,
+    std::optional<RecordingMbid> verifiedRecording,
+    std::optional<ReleaseTrackCoordinate> releaseContext,
+    std::optional<EnqueueOrigin> enqueueOrigin)
+{
+    if (localIdentity.isEmpty() || localIdentity.size() > 2048
+        || localIdentity.trimmed() != localIdentity) {
+        return QueueResult<QueueOccurrence>::failure(
+            QueueErrorCode::InvalidLocalIdentity,
+            QStringLiteral("localIdentity"),
+            QStringLiteral("Local identity must be non-empty, bounded, and have no surrounding whitespace."));
+    }
+
+    for (const QChar ch : localIdentity) {
+        if (ch.isNull() || ch.category() == QChar::Other_Control) {
+            return QueueResult<QueueOccurrence>::failure(
+                QueueErrorCode::InvalidLocalIdentity,
+                QStringLiteral("localIdentity"),
+                QStringLiteral("Local identity must not contain control characters."));
+        }
+    }
+
+    if (releaseContext.has_value()
+        && (!verifiedRecording.has_value()
+            || releaseContext->recordingMbid() != *verifiedRecording)) {
+        return QueueResult<QueueOccurrence>::failure(
+            QueueErrorCode::RecordingContextMismatch,
+            QStringLiteral("releaseContext.recordingMbid"),
+            QStringLiteral("Release context requires and must match a verified Recording MBID mapping."));
+    }
+
+    return QueueResult<QueueOccurrence>::success(
+        QueueOccurrence(std::move(occurrenceId),
+                        localIdentity,
+                        std::move(verifiedRecording),
+                        std::move(releaseContext),
+                        std::move(enqueueOrigin)));
+}
+
+bool QueueOccurrence::sameMusicIdentity(
+    const QueueOccurrence &other) const noexcept
+{
+    if (!m_localIdentity.isEmpty() || !other.m_localIdentity.isEmpty())
+        return m_localIdentity == other.m_localIdentity
+            && m_canonicalRecording == other.m_canonicalRecording;
+
+    if (m_canonicalRecording.has_value()
+        && other.m_canonicalRecording.has_value()) {
+        return *m_canonicalRecording == *other.m_canonicalRecording;
+    }
+
+    return false;
 }
 
 int VinylQueue::indexOf(const QueueOccurrenceId &id) const

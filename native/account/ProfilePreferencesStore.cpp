@@ -2,6 +2,7 @@
 
 #include "ProfilePreferencesStore.h"
 
+#include <QByteArray>
 #include <QJsonDocument>
 #include <QSet>
 #include <QSettings>
@@ -15,10 +16,20 @@ constexpr auto kRememberSearchHistoryKey = "privacy/rememberSearchHistory";
 constexpr auto kKeepActivityHistoryKey = "privacy/keepActivityHistory";
 constexpr auto kSyncActivityHistoryKey = "privacy/syncActivityHistory";
 constexpr auto kMainSyncProviderKey = "sync/mainSyncProvider";
+constexpr auto kVinylFeedbackSnapshotKey = "vinyl/feedbackSnapshot";
+constexpr qsizetype kMaximumVinylFeedbackSnapshotBytes = 4 * 1024 * 1024;
 constexpr auto kRatingsReviewsProviderOrderKey = "ratingsReviews/providerOrder";
 constexpr auto kRatingsReviewsDefaultRatingKey = "ratingsReviews/defaultRatingDestinations";
 constexpr auto kRatingsReviewsDefaultReviewKey = "ratingsReviews/defaultReviewDestinations";
 constexpr auto kRatingsReviewsConversionGroup = "ratingsReviews/conversionMaps";
+
+bool isValidVinylFeedbackSnapshot(const QString &snapshot) {
+    if (snapshot.contains(QChar::Null)
+        || snapshot.size() > kMaximumVinylFeedbackSnapshotBytes) {
+        return false;
+    }
+    return snapshot.toUtf8().size() <= kMaximumVinylFeedbackSnapshotBytes;
+}
 }
 
 ProfilePreferencesStore::
@@ -128,6 +139,39 @@ bool ProfilePreferencesStore::setVinylTaste(bool answered, const QStringList &ar
     m_vinylPersistenceError.clear();
     ++m_revision;
     emit vinylTasteChanged(); emit vinylPersistenceErrorChanged(); emit changed();
+    return true;
+}
+
+bool ProfilePreferencesStore::setVinylFeedbackSnapshot(const QString &snapshot) {
+    if (!isValidVinylFeedbackSnapshot(snapshot)) {
+        m_vinylPersistenceError = QStringLiteral(
+            "Feedback snapshot must be at most 4 MiB of UTF-8 and contain no NUL.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    const QString key = QString::fromLatin1(kVinylFeedbackSnapshotKey);
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    m_settings->setValue(key, snapshot);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
+        m_vinylPersistenceError = QStringLiteral(
+            "Feedback snapshot could not be saved.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    m_vinylFeedbackSnapshot = snapshot;
+    m_vinylPersistenceError.clear();
+    ++m_revision;
+    emit vinylFeedbackChanged();
+    emit vinylPersistenceErrorChanged();
+    emit changed();
     return true;
 }
 
@@ -306,6 +350,20 @@ void ProfilePreferencesStore::load() {
         valid = valid && (answered.toBool() || checked.isEmpty());
         if (valid) { m_vinylTasteAnswered = answered.toBool(); m_vinylTasteArtistIds = checked; }
         else m_vinylPersistenceError = QStringLiteral("Saved taste choices are malformed and could not be loaded.");
+    }
+
+    const QString feedbackSnapshotKey =
+        QString::fromLatin1(kVinylFeedbackSnapshotKey);
+    if (m_settings->contains(feedbackSnapshotKey)) {
+        const QVariant raw = m_settings->value(feedbackSnapshotKey);
+        const QString snapshot = raw.toString();
+        if (raw.metaType().id() == QMetaType::QString
+            && isValidVinylFeedbackSnapshot(snapshot)) {
+            m_vinylFeedbackSnapshot = snapshot;
+        } else {
+            m_vinylPersistenceError = QStringLiteral(
+                "Saved feedback snapshot is malformed and could not be loaded.");
+        }
     }
 
     m_hasShowExplicitValue =

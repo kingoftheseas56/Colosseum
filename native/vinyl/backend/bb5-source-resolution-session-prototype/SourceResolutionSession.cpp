@@ -792,8 +792,16 @@ SourceResolutionSession::beginForActive(
             QStringLiteral("Source resolution requires an exact BA1 active occurrence."));
     }
 
+    const auto &recording = active->canonicalRecording();
+    if (!recording.has_value()) {
+        return SourceResolutionResult<SourceResolutionRequest>::failure(
+            SourceResolutionErrorCode::CandidateNotSelectable,
+            QStringLiteral("activeOccurrence.canonicalRecording"),
+            QStringLiteral("Source resolution requires a verified canonical Recording MBID."));
+    }
+
     auto ordered = SourceSelector::order(
-        active->recordingMbid(),
+        *recording,
         std::move(candidates),
         m_policy,
         m_scorer,
@@ -821,7 +829,7 @@ SourceResolutionSession::beginForActive(
     ++m_sessionSequence;
     m_active.emplace(
         active->occurrenceId(),
-        active->recordingMbid(),
+        *recording,
         std::move(*ordered.value),
         playWhenReady,
         std::move(continuationOf),
@@ -895,7 +903,10 @@ bool SourceResolutionSession::coordinatorStillArms(
         return false;
 
     const QueueOccurrence *active = m_queue.activeOccurrence();
-    if (!active || active->recordingMbid() != state.recordingMbid)
+    if (!active)
+        return false;
+    const auto &recording = active->canonicalRecording();
+    if (!recording.has_value() || *recording != state.recordingMbid)
         return false;
 
     const auto &pending = m_coordinator.pendingInput();

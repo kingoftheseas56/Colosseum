@@ -35,17 +35,17 @@
 
 | Surface | Existing work | What the current evidence establishes |
 |---|---|---|
-| App entry | `native/main.cpp`, `qml/Main.qml`, `qml/TopBar.qml`, `native/vinyl/VinylAvailability.h` | Master contains the Vinyl wiring. The local pending change removes the desktop qualification-only availability gate. The ordinary full app built and launched; Hemanth confirmed the entry was present. The change is not yet committed or released. |
+| App entry | `native/main.cpp`, `qml/Main.qml`, `qml/TopBar.qml`, `native/vinyl/VinylAvailability.h` | M0 desktop availability is accepted at `008aeb812` on the development branch. The ordinary full app opens Vinyl without qualification or fixture flags. Main-branch integration and release remain separate. |
 | Actual music host | `qml/vinyl/VinylLiveWorld.qml` | Real routes exist for Home/Discover/Library, Album, Artist and Song, plus file import, identity decisions, player and queue. This is the implementation path to extend. |
 | Local import | `native/vinyl/VinylLocalSource.{h,cpp}` | Normal audio import exists, but loose files are currently represented as filename-titled, single-track releases by `Unknown artist`, with no parsed tags or cover. Metadata-rich manifests are supported; a manifest must not become a normal user's prerequisite. |
-| Listening session | `qml/vinyl/VinylLiveSession.qml` | Uses the existing mpv, Collection, Progress and Session owners; queue, import, persistence, profile, activity and handoff machinery is present. Fresh focused checks passed, but the current build's complete picker-to-playback journey was interrupted and remains open. |
+| Listening session | `native/vinyl/VinylBackendSession.*`, `qml/vinyl/VinylLiveSession.qml` | M0F adopts the native queue/session/seek/checkpoint path through existing mpv and profile stores. Actual-app import/play/replacement/repeat/seek/cold-restore/resume/privacy/clear passed with normal exits. Ordinary picker and metadata usability remain M1. |
 | Online catalogue | `scripts/vinyl/provider.py`, `native/vinyl/VinylProvider.h` | Python has artist, release, video and identity operations. The production wrapper currently admits only search/album/resolve; the actual session defaults to the local source. Online artist capability is not yet connected by these facts. |
 | Torrent playback | `VinylTorrentProvider`, `MusicTorrentMatcher`, `MusicTorrentQueryPlanner` | Source exists, but the app build explicitly excludes the adapter because current StreamServer lacks the donor's request-scoped manifest/file/cancel contract. This is a real integration blocker. |
-| Rich artist backend | Artist read, artwork, personal, media and composed-service artifacts | Authored interfaces exist outside the app build. The composed service is not linked into the current app. Earlier component results and repairs require exact-source receiving review before reuse. |
+| Rich artist backend | Artist read, artwork, personal, media and composed-service artifacts | M0R received and tested these sources in the shared backend library. The full live catalogue/Artist adapters remain M2; being compiled does not establish live page integration. |
 | Frontend reference | Recognized native artist capture and its matching `trees/A` snapshot | The reference has matching artwork assets. It differs from current production QML. It is a design reference with historical runtime defects, not a safe wholesale replacement for newer app code. |
 | Advanced features | BC/BD/BE/BF/BG backend artifacts and existing QML presentation | Substantial reusable components exist. Their presence is not evidence of live provider integration or working app controls. |
 
-Fresh results from this conversation cover desktop availability, focused local/source/session/personal-state checks and packaging guards. Earlier audio proof on `d51a085d` remains valid for that build; it does not qualify the new production-default build.
+Fresh results cover M0 availability, M0R backend receiving and M0F native adoption. The exact M0F app decoded PCM through WASAPI and passed three normal-exit app phases; see its receiving report for hashes and scope. Human ear audibility, ordinary picker usability, online sources, main-branch landing and release are separate checks.
 
 ## Reuse map: authored backend to product owner
 
@@ -134,14 +134,16 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 **Files/owners:** introduce the bounded native Vinyl service and adapters under `native/vinyl/`, reusing the Artist QObject bridge where appropriate; wire through `native/main.cpp`, `native/CMakeLists.txt`, `qml/Main.qml` and the existing live Vinyl data/session adapters. Compile shared backend implementations once rather than importing all standalone CMake graphs unchanged.
 
-- [ ] Define the host music-reference boundary with local Vault identity and optional verified MBID/edition mappings. Local music must work without network, invented MBIDs or a second identity store.
-- [ ] Adopt BA1/BA2 queue/session/coordinator behavior behind one native command/event owner. Preserve the current app's repeat-one, previous/manual wrap, shuffle and occurrence semantics; the reference coordinator only supplies Off/Queue repeat.
-- [ ] Attach BA2-D's concrete playlist-entry and seek request attribution to the existing mpv core. Preserve working host output controls and prevent simultaneous competing QML/native playback controllers.
-- [ ] Adapt BA3 checkpoints through current Progress storage and migrate existing QML snapshots. Adapt BA5 semantics through Collection and BE2 through profile preferences.
-- [ ] Integrate BA4 facts through the existing Activity/history owner, preserving privacy, activation thresholds, retention and reset behavior. Never count BA4 and the current tracker as independent listens.
-- [ ] Expose immutable presentation/query state and explicit commands/events to QML with profile generation, cancellation and shutdown ownership. Use real source/store ports; default fakes and the Artist factory's in-memory bytes port cannot become production dependencies.
-- [ ] Align the standalone artwork nil-UUID validator with BA0 while receiving the facade; keep canonical-ID checks at every exposed entry. The composed adapter already rejects nil IDs.
-- [ ] Move one complete existing local play/queue/replace/checkpoint/restart journey onto the adopted path, with before/after compatibility tests and actual-app proof.
+- [x] Define the host music-reference boundary with local Vault identity and optional verified MBID/edition mappings. Local music must work without network, invented MBIDs or a second identity store.
+- [x] Adopt BA1/BA2 queue/session/coordinator behavior behind one native command/event owner. Preserve the current app's repeat-one, previous/manual wrap, shuffle and occurrence semantics; the reference coordinator only supplies Off/Queue repeat.
+- [x] Attach BA2-D's concrete playlist-entry and seek request attribution to the existing mpv core. Preserve working host output controls and prevent simultaneous competing QML/native playback controllers.
+- [x] Adapt BA3 checkpoints through current Progress storage and migrate existing QML snapshots. Establish Collection save/unsave and BE2 preference ports; complete BA5 playlist operations in M4.
+- [x] Integrate BA4 facts through the existing Activity/history owner, preserving privacy, activation thresholds, retention and reset behavior. Never count BA4 and the current tracker as independent listens.
+- [x] Expose immutable presentation/query state and explicit commands/events to QML with profile generation, cancellation and shutdown ownership. Use real source/store ports; default fakes and the Artist factory's in-memory bytes port cannot become production dependencies.
+- [x] Align the standalone artwork nil-UUID validator with BA0 while receiving the facade; keep canonical-ID checks at every exposed entry. The composed adapter already rejects nil IDs.
+- [x] Move one complete existing local play/queue/replace/checkpoint/restart journey onto the adopted path, with before/after compatibility tests and actual-app proof.
+
+**Status (2026-10-20): M0F accepted on the development branch.** Backend 48/48, app native targets 3/3 and native-source QML bridge 13/13 pass. The normal full app completed three phases with exit 0: local import/save/play/replacement/repeat/seek, paused cold restore/resume/privacy/clear, and another restart retaining the cleared queue and earlier history. Decoder/output reported PCM through WASAPI. The dedicated pause notification repair restores Activity accumulation without duplicate history ownership. See [M0F receiving](../reviews/2026-10-20-vinyl-m0f-receiving.md) for exact-source/runtime evidence and limits. Full Artist/catalogue, acquisition, BA5 playlists and tagged-file usability remain their named milestones.
 
 **Exit gate:** one app session/player/state authority, preserved local and existing behavior, profile-safe asynchronous work, and a demonstrable full-app journey through the adopted backend. M1 then extends ingestion/usability on this foundation rather than growing a competing implementation.
 
@@ -333,4 +335,4 @@ Primary sequence: **M0 → M0R → M0F → M1 → M2 → M3 → M4 → M5 → M6
 
 ## First execution slice
 
-M0 and M0R are accepted on the development branch. Begin M0F's native ownership/identity boundary and migrate one real app listening journey using the repaired baseline. Continue with M1's ordinary metadata-rich import on that adopted path, using the recovered artist page as its visual target. In the same early window, settle M3's exact StreamServer compatibility contract. Main-branch landing and release qualification remain explicit receiving steps.
+M0, M0R and M0F are accepted on the development branch. Next is M1's ordinary metadata-rich import and app usability on the adopted native path, using the recovered artist page as its visual target. In the same early window, settle M3's exact StreamServer compatibility contract. Main-branch landing and release qualification remain explicit receiving steps.
