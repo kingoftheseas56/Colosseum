@@ -10,7 +10,9 @@
 
 **Spec:** Hemanth's 2026-10-20 request in this conversation; the artist-page native QML captures and matching snapshot explicitly recognized by Hemanth; the already covered Home, Discover, Library, Album, Song, Artist, player, queue, and taste surfaces. This is the umbrella roadmap, not authorization to redesign those surfaces.
 
-**Evidence baseline:** inspected repository revision `c059c6238ed8bd2b226a7606fd4a9f2cb039de73`, plus the four pending desktop-availability changes on `codex/vinyl-production-flow`. Planning did not rerun backend prototype suites or qualify external providers.
+**Evidence baseline:** inspected repository revision `c059c6238ed8bd2b226a7606fd4a9f2cb039de73`, plus the four pending desktop-availability changes on `codex/vinyl-production-flow`. The subsequent complete backend source review covered 178 authored code/test/fixture/build files across 32 source units and 246 unique files including contracts and retained evidence. No backend test reruns or external provider qualification occurred in that review.
+
+**Revision after the complete backend review:** this is primarily an adoption roadmap. The existing algorithms, state machines, codecs and composed journeys should be reused. Start with the repairs and native host boundary below before extending the existing QML session into another parallel backend. See the [review and source findings](../reviews/2026-10-20-vinyl-backend-review.md) and [coverage/hashes](../reviews/2026-10-20-vinyl-backend-coverage.json).
 
 **Recovered visual reference:** Arc 62 `qa/artist-native-windows-qualify-20261015/screenshots/A-albums-1280x720.png` and matching `trees/A/qml/vinyl/ArtistPreview.qml` / `VinylArtistPage.qml`, with that snapshot's matching artwork. Hemanth recognized the captures and running page in this conversation. This establishes the design reference, not acceptance of its remaining rough edges or historical code defects.
 
@@ -47,7 +49,7 @@ Fresh results from this conversation cover desktop availability, focused local/s
 
 ## Reuse map: authored backend to product owner
 
-`Arc 62 backend` below denotes the existing external development artifacts, not a runtime dependency or a new instruction source. Promote selected source and tests into portable repository locations when integrating them. Inventory and selected public interfaces were inspected; this roadmap does not claim every component currently passes.
+`Arc 62 backend` below denotes the existing external development artifacts, not a runtime dependency or a new instruction source. Promote selected source and tests into portable repository locations when integrating them. Implementations, tests, contracts and composed journeys have now been reviewed; this roadmap does not claim fresh component passes or a sealed backend.
 
 | Backend family | Authored components | Product use and ownership decision |
 |---|---|---|
@@ -104,6 +106,39 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 - [ ] Record this as availability accepted, not complete-mode acceptance.
 
 **Exit gate:** a normal build opens Vinyl from the app's own navigation with qualification/test fixtures OFF and the Vinyl environment variable unset. A native preview is insufficient.
+
+### M0R — Repair and receive the authored backend baseline
+
+**Outcome:** a portable, pinned source set with its adoption-blocking defects repaired and exact-source evidence restored. Preserve the original external artifacts; perform implementation in isolated promoted copies.
+
+**Sources:** the existing BA/BB/BC/BE/BF/Artist implementations and W4 build/journey sources identified in the backend review. Do not rewrite their working algorithms.
+
+- [ ] Recover/apply the known Artist composition fixes for plain-int `lengthMs` and non-default-constructible `SourceBatch`; prove the exact target build rather than relying on header shims or an unrelated repaired copy.
+- [ ] Bind BB5 durable source-memory restore to the expected profile with a typed mismatch. Coalesce expiry refresh and preserve current-work identity when forwarding playback failure.
+- [ ] Reconcile BA2C's continuing playback plus pending replacement with BA3 capture/restore. Preserve both resume and pending intent; a valid checkpoint must not fail during source replacement.
+- [ ] Give bounded/invalid seeks, failed commands, missing acknowledgments and timeout/EOF/cancellation defined terminal behavior while retaining exact request identity.
+- [ ] Repair the source-proven numeric/persistence, text-anchor/hash, graph normalization and rank-input boundary findings in their owning components, with focused counterexample tests from review R6–R8.
+- [ ] Repair Artist cross-lane cancellation tickets, continuation usability/revision checks and media unavailable envelope handling; qualify authoritative edition occurrences instead of the fake's permissive fallback.
+- [ ] Reproduce the required real CUE seek-time case without weakening its invariant, then run the retained composed/reference checks plus new regressions. Assert required real-test registration; an absent fixture must not reduce the qualifying set silently.
+- [ ] Freeze hashes only after passing exact-source receiving evidence. Retained final W4-I evidence is 36/37, despite earlier 37/37 records; it did not issue a sealed baseline.
+
+**Exit gate:** the repaired adopted source builds, focused counterexamples pass, required W4 journeys actually execute, and the artifact/evidence inventory is reproducible. These checks still do not replace actual-app qualification or audible output.
+
+### M0F — Adopt the backend through one native app boundary
+
+**Outcome:** the missing full BH1 service facade connects authored backend behavior to Colosseum's existing owners and pages.
+
+**Files/owners:** introduce the bounded native Vinyl service and adapters under `native/vinyl/`, reusing the Artist QObject bridge where appropriate; wire through `native/main.cpp`, `native/CMakeLists.txt`, `qml/Main.qml` and the existing live Vinyl data/session adapters. Compile shared backend implementations once rather than importing all standalone CMake graphs unchanged.
+
+- [ ] Define the host music-reference boundary with local Vault identity and optional verified MBID/edition mappings. Local music must work without network, invented MBIDs or a second identity store.
+- [ ] Adopt BA1/BA2 queue/session/coordinator behavior behind one native command/event owner. Preserve the current app's repeat-one, previous/manual wrap, shuffle and occurrence semantics; the reference coordinator only supplies Off/Queue repeat.
+- [ ] Attach BA2-D's concrete playlist-entry and seek request attribution to the existing mpv core. Preserve working host output controls and prevent simultaneous competing QML/native playback controllers.
+- [ ] Adapt BA3 checkpoints through current Progress storage and migrate existing QML snapshots. Adapt BA5 semantics through Collection and BE2 through profile preferences.
+- [ ] Integrate BA4 facts through the existing Activity/history owner, preserving privacy, activation thresholds, retention and reset behavior. Never count BA4 and the current tracker as independent listens.
+- [ ] Expose immutable presentation/query state and explicit commands/events to QML with profile generation, cancellation and shutdown ownership. Use real source/store ports; default fakes and the Artist factory's in-memory bytes port cannot become production dependencies.
+- [ ] Move one complete existing local play/queue/replace/checkpoint/restart journey onto the adopted path, with before/after compatibility tests and actual-app proof.
+
+**Exit gate:** one app session/player/state authority, preserved local and existing behavior, profile-safe asynchronous work, and a demonstrable full-app journey through the adopted backend. M1 then extends ingestion/usability on this foundation rather than growing a competing implementation.
 
 ### M1 — Make the local listening journey genuinely usable
 
@@ -202,6 +237,7 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 
 - [ ] Connect timed/plain lyrics and actual content provenance. Seeking to a cue and following playback must use the real playback clock and selected recording/version.
 - [ ] Connect the authored translation alignment and annotation models to a supported runtime content/translation adapter. The prototypes do not by themselves establish a content source or translation engine; select and verify that adapter before accepting the feature.
+- [ ] Reconcile covered screen fields with actual data contracts: edition label/catalogue number, annotation votes and artist-verified flags are absent from the reference shapes. Extend those shapes only with genuine source semantics/provenance; otherwise present an intentional absent-data state.
 - [ ] Complete notes/credits/context navigation, preserving language, selected cue and route state. Thin-data tracks remain readable and playable.
 - [ ] Map real mpv/device observations into signal information; show unknown values honestly and distinguish source format from actual output.
 - [ ] Connect related video selection and playback through the existing player/audio ownership. Restore a coherent audio session after leaving video; replace the current no-op video action only when the path actually works.
@@ -220,11 +256,22 @@ All entries are relative to the existing Arc 62 `backend/` artifact area. Build-
 - [ ] Derive candidates from actual listening/library/taste evidence and real catalogue/context relationships, using the authored deterministic ranker and explanation evidence.
 - [ ] Make Home resume/recent/library/recommendation rows and Discover filters/lists/search useful without manufacturing popularity or filling gaps with unrelated items.
 - [ ] Apply deduplication, missing-data, repeat exposure and offline/cached behavior; respect privacy/retention choices when deriving recommendations.
+- [ ] Define live generator contribution deduplication and eligibility filters, artist-wide versus exact-entity suppression, and passive-versus-deliberate completion policy before exposing recommendation claims. Persist exposure through the current profile owner and count actual shown items, not every computed ranking.
 - [ ] Verify a fresh profile, sparse library, established listener, changed taste and offline profile in the running app.
 
 **Checks:** promoted BE/BG tests, world-list/personal-state/privacy tests, deterministic ranking fixtures and real Home/Discover journeys.
 
 **Exit gate:** profile changes and real listening/taste choices affect relevant rows predictably; explanations reflect actual evidence and offline operation retains useful local music.
+
+### M7R — Implement radio/autoplay when promoting that planned capability
+
+**Outcome:** BE4 generates bounded, cancellable sequences from qualified recommendation candidates and feeds the existing queue/session. BE4 is explicitly deferred in the authored backend; no existing sequencer was found to adopt.
+
+- [ ] Implement sequence ownership, duplicate/fatigue/admission policy and refill behavior over accepted M7 candidates, preserving explicit User versus Radio enqueue origin.
+- [ ] Make stop/manual queue changes/profile changes cancel pending refill; a late result must not restart or repopulate a stopped session.
+- [ ] Test actual in-app radio/autoplay with sparse candidates, exhaustion, failed source resolution and restart policy; keep passive listening distinct in history/taste derivation.
+
+This capability is explicit remaining development. It is not supplied by a candidate enum, ranker or a test fixture tagged Radio.
 
 ### M8 — Harden the whole app and ship desktop Vinyl
 
@@ -253,7 +300,7 @@ This is the follow-on platform milestone. It does not block a clearly scoped Win
 
 ## Dependencies and execution policy
 
-Primary sequence: **M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8**. M9 follows per target platform.
+Primary sequence: **M0 → M0R → M0F → M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8**. M7R follows M7 when radio/autoplay is promoted into the release scope; M9 follows per target platform.
 
 - Perform the bounded M3 transport compatibility investigation after M0 so its risk is understood early; do not wait for finished recommendation or visual polish to discover a transport redesign requirement.
 - Refine each page while its live data/operation is being connected. M5 is a final cross-page quality gate, not a license to defer frontend work until all backend milestones finish.
@@ -261,6 +308,7 @@ Primary sequence: **M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8**
 - Once core identities/playback are stable, M6 content work and M7 ranking work can progress independently if execution is explicitly delegated later. Their final acceptance remains inside the same app.
 - Keep an implementation slice small enough to review independently: precise source revision, current owner, actual UI journey, focused checks and a compact receipt.
 - Treat earlier passes as evidence to reuse only when exact source/dependency/environment equivalence is established. New code, new wiring or a new platform needs its affected checks.
+- Preserve named backlog distinctions: gapless/crossfade, multi-FILE CUE, specific-edition saves, fingerprint escalation, optional sync/scrobbling/ListenBrainz, persistent audio/video preference and learned ranking are not implemented merely because the baseline domain exists. Scope each deliberately rather than silently claiming it complete or making every optional extension a desktop-release prerequisite.
 - Dates should be assigned after M1 and the M3 compatibility investigation establish throughput and the transport risk; this roadmap does not invent calendar certainty.
 
 ## Desktop completion matrix
@@ -280,4 +328,4 @@ Primary sequence: **M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8**
 
 ## First execution slice
 
-Finish M0 and the M1 ordinary-import journey first. Use the recovered artist page as the visual target during that work. In the same early development window, settle the exact M3 StreamServer compatibility contract. This produces a usable in-app foundation and exposes the largest technical integration risk without starting another detached world.
+Finish M0, repair and receive the authored backend through M0R, then establish M0F's native ownership/identity boundary and migrate one real app listening journey. Continue with M1's ordinary metadata-rich import on that adopted path, using the recovered artist page as its visual target. In the same early window, settle M3's exact StreamServer compatibility contract. This reuses the backend already written and exposes integration risk without building another detached world.
