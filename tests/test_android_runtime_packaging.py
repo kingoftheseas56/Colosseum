@@ -13,10 +13,18 @@ The check proves, without changing product behavior:
      every assets/colosseum-runtime member matches the overlay hash-for-hash,
      with no missing or extra members.
 
+  4. the overlay is exactly what the native/cmake/android.cmake rules produce
+     from source (exclusions, +android discovery placeholders, the staged
+     reader2/qmldir), so a stale but self-consistent overlay fails too.
+
 Skips when the generated overlay does not exist (machine without the Android
-build tree). Stdlib only; runs under python -I.
+build tree). COLOSSEUM_REQUIRE_PACKAGING_GATE=1 (set by
+scripts/android/build_apk.sh) turns every skip into a failure, so an APK is
+never qualified by skipped checks. Stdlib only; runs under python -I.
 """
 import hashlib
+import pathlib
+import re
 import os
 import sys
 import unittest
@@ -30,6 +38,56 @@ OVERLAY_RUNTIME = os.path.join(
     ANDROID_BUILD_DIR, "android-package", "assets", "colosseum-runtime"
 )
 DEFAULT_CANDIDATE = os.environ.get("NUVIO_ANDROID_PACKAGING_CANDIDATE", "")
+REQUIRE_GATE = os.environ.get("COLOSSEUM_REQUIRE_PACKAGING_GATE") == "1"
+
+# Mirrors native/cmake/android.cmake; keep the two in step.
+QML_EXCLUDES = (
+    r"^reader2/Paper[.]qml$", r"^player2/", r"^player2host/", r"^feria/",
+    r"(^|/)Vault[^/]*[.](qml|js)$", r"^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$",
+    r"(^|/)[.][^/]+",
+)
+RUNTIME_EXCLUDES = (r"(^|/)[.][^/]+", r"^resources/reader2/")
+SELECTOR_PLACEHOLDER = (b"// Android selector discovery placeholder; implementation is in +android.\n"
+                        b"import QtQuick\nItem {}\n")
+GENERATED_MANIFESTS = ("qml-build.manifest", "runtime-files.manifest")
+
+
+def expected_overlay(repo_root):
+    """Runtime overlay hashes android.cmake should generate from this source."""
+    repo = pathlib.Path(repo_root)
+    expected = {}
+    qml_root = repo / "qml"
+    for path in sorted(qml_root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(qml_root).as_posix()
+        if any(re.search(pattern, rel) for pattern in QML_EXCLUDES):
+            continue
+        data = path.read_bytes()
+        if ("+android/" not in "/" + rel and rel.endswith(".qml")
+                and (path.parent / "+android" / path.name).is_file()):
+            data = SELECTOR_PLACEHOLDER
+        if rel == "reader2/qmldir":
+            data = data.replace(b"Paper Paper.qml\r\n", b"").replace(b"Paper Paper.qml\n", b"")
+        expected["qml/" + rel] = _sha256_bytes(data)
+    for runtime_dir in ("assets", "resources"):
+        for path in sorted((repo / runtime_dir).rglob("*")):
+            if not path.is_file():
+                continue
+            rel = path.relative_to(repo).as_posix()
+            if any(re.search(pattern, rel) for pattern in RUNTIME_EXCLUDES):
+                continue
+            expected[rel] = _sha256_file(str(path))
+    return expected
+
+
+def overlay_drift(expected, actual):
+    """Missing, extra and changed members between two {rel: sha256} maps."""
+    drift = [f"missing {rel}" for rel in sorted(expected.keys() - actual.keys())]
+    drift += [f"extra {rel}" for rel in sorted(actual.keys() - expected.keys())]
+    drift += [f"changed {rel}" for rel in sorted(expected.keys() & actual.keys())
+              if expected[rel] != actual[rel]]
+    return drift
 
 
 def _sha256_file(path):
@@ -119,6 +177,11 @@ class AndroidRuntimePackaging(unittest.TestCase):
         for rel in actual:
             self.assertEqual(listed.get(rel), actual[rel], f"manifest hash drift: {rel}")
 
+    def test_overlay_matches_source_rules(self):
+        _, entries = _tree_hashes(OVERLAY_RUNTIME, exclude_names=GENERATED_MANIFESTS)
+        drift = overlay_drift(expected_overlay(REPO_ROOT), dict(entries))
+        self.assertEqual(drift, [], "generated overlay differs from source: " + "; ".join(drift[:20]))
+
     def test_candidate_matches_overlay(self):
         candidate = DEFAULT_CANDIDATE
         if not candidate:
@@ -157,5 +220,25 @@ class AndroidRuntimePackaging(unittest.TestCase):
             )
 
 
+class OverlayDriftNegativeControl(unittest.TestCase):
+    """The comparison itself must catch a stale, missing or extra member."""
+
+    def test_stale_missing_and_extra_members_are_reported(self):
+        expected = {"qml/Main.qml": "a" * 64, "qml/TopBar.qml": "b" * 64}
+        stale = {"qml/Main.qml": "c" * 64, "qml/Extra.qml": "d" * 64}
+        self.assertEqual(
+            overlay_drift(expected, stale),
+            ["missing qml/TopBar.qml", "extra qml/Extra.qml", "changed qml/Main.qml"],
+        )
+        self.assertEqual(overlay_drift(expected, dict(expected)), [])
+
+
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    if not REQUIRE_GATE:
+        unittest.main(verbosity=2)
+    result = unittest.main(verbosity=2, exit=False).result
+    if result.skipped or not result.wasSuccessful():
+        print(f"PACKAGING_GATE_FAILED skipped={len(result.skipped)} "
+              f"failures={len(result.failures)} errors={len(result.errors)}", file=sys.stderr)
+        sys.exit(1)
+    print(f"PACKAGING_GATE_OK tests={result.testsRun} skipped=0")

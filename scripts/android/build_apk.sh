@@ -63,6 +63,11 @@ cmake --build "$BUILD_DIR" --target apk --parallel "$JOBS"
 apk=$(find "$BUILD_DIR" -path '*/outputs/apk/*' -name '*.apk' -newer "$BUILD_DIR/CMakeCache.txt" | head -1)
 [[ -n "$apk" ]] || apk=$(find "$BUILD_DIR" -path '*/outputs/apk/*' -name '*.apk' | head -1)
 [[ -n "$apk" ]] || { echo "no APK produced under $BUILD_DIR" >&2; exit 1; }
+# Correspondence, not just self-consistency: source -> generated overlay -> APK
+# members, with skips treated as failures.
+COLOSSEUM_REQUIRE_PACKAGING_GATE=1 NUVIO_ANDROID_BUILD_DIR="$BUILD_DIR" \
+    NUVIO_ANDROID_PACKAGING_CANDIDATE="$apk" \
+    python3 -I "$REPO/tests/test_android_runtime_packaging.py"
 python3 "$REPO/tests/verify_android_apk_runtime_bundle.py" "$apk" \
     --qmlcachegen "$COLOSSEUM_QT_HOST_ROOT/libexec/qmlcachegen"
 bash "$REPO/scripts/android/verify_apk_openssl_pair.sh" "$apk" "$ABI"
