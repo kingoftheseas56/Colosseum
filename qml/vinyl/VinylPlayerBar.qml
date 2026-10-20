@@ -32,7 +32,11 @@ Item {
             "▹": "<rect x=\"2.4\" y=\"4.2\" width=\"15.2\" height=\"11.6\" rx=\"2.4\"/><path d=\"M8.4 7.6v4.8l4-2.4z\"/>",
             "≡": "<path d=\"M3 4.6h14v9H9.4L6 16.8v-3.2H3z\"/><path d=\"M6.4 7.8h7.2M6.4 10.4h4.6\"/>",
             "♙": "<circle cx=\"10\" cy=\"7\" r=\"3.2\"/><path d=\"M3.8 17c.6-3.2 3-4.8 6.2-4.8s5.600 1.600 6.200 4.800\"/>",
-            "☷": "<path d=\"M3.400 5.400h9.200M3.400 10h9.200M3.400 14.600h5.600M13.600 12v5.200l3.800-2.600z\"/>"
+            "☷": "<path d=\"M3.400 5.400h9.200M3.400 10h9.200M3.400 14.600h5.600M13.600 12v5.200l3.800-2.600z\"/>",
+            "torrent": "<path d=\"M4 3v7a6 6 0 0 0 12 0V3h-4v7a2 2 0 0 1-4 0V3z\"/><path d=\"M4 6h4M12 6h4\"/>",
+            "youtube": "<rect x=\"2\" y=\"4\" width=\"16\" height=\"12\" rx=\"3\"/><path d=\"m8 7 5 3-5 3z\"/>",
+            "local": "<circle cx=\"10\" cy=\"10\" r=\"7\"/><circle cx=\"10\" cy=\"10\" r=\"1.7\"/><path d=\"M5 10a5 5 0 0 1 5-5\"/>",
+            "unknown": "<path d=\"M8 14V4l8-1v9M8 7l8-1\"/><ellipse cx=\"5.5\" cy=\"14\" rx=\"2.5\" ry=\"2\"/><ellipse cx=\"13.5\" cy=\"12\" rx=\"2.5\" ry=\"2\"/>"
         };
         return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="' + (selected ? theme.gold : theme.inkDim) + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + paths[key] + '</svg>');
     }
@@ -40,6 +44,7 @@ Item {
         id: control
         property string glyph
         property bool selected: false
+        focusOnPointer: false
         width: 34
         height: 34
         opacity: enabled ? 1 : 0.34
@@ -55,33 +60,33 @@ Item {
             height: 17
             source: root.iconSvg(control.glyph, control.selected)
         }
-        ToolTip.visible: hovered
-        ToolTip.text: accessibleName
     }
     KeyboardAction {
         objectName: "vinylBarOpenSong"
-        anchors.fill: parent
-        enabled: root.page === "album"
-        accessibleName: "Open playing song"
-        onTriggered: root.songRequested()
-    }
-    Image {
-        id: cover
+        focusOnPointer: false
         x: 12
         y: 13
         width: 46
         height: 46
-        source: root.pageData.artwork(root.pageData.playingEdition.cover)
-        fillMode: Image.PreserveAspectCrop
+        focusRadius: 6
+        enabled: root.page !== "song" && (root.pageData.playingIndex === undefined || root.pageData.playingIndex >= 0)
+        accessibleName: "Open playing song"
+        onTriggered: root.songRequested()
+        Image {
+            id: cover
+            anchors.fill: parent
+            source: root.pageData.artwork(root.pageData.playingEdition.cover)
+            fillMode: Image.PreserveAspectCrop
+        }
     }
-    KeyboardAction {
+    Item {
         objectName: "vinylBarNowPlaying"
         x: 70
         y: 12
         width: Math.max(120, root.width * 0.25 - 75)
         height: 48
-        accessibleName: "Open playing song"
-        onTriggered: root.songRequested()
+        Accessible.role: Accessible.StaticText
+        Accessible.name: root.pageData.playingTrack.title
         Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
@@ -111,6 +116,7 @@ Item {
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
+            focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
             width: 32
@@ -127,6 +133,9 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarPlay"
+            focusOnPointer: false
+            focusRadius: 18
+            focusPrimary: true
             width: 36
             height: 36
             accessibleName: root.busy ? "Waiting for source" : "Play or pause"
@@ -153,6 +162,7 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarNext"
+            focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
             width: 32
@@ -207,7 +217,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: mouse => { seek.forceActiveFocus(); root.pageData.seek(mouse.x / width * root.pageData.duration); }
+            onClicked: mouse => root.pageData.seek(mouse.x / width * root.pageData.duration)
         }
         Text {
             anchors.right: parent.left
@@ -280,21 +290,24 @@ Item {
             accessibleName: "Queue"
             onTriggered: root.pageData.queueRequested()
         }
-        Rectangle {
-            width: root.busy ? 144 : 99
+        Item {
+            id: sourceIndicator
+            // Passive provenance symbol; labels are accessibility-only.
+            objectName: "vinylBarSourceIndicator"
+            readonly property string kind: root.pageData.sourceKind || ""
+            readonly property string sourceName: kind==="torrent" ? "Torrent" : kind==="youtube" ? "YouTube" : kind==="local" ? "Local file" : "Audio source"
+            readonly property string description: root.busy ? (root.pageData.sourceState==="retrying" ? "Trying another source" : "Finding a source") : sourceName+(kind==="youtube" && root.pageData.qualityLabel ? " · "+root.pageData.qualityLabel : "")
+            width: 28
             height: 34
-            radius: 10
-            color: theme.glassTint
-            border.color: theme.edge
-            Text {
-                id: chip
-                objectName: "vinylBarChip"
+            Accessible.role: Accessible.StaticText
+            Accessible.name: sourceIndicator.description
+            Image {
                 anchors.centerIn: parent
-                text: root.pageData.sourceState === "finding" ? "Finding a source" : root.pageData.sourceState === "retrying" ? "Trying another source" : (root.pageData.qualityLabel !== undefined ? root.pageData.qualityLabel : "AAC · 256 kbps")
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 10
+                width: 18;height:18
+                source: root.iconSvg(["torrent","youtube","local"].indexOf(sourceIndicator.kind)>=0 ? sourceIndicator.kind : "unknown",false)
+                opacity:0.8;visible:!root.busy
             }
+            BusyIndicator {anchors.centerIn:parent;width:22;height:22;running:root.busy;visible:root.busy}
         }
     }
 }

@@ -9,104 +9,159 @@ Popup {
     required property var pageData
     required property Item backdrop
     property Item returnFocus: null
+    property bool keyboardSelection: false
     signal songRequested()
-    width: Math.min(720, parent ? parent.width - 32 : 720)
-    height: Math.min(590, parent ? parent.height - 32 : 590)
-    x: parent ? (parent.width-width)/2 : 0
-    y: parent ? (parent.height-height)/2 : 0
+    parent: Overlay.overlay
+    anchors.centerIn: parent
+    width: Math.min(740, parent ? parent.width - 32 : 740)
+    height: Math.min(620, parent ? parent.height - 48 : 620)
+    padding: width < 540 ? 16 : 24
     modal: true
     focus: true
-    padding: 22
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    onAboutToShow: {returnFocus=backdrop.Window.window ? backdrop.Window.window.activeFocusItem : null;}
-    onOpened: list.forceActiveFocus()
-    onClosed: {if(returnFocus) returnFocus.forceActiveFocus();}
-    Theme {id: theme}
-    background: Rectangle {color: theme.biblioWashBottom;radius:22;border.color:theme.edge}
+    onAboutToShow: returnFocus=backdrop.Window.window ? backdrop.Window.window.activeFocusItem : null
+    onOpened: {
+        keyboardSelection=false;
+        list.currentIndex=Math.max(0,pageData.queueIndex);
+        list.positionViewAtIndex(list.currentIndex,ListView.Contain);
+        list.forceActiveFocus(Qt.PopupFocusReason);
+    }
+    onClosed: {rowMenu.close();if(returnFocus)returnFocus.forceActiveFocus(Qt.PopupFocusReason);}
+    Theme { id: theme }
+    background: Glass {backdrop:root.backdrop;radius:22;tint:0.1;scrim:0.94}
+    Overlay.modal: Rectangle {color:Qt.rgba(0,0,0,0.55)}
+
     component Action: KeyboardAction {
         id: action
-        property string label
-        width: Math.max(46, textItem.implicitWidth+20)
+        property string label: ""
+        property url icon: ""
+        property bool iconOnly: false
+        property bool subtleFocus: false
+        property bool selected: false
+        width: iconOnly || icon.toString().length ? 34 : Math.max(44,caption.implicitWidth+20)
         height: 34
+        focusRadius: 8
+        focusOnPointer: false
+        showFocusFrame: !subtleFocus
         accessibleName: label
-        opacity: enabled ? 1 : 0.35
-        Rectangle {anchors.fill:parent;radius:9;color:action.interactionActive ? theme.glassHi : theme.glassTint;border.color:theme.edge}
-        Text {id:textItem;anchors.centerIn:parent;text:action.label;color:theme.ink;font.family:theme.ui;font.pixelSize:11}
+        opacity: enabled ? 1 : 0.3
+        Rectangle {anchors.fill:parent;radius:8;color:action.interactionActive ? theme.glassTint : "transparent"}
+        Rectangle {x:0;anchors.verticalCenter:parent.verticalCenter;width:2;height:16;radius:1;color:theme.inkDim;visible:action.subtleFocus&&action.activeFocus}
+        Image {anchors.centerIn:parent;width:16;height:16;source:action.icon;visible:action.icon.toString().length>0;opacity:0.85}
+        Text {id:caption;anchors.centerIn:parent;visible:!action.iconOnly&&!action.icon.toString().length;text:action.label;textFormat:Text.PlainText;color:action.selected ? theme.gold : theme.inkDim;font.family:theme.ui;font.pixelSize:12}
     }
-    contentItem: Column {
-        spacing: 14
-        Row {
-            width: parent.width
-            spacing: 14
-            BackAction {id:closeButton;objectName:"vinylQueueClose";onTriggered:root.close()}
-            Text {text:"Queue · "+root.pageData.queue.length;color:theme.ink;font.family:theme.display;font.pixelSize:25}
+    contentItem: Item {
+        Item {
+            id: heading
+            width:parent.width;height:48
+            Text {text:"Queue";color:theme.ink;font.family:theme.display;font.pixelSize:27}
+            Text {
+                y:34;text:root.pageData.queue.length+(root.pageData.queue.length===1 ? " track" : " tracks")
+                color:theme.inkDimmer;font.family:theme.ui;font.pixelSize:11
+            }
+            Action {objectName:"vinylQueueClose";anchors.right:parent.right;label:"Close queue";icon:"../../assets/icons/reader2/close.svg";onTriggered:root.close()}
         }
         Flow {
             id: controls
-            width: parent.width
-            spacing: 7
-            Action {objectName:"vinylQueuePrevious";label:"Previous";enabled:root.pageData.canPrevious;onTriggered:root.pageData.next(-1)}
-            Action {objectName:"vinylQueueNext";label:"Next";enabled:root.pageData.canNext;onTriggered:root.pageData.next(1)}
-            Action {objectName:"vinylQueueShuffle";label:root.pageData.shuffleEnabled ? "Shuffle on" : "Shuffle off";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
-            Action {objectName:"vinylQueueRepeat";label:"Repeat: "+root.pageData.repeatMode;onTriggered:root.pageData.cycleRepeat()}
+            y:heading.height+14;width:parent.width;spacing:6
+            Action {objectName:"vinylQueuePrevious";label:"Previous track";icon:"../../assets/icons/lucide/skip-back.svg";enabled:root.pageData.canPrevious;onTriggered:root.pageData.next(-1)}
+            Action {objectName:"vinylQueueNext";label:"Next track";icon:"../../assets/icons/lucide/skip-forward.svg";enabled:root.pageData.canNext;onTriggered:root.pageData.next(1)}
+            Action {objectName:"vinylQueueShuffle";label:"Shuffle";selected:root.pageData.shuffleEnabled;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
+            Action {objectName:"vinylQueueRepeat";label:root.pageData.repeatMode==="off" ? "Repeat" : "Repeat: "+root.pageData.repeatMode;selected:root.pageData.repeatMode!=="off";onTriggered:root.pageData.cycleRepeat()}
             Action {objectName:"vinylQueueClear";label:"Clear";enabled:root.pageData.queue.length>0;onTriggered:root.pageData.clearQueue()}
         }
-        Text {
-            width:parent.width;visible:root.pageData.queue.length===0
-            text:"Your queue is empty. Play a release or add tracks from an album."
-            color:theme.inkDim;font.family:theme.ui;font.pixelSize:14;wrapMode:Text.WordWrap
-        }
+        Rectangle {id:rule;y:controls.y+controls.height+12;width:parent.width;height:1;color:theme.edge;opacity:0.45}
         ListView {
             id: list
             objectName: "vinylQueueList"
-            width: parent.width
-            height: Math.max(60,root.availableHeight-controls.height-64)
-            clip:true
-            spacing:6
+            y:rule.y+12;width:parent.width;height:Math.max(0,parent.height-y)
+            clip:true;spacing:0
             model:root.pageData.queue
             currentIndex:root.pageData.queueIndex
-            activeFocusOnTab: true
-            Accessible.role: Accessible.List
-            Accessible.name: "Music queue"
-            Accessible.description: "Up and down select a track. Enter plays it. Delete removes it. Control with up or down moves it."
-            Keys.onPressed: event => {
-                if(!count) return;
+            activeFocusOnTab:true
+            Accessible.role:Accessible.List
+            Accessible.name:"Music queue"
+            Accessible.description:"Up and down select a track. Enter plays it. Delete removes it. Control with up or down moves it."
+            Keys.onPressed:event=>{
+                if(!count)return;
                 var selected=Math.max(0,currentIndex);
-                if(event.key===Qt.Key_Up || event.key===Qt.Key_Down) {
+                if(event.key===Qt.Key_Up || event.key===Qt.Key_Down){
+                    root.keyboardSelection=true;
                     var target=Math.max(0,Math.min(count-1,selected+(event.key===Qt.Key_Up ? -1 : 1)));
-                    if(event.modifiers & Qt.ControlModifier) root.pageData.moveQueue(selected,target);
+                    if(event.modifiers & Qt.ControlModifier)root.pageData.moveQueue(selected,target);
                     currentIndex=target;positionViewAtIndex(target,ListView.Contain);
-                } else if(event.key===Qt.Key_Return || event.key===Qt.Key_Enter) root.pageData.playQueue(selected);
-                else if(event.key===Qt.Key_Delete) {root.pageData.removeQueue(selected);currentIndex=Math.min(selected,count-1);}
-                else return;
+                }else if(event.key===Qt.Key_Return || event.key===Qt.Key_Enter)root.pageData.playQueue(selected);
+                else if(event.key===Qt.Key_Delete){root.pageData.removeQueue(selected);currentIndex=Math.min(selected,count-1);}
+                else if(event.key===Qt.Key_Menu || (event.key===Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))){
+                    var row=itemAtIndex(selected);if(row)root.openRowMenu(row.modelData.queueId,row);
+                }else return;
                 event.accepted=true;
             }
-            ScrollBar.vertical: ScrollBar {policy:ScrollBar.AlwaysOff}
-            delegate: Rectangle {
-                id: row
+            ScrollBar.vertical:ScrollBar {policy:ScrollBar.AlwaysOff}
+            delegate:Item {
+                id:row
                 required property var modelData
                 required property int index
-                width:list.width;height:68;radius:10
-                color:index===root.pageData.queueIndex ? theme.glassHi : theme.glassTint
-                border.color:list.activeFocus && list.currentIndex===index ? theme.gold : theme.edge
+                readonly property bool playing:index===root.pageData.queueIndex
+                readonly property bool selected:(list.activeFocus && root.keyboardSelection && list.currentIndex===index)||playAction.activeFocus
+                width:list.width;height:54
+                HoverHandler {id:rowHover}
+                Rectangle {anchors.fill:parent;radius:8;color:theme.glassTint;opacity:rowHover.hovered||row.selected ? 0.55 : row.playing ? 0.22 : 0}
+                Rectangle {x:0;anchors.verticalCenter:parent.verticalCenter;width:2;height:18;radius:1;color:theme.inkDim;visible:row.selected}
                 KeyboardAction {
+                    id:playAction
                     objectName:"vinylQueuePlay_"+row.index
-                    x:10;y:4;width:Math.max(80,parent.width-160);height:60
-                    accessibleName:"Play "+row.modelData.title
-                    onTriggered:root.pageData.playQueue(row.index)
+                    width:Math.max(0,parent.width-38);height:parent.height
+                    focusOnPointer:false;showFocusFrame:false
+                    accessibleName:"Play "+row.modelData.title+(row.playing ? ", now playing" : "")
+                    onActiveFocusChanged:if(activeFocus)list.currentIndex=row.index
+                    onTriggered:{root.keyboardSelection=false;list.currentIndex=row.index;list.forceActiveFocus(Qt.MouseFocusReason);root.pageData.playQueue(row.index);}
+                    Text {x:8;anchors.verticalCenter:parent.verticalCenter;width:25;text:String(row.index+1).padStart(2,"0");color:row.playing ? theme.gold : theme.inkDimmer;font.family:theme.ui;font.pixelSize:11}
+                    RoundedPosterImage {x:40;y:9;width:36;height:36;radius:5;sources:(row.modelData.cover || row.modelData.edition.cover) ? [root.pageData.artwork(row.modelData.cover || row.modelData.edition.cover)] : []}
                     Column {
-                        anchors.verticalCenter:parent.verticalCenter;width:parent.width;spacing:4
-                        Text {width:parent.width;text:(row.index===root.pageData.queueIndex ? "▶  " : "")+row.modelData.title;elide:Text.ElideRight;color:theme.ink;font.family:theme.ui;font.pixelSize:13}
-                        Text {width:parent.width;text:row.modelData.artist+" · "+row.modelData.edition.name+" · Disc "+row.modelData.discNumber;elide:Text.ElideRight;color:theme.inkDim;font.family:theme.ui;font.pixelSize:10}
+                        x:88;anchors.verticalCenter:parent.verticalCenter;width:Math.max(0,parent.width-x-58);spacing:3
+                        Text {width:parent.width;text:row.modelData.title;textFormat:Text.PlainText;elide:Text.ElideRight;color:theme.ink;font.family:theme.ui;font.pixelSize:13;font.weight:row.playing ? Font.DemiBold : Font.Normal}
+                        Text {width:parent.width;text:row.modelData.artist+" · "+row.modelData.edition.name+(row.modelData.edition.discs.length>1 ? " · Disc "+row.modelData.discNumber : "");textFormat:Text.PlainText;elide:Text.ElideRight;color:theme.inkDimmer;font.family:theme.ui;font.pixelSize:10}
                     }
+                    Text {anchors.right:parent.right;anchors.rightMargin:10;anchors.verticalCenter:parent.verticalCenter;text:row.modelData.seconds>0 ? root.pageData.formatTime(row.modelData.seconds) : "";color:theme.inkDimmer;font.family:theme.ui;font.pixelSize:11}
                 }
-                Row {
-                    anchors.right:parent.right;anchors.rightMargin:9;anchors.verticalCenter:parent.verticalCenter;spacing:5
-                    Action {objectName:"vinylQueueUp_"+row.index;label:"↑";accessibleName:"Move up "+row.modelData.title;enabled:row.index>0;onTriggered:root.pageData.moveQueue(row.index,row.index-1)}
-                    Action {objectName:"vinylQueueDown_"+row.index;label:"↓";accessibleName:"Move down "+row.modelData.title;enabled:row.index<root.pageData.queue.length-1;onTriggered:root.pageData.moveQueue(row.index,row.index+1)}
-                    Action {objectName:"vinylQueueRemove_"+row.index;label:"×";accessibleName:"Remove "+row.modelData.title;onTriggered:root.pageData.removeQueue(row.index)}
+                Action {
+                    objectName:"vinylQueueMore_"+row.index
+                    anchors.right:parent.right;anchors.verticalCenter:parent.verticalCenter
+                    label:"Track actions for "+row.modelData.title
+                    iconOnly:true
+                    onTriggered:root.openRowMenu(row.modelData.queueId,parent)
+                    Text {anchors.centerIn:parent;text:"⋯";color:theme.inkDim;font.family:theme.ui;font.pixelSize:20}
                 }
             }
+        }
+        Text {
+            visible:list.count===0;anchors.centerIn:list;width:Math.min(300,list.width)
+            text:"Your queue is empty";color:theme.inkDim;font.family:theme.display;font.pixelSize:22;horizontalAlignment:Text.AlignHCenter;wrapMode:Text.WordWrap
+        }
+    }
+    function openRowMenu(queueId,row){
+        rowMenu.queueId=queueId;
+        var point=row.mapToItem(root.contentItem,0,0);
+        rowMenu.x=root.availableWidth-rowMenu.width;
+        rowMenu.y=Math.max(0,Math.min(root.availableHeight-rowMenu.height,point.y+row.height));
+        rowMenu.open();
+    }
+    Popup {
+        id:rowMenu
+        parent:root.contentItem
+        objectName:"vinylQueueTrackMenu"
+        property string queueId:""
+        readonly property int queueIndex:root.pageData.queue.findIndex(row=>row.queueId===queueId)
+        width:200;padding:6;focus:true
+        closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
+        background:Rectangle {radius:12;color:theme.biblioWashTop;border.color:theme.edge}
+        onOpened:(menuUp.enabled ? menuUp : menuDown.enabled ? menuDown : menuRemove).forceActiveFocus(Qt.PopupFocusReason)
+        onClosed:if(root.opened)list.forceActiveFocus(Qt.PopupFocusReason)
+        contentItem:Column {
+            Action {id:menuUp;objectName:"vinylQueueMenuUp";width:parent.width;label:"Move up";subtleFocus:true;enabled:rowMenu.queueIndex>0;Keys.onDownPressed:(menuDown.enabled ? menuDown : menuRemove).forceActiveFocus(Qt.TabFocusReason);onTriggered:{var i=rowMenu.queueIndex;rowMenu.close();root.pageData.moveQueue(i,i-1);}}
+            Action {id:menuDown;objectName:"vinylQueueMenuDown";width:parent.width;label:"Move down";subtleFocus:true;enabled:rowMenu.queueIndex>=0&&rowMenu.queueIndex<root.pageData.queue.length-1;Keys.onDownPressed:menuRemove.forceActiveFocus(Qt.TabFocusReason);Keys.onUpPressed:if(menuUp.enabled)menuUp.forceActiveFocus(Qt.BacktabFocusReason);onTriggered:{var i=rowMenu.queueIndex;rowMenu.close();root.pageData.moveQueue(i,i+1);}}
+            Action {id:menuRemove;objectName:"vinylQueueMenuRemove";width:parent.width;label:"Remove from queue";subtleFocus:true;enabled:rowMenu.queueIndex>=0;Keys.onUpPressed:(menuDown.enabled ? menuDown : menuUp).forceActiveFocus(Qt.BacktabFocusReason);onTriggered:{var i=rowMenu.queueIndex;rowMenu.close();root.pageData.removeQueue(i);}}
         }
     }
 }
