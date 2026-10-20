@@ -1,0 +1,94 @@
+{
+ "task": "claude-android-cloud-013-20261020",
+ "import_sha": "5e60f3630e2d7f56ae49556c0472c4b5391dcfe2",
+ "upstream_app_sha": "fdd23f09e8b631f5c165e84d969895c99f520a28",
+ "worker_branch": "claude/android-stabilization-013-20261020",
+ "final_arm64_apk": {
+  "label": "FINAL ARM64 diagnostic APK",
+  "file": "colosseum-arm64-v8a-debug.apk",
+  "bytes": 253345182,
+  "sha256": "8307da040620a0d5013063e347c18943529dab71cd008653ded4385313d3cb1e",
+  "source_commit": "37fbb576d4444657f442377abbbd1d596078fd71",
+  "source_note": "commits after 37fbb57 change only cloud-handoff/android-013/claude-013 (docs/results)",
+  "package": "org.qtproject.example.colosseum.nuvio013cloud",
+  "versionName": "1.1.9",
+  "versionCode": 1,
+  "minSdk": 28,
+  "targetSdk": 36,
+  "abi": "arm64-v8a only",
+  "zipalign_16k": "OK",
+  "signer": {
+   "dn": "CN=Colosseum task013 Cloud diagnostic debug, O=Colosseum diagnostic",
+   "cert_sha256": "c339570417e3ed3f3aa41aaea68fc602153826c60c8c231b38bf672b9479741e",
+   "note": "new Cloud debug key; cannot update the older Nokia diagnostic package"
+  },
+  "members": {
+   "lib/arm64-v8a/libnuvio_engine.so": "736ccdf86844a44d68a6843a8dd6d04dba22a50ff0ccda92ffc38000e121851a",
+   "lib/arm64-v8a/libcolosseum_arm64-v8a.so": "6c08f06b2ea570b4d189d8f275cf82ee571e93a6c842422a0e34c551fec074d5"
+  },
+  "engine_provenance": "hardened prefix, stamp-verified, pin 99a18601fa12 + vendored 0001-android-hardening.patch; packaged member == prefix library",
+  "runtime": {
+   "members": 739,
+   "bundleSha256": "30797815280611e227b8451442c3d85da95ce1f233ec1da67754bb20a88a0d40",
+   "qmlTreeSha256": "c2bfb33d96d709c41ecf13e254eabdcdbc4a6d57d3473e41193fb127f26ef994",
+   "overlay_bundleSha256_equal": true,
+   "correspondence_gate": "PACKAGING_GATE_OK tests=6 skipped=0"
+  },
+  "openssl_pair": "APK_OPENSSL_RUNTIME_PAIR_OK",
+  "configure": {
+   "COLOSSEUM_ANDROID_NUVIO_BACKEND": "ON (explicit)",
+   "COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC": "OFF",
+   "CMAKE_BUILD_TYPE": "Debug"
+  },
+  "feature_default": "COLOSSEUM_ANDROID_NUVIO_BACKEND option default OFF; COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE default empty",
+  "runtime_tested_in_cloud": false,
+  "delivery": "session file route (file_uuid ac343f44-b502-44e4-8b11-f2720b58ab3a)"
+ },
+ "x86_64_emulator_apk": {
+  "label": "SEPARATE x86_64 emulator diagnostic APK (not final, not for Nokia)",
+  "file": "colosseum-x86_64-debug.apk",
+  "sha256": "9e30c0a0f83dfca0d3b4fb0ef0e1bd82602cab6b02b65546ec3763f2211b8ef6",
+  "source_commit": "d833e456f23bb3f4714845f8834189177b6d6a60",
+  "configure": "COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC=ON, engine prefix x86_64 (stamp-verified)",
+  "installed_equals_built": true,
+  "delivery": "session file route (file_uuid 2b869825-8b3b-4519-8b3c-832a37c71c1c)"
+ },
+ "source_checkpoint": {
+  "commit": "c01f801ee5ddd9cc793bbe5ce0be7d0d98e059c5",
+  "zip": "SOURCE-CHECKPOINT.zip",
+  "bytes": 224201681,
+  "sha256": "a4babd5d21bff486ac8c93e9649018c77de661ffb15691091c37f9cd811d6aef",
+  "files": 4720,
+  "manifest": "checkpoint/CHECKPOINT-MANIFEST.json",
+  "delta": "checkpoint/SOURCE-DELTA.patch (sha256 70b39418e85f72958aded652abcd72188e089e48b22379ef2101fef932503c3d)",
+  "new_files": "checkpoint/NEW-FILES.json",
+  "restore": "python3 -I checkpoint.py restore SOURCE-CHECKPOINT.zip CHECKPOINT-MANIFEST.json <new-dir>",
+  "restore_drill": "PASS 4720/4720; contract 31/0 skipped; host backend 33/0/0 from restored tree",
+  "delivery": "session file route (file_uuid 1dd2469d-6d74-412b-9f25-5d147ff6e0b5)"
+ },
+ "fixture": {
+  "media": "fixture013/fixture013.mp4",
+  "media_sha256": "cd109e11da108a67a10179202a8e53d3dc898aae6d4a6eee2b8e4c792695b1af",
+  "torrent": "fixture013/fixture013.torrent",
+  "torrent_sha256": "0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0",
+  "infohash": "7f13e4dfe42445a675cccb6fda1e7549babad2a8",
+  "generator": "fixture013/gen_fixture_013.sh (deterministic, generated content only)"
+ },
+ "evidence_bundles": [
+  {
+   "file": "c013-evidence-interim-runs2-7.zip",
+   "bytes": 17205536,
+   "sha256": "f64857dafba33e3c84c29ea2e536ee9fa9e3ddf02b39e65e9f7bb766d6bb5e6d"
+  },
+  {
+   "file": "c013-evidence-rep1-3.zip",
+   "bytes": 5426288,
+   "sha256": "34b3e3dbd2f1e688fc4ef7d63e9f8d9e871febcf4e70f04e36fd90b88248a39e"
+  }
+ ],
+ "transport_probe": {
+  "bytes": 273678336,
+  "sha256": "9af0893d02a75f2b41442b835ba0c18ac105b92e06670c2eaef9ec741a7ac321",
+  "receiver_verified": "Codex"
+ }
+}

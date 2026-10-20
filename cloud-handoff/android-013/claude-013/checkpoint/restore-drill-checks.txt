@@ -1,0 +1,6 @@
+EXECUTED_CASES=31 SKIPPED_CASES=0
+OK
+OK
+OK (skipped=5)
+restored host build OK
+Totals: 33 passed, 0 failed, 0 skipped, 0 blacklisted, 11447ms

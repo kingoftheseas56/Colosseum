@@ -1,0 +1,136 @@
+{
+ "task": "claude-android-cloud-013-20261020",
+ "scopes": "host = Linux VM; emulator = x86_64 API33 google_apis, software TCG, x86_64 diagnostic APK; arm64 = build/package only; nokia = NOT RUN",
+ "host": [
+  {
+   "suite": "tests/test_android_nuvio_backend_contract.py (NUVIO_DONOR_SOURCE=restored hardened donor)",
+   "baseline": "30 pass / 1 fail / 0 skip (pristine-archive CRLF defect)",
+   "final": "31 pass / 0 fail / 0 skip"
+  },
+  {
+   "suite": "tst_nuvio_stream_backend (Qt 6.11.1 host)",
+   "baseline": "did not compile on Linux (QtCore includes under Q_OS_ANDROID); after include fix 26/0/0",
+   "first_failures": "4 fail (stop/remove), 2 fail (idle expiry/STREAM_STOPPED), 1 fail (isolated roots) against pre-fix code",
+   "final": "33 pass / 0 fail / 0 skip"
+  },
+  {
+   "suite": "tests/test_android_toolchain_qualification.py",
+   "final": "6 pass"
+  },
+  {
+   "suite": "scripts/android/qualify_toolchain.py",
+   "baseline": "8/9 (Linux host qmlimportscanner path)",
+   "final": "9/9"
+  },
+  {
+   "suite": "tests/test_android_powerstore_inhibit_contract.py (new)",
+   "baseline": "fails on import code",
+   "final": "2 pass"
+  },
+  {
+   "suite": "tests/test_android_runtime_packaging.py gate mode vs final ARM64 build",
+   "final": "6 pass / 0 skip (PACKAGING_GATE_OK)"
+  },
+  {
+   "suite": "tests/test_android_runtime_packaging.py default mode, no build tree",
+   "final": "1 pass / 5 skip (by design)"
+  },
+  {
+   "suite": "media3 java_host/packaging/renderer contracts",
+   "final": "7/3/7 pass"
+  },
+  {
+   "suite": "media3 lifecycle_composition, snapshot_transport, chapter_bridge, subtitle_overlay, track_selection; openssl packaging; runtime_bundle",
+   "final": "all PASS (runtime_bundle 9 pass)"
+  },
+  {
+   "suite": "tests/test_android_media3_item_contract.py",
+   "final": "FAIL \u2014 pre-existing at import (expects qmlRegisterType<AndroidMedia3Item> in unchanged native/main.cpp); not task013"
+  },
+  {
+   "suite": "fixture013.py probe",
+   "final": "PASS incl. foreign-infohash and out-of-bounds negative controls"
+  }
+ ],
+ "negative_controls": [
+  {
+   "control": "stale self-consistent APK (Main.qml changed, manifests recomputed)",
+   "old_verifier": "PASS (rc 0)",
+   "new_gate": "FAIL (rc 1, member drift)"
+  },
+  {
+   "control": "stale overlay copy (TopBar.qml changed)",
+   "new_gate": "FAIL (changed qml/TopBar.qml)"
+  },
+  {
+   "control": "pristine donor as --source",
+   "result": "fails closed"
+  },
+  {
+   "control": "wrong-ABI engine stamp (x86_64 prefix verified as arm64-v8a)",
+   "result": "rejected"
+  }
+ ],
+ "emulator_runs": [
+  {
+   "run": "run2",
+   "apk": "aa351e37 (pre-fix)",
+   "result": "route 404 mid-playback (first failure: idle expiry)"
+  },
+  {
+   "run": "run3",
+   "result": "admission denied over saved state (first failure)"
+  },
+  {
+   "run": "run4",
+   "apk": "d0fe0c3d",
+   "result": "play + seeks PASS (no lifecycle step)"
+  },
+  {
+   "run": "run4-lifecycle",
+   "result": "SIGSEGV PowerStore on background (first failure)"
+  },
+  {
+   "run": "run5",
+   "apk": "512d0cab",
+   "result": "no crash; resume hung on saved state (first failure)"
+  },
+  {
+   "run": "run6",
+   "result": "ENVIRONMENT-BLOCKED: guest system_server watchdog death, invalid"
+  },
+  {
+   "run": "run7",
+   "apk": "db9d483a",
+   "result": "lifecycle re-demand PASS; restore position lost (first failure); one AAC codec watchdog timeout (environment-suspected)"
+  },
+  {
+   "run": "rep1",
+   "apk": "9e30c0a0",
+   "source": "d833e45",
+   "session": "0x70948ea8e2d0",
+   "result": "PASS all steps incl. position restore 18.333 -> 27.166"
+  },
+  {
+   "run": "rep2",
+   "apk": "9e30c0a0",
+   "source": "d833e45",
+   "session": "0x70948e998e70",
+   "result": "PASS except start progression and back-seek target frame not captured (app Resume prompt); back-seek Range 252388 + W=02 playback"
+  },
+  {
+   "run": "rep3",
+   "apk": "9e30c0a0",
+   "source": "d833e45",
+   "session": "0x70948e9a29b0",
+   "result": "same as rep2"
+  }
+ ],
+ "pending_or_not_run": [
+  "ARM64 runtime (no ARM64 execution available in Cloud)",
+  "Nokia physical acceptance",
+  "physical audibility",
+  "captured audible PCM",
+  "background/foreground on physical device"
+ ]
+}

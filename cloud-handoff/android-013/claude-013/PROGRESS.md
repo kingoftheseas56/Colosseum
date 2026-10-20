@@ -90,6 +90,6 @@ Runs (logs/screenshots retained for the evidence bundle, not committed):
 `tests/test_android_media3_item_contract.py` fails identically on the import:
 expects `qmlRegisterType<AndroidMedia3Item>` in `native/main.cpp` (unchanged).
 
-## Next
-ARM64 final rebuild (running) + package verification -> checkpoint + restore
+## Status
+Final: see REPLY-CLAUDE-ANDROID-013.md.
 drill -> evidence bundle -> REPLY-CLAUDE-ANDROID-013.md + .done.
