@@ -1,0 +1,22 @@
+{
+ "task": "claude-android-cloud-013-20261020",
+ "status": "PARTIAL",
+ "reply_file": "REPLY-CLAUDE-ANDROID-013.md",
+ "reply_sha256": "c1b593af20b6fae21e863a538e7a1f67049e0371d2a6b35ff790137876db97a2",
+ "import_sha": "5e60f3630e2d7f56ae49556c0472c4b5391dcfe2",
+ "reply_commit": "692597214795b9e1e40cfecbf93ed01df126c7ff",
+ "source_checkpoint_commit": "c01f801ee5ddd9cc793bbe5ce0be7d0d98e059c5",
+ "source_checkpoint_zip_sha256": "a4babd5d21bff486ac8c93e9649018c77de661ffb15691091c37f9cd811d6aef",
+ "final_arm64_apk_sha256": "8307da040620a0d5013063e347c18943529dab71cd008653ded4385313d3cb1e",
+ "artifacts_manifest": "ARTIFACTS.json",
+ "artifacts_manifest_sha256": "88e78510e740e839277981866afc545868c6b227351993ea4c3afb6dc0edf5d9",
+ "test_results_sha256": "eeadf659da250374c4e7b13b5b153ab00c71fe260959155e35dca77502a64d2e",
+ "completed_utc": "2026-10-20T23:49:23Z",
+ "not_claimed": [
+  "Codex acceptance",
+  "integration",
+  "Nokia/physical acceptance",
+  "ARM64 runtime",
+  "audibility"
+ ]
+}
