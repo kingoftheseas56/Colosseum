@@ -332,6 +332,7 @@ Item {
     property string streamRouteUrl: ""
     property string streamRouteHash: ""
     property int streamRouteFileIdx: 0
+    property bool streamRouteRestorePending: false
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -1684,15 +1685,21 @@ Item {
     // Android background quiesce retires the Stream route, so restoring Media3
     // on the old loopback URL could only fail. Re-demand the same source and
     // reopen at the pre-background position (onStreamReady -> onFileLoaded).
-    function restoreRetiredStreamRoute() {
-        if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
-            return false
+    function streamRouteRetired() {
         if (typeof Stream === "undefined" || !root.streamRouteUrl.length || root.errored)
             return false
         if (root.currentPlaybackUrl !== root.streamRouteUrl)
             return false
-        if (Stream.streamUrl(root.streamRouteHash, root.streamRouteFileIdx) === root.streamRouteUrl)
+        return Stream.streamUrl(root.streamRouteHash, root.streamRouteFileIdx) !== root.streamRouteUrl
+    }
+    function restoreRetiredStreamRoute() {
+        if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
             return false
+        if (!root.streamRouteRestorePending && !root.streamRouteRetired())
+            return false
+        if (root.streamRouteRestorePending)
+            return true
+        root.streamRouteRestorePending = true
         root.wakeReconnectPendingSeek = mpv.position > 1 ? mpv.position : -1
         root.resetRecoveryWatch()
         root.statusMsg = "Reconnecting stream..."
@@ -1722,6 +1729,12 @@ Item {
             return
         if (mpv.duration <= 0 && mpv.position <= 0)
             return
+        // A Stream route retired in the background reopens through a fresh demand,
+        // never by reloading its dead loopback URL.
+        if (root.streamRouteRestorePending || root.streamRouteRetired()) {
+            root.restoreRetiredStreamRoute()
+            return
+        }
         var pos = mpv.position > 1 ? mpv.position : -1
         // Fresh recovery clocks for the reconnected load (this path bypasses playStreamAt).
         root.resetRecoveryWatch()
@@ -2812,6 +2825,7 @@ Item {
         root.clearActiveDirectHeaders()
         mpv.stopPlayback()
         root.streamRouteUrl = ""
+        root.streamRouteRestorePending = false
         // A real close ends the stream's demand; minimize never reaches here.
         if (typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3963,6 +3977,7 @@ Item {
             root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
             root.streamRouteUrl = url || ""
+            root.streamRouteRestorePending = false
             root.streamRouteHash = String(infoHash || "")
             root.streamRouteFileIdx = Number(fileIdx || 0)
             streamWatchdog.restart()

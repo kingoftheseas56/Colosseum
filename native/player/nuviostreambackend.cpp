@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <QByteArray>
+#include <QDir>
 #include <QMetaObject>
 #include <functional>
 #include <memory>
@@ -551,6 +552,18 @@ bool NuvioStreamBackend::WorkerState::ensureEngineCreated(QString *diagnostic) {
         return true;
     }
     m_verifiedSessionId.clear(); // a newly created session must be reverified
+    if (m_configuration.requireFixtureIsolation) {
+        // The isolated engine refuses fixture admission over saved state, and a
+        // previous session's resume data or cached payload would also bypass the
+        // fixture seeder. Every isolated session therefore starts from empty
+        // task-owned roots (diagnostic package only; the prior engine, if any,
+        // was already destroyed on this worker).
+        for (const auto &root : {m_configuration.dataDirectory, m_configuration.cacheDirectory}) {
+            if (root.isEmpty()) continue;
+            const bool fresh = QDir(root).removeRecursively() && QDir().mkpath(root);
+            qInfo() << "[nuvio013] isolated session root reset" << root << fresh;
+        }
+    }
     const auto data = m_configuration.dataDirectory.toUtf8();
     const auto cache = m_configuration.cacheDirectory.toUtf8();
     const auto caBundle = m_configuration.tlsCaBundlePath.toUtf8();

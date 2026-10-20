@@ -19,7 +19,10 @@
 #include "player/streamserver.h"
 #endif
 
+#include <QDir>
+#include <QFile>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QStringList>
 #include <QTimer>
 
@@ -436,6 +439,7 @@ private slots:
     void replayAfterStopWaitsForPendingRemoval();
     void playerOwnedRoutesDoNotIdleExpire();
     void engineStoppedActiveRouteIsNotReused();
+    void isolatedSessionStartsFromEmptyRoots();
     void prefetchDoesNotHijackActivePlayback();
     // Receiving-review probes: these two reproduced accepted P1 defects and
     // must never regress.
@@ -669,6 +673,42 @@ void TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused() {
     backend.play(kInfoHashA, 0);
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
     QCOMPARE(fake().prepareCount, 2);
+}
+
+void TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() {
+    FakeEngineReset reset;
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const auto staleIn = [&](const QString &root) {
+        QDir().mkpath(root + QStringLiteral("/nuvio-engine-state/resume"));
+        QFile stale(root + QStringLiteral("/nuvio-engine-state/resume/stale.resume"));
+        QVERIFY(stale.open(QIODevice::WriteOnly));
+        stale.write("saved state from a previous session");
+    };
+    auto configuration = testConfiguration();
+    configuration.dataDirectory = temporary.filePath(QStringLiteral("data"));
+    configuration.cacheDirectory = temporary.filePath(QStringLiteral("cache"));
+    staleIn(configuration.dataDirectory);
+    staleIn(configuration.cacheDirectory);
+
+    // Negative control: ordinary sessions keep their resume data.
+    {
+        NuvioStreamBackend backend(fakeApi(), configuration);
+        QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+        backend.play(kInfoHashA, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+        QVERIFY(QFile::exists(configuration.dataDirectory +
+                              QStringLiteral("/nuvio-engine-state/resume/stale.resume")));
+    }
+    FakeEngineReset secondReset;
+    configuration.requireFixtureIsolation = true;
+    NuvioStreamBackend isolated(fakeApi(), configuration);
+    isolated.verifyIsolation();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().createCount, 1, 10000);
+    for (const auto &root : {configuration.dataDirectory, configuration.cacheDirectory}) {
+        QVERIFY(QDir(root).exists());
+        QVERIFY(QDir(root).isEmpty(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden));
+    }
 }
 
 void TestNuvioStreamBackend::prefetchDoesNotHijackActivePlayback() {
