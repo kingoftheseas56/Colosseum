@@ -1,0 +1,26 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "p03-server1-ninja",
+      "displayName": "P03 Server 1.0 Ninja",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../../artifacts/server1/P03/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "p03-server1-ninja", "configurePreset": "p03-server1-ninja" }
+  ],
+  "testPresets": [
+    {
+      "name": "p03-server1-ninja",
+      "configurePreset": "p03-server1-ninja",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

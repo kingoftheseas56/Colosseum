@@ -1,0 +1,5 @@
+function(server1_register_k01_tests)
+  add_test(NAME K01-01-metadata-geometry COMMAND server1_k01_metadata_geometry K01-01)
+  add_test(NAME K01-02-metadata-geometry COMMAND server1_k01_metadata_geometry K01-02)
+  add_test(NAME K01-03-metadata-geometry COMMAND server1_k01_metadata_geometry K01-03)
+endfunction()

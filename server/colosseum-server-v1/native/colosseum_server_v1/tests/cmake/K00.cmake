@@ -1,0 +1,5 @@
+function(server1_register_k00_tests)
+  add_test(NAME K00-01-js-semantics COMMAND server1_k00_js_semantics K00-01)
+  add_test(NAME K00-02-js-semantics COMMAND server1_k00_js_semantics K00-02)
+  add_test(NAME K00-03-js-semantics COMMAND server1_k00_js_semantics K00-03)
+endfunction()

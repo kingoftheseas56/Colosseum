@@ -1,0 +1,24 @@
+PASS install routes before dynamic listener port exists
+PASS listen on loopback ephemeral port
+PASS relative /probe fetches actual ephemeral listener, not a captured port
+PASS 40-character source maps to actual server port and file index
+PASS file source preserves local input instead of prefixing loopback base
+PASS url source percent-decodes once and produces thumbnail stream
+PASS invalid prepared source preserves 415 legacy video error
+PASS zero-exit invalid probe preserves source's empty-stream success
+PASS converter failing before output returns 500 without fabricated payload
+PASS HTTP abort during deferred probe terminates the observed OS child
+PASS install routes before dynamic listener port exists
+PASS listen on loopback ephemeral port
+PASS missing ffmpeg early callback remains an empty /probe body
+PASS install routes before dynamic listener port exists
+PASS listen on loopback ephemeral port
+PASS runtime spawn failure serializes /probe result as JSON null
+PASS direct cancellation kills pending probe PID without invoking response callback
+PASS service teardown cancels probe even while caller retains operation
+PASS eight-converter bound skips canceled queued work and starts the next request
+PASS queued/running cleanup terminates every observed fixture PID
+PASS install routes before dynamic listener port exists
+PASS listen on loopback ephemeral port
+PASS 20-second legacy probe timeout returns 500/null and kills child
+Runtime failures: 0

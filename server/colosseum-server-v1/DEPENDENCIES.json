@@ -1,0 +1,54 @@
+{
+  "qualification": "Debian 13 x86_64 Linux; external prerequisites, not bundled. No offline-build claim.",
+  "versions": {
+    "os": "Debian 13 trixie",
+    "compiler": "GCC 14.2",
+    "build": "Release",
+    "cmake": "4.4.3",
+    "ninja": "1.13.2",
+    "qt": "6.11.1 official qtbase + ICU",
+    "libtorrent": "2.0.11 static, no source patches",
+    "boost": "1.83.0 headers",
+    "ffmpeg": "7.1.5 system /usr/bin/ffmpeg",
+    "node_registered_suite": "24.19.0",
+    "node_additional_focused_checks": "22.16.0 official archive",
+    "powershell": "7.6.7 official portable archive",
+    "python_cmake": "3.12.14"
+  },
+  "qtbase": {
+    "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6111/qt6_6111/qt.qt6.6111.linux_gcc_64/6.11.1-0-202605090529qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+    "sha256": "1d6d82d765987d657d0df136fb347e98d6e29e99ef8d1cb433abf9f15c86ab6f",
+    "bytes": 22849405,
+    "method": "official Qt archive extraction; no IPC installer"
+  },
+  "qt_icu": {
+    "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6111/qt6_6111/qt.qt6.6111.linux_gcc_64/6.11.1-0-202605090529icu-linux-Rhel8.6-x86_64.7z",
+    "sha256": "6ea4a612560b6eb39173bcfaa35abc08904fc124e4c0f93e1b39dd22368c33c8",
+    "bytes": 9660627
+  },
+  "powershell": {
+    "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.7/powershell-7.6.7-linux-x64.tar.gz",
+    "sha256": "6896f9e3a6b0a354bf470835a96da76d2f801cd50dcf047ad7c4563bf93bf431",
+    "bytes": 75913191
+  },
+  "boost": {
+    "url": "https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.bz2",
+    "sha256": "6478edfe2f3305127cffe8caf73ea0176c53769f4bf1585be237eb30798c3b8e"
+  },
+  "libtorrent": {
+    "url": "https://github.com/arvidn/libtorrent/releases/download/v2.0.11/libtorrent-rasterbar-2.0.11.tar.gz",
+    "sha256": "f0db58580f4f29ade6cc40fa4ba80e2c9a70c90265cd77332d3cdec37ecf1e6d"
+  },
+  "libuv": {
+    "url": "https://dist.libuv.org/dist/v1.52.1/libuv-v1.52.1.tar.gz",
+    "sha256": "66d511b9e6e334c0e62279eb234fbfb2b3110b1479c09b95b44c7afca8cff9e7",
+    "acquisition": "CMake FetchContent already pins this hash."
+  },
+  "oracle": {
+    "url": "https://dl.strem.io/server/v4.21.1/desktop/server.js",
+    "cdn_selector": "v4.21.1",
+    "embedded_version": "4.21.0",
+    "bytes": 6676503,
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  }
+}

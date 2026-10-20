@@ -1,0 +1,3364 @@
+[
+  {
+    "action": "master",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 105
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-STREAM-INF:PROGRAM-ID=0,BANDWIDTH=123456\n/file/movie/stream-q-o.m3u8?x=1\n"
+    }
+  },
+  {
+    "action": "master",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 569
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"English\",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE=\"eng\",URI=\"/file/movie//subs-eng.m3u8?x=1\"\n#EXT-X-STREAM-INF:PROGRAM-ID=0,BANDWIDTH=123456,SUBTITLES=\"subs\"\n/file/movie/stream-q-o.m3u8?x=1\n#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=488889,SUBTITLES=\"subs\"\n/file/movie/stream-q-320.m3u8?x=1\n#EXT-X-STREAM-INF:PROGRAM-ID=2,BANDWIDTH=1100000,SUBTITLES=\"subs\"\n/file/movie/stream-q-480.m3u8?x=1\n#EXT-X-STREAM-INF:PROGRAM-ID=3,BANDWIDTH=2475000,SUBTITLES=\"subs\"\n/file/movie/stream-q-720.m3u8?x=1\n"
+    }
+  },
+  {
+    "action": "master",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 270
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"English\",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE=\"eng\",URI=\"/file/movie//subs-eng.m3u8?x=1\"\n#EXT-X-STREAM-INF:PROGRAM-ID=0,BANDWIDTH=123456,SUBTITLES=\"subs\"\n/file/movie/stream-q-o.m3u8?x=1\n"
+    }
+  },
+  {
+    "action": "master",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 107
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-STREAM-INF:PROGRAM-ID=0,BANDWIDTH=488889\n/file/movie/stream-q-320.m3u8?x=1\n"
+    }
+  },
+  {
+    "action": "multi",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 239
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=123456,AUDIO=\"audio\"\n/file/movie/stream-0.m3u8?x=1\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",LANGUAGE=\"eng\",AUTOSELECT=YES,DEFAULT=YES,NAME=\"English\",URI=\"stream-1.m3u8?x=1\"\n"
+    }
+  },
+  {
+    "action": "multi",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 404
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"English\",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE=\"eng\",URI=\"/file/movie//subs-eng.m3u8?x=1\"\n#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=123456,AUDIO=\"audio\",SUBTITLES=\"subs\"\n/file/movie/stream-0.m3u8?x=1\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",LANGUAGE=\"eng\",AUTOSELECT=YES,DEFAULT=YES,NAME=\"English\",URI=\"stream-1.m3u8?x=1\"\n"
+    }
+  },
+  {
+    "action": "multi",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 404
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"English\",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE=\"eng\",URI=\"/file/movie//subs-eng.m3u8?x=1\"\n#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=123456,AUDIO=\"audio\",SUBTITLES=\"subs\"\n/file/movie/stream-0.m3u8?x=1\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",LANGUAGE=\"eng\",AUTOSELECT=YES,DEFAULT=YES,NAME=\"English\",URI=\"stream-1.m3u8?x=1\"\n"
+    }
+  },
+  {
+    "action": "multi",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 239
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=123456,AUDIO=\"audio\"\n/file/movie/stream-0.m3u8?x=1\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",LANGUAGE=\"eng\",AUTOSELECT=YES,DEFAULT=YES,NAME=\"English\",URI=\"stream-1.m3u8?x=1\"\n"
+    }
+  },
+  {
+    "action": "playlist",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/stream-q-720.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "720"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 224
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:6.000,\nstream-q-720/0.ts?x=1\n#EXTINF:6.000,\nstream-q-720/1.ts?x=1\n#EXTINF:0.500,\nstream-q-720/2.ts?x=1\n#EXT-X-ENDLIST\n"
+    }
+  },
+  {
+    "action": "playlist",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/stream-q-720.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true,
+        "quality": "720"
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 287
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-DISCONTINUITY\n#EXTINF:6.000,\nstream-q-720/0.ts?x=1\n#EXT-X-DISCONTINUITY\n#EXTINF:6.000,\nstream-q-720/1.ts?x=1\n#EXT-X-DISCONTINUITY\n#EXTINF:0.500,\nstream-q-720/2.ts?x=1\n#EXT-X-ENDLIST\n"
+    }
+  },
+  {
+    "action": "playlist",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/stream-q-o.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 185
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-TARGETDURATION:11\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:2.000,\nstream-q-o/0.ts?x=1\n#EXTINF:10.500,\nstream-q-o/1.ts?x=1\n#EXT-X-ENDLIST\n"
+    }
+  },
+  {
+    "action": "playlist",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/stream-q-123.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 404,
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "body": "no such quality"
+    }
+  },
+  {
+    "action": "subtitle",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {},
+      "body": ""
+    }
+  },
+  {
+    "action": "subtitle",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {},
+      "body": ""
+    }
+  },
+  {
+    "action": "subtitle",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "content-length": 210
+      },
+      "body": "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-TARGETDURATION:13\n#EXT-X-MEDIA-SEQUENCE:1\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:12.500,\nhttp://localhost:11470/subtitles.vtt?from=http%3A%2F%2Fexample.test%2Fa%20b.srt\n#EXT-X-ENDLIST\n"
+    }
+  },
+  {
+    "action": "subtitle",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {},
+      "body": ""
+    }
+  },
+  {
+    "action": "segment",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "seg": "0",
+        "quality": "o"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp2t",
+        "x-hls-flow": "splitter"
+      },
+      "body": "",
+      "program": "ffsplit",
+      "args": [
+        "fixture.mp4",
+        "0",
+        "2000",
+        "-1"
+      ]
+    }
+  },
+  {
+    "action": "segment",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true,
+        "seg": "0",
+        "quality": "o"
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp2t",
+        "x-hls-flow": "splitter"
+      },
+      "body": "",
+      "program": "ffsplit",
+      "args": [
+        "fixture.mp4",
+        "0",
+        "2000",
+        "-1"
+      ]
+    }
+  },
+  {
+    "action": "segment",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp2t",
+        "x-hls-flow": "splitter"
+      },
+      "body": "",
+      "program": "ffsplit",
+      "args": [
+        "fixture.mp4",
+        "2000",
+        "10500",
+        "1"
+      ]
+    }
+  },
+  {
+    "action": "segment",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 404,
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "body": "segment does not exist in segmentsUniform"
+    }
+  },
+  {
+    "action": "transcode",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "seg": "0",
+        "quality": "480"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "x-hls-flow": "transcoder",
+        "content-type": "video/mp2t"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "0.000",
+        "-t",
+        "6.000",
+        "-i",
+        "fixture.mp4",
+        "-af",
+        "aselect=gt(n\\,1)",
+        "-vf",
+        "scale=-2:480",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-tune",
+        "zerolatency",
+        "-c:a",
+        "aac",
+        "-strict",
+        "experimental",
+        "-ac",
+        "2",
+        "-copyts",
+        "-mpegts_copyts",
+        "1",
+        "-f",
+        "mpegts",
+        "-threads",
+        "0",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "transcode",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true,
+        "seg": "0",
+        "quality": "480"
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "x-hls-flow": "transcoder",
+        "content-type": "video/mp2t"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "0.000",
+        "-t",
+        "6.000",
+        "-i",
+        "fixture.mp4",
+        "-af",
+        "aselect=gt(n\\,1)",
+        "-vf",
+        "scale=-2:480",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-tune",
+        "zerolatency",
+        "-c:a",
+        "aac",
+        "-strict",
+        "experimental",
+        "-ac",
+        "2",
+        "-copyts",
+        "-mpegts_copyts",
+        "1",
+        "-f",
+        "mpegts",
+        "-threads",
+        "0",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "transcode",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "x-hls-flow": "transcoder",
+        "content-type": "video/mp2t"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "6.000",
+        "-t",
+        "6.000",
+        "-i",
+        "fixture.mp4",
+        "-af",
+        "aselect=gt(n\\,1)",
+        "-map",
+        "0:1",
+        "-c:a",
+        "aac",
+        "-strict",
+        "experimental",
+        "-ac",
+        "2",
+        "-copyts",
+        "-mpegts_copyts",
+        "1",
+        "-f",
+        "mpegts",
+        "-threads",
+        "0",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "transcode",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 404,
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "body": "segment does not exist in segmentsUniform"
+    }
+  },
+  {
+    "action": "dlna",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "transfermode.dlna.org": "Streaming",
+        "contentfeatures.dlna.org": "DLNA.ORG_PN=AVC_TS_BL_CIF15_AAC_540;DLNA.ORG_FLAGS=ED100000000000000000000000000000",
+        "content-type": "video/vnd.dlna.mpeg-tts"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "0.000",
+        "-i",
+        "fixture.mp4",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "copy",
+        "-vbsf",
+        "h264_mp4toannexb",
+        "-strict",
+        "-2",
+        "-loglevel",
+        "error",
+        "-tune",
+        "zerolatency",
+        "-f",
+        "mpegts",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "dlna",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "transfermode.dlna.org": "Streaming",
+        "contentfeatures.dlna.org": "DLNA.ORG_PN=AVC_TS_BL_CIF15_AAC_540;DLNA.ORG_FLAGS=ED100000000000000000000000000000",
+        "content-type": "video/vnd.dlna.mpeg-tts"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "0.000",
+        "-i",
+        "fixture.mp4",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "copy",
+        "-vbsf",
+        "h264_mp4toannexb",
+        "-strict",
+        "-2",
+        "-loglevel",
+        "error",
+        "-tune",
+        "zerolatency",
+        "-f",
+        "mpegts",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "dlna",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "transfermode.dlna.org": "Streaming",
+        "contentfeatures.dlna.org": "DLNA.ORG_PN=AVC_TS_BL_CIF15_AAC_540;DLNA.ORG_FLAGS=ED100000000000000000000000000000",
+        "content-type": "video/vnd.dlna.mpeg-tts"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "0.000",
+        "-i",
+        "fixture.mp4",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "copy",
+        "-vbsf",
+        "h264_mp4toannexb",
+        "-strict",
+        "-2",
+        "-loglevel",
+        "error",
+        "-tune",
+        "zerolatency",
+        "-f",
+        "mpegts",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "dlna",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "transfermode.dlna.org": "Streaming",
+        "contentfeatures.dlna.org": "DLNA.ORG_PN=AVC_TS_BL_CIF15_AAC_540;DLNA.ORG_FLAGS=ED100000000000000000000000000000",
+        "content-type": "video/vnd.dlna.mpeg-tts"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "0.000",
+        "-i",
+        "fixture.mp4",
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-strict",
+        "-2",
+        "-loglevel",
+        "error",
+        "-tune",
+        "zerolatency",
+        "-f",
+        "mpegts",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "thumb",
+    "variant": 0,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4"
+      },
+      "query": {}
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "image/jpg"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "6",
+        "-i",
+        "fixture.mp4",
+        "-r",
+        "1",
+        "-vframes",
+        "1",
+        "-f",
+        "image2",
+        "-vcodec",
+        "mjpeg",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "thumb",
+    "variant": 1,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "adaptiveBitrate": true
+      },
+      "query": {
+        "waitForSubs": "test",
+        "xdiscontinuity": "0"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "image/jpg"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "6",
+        "-i",
+        "fixture.mp4",
+        "-r",
+        "1",
+        "-vframes",
+        "1",
+        "-f",
+        "image2",
+        "-vcodec",
+        "mjpeg",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "thumb",
+    "variant": 2,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "stream": "1",
+        "quality": "o",
+        "seg": "1tail",
+        "lang": "eng"
+      },
+      "query": {
+        "at": "1.25",
+        "waitForSubs": "test"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "image/jpg"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "1.25",
+        "-i",
+        "fixture.mp4",
+        "-r",
+        "1",
+        "-vframes",
+        "1",
+        "-f",
+        "image2",
+        "-vcodec",
+        "mjpeg",
+        "pipe:1"
+      ]
+    }
+  },
+  {
+    "action": "thumb",
+    "variant": 3,
+    "instance": {
+      "duration": 12500,
+      "bitrate": 123456,
+      "container": "mp4",
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "vp9",
+          "stream": 0,
+          "size": [
+            1280,
+            720
+          ],
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "opus",
+          "stream": 1,
+          "lang": "eng",
+          "default": true
+        }
+      ],
+      "qualities": [
+        320,
+        480,
+        720
+      ],
+      "segmentsUniform": [
+        {
+          "at": 0,
+          "duration": 6000
+        },
+        {
+          "at": 6000,
+          "duration": 6000
+        },
+        {
+          "at": 12000,
+          "duration": 500
+        }
+      ],
+      "segmentsByFrame": [
+        {
+          "at": 0,
+          "duration": 2000
+        },
+        {
+          "at": 2000,
+          "duration": 10500
+        }
+      ],
+      "videoStream": {
+        "codec_type": "video",
+        "codec_name": "h264",
+        "stream": 0,
+        "size": [
+          1280,
+          720
+        ],
+        "fps": 25
+      }
+    },
+    "input": {
+      "url": "/file/movie/master.m3u8?x=1",
+      "search": "?x=1",
+      "headers": {
+        "host": "localhost:11470"
+      },
+      "params": {
+        "from": "fixture.mp4",
+        "quality": "123",
+        "seg": "99"
+      },
+      "query": {
+        "at": "bogus"
+      }
+    },
+    "subs": [
+      {
+        "lang": "eng",
+        "url": "http://example.test/a b.srt",
+        "langName": "English"
+      }
+    ],
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "image/jpg"
+      },
+      "body": "",
+      "program": "ffmpeg",
+      "args": [
+        "-ss",
+        "6",
+        "-i",
+        "fixture.mp4",
+        "-r",
+        "1",
+        "-vframes",
+        "1",
+        "-f",
+        "image2",
+        "-vcodec",
+        "mjpeg",
+        "pipe:1"
+      ]
+    }
+  }
+]
