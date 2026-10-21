@@ -81,6 +81,58 @@ Item {
     property var progressStore: typeof Progress !== "undefined" ? Progress : null
     property var activitySink: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
     property var activityPreferences: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
+    property string personalError: ""
+    readonly property bool personalEnabled: profileActive && !shuttingDown && !!collectionStore && collectionStore.healthy!==false
+    readonly property var personalRecords: {
+        var revision=collectionStore ? collectionStore.revision : 0;
+        var generation=profileGeneration;
+        var scope=backend.profileScope;
+        var owner=backend.collectionStore;
+        if(!profileActive || shuttingDown)return {songs:[],playlists:[]};
+        return typeof backend.personalRecords==="function" ? plainData(backend.personalRecords()) : {songs:[],playlists:[]};
+    }
+    readonly property var playingPersonalRow: activeQueueRow || ({})
+    readonly property bool songIsSaved: songSaved(playingPersonalRow)
+    signal playlistAddRequested(var rows)
+    function personalCommand(operation,args) {
+        var result=personalEnabled && typeof backend.mutatePersonal==="function"
+            ? plainData(backend.mutatePersonal(operation,plainData(args || {}))) : {ok:false,error:"Your music library is unavailable."};
+        personalError=result.ok ? "" : result.error || "The music library could not be updated.";
+        if(result.ok) refreshLibrary();
+        return result;
+    }
+    function songSaved(row) {
+        var revision=collectionStore ? collectionStore.revision : 0;
+        var id=typeof backend.personalSongId==="function" ? backend.personalSongId(plainData(row || {})) : "";
+        return !!id && !!collectionStore && collectionStore.has("Vinyl",id);
+    }
+    function toggleSongSaved(row) {return personalCommand("saveSong",{row:row,saved:!songSaved(row)}).ok;}
+    function togglePlayingSongSaved() {return toggleSongSaved(playingPersonalRow);}
+    function addPlayingSongToPlaylist() {addRowsToPlaylist([playingPersonalRow]);}
+    function addRowsToPlaylist(rows) {
+        if(!personalEnabled || !rows || !rows.length)return;
+        if(rows.some(row=>!personalRowAvailable(row))) {personalError="Some selected songs are unavailable. Add the available songs individually.";return;}
+        personalError="";playlistAddRequested(rows);
+    }
+    function shownTrackRow(index) {return index>=0 && index<tracks.length ? rowFor(shownEdition,shownDisc,index) : null;}
+    function shownAlbumRows() {return editionRows(shownEdition);}
+    function personalRowAvailable(row) {return !!row && typeof backend.personalRowAvailable==="function" && backend.personalRowAvailable(plainData(row));}
+    function playPersonalRows(rows,shuffleOrder,index) {
+        if(!personalEnabled || !rows || !rows.length)return false;
+        snapshot();cancelQueueRequest();refreshSource();
+        var ok=backend.replaceRows(plainData(rows),index===undefined ? 0 : index,!!shuffleOrder);snapshot();return ok;
+    }
+    function createPlaylistFromSongs(title,songs,artistId) {
+        var rows=[];
+        songs.forEach(function(song){
+            if(!song.album || !validAlbum(song.album))return;
+            var edition=normalizeEditions(song.album).find(function(e){return e.id===song.editionId;}) || normalize(song.album);
+            var flat=editionRows(edition),row=Number.isInteger(song.index) ? flat[song.index] : null;
+            if(row && song.track && row.trackId===song.track.id)rows.push(row);
+        });
+        if(rows.length!==songs.length){personalError="Some tracks are unavailable. Open their release and try again.";return "";}
+        var result=personalCommand("createPlaylist",{name:title,rows:rows,artistId:artistId || ""});return result.ok ? result.id : "";
+    }
     VinylBackendSession {
         id: backend
         objectName: "vinylBackendSession"
@@ -473,7 +525,9 @@ Item {
     }
     function showPlayingAlbum() { shownEdition=playingEdition;shownDisc=playingDisc;refreshLibrary();editionSelected(); }
     function rowFor(e,d,i) {
-        var t=e.discs[d][i];return {queueId:"queue:"+(++queueSerial),albumId:e.albumId || e.id,editionId:e.id,
+        // Queue occurrence IDs are assigned by the native queue on insertion.
+        // This projection is also read from bindings and must have no mutation.
+        var t=e.discs[d][i];return {albumId:e.albumId || e.id,editionId:e.id,
             discNumber:(e.discNumbers || [])[d] || d+1,discIndex:d,trackIndex:i,trackId:t.id,
             title:t.title,artist:t.artist,seconds:t.seconds,cover:e.cover,track:t,edition:e};
     }
@@ -554,9 +608,9 @@ Item {
         }
     }
     function appendRows(rows,playNext) {
-        if(!backend.appendRows(rows.slice(0,Math.max(0,10000-queue.length)),playNext))
-            browseError="The tracks could not be queued.";
-        snapshot();
+        if(rows.length>Math.max(0,10000-queue.length)){browseError="The queue is full. Remove some tracks and try again.";return false;}
+        if(!backend.appendRows(rows,playNext)){browseError="The tracks could not be queued.";return false;}
+        browseError="";snapshot();return true;
     }
     function playQueue(index,skipSnapshot) {
         if(!skipSnapshot) snapshot();
@@ -641,7 +695,7 @@ Item {
         profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
         resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
-        shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";
+        shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";personalError="";
         resetting=false;
         if(source && source.setAlbums) source.setAlbums([]);
     }
@@ -695,7 +749,7 @@ Item {
             }
         }
         function onProfileLeaving() { root.clearProfile(); }
-        function onProfileEntered() { root.profileActive=true;backend.profileScope=typeof VinylProfileScope!=="undefined" ? VinylProfileScope : "local-test";root.restore();root.refreshLibrary(); }
+        function onProfileEntered() { backend.profileScope=typeof VinylProfileScope!=="undefined" ? VinylProfileScope : "local-test";root.profileActive=true;root.restore();root.refreshLibrary(); }
         function onCheckpointRequested() { root.snapshot(); }
         function onShuttingDown() { root.shutdown(); }
     }

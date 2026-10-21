@@ -102,6 +102,7 @@ TestCase {
         host.width=data.width;world.width=data.width;seed(3);world.showArtist("Local Artist");
         host.requestActivate();tryCompare(host,"active",true);
         var page=item("vinylArtistPage"),origin=item("vinylArtistSearchButton");
+        origin.forceActiveFocus(Qt.TabFocusReason);
         page.openSearchDialog(origin);
         var popup=item("vinylArtistSearchDialog"),input=item("vinylArtistSearchInput"),results=item("vinylArtistSearchResultsList");
         tryCompare(popup,"opened",true);tryCompare(results,"count",6);
@@ -139,18 +140,18 @@ TestCase {
         tryCompare(hero,"eligiblePhotoCount",0);compare(hero.rotationMode,"fallback");
     }
     function test_artistSelectionMatchesWorldPills() {
-        seed(2);world.showArtist("Local Artist");
+        seed(2);world.showArtist("Local Artist");wait(0);
         var page=item("vinylArtistPage"),albums=item("vinylArtistTab_albums"),videos=item("vinylArtistTab_videos");
         verify(albums!==null && videos!==null);
         page.switchTab("albums",true);waitForRendering(world);
-        compare(albums.focusPrimary,true);compare(albums.focusInset,-2);
-        compare(findChild(albums,"vinylArtistTab_albums_selection").color,"#f0c44a");
-        compare(findChild(videos,"vinylArtistTab_videos_selection").color,"#00000000");
-        verify(albums.width>60 && albums.height===40,"Pill reserves space around the caption");
+        var shared=item("vinylArtistSharedTabs");
+        verify(shared.activeFocus);compare(shared.currentTab,"albums");
+        compare(albums.activeState,true);compare(videos.activeState,false);
+        tryCompare(albums,"color","#f0c44a");
+        verify(albums.width>60 && albums.height>30,"Shared pill reserves space around the caption");
         page.switchTab("videos",true);waitForRendering(world);
-        compare(videos.focusPrimary,true);compare(albums.focusPrimary,false);
-        compare(findChild(videos,"vinylArtistTab_videos_selection").color,"#f0c44a");
-        compare(videos.Accessible.checked,true);
+        compare(shared.currentTab,"videos");compare(videos.activeState,true);compare(albums.activeState,false);
+        tryCompare(videos,"color","#f0c44a");
     }
     function test_onlineArtistPlayLoadsAnAdmittedAlbumThroughExistingSession(){
         world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
@@ -168,10 +169,20 @@ TestCase {
         else item("vinylArtistRelatedSection").activated(row);
         compare(source.lastArtistRef.id,"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ");
     }
+    function test_liveWorldHasNoGlobalShortcutRow() {
+        compare(item("vinylNavigation"),null);
+        compare(item("vinylOpenFiles"),null);
+        compare(item("vinylOpenFolder"),null);
+        compare(item("vinylNowPlaying"),null);
+        compare(item("vinylQueueButton"),null);
+        compare(item("vinylCatalogueMode"),null);
+        var top=item("vinylTopBar");
+        verify(top!==null);
+        compare(item("vinylLibraryHeader").y,top.y+top.height+24);
+        compare(item("vinylAlbumBack").y,top.y+top.height+24);
+    }
     function test_asyncImportControlsProgressCancelAndAlbumAwareStatus() {
         var fileDialog=item("vinylOpenFilesDialog");
-        verify(item("vinylOpenFiles")!==null);
-        verify(item("vinylOpenFolder")!==null);
         verify(item("vinylOpenFolderDialog")!==null);
         verify(fileDialog.nameFilters[0].indexOf("*.ape")>=0 && fileDialog.nameFilters[0].indexOf("*.m4b")>=0);
         world.importLocalFiles(["file:///music/Album"]);
@@ -258,10 +269,11 @@ TestCase {
         host.width=data.width;world.width=data.width;seed(8);
         var cases=[{tab:"home",name:"vinylPickerQuestion"},
                    {tab:"discover",name:"vinylLensTitle"},
-                   {tab:"library",name:"vinylListCard_0"}];
+                   {tab:"library",name:"vinylLibraryAlbum_0"}];
         for(var i=0;i<cases.length;i++) {
             // Exercise a fresh tab entry, rather than the saved startup carousel offset.
             world.worldView.tabOffsets={};
+            world.worldView.tabRoutes={};
             world.worldView.setTab(cases[i].tab);wait(0);
             var target=item(cases[i].name);verify(target && target.visible);
             var top=target.mapToItem(world,0,0).y;
@@ -393,6 +405,10 @@ TestCase {
             verify(control!==null && control.visible && control.enabled);
             verify(isFinite(control.width) && control.width>0,names[i]+" needs positive width");
             verify(isFinite(control.height) && control.height>0,names[i]+" needs positive height");
+            // Large sleeve art can put actions below the fold. The album's
+            // Flickable must let pointer users bring each action into view.
+            var localCenter=control.mapToItem(page,control.width/2,control.height/2);
+            if(localCenter.y>page.height-24) {page.contentY+=localCenter.y-page.height+24;wait(0);}
             var center=control.mapToItem(world,control.width/2,control.height/2);
             verify(center.x>=0 && center.x<world.width && center.y>=0 && center.y<world.height,
                    names[i]+" center must fit the viewport");
@@ -404,6 +420,8 @@ TestCase {
         var edition=world.session.playingEditionId,disc=world.session.playingDisc;
         var index=world.session.playingIndex,count=world.session.queue.length;
         var queueControl=item("vinylAlbumQueue");
+        var queueCenter=queueControl.mapToItem(page,queueControl.width/2,queueControl.height/2);
+        if(queueCenter.y>page.height-24){page.contentY+=queueCenter.y-page.height+24;wait(0);}
         mouseClick(queueControl,queueControl.width/2,queueControl.height/2);wait(0);
         compare(world.session.queue.length,count+1);
         compare(world.session.playingEditionId,edition);
@@ -603,10 +621,10 @@ TestCase {
         world.openAlbum("album-1");source.completed("browse",world.session.browseRequest,record(1),"");
         compare(world.page,"album");
 
-        var mode=item("vinylCatalogueMode");mouseClick(mode,mode.width/2,mode.height/2);wait(0);
+        world.enterDiscoverSearch(false,true);wait(0);
         compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
         compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
-        compare(world.worldData.onlineMode,false,"The mode icon toggles the stored Discover mode, not hidden Library mode");
+        compare(world.worldData.onlineMode,false,"The Discover request sets Discover mode without changing hidden Library state");
         source.cataloguePageVersion=1;
         world.setQuery("local detour query");world.submitSearch();verify(world.session.browsing);
 

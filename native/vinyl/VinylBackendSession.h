@@ -24,7 +24,7 @@ class VinylBackendSession : public QObject {
     Q_OBJECT
     Q_PROPERTY(QObject *source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(QObject *surface READ surface WRITE setSurface NOTIFY surfaceChanged)
-    Q_PROPERTY(QObject *collectionStore MEMBER m_collection)
+    Q_PROPERTY(QObject *collectionStore READ collectionStore WRITE setCollectionStore NOTIFY collectionStoreChanged)
     Q_PROPERTY(QObject *preferences MEMBER m_preferences)
     Q_PROPERTY(QString profileScope READ profileScope WRITE setProfileScope NOTIFY profileScopeChanged)
     Q_PROPERTY(QVariantList rows READ rows NOTIFY queueChanged)
@@ -48,6 +48,8 @@ public:
     QObject *source() const { return m_source; }
     void setSource(QObject *source);
     QObject *surface() const { return m_surface; }
+    QObject *collectionStore() const { return m_collection; }
+    void setCollectionStore(QObject *store) { if(m_collection==store)return;m_collection=store;emit collectionStoreChanged(); }
     void setSurface(QObject *surface) { if(m_surface==surface)return;m_surface=surface;emit surfaceChanged(); }
     QString profileScope() const { return m_profile; }
     void setProfileScope(const QString &profile);
@@ -93,12 +95,17 @@ public:
     Q_INVOKABLE QVariantMap feedbackState() const;
     Q_INVOKABLE bool storeFeedbackSnapshot(const QString &snapshot);
     Q_INVOKABLE bool setSavedAlbum(const QVariantMap &entry,bool saved);
+    Q_INVOKABLE QVariantMap personalRecords() const;
+    Q_INVOKABLE QVariantMap mutatePersonal(const QString &operation,const QVariantMap &arguments);
+    Q_INVOKABLE QString personalSongId(const QVariantMap &row) const;
+    Q_INVOKABLE bool personalRowAvailable(const QVariantMap &row) const;
 signals:
     void stateChanged();
     void pausedChanged();
     void queueChanged();
     void sourceChanged();
     void surfaceChanged();
+    void collectionStoreChanged();
     void profileScopeChanged();
     void playbackRequested();
     void playbackEnding(bool natural);

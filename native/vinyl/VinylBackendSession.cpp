@@ -5,9 +5,13 @@
 #include "VinylSessionPersistence.h"
 #include "VinylListenEventLedger.h"
 #include "FeedbackTastePersistence.h"
+#include "VinylPlaylist.h"
 #include "player/mpvitem.h"
 #include <QQuickItem>
 #include <QJsonDocument>
+#include <QJsonArray>
+#include <QCryptographicHash>
+#include <QFileInfo>
 #include <QDateTime>
 #include <QMetaMethod>
 #include <QLoggingCategory>
@@ -630,4 +634,170 @@ bool VinylBackendSession::setSavedAlbum(const QVariantMap &input,bool saved) {
     }else method.invoke(m_collection,Qt::DirectConnection,Q_RETURN_ARG(bool,result),
         Q_ARG(QString,QString("Vinyl")),Q_ARG(QVariantMap,entry));
     return result;
+}
+
+namespace {
+// Collection remains the single transaction/persistence owner. Support both its
+// native port and the QVariant ports used by the existing QML contract fixtures.
+QVariantList personalEntries(QObject *store,bool *ok) {
+    *ok=false;QVariantList entries;if(!store)return entries;
+    const auto meta=store->metaObject();int index=meta->indexOfMethod("items(QString)");
+    if(index>=0) {
+        auto method=meta->method(index);
+        if(method.returnMetaType().id()==QMetaType::QVariant) {
+            QVariant value;*ok=method.invoke(store,Qt::DirectConnection,Q_RETURN_ARG(QVariant,value),Q_ARG(QString,QString("Vinyl")));entries=value.toList();
+        } else *ok=method.invoke(store,Qt::DirectConnection,Q_RETURN_ARG(QVariantList,entries),Q_ARG(QString,QString("Vinyl")));
+    } else if((index=meta->indexOfMethod("items(QVariant)"))>=0) {
+        QVariant value;*ok=meta->method(index).invoke(store,Qt::DirectConnection,Q_RETURN_ARG(QVariant,value),Q_ARG(QVariant,QVariant("Vinyl")));entries=value.toList();
+    }
+    return entries;
+}
+bool commitPersonal(QObject *store,const QStringList &removed,const QVariantList &entries) {
+    if(!store)return false;
+    const auto meta=store->metaObject();int index=meta->indexOfMethod("replaceItems(QString,QStringList,QVariantList)");
+    if(index>=0) {
+        bool result=false;auto method=meta->method(index);
+        if(method.returnMetaType().id()==QMetaType::QVariant) {
+            QVariant value;method.invoke(store,Qt::DirectConnection,Q_RETURN_ARG(QVariant,value),Q_ARG(QString,QString("Vinyl")),Q_ARG(QStringList,removed),Q_ARG(QVariantList,entries));result=value.toBool();
+        } else method.invoke(store,Qt::DirectConnection,Q_RETURN_ARG(bool,result),Q_ARG(QString,QString("Vinyl")),Q_ARG(QStringList,removed),Q_ARG(QVariantList,entries));
+        return result;
+    }
+    if((index=meta->indexOfMethod("replaceItems(QVariant,QVariant,QVariant)"))<0)return false;
+    QVariant result;meta->method(index).invoke(store,Qt::DirectConnection,Q_RETURN_ARG(QVariant,result),Q_ARG(QVariant,QVariant("Vinyl")),Q_ARG(QVariant,QVariant(removed)),Q_ARG(QVariant,QVariant(entries)));return result.toBool();
+}
+QString legacyItemId(const QString &playlist,int index) {
+    return "item:"+QString::fromLatin1(QCryptographicHash::hash((playlist+":"+QString::number(index)).toUtf8(),QCryptographicHash::Sha256).toHex());
+}
+QVariantMap normalizedPlaylist(QVariantMap entry) {
+    auto payload=entry.value("payload").toMap();auto refs=payload.value("occurrences").toList();
+    for(int i=0;i<refs.size();++i){auto ref=refs[i].toMap();if(ref.value("itemId").toString().isEmpty())ref["itemId"]=legacyItemId(entry.value("id").toString(),i);refs[i]=ref;}
+    payload["occurrences"]=refs;entry["payload"]=payload;return entry;
+}
+bool wholeCoordinate(const QVariant &value) {
+    bool ok=false;const double number=value.toDouble(&ok);
+    return ok && std::isfinite(number) && number>=0 && number<=1000000 && number==std::floor(number);
+}
+QVariantMap personalFailure(const QString &error) {return {{"ok",false},{"error",error}};}
+bool personalSourceMatches(const QVariantMap &album,const QVariantMap &row,int flat) {
+    QVariantMap source=album;
+    const auto editions=album.value("editions").toList();
+    if(!editions.isEmpty()) {
+        source.clear();
+        for(const auto &value:editions)if(value.toMap().value("id")==row.value("editionId")){source=value.toMap();break;}
+        if(source.isEmpty())return false;
+    } else if(album.value("id")!=row.value("editionId"))return false;
+    auto tracks=source.value("tracks").toList();
+    std::stable_sort(tracks.begin(),tracks.end(),[](const QVariant &a,const QVariant &b){
+        return qMax(1,a.toMap().value("disc",1).toInt())<qMax(1,b.toMap().value("disc",1).toInt());
+    });
+    return flat>=0&&flat<tracks.size()&&tracks[flat].toMap().value("id")==row.value("trackId");
+}
+}
+
+QString VinylBackendSession::personalSongId(const QVariantMap &row) const {
+    if(!validRow(row)||!wholeCoordinate(row.value("discIndex"))||!wholeCoordinate(row.value("trackIndex")))return {};
+    const auto album=row.value("albumId").toString(),edition=row.value("editionId").toString();
+    if(album.isEmpty()||edition.isEmpty()||album.size()>4096||edition.size()>4096)return {};
+    QJsonArray coordinate{album,edition,row.value("discIndex").toInt(),row.value("trackIndex").toInt(),row.value("trackId").toString()};
+    return "vinyl:song:"+QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(coordinate).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
+}
+bool VinylBackendSession::personalRowAvailable(const QVariantMap &row) const {
+    if(personalSongId(row).isEmpty())return false;
+    const auto track=row.value("track").toMap();if(track.value("available",true).toBool()==false)return false;
+    const auto path=track.value("localPath").toString();
+    if(path.isEmpty())return row.value("edition").toMap().value("origin").toString()=="youtube-music";
+    const QUrl url(path);return QFileInfo(url.isLocalFile()?url.toLocalFile():path).isFile();
+}
+QVariantMap VinylBackendSession::personalRecords() const {
+    if(m_shutdown||!m_profileActive)return {{"songs",QVariantList{}},{"playlists",QVariantList{}}};
+    bool ok=false;const auto entries=personalEntries(m_collection,&ok);QVariantList songs,playlists;
+    if(ok)for(const auto &value:entries){auto entry=value.toMap();const auto type=entry.value("type").toString();if(type=="song")songs.append(entry);else if(type=="playlist")playlists.append(normalizedPlaylist(entry));}
+    return {{"songs",songs},{"playlists",playlists}};
+}
+QVariantMap VinylBackendSession::mutatePersonal(const QString &operation,const QVariantMap &args) {
+    if(m_shutdown||!m_profileActive||!m_collection)return personalFailure("Your music library is unavailable.");
+    if(QJsonDocument::fromVariant(args).toJson(QJsonDocument::Compact).size()>8*1024*1024)return personalFailure("The selected music is too large to save in one operation.");
+    const auto health=m_collection->property("healthy");if(health.isValid()&&!health.toBool())return personalFailure(m_collection->property("persistenceError").toString());
+    bool readable=false;const auto entries=personalEntries(m_collection,&readable);if(!readable)return personalFailure("The music library could not be read.");
+    QHash<QString,QVariantMap> byId;for(const auto &value:entries){auto entry=value.toMap();byId.insert(entry.value("id").toString(),entry);}
+    const auto failure=[](){return personalFailure("The selected track or playlist is invalid. Your library was kept.");};
+    if(operation=="removeSavedSong") {
+        const auto id=args.value("id").toString();
+        if(!byId.contains(id)||byId[id].value("type").toString()!="song")return failure();
+        if(!commitPersonal(m_collection,{id},{}))return personalFailure("The song could not be removed. Your library was kept.");
+        return {{"ok",true},{"id",id}};
+    }
+    QVariantList writes;QStringList removed;QString id=args.value("id").toString();
+    const bool creating=operation=="createPlaylist",saving=operation=="saveSong";
+    QVariantMap playlist;
+    if(!saving) {
+        if(creating) {
+            id="vinyl:playlist:"+QUuid::createUuid().toString(QUuid::WithoutBraces);
+            playlist={{"id",id},{"type","playlist"},{"payload",QVariantMap{{"version",2},{"artistId",args.value("artistId").toString()},{"occurrences",QVariantList{}}}}};
+        } else {
+            if(!byId.contains(id)||byId[id].value("type").toString()!="playlist")return failure();
+            playlist=normalizedPlaylist(byId[id]);
+        }
+        if(creating||operation=="renamePlaylist") {
+            auto profile=ProfileScopeId::parse(m_profile);auto playlistId=PlaylistId::parse(id);
+            if(!profile.ok()||!playlistId.ok())return failure();
+            auto model=Playlist::create(*profile.value,*playlistId.value,args.value("name").toString().trimmed(),QDateTime::currentMSecsSinceEpoch(),PlaylistProvenanceKind::Manual);
+            if(!model.ok())return personalFailure("Enter a playlist name of 1–256 characters without line breaks.");
+            playlist["title"]=model.value->name();
+        }
+    }
+    if(saving||creating||operation=="addPlaylistRows") {
+        QVariantList rows=saving ? QVariantList{args.value("row")} : args.value("rows").toList();
+        if(rows.size()>4096 || (!saving&&!creating&&rows.isEmpty()))return failure();
+        auto payload=playlist.value("payload").toMap();auto refs=payload.value("occurrences").toList();
+        if(refs.size()+rows.size()>4096)return personalFailure("This playlist has reached its track limit.");
+        QHash<QString,QVariantMap> sources;
+        for(const auto &value:rows) {
+            const auto row=value.toMap();const auto songId=personalSongId(row);
+            if(songId.isEmpty())return failure();
+            const auto edition=row.value("edition").toMap(),track=row.value("track").toMap(),album=edition.value("sourceAlbum").toMap();
+            const auto albumId=row.value("albumId").toString();
+            if(album.value("id").toString()!=albumId||edition.value("id").toString()!=row.value("editionId").toString()
+                || (byId.contains(albumId)&&byId[albumId].value("type").toString()!="album")
+                || QJsonDocument::fromVariant(album).toJson(QJsonDocument::Compact).size()>8*1024*1024)return failure();
+            int flat=row.value("trackIndex").toInt();const auto discs=edition.value("discs").toList();for(int d=0;d<row.value("discIndex").toInt();++d)flat+=discs[d].toList().size();
+            if(!personalSourceMatches(album,row,flat)||(saving&&byId.contains(songId)&&byId[songId].value("type").toString()!="song"))return failure();
+            if(byId.contains(albumId)&&!personalSourceMatches(byId[albumId].value("payload").toMap().value("album").toMap(),row,flat))return failure();
+            QVariantMap ref{{"albumId",albumId},{"editionId",row.value("editionId")},{"trackId",row.value("trackId")},{"discIndex",row.value("discIndex")},{"trackIndex",row.value("trackIndex")},{"index",flat},
+                {"title",track.value("title")},{"artist",track.value("artist",row.value("artist"))},{"cover",edition.value("cover")},{"seconds",track.value("seconds")}};
+            if(saving) {
+                id=songId;
+                if(!args.value("saved").toBool()){removed.append(id);continue;}
+                writes.append(QVariantMap{{"id",id},{"type","song"},{"title",ref.value("title")},{"cover",ref.value("cover")},{"payload",QVariantMap{{"version",1},{"ref",ref}}}});
+            } else {ref["itemId"]="item:"+QUuid::createUuid().toString(QUuid::WithoutBraces);refs.append(ref);}
+            auto source=byId.value(albumId);auto sourcePayload=source.value("payload").toMap();
+            if(source.isEmpty())source={{"id",albumId},{"type","album"},{"title",album.value("title")},{"cover",album.value("cover")},{"artist",album.value("artists").toStringList().join(" · ")},{"browseId",albumId}};
+            if(!sourcePayload.contains("saved"))sourcePayload["saved"]=byId.contains(albumId);
+            sourcePayload["version"]=1;
+            // An older queue snapshot must not replace freshly imported metadata.
+            if(!sourcePayload.contains("album"))sourcePayload["album"]=album;
+            source["payload"]=sourcePayload;sources.insert(albumId,source);
+        }
+        for(auto it=sources.cbegin();it!=sources.cend();++it)writes.append(it.value());
+        if(!saving){payload["version"]=2;payload["occurrences"]=refs;playlist["payload"]=payload;}
+    } else if(operation=="removePlaylistItem"||operation=="movePlaylistItem") {
+        auto payload=playlist.value("payload").toMap();const auto refs=payload.value("occurrences").toList();
+        if(refs.size()>4096)return failure();
+        VinylQueue order;QHash<QString,QVariantMap> metadata;
+        for(const auto &value:refs) {
+            const auto ref=value.toMap();auto item=PlaylistItemId::parse(ref.value("itemId").toString());auto queueId=QueueOccurrenceId::parse(ref.value("itemId").toString());
+            if(!item.ok()||!queueId.ok())return failure();
+            auto occurrence=QueueOccurrence::createLocal(*queueId.value,ref.value("trackId").toString());
+            if(!occurrence.ok()||!order.append(*occurrence.value).ok)return failure();metadata.insert(item.value->value(),ref);
+        }
+        auto item=QueueOccurrenceId::parse(args.value("itemId").toString());if(!item.ok())return failure();
+        if(operation=="removePlaylistItem") {if(!order.remove(*item.value).ok)return failure();}
+        else {if(!wholeCoordinate(args.value("index"))||!order.move(*item.value,args.value("index").toInt()).ok)return failure();}
+        QVariantList reordered;for(const auto &entry:order.items())reordered.append(metadata.value(entry.occurrenceId().value()));
+        payload["version"]=2;payload["occurrences"]=reordered;playlist["payload"]=payload;
+    } else if(operation=="deletePlaylist") removed.append(id);
+    else if(operation!="renamePlaylist")return failure();
+    if(!saving && operation!="deletePlaylist")writes.append(playlist);
+    if(!commitPersonal(m_collection,removed,writes))return personalFailure(m_collection->property("persistenceError").toString().isEmpty()?"The music library could not be saved. Your previous library was kept.":m_collection->property("persistenceError").toString());
+    return {{"ok",true},{"id",id}};
 }

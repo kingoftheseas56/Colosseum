@@ -15,6 +15,9 @@ Item {
     readonly property int playingIndex: trackIndex
     readonly property int discIndex: {var offset=0;for(var i=0;i<playingEdition.discs.length;i++){if(trackIndex<offset+playingEdition.discs[i].length)return i;offset+=playingEdition.discs[i].length;}return -1;}
     readonly property int indexOnDisc: {var offset=0;for(var i=0;i<discIndex;i++)offset+=playingEdition.discs[i].length;return trackIndex-offset;}
+    readonly property var personalRow: session && typeof session.rowFor === "function" && discIndex >= 0 && indexOnDisc >= 0 ? session.rowFor(playingEdition,discIndex,indexOnDisc) : null
+    readonly property bool personalEnabled: !!(session && session.personalEnabled)
+    readonly property bool songIsSaved: personalEnabled && personalRow !== null && personalRow !== undefined && typeof session.songSaved === "function" ? !!session.songSaved(personalRow) : false
     readonly property bool isCurrent: !!rawTrack.id && session.playingTrack.id===rawTrack.id && session.playingEditionId===playingEditionId && session.playingEdition.albumId===album.id && session.playingDisc===discIndex && session.playingIndex===indexOnDisc
     readonly property var lyrics: session.lyricLines(rawTrack.lyrics)
     readonly property var notes: session.noteGroups(rawTrack.notes || album.notes)
@@ -34,6 +37,8 @@ Item {
     readonly property int activeNoteLine: manualNoteLine>=0 ? manualNoteLine : autoNotes && hasNotes ? Math.max(0,currentLineIndex) : -1
     function artwork(url){return url || "";}
     function play(){session.playAlbum(album,trackIndex,playingEditionId);}
+    function togglePlayingSongSaved(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.toggleSongSaved==="function")return session.toggleSongSaved(personalRow);return false;}
+    function addPlayingSongToPlaylist(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.addRowsToPlaylist==="function")return session.addRowsToPlaylist([personalRow]);return false;}
     function seekToLine(index){if(isCurrent && timedLyrics && lyrics[index]) session.seek(Number(lyrics[index].time!==undefined ? lyrics[index].time : lyrics[index].seconds));}
     function showNotes(index){manualNoteLine=index;}
     function noteWindow(index){return 12;}

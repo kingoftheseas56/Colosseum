@@ -223,6 +223,11 @@ Item {
     }
     function createPlaylist(title) {
         if (!playlistEnabled) return false;
+        if(session && typeof session.createPlaylistFromSongs==="function") {
+            lastCreatedPlaylistId=session.createPlaylistFromSongs(title,songOrder,canonicalArtistId);
+            personalError=lastCreatedPlaylistId ? "" : session.personalError || "Playlist could not be saved.";
+            return !!lastCreatedPlaylistId;
+        }
         var refs = songOrder.map(function(s) { return {albumId:s.album.id,editionId:s.editionId,trackId:s.track.id,
             discIndex:s.discIndex,trackIndex:s.trackIndex,index:s.index,title:s.track.title}; });
         var id = collectionStore.createVinylPlaylist(title, canonicalArtistId, refs);

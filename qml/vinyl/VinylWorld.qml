@@ -15,9 +15,11 @@ Item {
     property var tabOffsets: ({})
     property var tabRoutes: ({})
     property Item listReturnFocus: null
+    readonly property var personalData: root.worldData.personalLibrary || null
+    readonly property Item libraryDestination: personalLibraryHost.item || library
     function focusCurrent() {
         if (listKey) list.focusCurrent();
-        else if (currentTab === "library") library.focusCurrent();
+        else if (currentTab === "library") libraryDestination.focusCurrent();
         else if(dockedTabBar && dockedTabBar.visible) dockedTabBar.forceActiveFocus();
         else tabs.forceActiveFocus();
     }
@@ -47,8 +49,9 @@ Item {
             scrollY:pageFlick.contentY,
             listIndex:list.currentIndex,
             listSelectedId:list.selectedId,
-            libraryIndex:library.currentIndex,
-            librarySelectedId:library.selectedId
+            libraryIndex:libraryDestination.currentIndex,
+            librarySelectedId:libraryDestination.selectedId,
+            libraryView:personalLibraryHost.item ? personalLibraryHost.item.captureViewState() : null
         };
     }
     function restoreRouteState(state) {
@@ -63,8 +66,9 @@ Item {
         tabOffsets=offsets;
         if(state.listIndex!==undefined) list.currentIndex=state.listIndex;
         if(state.listSelectedId!==undefined) list.selectedId=state.listSelectedId;
-        if(state.libraryIndex!==undefined) library.currentIndex=state.libraryIndex;
-        if(state.librarySelectedId!==undefined) library.selectedId=state.librarySelectedId;
+        if(state.libraryView && personalLibraryHost.item)personalLibraryHost.item.restoreViewState(state.libraryView);
+        if(state.libraryIndex!==undefined) libraryDestination.currentIndex=state.libraryIndex;
+        if(state.librarySelectedId!==undefined) libraryDestination.selectedId=state.librarySelectedId;
     }
     function resetRouteState(tab) {
         tabOffsets={};tabRoutes={};listKey="";listHome=false;listReturnY=0;listReturnFocus=null;
@@ -110,6 +114,10 @@ Item {
     function backFromList() {
         listKey=""
         Qt.callLater(function(){root.pageFlick.contentY=root.listReturnY;var target=root.listReturnFocus;if(target && target.visible && target.enabled && target.accessibleName!==undefined)target.forceActiveFocus(Qt.TabFocusReason);else root.forceActiveFocus(Qt.OtherFocusReason)})
+    }
+    function backFromLibrary() {
+        if(personalData && personalData.selectedPlaylistId){personalData.openPlaylist("");parkPage(Math.max(0,contentTop-dockedInset));return true;}
+        return false;
     }
     Theme { id: theme }
     FeaturedCarousel {
@@ -165,7 +173,7 @@ Item {
             y: lens.visible ? lens.implicitHeight+30 : 0
             width: parent.width
             height: root.listKey ? list.implicitHeight : root.currentTab==="home" ? home.implicitHeight
-                  : root.currentTab==="discover" ? discover.implicitHeight : library.implicitHeight
+                  : root.currentTab==="discover" ? discover.implicitHeight : root.libraryDestination.implicitHeight
         VinylHomePage {
             id: home
             width: parent.width
@@ -186,12 +194,20 @@ Item {
             id: library
             objectName:"vinylLibraryPage"
             width: parent.width
-            visible:!root.listKey&&root.currentTab==="library"
+            visible:!root.personalData&&!root.listKey&&root.currentTab==="library"
             listKey: "library"
             showBack: false
             worldData: root.worldData
             backdrop: root.backdrop
             pageFlick: root.pageFlick
+        }
+        Loader {
+            id:personalLibraryHost
+            width:parent.width;active:!!root.personalData
+            visible:active && !root.listKey && root.currentTab==="library"
+            sourceComponent: Component {
+                VinylPersonalLibraryPage {width:personalLibraryHost.width;libraryData:root.personalData;backdrop:root.backdrop;pageFlick:root.pageFlick}
+            }
         }
         VinylListPage {
             id: list

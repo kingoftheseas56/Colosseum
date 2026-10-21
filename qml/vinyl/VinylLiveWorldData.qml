@@ -7,6 +7,7 @@ Item {
     id: root
     objectName: "vinylLiveWorldData"
     required property var session
+    property var personalLibrary: null
     property string profile: "local"
     property var preferencesStore: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
     property var searchHistoryStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
@@ -43,6 +44,10 @@ Item {
         })});
     })
     readonly property var localAlbums: libraryAlbums.filter(function(a){return a.origin!=="youtube-music";})
+    readonly property var visibleLibraryAlbums: libraryAlbums.filter(function(a){
+        var entry=session.library.find(function(e){return e.id===a.id || (e.payload && e.payload.album && e.payload.album.id===a.id);});
+        return a.origin!=="youtube-music" || !entry || !entry.payload || entry.payload.saved!==false;
+    })
     readonly property var discoverSourceAlbums: browseStates.discover.onlineMode
         ? (browseStates.discover.query.trim() && catalogueMatches.query===browseStates.discover.query.trim() ? catalogueMatches.albums : []) : localAlbums
     readonly property var catalogue: ({albums:activeTab==="discover" ? discoverSourceAlbums : libraryAlbums,people:{},profiles:{},homeRegion:[]})
@@ -133,7 +138,7 @@ Item {
     }).sort(function(a,b) {
         return state.sortOrder === "year" ? (Number(b.year)||0)-(Number(a.year)||0) || String(a.title).localeCompare(String(b.title)) : String(a.title).localeCompare(String(b.title));
     });}
-    readonly property var filteredLibraryAlbums: filtered(libraryAlbums,browseStates.library,true)
+    readonly property var filteredLibraryAlbums: filtered(visibleLibraryAlbums,browseStates.library,true)
     readonly property var discoverAlbums: {
         var state=browseStates.discover;
         return filtered(discoverSourceAlbums,state,!state.onlineMode);
@@ -144,10 +149,10 @@ Item {
         return [{key:"local-"+state.lens.kind,title:(state.onlineMode ? "Catalogue " : "Local ")+state.lens.kind,icon:"threads",kind:state.lens.kind,items:project(discoverAlbums,state.lens.kind,state.onlineMode)}];
     }
     readonly property var homeRows: {
-        var preferred=libraryAlbums.filter(function(a){return picks.some(function(name){return (a.artistIds || []).indexOf(name)>=0 || (!(a.artistIds || []).length && a.artists.indexOf(name)>=0)})});
+        var preferred=visibleLibraryAlbums.filter(function(a){return picks.some(function(name){return (a.artistIds || []).indexOf(name)>=0 || (!(a.artistIds || []).length && a.artists.indexOf(name)>=0)})});
         var result=[];
         if(preferred.length) result.push({key:"picked-artists",title:"From your selected artists",kind:"albums",items:project(preferred,"albums")});
-        if(libraryAlbums.length) result.push({key:"local-albums",title:"Your library",kind:"albums",items:project(libraryAlbums,"albums")});
+        if(visibleLibraryAlbums.length) result.push({key:"local-albums",title:"Your library",kind:"albums",items:project(visibleLibraryAlbums,"albums")});
         return result;
     }
     readonly property var coldShelves: []

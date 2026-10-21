@@ -42,6 +42,20 @@ Item {
             return "<path d=\"M20 7v5h-5M4.8 9A7.5 7.5 0 0 1 18 6.5L20 12M4 17v-5h5M19.2 15A7.5 7.5 0 0 1 6 17.5L4 12\"/>";
         case "sort":
             return "<path d=\"M4 6h10M4 12h7M4 18h4M18 4v16M15 7l3-3 3 3M15 17l3 3 3-3\"/>";
+        case "check":
+            return "<path d=\"m5 12 4 4L19 6\"/>";
+        case "plus":
+            return "<path d=\"M12 5v14M5 12h14\"/>";
+        case "edit":
+            return "<path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z\"/>";
+        case "trash":
+            return "<path d=\"M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7\"/>";
+        case "arrowLeft":
+            return "<path d=\"M19 12H5M12 19l-7-7 7-7\"/>";
+        case "arrowUp":
+            return "<path d=\"M12 19V5M5 12l7-7 7 7\"/>";
+        case "arrowDown":
+            return "<path d=\"M12 5v14M19 12l-7 7-7-7\"/>";
         default:
             return "<path d=\"M5 4.5h8l3 3v3M13 4.5v3h3M7 19.5h10M8 16V9l6-1.5v7\"/><circle cx=\"6.5\" cy=\"16\" r=\"1.5\"/><circle cx=\"12.5\" cy=\"14.5\" r=\"1.5\"/>";
         }

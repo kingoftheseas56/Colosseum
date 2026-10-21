@@ -102,14 +102,14 @@ Main {
             }
             if(root.flowStage==="back-album" && root.flowTicks>3) {
                 if(!root.check(w.page==="album" && s.shownEdition.sourceAlbum.id===root.flowAlbum.id,"Search Back did not restore Album"))return;
-                root.item(w,"vinylCatalogueMode").activate(Qt.MouseFocusReason);root.next("mode-focus");return;
+                w.enterDiscoverSearch(false,true);root.next("local-focus");return;
             }
-            if(root.flowStage==="mode-focus" && root.flowTicks>3) {
-                if(!root.check(w.page==="discover" && !d.onlineMode && root.item(w,"vinylSearchInput").activeFocus,"Mode icon did not reach visible local Discover"))return;
-                w.goBack();root.next("mode-back");return;
+            if(root.flowStage==="local-focus" && root.flowTicks>3) {
+                if(!root.check(w.page==="discover" && !d.onlineMode && root.item(w,"vinylSearchInput").activeFocus,"Local Discover request did not reach the visible query"))return;
+                w.goBack();root.next("local-back");return;
             }
-            if(root.flowStage==="mode-back" && root.flowTicks>3) {
-                if(!root.check(w.page==="album","Mode-icon Back lost Album"))return;
+            if(root.flowStage==="local-back" && root.flowTicks>3) {
+                if(!root.check(w.page==="album","Local Discover Back lost Album"))return;
                 w.goBack();root.next("library-return");return;
             }
             if(root.flowStage==="library-return" && root.flowTicks>4) {

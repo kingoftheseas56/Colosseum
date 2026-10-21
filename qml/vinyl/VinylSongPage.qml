@@ -17,6 +17,13 @@ Item {
     readonly property bool autoNotes: pageData.autoNotes
     readonly property bool videoShown: pageData.videoShown
     readonly property real cardHeight: Math.max(96, Math.min(470, Window.height * 0.48, height - 140, width * 0.48))
+    readonly property bool canSavePlayingSong: !!pageData
+        && typeof pageData.personalEnabled === "boolean"
+        && typeof pageData.songIsSaved === "boolean"
+        && typeof pageData.togglePlayingSongSaved === "function"
+    readonly property bool canAddPlayingSongToPlaylist: !!pageData
+        && typeof pageData.personalEnabled === "boolean"
+        && typeof pageData.addPlayingSongToPlaylist === "function"
     signal backRequested
     signal albumRequested
     function focusBackControl() { backAction.focusControl(Qt.TabFocusReason); }
@@ -40,6 +47,8 @@ Item {
         objectName: "vinylSongBrowseActions"
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 4; spacing: 8
         VinylWorldButton { objectName: "vinylSongPlay"; visible: root.browseMode; label: "Play"; symbol: "play"; onTriggered: root.playRequested() }
+        VinylWorldButton { objectName: "vinylSongSave"; visible: root.canSavePlayingSong; enabled: visible && root.pageData.personalEnabled; label: root.pageData.songIsSaved ? "Unsave song" : "Save song"; symbol: root.pageData.songIsSaved ? "saved" : "save"; onTriggered: root.pageData.togglePlayingSongSaved() }
+        VinylWorldButton { objectName: "vinylSongPlaylist"; visible: root.canAddPlayingSongToPlaylist; enabled: visible && root.pageData.personalEnabled; label: "Add to playlist"; symbol: "queue"; onTriggered: root.pageData.addPlayingSongToPlaylist() }
         VinylWorldButton { objectName: "vinylSongLyrics"; label: "Lyrics"; symbol: "lyrics"; enabled: root.pageData.hasLyrics; selected: root.pageData.lyricsShown; onTriggered: root.pageData.lyricsShown=!root.pageData.lyricsShown }
         VinylWorldButton { objectName: "vinylSongNotes"; label: "Notes"; symbol: "notes"; enabled: root.pageData.hasNotes; selected: root.pageData.autoNotes; onTriggered: {root.pageData.autoNotes=!root.pageData.autoNotes;root.pageData.lyricsShown=true;} }
         VinylWorldButton { objectName: "vinylSongCredits"; label: "Credits"; symbol: "credits"; enabled: root.pageData.playingCredits.length>0; onTriggered: root.creditsRequested() }

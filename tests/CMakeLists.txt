@@ -5046,6 +5046,12 @@ set_tests_properties(colosseum.qml.vinyl_native_session_bridge PROPERTIES
 add_test(NAME colosseum.qml.vinyl_live_world_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_live_world.qml")
+add_test(NAME colosseum.qml.vinyl_personal_library_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personal_library.qml")
+set_tests_properties(colosseum.qml.vinyl_personal_library_native PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_live_world_native PROPERTIES
     LABELS "qml;vinyl;local;native-adapter" TIMEOUT 120
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
@@ -5141,3 +5147,13 @@ if(TARGET colosseum_vinyl_app)
             ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
     endforeach()
 endif()
+
+add_executable(vinyl_personal_library_contracts vinyl_personal_library_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h")
+set_target_properties(vinyl_personal_library_contracts PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_personal_library_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_app Qt6::Test Qt6::Quick MpvQt::MpvQt)
+add_test(NAME colosseum.vinyl_personal_library COMMAND vinyl_personal_library_contracts)
+set_tests_properties(colosseum.vinyl_personal_library PROPERTIES LABELS "vinyl;personal;qttest" TIMEOUT 45
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
