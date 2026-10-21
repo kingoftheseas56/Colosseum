@@ -121,8 +121,11 @@ foreach(_qml_rel IN LISTS COLOSSEUM_ANDROID_QML_FILES)
     if(NOT _qml_rel MATCHES "(^|/)[+]android/"
        AND _qml_rel MATCHES "[.]qml$"
        AND EXISTS "${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_source_dir}/+android/${_qml_name}")
-        file(WRITE "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}"
-            "// Android selector discovery placeholder; implementation is in +android.\nimport QtQuick\nItem {}\n")
+        # file(WRITE) emits CRLF on a Windows host; the packaging gate needs
+        # the same LF bytes from every host.
+        file(CONFIGURE OUTPUT "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}"
+            CONTENT "// Android selector discovery placeholder; implementation is in +android.\nimport QtQuick\nItem {}\n"
+            @ONLY NEWLINE_STYLE UNIX)
     else()
         configure_file("${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_rel}"
                        "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" COPYONLY)
@@ -168,7 +171,8 @@ if(EXISTS "${_android_reader_qmldir}")
     file(READ "${_android_reader_qmldir}" _android_reader_qmldir_text)
     string(REPLACE "Paper Paper.qml\r\n" "" _android_reader_qmldir_text "${_android_reader_qmldir_text}")
     string(REPLACE "Paper Paper.qml\n" "" _android_reader_qmldir_text "${_android_reader_qmldir_text}")
-    file(WRITE "${_android_reader_qmldir}" "${_android_reader_qmldir_text}")
+    file(CONFIGURE OUTPUT "${_android_reader_qmldir}" CONTENT "${_android_reader_qmldir_text}"
+        @ONLY NEWLINE_STYLE UNIX)
 endif()
 
 execute_process(
