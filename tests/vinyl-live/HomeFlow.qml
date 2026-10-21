@@ -52,7 +52,7 @@ Main {
                 if(!root.check(!d.pickerAnswered && !d.tastePickerOpen && root.control("vinylHomeEmpty").visible,"Fresh Home was gated by taste"))return;
                 root.capture("home-fresh","cold-search");return;
             }
-            if(root.stage==="cold-search") {root.activate("vinylHomeSearch");root.next("search");return;}
+            if(root.stage==="cold-search") {root.control("vinylTopBar").searchClicked();root.next("search");return;}
             if(root.stage==="search" && root.ticks>3) {
                 if(!root.check(w.page==="discover" && root.control("vinylSearchInput").activeFocus,"Cold Home search is not usable"))return;
                 w.goBack();root.next("search-back");return;

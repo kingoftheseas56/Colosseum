@@ -196,9 +196,9 @@ TestCase {
         compare(world.worldView.currentTab, "home");
         verify(findChild(world, "vinylHomeEmpty") !== null,
             "An empty local library must still present Home's empty state.");
-        var search = findChild(world, "vinylHomeSearch");
-        verify(search !== null, "Cold Home must expose Search without a taste answer.");
-        search.activate(Qt.MouseFocusReason);
+        verify(findChild(world, "vinylHomeSearch") === null,
+            "Home uses the shared top-bar search entry.");
+        findChild(world, "vinylTopBar").searchClicked();
         compare(world.page, "discover");
         compare(world.worldView.currentTab, "discover");
         compare(world.worldData.browseStates.discover.onlineMode, true);

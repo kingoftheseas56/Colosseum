@@ -380,6 +380,7 @@ TestCase {
     }
     function test_recentSearchMenuKeyboardAndProfileClosure(){
         seed(2);history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
+        world.enterDiscoverSearch(false,false);wait(0);
         var input=item("vinylSearchInput");input.forceActiveFocus();keyClick(Qt.Key_Q);keyClick(Qt.Key_A);keyClick(Qt.Key_Return);wait(0);
         compare(history.recent[0],"qa");var recent=item("vinylRecentSearches");verify(recent.visible);
         host.width=1024;world.width=1024;wait(0);var point=recent.mapToItem(world,recent.width,recent.height);verify(point.x<=world.width,"Recent recall fits 1024 width");

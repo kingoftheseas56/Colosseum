@@ -57,16 +57,6 @@ Item {
                 spacing: 12
 
                 VinylWorldButton {
-                    objectName: "vinylHomeSearch"
-                    width: 38
-                    height: 38
-                    backdrop: root.backdrop
-                    label: "Search"
-                    symbol: "search"
-                    onTriggered: root.worldData.openHomeDestination("discover")
-                }
-
-                VinylWorldButton {
                     objectName: "vinylHomeLibrary"
                     width: 38
                     height: 38
