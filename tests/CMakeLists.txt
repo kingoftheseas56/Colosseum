@@ -2061,7 +2061,6 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
@@ -2214,7 +2213,6 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
@@ -2353,7 +2351,6 @@ add_executable(tst_account_identity
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
@@ -2840,7 +2837,6 @@ add_executable(tst_no_account_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
@@ -3865,7 +3861,6 @@ add_executable(tst_stremio_sync
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h")
 target_include_directories(tst_stremio_sync PRIVATE
@@ -5023,3 +5018,24 @@ add_test(NAME colosseum.feria_runtime_integration COMMAND feria_runtime_integrat
     testShutdownRefusesWorkAndRunsAdapterOnce
     testAdmissionIsRefusedOffTheOwnerThread)
 add_test(NAME colosseum.feria_operations_integration COMMAND feria_operations_integration_test)
+
+# Account vault consumers share the platform-selected implementation.
+get_property(_account_vault_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_account_vault_test_target IN LISTS _account_vault_test_targets)
+    get_target_property(_account_vault_sources ${_account_vault_test_target} SOURCES)
+    if("${_account_vault_sources}" MATCHES "account/(AccountCredentialStoreFactory\\.cpp|WindowsAccountCredentialStore\\.h)")
+        target_link_libraries(${_account_vault_test_target} PRIVATE colosseum_account_credentials)
+    endif()
+endforeach()
+add_executable(tst_account_secure_storage account_secure_storage/tst_account_secure_storage.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AndroidAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AndroidJniSecureStorageBackend.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/platform/PlatformKind.cpp")
+if(WIN32)
+    target_sources(tst_account_secure_storage PRIVATE "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp")
+    target_link_libraries(tst_account_secure_storage PRIVATE User32)
+endif()
+target_link_libraries(tst_account_secure_storage PRIVATE colosseum_account_credentials Qt6::Test)
+add_test(NAME colosseum.qttest.account_secure_storage COMMAND tst_account_secure_storage)
+set_tests_properties(colosseum.qttest.account_secure_storage PROPERTIES LABELS "unit;account;security")

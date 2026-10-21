@@ -115,6 +115,7 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
+add_subdirectory(account/credentials)
 if(NOT ANDROID)
     # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.
     find_package(Qt6 REQUIRED COMPONENTS WebEngineQuick WebChannel)
@@ -808,7 +809,6 @@ qt_add_executable(colosseum
 if(NOT ANDROID)
     # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
     target_sources(colosseum PRIVATE
-        account/WindowsAccountCredentialStore.cpp
         account/WindowsAccountSensitiveClipboard.cpp
         account/WindowsAccountCredentialStore.h
         account/WindowsAccountSensitiveClipboard.h
@@ -1021,7 +1021,7 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE
+target_link_libraries(colosseum PRIVATE colosseum_account_credentials
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
     Qt6::WebSockets colosseum_libtorrent
 )
@@ -1095,10 +1095,9 @@ add_executable(platform_services_harness
     platform/PlatformRuntime.h
     platform/BackgroundDownloadPolicy.h)
 target_include_directories(platform_services_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(platform_services_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+target_link_libraries(platform_services_harness PRIVATE colosseum_account_credentials Qt6::Core Qt6::Gui Qt6::Quick)
 if(WIN32)
     target_sources(platform_services_harness PRIVATE
-        account/WindowsAccountCredentialStore.cpp
         account/WindowsAccountCredentialStore.h
         account/WindowsAccountSensitiveClipboard.cpp
         account/WindowsAccountSensitiveClipboard.h)

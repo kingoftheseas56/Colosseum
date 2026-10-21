@@ -2,6 +2,7 @@
 
 #include "AndroidSecureStorageBackend.h"
 #include "AndroidAccountSensitiveClipboard.h"
+#include "PlatformAccountCredentialStore.h"
 
 #if defined(Q_OS_ANDROID)
 #include "AndroidAccountCredentialStore.h"
@@ -48,13 +49,20 @@ std::unique_ptr<AccountCredentialStore> createAccountCredentialStore(
 #endif
     case Colosseum::Platform::Kind::Android:
 #if defined(Q_OS_ANDROID)
-        return std::make_unique<AndroidAccountCredentialStore>(
-            androidBackend ? androidBackend : defaultAndroidSecureStorage());
+        if (androidBackend)
+            return std::make_unique<AndroidAccountCredentialStore>(androidBackend);
+        return std::make_unique<PlatformAccountCredentialStore>(
+            createAndroidAccountSecretBackend(defaultAndroidSecureStorage()));
 #else
         Q_UNUSED(androidBackend)
         return std::make_unique<UnavailableAccountCredentialStore>();
 #endif
     case Colosseum::Platform::Kind::LinuxDesktop:
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+        return std::make_unique<PlatformAccountCredentialStore>();
+#else
+        return std::make_unique<UnavailableAccountCredentialStore>();
+#endif
     case Colosseum::Platform::Kind::Other:
         return std::make_unique<UnavailableAccountCredentialStore>();
     }
