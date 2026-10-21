@@ -17,7 +17,7 @@ Flickable {
     readonly property string currentSectionKey: sidebar.currentIndex >= 0 ? sidebar.visibleRows[sidebar.currentIndex].key : ""
     readonly property real inset: Math.max(54, (width - 1280) / 2)
     readonly property real usable: width - 2 * inset
-    readonly property real coverSize: Math.min(334, albumInfoColumn.width, Math.max(200, height * 0.65))
+    readonly property real coverSize: Math.min(440, albumInfoColumn.width)
     readonly property bool albumDetailsFit: albumInfoColumn.height + 48 <= height
     signal videoRequested(int track)
     signal songRequested(int track)
