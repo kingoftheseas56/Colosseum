@@ -10,6 +10,7 @@ TestCase {
         verify(c.status===Component.Ready,c.errorString())
         host=c.createObject(null); host.pageData.frozen=true; host.page="world"
         tryCompare(host,"ready",true)
+        host.worldData.resetPicker()
     }
     function cleanup() { if(host){host.close();host.destroy()} }
 

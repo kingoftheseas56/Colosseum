@@ -497,7 +497,7 @@ QVariantMap VinylBackendSession::checkpoint() const {
         {"rows",compact},{"editionTable",editions},{"repeatMode",m_repeat},{"shuffleEnabled",m_shuffleEnabled},
         {"position",position()},{"duration",m_duration}};
 }
-bool VinylBackendSession::restoreCheckpoint(const QVariantMap &checkpoint) {
+bool VinylBackendSession::inspectCheckpoint(const QVariantMap &checkpoint,QVariantList *decodedRows,QString *activeId) const {
     if(m_shutdown||!m_profileActive||checkpoint.value("version").toInt()!=3)return false;
     auto profile=ProfileScopeId::parse(m_profile);if(!profile.ok())return false;
     auto restored=VinylSessionPersistence::restore(*profile.value,checkpoint.value("backendState").toString().toUtf8());
@@ -513,17 +513,36 @@ bool VinylBackendSession::restoreCheckpoint(const QVariantMap &checkpoint) {
         if(disc<0||disc>=discs.size()||track<0||track>=discs[disc].toList().size())return false;
         row["track"]=discs[disc].toList()[track];rows[i]=row;
     }
-    QHash<QString,QVariantMap> metadata;
     for(int i=0;i<rows.size();++i){
         const auto row=rows[i].toMap();auto item=occurrence(row);
         if(!item||item->occurrenceId()!=restored.value->queue.items()[i].occurrenceId()
             ||!item->sameMusicIdentity(restored.value->queue.items()[i]))return false;
-        metadata.insert(item->occurrenceId().value(),row);
     }
     const double position=checkpoint.value("position").toDouble(),duration=checkpoint.value("duration").toDouble();
     const auto repeat=checkpoint.value("repeatMode").toString();
     if(!std::isfinite(position)||position<0||!std::isfinite(duration)||duration<0
         ||!QStringList{"off","all","one"}.contains(repeat))return false;
+    if(decodedRows)*decodedRows=rows;
+    if(activeId){const auto *active=restored.value->queue.activeOccurrence();*activeId=active ? active->occurrenceId().value() : QString();}
+    return true;
+}
+QVariantMap VinylBackendSession::checkpointSummary(const QVariantMap &checkpoint) const {
+    QVariantList decoded;QString active;
+    if(!inspectCheckpoint(checkpoint,&decoded,&active))return {};
+    if(active.isEmpty())return {{"valid",true},{"empty",decoded.isEmpty()}};
+    for(const auto &value:decoded)if(value.toMap().value("queueId").toString()==active)
+        return {{"valid",true},{"empty",false},{"row",value},{"position",checkpoint.value("position")},{"duration",checkpoint.value("duration")}};
+    return {};
+}
+bool VinylBackendSession::restoreCheckpoint(const QVariantMap &checkpoint) {
+    QVariantList rows;
+    if(!inspectCheckpoint(checkpoint,&rows,nullptr))return false;
+    auto profile=ProfileScopeId::parse(m_profile);
+    auto restored=VinylSessionPersistence::restore(*profile.value,checkpoint.value("backendState").toString().toUtf8());
+    QHash<QString,QVariantMap> metadata;
+    for(const auto &value:rows){const auto row=value.toMap();metadata.insert(row.value("queueId").toString(),row);}
+    const double position=checkpoint.value("position").toDouble(),duration=checkpoint.value("duration").toDouble();
+    const auto repeat=checkpoint.value("repeatMode").toString();
     suspend();m_backend->coordinator.clear();m_backend->queue=std::move(restored.value->queue);m_rows=std::move(metadata);
     m_repeat=repeat;m_resume=position;m_duration=duration;m_paused=true;m_error.clear();
     m_shuffleEnabled=checkpoint.value("shuffleEnabled",m_backend->queue.isShuffled()).toBool();

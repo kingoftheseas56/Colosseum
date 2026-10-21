@@ -36,11 +36,14 @@ Item {
     readonly property var playlists: filteredSorted(_playlists, "playlist")
     readonly property var selectedPlaylist: _selectedPlaylist
     readonly property var availableSongs: _availableSongs
+    // Home is independent of the Library destination's query and sort state.
+    readonly property var homeCollections: ({albums:_albumCards,artists:_artistCards,songs:_savedSongs,playlists:_playlists})
 
     signal albumRequested(string id)
     signal artistRequested(var item)
     signal songRequested(var song)
     signal pickerRequested()
+    signal importFolderRequested()
 
     function searchText(item, kind) {
         if (!item) return "";

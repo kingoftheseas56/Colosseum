@@ -77,7 +77,7 @@ Item {
         parkPage(Math.max(0,root.contentTop-root.dockedInset));
     }
     function syncPickerPlacement() {
-        if (currentTab==="home" && !root.worldData.pickerAnswered && !listKey) parkPage(root.pickerParkY)
+        if(currentTab==="home" && root.worldData.tastePickerOpen===true && !listKey)parkPage(root.pickerParkY);
     }
     function rememberCurrentTab() {
         var offsets=Object.assign({},tabOffsets)
@@ -227,6 +227,7 @@ Item {
         target: root.worldData
         function onListRequested(key,home) {root.showList(key,home)}
         function onPickerAnsweredChanged() {root.syncPickerPlacement()}
+        function onTastePickerOpenChanged() {root.syncPickerPlacement()}
         function onProfileChanged() {root.syncPickerPlacement()}
     }
 }

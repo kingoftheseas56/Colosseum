@@ -105,6 +105,19 @@ private slots:
         QVERIFY(!command(backend,"saveSong",{{"row",row()},{"saved",false}}).value("ok").toBool());
         QCOMPARE(store.items("Vinyl"),before);
     }
+    void checkpointSummaryIsPureAndRejectsOtherProfiles() {
+        QTemporaryDir dir;CollectionStore store(dir.filePath("collection.ini"));VinylBackendSession backend;bind(backend,store);
+        QVERIFY(backend.replaceRows(QVariantList{row()},0,false));
+        const auto checkpoint=backend.checkpoint();const auto before=backend.rows();
+        const auto summary=backend.checkpointSummary(checkpoint);
+        QVERIFY(summary.value("valid").toBool());QCOMPARE(summary.value("row").toMap()["trackId"].toString(),QString("track-one"));
+        QCOMPARE(backend.rows(),before);
+        auto invalid=checkpoint;invalid["position"]=-1;
+        QVERIFY(backend.checkpointSummary(invalid).isEmpty());QCOMPARE(backend.rows(),before);
+        backend.setProfileScope("other-profile");QVERIFY(backend.checkpointSummary(checkpoint).isEmpty());
+        backend.clearQueue();const auto empty=backend.checkpointSummary(backend.checkpoint());
+        QVERIFY(empty.value("valid").toBool());QVERIFY(empty.value("empty").toBool());
+    }
 };
 QTEST_GUILESS_MAIN(VinylPersonalLibraryContracts)
 #include "vinyl_personal_library_harness.moc"

@@ -9,6 +9,7 @@ Item {
     property string profile: "new"
     property var lens: ({kind:"albums",genre:"",decade:"",country:"",language:""})
     property bool catalogueReachable: true
+    property bool tastePickerOpen: false
     property var profileStates: ({new:{answered:false,picks:[]}, skipped:{answered:true,picks:[]},
                                   seasoned:{answered:true,picks:[]}})
     readonly property var picks: (profileStates[profile] || {}).picks || []
@@ -104,12 +105,14 @@ Item {
         profileStates=states
     }
     function answerPicker(values) {
+        tastePickerOpen=false;
         var valid=Lists.artistOptions(catalogue,"").map(function(i) {return i.id})
         var selected=values.filter(function(v,i) {return valid.indexOf(v)>=0 && values.indexOf(v)===i})
         var states=Object.assign({},profileStates);states[profile]={answered:true,picks:selected};profileStates=states
     }
     function skipPicker() { answerPicker([]) }
     function resetPicker() {
+        tastePickerOpen=true;
         var states=Object.assign({},profileStates);states[profile]={answered:false,picks:[]};profileStates=states
     }
     function artistOptions(query) { return Lists.artistOptions(catalogue,query) }

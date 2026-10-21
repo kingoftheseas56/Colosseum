@@ -236,7 +236,7 @@ TestCase {
     }
     function test_dockedTabsClipScrollingTaste(data) {
         host.width=data.width;world.width=data.width;
-        seed(1);world.worldView.setTab("home");wait(0);
+        seed(1);world.worldData.resetPicker();world.worldView.setTab("home");wait(0);
         var search=item("vinylPickerSearch"),tabs=item("vinylDockedTabs");
         var probe=clipProbeFactory.createObject(search,{x:4,y:4});
         var searchY=search.mapToItem(world.worldView,0,0).y;
@@ -267,7 +267,7 @@ TestCase {
     }
     function test_worldTabInitialContentBelowStickyStrip(data) {
         host.width=data.width;world.width=data.width;seed(8);
-        var cases=[{tab:"home",name:"vinylPickerQuestion"},
+        var cases=[{tab:"home",name:"vinylHomeRow_saved-albums"},
                    {tab:"discover",name:"vinylLensTitle"},
                    {tab:"library",name:"vinylLibraryAlbum_0"}];
         for(var i=0;i<cases.length;i++) {
@@ -441,15 +441,15 @@ TestCase {
     }
     function test_pointerSeeAllThenKeyboardBack(){
         seed(8);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
-        var more=item("vinylHomeSeeAll_local-albums");verify(more!==null);verify(more.visible);
-        mouseClick(more);wait(0);compare(world.worldView.listKey,"local-albums");
-        var list=item("vinylListPage");var focus=host.activeFocusItem;
+        var more=item("vinylHomeSeeAll_saved-albums");verify(more!==null);verify(more.visible);
+        more.forceActiveFocus(Qt.TabFocusReason);mouseClick(more);wait(0);compare(world.page,"library");
+        var list=item("vinylPersonalLibraryPage");var focus=host.activeFocusItem;
         verify(focus!==null && focus.visible,"Opening a list must move focus away from its hidden origin");
-        compare(focus,world.worldView,"Pointer navigation starts at a neutral origin without selecting a card");
+        compare(focus,world,"Pointer navigation starts at a neutral origin without selecting a card");
         keyClick(Qt.Key_Down);wait(0);focus=host.activeFocusItem;
         var ancestor=focus,inList=false;while(ancestor){if(ancestor===list){inList=true;break;}ancestor=ancestor.parent;}
         verify(inList,"First keyboard navigation enters the list");
-        keyClick(Qt.Key_Escape);wait(0);compare(world.worldView.listKey,"");verify(more.activeFocus,"Back returns focus to original See all");
+        keyClick(Qt.Key_Escape);wait(0);compare(world.page,"home");verify(more.activeFocus,"Back returns focus to original See all");
     }
     function test_emptySingleLongRefreshed(){
         seed(0);compare(world.worldData.listItems("library").length,0);
@@ -464,7 +464,7 @@ TestCase {
     function test_canonicalArtistsAndTaste(){
         world.session.library=[record(0,"artist-one"),record(1,"artist-two")];wait(0);
         var artists=world.worldData.artistOptions("");compare(artists.length,2);verify(artists[0].id!==artists[1].id);
-        world.worldData.answerPicker(["artist-two"]);compare(world.worldData.homeRows[0].items.length,1);compare(world.worldData.homeRows[0].items[0].albumId,"album-1");
+        world.worldData.answerPicker(["artist-two"]);compare(world.worldData.picks.length,1);compare(world.worldData.picks[0],"artist-two");
         world.activateItem(artists[1]);compare(world.page,"artist");compare(world.artistData.artistId,"artist-two");
     }
     function test_nestedBackRetainsLibraryAndArtist(){

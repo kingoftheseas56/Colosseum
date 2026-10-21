@@ -152,7 +152,15 @@ Item {
             width: parent.width
             height: albumHeading.height + 20 + Math.max(albumGrid.height, root.albums.length ? 0 : 48)
             visible: !root.hasDetail && root.section === "albums"
-            Text { id: albumHeading; width: parent.width; text: "Albums"; color: theme.ink; font.family: theme.display; font.pixelSize: 29 }
+            Text { id: albumHeading; width: Math.max(0, parent.width - 50); text: "Albums"; color: theme.ink; font.family: theme.display; font.pixelSize: 29 }
+            VinylWorldButton {
+                objectName: "vinylLibraryImportFolder"
+                x: parent.width - 38; y: -2; width: 38; height: 38
+                backdrop: root.backdrop
+                label: "Add music folder"
+                symbol: "musicFolder"
+                onTriggered: root.libraryData.importFolderRequested()
+            }
             Text { y: albumHeading.height + 18; width: parent.width; visible: root.albums.length === 0; text: "Albums from your library will appear here."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
             Grid {
                 id: albumGrid

@@ -85,6 +85,7 @@ public:
     Q_INVOKABLE void clearProfile();
     Q_INVOKABLE void shutdown();
     Q_INVOKABLE QVariantMap checkpoint() const;
+    Q_INVOKABLE QVariantMap checkpointSummary(const QVariantMap &checkpoint) const;
     Q_INVOKABLE bool restoreCheckpoint(const QVariantMap &checkpoint);
     Q_INVOKABLE bool restoreLegacy(const QVariantList &rows,int index,bool shuffle,
         const QStringList &originalOrder,const QString &repeat,double position,double duration);
@@ -129,6 +130,7 @@ private:
     void dispatchSeek(const vinyl::PlaybackSeekCommand &command);
     QVariantMap activeRow() const;
     bool validRow(const QVariantMap &row) const;
+    bool inspectCheckpoint(const QVariantMap &checkpoint,QVariantList *rows,QString *activeId) const;
     std::optional<vinyl::QueueOccurrence> occurrence(const QVariantMap &row) const;
     static qint64 monotonicMs();
     void listeningPauseTransition(bool paused);

@@ -621,6 +621,17 @@ Item {
     function clearQueue() {snapshot();cancelQueueRequest();backend.clearQueue();snapshot();}
     function setShuffle(enabled) {backend.setShuffle(enabled);snapshot();}
     function cycleRepeat() {backend.cycleRepeat();snapshot();}
+    function checkpointSummary(checkpoint) {
+        return profileActive && !shuttingDown ? plainData(backend.checkpointSummary(plainData(checkpoint || {}))) : {};
+    }
+    function resumeSavedCheckpoint(entry) {
+        if(!profileActive || shuttingDown)return false;
+        var checkpoint=entry && entry.resume;
+        if(!checkpointSummary(checkpoint).row){browseError="This listening session is no longer available.";return false;}
+        snapshot();
+        if(!backend.restoreCheckpoint(plainData(checkpoint))){browseError="This listening session could not be restored.";return false;}
+        refreshSource();browseError="";paused=false;snapshot();return true;
+    }
     function next(delta) {snapshot();backend.next(delta);snapshot();}
     function retry() {refreshSource();backend.retry();}
     function seek(seconds) {activitySample();backend.seek(seconds);}
