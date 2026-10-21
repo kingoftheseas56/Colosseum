@@ -293,7 +293,7 @@ TestCase {
         for(var i=0;i<13;i++){var a=record(i);a.year=1900+i*10;albums.push(a);}
         world.session.library=albums;
         world.session.playAlbum(albums[0],0);
-        world.worldView.setTab("discover");wait(0);
+        world.worldView.setTab("discover");world.worldData.setOnlineMode(false);wait(0);
         world.pushRoute();
         var trigger=item("vinylFilter_decade"),menu=item("vinylFilterMenu");
         // A newly resized native Window may not yet own OS keyboard focus.
@@ -410,7 +410,7 @@ TestCase {
         compare(world.session.playingDisc,disc);compare(world.session.playingIndex,index);
     }
     function test_emptyDiscoverHasOneTabBarAndNoEmptyShelf(){
-        seed(0);world.worldView.setTab("discover");wait(0);
+        seed(0);world.worldView.setTab("discover");world.worldData.setOnlineMode(false);wait(0);
         var flowing=item("vinylFlowTabs"),docked=item("vinylDockedTabs"),empty=item("vinylDiscoverEmpty"),discover=item("vinylDiscoverPage");
         verify(flowing!==null && docked!==null && empty!==null);
         compare(Number(flowing.visible)+Number(docked.visible),1,"Exactly one tab bar can be painted");
@@ -427,8 +427,10 @@ TestCase {
         mouseClick(more);wait(0);compare(world.worldView.listKey,"local-albums");
         var list=item("vinylListPage");var focus=host.activeFocusItem;
         verify(focus!==null && focus.visible,"Opening a list must move focus away from its hidden origin");
+        compare(focus,world.worldView,"Pointer navigation starts at a neutral origin without selecting a card");
+        keyClick(Qt.Key_Down);wait(0);focus=host.activeFocusItem;
         var ancestor=focus,inList=false;while(ancestor){if(ancestor===list){inList=true;break;}ancestor=ancestor.parent;}
-        verify(inList,"List receives focus after pointer See all");
+        verify(inList,"First keyboard navigation enters the list");
         keyClick(Qt.Key_Escape);wait(0);compare(world.worldView.listKey,"");verify(more.activeFocus,"Back returns focus to original See all");
     }
     function test_emptySingleLongRefreshed(){
@@ -448,7 +450,7 @@ TestCase {
         world.activateItem(artists[1]);compare(world.page,"artist");compare(world.artistData.artistId,"artist-two");
     }
     function test_nestedBackRetainsLibraryAndArtist(){
-        seed(40);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setLens("genre","Jazz");world.worldData.openList("local-albums",false);wait(0);
+        seed(40);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);world.worldData.setLens("genre","Jazz");world.worldData.openList("local-albums",false);wait(0);
         world.worldScroll.contentY=world.worldView.contentTop+100;var y=world.worldScroll.contentY;
         world.showArtist({name:"Local Artist",id:"artist-one"});world.artistData.activeTab="singles";
         world.openAlbum("album-2");source.completed("browse",world.session.browseRequest,record(2),"");compare(world.page,"album");
@@ -522,6 +524,98 @@ TestCase {
         var pending=world.session.browseRequest;world.worldData.query="";
         source.completed("browse",pending,{items:[record(1)],revision:"r1",nextOffset:-1,complete:true},"");
         verify(!world.session.searchComplete);compare(world.worldData.albums.length,3);
+    }
+
+    function test_homeDoesNotExposeAnInertLibraryFilter() {
+        seed(2);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
+        verify(!item("vinylSearchInput").visible,"Home has no active Library/Discover filter");
+        item("vinylTopBar").searchClicked();wait(0);
+        compare(world.page,"discover");verify(item("vinylSearchInput").visible);verify(item("vinylSearchInput").activeFocus);
+    }
+    function test_searchDetourReplacesSavedDiscoverView() {
+        seed(8);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
+        world.worldData.openList("local-albums",false);wait(0);
+        world.worldView.setTab("library");
+        world.openAlbum("album-0");source.completed("browse",world.session.browseRequest,record(0),"");
+        item("vinylTopBar").searchClicked();wait(0);
+        world.setQuery("remote");world.submitSearch();
+        source.completed("browse",world.session.browseRequest,{albums:[record(0)],artists:[]},"");
+        verify(world.goBack());verify(world.goBack());compare(world.page,"library");
+        world.worldView.setTab("discover");wait(0);
+        compare(world.worldData.query,"remote");compare(world.worldView.listKey,"");
+    }
+    function test_libraryCarouselOpensCanonicalLibrary() {
+        seed(3);world.worldData.skipPicker();world.worldData.openList("library",false);wait(0);
+        world.worldView.setTab("home");wait(0);
+        var carousel=item("vinylCarousel");
+        var index=carousel.slides.findIndex(function(slide){return slide.key==="library";});verify(index>=0);
+        carousel.primaryClicked(index);wait(0);
+        compare(world.page,"library");compare(world.worldView.listKey,"");
+    }
+    function test_tabsRetainIndependentListDetours() {
+        seed(8);world.worldData.skipPicker();
+        world.worldView.setTab("home");world.worldData.openList("local-albums",true);wait(0);
+        var homeY=world.worldScroll.contentY;
+        world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
+        world.worldData.setKind("songs");world.worldData.openList("local-songs",false);wait(0);
+        world.worldScroll.contentY=world.worldView.contentTop+70;wait(0);
+        var discoverY=world.worldScroll.contentY;
+        world.worldView.setTab("library");wait(0);compare(world.worldView.listKey,"");
+        world.worldView.setTab("home");wait(0);
+        compare(world.worldView.listKey,"local-albums");verify(world.worldView.listHome);compare(world.worldScroll.contentY,homeY);
+        world.worldView.setTab("discover");wait(0);
+        compare(world.worldView.listKey,"local-songs");verify(!world.worldView.listHome);compare(world.worldScroll.contentY,discoverY);
+        verify(world.goBack());compare(world.worldView.listKey,"");compare(world.page,"discover");
+    }
+    function test_topBarSearchDetourRestoresLibraryListRoute() {
+        seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
+        world.worldData.openList("library",false);wait(0);
+        world.worldScroll.contentY=world.worldView.contentTop+90;wait(0);
+        var list=item("vinylListPage");
+        tryVerify(function(){var candidate=findChild(list,"vinylListCard_2");return candidate && candidate.visible;},5000,"Library list delegate must load");
+        var card=findChild(list,"vinylListCard_2");card.forceActiveFocus();tryCompare(card,"activeFocus",true);
+        var savedY=world.worldScroll.contentY;
+        world.openAlbum("album-2");source.completed("browse",world.session.browseRequest,record(2),"");
+        compare(world.page,"album");
+
+        item("vinylTopBar").searchClicked();wait(0);
+        compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
+        compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
+        verify(world.worldData.onlineMode,"TopBar search enters catalogue mode");
+        world.setQuery("detour query");world.submitSearch();verify(world.session.browsing);
+
+        verify(world.goBack());compare(world.page,"album");
+        verify(!world.session.browsing,"Back cancels in-flight search while restoring the route");
+        verify(world.goBack());compare(world.page,"library");
+        compare(world.worldView.currentTab,"library");compare(world.worldView.listKey,"library");
+        tryCompare(world.worldScroll,"contentY",savedY);
+        tryVerify(function(){var restored=findChild(item("vinylListPage"),"vinylListCard_2");return restored && restored.activeFocus;},5000,"Back restores list-card focus");
+    }
+
+    function test_searchModeDetourRestoresLibraryListAndUsesDiscoverMode() {
+        seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
+        world.worldData.openList("library",false);wait(0);
+        world.worldScroll.contentY=world.worldView.contentTop+110;wait(0);
+        var list=item("vinylListPage");
+        tryVerify(function(){var candidate=findChild(list,"vinylListCard_1");return candidate && candidate.visible;},5000,"Library list delegate must load");
+        var card=findChild(list,"vinylListCard_1");card.forceActiveFocus();tryCompare(card,"activeFocus",true);
+        var savedY=world.worldScroll.contentY;
+        world.openAlbum("album-1");source.completed("browse",world.session.browseRequest,record(1),"");
+        compare(world.page,"album");
+
+        var mode=item("vinylCatalogueMode");mouseClick(mode,mode.width/2,mode.height/2);wait(0);
+        compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
+        compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
+        compare(world.worldData.onlineMode,false,"The mode icon toggles the stored Discover mode, not hidden Library mode");
+        source.cataloguePageVersion=1;
+        world.setQuery("local detour query");world.submitSearch();verify(world.session.browsing);
+
+        verify(world.goBack());compare(world.page,"album");
+        verify(!world.session.browsing,"Back cancels in-flight local search while restoring the route");
+        verify(world.goBack());compare(world.page,"library");
+        compare(world.worldView.currentTab,"library");compare(world.worldView.listKey,"library");
+        tryCompare(world.worldScroll,"contentY",savedY);
+        tryVerify(function(){var restored=findChild(item("vinylListPage"),"vinylListCard_1");return restored && restored.activeFocus;},5000,"Back restores list-card focus");
     }
 
 }

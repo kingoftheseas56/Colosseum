@@ -13,6 +13,7 @@ Item {
     property real dockedInset: 0
     property Item dockedTabBar: null
     property var tabOffsets: ({})
+    property var tabRoutes: ({})
     property Item listReturnFocus: null
     function focusCurrent() {
         if (listKey) list.focusCurrent();
@@ -35,19 +36,70 @@ Item {
         root.pageFlick.contentY=y
         Qt.callLater(function(){root.pageFlick.contentY=y})
     }
+    function captureRouteState() {
+        return {
+            currentTab:currentTab,
+            listKey:listKey,
+            listHome:listHome,
+            listReturnY:listReturnY,
+            listReturnFocus:listReturnFocus,
+            tabOffsets:Object.assign({},tabOffsets),
+            scrollY:pageFlick.contentY,
+            listIndex:list.currentIndex,
+            listSelectedId:list.selectedId,
+            libraryIndex:library.currentIndex,
+            librarySelectedId:library.selectedId
+        };
+    }
+    function restoreRouteState(state) {
+        if(!state) return;
+        currentTab=state.currentTab || "library";
+        listKey=state.listKey || "";
+        listHome=!!state.listHome;
+        listReturnY=Number(state.listReturnY) || 0;
+        listReturnFocus=state.listReturnFocus || null;
+        var offsets=Object.assign({},tabOffsets);
+        offsets[currentTab]=state.scrollY!==undefined ? state.scrollY : (state.tabOffsets || {})[currentTab];
+        tabOffsets=offsets;
+        if(state.listIndex!==undefined) list.currentIndex=state.listIndex;
+        if(state.listSelectedId!==undefined) list.selectedId=state.listSelectedId;
+        if(state.libraryIndex!==undefined) library.currentIndex=state.libraryIndex;
+        if(state.librarySelectedId!==undefined) library.selectedId=state.librarySelectedId;
+    }
+    function resetRouteState(tab) {
+        tabOffsets={};tabRoutes={};listKey="";listHome=false;listReturnY=0;listReturnFocus=null;
+        list.currentIndex=0;list.selectedId="";library.currentIndex=0;library.selectedId="";
+        currentTab=["home","discover","library"].indexOf(tab)>=0 ? tab : "library";
+        parkPage(Math.max(0,root.contentTop-root.dockedInset));
+    }
     function syncPickerPlacement() {
         if (currentTab==="home" && !root.worldData.pickerAnswered && !listKey) parkPage(root.pickerParkY)
     }
+    function rememberCurrentTab() {
+        var offsets=Object.assign({},tabOffsets)
+        offsets[currentTab]=pageFlick.contentY
+        tabOffsets=offsets
+        var routes=Object.assign({},tabRoutes)
+        routes[currentTab]=captureRouteState();tabRoutes=routes
+    }
     function setTab(tab) {
         if (["home","discover","library"].indexOf(tab)<0 || tab===currentTab) return
-        var offsets=Object.assign({},tabOffsets)
-        offsets[currentTab]=listKey ? listReturnY : pageFlick.contentY
-        tabOffsets=offsets
-        listKey="";currentTab=tab
+        rememberCurrentTab()
+        currentTab=tab
+        var destination=tabRoutes[tab]
+        if(destination) restoreRouteState(destination)
+        else {
+            listKey="";listHome=false;listReturnY=0;listReturnFocus=null
+            list.currentIndex=0;list.selectedId="";library.currentIndex=0;library.selectedId=""
+        }
         // First entry to a tab parks at the tab bar; later entries return to
         // where the listener left that tab, list detours included.
         parkPage(tabOffsets[tab] !== undefined ? tabOffsets[tab] : Math.max(0,root.contentTop-root.dockedInset))
         syncPickerPlacement()
+    }
+    onCurrentTabChanged: {
+        if(root.worldData && typeof root.worldData.selectTab==="function")
+            root.worldData.selectTab(currentTab)
     }
     function showList(key,home) {
         listReturnY=pageFlick.contentY
@@ -75,6 +127,10 @@ Item {
         onPrimaryClicked: index => {
             var s=slides[index]
             if(s.key==="resume") root.worldData.resume()
+            else if(s.key==="local-albums" || s.key==="library") {
+                root.setTab("library");root.listKey="";root.listHome=false
+                root.parkPage(Math.max(0,root.contentTop-root.dockedInset))
+            }
             else {root.setTab("discover");root.worldData.openList(s.key,false)}
         }
     }

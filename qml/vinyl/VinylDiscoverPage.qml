@@ -13,7 +13,9 @@ Item {
     Text {
         objectName: "vinylDiscoverEmpty"
         visible: root.shelfCount===0
-        x:0;width:parent.width-x;text:"No local music matches. Open files or change the filters.";color:theme.inkDim;font.family:theme.ui;font.pixelSize:16;wrapMode:Text.WordWrap
+        x:0;width:parent.width-x
+        text:root.worldData.onlineMode ? (root.worldData.query.trim() ? "No catalogue matches. Try another search." : "Search the catalogue to find artists and albums.") : "No local music matches. Change the filters or add music in Library."
+        color:theme.inkDim;font.family:theme.ui;font.pixelSize:16;wrapMode:Text.WordWrap
     }
     Column {
         id: shelves
