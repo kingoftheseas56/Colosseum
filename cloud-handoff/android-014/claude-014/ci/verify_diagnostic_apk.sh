@@ -51,4 +51,7 @@ rm -rf "$X"
 
 python3 "$REPO/tests/verify_android_apk_runtime_bundle.py" "$APK" \
     --qmlcachegen "$COLOSSEUM_QT_HOST_ROOT/libexec/qmlcachegen" 2>&1 | tee -a "$V"
+# Record the packaged runtime identity the verifier just checked.
+unzip -p "$APK" assets/colosseum-runtime/runtime-files.manifest | grep '^bundleSha256=' | tee -a "$V"
+unzip -p "$APK" assets/colosseum-runtime/qml-build.manifest | grep '^qmlTreeSha256=' | tee -a "$V"
 say "DIAGNOSTIC_APK_VERIFY_OK"

@@ -34,6 +34,7 @@ manifest = {
     'engine_member_sha256': field(r'engine_member_sha256=([0-9a-f]{64})'),
     'engine_prefix_sha256': field(r'engine_prefix_sha256=([0-9a-f]{64})'),
     'runtime_bundle_sha256': field(r'bundleSha256=([0-9a-f]{64})'),
+    'qml_tree_sha256': field(r'qmlTreeSha256=([0-9a-f]{64})'),
     'zipalign_16k': 'zipalign_16k=OK' in verify,
     'engine_stamp': (out / 'engine-stamp.txt').read_text(errors='replace'),
     'configure_args': (out / 'configure-args.txt').read_text().split(),
