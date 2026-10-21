@@ -4,6 +4,8 @@
 
 **Goal:** Deliver Vinyl as a complete music mode in the normal Colosseum app, reusing the existing backend and approved QML designs, with local music, online catalogue browsing, torrent-preferred playback, a YouTube fallback, and the planned listening and discovery features.
 
+**Current functionality checklist (2026-10-21):** [journeys, source gaps, acceptance checks and proposed execution order](2026-10-21-vinyl-functionality-checklist.md). It brings a useful Home forward with its Library prerequisites; this does not mark the umbrella milestones complete.
+
 **Architecture:** Keep the current native/QML application and its canonical identity, Collection, Session, Progress, history/activity, and profile owners. Adapt the existing Vinyl prototypes into these owners and the existing playback/streaming services; do not install parallel state systems. Every milestone connects backend behavior to the actual app pages and receives an integrated runtime check.
 
 **Tech stack:** C++, Qt/QML, the existing mpv integration and StreamServer, existing profile stores, the current replaceable Python catalogue/fallback transport, and the authored Vinyl backend components.
