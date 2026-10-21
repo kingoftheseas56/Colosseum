@@ -24,7 +24,7 @@
 #include "SyncEngine.h"
 #include "SyncAdapterRegistry.h"
 #include "ProfileStoreRuntime.h"
-#include "WindowsAccountCredentialStore.h"
+#include "PlatformAccountCredentialStore.h"
 #include "WindowsAccountSensitiveClipboard.h"
 #include "stremio/StremioSync.h"
 #include "stremio/StremioTheatreImporter.h"
@@ -140,7 +140,7 @@ private:
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
-    WindowsAccountCredentialStore m_credentialStore;
+    PlatformAccountCredentialStore m_credentialStore;
     StremioCredentialAdoptionCallbacks m_stremioCredentials;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;

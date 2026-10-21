@@ -13,6 +13,8 @@ constexpr auto kInstallIdKey = "account/deviceInstallId";
 QString platformName() {
 #if defined(Q_OS_WIN)
     return QStringLiteral("Windows");
+#elif defined(Q_OS_ANDROID)
+    return QStringLiteral("Android");
 #elif defined(Q_OS_MACOS)
     return QStringLiteral("macOS");
 #elif defined(Q_OS_LINUX)
@@ -51,7 +53,11 @@ QString AccountDeviceIdentity::installId() {
 }
 
 QString AccountDeviceIdentity::label() const {
-    return QStringLiteral("Windows desktop");
+#ifdef Q_OS_ANDROID
+    return QStringLiteral("Android device");
+#else
+    return platformName() + QStringLiteral(" desktop");
+#endif
 }
 
 QString AccountDeviceIdentity::platform() const {

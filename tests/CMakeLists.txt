@@ -1883,7 +1883,6 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
@@ -1902,7 +1901,7 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(account_first_light PRIVATE
+target_link_libraries(account_first_light PRIVATE colosseum_account_credentials
     Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 if(WIN32)
     target_link_libraries(account_first_light PRIVATE Advapi32 User32)
@@ -2029,7 +2028,6 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
@@ -2049,7 +2047,7 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
 target_include_directories(tst_account_attachment_runtime PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_account_attachment_runtime PRIVATE
+target_link_libraries(tst_account_attachment_runtime PRIVATE colosseum_account_credentials
     Qt6::Core
     Qt6::Gui
     Qt6::Network
@@ -2168,7 +2166,6 @@ add_executable(tst_account_identity
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
@@ -2184,7 +2181,7 @@ add_executable(tst_account_identity
 target_include_directories(tst_account_identity PRIVATE
     "${COLOSSEUM_NATIVE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
-target_link_libraries(tst_account_identity PRIVATE
+target_link_libraries(tst_account_identity PRIVATE colosseum_account_credentials
     Qt6::Core
     Qt6::Network
     Qt6::Test)
@@ -3418,12 +3415,11 @@ add_executable(tst_stremio_sync
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h")
 target_include_directories(tst_stremio_sync PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_stremio_sync PRIVATE
+target_link_libraries(tst_stremio_sync PRIVATE colosseum_account_credentials
     Qt6::Core
     Qt6::Gui
     Qt6::Network
@@ -4424,3 +4420,9 @@ foreach(_tracker_profile_target IN ITEMS
         tst_ratings_reviews_journey)
     colosseum_add_tracker_delivery_runtime_sources(${_tracker_profile_target})
 endforeach()
+
+# Platform-neutral account credential serialization and failure semantics.
+add_executable(tst_account_secure_storage account_secure_storage/tst_account_secure_storage.cpp)
+target_link_libraries(tst_account_secure_storage PRIVATE colosseum_account_credentials Qt6::Test)
+add_test(NAME colosseum.qttest.account_secure_storage COMMAND tst_account_secure_storage)
+set_tests_properties(colosseum.qttest.account_secure_storage PROPERTIES LABELS "unit;account;security")

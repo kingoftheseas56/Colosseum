@@ -1,18 +1,11 @@
-// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
-
-#include "WindowsAccountCredentialStore.h"
+#include "PlatformAccountCredentialStore.h"
 
 #include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUuid>
+#include <utility>
 
-#include <string>
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#include <wincred.h>
-#endif
 
 namespace {
 constexpr auto kActiveTarget = "Brotherhood.Colosseum.Account.Active.v1";
@@ -68,22 +61,21 @@ bool pendingTargetMatches(const QString &prefix, const QString &target) {
 
 }
 
-bool WindowsAccountCredentialStore::isAvailable() const {
-#ifdef Q_OS_WIN
-    return true;
-#else
-    return false;
-#endif
+PlatformAccountCredentialStore::PlatformAccountCredentialStore(
+    std::shared_ptr<AccountSecretBackend> backend) : m_backend(std::move(backend)) {}
+
+bool PlatformAccountCredentialStore::isAvailable() const {
+    return m_backend && m_backend->isAvailable();
 }
 
-std::optional<StoredAccountCredential> WindowsAccountCredentialStore::loadActive() const {
+std::optional<StoredAccountCredential> PlatformAccountCredentialStore::loadActive() const {
     const auto blob = readGenericCredential(activeTargetName());
     if (!blob.has_value())
         return std::nullopt;
     return decodeCredential(*blob);
 }
 
-bool WindowsAccountCredentialStore::saveActive(const StoredAccountCredential &credential) {
+bool PlatformAccountCredentialStore::saveActive(const StoredAccountCredential &credential) {
     const QUuid accountId(credential.accountId.trimmed());
     const QUuid deviceId(credential.deviceId.trimmed());
     if (accountId.isNull()
@@ -98,16 +90,18 @@ bool WindowsAccountCredentialStore::saveActive(const StoredAccountCredential &cr
     return writeGenericCredential(activeTargetName(), encodeCredential(normalized));
 }
 
-bool WindowsAccountCredentialStore::clearActive() {
+bool PlatformAccountCredentialStore::clearActive() {
     return deleteGenericCredential(activeTargetName());
 }
 
-QList<QByteArray> WindowsAccountCredentialStore::pendingRevocations() const {
+QList<QByteArray> PlatformAccountCredentialStore::pendingRevocations() const {
     QList<QByteArray> tokens;
     const QList<QString> targets = enumerateTargets(pendingTargetPrefix());
     tokens.reserve(targets.size());
 
     for (const QString &target : targets) {
+        if (!windows_account_credential_store_detail::pendingTargetMatches(pendingTargetPrefix(), target))
+            continue;
         const auto blob = readGenericCredential(target);
         if (!blob.has_value() || blob->isEmpty())
             continue;
@@ -116,19 +110,19 @@ QList<QByteArray> WindowsAccountCredentialStore::pendingRevocations() const {
     return tokens;
 }
 
-bool WindowsAccountCredentialStore::addPendingRevocation(const QByteArray &refreshToken) {
+bool PlatformAccountCredentialStore::addPendingRevocation(const QByteArray &refreshToken) {
     if (refreshToken.isEmpty())
         return false;
     return writeGenericCredential(pendingTargetName(refreshToken), refreshToken);
 }
 
-bool WindowsAccountCredentialStore::removePendingRevocation(const QByteArray &refreshToken) {
+bool PlatformAccountCredentialStore::removePendingRevocation(const QByteArray &refreshToken) {
     if (refreshToken.isEmpty())
         return false;
     return deleteGenericCredential(pendingTargetName(refreshToken));
 }
 
-QList<StoredAccountDeletion> WindowsAccountCredentialStore::pendingDeletions() const {
+QList<StoredAccountDeletion> PlatformAccountCredentialStore::pendingDeletions() const {
     QList<StoredAccountDeletion> deletions;
     for (const QString &target : enumerateTargets(deletionTargetPrefix())) {
         const auto blob = readGenericCredential(target);
@@ -160,7 +154,7 @@ QList<StoredAccountDeletion> WindowsAccountCredentialStore::pendingDeletions() c
     return deletions;
 }
 
-bool WindowsAccountCredentialStore::savePendingDeletion(
+bool PlatformAccountCredentialStore::savePendingDeletion(
     const StoredAccountDeletion &deletion) {
     const QUuid accountId(deletion.accountId);
     const QUuid requestId(deletion.requestId);
@@ -193,7 +187,7 @@ bool WindowsAccountCredentialStore::savePendingDeletion(
         target, QJsonDocument(object).toJson(QJsonDocument::Compact));
 }
 
-bool WindowsAccountCredentialStore::removePendingDeletion(const QString &requestId) {
+bool PlatformAccountCredentialStore::removePendingDeletion(const QString &requestId) {
     const QUuid parsed(requestId);
     if (parsed.isNull())
         return false;
@@ -201,7 +195,7 @@ bool WindowsAccountCredentialStore::removePendingDeletion(const QString &request
         parsed.toString(QUuid::WithoutBraces).toLower()));
 }
 
-QString WindowsAccountCredentialStore::activeTargetName() {
+QString PlatformAccountCredentialStore::activeTargetName() {
     const QString taggedKey = taggedTargetKey();
     if (taggedKey.isEmpty())
         return QString::fromLatin1(kActiveTarget);
@@ -210,7 +204,7 @@ QString WindowsAccountCredentialStore::activeTargetName() {
         + taggedKey;
 }
 
-QString WindowsAccountCredentialStore::pendingTargetPrefix() {
+QString PlatformAccountCredentialStore::pendingTargetPrefix() {
     const QString taggedKey = taggedTargetKey();
     if (taggedKey.isEmpty())
         return QString::fromLatin1(kPendingPrefix);
@@ -220,7 +214,7 @@ QString WindowsAccountCredentialStore::pendingTargetPrefix() {
         + QLatin1Char('.');
 }
 
-QString WindowsAccountCredentialStore::deletionTargetPrefix() {
+QString PlatformAccountCredentialStore::deletionTargetPrefix() {
     const QString taggedKey = taggedTargetKey();
     if (taggedKey.isEmpty())
         return QString::fromLatin1(kDeletionPrefix);
@@ -228,7 +222,7 @@ QString WindowsAccountCredentialStore::deletionTargetPrefix() {
         + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.');
 }
 
-QString WindowsAccountCredentialStore::stremioTargetName(const QString &profileId) {
+QString PlatformAccountCredentialStore::stremioTargetName(const QString &profileId) {
     if (!validStremioProfileId(profileId))
         return QString();
     const QString digest = QString::fromLatin1(QCryptographicHash::hash(
@@ -240,7 +234,7 @@ QString WindowsAccountCredentialStore::stremioTargetName(const QString &profileI
         + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.') + digest;
 }
 
-std::optional<StoredStremioCredential> WindowsAccountCredentialStore::loadStremio(
+std::optional<StoredStremioCredential> PlatformAccountCredentialStore::loadStremio(
     const QString &profileId,
     const QString &accountId) const {
     if (!validStremioProfileId(profileId) || !validStremioAccountId(accountId))
@@ -256,7 +250,7 @@ std::optional<StoredStremioCredential> WindowsAccountCredentialStore::loadStremi
     return credential;
 }
 
-bool WindowsAccountCredentialStore::saveStremio(const StoredStremioCredential &credential) {
+bool PlatformAccountCredentialStore::saveStremio(const StoredStremioCredential &credential) {
     if (!validStremioProfileId(credential.profileId)
         || !validStremioAccountId(credential.accountId)
         || credential.authKey.isEmpty()) {
@@ -266,12 +260,12 @@ bool WindowsAccountCredentialStore::saveStremio(const StoredStremioCredential &c
         stremioTargetName(credential.profileId), encodeStremioCredential(credential));
 }
 
-bool WindowsAccountCredentialStore::clearStremio(const QString &profileId) {
+bool PlatformAccountCredentialStore::clearStremio(const QString &profileId) {
     const QString target = stremioTargetName(profileId);
     return !target.isEmpty() && deleteGenericCredential(target);
 }
 
-QByteArray WindowsAccountCredentialStore::encodeCredential(
+QByteArray PlatformAccountCredentialStore::encodeCredential(
     const StoredAccountCredential &credential) {
     QJsonObject object;
     object.insert(QStringLiteral("version"), 1);
@@ -282,7 +276,7 @@ QByteArray WindowsAccountCredentialStore::encodeCredential(
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
 
-std::optional<StoredAccountCredential> WindowsAccountCredentialStore::decodeCredential(
+std::optional<StoredAccountCredential> PlatformAccountCredentialStore::decodeCredential(
     const QByteArray &blob) {
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(blob, &parseError);
@@ -312,17 +306,17 @@ std::optional<StoredAccountCredential> WindowsAccountCredentialStore::decodeCred
     return credential;
 }
 
-QString WindowsAccountCredentialStore::pendingTargetName(const QByteArray &refreshToken) {
+QString PlatformAccountCredentialStore::pendingTargetName(const QByteArray &refreshToken) {
     return windows_account_credential_store_detail::pendingTargetName(
         pendingTargetPrefix(),
         refreshToken);
 }
 
-QString WindowsAccountCredentialStore::deletionTargetName(const QString &requestId) {
+QString PlatformAccountCredentialStore::deletionTargetName(const QString &requestId) {
     return deletionTargetPrefix() + requestId;
 }
 
-bool WindowsAccountCredentialStore::validStremioProfileId(const QString &profileId) {
+bool PlatformAccountCredentialStore::validStremioProfileId(const QString &profileId) {
     const QString normalized = profileId.trimmed();
     const QUuid parsed(normalized);
     return normalized == QStringLiteral("local")
@@ -330,7 +324,7 @@ bool WindowsAccountCredentialStore::validStremioProfileId(const QString &profile
             && normalized == parsed.toString(QUuid::WithoutBraces).toLower());
 }
 
-bool WindowsAccountCredentialStore::validStremioAccountId(const QString &accountId) {
+bool PlatformAccountCredentialStore::validStremioAccountId(const QString &accountId) {
     const QString normalized = accountId.trimmed();
     if (normalized.isEmpty() || normalized.size() > 256 || normalized != accountId)
         return false;
@@ -341,7 +335,7 @@ bool WindowsAccountCredentialStore::validStremioAccountId(const QString &account
     return true;
 }
 
-QByteArray WindowsAccountCredentialStore::encodeStremioCredential(
+QByteArray PlatformAccountCredentialStore::encodeStremioCredential(
     const StoredStremioCredential &credential) {
     QJsonObject object;
     object.insert(QStringLiteral("version"), 1);
@@ -352,7 +346,7 @@ QByteArray WindowsAccountCredentialStore::encodeStremioCredential(
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
 
-std::optional<StoredStremioCredential> WindowsAccountCredentialStore::decodeStremioCredential(
+std::optional<StoredStremioCredential> PlatformAccountCredentialStore::decodeStremioCredential(
     const QByteArray &blob) {
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(blob, &parseError);
@@ -373,92 +367,27 @@ std::optional<StoredStremioCredential> WindowsAccountCredentialStore::decodeStre
     return credential;
 }
 
-bool WindowsAccountCredentialStore::writeGenericCredential(
-    const QString &target,
-    const QByteArray &blob) {
-#ifdef Q_OS_WIN
-    if (target.isEmpty() || blob.isEmpty())
-        return false;
-    if (blob.size() > CRED_MAX_CREDENTIAL_BLOB_SIZE)
-        return false;
-
-    const std::wstring targetWide = target.toStdWString();
-
-    CREDENTIALW credential{};
-    credential.Type = CRED_TYPE_GENERIC;
-    credential.TargetName = const_cast<LPWSTR>(targetWide.c_str());
-    credential.CredentialBlobSize = static_cast<DWORD>(blob.size());
-    credential.CredentialBlob = reinterpret_cast<LPBYTE>(
-        const_cast<char *>(blob.constData()));
-    credential.Persist = CRED_PERSIST_LOCAL_MACHINE;
-    credential.UserName = const_cast<LPWSTR>(L"Colosseum");
-
-    return CredWriteW(&credential, 0) == TRUE;
-#else
-    Q_UNUSED(target);
-    Q_UNUSED(blob);
-    return false;
-#endif
+bool PlatformAccountCredentialStore::writeGenericCredential(
+    const QString &target, const QByteArray &blob) {
+    return m_backend && !target.isEmpty() && !blob.isEmpty() && m_backend->write(target, blob);
 }
 
-std::optional<QByteArray> WindowsAccountCredentialStore::readGenericCredential(
-    const QString &target) {
-#ifdef Q_OS_WIN
-    const std::wstring targetWide = target.toStdWString();
-    PCREDENTIALW credential = nullptr;
-    if (CredReadW(
-            targetWide.c_str(),
-            CRED_TYPE_GENERIC,
-            0,
-            &credential) != TRUE) {
-        return std::nullopt;
-    }
-
-    const QByteArray blob(
-        reinterpret_cast<const char *>(credential->CredentialBlob),
-        static_cast<qsizetype>(credential->CredentialBlobSize));
-    CredFree(credential);
-    return blob;
-#else
-    Q_UNUSED(target);
-    return std::nullopt;
-#endif
+std::optional<QByteArray> PlatformAccountCredentialStore::readGenericCredential(
+    const QString &target) const {
+    return m_backend ? m_backend->read(target) : std::nullopt;
 }
 
-bool WindowsAccountCredentialStore::deleteGenericCredential(const QString &target) {
-#ifdef Q_OS_WIN
-    const std::wstring targetWide = target.toStdWString();
-    if (CredDeleteW(targetWide.c_str(), CRED_TYPE_GENERIC, 0) == TRUE)
-        return true;
-    return GetLastError() == ERROR_NOT_FOUND;
-#else
-    Q_UNUSED(target);
-    return false;
-#endif
+bool PlatformAccountCredentialStore::deleteGenericCredential(const QString &target) {
+    return m_backend && m_backend->remove(target);
 }
 
-QList<QString> WindowsAccountCredentialStore::enumerateTargets(const QString &prefix) {
+QList<QString> PlatformAccountCredentialStore::enumerateTargets(const QString &prefix) const {
     QList<QString> targets;
-#ifdef Q_OS_WIN
-    const std::wstring filterWide = (prefix + QLatin1Char('*')).toStdWString();
-    DWORD count = 0;
-    PCREDENTIALW *credentials = nullptr;
-    if (CredEnumerateW(filterWide.c_str(), 0, &count, &credentials) != TRUE)
-        return targets;
-
-    targets.reserve(static_cast<qsizetype>(count));
-    for (DWORD index = 0; index < count; ++index) {
-        if (!credentials[index] || !credentials[index]->TargetName)
-            continue;
-        const QString target = QString::fromWCharArray(credentials[index]->TargetName);
-        if (windows_account_credential_store_detail::pendingTargetMatches(
-                prefix,
-                target))
-            targets.append(target);
+    if (m_backend) {
+        for (const QString &target : m_backend->targets(prefix)) {
+            if (target.startsWith(prefix))
+                targets.append(target);
+        }
     }
-    CredFree(static_cast<void *>(credentials));
-#else
-    Q_UNUSED(prefix);
-#endif
     return targets;
 }

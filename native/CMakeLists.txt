@@ -89,6 +89,7 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
+add_subdirectory(account/credentials)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -274,7 +275,6 @@ add_executable(colosseum
     account/SyncStateStore.cpp
     account/TankobanReaderPreferencesCodec.cpp
     account/TankobanReaderPreferencesSyncAdapter.cpp
-    account/WindowsAccountCredentialStore.cpp
     trackers/TrackerTypes.cpp
     trackers/TrackerConnectionStore.cpp
     trackers/TrackerConnectionService.cpp
@@ -377,7 +377,6 @@ add_executable(colosseum
     account/TankobanReaderPreferencesCodec.h
     account/TankobanReaderPreferencesOwner.h
     account/TankobanReaderPreferencesSyncAdapter.h
-    account/WindowsAccountCredentialStore.h
     trackers/TrackerTypes.h
     trackers/TrackerConnectionStore.h
     trackers/TrackerConnectionService.h
@@ -884,7 +883,7 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE colosseum_update_crypto
+target_link_libraries(colosseum PRIVATE colosseum_account_credentials colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
