@@ -464,6 +464,9 @@ private slots:
     void malformedUrlIsRejected();
     void oldErrorEventsDoNotFailCurrentChain();
     void backgroundLifecycleInvalidatesAndReconstructs();
+    // Task014: Nokia T20 foreground return. QML re-demands before the C++
+    // lifecycle slot runs; that slot's fence then drops the demand.
+    void demandStampedBeforeForegroundRestoreIsFenced();
     void staleStatsCallbacksStopAfterRetirement();
     void statisticsCorrelateWithVerifiedBytes();
     void ownedTeardownDuringInflightPrepare();
@@ -474,6 +477,7 @@ private slots:
     void destructionDuringDelayedCreateMustNotBlockGui();
 #ifdef COLOSSEUM_ANDROID_NUVIO_BACKEND
     void facadeReflectsEngineUnavailableState();
+    void facadeSyncsForegroundBeforeDemand();
 #endif
 };
 
@@ -1053,6 +1057,27 @@ void TestNuvioStreamBackend::backgroundLifecycleInvalidatesAndReconstructs() {
     QCOMPARE(ready.at(1).at(0).toString(), QString::fromLatin1(kUrlB));
 }
 
+void TestNuvioStreamBackend::demandStampedBeforeForegroundRestoreIsFenced() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.setForeground(false);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 10000);
+    // The observed order: demand first, foreground restore second. The
+    // restore's fence makes the demand stale; nothing is admitted.
+    backend.play(kInfoHashA, 0);
+    backend.setForeground(true);
+    QTest::qWait(400);
+    QCOMPARE(ready.count(), 1);
+    QCOMPARE(fake().addTorrentCount, 1);
+    // Foreground restored first (what the facade's probe guarantees): admitted.
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().addTorrentCount, 2);
+}
+
 void TestNuvioStreamBackend::staleStatsCallbacksStopAfterRetirement() {
     FakeEngineReset reset;
     NuvioStreamBackend backend(fakeApi(), testConfiguration());
@@ -1158,6 +1183,18 @@ void TestNuvioStreamBackend::facadeReflectsEngineUnavailableState() {
     QSignalSpy errors(&server, &StreamServer::streamError);
     server.play(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
     QTRY_COMPARE_WITH_TIMEOUT(errors.count(), 1, 10000);
+}
+
+void TestNuvioStreamBackend::facadeSyncsForegroundBeforeDemand() {
+    // Each demand reads the live foreground state before it reaches the
+    // backend, independent of lifecycle signal delivery order.
+    StreamServer server;
+    int probes = 0;
+    server.setForegroundProbe([&probes] { ++probes; return true; });
+    server.play(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
+    QCOMPARE(probes, 1);
+    server.prefetch(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
+    QCOMPARE(probes, 2);
 }
 #endif
 

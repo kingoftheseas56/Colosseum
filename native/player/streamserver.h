@@ -28,6 +28,7 @@
 // unit in focused tests. That host shape is compile/behavior coverage only;
 // desktop production never defines the macro.
 #if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+#include <functional>
 #include <memory>
 namespace Colosseum::Nuvio { class NuvioStreamBackend; }
 #endif
@@ -56,6 +57,10 @@ public:
     // PlatformRuntime lifecycle gate: the backend quiesces in the background
     // and reconstructs fresh engine state on the next explicit demand.
     void setForeground(bool foreground);
+    // The live application foreground state. QML handlers of the same
+    // lifecycle signal run before the C++ setForeground() slot, so a demand
+    // issued from them syncs the backend first instead of being fenced.
+    void setForegroundProbe(std::function<bool()> probe);
 #else
     bool ready() const { return m_port > 0; }
     bool starting() const { return m_starting; }
@@ -125,6 +130,7 @@ private:
     void handleTriggerFile();
     QByteArray loadPinnedFixture(const QString &infoHash, int fileIdx) const;
 #endif
+    std::function<bool()> m_foregroundProbe;
     bool m_engineUnavailable = false;
     // Reflects runtime engine-unavailability (library resolve failure at
     // construction, engine create failure later) into the facade property

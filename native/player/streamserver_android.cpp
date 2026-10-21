@@ -302,6 +302,7 @@ bool StreamServer::starting() const {
 
 void StreamServer::play(const QString &infoHash, int fileIdx) {
     qInfo() << "[nuvio014] Stream.play" << infoHash << fileIdx;
+    if (m_foregroundProbe) setForeground(m_foregroundProbe());
     if (!m_backend) {
         // kUnavailableMessage is a constant, not a literal token, so it must
         // not go through QStringLiteral.
@@ -333,6 +334,7 @@ void StreamServer::play(const QString &infoHash, int fileIdx) {
 }
 
 void StreamServer::prefetch(const QString &infoHash, int fileIdx) {
+    if (m_foregroundProbe) setForeground(m_foregroundProbe());
     if (!m_backend) {
         emit streamError(QString::fromLatin1(kUnavailableMessage));
         return;
@@ -372,6 +374,10 @@ void StreamServer::stopDemand() {
     }
 }
 
+void StreamServer::setForegroundProbe(std::function<bool()> probe) {
+    m_foregroundProbe = std::move(probe);
+}
+
 #else // stub: Android streaming unavailable
 
 namespace {
@@ -400,6 +406,11 @@ bool StreamServer::starting() const
 void StreamServer::setForeground(bool foreground)
 {
     Q_UNUSED(foreground)
+}
+
+void StreamServer::setForegroundProbe(std::function<bool()> probe)
+{
+    m_foregroundProbe = std::move(probe);
 }
 
 void StreamServer::setEngineUnavailable(bool unavailable)

@@ -1146,6 +1146,9 @@ int main(int argc, char *argv[]) {
         &Colosseum::Platform::Runtime::applicationStateChanged,
         stream,
         [platformRuntime, stream]() { stream->setForeground(platformRuntime->foreground()); });
+    // QML lifecycle handlers run before the connection above; a re-demand
+    // they issue reads the live state rather than racing this slot.
+    stream->setForegroundProbe([platformRuntime]() { return platformRuntime->foreground(); });
 #endif
     // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
     // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
