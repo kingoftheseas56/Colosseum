@@ -145,8 +145,9 @@ Main {
                 root.activate("vinylAlbumPlay");root.next("playlist-playing");return;
             }
             if(root.stage==="playlist-playing") {
-                if(s.error || s.browseError){root.check(false,s.error || s.browseError);return;}if(!s.loaded || s.position<1 || s.queue.length<=100)return;
-                if(!root.check(s.playingTrack.id===root.expectedTrack && s.playingEdition.sourceAlbum.complete===true && s.queue.length===127,"Partial playlist Play queued a prefix or wrong track"))return;
+                if(s.error || s.browseError){root.check(false,s.error || s.browseError);return;}if(!s.loaded || s.position<1)return;
+                var full=s.playingEdition.sourceAlbum;
+                if(!root.check(s.playingTrack.id===root.expectedTrack && full.complete===true && full.tracks.length===127 && s.queue.length===full.tracks.filter(t=>t.available!==false).length,"Partial playlist Play queued a prefix or wrong track"))return;
                 console.log("VINYL_PLAYLIST_PLAY",JSON.stringify({queue:s.queue.length,title:s.playingTrack.title,id:s.playingTrack.id,position:s.position,source:s.sourceKind,omitted:s.playingEdition.sourceAlbum.omittedTracks}));
                 s.paused=true;root.next("playlist-more");return;
             }

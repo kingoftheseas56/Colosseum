@@ -178,7 +178,14 @@ bool VinylBackendSession::appendRows(const QVariantList &input,bool playNext) {
     }
     int at=playNext&&activeIndex()>=0?activeIndex()+1:m_backend->queue.size();
     for(const auto &item:items)m_backend->coordinator.insert(at++,item);
-    m_rows.insert(metadata);emit queueChanged();publishState();return true;
+    m_rows.insert(metadata);
+    // A queued-only collection still needs a visible, paused selection so the
+    // existing player bar and Queue action can reach it without starting audio.
+    if(activeIndex()<0){
+        m_backend->queue.activate(m_backend->queue.items().first().occurrenceId());
+        m_paused=true;m_resume=0;m_duration=activeRow().value("seconds").toDouble();m_state="paused";
+    }
+    emit queueChanged();publishState();return true;
 }
 void VinylBackendSession::playQueue(int index) {
     if(m_shutdown||!m_profileActive||index<0||index>=m_backend->queue.size())return;
@@ -207,10 +214,10 @@ void VinylBackendSession::clearQueue() {
     if(m_shutdown||!m_profileActive)return;
     emit playbackEnding(false);cancelResolution();m_backend->coordinator.clear();m_rows.clear();
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
-    m_resume=0;m_duration=0;m_paused=true;m_state="idle";m_error.clear();emit queueChanged();publishState();
+    m_resume=0;m_duration=0;m_paused=true;m_shuffleEnabled=false;m_state="idle";m_error.clear();emit queueChanged();publishState();
 }
 void VinylBackendSession::setShuffle(bool enabled) {
-    if(m_shutdown||!m_profileActive||enabled==shuffled())return;
+    if(m_shutdown||!m_profileActive||enabled==shuffled()||(enabled&&m_backend->queue.empty()))return;
     if(enabled)m_backend->queue.shuffle(QRandomGenerator::global()->generate64());else m_backend->queue.unshuffle();
     m_shuffleEnabled=enabled;
     emit queueChanged();publishState();
@@ -402,7 +409,12 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
     });
     publishState();
 }
-void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) { if(m_player)m_player->setPause(paused); }
+void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) {
+    // mpv's observed pause value may still predate a queued pause command.
+    // Always send the adapter's latest intent so rapid pause/resume cannot drop
+    // the resume because the observer cache still reports "playing".
+    if(m_player)m_player->setPropertyAsync(QStringLiteral("pause"),paused);
+}
 bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double> resume) {
     if(m_shutdown||!m_profileActive||m_sourceKind!="torrent"||m_fallbackAttempted||activeIndex()<0)return false;
     const auto at=resume.value_or(position());const bool play=!m_paused;
@@ -448,7 +460,9 @@ void VinylBackendSession::next(int delta) {
     if(index<0||index>=m_backend->queue.size()){
         if(m_repeat!="all")return;index=(index+m_backend->queue.size())%m_backend->queue.size();
     }
+    const bool wasPaused=m_paused;
     playQueue(index);
+    if(wasPaused)setPaused(true);
 }
 void VinylBackendSession::naturalEnd(const PlaybackWorkToken &token) {
     if(!m_backend->adapter.validateWorkToken(token).ok)return;

@@ -203,6 +203,10 @@ Item {
         var row = singlesRows[index];
         if (session && row && row.playable) session.playAlbum(row.album, row.index, row.song.editionId);
     }
+    function enqueueDemoSong(index,playNext) {
+        var row=singlesRows[index];
+        return !!(session && row && row.playable && session.enqueueSong(row.album,row.index,row.song.editionId,!!playNext));
+    }
     function toggleDemoPlayback() {
         if (!session) return;
         if(online){if(playingOnlineArtist)session.togglePause();else if(albums.length)session.playCatalogueAlbum(albums[0].id,false);return;}

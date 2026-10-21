@@ -16,7 +16,8 @@ Item {
     readonly property bool lyricsShown: pageData.lyricsShown
     readonly property bool autoNotes: pageData.autoNotes
     readonly property bool videoShown: pageData.videoShown
-    readonly property real cardHeight: Math.max(96, Math.min(470, Window.height * 0.48, height - 140, width * 0.48))
+    readonly property real cardHeight: Math.max(96, Math.min(470, Window.height * 0.48,
+        height - songActionsRow.y - songActionsRow.height - 94, width * 0.48))
     readonly property bool canSavePlayingSong: !!pageData
         && typeof pageData.personalEnabled === "boolean"
         && typeof pageData.songIsSaved === "boolean"
@@ -24,6 +25,9 @@ Item {
     readonly property bool canAddPlayingSongToPlaylist: !!pageData
         && typeof pageData.personalEnabled === "boolean"
         && typeof pageData.addPlayingSongToPlaylist === "function"
+    readonly property bool canEnqueuePlayingSong: !!pageData
+        && typeof pageData.enqueuePlayingSong === "function"
+        && !!pageData.playingTrack && pageData.playingTrack.available !== false
     signal backRequested
     signal albumRequested
     function focusBackControl() { backAction.focusControl(Qt.TabFocusReason); }
@@ -43,12 +47,19 @@ Item {
         Keys.onEnterPressed: root.backRequested()
         onTriggered: root.backRequested()
     }
-    Row {
+    Flow {
+        id: songActionsRow
         objectName: "vinylSongBrowseActions"
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 4; spacing: 8
+        x: root.width < 760 ? theme.margin : backAction.x + backAction.width + 12
+        y: root.width < 760 ? backAction.y + backAction.height + 8 : 4
+        width: Math.max(0, root.width - x - theme.margin)
+        height: implicitHeight
+        spacing: 8
         VinylWorldButton { objectName: "vinylSongPlay"; visible: root.browseMode; label: "Play"; symbol: "play"; onTriggered: root.playRequested() }
         VinylWorldButton { objectName: "vinylSongSave"; visible: root.canSavePlayingSong; enabled: visible && root.pageData.personalEnabled; label: root.pageData.songIsSaved ? "Unsave song" : "Save song"; symbol: root.pageData.songIsSaved ? "saved" : "save"; onTriggered: root.pageData.togglePlayingSongSaved() }
         VinylWorldButton { objectName: "vinylSongPlaylist"; visible: root.canAddPlayingSongToPlaylist; enabled: visible && root.pageData.personalEnabled; label: "Add to playlist"; symbol: "queue"; onTriggered: root.pageData.addPlayingSongToPlaylist() }
+        VinylWorldButton { objectName: "vinylSongNext"; visible: !!root.pageData && typeof root.pageData.enqueuePlayingSong === "function"; enabled: root.canEnqueuePlayingSong; label: "Play next"; symbol: "playNext"; onTriggered: root.pageData.enqueuePlayingSong(true) }
+        VinylWorldButton { objectName: "vinylSongQueue"; visible: !!root.pageData && typeof root.pageData.enqueuePlayingSong === "function"; enabled: root.canEnqueuePlayingSong; label: "Add song to queue"; symbol: "queue"; onTriggered: root.pageData.enqueuePlayingSong(false) }
         VinylWorldButton { objectName: "vinylSongLyrics"; label: "Lyrics"; symbol: "lyrics"; enabled: root.pageData.hasLyrics; selected: root.pageData.lyricsShown; onTriggered: root.pageData.lyricsShown=!root.pageData.lyricsShown }
         VinylWorldButton { objectName: "vinylSongNotes"; label: "Notes"; symbol: "notes"; enabled: root.pageData.hasNotes; selected: root.pageData.autoNotes; onTriggered: {root.pageData.autoNotes=!root.pageData.autoNotes;root.pageData.lyricsShown=true;} }
         VinylWorldButton { objectName: "vinylSongCredits"; label: "Credits"; symbol: "credits"; enabled: root.pageData.playingCredits.length>0; onTriggered: root.creditsRequested() }
@@ -57,7 +68,8 @@ Item {
         id: room
         width: parent.width
         height: root.cardHeight + 82
-        anchors.verticalCenter: parent.verticalCenter
+        y: songActionsRow.y + songActionsRow.height + Math.max(12,
+            (root.height - songActionsRow.y - songActionsRow.height - height) / 2)
         Item {
             id: poster
             objectName: "vinylSongPoster"

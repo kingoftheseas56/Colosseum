@@ -12,6 +12,8 @@ Item {
         switch (root.symbol) {
         case "play":
             return "<path d=\"M8 5.5v13l10-6.5z\" fill=\"ICON_COLOR\" stroke=\"none\"/>";
+        case "playNext":
+            return "<path d=\"M5.5 5.5v13l10-6.5z\" fill=\"ICON_COLOR\" stroke=\"none\"/><path d=\"M19 5v14\"/>";
         case "pause":
             return "<path d=\"M7 5h3.5v14H7zM13.5 5H17v14h-3.5z\" fill=\"ICON_COLOR\" stroke=\"none\"/>";
         case "shuffle":

@@ -37,6 +37,7 @@ Item {
     readonly property int activeNoteLine: manualNoteLine>=0 ? manualNoteLine : autoNotes && hasNotes ? Math.max(0,currentLineIndex) : -1
     function artwork(url){return url || "";}
     function play(){session.playAlbum(album,trackIndex,playingEditionId);}
+    function enqueuePlayingSong(playNext){return session.enqueueSong(album,trackIndex,playingEditionId,!!playNext);}
     function togglePlayingSongSaved(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.toggleSongSaved==="function")return session.toggleSongSaved(personalRow);return false;}
     function addPlayingSongToPlaylist(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.addRowsToPlaylist==="function")return session.addRowsToPlaylist([personalRow]);return false;}
     function seekToLine(index){if(isCurrent && timedLyrics && lyrics[index]) session.seek(Number(lyrics[index].time!==undefined ? lyrics[index].time : lyrics[index].seconds));}

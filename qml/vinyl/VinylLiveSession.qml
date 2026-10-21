@@ -657,11 +657,32 @@ Item {
             title:t.title,artist:t.artist,seconds:t.seconds,cover:e.cover,track:t,edition:e};
     }
     function editionRows(e) {var rows=[];e.discs.forEach((d,di)=>d.forEach((t,i)=>rows.push(rowFor(e,di,i))));return rows;}
+    function playableRows(rows) {return rows.filter(r=>r && r.track && r.track.available!==false);}
+    function albumTrackRow(album,index,editionId) {
+        album=plainData(album);
+        if(!validAlbum(album) || !Number.isInteger(index) || index<0)return null;
+        var raw=(album.editions || []).find(e=>e.id===editionId) || (album.editions || [])[0] || album;
+        if(editionId && editionId!==(raw.id || album.id))return null;
+        var track=(raw.tracks || [])[index];if(!track)return null;
+        var edition=normalize(album,raw),disc=Math.max(1,Number(track.disc)||1);
+        var di=edition.discNumbers.indexOf(disc),ti=raw.tracks.slice(0,index).filter(t=>Math.max(1,Number(t.disc)||1)===disc).length;
+        return di>=0 ? rowFor(edition,di,ti) : null;
+    }
+    function playShownAlbum() {playAlbum(shownEdition.sourceAlbum,undefined,shownEditionId);}
+    function enqueueSong(album,index,editionId,playNext) {
+        var row=albumTrackRow(album,index,editionId);
+        if(!row || row.track.available===false){browseError="This song is unavailable.";return false;}
+        return appendRows([row],!!playNext);
+    }
+    function enqueuePlayingSong(playNext) {
+        if(!activeQueueRow){browseError="No song is selected.";return false;}
+        return appendRows([activeQueueRow],!!playNext);
+    }
     function cancelQueueRequest() {queueRequest=-1;pendingCataloguePlay=null;pendingEnqueues=[];if(source) source.cancel("queue");}
     function playCatalogueAlbum(id,shuffleOrder,index,trackId) {
         if(shuttingDown || !profileActive || !source) return;
         cancelQueueRequest();browseError="";refreshSource();queueAlbumId=id;
-        pendingCataloguePlay={shuffle:!!shuffleOrder,index:index || 0,trackId:trackId || ""};queueRequest=source.request("queue","album",id);
+        pendingCataloguePlay={shuffle:!!shuffleOrder,index:index===undefined ? -1 : index,trackId:trackId || ""};queueRequest=source.request("queue","album",id);
         if(queueRequest<0){pendingCataloguePlay=null;browseError="This catalogue release could not be loaded.";}
     }
     function playTrack(index) { startQueue(index,false); }
@@ -669,21 +690,23 @@ Item {
         if(shuttingDown || !profileActive) return;
         if(!validAlbum(album)) return;
         if(album.type==="Playlist" && album.complete!==true) {
-            index=index===undefined ? 0 : index;
-            playCatalogueAlbum(album.id,false,index,(album.tracks[index] || {}).id);return;
+            playCatalogueAlbum(album.id,false,index,index===undefined ? "" : (album.tracks[index] || {}).id);return;
         }
         var edition=editionId ? normalizeEditions(album).find(e=>e.id===editionId) : normalize(album);
         if(!edition) return;
-        var rows=editionRows(edition);index=index===undefined ? 0 : index;
-        if(!Number.isInteger(index)||index<0||index>=rows.length||index>=10000) return;
-        snapshot();cancelQueueRequest();refreshSource();backend.replaceRows(rows.slice(0,10000),index,false);snapshot();
+        var rows=playableRows(editionRows(edition)),selected=index===undefined ? rows[0] : albumTrackRow(album,index,editionId);
+        var at=selected ? rows.findIndex(r=>r.discIndex===selected.discIndex && r.trackIndex===selected.trackIndex) : -1;
+        if(at<0){browseError="This song is unavailable.";return;}
+        if(rows.length>10000){browseError="This collection exceeds the queue limit.";return;}
+        snapshot();cancelQueueRequest();refreshSource();browseError="";backend.replaceRows(rows,at,false);snapshot();
     }
     function shuffleAlbum(album) {if(!validAlbum(album)) return;if(album.type==="Playlist"&&album.complete!==true){playCatalogueAlbum(album.id,true);return;}playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
     function playSongs(songs,shuffleOrder) {
         if(shuttingDown || !profileActive) return;
         if(!Array.isArray(songs)) return;
+        if(songs.length>10000){browseError="This collection exceeds the queue limit.";return;}
         var rows=[], cache=new Map();
-        songs.slice(0,10000).forEach(song=>{
+        songs.forEach(song=>{
             if(!song || !song.album || !song.album.id) return;
             var cacheKey=JSON.stringify([song.album.id,song.editionId || ""]), prepared=cache.get(cacheKey);
             if(!prepared) {
@@ -696,29 +719,31 @@ Item {
             }
             var ref=Number.isInteger(song.index) ? prepared.flat[song.index] : (song.track && song.track.id ? prepared.byId.get(song.track.id) : null);
             if(ref && song.track && song.track.id && prepared.edition.discs[ref.d][ref.i].id!==song.track.id) return;
-            if(ref) rows.push(rowFor(prepared.edition,ref.d,ref.i));
+            if(ref && prepared.edition.discs[ref.d][ref.i].available!==false) rows.push(rowFor(prepared.edition,ref.d,ref.i));
         });
-        if(!rows.length) return;
-        snapshot();cancelQueueRequest();refreshSource();backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
+        if(!rows.length){browseError="No available songs could be played.";return;}
+        snapshot();cancelQueueRequest();refreshSource();browseError="";backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
     }
     function togglePause() {if(playingIndex>=0) paused=!paused;}
     function shuffle() { startQueue(0,true); }
     function startQueue(index,shuffleOrder) {
         if(shuttingDown || !profileActive) return;
         if(!Number.isInteger(index) || index<0 || index>=tracks.length) return;
-        var rows=editionRows(shownEdition);
-        var selected=rows.findIndex(r=>r.discIndex===shownDisc && r.trackIndex===index);
-        if(selected<0 || selected>=10000) {browseError="This track exceeds the queue limit.";return;}
+        var allRows=editionRows(shownEdition),chosen=allRows.find(r=>r.discIndex===shownDisc && r.trackIndex===index);
+        var rows=playableRows(allRows),selected=shuffleOrder ? 0 : rows.indexOf(chosen);
+        if(selected<0 || !rows.length){browseError="This song is unavailable.";return;}
+        if(rows.length>10000) {browseError="This collection exceeds the queue limit.";return;}
         var album=shownEdition.sourceAlbum || {};
         if(album.type==="Playlist" && album.complete!==true) {
-            playCatalogueAlbum(album.id,shuffleOrder,selected,rows[selected].trackId);return;
+            playCatalogueAlbum(album.id,shuffleOrder,shuffleOrder ? undefined : allRows.indexOf(chosen),shuffleOrder ? "" : chosen.trackId);return;
         }
         snapshot();cancelQueueRequest();refreshSource();
-        backend.replaceRows(rows.slice(0,10000),selected,!!shuffleOrder);snapshot();
+        browseError="";backend.replaceRows(rows,selected,!!shuffleOrder);snapshot();
     }
     function enqueueTrack(index,playNext) {
         if(shuttingDown || !profileActive) return;
         if(!Number.isInteger(index) || index<0 || index>=tracks.length) return;
+        if(tracks[index].available===false){browseError="This song is unavailable.";return;}
         appendRows([rowFor(shownEdition,shownDisc,index)],playNext);
     }
     function enqueueAlbum(albumId,playNext) {
@@ -735,7 +760,7 @@ Item {
         if(queueRequest>=0) return;
         while(pendingEnqueues.length) {
             var job=pendingEnqueues[0];pendingEnqueues=pendingEnqueues.slice(1);
-            if(job.edition) {appendRows(editionRows(job.edition),job.playNext);continue;}
+            if(job.edition) {appendRows(playableRows(editionRows(job.edition)),job.playNext);continue;}
             if(!source) {browseError="Local audio is unavailable.";continue;}
             queueInsertNext=job.playNext;queueAlbumId=job.albumId;queueRequest=source.request("queue","album",job.albumId);
             if(queueRequest>=0) return;
@@ -745,7 +770,7 @@ Item {
     function appendRows(rows,playNext) {
         if(rows.length>Math.max(0,10000-queue.length)){browseError="The queue is full. Remove some tracks and try again.";return false;}
         if(!backend.appendRows(rows,playNext)){browseError="The tracks could not be queued.";return false;}
-        browseError="";snapshot();return true;
+        browseError="";refreshSource();snapshot();return true;
     }
     function playQueue(index,skipSnapshot) {
         if(!skipSnapshot) snapshot();
@@ -894,9 +919,9 @@ Item {
                 else if(data.type==="Playlist"&&data.complete!==true)root.browseError="The full playlist could not be loaded.";
                 else if(play) {
                     if(play.trackId && (!data.tracks[play.index] || data.tracks[play.index].id!==play.trackId))root.browseError="The playlist order changed. Open it again before playing.";
-                    else if(play.shuffle)root.shuffleAlbum(data);else root.playAlbum(data,play.index);
+                    else if(play.shuffle)root.shuffleAlbum(data);else root.playAlbum(data,play.index<0 ? undefined : play.index);
                 }
-                else root.appendRows(root.editionRows(root.normalize(data)),root.queueInsertNext);
+                else root.appendRows(root.playableRows(root.editionRows(root.normalize(data))),root.queueInsertNext);
                 if(!play)root.dispatchNextEnqueue();
 
             }

@@ -21,6 +21,10 @@ Item {
     readonly property var savedSongs: libraryData.savedSongs || []
     readonly property var playlists: libraryData.playlists || []
     readonly property var availableSongs: libraryData.availableSongs || []
+    readonly property bool savedSongQueueAvailable: !!libraryData
+        && typeof libraryData.enqueueSavedSong === "function"
+    readonly property bool playlistItemQueueAvailable: !!libraryData
+        && typeof libraryData.enqueuePlaylistItem === "function"
     readonly property var selectedPlaylist: libraryData.selectedPlaylist || ({id:"",name:"",title:"",items:[]})
     readonly property string dataError: String(libraryData.error || "")
     readonly property real sideInset: Math.max(0, Math.min(52, (width - 1120) / 2))
@@ -250,7 +254,7 @@ Item {
             Column {
                 id: savedSongList
                 y: songHeading.height + 20; width: parent.width
-                height: savedSongRows.count * 68
+                height: savedSongRows.count * (root.contentWidth < 360 ? 102 : 68)
                 spacing: 2
                 Repeater {
                     id: savedSongRows
@@ -260,7 +264,7 @@ Item {
                         required property var modelData
                         required property int index
                         objectName: "vinylLibrarySavedSong_" + index
-                        width: savedSongList.width; height: 66
+                        width: savedSongList.width; height: root.contentWidth < 360 ? 100 : 66
                         readonly property bool unavailable: modelData.unavailable === true
                         property alias playAction: rowPlay
                         Rectangle { anchors.fill: parent; radius: 7; color: rowPlay.interactionActive ? theme.glassTint : "transparent" }
@@ -275,7 +279,11 @@ Item {
                         KeyboardAction {
                             id: rowPlay
                             objectName: "vinylLibrarySavedSongPlay_" + savedRow.index
-                            x:66; width: Math.max(0, parent.width - 160); height: parent.height
+                            x:66
+                            width: root.contentWidth < 360 ? Math.max(0, parent.width - 72)
+                                : Math.max(0, parent.width - (root.savedSongQueueAvailable ? 240 : 160))
+                            y: 0
+                            height: root.contentWidth < 360 ? 58 : parent.height
                             focusOnPointer: false; showFocusFrame: false
                             enabled: !savedRow.unavailable
                             accessibleName: "Play " + root.displayTitle(savedRow.modelData) + (savedRow.unavailable ? ", unavailable" : "")
@@ -288,8 +296,43 @@ Item {
                             }
                         }
                         KeyboardAction {
+                            objectName: "vinylLibrarySavedSongNext_" + savedRow.index
+                            visible: !!root.libraryData && typeof root.libraryData.enqueueSavedSong === "function"
+                            x: root.contentWidth < 360
+                                ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
+                                : parent.width - 168
+                            y: root.contentWidth < 360 ? 62 : (parent.height - 36) / 2
+                            width: 36; height: 36
+                            focusOnPointer: false
+                            enabled: visible && !savedRow.unavailable
+                            accessibleName: "Play next: " + root.displayTitle(savedRow.modelData)
+                            onTriggered: root.libraryData.enqueueSavedSong(savedRow.modelData.id, true)
+                            Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                            VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.inkDim }
+                        }
+                        KeyboardAction {
+                            objectName: "vinylLibrarySavedSongQueue_" + savedRow.index
+                            visible: !!root.libraryData && typeof root.libraryData.enqueueSavedSong === "function"
+                            x: root.contentWidth < 360
+                                ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2) + 42
+                                : parent.width - 126
+                            y: root.contentWidth < 360 ? 62 : (parent.height - 36) / 2
+                            width: 36; height: 36
+                            focusOnPointer: false
+                            enabled: visible && !savedRow.unavailable
+                            accessibleName: "Add to queue: " + root.displayTitle(savedRow.modelData)
+                            onTriggered: root.libraryData.enqueueSavedSong(savedRow.modelData.id, false)
+                            Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                            VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
+                        }
+                        KeyboardAction {
                             objectName: "vinylLibrarySavedSongAdd_" + savedRow.index
-                            x: parent.width - 42; anchors.verticalCenter: parent.verticalCenter; width: 36; height: 36
+                            x: root.contentWidth < 360
+                                ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
+                                    + (root.savedSongQueueAvailable ? 126 : 42)
+                                : parent.width - 42
+                            y: root.contentWidth < 360 ? 62 : (parent.height - 36) / 2
+                            width: 36; height: 36
                             focusOnPointer: false
                             accessibleName: "Add " + root.displayTitle(savedRow.modelData) + " to a playlist"
                             onTriggered: root.openSongPicker(savedRow.modelData)
@@ -298,7 +341,12 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongRemove_" + savedRow.index
-                            x: parent.width - 84; anchors.verticalCenter: parent.verticalCenter; width: 36; height: 36
+                            x: root.contentWidth < 360
+                                ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
+                                    + (root.savedSongQueueAvailable ? 84 : 0)
+                                : parent.width - 84
+                            y: root.contentWidth < 360 ? 62 : (parent.height - 36) / 2
+                            width: 36; height: 36
                             focusOnPointer: false
                             accessibleName: "Remove " + root.displayTitle(savedRow.modelData) + " from saved songs"
                             onTriggered: root.libraryData.toggleSong(savedRow.modelData)
@@ -421,9 +469,21 @@ Item {
                     focusOnPointer: false
                     accessibleName: "Queue playlist"
                     enabled: (root.selectedPlaylist.items || []).length > 0
+                        && !!root.libraryData && typeof root.libraryData.enqueuePlaylist === "function"
                     onTriggered: root.libraryData.enqueuePlaylist(root.selectedPlaylist.id, false)
                     Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                     VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.ink }
+                }
+                KeyboardAction {
+                    objectName: "vinylPlaylistNext"
+                    visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylist === "function"
+                    width: 38; height: 36
+                    focusOnPointer: false
+                    accessibleName: "Play playlist next"
+                    enabled: visible && (root.selectedPlaylist.items || []).length > 0
+                    onTriggered: root.libraryData.enqueuePlaylist(root.selectedPlaylist.id, true)
+                    Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                    VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.ink }
                 }
                 KeyboardAction {
                     id: playlistAdd
@@ -511,7 +571,7 @@ Item {
                 y: Math.max(actionRow.y + actionRow.height + (detailError.visible ? detailError.height + 18 : 12),
                     addSongsPanel.visible ? addSongsPanel.y + addSongsPanel.height + 16 : 0)
                 width: parent.width
-                height: playlistItemRows.count * (root.contentWidth < 280 ? 103 : 65)
+                height: playlistItemRows.count * (root.contentWidth < 430 ? 103 : 65)
                 spacing: 3
                 Repeater {
                     id: playlistItemRows
@@ -521,15 +581,16 @@ Item {
                         required property var modelData
                         required property int index
                         objectName: "vinylPlaylistItem_" + index
-                        width: playlistItems.width; height: root.contentWidth < 280 ? 100 : 62
+                        width: playlistItems.width; height: root.contentWidth < 430 ? 100 : 62
                         readonly property string itemId: String(modelData.itemId || modelData.id || "")
                         Rectangle { anchors.fill: parent; radius: 7; color: itemPlay.interactionActive ? theme.glassTint : "transparent" }
                         KeyboardAction {
                             id: itemPlay
                             objectName: "vinylPlaylistItemPlay_" + playlistItemRow.index
                             enabled: !playlistItemRow.modelData.unavailable
-                            width: root.contentWidth < 280 ? parent.width : Math.max(0, parent.width - 138)
-                            height: root.contentWidth < 280 ? 58 : parent.height
+                            width: root.contentWidth < 430 ? parent.width
+                                : Math.max(0, parent.width - (root.playlistItemQueueAvailable ? 230 : 138))
+                            height: root.contentWidth < 430 ? 58 : parent.height
                             focusOnPointer: false; showFocusFrame: false
                             accessibleName: "Play " + root.displayTitle(playlistItemRow.modelData) + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
                             onActiveFocusChanged: if (activeFocus) { root.currentIndex=playlistItemRow.index; root.selectedId=playlistItemRow.itemId; }
@@ -546,10 +607,49 @@ Item {
                             }
                         }
                         KeyboardAction {
+                            objectName: "vinylPlaylistItemNext_" + playlistItemRow.index
+                            visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylistItem === "function"
+                            x: root.contentWidth < 430
+                                ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
+                                : parent.width - 224
+                            y: root.contentWidth < 430 ? 62 : (parent.height - 34) / 2
+                            width: root.contentWidth < 430 ? 30 : 34
+                            height: root.contentWidth < 430 ? 30 : 34
+                            focusOnPointer: false
+                            enabled: visible && !playlistItemRow.modelData.unavailable
+                            accessibleName: "Play next: " + root.displayTitle(playlistItemRow.modelData)
+                                + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
+                            onTriggered: root.libraryData.enqueuePlaylistItem(
+                                root.selectedPlaylist.id || root.selectedPlaylistId, playlistItemRow.itemId, true)
+                            Rectangle { anchors.fill: parent; radius: 8; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                            VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.inkDim }
+                        }
+                        KeyboardAction {
+                            objectName: "vinylPlaylistItemQueue_" + playlistItemRow.index
+                            visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylistItem === "function"
+                            x: root.contentWidth < 430
+                                ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2) + 35
+                                : parent.width - 180
+                            y: root.contentWidth < 430 ? 62 : (parent.height - 34) / 2
+                            width: root.contentWidth < 430 ? 30 : 34
+                            height: root.contentWidth < 430 ? 30 : 34
+                            focusOnPointer: false
+                            enabled: visible && !playlistItemRow.modelData.unavailable
+                            accessibleName: "Add to queue: " + root.displayTitle(playlistItemRow.modelData)
+                                + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
+                            onTriggered: root.libraryData.enqueuePlaylistItem(
+                                root.selectedPlaylist.id || root.selectedPlaylistId, playlistItemRow.itemId, false)
+                            Rectangle { anchors.fill: parent; radius: 8; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                            VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
+                        }
+                        KeyboardAction {
                             objectName: "vinylPlaylistMoveUp_" + playlistItemRow.index
-                            x: root.contentWidth < 280 ? Math.max(4, (parent.width - 114) / 2) : parent.width - 132
-                            y: root.contentWidth < 280 ? 62 : (parent.height - 34) / 2
-                            width: 34; height: 34
+                            x: root.contentWidth < 430
+                                ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
+                                    + (root.playlistItemQueueAvailable ? 70 : 0)
+                                : parent.width - (root.playlistItemQueueAvailable ? 136 : 132)
+                            y: root.contentWidth < 430 ? 62 : (parent.height - 34) / 2
+                            width: root.contentWidth < 430 ? 30 : 34; height: root.contentWidth < 430 ? 30 : 34
                             focusOnPointer: false; accessibleName: "Move " + root.displayTitle(playlistItemRow.modelData) + " up" + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
                             enabled: playlistItemRow.index > 0
                             onTriggered: root.libraryData.movePlaylistItem(root.selectedPlaylist.id || root.selectedPlaylistId, playlistItemRow.itemId, playlistItemRow.index - 1)
@@ -558,9 +658,12 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistMoveDown_" + playlistItemRow.index
-                            x: root.contentWidth < 280 ? Math.max(4, (parent.width - 114) / 2 + 40) : parent.width - 92
-                            y: root.contentWidth < 280 ? 62 : (parent.height - 34) / 2
-                            width: 34; height: 34
+                            x: root.contentWidth < 430
+                                ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
+                                    + (root.playlistItemQueueAvailable ? 105 : 35)
+                                : parent.width - 92
+                            y: root.contentWidth < 430 ? 62 : (parent.height - 34) / 2
+                            width: root.contentWidth < 430 ? 30 : 34; height: root.contentWidth < 430 ? 30 : 34
                             focusOnPointer: false; accessibleName: "Move " + root.displayTitle(playlistItemRow.modelData) + " down" + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
                             enabled: playlistItemRow.index < (root.selectedPlaylist.items || []).length - 1
                             onTriggered: root.libraryData.movePlaylistItem(root.selectedPlaylist.id || root.selectedPlaylistId, playlistItemRow.itemId, playlistItemRow.index + 1)
@@ -569,9 +672,12 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistRemove_" + playlistItemRow.index
-                            x: root.contentWidth < 280 ? Math.max(4, (parent.width - 114) / 2 + 80) : parent.width - 48
-                            y: root.contentWidth < 280 ? 62 : (parent.height - 34) / 2
-                            width: 34; height: 34
+                            x: root.contentWidth < 430
+                                ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
+                                    + (root.playlistItemQueueAvailable ? 140 : 70)
+                                : parent.width - 48
+                            y: root.contentWidth < 430 ? 62 : (parent.height - 34) / 2
+                            width: root.contentWidth < 430 ? 30 : 34; height: root.contentWidth < 430 ? 30 : 34
                             focusOnPointer: false; accessibleName: "Remove " + root.displayTitle(playlistItemRow.modelData) + " from playlist" + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
                             onTriggered: root.libraryData.removePlaylistItem(root.selectedPlaylist.id || root.selectedPlaylistId, playlistItemRow.itemId)
                             Rectangle { anchors.fill: parent; radius: 8; color: parent.interactionActive ? theme.glassTint : "transparent" }

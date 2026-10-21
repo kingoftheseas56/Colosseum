@@ -58,6 +58,11 @@ Main {
                 if(!codec||channels<1||!output||output==="null"){root.fail("decoder/device output missing");return;}
                 var metadata=s.player.getProperty("metadata") || {};
                 console.log("VINYL_REMOTE_OUTPUT_OK",JSON.stringify({source:s.sourceKind,title:s.playingTrack.title,codec:codec,channels:channels,output:output,position:s.position,selection:root.selected,tags:{title:metadata.title,album:metadata.album,artist:metadata.artist}}));
+                s.player.nativePlaybackEvent.connect(function(kind,entry,position,duration,load,observed){
+                    if(kind==="seek-start" || kind==="restart" || kind.indexOf("ended-")===0)
+                        console.log("VINYL_REMOTE_ENGINE_EVENT",JSON.stringify({stage:root.stage,kind:kind,position:position,duration:duration,load:load,observed:observed}));
+                });
+                s.player.trackedSeekReply.connect(function(serial,success,load){console.log("VINYL_REMOTE_SEEK_REPLY",serial,success,load);});
                 s.seek(12);root.next("seek");return;
             }
             if(root.stage==="seek"&&!s.seekPending&&s.position>=11.5){

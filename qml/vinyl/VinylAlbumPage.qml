@@ -46,11 +46,14 @@ Flickable {
         && typeof pageData.personalEnabled === "boolean"
         && typeof pageData.shownAlbumRows === "function"
         && typeof pageData.addRowsToPlaylist === "function"
+    readonly property bool trackQueueAvailable: queueActionsEnabled && !!pageData
+        && typeof pageData.enqueueTrack === "function"
     readonly property bool personalTrackActionsVisible: trackSaveAvailable || trackPlaylistAvailable
     readonly property real personalTrackActionsWidth: personalTrackActionsVisible ? 80 : 0
     readonly property var albumActionModel: {
         var actions = ["Play", "Shuffle", "Save"];
-        if (queueActionsEnabled) actions.push("Queue");
+        if (queueActionsEnabled && pageData && typeof pageData.enqueueAlbum === "function")
+            actions.push("Next", "Queue");
         if (albumPlaylistAvailable) actions.push("Playlist");
         return actions;
     }
@@ -169,8 +172,10 @@ Flickable {
                 font.family: theme.ui
                 font.pixelSize: 12
             }
-            Row {
+            Flow {
                 id: albumActionsRow
+                width: parent.width
+                height: implicitHeight
                 spacing: 10
                 Repeater {
                     id: albumActions
@@ -181,20 +186,35 @@ Flickable {
                         objectName: "vinylAlbum" + modelData
                         width: 40
                         height: 36
-                        accessibleName: modelData === "Save" && root.pageData.saved ? "Saved" : modelData === "Playlist" ? "Add album to playlist" : modelData
-                        enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : modelData === "Queue" ? root.trackCount > 0 : modelData === "Playlist" ? root.pageData.personalEnabled && !root.partialPlaylist && root.albumRowsForPlaylist().length > 0 : root.saveEnabled
+                        accessibleName: modelData === "Save" && root.pageData.saved ? "Saved"
+                            : modelData === "Playlist" ? "Add album to playlist"
+                            : modelData === "Next" ? "Play album next"
+                            : modelData === "Queue" ? "Add album to queue" : modelData
+                        enabled: modelData === "Play" ? root.trackCount > 0
+                            : modelData === "Shuffle" ? root.shuffleEnabled
+                            : (modelData === "Next" || modelData === "Queue")
+                                ? root.trackCount > 0 && typeof root.pageData.enqueueAlbum === "function"
+                            : modelData === "Playlist" ? root.pageData.personalEnabled
+                                && !root.partialPlaylist && root.albumRowsForPlaylist().length > 0
+                            : root.saveEnabled
                         opacity: enabled ? 1 : 0.35
                         onTriggered: {
-                            if (modelData === "Play")
-                                root.pageData.playTrack(0);
-                            else if (modelData === "Shuffle")
+                            if (modelData === "Play") {
+                                if (typeof root.pageData.playShownAlbum === "function")
+                                    root.pageData.playShownAlbum();
+                                else
+                                    root.pageData.playTrack(0);
+                            } else if (modelData === "Shuffle") {
                                 root.pageData.shuffle();
-                            else if(modelData === "Queue")
+                            } else if (modelData === "Next") {
+                                root.pageData.enqueueAlbum(root.pageData.shownAlbumId, true);
+                            } else if (modelData === "Queue") {
                                 root.pageData.enqueueAlbum(root.pageData.shownAlbumId,false);
-                            else if (modelData === "Playlist")
+                            } else if (modelData === "Playlist") {
                                 root.pageData.addRowsToPlaylist(root.albumRowsForPlaylist());
-                            else
+                            } else {
                                 root.pageData.toggleSaved();
+                            }
                         }
                         Rectangle {
                             anchors.fill: parent
@@ -207,7 +227,7 @@ Flickable {
                             symbol: parent.modelData === "Play" ? "play"
                                 : parent.modelData === "Shuffle" ? "shuffle"
                                 : parent.modelData === "Save" ? (root.pageData.saved ? "saved" : "save")
-                                : "queue"
+                                : parent.modelData === "Next" ? "playNext" : "queue"
                             color: parent.modelData === "Play" ? theme.biblioWashBottom
                                 : parent.modelData === "Save" && root.pageData.saved ? theme.gold
                                 : theme.inkDim
@@ -247,21 +267,20 @@ Flickable {
             }
             Repeater {
                 model: root.pageData.tracks.length
-                delegate: VinylTrackRow {
+                delegate: Item {
                     required property int index
-                    trackIndex: index
-                    pageData: root.pageData
-                    width: trackList.width - root.personalTrackActionsWidth - (root.queueActionsEnabled ? 40 : 0)
+                    width: trackList.width
                     KeyboardAction {
                         id: saveTrackAction
                         focusOnPointer: false
-                        objectName: "vinylTrackSave_" + parent.trackIndex
-                        property var personalRow: root.personalRowForTrack(parent.trackIndex)
-                        x: parent.width + 8
+                        objectName: "vinylTrackSave_" + parent.index
+                        property var personalRow: root.personalRowForTrack(parent.index)
+                        x: (parent.compactTrackActions ? parent.width - parent.trackActionWidth : trackVisual.width) + 8
                         width: 32
-                        height: parent.height
+                        y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
+                        height: parent.compactTrackActions ? 32 : parent.height
                         visible: root.trackSaveAvailable
-                        enabled: visible && root.pageData.personalEnabled && root.hasPersonalRow(personalRow)
+                        enabled: visible && trackVisual.enabled && root.pageData.personalEnabled && root.hasPersonalRow(personalRow)
                         opacity: enabled ? 1 : 0.35
                         accessibleName: root.trackIsSaved(personalRow) ? "Unsave song" : "Save song"
                         onTriggered: root.pageData.toggleSongSaved(personalRow)
@@ -279,13 +298,14 @@ Flickable {
                     KeyboardAction {
                         id: playlistTrackAction
                         focusOnPointer: false
-                        objectName: "vinylTrackPlaylist_" + parent.trackIndex
-                        property var personalRow: root.personalRowForTrack(parent.trackIndex)
-                        x: parent.width + 48
+                        objectName: "vinylTrackPlaylist_" + parent.index
+                        property var personalRow: root.personalRowForTrack(parent.index)
+                        x: (parent.compactTrackActions ? parent.width - parent.trackActionWidth : trackVisual.width) + 48
                         width: 32
-                        height: parent.height
+                        y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
+                        height: parent.compactTrackActions ? 32 : parent.height
                         visible: root.trackPlaylistAvailable
-                        enabled: visible && root.pageData.personalEnabled && root.hasPersonalRow(personalRow)
+                        enabled: visible && trackVisual.enabled && root.pageData.personalEnabled && root.hasPersonalRow(personalRow)
                         opacity: enabled ? 1 : 0.35
                         accessibleName: "Add song to playlist"
                         onTriggered: root.pageData.addRowsToPlaylist([personalRow])
@@ -300,14 +320,49 @@ Flickable {
                             color: theme.inkDim
                         }
                     }
+                    readonly property real baseTrackHeight: root.height < 600
+                        ? (root.pageData.trackArtists(index) ? 58 : 50)
+                        : (root.pageData.trackArtists(index) ? 62 : 57)
+                    readonly property bool compactTrackActions: trackList.width < 400
+                        && (root.personalTrackActionsVisible || root.trackQueueAvailable)
+                    readonly property real trackActionWidth: root.personalTrackActionsWidth
+                        + (root.trackQueueAvailable ? 80 : 0)
+                    height: baseTrackHeight + (compactTrackActions ? 40 : 0)
+                    VinylTrackRow {
+                        id: trackVisual
+                        trackIndex: parent.index
+                        pageData: root.pageData
+                        width: parent.compactTrackActions ? parent.width : Math.max(0, parent.width - parent.trackActionWidth)
+                        height: parent.baseTrackHeight
+                    }
                     KeyboardAction {
                         focusOnPointer: false
-                        objectName:"vinylTrackQueue_"+index;visible:root.queueActionsEnabled
-                        x:parent.width+root.personalTrackActionsWidth+8;width:32;height:parent.height;accessibleName:"Add track to queue"
-                        onTriggered:root.pageData.enqueueTrack(index,false)
-                        Text {anchors.centerIn:parent;text:"+";color:theme.inkDim;font.family:theme.ui;font.pixelSize:18}
+                        objectName: "vinylTrackNext_" + parent.index
+                        visible: root.trackQueueAvailable
+                        x: parent.compactTrackActions ? parent.width - 72
+                            : trackVisual.width + root.personalTrackActionsWidth + 8
+                        y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
+                        width: 32; height: parent.compactTrackActions ? 32 : parent.height
+                        enabled: visible && trackVisual.enabled
+                        accessibleName: "Play next: " + trackVisual.track.title
+                        onTriggered: root.pageData.enqueueTrack(parent.index, true)
+                        Rectangle { anchors.fill: parent; radius: 6; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                        VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.inkDim }
                     }
-                    height: root.height < 600 ? (artistLine ? 58 : 50) : (artistLine ? 62 : 57)
+                    KeyboardAction {
+                        focusOnPointer: false
+                        objectName: "vinylTrackQueue_" + parent.index
+                        visible: root.trackQueueAvailable
+                        x: parent.compactTrackActions ? parent.width - 32
+                            : trackVisual.width + root.personalTrackActionsWidth + 48
+                        y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
+                        width: 32; height: parent.compactTrackActions ? 32 : parent.height
+                        enabled: visible && trackVisual.enabled
+                        accessibleName: "Add track to queue: " + trackVisual.track.title
+                        onTriggered: root.pageData.enqueueTrack(parent.index, false)
+                        Rectangle { anchors.fill: parent; radius: 6; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                        VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
+                    }
                 }
             }
             Row {

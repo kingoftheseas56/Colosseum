@@ -77,7 +77,7 @@ Popup {
             y:heading.height+14;width:parent.width;spacing:6
             Action {objectName:"vinylQueuePrevious";label:"Previous track";icon:"../../assets/icons/lucide/skip-back.svg";enabled:root.pageData.canPrevious;onTriggered:root.pageData.next(-1)}
             Action {objectName:"vinylQueueNext";label:"Next track";icon:"../../assets/icons/lucide/skip-forward.svg";enabled:root.pageData.canNext;onTriggered:root.pageData.next(1)}
-            Action {objectName:"vinylQueueShuffle";symbol:"shuffle";label:"Shuffle";selected:root.pageData.shuffleEnabled;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
+            Action {objectName:"vinylQueueShuffle";symbol:"shuffle";label:"Shuffle";selected:root.pageData.shuffleEnabled;enabled:root.pageData.queue.length>1||selected;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
             Action {
                 objectName:"vinylQueueRepeat";symbol:"repeat";label:"Repeat: "+root.pageData.repeatMode
                 selected:root.pageData.repeatMode!=="off";onTriggered:root.pageData.cycleRepeat()

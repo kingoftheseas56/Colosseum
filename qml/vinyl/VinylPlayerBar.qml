@@ -12,7 +12,21 @@ Item {
     property bool trackNavigationEnabled: true
     readonly property int toolCount: page === "song" ? 6 : 1
     readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying"
-    readonly property real seekFraction: pageData.duration > 0 ? pageData.position / pageData.duration : 0
+    property bool scrubbing: false
+    property real previewPosition: 0
+    property string scrubTrackKey: ""
+    readonly property string currentSeekTrackKey: {
+        var active = pageData.activeQueueRow || ({})
+        var edition = pageData.playingEdition || ({})
+        var track = pageData.playingTrack || ({})
+        var occurrence = active.queueId !== undefined ? active.queueId
+            : (pageData.queueIndex !== undefined ? pageData.queueIndex : "")
+        var editionKey = edition.id !== undefined ? edition.id : pageData.playingEditionId
+        var trackKey = track.id !== undefined ? track.id : pageData.playingIndex
+        return [String(occurrence), String(editionKey || ""), String(trackKey || "")].join("\u001f")
+    }
+    readonly property real displayedPosition: scrubbing ? clampSeek(previewPosition) : clampSeek(pageData.position)
+    readonly property real seekFraction: pageData.duration > 0 ? displayedPosition / pageData.duration : 0
     signal songRequested
     signal creditsRequested
     Theme {
@@ -39,6 +53,52 @@ Item {
             "unknown": "<path d=\"M8 14V4l8-1v9M8 7l8-1\"/><ellipse cx=\"5.5\" cy=\"14\" rx=\"2.5\" ry=\"2\"/><ellipse cx=\"13.5\" cy=\"12\" rx=\"2.5\" ry=\"2\"/>"
         };
         return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="' + (selected ? theme.gold : theme.inkDim) + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + paths[key] + '</svg>');
+    }
+    function clampSeek(seconds) {
+        var duration = Number(pageData.duration)
+        var target = Number(seconds)
+        if (!isFinite(duration) || duration <= 0) return 0
+        if (!isFinite(target)) target = 0
+        return Math.max(0, Math.min(duration, target))
+    }
+    function positionAt(x) {
+        var duration = Number(pageData.duration)
+        return seek.width > 0 && isFinite(duration) && duration > 0
+            ? clampSeek(Number(x) / seek.width * duration) : 0
+    }
+    function beginScrub(x) {
+        if (!seek.enabled) return
+        scrubTrackKey = currentSeekTrackKey
+        previewPosition = positionAt(x)
+        scrubbing = true
+    }
+    function moveScrub(x) {
+        if (!scrubbing) return
+        if (!seek.enabled || scrubTrackKey !== currentSeekTrackKey) {
+            cancelScrub()
+            return
+        }
+        previewPosition = positionAt(x)
+    }
+    function cancelScrub() {
+        scrubbing = false
+        scrubTrackKey = ""
+    }
+    function commitScrub(x) {
+        if (!scrubbing) return
+        moveScrub(x)
+        if (!scrubbing) return
+        var target = clampSeek(previewPosition)
+        var accepted = seek.enabled && scrubTrackKey === currentSeekTrackKey
+        cancelScrub()
+        if (accepted) pageData.seek(target)
+    }
+    onCurrentSeekTrackKeyChanged: if (scrubbing && scrubTrackKey !== currentSeekTrackKey) cancelScrub()
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.WindowShortcut
+        enabled: root.scrubbing
+        onActivated: root.cancelScrub()
     }
     component Tool: KeyboardAction {
         id: control
@@ -183,11 +243,17 @@ Item {
         objectName: "vinylBarSeek"
         activeFocusOnTab: true
         enabled: !root.busy && root.pageData.duration > 0 && root.pageData.sourceState === "playing"
+        onEnabledChanged: if (!enabled) root.cancelScrub()
         Accessible.role: Accessible.Slider
         Accessible.name: "Playback position"
         Accessible.description: "Left and right seek five seconds; Home and End seek to the beginning or end."
         Accessible.focusable: enabled
         Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape && root.scrubbing) {
+                root.cancelScrub()
+                event.accepted = true
+                return
+            }
             var target = root.pageData.position;
             if (event.key === Qt.Key_Left) target -= 5;
             else if (event.key === Qt.Key_Right) target += 5;
@@ -215,15 +281,21 @@ Item {
             color: theme.gold
         }
         MouseArea {
+            objectName: "vinylBarSeekPointer"
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: mouse => root.pageData.seek(mouse.x / width * root.pageData.duration)
+            onEnabledChanged: if (!enabled) root.cancelScrub()
+            onPressed: mouse => root.beginScrub(mouse.x)
+            onPositionChanged: mouse => root.moveScrub(mouse.x)
+            onReleased: mouse => root.commitScrub(mouse.x)
+            onCanceled: root.cancelScrub()
         }
         Text {
+            objectName: "vinylBarElapsed"
             anchors.right: parent.left
             anchors.rightMargin: 9
             anchors.verticalCenter: parent.verticalCenter
-            text: root.pageData.formatTime(root.pageData.position)
+            text: root.pageData.formatTime(root.displayedPosition)
             font.family: theme.ui
             font.pixelSize: 9
             color: theme.inkDimmer

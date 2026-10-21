@@ -561,7 +561,19 @@ Item {
             personalError = "This playlist is no longer available.";
             return false;
         }
-        var rows = currentQueueRows(playlistItemsFor(entry));
+        return enqueueRows(currentQueueRows(playlistItemsFor(entry)),next);
+    }
+
+    function enqueueSavedSong(id,next) {
+        return enqueueRows(currentQueueRows(savedSongs.filter(item=>item.id===id)),next);
+    }
+
+    function enqueuePlaylistItem(id,itemId,next) {
+        var entry=playlistRecord(id);
+        return enqueueRows(entry ? currentQueueRows(playlistItemsFor(entry).filter(item=>item.itemId===itemId)) : [],next);
+    }
+
+    function enqueueRows(rows,next) {
         if (!rows.length) {
             personalError = "No available songs could be queued.";
             return false;
