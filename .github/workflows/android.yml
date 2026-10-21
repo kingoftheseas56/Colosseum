@@ -209,6 +209,24 @@ jobs:
           path: nuvio-diag
           if-no-files-found: error
 
+      # The same checksum-pinned OpenSSL/Boost/libtorrent prefix the APK linked,
+      # for host-independent local Android builds. Not the Nuvio engine: that is
+      # always prepared and stamp-verified from the donor on the building host.
+      - name: Nuvio diagnostic - package arm64 dependency prefix
+        if: ${{ success() && inputs.nuvio_diagnostic_arm64 }}
+        run: |
+          tar -C "$COLOSSEUM_ANDROID_DEPS" -czf android-deps-arm64-v8a.tgz arm64-v8a
+          sha256sum android-deps-arm64-v8a.tgz | tee android-deps-arm64-v8a.tgz.sha256
+      - uses: actions/upload-artifact@v4
+        if: ${{ success() && inputs.nuvio_diagnostic_arm64 }}
+        with:
+          name: task014-android-deps-arm64-v8a-${{ github.run_id }}
+          path: |
+            android-deps-arm64-v8a.tgz
+            android-deps-arm64-v8a.tgz.sha256
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Build arm64-v8a APK
         if: ${{ !inputs.nuvio_diagnostic_arm64 }}
         env:
