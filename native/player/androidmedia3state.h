@@ -86,6 +86,9 @@ public:
     bool markFirstFrame(quint64 generation);
     bool resetVideoSurface();
     bool markEnded(quint64 generation);
+    // A natural EOF keeps its source: a later user seek/play re-arms it (paused,
+    // not seeking) instead of leaving the player inert. Errors stay terminal.
+    bool rearmAfterEnd(quint64 generation);
     bool markError(quint64 generation, const QString &code, const QString &message);
 
     bool updateTimeline(quint64 generation, qint64 positionMs, qint64 durationMs,

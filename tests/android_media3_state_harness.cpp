@@ -262,6 +262,23 @@ int main(int argc, char **argv)
     require(!state.markEnded(g3), "duplicate EOF must be one-shot");
     require(!state.markError(g3, QStringLiteral("unknown"), QStringLiteral("late")),
             "late error must not replace EOF truth");
+    // Task014 (Nokia T20): a naturally ended source is re-armed by a user seek or
+    // play instead of leaving the player inert until it is closed.
+    require(!state.beginSeek(g3, 9000, 1000), "an ended source ignores seeks until re-armed");
+    require(state.rearmAfterEnd(g3), "a natural EOF must be re-armable");
+    require(!state.snapshot().ended && state.snapshot().paused && !state.snapshot().seeking,
+            "re-arm leaves a paused, non-seeking, non-terminal source");
+    require(!state.rearmAfterEnd(g3), "re-arm is one-shot per EOF");
+    require(state.beginSeek(g3, 9000, 1000) && state.snapshot().seeking,
+            "a re-armed source accepts the user's seek");
+    require(state.noteUserPlay(g3) && state.snapshot().userWantsPlay,
+            "a re-armed source accepts play");
+    require(state.markEnded(g3), "the re-armed source can reach EOF again");
+    const quint64 g4 = state.beginLoad(QStringLiteral("https://example.invalid/d.mp4"), QVariantMap());
+    require(state.markError(g4, QStringLiteral("source"), QStringLiteral("unreachable")),
+            "a fresh source can fail");
+    require(!state.rearmAfterEnd(g4) && state.snapshot().errored,
+            "an errored source stays terminal");
 
     qInfo().noquote() << QStringLiteral("ANDROID_MEDIA3_STATE_OK");
     return 0;

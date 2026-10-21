@@ -170,6 +170,7 @@ private:
     void publishSnapshotChanges(const Colosseum::Player::AndroidMedia3Snapshot &before);
     void callHost(const char *method);
     void callHostSeek(qint64 positionMs);
+    bool rearmIfEnded(quint64 generation);
     void callHostTrack(const char *method, const QString &trackId);
     void updateControlSnapshot(int volume, bool muted, double speed);
     QString formatTime(double seconds) const;

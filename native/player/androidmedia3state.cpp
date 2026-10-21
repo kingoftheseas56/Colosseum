@@ -157,6 +157,16 @@ bool AndroidMedia3State::markEnded(quint64 generation)
     return true;
 }
 
+bool AndroidMedia3State::rearmAfterEnd(quint64 generation)
+{
+    if (!accepts(generation) || !m_snapshot.ended || m_snapshot.errored)
+        return false;
+    m_snapshot.ended = false;
+    m_snapshot.paused = true;
+    clearSeek();
+    return true;
+}
+
 bool AndroidMedia3State::markError(quint64 generation, const QString &code, const QString &message)
 {
     if (!accepts(generation) || isTerminal(m_snapshot))

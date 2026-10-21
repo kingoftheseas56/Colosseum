@@ -212,17 +212,31 @@ void AndroidMedia3Item::updateControlSnapshot(int newVolume, bool newMuted, doub
                            newVolume, newMuted, newSpeed);
 }
 
+bool AndroidMedia3Item::rearmIfEnded(quint64 generation)
+{
+    if (!m_state.snapshot().ended || !m_state.rearmAfterEnd(generation))
+        return false;
+    // The host's next READY announces the reopened file again (fileLoaded),
+    // as for a fresh load: the page re-enters its playable state.
+    m_fileLoadedEmitted = false;
+    return true;
+}
+
 void AndroidMedia3Item::setPause(bool value)
 {
     const quint64 generation = m_state.generation();
     if (generation == 0)
         return;
     const auto before = m_state.snapshot();
+    // Play after a natural end replays from the start.
+    const bool replay = !value && rearmIfEnded(generation);
     if (value)
         m_state.noteUserPause(generation);
     else
         m_state.noteUserPlay(generation);
     publishSnapshotChanges(before);
+    if (replay)
+        callHostSeek(0);
     callHost(value ? "pause" : "play");
 }
 
@@ -445,6 +459,7 @@ void AndroidMedia3Item::seekExact(double value)
         return;
     const qint64 targetMs = msFromSeconds(value);
     const auto before = m_state.snapshot();
+    rearmIfEnded(generation);
     if (!m_state.beginSeek(generation, targetMs, QDateTime::currentMSecsSinceEpoch()))
         return;
     publishSnapshotChanges(before);
