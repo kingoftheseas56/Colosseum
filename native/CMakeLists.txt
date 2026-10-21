@@ -1059,6 +1059,8 @@ add_custom_command(TARGET colosseum POST_BUILD
 # changed and the native executable itself is already up to date. This target
 # remains always out-of-date, but runs only after the native target succeeds.
 add_custom_target(colosseum_runtime_ready
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/vinyl/provider.py" "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl/provider.py"
     COMMAND ${CMAKE_COMMAND}
             "-DQML_ROOT=${CMAKE_CURRENT_SOURCE_DIR}/../qml"
             "-DOUTPUT_FILE=$<TARGET_FILE_DIR:colosseum>/qml-build.manifest"

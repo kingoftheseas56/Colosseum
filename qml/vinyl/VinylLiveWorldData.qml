@@ -57,6 +57,12 @@ Item {
         }).filter(item=>!!item).slice(0,6);
     }
     readonly property bool catalogueReachable: true
+    readonly property bool cataloguePagingSupported: !!session.source && session.source.catalogueSearchVersion===1
+    readonly property var searchPage: cataloguePagingSupported && session.catalogueQuery===query.trim() ? session.cataloguePages[lens.kind] || {} : ({})
+    readonly property bool searchHasMore: Object.keys(searchPage.nextCursor || {}).length>0
+    readonly property bool searchLoading: cataloguePagingSupported && session.catalogueQuery===query.trim() && !!session.catalogueRequests[lens.kind]
+    readonly property string searchError: searchPage.error || ""
+    function loadMoreSearch() {if(cataloguePagingSupported)session.requestCataloguePage(lens.kind,searchHasMore);}
     readonly property bool discoveryLanding: activeTab==="discover" && onlineMode && !query.trim() && !!session.source && session.source.discoveryVersion===1
     readonly property bool discoveryLoading: session.discoveryLoading===true
     readonly property var discoverySections: session.discoverySections || ({})
@@ -112,7 +118,7 @@ Item {
     }
     function captureBrowseState() {
         saveBrowseState();
-        return JSON.parse(JSON.stringify({activeTab:activeTab,states:browseStates,matches:catalogueMatches}));
+        return JSON.parse(JSON.stringify({activeTab:activeTab,states:browseStates,matches:catalogueMatches,catalogue:cataloguePagingSupported ? session.captureCatalogue() : null}));
     }
     function restoreBrowseState(snapshot) {
         if(!snapshot || !snapshot.states) return;
@@ -122,7 +128,10 @@ Item {
         var next=Object.assign({},browseStates);
         next[snapshot.activeTab]=JSON.parse(JSON.stringify(snapshot.states[snapshot.activeTab]));
         browseStates=next;activeTab=snapshot.activeTab;
-        if(activeTab==="discover") catalogueMatches=snapshot.matches || {query:"",albums:[],artists:[]};
+        if(activeTab==="discover") {
+            catalogueMatches=snapshot.matches || {query:"",albums:[],artists:[]};
+            if(cataloguePagingSupported)session.restoreCatalogue(snapshot.catalogue);
+        }
         var state=browseStates[activeTab];query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
         changingTab=false;refreshSearch();
     }
@@ -135,9 +144,13 @@ Item {
         rememberSearch();
         if(!onlineMode) {refreshSearch();return;}
         if(!query.trim()) {pendingCatalogueQuery="";session.cancelBrowse();return;}
-        session.searchCatalogue(query.trim());pendingCatalogueQuery=query.trim();
+        session.searchCatalogue(query.trim(),lens.kind,true);pendingCatalogueQuery=query.trim();
     }
     function acceptCatalogueMatches() {
+        if(cataloguePagingSupported) {
+            if(session.catalogueQuery===browseStates.discover.query.trim())catalogueMatches={query:session.catalogueQuery,albums:session.onlineAlbums.slice(),artists:session.onlineArtists.slice()};
+            return;
+        }
         if(!pendingCatalogueQuery || session.browseOperation!=="catalogueSearch") return;
         catalogueMatches={query:pendingCatalogueQuery,albums:session.onlineAlbums.slice(),artists:session.onlineArtists.slice()};
     }
@@ -149,13 +162,14 @@ Item {
     }
     onQueryChanged: {
         saveBrowseState();refreshSearch();
+        if(cataloguePagingSupported && activeTab==="discover" && onlineMode && query.trim()!==session.catalogueQuery)session.cancelBrowse();
         if(activeTab==="discover" && onlineMode && !query.trim()) {
             pendingCatalogueQuery="";
             if(session.browseOperation==="catalogueSearch")session.cancelBrowse();
             ensureDiscovery();
         }
     }
-    onLensChanged: saveBrowseState()
+    onLensChanged: {saveBrowseState();if(!changingTab && cataloguePagingSupported && activeTab==="discover" && onlineMode && query.trim())session.searchCatalogue(query.trim(),lens.kind,false);}
     onSortOrderChanged: saveBrowseState()
     onOnlineModeChanged: saveBrowseState()
     property bool pickerAnswered: false
@@ -184,6 +198,11 @@ Item {
     readonly property var albums: activeTab==="discover" ? discoverAlbums : activeTab==="library" ? filteredLibraryAlbums : libraryAlbums
     readonly property var shelves: {
         var state=browseStates.discover;
+        if(state.onlineMode && state.query.trim() && cataloguePagingSupported) {
+            var kind=state.lens.kind,page=session.catalogueQuery===state.query.trim() ? session.cataloguePages[kind] || {} : {};
+            return [{key:"search-"+kind,title:kind.charAt(0).toUpperCase()+kind.slice(1),kind:kind==="playlists"?"catalogue-playlists":kind,
+                items:page.items || [],hasMore:Object.keys(page.nextCursor || {}).length>0,loading:!!session.catalogueRequests[kind],error:page.error || ""}];
+        }
         if(state.onlineMode && !state.query.trim() && session.source && session.source.discoveryVersion===1)return discoveryOrder.map(function(key){
             var icons={"new-releases":"new",trending:"trending",artists:"popular",charts:"global"};
             var row=discoverySections[key];return row ? Object.assign({},row,{key:"discover-"+key,icon:icons[key]}) : null;
@@ -228,6 +247,7 @@ Item {
     function artwork(url) { return url || ""; }
     function findAlbum(id) {
         var records=libraryAlbums.concat(catalogueMatches.albums);
+        if(cataloguePagingSupported)Object.keys(session.cataloguePages).forEach(kind=>{records=records.concat(session.cataloguePages[kind].records || []);});
         discoveryOrder.forEach(key=>{records=records.concat((discoverySections[key] || {}).records || []);});
         return records.find(function(a){return a.id===id;});
     }
@@ -268,7 +288,7 @@ Item {
         if(!filterOptions(key).some(function(o){return o.value===value && o.enabled})) return false;
         var next=Object.assign({},lens);next[key]=value;lens=next;return true;
     }
-    function setKind(kind) {if(["albums","artists","songs"].indexOf(kind)<0)return false;lens=Object.assign({},lens,{kind:kind});return true;}
+    function setKind(kind) {if(["albums","artists","songs"].indexOf(kind)<0 && !(kind==="playlists" && onlineMode))return false;lens=Object.assign({},lens,{kind:kind});return true;}
     function setPickerQuery(value) {pickerQuery=value;}
     function togglePickerArtist(id) {var next=pickerDraft.slice(),at=next.indexOf(id);if(at<0)next.push(id);else next.splice(at,1);pickerDraft=next;}
     function artistOptions(value) {return project(libraryAlbums,"artists").filter(function(a){return a.title.toLowerCase().indexOf(String(value||"").toLowerCase())>=0});}
@@ -300,6 +320,7 @@ Item {
         function onQueueChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshHome);}
         function onOnlineAlbumsChanged(){root.acceptCatalogueMatches();}
         function onOnlineArtistsChanged(){root.acceptCatalogueMatches();}
+        function onCataloguePagesChanged(){root.acceptCatalogueMatches();}
         function onBrowseOperationChanged(){if(root.session.browseOperation!=="catalogueSearch")root.pendingCatalogueQuery="";}
     }
 }

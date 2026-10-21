@@ -11,6 +11,11 @@ Item {
     readonly property string discoveryError: String(worldData.discoveryError || "")
     readonly property bool discoveryCached: worldData.discoveryCached === true
     readonly property string discoveryFetchedAt: String(worldData.discoveryFetchedAt || "")
+    readonly property bool onlineMode: worldData.onlineMode === true
+    readonly property bool cataloguePagingSupported: worldData.cataloguePagingSupported !== false
+    readonly property bool searchHasMore: worldData.searchHasMore === true
+    readonly property bool searchLoading: worldData.searchLoading === true
+    readonly property string searchError: String(worldData.searchError || "")
     readonly property var populatedShelves: (worldData.shelves || []).filter(function(row){return row && row.items && row.items.length>0})
     readonly property int shelfCount: populatedShelves.length
     readonly property real contentInset: sidebar.visible ? sidebar.contentLeft : 0
@@ -27,14 +32,18 @@ Item {
     }
     readonly property bool showDiscoveryRetry: discoveryLanding && !discoveryLoading
         && (discoveryError.length > 0 || shelfCount === 0 || discoveryCached)
+    readonly property bool showSearchMore: !discoveryLanding && onlineMode
+        && ((cataloguePagingSupported && searchHasMore) || searchLoading || searchError.length > 0)
     implicitHeight: Math.max(80,
         emptyMessage.visible ? emptyMessage.implicitHeight : 0,
         statusRow.visible ? statusRow.y + statusRow.height : 0,
-        shelves.y + shelves.implicitHeight)
+        shelves.y + shelves.implicitHeight,
+        searchMoreRow.visible ? searchMoreRow.y + searchMoreRow.height : 0)
     Text {
         id: emptyMessage
         objectName: "vinylDiscoverEmpty"
         visible: root.shelfCount===0 && !root.discoveryLanding
+            && !(root.onlineMode && (root.searchLoading || root.searchError.length > 0))
         x:0;width:parent.width-x
         text:root.worldData.onlineMode ? (root.worldData.query.trim() ? "No catalogue matches. Try another search." : "Search the catalogue to find artists and albums.") : "No local music matches. Change the filters or add music in Library."
         textFormat: Text.PlainText
@@ -96,6 +105,44 @@ Item {
                 worldData: root.worldData
                 row: modelData
                 cardSize: root.cardSize
+            }
+        }
+    }
+    Item {
+        id: searchMoreRow
+        objectName: "vinylSearchMoreRow"
+        x: root.contentInset
+        y: shelves.y + shelves.implicitHeight + 18
+        width: root.shelfWidth
+        visible: root.showSearchMore
+        height: visible ? Math.max(38, searchMoreStatus.implicitHeight) : 0
+        Text {
+            id: searchMoreStatus
+            x: 0
+            y: (parent.height - height) / 2
+            width: Math.max(0, parent.width - (searchMoreButton.visible ? 50 : 0))
+            height: implicitHeight
+            text: root.searchLoading ? "Loading more…" : root.searchError
+            textFormat: Text.PlainText
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 14
+            wrapMode: Text.WordWrap
+        }
+        VinylWorldButton {
+            id: searchMoreButton
+            objectName: "vinylSearchMore"
+            x: parent.width - width
+            y: (parent.height - height) / 2
+            width: 38
+            height: 38
+            backdrop: root.backdrop
+            label: "Load more results"
+            symbol: "arrowDown"
+            enabled: !root.searchLoading
+            onTriggered: {
+                if (typeof root.worldData.loadMoreSearch === "function")
+                    root.worldData.loadMoreSearch();
             }
         }
     }

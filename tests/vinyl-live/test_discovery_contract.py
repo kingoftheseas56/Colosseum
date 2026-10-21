@@ -1,7 +1,7 @@
 import importlib.util
 import pathlib
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -44,6 +44,12 @@ class DiscoveryContract(unittest.TestCase):
         }
         self.client.get_charts.return_value = {"artists": [], "videos": []}
         self.client.get_playlist.return_value = {"title": "Native Playlist", "tracks": []}
+        def page_reader(client, key, token):
+            raw = client.get_playlist(key, limit=0)
+            return {"items": raw.get("tracks"), "meta": raw, "continuation": ""}
+        reader_patch = patch.object(provider, "read_playlist_page", side_effect=page_reader)
+        reader_patch.start()
+        self.addCleanup(reader_patch.stop)
 
     def assert_discovery_envelope(self, result, key, title, kind):
         self.assertEqual(result["version"], 1)
@@ -230,7 +236,7 @@ class DiscoveryContract(unittest.TestCase):
 
         result = provider.handle({"operation": "playlist", "value": PLAYLIST}, client=self.client)
 
-        self.client.get_playlist.assert_called_once_with(PLAYLIST, limit=200)
+        self.client.get_playlist.assert_called_once_with(PLAYLIST, limit=0)
         self.assertEqual(result["type"], "Playlist")
         self.assertEqual(result["id"], provider.identity("playlist", PLAYLIST))
         self.assertEqual(result["playlistId"], PLAYLIST)
@@ -258,20 +264,21 @@ class DiscoveryContract(unittest.TestCase):
         self.assertEqual(normalized["artistIds"], ["", "ytm:artist:" + CHANNEL])
         self.assertTrue(normalized["id"])
 
-    def test_playlist_rejects_truncated_or_over_limit_results(self):
+    def test_playlist_reports_omitted_entries_and_rejects_over_limit_results(self):
         self.client.get_playlist.return_value = {
             "title": "Truncated",
             "tracks": [video(), video("lmnopqrstuv", "Second Song")],
             "trackCount": 3,
         }
-        with self.assertRaises(ValueError):
-            provider.handle({"operation": "playlist", "value": PLAYLIST}, client=self.client)
+        result = provider.handle({"operation": "playlist", "value": PLAYLIST}, client=self.client)
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["omittedTracks"], 1)
 
         self.client.get_playlist.reset_mock()
         self.client.get_playlist.return_value = {
             "title": "Too Long",
-            "tracks": [video(f"v{index:010d}", f"Song {index}") for index in range(201)],
-            "trackCount": 201,
+            "tracks": [video(f"v{index:010d}", f"Song {index}") for index in range(10001)],
+            "trackCount": 10001,
         }
         with self.assertRaises(ValueError):
             provider.handle({"operation": "playlist", "value": PLAYLIST}, client=self.client)
@@ -286,7 +293,7 @@ class DiscoveryContract(unittest.TestCase):
         self.client.get_playlist.return_value = {"title": "No track list"}
         with self.assertRaises(ValueError):
             provider.handle({"operation": "playlist", "value": PLAYLIST}, client=self.client)
-        for count in (None, "3", -1, True):
+        for count in ("3", -1, True):
             self.client.get_playlist.return_value = {"title": "Unknown listing", "tracks": [video()], "trackCount": count}
             with self.subTest(count=count), self.assertRaises(ValueError):
                 provider.handle({"operation": "playlist", "value": PLAYLIST}, client=self.client)

@@ -18,6 +18,7 @@ class VinylCatalogueSource final : public QObject,
     Q_OBJECT
     Q_PROPERTY(int cataloguePageVersion READ cataloguePageVersion CONSTANT)
     Q_PROPERTY(int discoveryVersion READ discoveryVersion CONSTANT)
+    Q_PROPERTY(int catalogueSearchVersion READ catalogueSearchVersion CONSTANT)
     Q_PROPERTY(QVariantMap artist READ artist NOTIFY artistChanged)
     Q_PROPERTY(QVariantList artistAlbums READ artistAlbums NOTIFY artistChanged)
     Q_PROPERTY(QVariantList artistSingles READ artistSingles NOTIFY artistChanged)
@@ -32,6 +33,7 @@ public:
     VinylCatalogueSource(VinylLocalSource *,VinylProvider *,CollectionStore *,QObject *parent=nullptr);
     int cataloguePageVersion() const {return 1;}
     int discoveryVersion() const {return 1;}
+    int catalogueSearchVersion() const {return 1;}
     Q_INVOKABLE int request(const QString &,const QString &,const QString &);
     Q_INVOKABLE int request(const QString &,const QString &,const QString &,const QVariantMap &);
     Q_INVOKABLE void cancel(const QString &);

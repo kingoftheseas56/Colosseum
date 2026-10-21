@@ -26,8 +26,8 @@ public:
         return requestPayload(lane,operation,value,{});
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload) {
-        static const QStringList operations={"search","catalogueSearch","discover","playlist","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork"};
-        static const QStringList lanes={"browse","queue","play","playFallback","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork"};
+        static const QStringList operations={"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork"};
+        static const QStringList lanes={"browse","queue","play","playFallback","playlist-page","search-albums","search-artists","search-songs","search-playlists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork"};
         if(!operations.contains(operation)||!lanes.contains(lane)||value.size()>300)return -1;
         cancel(lane);const int id=++m_serial;
         QJsonObject input=QJsonObject::fromVariantMap(payload);input["operation"]=operation;input["value"]=value;

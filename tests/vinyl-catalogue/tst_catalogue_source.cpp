@@ -47,6 +47,37 @@ signals:
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
+    void searchPagesRegisterExactSourcesAndPlaylistContinuation(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
+        QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        const QVariantMap cursor{{"token","next"},{"offset",20}};
+        QVERIFY(source.request("search-songs","cataloguePage","Nas",{{"kind","songs"},{"cursor",cursor}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);
+        QCOMPARE(done.last()[2].toMap().value("request").toMap().value("cursor").toMap(),cursor);
+        QCOMPARE(done.last()[2].toMap().value("offset").toInt(),20);
+        QVERIFY(source.request("play","resolve","provider-recording")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);
+        QCOMPARE(done.last()[2].toMap().value("videoId").toString(),QString("abcdefghijk"));
+        source.setAlbums({QVariantMap{{"id","public-playlist"},{"browseId","ytm:playlist:PLtest"},{"playlistId","PLtest"},{"type","Playlist"},{"origin","youtube-music"}}});
+        QVERIFY(source.request("browse","album","public-playlist")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,10000);
+        QCOMPARE(done.last()[2].toMap().value("offset").toInt(),0);
+        QVERIFY(source.request("playlist-page","playlistPage","PLtest",{{"cursor",QVariantMap{{"offset",1}}}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),4,10000);
+        QVERIFY(source.request("play","resolve","later-recording")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),5,10000);
+        QCOMPARE(done.last()[2].toMap().value("videoId").toString(),QString("lmnopqrstuv"));
+        // Reopening the first page must preserve a retained complete source,
+        // including the server's explicit count of omitted private/deleted rows.
+        QVERIFY(source.request("browse","album","public-playlist")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),6,10000);
+        const auto retained=done.last()[2].toMap();
+        QCOMPARE(retained.value("tracks").toList().size(),2);
+        QVERIFY(retained.value("complete").toBool());
+        QCOMPARE(retained.value("totalTracks").toInt(),5);
+        QCOMPARE(retained.value("omittedTracks").toInt(),3);
+    }
     void discoveryRegistersExactTracksAndPublicPlaylistRoutes(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);

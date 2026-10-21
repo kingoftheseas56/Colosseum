@@ -8,12 +8,25 @@ Item {
     required property Item backdrop
     required property Flickable pageFlick
     readonly property string title: worldData.lensTitle
+    readonly property bool onlineMode: worldData.onlineMode === true
     property string openFilter: ""
-    implicitHeight: filterRow.y + filterRow.height + 24
+    implicitHeight: filterRow.visible
+        ? filterRow.y + filterRow.height + 24
+        : divider.y + divider.height + 24
     onWidthChanged: if (menu.opened) Qt.callLater(menu.clampToViewport)
     Connections {
         target: root.pageFlick
         function onHeightChanged() { if (menu.opened) Qt.callLater(menu.clampToViewport) }
+    }
+    Connections {
+        target: root.worldData
+        ignoreUnknownSignals: true
+        function onOnlineModeChanged() {
+            if (root.onlineMode && menu.opened) menu.close();
+            else if (!root.onlineMode && root.worldData.lens.kind === "playlists"
+                    && typeof root.worldData.setKind === "function")
+                root.worldData.setKind("albums");
+        }
     }
     Theme { id: theme }
     Text {
@@ -35,7 +48,7 @@ Item {
         y: 14
         spacing: 8
         Repeater {
-            model: ["albums","artists","songs"]
+            model: root.onlineMode ? ["albums","artists","songs","playlists"] : ["albums","artists","songs"]
             delegate: VinylWorldButton {
                 required property string modelData
                 objectName: "vinylKind_" + modelData
@@ -53,6 +66,7 @@ Item {
         id: filterRow
         y: divider.y + 22
         spacing: 12
+        visible: !root.onlineMode
         Repeater {
             model: ["genre","decade","country","language"]
             delegate: VinylWorldButton {

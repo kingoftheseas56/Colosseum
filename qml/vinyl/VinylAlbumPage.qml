@@ -12,6 +12,20 @@ Flickable {
     property bool saveEnabled: true
     property bool scrollbarVisible: true
     readonly property int trackCount: pageData.tracks.length
+    readonly property var sourceAlbum: pageData && pageData.shownEdition
+        ? pageData.shownEdition.sourceAlbum : null
+    readonly property bool partialPlaylist: !!sourceAlbum
+        && String(sourceAlbum.type || "").toLowerCase() === "playlist"
+        && sourceAlbum.complete === false
+    readonly property bool playlistHasMore: !!pageData
+        && typeof pageData.playlistHasMore !== "undefined" && !!pageData.playlistHasMore
+    readonly property bool playlistPageLoading: !!pageData
+        && typeof pageData.playlistPageLoading !== "undefined" && !!pageData.playlistPageLoading
+    readonly property string playlistPageError: !!pageData
+        && typeof pageData.playlistPageError !== "undefined"
+        ? String(pageData.playlistPageError || "") : ""
+    readonly property bool showPlaylistMore: playlistHasMore || playlistPageLoading
+        || playlistPageError.length > 0
     readonly property string shownEditionId: pageData.shownEditionId
     readonly property bool discSwitchVisible: pageData.shownEdition.discs.length > 1
     readonly property string currentSectionKey: sidebar.currentIndex >= 0 ? sidebar.visibleRows[sidebar.currentIndex].key : ""
@@ -60,6 +74,16 @@ Flickable {
     }
     function albumRowsForPlaylist() {
         return albumPlaylistAvailable ? pageData.shownAlbumRows() : [];
+    }
+    function trackCountFact() {
+        var loaded = pageData.totalTracks(pageData.shownEdition);
+        if (partialPlaylist) {
+            var total = sourceAlbum.totalTracks;
+            var totalLabel = typeof total === "number" && total >= loaded ? String(total) : "?";
+            return loaded + " / " + totalLabel + " tracks";
+        }
+        return loaded + (loaded === 1 ? " track" : " tracks")
+            + (sourceAlbum && sourceAlbum.omittedTracks > 0 ? " · " + sourceAlbum.omittedTracks + " unavailable" : "");
     }
     clip: true
     contentWidth: width
@@ -138,7 +162,7 @@ Flickable {
             Text {
                 id: albumFacts
                 objectName: "vinylAlbumFacts"
-                text: [root.pageData.shownEdition.year, root.pageData.shownEdition.origin === "local" ? "Local release" : (root.pageData.shownEdition.sourceAlbum || {}).type || "Album", root.pageData.totalTracks(root.pageData.shownEdition) + (root.pageData.totalTracks(root.pageData.shownEdition) === 1 ? " track" : " tracks"), root.pageData.shownEdition.length].filter(function(value) { return !!value; }).join(" · ")
+                text: [root.pageData.shownEdition.year, root.pageData.shownEdition.origin === "local" ? "Local release" : (root.pageData.shownEdition.sourceAlbum || {}).type || "Album", root.trackCountFact(), root.pageData.shownEdition.length].filter(function(value) { return !!value; }).join(" · ")
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: theme.inkDimmer
@@ -158,7 +182,7 @@ Flickable {
                         width: 40
                         height: 36
                         accessibleName: modelData === "Save" && root.pageData.saved ? "Saved" : modelData === "Playlist" ? "Add album to playlist" : modelData
-                        enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : modelData === "Queue" ? root.trackCount > 0 : modelData === "Playlist" ? root.pageData.personalEnabled && root.albumRowsForPlaylist().length > 0 : root.saveEnabled
+                        enabled: modelData === "Play" ? root.trackCount > 0 : modelData === "Shuffle" ? root.shuffleEnabled : modelData === "Queue" ? root.trackCount > 0 : modelData === "Playlist" ? root.pageData.personalEnabled && !root.partialPlaylist && root.albumRowsForPlaylist().length > 0 : root.saveEnabled
                         opacity: enabled ? 1 : 0.35
                         onTriggered: {
                             if (modelData === "Play")
@@ -284,6 +308,47 @@ Flickable {
                         Text {anchors.centerIn:parent;text:"+";color:theme.inkDim;font.family:theme.ui;font.pixelSize:18}
                     }
                     height: root.height < 600 ? (artistLine ? 58 : 50) : (artistLine ? 62 : 57)
+                }
+            }
+            Row {
+                visible: root.showPlaylistMore
+                width: trackList.width
+                height: visible ? Math.max(40, playlistMoreStatus.implicitHeight) + 10 : 0
+                spacing: 10
+                KeyboardAction {
+                    id: playlistMoreAction
+                    focusOnPointer: false
+                    objectName: "vinylPlaylistMore"
+                    width: 36
+                    height: 36
+                    accessibleName: "Load more tracks"
+                    enabled: !root.playlistPageLoading && !!root.pageData
+                        && typeof root.pageData.loadMorePlaylist === "function"
+                    opacity: enabled ? 1 : 0.35
+                    onTriggered: root.pageData.loadMorePlaylist()
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 10
+                        color: parent.interactionActive ? theme.glassTint : "transparent"
+                        border.color: theme.edge
+                    }
+                    VinylControlIcon {
+                        anchors.centerIn: parent
+                        symbol: "arrowDown"
+                        color: theme.inkDim
+                    }
+                }
+                Text {
+                    id: playlistMoreStatus
+                    width: Math.max(0, parent.width - playlistMoreAction.width - parent.spacing)
+                    anchors.verticalCenter: playlistMoreAction.verticalCenter
+                    visible: root.playlistPageLoading || root.playlistPageError.length > 0
+                    text: root.playlistPageLoading ? "Loading tracks…" : root.playlistPageError
+                    color: root.playlistPageError.length > 0 && !root.playlistPageLoading
+                        ? theme.gold : theme.inkDimmer
+                    font.family: theme.ui
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
                 }
             }
         }

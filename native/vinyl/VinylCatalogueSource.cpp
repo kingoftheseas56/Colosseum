@@ -60,6 +60,13 @@ QVariantMap VinylCatalogueSource::remember(QVariantMap album){
         album=complete;
     }
     if(!album.contains("providerEditions")&&prior.contains("providerEditions"))album["providerEditions"]=prior.value("providerEditions");
+    // A paged playlist preview must not erase the full source of queued rows.
+    if(album.value("type")=="Playlist"&&!album.value("complete").toBool()
+        &&prior.value("tracks").toList().size()>album.value("tracks").toList().size()){
+        album["tracks"]=prior.value("tracks");album["complete"]=prior.value("complete");
+        album["nextCursor"]=prior.value("nextCursor");album["totalTracks"]=prior.value("totalTracks");
+        album["omittedTracks"]=prior.value("omittedTracks");
+    }
     m_albums.insert(id,album);
     if(!album.value("browseId").toString().isEmpty())m_albums.insert(album.value("browseId").toString(),album);
     int trackNumber=0;
@@ -81,7 +88,7 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
     if(operation=="album"&&m_albums.contains(value)){
         const auto album=m_albums.value(value);
         if(album.value("origin")=="local")local=true;
-        else if(album.value("type")=="Playlist") {remoteValue=album.value("playlistId").toString();remoteOperation="playlist";}
+        else if(album.value("type")=="Playlist") {remoteValue=album.value("playlistId").toString();remoteOperation=lane=="browse"?"playlistPage":"playlist";}
         else remoteValue=album.value("browseId",value).toString();
     }
     if((operation=="resolve"||operation=="resolveFallback")&&!local){remoteValue=m_videos.value(value);}
@@ -125,10 +132,18 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
         else if(pending.operation=="catalogueSearch"){
             auto map=data.toMap();QVariantList albums;
             for(const auto &item:map.value("albums").toList())albums.append(remember(item.toMap()));map["albums"]=albums;result=map;
-        }else if(pending.operation=="discover"){
+        }else if(pending.operation=="discover"||pending.operation=="cataloguePage"){
             auto map=data.toMap();QVariantList records;
             for(const auto &record:map.value("records").toList())records.append(remember(record.toMap()));
             map["records"]=records;result=map;
+        }else if(pending.operation=="playlistPage"){
+            auto page=data.toMap();auto album=m_albums.value("ytm:playlist:"+pending.value);
+            auto tracks=album.value("tracks").toList();
+            if(!album.isEmpty()&&page.value("offset").toInt()==tracks.size()){
+                tracks.append(page.value("tracks").toList());album["tracks"]=tracks;
+                album["complete"]=page.value("complete");album["nextCursor"]=page.value("nextCursor");
+                album["totalTracks"]=page.value("totalTracks");album["omittedTracks"]=page.value("omittedTracks");remember(album);
+            }
         }else if((pending.operation=="resolve"||pending.operation=="resolveFallback")&&!local){
             auto map=data.toMap();map["trackId"]=pending.value;map["provider"]="youtube";
             map["fallbackReason"]=pending.fallbackReason;result=map;

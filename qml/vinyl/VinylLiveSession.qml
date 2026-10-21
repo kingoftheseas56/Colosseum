@@ -71,6 +71,84 @@ Item {
     property var onlineAlbums: []
     property bool searchingOnline: false
     property string catalogueNotice: ""
+    readonly property var catalogueKinds: ["albums","artists","songs","playlists"]
+    property string catalogueQuery: ""
+    property var cataloguePages: ({})
+    property var catalogueRequests: ({})
+    property var catalogueOwner: null
+    property int playlistPageRequest: -1
+    property string playlistPageError: ""
+    property var playlistPageCursor: ({})
+    readonly property bool playlistPageLoading: playlistPageRequest>=0
+    readonly property bool playlistHasMore: !!shownEdition.sourceAlbum && Object.keys(shownEdition.sourceAlbum.nextCursor || {}).length>0
+    function cancelCatalogueRequests() {
+        var owner=catalogueOwner;catalogueRequests={};catalogueOwner=null;
+        if(owner)(catalogueKinds || []).forEach(kind=>owner.cancel("search-"+kind));
+    }
+    function clearCatalogue() {cancelCatalogueRequests();cataloguePages={};catalogueQuery="";}
+    function captureCatalogue() {return plainData({query:catalogueQuery,pages:cataloguePages});}
+    function restoreCatalogue(state) {
+        cancelCatalogueRequests();catalogueQuery=state && state.query || "";
+        cataloguePages=plainData(state && state.pages || {});syncCatalogueAliases();
+    }
+    function syncCatalogueAliases() {
+        onlineAlbums=(cataloguePages.albums || {}).records || [];
+        onlineArtists=((cataloguePages.artists || {}).items || []).map(item=>({id:item.id,name:item.title,cover:item.cover,origin:"youtube-music"}));
+    }
+    function requestCataloguePage(kind,more) {
+        if(!profileActive || shuttingDown || !source || catalogueKinds.indexOf(kind)<0 || !catalogueQuery || catalogueRequests[kind])return;
+        var page=cataloguePages[kind] || {},cursor=more ? page.nextCursor || {} : {};
+        if(more && !Object.keys(cursor).length)return;
+        var pages=Object.assign({},cataloguePages);pages[kind]=Object.assign({},page,{error:""});cataloguePages=pages;
+        catalogueOwner=source;
+        var id=source.request("search-"+kind,"cataloguePage",catalogueQuery,{kind:kind,cursor:cursor});
+        if(id<0){pages=Object.assign({},cataloguePages);pages[kind]=Object.assign({},page,{error:"Catalogue search is unavailable. Retry."});cataloguePages=pages;return;}
+        var requests=Object.assign({},catalogueRequests);requests[kind]={id:id,cursor:cursor};catalogueRequests=requests;
+        browseOperation="catalogueSearch";browsing=true;
+    }
+    function acceptCataloguePage(lane,id,data,failure) {
+        var kind=lane.slice(7),pending=catalogueRequests[kind];
+        if(!pending || pending.id!==id)return;
+        var requests=Object.assign({},catalogueRequests);delete requests[kind];catalogueRequests=requests;
+        if(browseOperation==="catalogueSearch")browsing=Object.keys(requests).length>0;
+        var prior=cataloguePages[kind] || {},offset=pending.cursor.offset || 0;
+        if(!failure && (!data || data.version!==1 || data.query!==catalogueQuery || data.kind!==kind || data.source!=="youtube-music"
+            || !Array.isArray(data.items) || !Array.isArray(data.records) || data.items.length>200 || data.records.length>200
+            || data.offset!==offset || !Number.isInteger(data.nextOffset) || data.nextOffset<offset || data.nextOffset>10000
+            || typeof data.complete!=="boolean" || !data.nextCursor || typeof data.nextCursor!=="object" || Array.isArray(data.nextCursor)
+            || (data.complete!==!Object.keys(data.nextCursor).length)
+            || (Object.keys(data.nextCursor).length && (data.nextCursor.token===pending.cursor.token || data.complete!==false || data.nextCursor.offset!==data.nextOffset))))
+            failure="The catalogue page is invalid. Retry the search.";
+        var pages=Object.assign({},cataloguePages);
+        if(failure)pages[kind]=Object.assign({},prior,{error:failure});
+        else {
+            var seen=new Set(),items=[],records=[],known=new Set();
+            (offset ? (prior.items || []).concat(data.items) : data.items).forEach(item=>{if(item && typeof item.id==="string" && !seen.has(item.id)){seen.add(item.id);items.push(item);}});
+            (offset ? (prior.records || []).concat(data.records) : data.records).forEach(record=>{if(record && typeof record.id==="string" && !known.has(record.id)){known.add(record.id);records.push(record);}});
+            pages[kind]=Object.assign({},data,{items:items,records:records,error:"",cached:!!data._cached});
+        }
+        cataloguePages=pages;syncCatalogueAliases();catalogueNotice="";
+    }
+    function cancelPlaylistPage() {playlistPageRequest=-1;playlistPageCursor={};if(source)source.cancel("playlist-page");}
+    function loadMorePlaylist() {
+        if(!profileActive || shuttingDown || !source || playlistPageLoading || !playlistHasMore)return;
+        var album=shownEdition.sourceAlbum;playlistPageError="";playlistPageCursor=plainData(album.nextCursor);
+        playlistPageRequest=source.request("playlist-page","playlistPage",album.playlistId,{cursor:playlistPageCursor});
+        if(playlistPageRequest<0)playlistPageError="The playlist page could not be loaded. Retry.";
+    }
+    function acceptPlaylistPage(id,data,failure) {
+        if(id!==playlistPageRequest)return;
+        playlistPageRequest=-1;var album=shownEdition.sourceAlbum,offset=(album.tracks || []).length;
+        if(!failure && (!data || data.id!==album.id || data.offset!==offset || !Array.isArray(data.tracks)
+            || data.tracks.length>200 || data.nextOffset!==offset+data.tracks.length || data.nextOffset>10000 || !validAlbum(data)
+            || typeof data.complete!=="boolean" || !data.nextCursor || typeof data.nextCursor!=="object" || Array.isArray(data.nextCursor)
+            || (data.complete!==!Object.keys(data.nextCursor).length)
+            || (Object.keys(data.nextCursor).length && (data.nextCursor.token===playlistPageCursor.token || data.nextCursor.offset!==data.nextOffset))))
+            failure="The playlist changed or its page is invalid. Open it again.";
+        if(failure){playlistPageError=failure;return;}
+        var merged=Object.assign({},album,{tracks:album.tracks.concat(data.tracks),nextCursor:data.nextCursor,complete:data.complete,totalTracks:data.totalTracks,omittedTracks:data.omittedTracks || 0});
+        shownEdition=normalize(merged);refreshSource();playlistPageError="";
+    }
     readonly property var discoveryKeys: ["new-releases","trending","artists","charts"]
     property var discoverySections: ({})
     property var discoveryRequests: ({})
@@ -108,8 +186,17 @@ Item {
             : Object.assign({},data,{error:data._cacheError || "",cached:!!data._cached});
         discoverySections=sections;
     }
-    function searchCatalogue(query) {
+    function searchCatalogue(query,kind,refresh) {
         if(shuttingDown || !profileActive || !source) return;
+        if(source.catalogueSearchVersion===1) {
+            query=String(query || "").trim();kind=kind || "albums";
+            if(!query){cancelBrowse();clearCatalogue();return;}
+            if(query!==catalogueQuery || refresh) {
+                cancelBrowse();catalogueQuery=query;cataloguePages={};syncCatalogueAliases();browseError="";searchingOnline=true;
+                catalogueKinds.forEach(k=>requestCataloguePage(k,false));
+            }else if(!cataloguePages[kind] || cataloguePages[kind].error)requestCataloguePage(kind,false);
+            return;
+        }
         cancelBrowse();browseError="";searchingOnline=true;browsing=true;browseOperation="catalogueSearch";
         browseRequest=source.request("browse","catalogueSearch",String(query || "").trim());
         if(browseRequest<0) {browsing=false;browseError="Catalogue search is unavailable.";}
@@ -388,7 +475,7 @@ Item {
     property int importProfileGeneration: -1
     property var importPaths: []
     property var importSource: null
-    onSourceChanged: {if(importSource && importSource!==source) cancelImport();clearDiscovery();}
+    onSourceChanged: {if(importSource && importSource!==source) cancelImport();clearDiscovery();clearCatalogue();}
     function cancelImport() {
         var owner=importSource;
         importRequest=-1;importing=false;importPaths=[];importSource=null;
@@ -493,7 +580,7 @@ Item {
     }
     function cancelBrowse() {
         // Invalidate first: a replaceable adapter may complete synchronously during cancellation.
-        browseRequest=-1;browsing=false;browseOperation="";
+        browseRequest=-1;browsing=false;browseOperation="";cancelCatalogueRequests();cancelPlaylistPage();
         searchGeneration++;searchComplete=false;searchBuffer=[];searchRevision="";searchOffset=0;
         if (source) source.cancel("browse");
     }
@@ -536,6 +623,7 @@ Item {
     function openAlbum(browseId) {
         if(shuttingDown || !profileActive) return;
         cancelBrowse();
+        playlistPageError="";
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
         browseRequest=source.request("browse","album",browseId);
@@ -570,23 +658,27 @@ Item {
     }
     function editionRows(e) {var rows=[];e.discs.forEach((d,di)=>d.forEach((t,i)=>rows.push(rowFor(e,di,i))));return rows;}
     function cancelQueueRequest() {queueRequest=-1;pendingCataloguePlay=null;pendingEnqueues=[];if(source) source.cancel("queue");}
-    function playCatalogueAlbum(id,shuffleOrder) {
+    function playCatalogueAlbum(id,shuffleOrder,index,trackId) {
         if(shuttingDown || !profileActive || !source) return;
         cancelQueueRequest();browseError="";refreshSource();queueAlbumId=id;
-        pendingCataloguePlay={shuffle:!!shuffleOrder};queueRequest=source.request("queue","album",id);
+        pendingCataloguePlay={shuffle:!!shuffleOrder,index:index || 0,trackId:trackId || ""};queueRequest=source.request("queue","album",id);
         if(queueRequest<0){pendingCataloguePlay=null;browseError="This catalogue release could not be loaded.";}
     }
     function playTrack(index) { startQueue(index,false); }
     function playAlbum(album,index,editionId) {
         if(shuttingDown || !profileActive) return;
         if(!validAlbum(album)) return;
+        if(album.type==="Playlist" && album.complete!==true) {
+            index=index===undefined ? 0 : index;
+            playCatalogueAlbum(album.id,false,index,(album.tracks[index] || {}).id);return;
+        }
         var edition=editionId ? normalizeEditions(album).find(e=>e.id===editionId) : normalize(album);
         if(!edition) return;
         var rows=editionRows(edition);index=index===undefined ? 0 : index;
         if(!Number.isInteger(index)||index<0||index>=rows.length||index>=10000) return;
         snapshot();cancelQueueRequest();refreshSource();backend.replaceRows(rows.slice(0,10000),index,false);snapshot();
     }
-    function shuffleAlbum(album) {if(!validAlbum(album)) return;playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
+    function shuffleAlbum(album) {if(!validAlbum(album)) return;if(album.type==="Playlist"&&album.complete!==true){playCatalogueAlbum(album.id,true);return;}playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
     function playSongs(songs,shuffleOrder) {
         if(shuttingDown || !profileActive) return;
         if(!Array.isArray(songs)) return;
@@ -617,6 +709,10 @@ Item {
         var rows=editionRows(shownEdition);
         var selected=rows.findIndex(r=>r.discIndex===shownDisc && r.trackIndex===index);
         if(selected<0 || selected>=10000) {browseError="This track exceeds the queue limit.";return;}
+        var album=shownEdition.sourceAlbum || {};
+        if(album.type==="Playlist" && album.complete!==true) {
+            playCatalogueAlbum(album.id,shuffleOrder,selected,rows[selected].trackId);return;
+        }
         snapshot();cancelQueueRequest();refreshSource();
         backend.replaceRows(rows.slice(0,10000),selected,!!shuffleOrder);snapshot();
     }
@@ -629,7 +725,9 @@ Item {
         if(shuttingDown || !profileActive) return;
         if(typeof albumId!=="string" || !albumId.length) return;
         if(pendingEnqueues.length>=128) {browseError="Please wait for the queued releases to finish loading.";return;}
-        pendingEnqueues=pendingEnqueues.concat([{albumId:albumId,playNext:!!playNext,edition:albumId===shownAlbumId ? shownEdition : null}]);
+        var edition=albumId===shownAlbumId ? shownEdition : null;
+        if(edition && edition.sourceAlbum.type==="Playlist" && edition.sourceAlbum.complete!==true)edition=null;
+        pendingEnqueues=pendingEnqueues.concat([{albumId:albumId,playNext:!!playNext,edition:edition}]);
         dispatchNextEnqueue();
     }
     function dispatchNextEnqueue() {
@@ -741,7 +839,7 @@ Item {
     function clearProfile() {
         if(shuttingDown) return;
         profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
-        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();
+        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
         shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";personalError="";
         resetting=false;
@@ -751,7 +849,7 @@ Item {
     function shutdown() {
         if(shuttingDown) return;
         cancelImport();snapshot();activityEnd(false);shuttingDown=true;resetting=true;
-        browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();clearDiscovery();
+        browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
     }
     Connections {
         target: root.source
@@ -770,6 +868,8 @@ Item {
         function onCompleted(lane,id,data,failure) {
             if(root.shuttingDown || root.resetting || !root.profileActive) return;
             data=root.plainData(data);
+            if(lane.indexOf("search-")===0){root.acceptCataloguePage(lane,id,data,failure);return;}
+            if(lane==="playlist-page"){root.acceptPlaylistPage(id,data,failure);return;}
             if(lane.indexOf("discover-")===0){root.acceptDiscovery(lane,id,data,failure);return;}
             if (lane==="browse" && id>=0 && id===root.browseRequest) {
                 root.browseRequest=-1;root.browseError=failure;
@@ -791,7 +891,11 @@ Item {
                 root.queueRequest=-1;
                 var play=root.pendingCataloguePlay;root.pendingCataloguePlay=null;
                 if(failure || !root.validAlbum(data) || (data.id!==root.queueAlbumId && data.browseId!==root.queueAlbumId)) root.browseError=failure || "The queued album is invalid.";
-                else if(play) {if(play.shuffle)root.shuffleAlbum(data);else root.playAlbum(data,0);}
+                else if(data.type==="Playlist"&&data.complete!==true)root.browseError="The full playlist could not be loaded.";
+                else if(play) {
+                    if(play.trackId && (!data.tracks[play.index] || data.tracks[play.index].id!==play.trackId))root.browseError="The playlist order changed. Open it again before playing.";
+                    else if(play.shuffle)root.shuffleAlbum(data);else root.playAlbum(data,play.index);
+                }
                 else root.appendRows(root.editionRows(root.normalize(data)),root.queueInsertNext);
                 if(!play)root.dispatchNextEnqueue();
 
@@ -804,5 +908,5 @@ Item {
     }
     Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
     Component.onCompleted: {restore();refreshLibrary();}
-    Component.onDestruction: { cancelImport();cancelDiscovery();if(source) source.cancel("browse");backend.shutdown(); }
+    Component.onDestruction: { cancelImport();cancelDiscovery();cancelCatalogueRequests();cancelPlaylistPage();if(source) source.cancel("browse");backend.shutdown(); }
 }

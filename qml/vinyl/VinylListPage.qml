@@ -37,8 +37,16 @@ Item {
     readonly property var row: worldData.row(listKey,home)
     readonly property string title: row.title
     readonly property int itemCount: row.items.length
+    readonly property bool onlineList: !home && worldData.onlineMode === true
+    readonly property bool searchPagingSupported: worldData.cataloguePagingSupported !== false
+    readonly property bool rowLoading: row.loading === true
+    readonly property string rowError: String(row.error || "")
+    readonly property bool showLoadMore: onlineList && worldData.discoveryLanding !== true
+        && ((searchPagingSupported && row.hasMore === true) || rowLoading || rowError.length > 0)
     signal backRequested()
-    implicitHeight: header.y+header.height+26+grid.implicitHeight
+    implicitHeight: Math.max(header.y+header.height+26+grid.implicitHeight,
+        emptyMessage.visible ? emptyMessage.y+emptyMessage.implicitHeight : 0,
+        loadMoreRow.visible ? loadMoreRow.y+loadMoreRow.height : 0)
     Theme { id: theme }
     Item {
         id: header
@@ -65,8 +73,14 @@ Item {
         }
     }
     Text {
-        y: header.height+26; width: parent.width; visible: root.itemCount===0
-        text: "No local music in this collection. Open audio files or change your filters."
+        id: emptyMessage
+        y: grid.y + grid.implicitHeight + 18
+        width: parent.width
+        visible: root.itemCount === 0
+            && !(root.onlineList && (root.rowLoading || root.rowError.length > 0))
+        text: root.onlineList ? "No catalogue matches."
+            : "No local music in this collection. Open audio files or change your filters."
+        textFormat: Text.PlainText
         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16; wrapMode: Text.WordWrap
     }
     Grid {
@@ -89,6 +103,43 @@ Item {
                 Keys.onPressed: event => { if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Up,Qt.Key_Down,Qt.Key_Home,Qt.Key_End,Qt.Key_PageUp,Qt.Key_PageDown].indexOf(event.key)>=0) nav.handle(event); }
                 width: (grid.width-(grid.columns-1)*24)/grid.columns
                 height: Math.max(implicitHeight,width+110)
+            }
+        }
+    }
+    Item {
+        id: loadMoreRow
+        objectName: "vinylListMoreRow"
+        y: grid.y + grid.implicitHeight + (emptyMessage.visible ? emptyMessage.implicitHeight + 12 : 0) + 18
+        width: parent.width
+        height: visible ? Math.max(38, loadMoreStatus.implicitHeight) : 0
+        visible: root.showLoadMore
+        Text {
+            id: loadMoreStatus
+            x: 0
+            y: (parent.height - height) / 2
+            width: Math.max(0, parent.width - (loadMoreButton.visible ? 50 : 0))
+            height: implicitHeight
+            text: root.rowLoading ? "Loading more…" : root.rowError
+            textFormat: Text.PlainText
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 14
+            wrapMode: Text.WordWrap
+        }
+        VinylWorldButton {
+            id: loadMoreButton
+            objectName: "vinylListMore"
+            x: parent.width - width
+            y: (parent.height - height) / 2
+            width: 38
+            height: 38
+            backdrop: root.backdrop
+            label: "Load more results"
+            symbol: "arrowDown"
+            enabled: !root.rowLoading
+            onTriggered: {
+                if (typeof root.worldData.loadMoreSearch === "function")
+                    root.worldData.loadMoreSearch();
             }
         }
     }

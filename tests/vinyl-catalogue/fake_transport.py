@@ -12,7 +12,20 @@ if value == "slow":
 if value == "oversize":
     print("x" * (4 * 1024 * 1024 + 1))
     sys.exit(0)
-if operation == "discover":
+if operation == "cataloguePage":
+    cursor=request.get("cursor") or {}; offset=cursor.get("offset",0);kind=request.get("kind","songs")
+    record={"id":"standalone-song","browseId":"ytm:track:abcdefghijk","type":"Song","title":"Track","origin":"youtube-music","artists":["Artist"],
+            "tracks":[{"id":"provider-recording","videoId":"abcdefghijk","title":"Track","seconds":180}]}
+    data={"version":1,"query":value,"kind":kind,"source":"youtube-music","offset":offset,"nextOffset":offset+1,
+          "items":[{"id":"provider-recording","kind":"songs","albumId":"standalone-song","trackIndex":0,"title":"Track"}],
+          "records":[record],"complete":True,"nextCursor":{},"request":request}
+elif operation == "playlistPage":
+    offset=(request.get("cursor") or {}).get("offset",0)
+    data={"version":1,"id":"public-playlist","browseId":"ytm:playlist:"+value,"playlistId":value,"type":"Playlist",
+          "title":"Chart","origin":"youtube-music","artists":[],"offset":offset,"nextOffset":offset+1,"complete":offset>0,
+          "nextCursor":{} if offset else {"offset":1,"token":"next"},"totalTracks":5,"omittedTracks":3 if offset else 0,
+          "tracks":[{"id":"provider-recording" if offset==0 else "later-recording","videoId":"abcdefghijk" if offset==0 else "lmnopqrstuv","title":"Track","seconds":180}]}
+elif operation == "discover":
     record = {"id": "standalone-song", "browseId": "ytm:track:abcdefghijk", "type": "Song",
               "title": "Track", "origin": "youtube-music", "artists": ["Artist"],
               "tracks": [{"id": "provider-recording", "videoId": "abcdefghijk", "title": "Track", "seconds": 180}]}
@@ -24,7 +37,7 @@ if operation == "discover":
             "complete": False, "items": [dict(record, kind="catalogue-playlists" if value == "charts" else "songs")], "records": [record]}
 elif operation == "playlist":
     data = {"id": "public-playlist", "browseId": "ytm:playlist:" + value, "playlistId": value,
-            "type": "Playlist", "title": "Chart", "origin": "youtube-music", "artists": [],
+            "type": "Playlist", "title": "Chart", "origin": "youtube-music", "artists": [], "complete": True,
             "tracks": [{"id": "provider-recording", "videoId": "abcdefghijk", "title": "Track", "seconds": 180}]}
 elif operation == "artistArtwork":
     data = {"artistMbid":"11111111-1111-4111-8111-111111111111","source":"theaudiodb","usage":"development",

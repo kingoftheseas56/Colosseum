@@ -5055,6 +5055,12 @@ add_test(NAME colosseum.qml.vinyl_home_native
 add_test(NAME colosseum.qml.vinyl_discovery_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_discovery.qml")
+add_test(NAME colosseum.qml.vinyl_catalogue_pages_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_catalogue_pages.qml")
+set_tests_properties(colosseum.qml.vinyl_catalogue_pages_native PROPERTIES
+    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 90
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_discovery_native PROPERTIES
     LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 60
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")

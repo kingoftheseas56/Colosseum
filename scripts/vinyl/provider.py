@@ -96,13 +96,13 @@ def album_card(record, browse_id=None):
             "providerIds": {"youtube-music": key}}
 
 
-def normalize_album(record, key):
+def normalize_album(record, key, track_offset=0):
     result = album_card(record, key)
     result["tracks"] = []
     for index, track in enumerate(record.get("tracks") or []):
         video = track.get("videoId") or ""
         result["tracks"].append({
-            "id": identity("recording", video) if video else identity("unavailable", key + ":" + str(index)),
+            "id": identity("recording", video) if video else identity("unavailable", key + ":" + str(track_offset + index)),
             "videoId": video, "title": track.get("title") or "Unavailable track",
             "artists": artists(track) or result["artists"],
             "artistIds": [("ytm:artist:" + a["id"]) if a.get("id") else ""
@@ -148,7 +148,9 @@ def song_record(raw):
 
 
 def playlist_card(raw):
-    key = raw.get("playlistId", "")
+    key = raw.get("playlistId") or raw.get("browseId", "")
+    if isinstance(key, str) and key.startswith("VL"):
+        key = key[2:]
     if not source_key(key) or not raw.get("title"):
         return None
     return {"id": identity("playlist", key), "browseId": "ytm:playlist:" + key,
@@ -212,19 +214,212 @@ def fetch_discovery(client, key, region, fetched_at=None):
             "fetchedAt": now_iso(fetched_at), "complete": False}
 
 
-def fetch_playlist(client, key):
-    raw = _call_provider(client.get_playlist, key, limit=200)
-    if not isinstance(raw, dict) or not isinstance(raw.get("tracks"), list):
-        raise ProviderUnavailableError("The playlist response is invalid.")
-    count = raw.get("trackCount")
-    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
-        raise ProviderUnavailableError("The playlist does not provide a complete track count.")
-    if len(raw["tracks"]) > 200 or (isinstance(count, int) and count > len(raw["tracks"])):
-        raise ProviderUnavailableError("This playlist exceeds the supported complete listing. Open a smaller playlist.")
-    result = normalize_album(raw, key)
-    result.update({"id": identity("playlist", key), "browseId": "ytm:playlist:" + key,
-                   "playlistId": key, "type": "Playlist", "complete": True})
+def fetch_playlist(client, key, region="IN"):
+    cursor, tracks, seen = {}, [], set()
+    while True:
+        page = fetch_playlist_page(client, {"cursor": cursor}, key, region)
+        tracks.extend(page["tracks"])
+        if page["complete"]:
+            page["tracks"] = tracks
+            page["offset"] = 0
+            return page
+        cursor = page["nextCursor"]
+        if cursor["token"] in seen:
+            raise ProviderUnavailableError("The playlist continuation repeated. Open it again.")
+        seen.add(cursor["token"])
+
+
+PAGE_KINDS = {"albums", "artists", "songs", "playlists"}
+
+
+def renderer_nodes(value, name):
+    if isinstance(value, dict):
+        if name in value:
+            yield value[name]
+        for child in value.values():
+            yield from renderer_nodes(child, name)
+    elif isinstance(value, list):
+        for child in value:
+            yield from renderer_nodes(child, name)
+
+
+def first_page(client, method, *args, **kwargs):
+    # The bundled parser returns the initial server page even at limit=0.
+    # Capture its continuation while preventing automatic follow-up requests.
+    responses, original = [], client._send_request
+    def request(*request_args, **request_kwargs):
+        response = original(*request_args, **request_kwargs)
+        responses.append(response)
+        return response
+    client._send_request = request
+    try:
+        parsed = method(*args, limit=0, **kwargs)
+    finally:
+        client._send_request = original
+    if len(responses) != 1:
+        raise ProviderUnavailableError("The catalogue paging protocol changed. Retry the catalogue.")
+    return parsed, responses[0]
+
+
+def read_search_page(client, query, kind, token):
+    from ytmusicapi.parsers.search import parse_search_results, get_search_params
+    from ytmusicapi.continuations import get_continuation_string
+    if token:
+        response = client._send_request("search", {"query": query, "params": get_search_params(kind, None, False)}, get_continuation_string(token))
+        shelf = response.get("continuationContents", {}).get("musicShelfContinuation")
+        if not isinstance(shelf, dict):
+            raise ProviderUnavailableError("The search page expired. Search again to refresh it.")
+        items = parse_search_results(shelf.get("contents", []), kind[:-1], kind.title())
+    else:
+        items, response = first_page(client, client.search, query, filter=kind)
+        shelves = list(renderer_nodes(response, "musicShelfRenderer"))
+        shelf = next((s for s in shelves if s.get("continuations")), {})
+    continuations = shelf.get("continuations", [])
+    continuation = continuations[0].get("nextContinuationData", {}).get("continuation", "") if continuations else ""
+    return {"items": items, "continuation": continuation}
+
+
+def read_playlist_page(client, key, token):
+    from ytmusicapi.continuations import get_continuation_token
+    if token:
+        response = client._send_request("browse", {"continuation": token})
+        actions = response.get("onResponseReceivedActions", [])
+        contents = next((a["appendContinuationItemsAction"]["continuationItems"] for a in actions if "appendContinuationItemsAction" in a), None)
+        if contents is None:
+            raise ProviderUnavailableError("The playlist page expired. Open the playlist again.")
+        items, meta = playlist_page_items(contents), {}
+    else:
+        meta, response = first_page(client, client.get_playlist, key)
+        items = meta.get("tracks", [])
+        shelves = list(renderer_nodes(response, "musicPlaylistShelfRenderer"))
+        contents = shelves[0].get("contents", []) if shelves else []
+        items = playlist_page_items(contents)
+    continuation = get_continuation_token(contents) if contents else ""
+    return {"items": items, "meta": meta, "continuation": continuation or ""}
+
+
+def playlist_page_items(contents):
+    from ytmusicapi.parsers.playlists import parse_playlist_items
+    result = []
+    for row in contents:
+        parsed = parse_playlist_items([row])
+        if parsed:
+            result.extend(parsed)
+        elif "musicResponsiveListItemRenderer" in row:
+            # The upstream parser skips deleted/private rows. Keep any row the
+            # server actually supplies at its original playlist position.
+            result.append({"videoId": None, "title": "Unavailable track", "isAvailable": False})
     return result
+
+
+def page_cursor(operation, value, kind, region, token, offset, meta=None):
+    if not token:
+        return {}
+    return {"version": 1, "operation": operation, "value": value, "kind": kind,
+            "region": region, "token": token, "offset": offset, "meta": meta or {}}
+
+
+def validate_page_request(request, operation, value, kind, region):
+    cursor = request.get("cursor") or {}
+    if not isinstance(cursor, dict) or not isinstance(region, str) or not re.fullmatch(r"[A-Z]{2}", region):
+        raise InvalidArgumentError("Invalid catalogue page")
+    if not cursor:
+        return "", 0, {}
+    token, offset = cursor.get("token"), cursor.get("offset")
+    if (cursor.get("version") != 1 or cursor.get("operation") != operation
+            or cursor.get("value") != value or cursor.get("kind") != kind or cursor.get("region") != region
+            or not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_+%./=,-]{1,16384}", token)
+            or not isinstance(offset, int) or isinstance(offset, bool) or not 0 < offset < 10000
+            or not isinstance(cursor.get("meta", {}), dict)):
+        raise InvalidArgumentError("This page belongs to a different catalogue request. Search or open the playlist again.")
+    return token, offset, cursor.get("meta", {})
+
+
+def fetch_catalogue_page(client, request, value, region):
+    kind = request["kind"]
+    token, offset, _ = validate_page_request(request, "cataloguePage", value, kind, region)
+    raw = _call_provider(read_search_page, client, value, kind, token)
+    if not isinstance(raw, dict):
+        raise ProviderUnavailableError("The search page is invalid.")
+    values, continuation = raw.get("items"), raw.get("continuation", "")
+    if not isinstance(values, list) or len(values) > 200 or not isinstance(continuation, str) or (token and token == continuation):
+        raise ProviderUnavailableError("The catalogue page did not advance. Search again.")
+    items, records, seen = [], [], set()
+    for entry in values:
+        if not isinstance(entry, dict):
+            continue
+        record = None
+        if kind == "songs":
+            record = song_record(entry)
+            if not record:
+                continue
+            track = record["tracks"][0]
+            item = {"id": track["id"], "kind": "songs", "albumId": record["id"], "trackId": track["id"], "trackIndex": 0,
+                    "title": track["title"], "cover": record["cover"], "subtitle": " · ".join(record["artists"])}
+        elif kind == "artists":
+            channel = entry.get("browseId", "")
+            if not isinstance(channel, str) or not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel):
+                continue
+            item = {"id": "ytm:artist:" + channel, "artistId": "ytm:artist:" + channel, "kind": "artists",
+                    "title": entry.get("artist") or entry.get("title") or "", "cover": cover(entry), "round": True}
+            item["artist"] = item["title"]
+        elif kind == "playlists":
+            record = playlist_card(entry)
+            if not record:
+                continue
+            item = dict(record, kind="catalogue-playlists", albumId=record["id"], subtitle="YouTube Music")
+        else:
+            if not source_key(entry.get("browseId")) or not entry.get("title"):
+                continue
+            record = album_card(entry)
+            item = dict(record, kind="albums", albumId=record["id"], subtitle=" · ".join(record["artists"]))
+        if not item["title"] or item["id"] in seen:
+            continue
+        seen.add(item["id"]);items.append(item)
+        if record:
+            records.append(record)
+    next_offset = offset + len(values)
+    if continuation and (not values or next_offset >= 10000):
+        raise ProviderUnavailableError("The catalogue page limit was reached. Refine your search.")
+    return {"version": 1, "query": value, "kind": kind, "source": "youtube-music", "region": region,
+            "items": items, "records": records, "offset": offset, "nextOffset": next_offset,
+            "nextCursor": page_cursor("cataloguePage", value, kind, region, continuation, next_offset),
+            "complete": not bool(continuation), "fetchedAt": now_iso(request.get("fetchedAt"))}
+
+
+def fetch_playlist_page(client, request, key, region):
+    token, offset, prior_meta = validate_page_request(request, "playlistPage", key, "tracks", region)
+    raw = _call_provider(read_playlist_page, client, key, token)
+    if not isinstance(raw, dict):
+        raise ProviderUnavailableError("The playlist page is invalid.")
+    tracks, continuation = raw.get("items"), raw.get("continuation", "")
+    if not isinstance(tracks, list) or len(tracks) > 200 or not isinstance(continuation, str) or (token and token == continuation):
+        raise ProviderUnavailableError("The playlist page did not advance. Open it again.")
+    meta = prior_meta if token else raw.get("meta", {})
+    if not isinstance(meta, dict) or not meta.get("title"):
+        raise ProviderUnavailableError("The playlist page has no metadata.")
+    total = meta.get("trackCount")
+    if total is not None and (not isinstance(total, int) or isinstance(total, bool) or total < 0):
+        raise ProviderUnavailableError("The playlist track count is invalid.")
+    if total is not None and total > 10000:
+        raise ProviderUnavailableError("This playlist exceeds the 10,000-track queue limit.")
+    next_offset = offset + len(tracks)
+    if next_offset > 10000 or (continuation and (not tracks or next_offset >= 10000)):
+        raise ProviderUnavailableError("This playlist exceeds the 10,000-track queue limit.")
+    # Audio-list parsers sometimes derive trackCount from the first page itself.
+    if continuation and total is not None and total <= next_offset:
+        total = None
+    omitted = max(0, total - next_offset) if not continuation and total is not None else 0
+    record = normalize_album({"title": meta["title"], "thumbnails": meta.get("thumbnails", []), "tracks": tracks}, key, offset) if tracks else dict(playlist_card({"playlistId": key, "title": meta["title"]}), tracks=[])
+    public_meta = {"title": meta["title"], "thumbnails": meta.get("thumbnails", []), "trackCount": total}
+    record.update({"version": 1, "id": identity("playlist", key), "browseId": "ytm:playlist:" + key,
+                   "playlistId": key, "type": "Playlist", "offset": offset, "nextOffset": next_offset,
+                   "totalTracks": total if total is not None else (next_offset if not continuation else None),
+                   "omittedTracks": omitted,
+                   "source": "youtube-music", "region": region,
+                   "nextCursor": page_cursor("playlistPage", key, "tracks", region, continuation, next_offset, public_meta),
+                   "complete": not bool(continuation)})
+    return record
 
 
 def resolve(video):
@@ -1099,6 +1294,13 @@ def handle(request, client=None, mb_client=None):
         raise InvalidArgumentError("Invalid discovery shelf or region")
     if operation == "playlist" and not source_key(value):
         raise InvalidArgumentError("Invalid playlist identity")
+    if operation in {"cataloguePage", "playlistPage"}:
+        kind = request.get("kind", "") if operation == "cataloguePage" else "tracks"
+        if operation == "cataloguePage" and (kind not in PAGE_KINDS or not 1 <= len(value) <= 300):
+            raise InvalidArgumentError("Enter a search and select a catalogue category")
+        if operation == "playlistPage" and not source_key(value):
+            raise InvalidArgumentError("Invalid playlist identity")
+        validate_page_request(request, operation, value, kind, region)
     if operation == "resolve":
         return resolve(value)
     if operation == "artistArtwork":
@@ -1127,7 +1329,11 @@ def handle(request, client=None, mb_client=None):
     if operation == "discover":
         return fetch_discovery(client, value, region, fetched_at)
     if operation == "playlist":
-        return fetch_playlist(client, value)
+        return fetch_playlist(client, value, region)
+    if operation == "cataloguePage":
+        return fetch_catalogue_page(client, request, value, region)
+    if operation == "playlistPage":
+        return fetch_playlist_page(client, request, value, region)
     if operation == "catalogueSearch":
         if not 1 <= len(value) <= 300:
             raise InvalidArgumentError("Enter an album or artist name")
