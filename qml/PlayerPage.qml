@@ -1492,6 +1492,7 @@ Item {
         root.mediaTransport = "Torrent stream"
         root.updateMediaSubtitle()
         root.clearActiveDirectHeaders()
+        console.info("[player] Stream.play via playStreamAt", reason)
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
@@ -1582,6 +1583,7 @@ Item {
             root.loadDirectStreamUrl(directUrl, c.headers)
             return
         }
+        console.info("[player] Stream.play via retryCurrentStream")
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
@@ -1707,6 +1709,7 @@ Item {
         root.resetRecoveryWatch()
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
+        console.info("[player] Stream.play via restoreRetiredStreamRoute at", root.streamRouteRestoreSec)
         Stream.play(root.streamRouteHash, root.streamRouteFileIdx)
         return true
     }
@@ -3711,6 +3714,8 @@ Item {
             target: PlatformRuntime
             enabled: PlatformRuntime.android
             function onApplicationStateChanged() {
+                console.info("[player] lifecycle", PlatformRuntime.applicationState,
+                             "routeRetired", root.streamRouteRetired())
                 if (root.restoreRetiredStreamRoute())
                     return
                 mpv.setHostLifecycleState(PlatformRuntime.applicationState)

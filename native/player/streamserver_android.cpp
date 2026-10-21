@@ -301,6 +301,7 @@ bool StreamServer::starting() const {
 }
 
 void StreamServer::play(const QString &infoHash, int fileIdx) {
+    qInfo() << "[nuvio014] Stream.play" << infoHash << fileIdx;
     if (!m_backend) {
         // kUnavailableMessage is a constant, not a literal token, so it must
         // not go through QStringLiteral.

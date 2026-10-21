@@ -479,6 +479,8 @@ void NuvioStreamBackend::setForeground(bool foreground) {
     ++m_state->m_epoch;
     ++m_state->m_generation;
     ++m_state->m_fetchGeneration;
+    qInfo() << "[nuvio014] foreground" << !foreground << "->" << foreground << "epoch"
+            << m_state->m_epoch.load() << "generation" << m_state->m_generation.load();
     if (notifyReady) emit readyChanged();
     if (notifyStarting) emit startingChanged();
     if (!foreground) {
@@ -723,9 +725,15 @@ void NuvioStreamBackend::WorkerState::handleStop() {
 
 void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
     if (task.epoch != m_epoch.load() ||
-        task.generation != (task.fetch ? m_fetchGeneration.load() : m_generation.load()))
+        task.generation != (task.fetch ? m_fetchGeneration.load() : m_generation.load())) {
+        qInfo() << "[nuvio014] demand dropped: stale fence" << task.infoHash << "fetch" << task.fetch
+                << "epoch" << task.epoch << "/" << m_epoch.load() << "generation" << task.generation
+                << "/" << (task.fetch ? m_fetchGeneration.load() : m_generation.load());
         return;
+    }
     if (!m_foreground.load()) {
+        qInfo() << "[nuvio014] demand dropped: backend in background" << task.infoHash
+                << "fetch" << task.fetch;
         // Gated on background state; the next explicit foreground demand
         // reconstructs fresh engine state. A background prefetch is dropped
         // silently; a background play reports the suspension.
