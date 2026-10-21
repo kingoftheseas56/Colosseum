@@ -3,6 +3,15 @@ name: android
 # First installable Android lane. Manual dispatch only; A02 CI gate passed.
 on:
   workflow_dispatch:
+    inputs:
+      nuvio_diagnostic_arm64:
+        description: "Opt-in: hardened Nuvio ARM64 diagnostic APK only (false keeps the normal build)"
+        type: boolean
+        default: false
+      nuvio_diagnostic_package:
+        description: "Distinct diagnostic package id (org.qtproject.example.colosseum.nuvio<id>)"
+        type: string
+        default: org.qtproject.example.colosseum.nuvio014local
 
 permissions:
   contents: read
@@ -129,6 +138,7 @@ jobs:
           restore-keys: android-ccache-v1-
 
       - name: Build x86_64 APK
+        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
@@ -137,7 +147,70 @@ jobs:
           set -o pipefail
           scripts/android/build_apk.sh x86_64 apk-out 2>&1 | tee build-x86_64.log
 
+      # Opt-in Nuvio ARM64 diagnostic (task014). The product feature stays OFF
+      # unless this input is set; x86_64 and the emulator smoke are skipped.
+      - name: Nuvio diagnostic - restore pinned donor, prove patches, prepare hardened engine
+        if: ${{ inputs.nuvio_diagnostic_arm64 }}
+        env:
+          DIAG_PACKAGE: ${{ inputs.nuvio_diagnostic_package }}
+        run: |
+          set -euo pipefail
+          [[ "$DIAG_PACKAGE" =~ ^org\.qtproject\.example\.colosseum\.nuvio[0-9a-z]+$ ]] || {
+            echo "::error::nuvio_diagnostic_package must be org.qtproject.example.colosseum.nuvio<id>"; exit 1; }
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          DIAG="$RUNNER_TEMP/nuvio014"
+          mkdir -p "$DIAG" nuvio-diag
+          echo "NUVIO_DIAG=$DIAG" >> "$GITHUB_ENV"
+          python3 cloud-handoff/android-013/restore_donor.py "$DIAG/donor-working" 2>&1 | tee nuvio-diag/donor-restore.log
+          NUVIO_DONOR_SOURCE="$DIAG/donor-working" python3 tests/test_android_nuvio_backend_contract.py \
+            2>&1 | tee nuvio-diag/backend-contract.log
+          grep -q 'SKIPPED_CASES=0' nuvio-diag/backend-contract.log
+          python3 scripts/android/prepare_nuvio_engine.py --source "$DIAG/donor-working" \
+            --ndk "$ANDROID_NDK_ROOT" --abi arm64-v8a --api 28 --prefix "$DIAG/nuvio-prefix" \
+            2>&1 | tee nuvio-diag/engine-prepare.log
+          python3 scripts/android/verify_nuvio_hardened_artifact.py --prefix "$DIAG/nuvio-prefix" \
+            --abi arm64-v8a 2>&1 | tee nuvio-diag/engine-artifact-verify.log
+          cp "$DIAG/nuvio-prefix/.colosseum-nuvio-hardened-stamp" nuvio-diag/engine-stamp.txt
+
+      - name: Nuvio diagnostic - build arm64-v8a APK (correspondence gate, skips fail)
+        if: ${{ inputs.nuvio_diagnostic_arm64 }}
+        env:
+          DIAG_PACKAGE: ${{ inputs.nuvio_diagnostic_package }}
+          COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          set -o pipefail
+          export COLOSSEUM_ANDROID_CMAKE_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCOLOSSEUM_ANDROID_NUVIO_BACKEND=ON -DCOLOSSEUM_NUVIO_ENGINE_PREFIX=$NUVIO_DIAG/nuvio-prefix -DCOLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE=$DIAG_PACKAGE -DCOLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC=OFF"
+          echo "$COLOSSEUM_ANDROID_CMAKE_ARGS" > nuvio-diag/configure-args.txt
+          scripts/android/build_apk.sh arm64-v8a apk-out 2>&1 | tee nuvio-diag/build-arm64-v8a.log
+          grep -E '^(ANDROID_ABI|CMAKE_BUILD_TYPE|COLOSSEUM_ANDROID_NUVIO_BACKEND|COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC|COLOSSEUM_NUVIO_ENGINE_PREFIX|COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE):' \
+            native/build-android/arm64-v8a/CMakeCache.txt | tee nuvio-diag/cmake-cache-identity.txt
+          grep -q '^PACKAGING_GATE_OK tests=6 skipped=0' nuvio-diag/build-arm64-v8a.log
+          grep -q '^ANDROID_RUNTIME_BUNDLE_OK' nuvio-diag/build-arm64-v8a.log
+          grep -q '^APK_OPENSSL_RUNTIME_PAIR_OK' nuvio-diag/build-arm64-v8a.log
+
+      - name: Nuvio diagnostic - verify final APK (identity, signer, 16 KiB, ELF ABI, engine member)
+        if: ${{ inputs.nuvio_diagnostic_arm64 }}
+        env:
+          DIAG_PACKAGE: ${{ inputs.nuvio_diagnostic_package }}
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          set -euo pipefail
+          bash cloud-handoff/android-014/claude-014/ci/verify_diagnostic_apk.sh \
+            apk-out/colosseum-arm64-v8a-debug.apk "$DIAG_PACKAGE" "$NUVIO_DIAG/nuvio-prefix" nuvio-diag
+          python3 cloud-handoff/android-014/claude-014/ci/write_manifest.py nuvio-diag "$DIAG_PACKAGE"
+          cp apk-out/colosseum-arm64-v8a-debug.apk apk-out/colosseum-arm64-v8a-debug.apk.sha256 nuvio-diag/
+          cat nuvio-diag/MANIFEST.json >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && inputs.nuvio_diagnostic_arm64 }}
+        with:
+          name: task014-nuvio-arm64-diagnostic-${{ github.run_id }}
+          path: nuvio-diag
+          if-no-files-found: error
+
       - name: Build arm64-v8a APK
+        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
@@ -154,9 +227,11 @@ jobs:
           key: android-ccache-v1-${{ github.sha }}
 
       - name: APK checksums
+        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
         run: cat apk-out/*.sha256 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
         with:
           name: colosseum-x86_64-debug-apk
           path: |
@@ -164,6 +239,7 @@ jobs:
             apk-out/colosseum-x86_64-debug.apk.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
         with:
           name: colosseum-arm64-v8a-debug-apk
           path: |
@@ -181,6 +257,7 @@ jobs:
 
   emulator-smoke:
     needs: build
+    if: ${{ !inputs.nuvio_diagnostic_arm64 }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
