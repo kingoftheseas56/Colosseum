@@ -12,6 +12,7 @@
 #include <QStandardPaths>
 #include <QCryptographicHash>
 #include <QFile>
+#include <QDateTime>
 #include <memory>
 
 // Replaceable, bounded subprocess transport. Only public catalogue metadata is
@@ -25,16 +26,17 @@ public:
         return requestPayload(lane,operation,value,{});
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload) {
-        static const QStringList operations={"search","catalogueSearch","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork"};
-        static const QStringList lanes={"browse","queue","play","playFallback","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork"};
+        static const QStringList operations={"search","catalogueSearch","discover","playlist","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork"};
+        static const QStringList lanes={"browse","queue","play","playFallback","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork"};
         if(!operations.contains(operation)||!lanes.contains(lane)||value.size()>300)return -1;
         cancel(lane);const int id=++m_serial;
         QJsonObject input=QJsonObject::fromVariantMap(payload);input["operation"]=operation;input["value"]=value;
         const auto requestBytes=QJsonDocument(input).toJson(QJsonDocument::Compact);
         if(requestBytes.size()>1024*1024)return -1;
         const bool cacheable=operation!="resolve";
+        auto cacheInput=input;cacheInput.remove("refresh");
         const auto cachePath=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/vinyl/catalogue/"+
-            QString::fromLatin1(QCryptographicHash::hash(requestBytes,QCryptographicHash::Sha256).toHex())+".json";
+            QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(cacheInput).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex())+".json";
         auto *process=new QProcess(this);m_active.insert(lane,process);
         auto output=std::make_shared<QByteArray>();
         auto finish=[this,process,lane,id,cacheable,cachePath](QVariant data,QString error) {
@@ -43,11 +45,11 @@ public:
             if(process->state()!=QProcess::NotRunning)process->kill();
             process->deleteLater();
             if(cacheable){
-                if(error.isEmpty()){
+                if(error.isEmpty()&&!data.toMap().value("_cached").toBool()){
                     QDir().mkpath(QFileInfo(cachePath).absolutePath());QSaveFile file(cachePath);
                     const auto bytes=QJsonDocument::fromVariant(data).toJson(QJsonDocument::Compact);
                     if(bytes.size()<=4*1024*1024&&file.open(QIODevice::WriteOnly)){file.write(bytes);file.commit();}
-                }else{
+                }else if(!error.isEmpty()){
                     QFile file(cachePath);
                     if(file.size()<=4*1024*1024&&file.open(QIODevice::ReadOnly)){
                         auto cached=QJsonDocument::fromJson(file.readAll());
@@ -77,12 +79,23 @@ public:
         const auto bundled=QFileInfo(m_helper).absolutePath()+"/runtime/bin/python3";
 #endif
         const auto python=qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled);
+        if(operation=="discover"&&!payload.value("refresh").toBool()){
+            QFile cache(cachePath);const auto info=QFileInfo(cache);
+            const auto age=info.lastModified().secsTo(QDateTime::currentDateTime());
+            if(age>=0&&age<=900&&info.size()<=4*1024*1024&&cache.open(QIODevice::ReadOnly)){
+                const auto doc=QJsonDocument::fromJson(cache.readAll());
+                if(doc.isObject()){
+                    auto map=doc.object().toVariantMap();map["_cached"]=true;
+                    QTimer::singleShot(0,process,[finish,map]{finish(map,{});});return id;
+                }
+            }
+        }
         // Explicit development override or app-owned runtime, never PATH python.
         // FailedToStart may be emitted inside start() on Windows. Defer launch
         // so callers can install their request fence before any completion.
         QTimer::singleShot(0,process,[this,process,deadline,lane,python,requestBytes,operation]{
             if(m_active.value(lane)!=process)return;
-            deadline->start(operation=="artistIdentity"?180000:90000);
+            deadline->start(operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
             process->start(python,{"-I",m_helper});
             if(m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
         });return id;

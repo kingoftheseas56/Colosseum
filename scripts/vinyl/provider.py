@@ -105,6 +105,8 @@ def normalize_album(record, key):
             "id": identity("recording", video) if video else identity("unavailable", key + ":" + str(index)),
             "videoId": video, "title": track.get("title") or "Unavailable track",
             "artists": artists(track) or result["artists"],
+            "artistIds": [("ytm:artist:" + a["id"]) if a.get("id") else ""
+                          for a in track.get("artists", []) if a.get("name")],
             "seconds": int(track.get("duration_seconds") or 0),
             "available": bool(video) and track.get("isAvailable", True),
             "explicit": bool(track.get("isExplicit"))})
@@ -114,6 +116,114 @@ def normalize_album(record, key):
         raise ValueError("Provider returned an incomplete album")
     if not result["tracks"]:
         raise ValueError("This album has no available track listing")
+    return result
+
+
+DISCOVERY_KEYS = {"new-releases": ("New releases", "albums"),
+                  "trending": ("Trending", "songs"),
+                  "artists": ("Chart artists", "artists"),
+                  "charts": ("Charts", "catalogue-playlists")}
+
+
+def source_key(value):
+    return isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,160}", value)
+
+
+def song_record(raw):
+    video = raw.get("videoId", "")
+    if any("podcast" in str(raw.get(field, "")).lower() for field in ("resultType", "type", "category")):
+        return None
+    if (not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video)
+            or not raw.get("title") or raw.get("isAvailable") is False
+            or raw.get("videoType", "MUSIC_VIDEO_TYPE_ATV") not in
+            {"MUSIC_VIDEO_TYPE_ATV", "MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC"}):
+        return None
+    record = normalize_album({"title": raw["title"], "artists": raw.get("artists", []),
+                              "thumbnails": raw.get("thumbnails", []), "type": "Song",
+                              "tracks": [raw]}, "track:" + video)
+    record["browseId"] = "ytm:track:" + video
+    # Standalone catalogue recordings are not fabricated album releases.
+    record["providerIds"] = {"youtube-music": video}
+    return record
+
+
+def playlist_card(raw):
+    key = raw.get("playlistId", "")
+    if not source_key(key) or not raw.get("title"):
+        return None
+    return {"id": identity("playlist", key), "browseId": "ytm:playlist:" + key,
+            "playlistId": key, "origin": "youtube-music", "type": "Playlist",
+            "title": raw["title"], "artists": [], "artistIds": [], "cover": cover(raw),
+            "providerIds": {"youtube-music": key}, "tracks": []}
+
+
+def fetch_discovery(client, key, region, fetched_at=None):
+    title, kind = DISCOVERY_KEYS[key]
+    raw = _call_provider(client.get_explore) if key in {"new-releases", "trending"} else _call_provider(client.get_charts, region)
+    if not isinstance(raw, dict):
+        raise ProviderUnavailableError("The discovery response is invalid. Retry the catalogue.")
+    values = raw.get({"new-releases": "new_releases", "trending": "trending",
+                      "artists": "artists", "charts": "videos"}[key], [])
+    if key == "trending" and isinstance(values, dict):
+        values = values.get("items", [])
+    if not isinstance(values, list):
+        raise ProviderUnavailableError("The discovery shelf is invalid. Retry the catalogue.")
+    items, records, seen = [], [], set()
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        record = None
+        if key == "new-releases":
+            if not source_key(value.get("browseId")) or not value.get("title"):
+                continue
+            record = album_card(value)
+            item = dict(record, kind=kind, albumId=record["id"], subtitle=" · ".join(record["artists"]))
+        elif key == "trending":
+            record = song_record(value)
+            if not record:
+                continue
+            track = record["tracks"][0]
+            item = {"id": track["id"], "kind": kind, "albumId": record["id"],
+                    "trackId": track["id"], "trackIndex": 0, "title": track["title"],
+                    "cover": record["cover"], "subtitle": " · ".join(record["artists"]),
+                    "origin": "youtube-music"}
+        elif key == "artists":
+            channel = value.get("browseId", "")
+            if not isinstance(channel, str) or not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel) or not value.get("title"):
+                continue
+            item = {"id": "ytm:artist:" + channel, "artistId": "ytm:artist:" + channel,
+                    "kind": kind, "title": value["title"], "artist": value["title"],
+                    "cover": cover(value), "round": True, "origin": "youtube-music"}
+        else:
+            record = playlist_card(value)
+            if not record:
+                continue
+            item = dict(record, kind=kind, albumId=record["id"], subtitle="YouTube Music")
+        if item["id"] in seen:
+            continue
+        seen.add(item["id"])
+        items.append(item)
+        if record:
+            records.append(record)
+        if len(items) == 40:
+            break
+    return {"version": 1, "key": key, "title": title, "kind": kind, "items": items,
+            "records": records, "source": "youtube-music", "region": region,
+            "fetchedAt": now_iso(fetched_at), "complete": False}
+
+
+def fetch_playlist(client, key):
+    raw = _call_provider(client.get_playlist, key, limit=200)
+    if not isinstance(raw, dict) or not isinstance(raw.get("tracks"), list):
+        raise ProviderUnavailableError("The playlist response is invalid.")
+    count = raw.get("trackCount")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        raise ProviderUnavailableError("The playlist does not provide a complete track count.")
+    if len(raw["tracks"]) > 200 or (isinstance(count, int) and count > len(raw["tracks"])):
+        raise ProviderUnavailableError("This playlist exceeds the supported complete listing. Open a smaller playlist.")
+    result = normalize_album(raw, key)
+    result.update({"id": identity("playlist", key), "browseId": "ytm:playlist:" + key,
+                   "playlistId": key, "type": "Playlist", "complete": True})
     return result
 
 
@@ -984,6 +1094,11 @@ def fetch_artist_artwork(mbid, get_json=None):
 
 def handle(request, client=None, mb_client=None):
     operation, value = request["operation"], str(request.get("value", "")).strip()
+    region = request.get("region", "IN")
+    if operation == "discover" and (value not in DISCOVERY_KEYS or not isinstance(region, str) or not re.fullmatch(r"[A-Z]{2}", region)):
+        raise InvalidArgumentError("Invalid discovery shelf or region")
+    if operation == "playlist" and not source_key(value):
+        raise InvalidArgumentError("Invalid playlist identity")
     if operation == "resolve":
         return resolve(value)
     if operation == "artistArtwork":
@@ -1009,6 +1124,10 @@ def handle(request, client=None, mb_client=None):
     if client is None:
         from ytmusicapi import YTMusic
         client = YTMusic(location=request.get("region", "IN"))
+    if operation == "discover":
+        return fetch_discovery(client, value, region, fetched_at)
+    if operation == "playlist":
+        return fetch_playlist(client, value)
     if operation == "catalogueSearch":
         if not 1 <= len(value) <= 300:
             raise InvalidArgumentError("Enter an album or artist name")

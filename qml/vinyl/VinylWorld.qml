@@ -163,7 +163,7 @@ Item {
         VinylLens {
             id: lens
             width: parent.width
-            visible: root.currentTab==="discover"
+            visible: root.currentTab==="discover" && root.worldData.discoveryLanding!==true
             worldData: root.worldData
             backdrop: root.backdrop
             pageFlick: root.pageFlick

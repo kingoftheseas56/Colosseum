@@ -17,7 +17,8 @@ using namespace vinyl::artist;
 namespace {
 QVariantMap musicIntent(const QVariantMap &album,const QVariantMap &track,int number){
     const auto artists=track.value("artists",album.value("artists")).toStringList();
-    return {{"artist",artists.value(0)},{"album",album.value("title")},{"title",track.value("title")},
+    const auto type=album.value("type").toString();
+    return {{"artist",artists.value(0)},{"album",type=="Song"||type=="Playlist"?QVariant(QString()):album.value("title")},{"title",track.value("title")},
         {"trackNumber",track.value("trackNumber",number)},{"discNumber",track.value("discNumber",0)},
         {"durationMs",qRound64(track.value("seconds").toDouble()*1000)},{"releaseYear",album.value("year").toInt()}};
 }
@@ -76,10 +77,11 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
 int VinylCatalogueSource::request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options){
     cancel(lane);const int id=++m_serial;
     bool local=operation=="search"||value.startsWith("vault:")||value.startsWith("vinyl:local-");
-    QString remoteValue=value;
+    QString remoteValue=value,remoteOperation=operation;
     if(operation=="album"&&m_albums.contains(value)){
         const auto album=m_albums.value(value);
         if(album.value("origin")=="local")local=true;
+        else if(album.value("type")=="Playlist") {remoteValue=album.value("playlistId").toString();remoteOperation="playlist";}
         else remoteValue=album.value("browseId",value).toString();
     }
     if((operation=="resolve"||operation=="resolveFallback")&&!local){remoteValue=m_videos.value(value);}
@@ -104,7 +106,7 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         if(fallback<0){pending.fallbackReady=true;pending.fallbackError="The fallback source is unavailable.";}
         return id;
     }
-    const int transport=local?m_local->request(lane,operation,value,options):m_provider->request(lane,operation=="resolveFallback"?"resolve":operation,remoteValue);
+    const int transport=local?m_local->request(lane,operation,value,options):m_provider->requestPayload(lane,operation=="resolveFallback"?"resolve":remoteOperation,remoteValue,options);
     if(transport<0)return -1;
     m_pending.insert(lane,{id,transport,local,operation,value});return id;
 }
@@ -123,6 +125,10 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
         else if(pending.operation=="catalogueSearch"){
             auto map=data.toMap();QVariantList albums;
             for(const auto &item:map.value("albums").toList())albums.append(remember(item.toMap()));map["albums"]=albums;result=map;
+        }else if(pending.operation=="discover"){
+            auto map=data.toMap();QVariantList records;
+            for(const auto &record:map.value("records").toList())records.append(remember(record.toMap()));
+            map["records"]=records;result=map;
         }else if((pending.operation=="resolve"||pending.operation=="resolveFallback")&&!local){
             auto map=data.toMap();map["trackId"]=pending.value;map["provider"]="youtube";
             map["fallbackReason"]=pending.fallbackReason;result=map;

@@ -138,7 +138,7 @@ Flickable {
             Text {
                 id: albumFacts
                 objectName: "vinylAlbumFacts"
-                text: [root.pageData.shownEdition.year, root.pageData.shownEdition.origin === "local" ? "Local release" : "Album", root.pageData.totalTracks(root.pageData.shownEdition) + (root.pageData.totalTracks(root.pageData.shownEdition) === 1 ? " track" : " tracks"), root.pageData.shownEdition.length].filter(function(value) { return !!value; }).join(" · ")
+                text: [root.pageData.shownEdition.year, root.pageData.shownEdition.origin === "local" ? "Local release" : (root.pageData.shownEdition.sourceAlbum || {}).type || "Album", root.pageData.totalTracks(root.pageData.shownEdition) + (root.pageData.totalTracks(root.pageData.shownEdition) === 1 ? " track" : " tracks"), root.pageData.shownEdition.length].filter(function(value) { return !!value; }).join(" · ")
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: theme.inkDimmer

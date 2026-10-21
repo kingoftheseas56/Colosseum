@@ -71,6 +71,43 @@ Item {
     property var onlineAlbums: []
     property bool searchingOnline: false
     property string catalogueNotice: ""
+    readonly property var discoveryKeys: ["new-releases","trending","artists","charts"]
+    property var discoverySections: ({})
+    property var discoveryRequests: ({})
+    property var discoveryOwner: null
+    property bool discoveryStarted: false
+    property real discoveryRequestedAt: 0
+    readonly property bool discoveryLoading: Object.keys(discoveryRequests).length>0
+    function cancelDiscovery() {
+        var owner=discoveryOwner;
+        discoveryRequests={};discoveryOwner=null;
+        if(owner)discoveryKeys.forEach(key=>owner.cancel("discover-"+key));
+    }
+    function clearDiscovery() {cancelDiscovery();discoverySections={};discoveryStarted=false;discoveryRequestedAt=0;}
+    function requestDiscovery(refresh) {
+        if(shuttingDown || !profileActive || !source || (discoveryStarted && !refresh && Date.now()-discoveryRequestedAt<900000))return;
+        if(source.discoveryVersion!==1)return;
+        cancelDiscovery();discoveryOwner=source;discoveryStarted=true;discoveryRequestedAt=Date.now();
+        discoveryKeys.forEach(function(key){
+            var sections=Object.assign({},discoverySections),prior=sections[key] || {};
+            sections[key]=Object.assign({},prior,{error:""});discoverySections=sections;
+            var request=source.request("discover-"+key,"discover",key,{refresh:!!refresh});
+            if(request>=0){var requests=Object.assign({},discoveryRequests);requests[key]=request;discoveryRequests=requests;}
+            else {sections=Object.assign({},discoverySections);sections[key]=Object.assign({},prior,{error:"Music discovery is unavailable. Retry the catalogue."});discoverySections=sections;}
+        });
+    }
+    function acceptDiscovery(lane,id,data,failure) {
+        var key=lane.slice(9);
+        if(discoveryKeys.indexOf(key)<0 || discoveryRequests[key]!==id)return;
+        var requests=Object.assign({},discoveryRequests);delete requests[key];discoveryRequests=requests;
+        var sections=Object.assign({},discoverySections),prior=sections[key] || {};
+        if(!failure && (!data || data.version!==1 || data.key!==key || data.source!=="youtube-music"
+            || !Array.isArray(data.items) || !Array.isArray(data.records) || data.items.length>40 || data.records.length>40))
+            failure="The discovery shelf is invalid. Retry the catalogue.";
+        sections[key]=failure ? Object.assign({},prior,{error:failure})
+            : Object.assign({},data,{error:data._cacheError || "",cached:!!data._cached});
+        discoverySections=sections;
+    }
     function searchCatalogue(query) {
         if(shuttingDown || !profileActive || !source) return;
         cancelBrowse();browseError="";searchingOnline=true;browsing=true;browseOperation="catalogueSearch";
@@ -351,7 +388,7 @@ Item {
     property int importProfileGeneration: -1
     property var importPaths: []
     property var importSource: null
-    onSourceChanged: {if(importSource && importSource!==source) cancelImport();}
+    onSourceChanged: {if(importSource && importSource!==source) cancelImport();clearDiscovery();}
     function cancelImport() {
         var owner=importSource;
         importRequest=-1;importing=false;importPaths=[];importSource=null;
@@ -704,7 +741,7 @@ Item {
     function clearProfile() {
         if(shuttingDown) return;
         profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
-        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();
+        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
         shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";personalError="";
         resetting=false;
@@ -714,7 +751,7 @@ Item {
     function shutdown() {
         if(shuttingDown) return;
         cancelImport();snapshot();activityEnd(false);shuttingDown=true;resetting=true;
-        browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();
+        browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();clearDiscovery();
     }
     Connections {
         target: root.source
@@ -733,6 +770,7 @@ Item {
         function onCompleted(lane,id,data,failure) {
             if(root.shuttingDown || root.resetting || !root.profileActive) return;
             data=root.plainData(data);
+            if(lane.indexOf("discover-")===0){root.acceptDiscovery(lane,id,data,failure);return;}
             if (lane==="browse" && id>=0 && id===root.browseRequest) {
                 root.browseRequest=-1;root.browseError=failure;
                 if (failure) {root.browsing=false;root.searchBuffer=[];return;}
@@ -766,5 +804,5 @@ Item {
     }
     Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
     Component.onCompleted: {restore();refreshLibrary();}
-    Component.onDestruction: { cancelImport();if(source) source.cancel("browse");backend.shutdown(); }
+    Component.onDestruction: { cancelImport();cancelDiscovery();if(source) source.cancel("browse");backend.shutdown(); }
 }

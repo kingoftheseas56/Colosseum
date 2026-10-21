@@ -56,7 +56,17 @@ Item {
                 unavailable:!session.personalRowAvailable(row),resumeEntry:entry};
         }).filter(item=>!!item).slice(0,6);
     }
-    readonly property bool catalogueReachable: !onlineMode || !session.browseError
+    readonly property bool catalogueReachable: true
+    readonly property bool discoveryLanding: activeTab==="discover" && onlineMode && !query.trim() && !!session.source && session.source.discoveryVersion===1
+    readonly property bool discoveryLoading: session.discoveryLoading===true
+    readonly property var discoverySections: session.discoverySections || ({})
+    readonly property var discoveryOrder: ["new-releases","trending","artists","charts"]
+    readonly property string discoveryError: discoveryOrder.map(key=>discoverySections[key] || {}).map(row=>row.error || "").filter((value,index,all)=>value && all.indexOf(value)===index).join(" ")
+    readonly property bool discoveryCached: discoveryOrder.some(key=>(discoverySections[key] || {}).cached===true)
+    readonly property string discoveryFetchedAt: discoveryOrder.map(key=>(discoverySections[key] || {}).fetchedAt || "").filter(value=>!!value).sort()[0] || ""
+    function ensureDiscovery() {if(discoveryLanding && typeof session.requestDiscovery==="function")session.requestDiscovery(false);}
+    function retryDiscovery() {if(typeof session.requestDiscovery==="function")session.requestDiscovery(true);}
+    onDiscoveryLandingChanged: ensureDiscovery()
     readonly property var libraryAlbums: session.library.map(function(entry) {
         var a = entry.payload && entry.payload.album ? entry.payload.album : entry;
         return Object.assign({}, a, {artists:a.artists || [], tracks:(a.tracks || []).map(function(t) {
@@ -92,7 +102,7 @@ Item {
         if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0) session.cancelBrowse();
         changingTab=true;activeTab=tab;
         var state=browseStates[tab];query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
-        changingTab=false;refreshSearch();if(tab==="home")refreshHome();
+        changingTab=false;refreshSearch();if(tab==="home")refreshHome();ensureDiscovery();
     }
     function setQuery(value) {query=String(value || "");}
     function setOnlineMode(value) {
@@ -137,7 +147,14 @@ Item {
         if(query.trim()) session.search(query);
         else if(session.browseOperation==="search") session.cancelBrowse();
     }
-    onQueryChanged: {saveBrowseState();refreshSearch();}
+    onQueryChanged: {
+        saveBrowseState();refreshSearch();
+        if(activeTab==="discover" && onlineMode && !query.trim()) {
+            pendingCatalogueQuery="";
+            if(session.browseOperation==="catalogueSearch")session.cancelBrowse();
+            ensureDiscovery();
+        }
+    }
     onLensChanged: saveBrowseState()
     onSortOrderChanged: saveBrowseState()
     onOnlineModeChanged: saveBrowseState()
@@ -167,6 +184,10 @@ Item {
     readonly property var albums: activeTab==="discover" ? discoverAlbums : activeTab==="library" ? filteredLibraryAlbums : libraryAlbums
     readonly property var shelves: {
         var state=browseStates.discover;
+        if(state.onlineMode && !state.query.trim() && session.source && session.source.discoveryVersion===1)return discoveryOrder.map(function(key){
+            var icons={"new-releases":"new",trending:"trending",artists:"popular",charts:"global"};
+            var row=discoverySections[key];return row ? Object.assign({},row,{key:"discover-"+key,icon:icons[key]}) : null;
+        }).filter(row=>!!row && row.items && row.items.length);
         return [{key:"local-"+state.lens.kind,title:(state.onlineMode ? "Catalogue " : "Local ")+state.lens.kind,icon:"threads",kind:state.lens.kind,items:project(discoverAlbums,state.lens.kind,state.onlineMode)}];
     }
     readonly property var homeRows: {
@@ -205,7 +226,11 @@ Item {
     signal homeDestinationRequested(string tab,string section,string id)
     function openHomeDestination(tab,section,id) {homeDestinationRequested(tab,section || "albums",id || "");}
     function artwork(url) { return url || ""; }
-    function findAlbum(id) {return libraryAlbums.concat(catalogueMatches.albums).find(function(a){return a.id===id;});}
+    function findAlbum(id) {
+        var records=libraryAlbums.concat(catalogueMatches.albums);
+        discoveryOrder.forEach(key=>{records=records.concat((discoverySections[key] || {}).records || []);});
+        return records.find(function(a){return a.id===id;});
+    }
     function project(records,kind,remoteArtists) {
         if(remoteArtists && kind==="artists") return (catalogueMatches.query===browseStates.discover.query.trim() ? catalogueMatches.artists : []).map(function(a){return {id:a.id,artistId:a.id,artist:a.name,title:a.name,cover:a.cover || "",kind:"artists",origin:a.origin};});
         if(kind==="artists") {

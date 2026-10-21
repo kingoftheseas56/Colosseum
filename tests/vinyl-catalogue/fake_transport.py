@@ -12,7 +12,21 @@ if value == "slow":
 if value == "oversize":
     print("x" * (4 * 1024 * 1024 + 1))
     sys.exit(0)
-if operation == "artistArtwork":
+if operation == "discover":
+    record = {"id": "standalone-song", "browseId": "ytm:track:abcdefghijk", "type": "Song",
+              "title": "Track", "origin": "youtube-music", "artists": ["Artist"],
+              "tracks": [{"id": "provider-recording", "videoId": "abcdefghijk", "title": "Track", "seconds": 180}]}
+    if value == "charts":
+        record = {"id": "public-playlist", "browseId": "ytm:playlist:PLtest", "playlistId": "PLtest",
+                  "type": "Playlist", "title": "Chart", "origin": "youtube-music", "artists": [], "tracks": []}
+    data = {"version": 1, "key": value, "kind": "catalogue-playlists" if value == "charts" else "songs",
+            "title": "Discovery", "source": "youtube-music", "region": "IN", "fetchedAt": "test-revision",
+            "complete": False, "items": [dict(record, kind="catalogue-playlists" if value == "charts" else "songs")], "records": [record]}
+elif operation == "playlist":
+    data = {"id": "public-playlist", "browseId": "ytm:playlist:" + value, "playlistId": value,
+            "type": "Playlist", "title": "Chart", "origin": "youtube-music", "artists": [],
+            "tracks": [{"id": "provider-recording", "videoId": "abcdefghijk", "title": "Track", "seconds": 180}]}
+elif operation == "artistArtwork":
     data = {"artistMbid":"11111111-1111-4111-8111-111111111111","source":"theaudiodb","usage":"development",
             "termsUrl":"https://www.theaudiodb.com/docs_terms_of_use.php","fetchedAtEpoch":int(time.time()),
             "photos":[{"id":str(i),"url":"https://r2.theaudiodb.com/images/media/artist/fanart/%d.jpg"%i,

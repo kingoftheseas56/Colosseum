@@ -6,22 +6,85 @@ Item {
     required property var worldData
     required property Item backdrop
     required property Flickable pageFlick
-    readonly property var populatedShelves: worldData.shelves.filter(function(row){return row.items && row.items.length>0})
+    readonly property bool discoveryLanding: worldData.discoveryLanding === true
+    readonly property bool discoveryLoading: worldData.discoveryLoading === true
+    readonly property string discoveryError: String(worldData.discoveryError || "")
+    readonly property bool discoveryCached: worldData.discoveryCached === true
+    readonly property string discoveryFetchedAt: String(worldData.discoveryFetchedAt || "")
+    readonly property var populatedShelves: (worldData.shelves || []).filter(function(row){return row && row.items && row.items.length>0})
     readonly property int shelfCount: populatedShelves.length
-    readonly property real cardSize: Math.floor((width - sidebar.contentLeft - 5*24) / 6)
-    implicitHeight: Math.max(80,shelves.implicitHeight)
+    readonly property real contentInset: sidebar.visible ? sidebar.contentLeft : 0
+    readonly property real shelfWidth: Math.max(0, width - contentInset)
+    readonly property int cardColumns: Math.max(1, Math.min(6, Math.ceil(shelfWidth / 204)))
+    readonly property real cardSize: Math.max(120, Math.floor((shelfWidth - (cardColumns - 1) * 24) / cardColumns))
+    readonly property string discoveryStatus: {
+        if (!discoveryLanding) return "";
+        if (discoveryLoading) return "Loading music…";
+        if (discoveryError.length > 0) return discoveryError;
+        if (discoveryCached && shelfCount > 0) return "Cached catalogue";
+        if (shelfCount === 0) return "No music available.";
+        return "";
+    }
+    readonly property bool showDiscoveryRetry: discoveryLanding && !discoveryLoading
+        && (discoveryError.length > 0 || shelfCount === 0 || discoveryCached)
+    implicitHeight: Math.max(80,
+        emptyMessage.visible ? emptyMessage.implicitHeight : 0,
+        statusRow.visible ? statusRow.y + statusRow.height : 0,
+        shelves.y + shelves.implicitHeight)
     Text {
+        id: emptyMessage
         objectName: "vinylDiscoverEmpty"
-        visible: root.shelfCount===0
+        visible: root.shelfCount===0 && !root.discoveryLanding
         x:0;width:parent.width-x
         text:root.worldData.onlineMode ? (root.worldData.query.trim() ? "No catalogue matches. Try another search." : "Search the catalogue to find artists and albums.") : "No local music matches. Change the filters or add music in Library."
+        textFormat: Text.PlainText
         color:theme.inkDim;font.family:theme.ui;font.pixelSize:16;wrapMode:Text.WordWrap
+    }
+    Item {
+        id: statusRow
+        objectName: "vinylDiscoverStatus"
+        x: root.contentInset
+        y: 0
+        width: root.shelfWidth
+        visible: root.discoveryLanding && root.discoveryStatus.length > 0
+        height: visible ? Math.max(38, statusLabel.implicitHeight) : 0
+        Text {
+            id: statusLabel
+            x: 0
+            y: (parent.height - height) / 2
+            width: Math.max(0, parent.width - (retryButton.visible ? 50 : 0))
+            height: implicitHeight
+            text: root.discoveryStatus
+            textFormat: Text.PlainText
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 14
+            wrapMode: Text.WordWrap
+            Accessible.description: root.discoveryCached && root.discoveryFetchedAt.length > 0
+                ? "Last fetched " + root.discoveryFetchedAt : ""
+        }
+        VinylWorldButton {
+            id: retryButton
+            objectName: "vinylDiscoverRetry"
+            visible: root.showDiscoveryRetry
+            x: parent.width - width
+            y: (parent.height - height) / 2
+            width: 38
+            height: 38
+            backdrop: root.backdrop
+            label: root.discoveryError.length || !root.shelfCount ? "Retry" : "Refresh catalogue"
+            symbol: "retry"
+            onTriggered: {
+                if (typeof root.worldData.retryDiscovery === "function")
+                    root.worldData.retryDiscovery();
+            }
+        }
     }
     Column {
         id: shelves
-        x: sidebar.contentLeft
-        y: 0
-        width: parent.width-x
+        x: root.contentInset
+        y: statusRow.visible ? statusRow.height + 24 : 0
+        width: root.shelfWidth
         spacing: 54
         Repeater {
             id: shelfRepeater
@@ -32,7 +95,7 @@ Item {
                 width: shelves.width
                 worldData: root.worldData
                 row: modelData
-                cardSize: Math.max(154,root.cardSize)
+                cardSize: root.cardSize
             }
         }
     }

@@ -281,7 +281,7 @@ Item {
             background:Glass {objectName:"vinylSearchGlass";backdrop:vinylBackdrop;radius:12;tint:0.06;scrim:0.18}
             FocusRing {anchors.fill:parent;shown:query.activeFocus && [Qt.TabFocusReason,Qt.BacktabFocusReason,Qt.ShortcutFocusReason].indexOf(query.focusReason)>=0;radius:12}
         }
-        VinylWorldButton {id:sortButton;x:query.width+12;anchors.verticalCenter:parent.verticalCenter;objectName:"vinylSort";label:worldData.sortOrder==="title" ? "Sort: Title" : "Sort: Year";symbol:"sort";backdrop:vinylBackdrop;onTriggered:worldData.sortOrder=worldData.sortOrder==="title" ? "year" : "title"}
+        VinylWorldButton {id:sortButton;x:query.width+12;anchors.verticalCenter:parent.verticalCenter;objectName:"vinylSort";visible:!worldData.discoveryLanding;label:worldData.sortOrder==="title" ? "Sort: Title" : "Sort: Year";symbol:"sort";backdrop:vinylBackdrop;onTriggered:worldData.sortOrder=worldData.sortOrder==="title" ? "year" : "title"}
         VinylWorldButton {
             id:recentSearchButton; objectName:"vinylRecentSearches"
             x:sortButton.x+sortButton.width+12; anchors.verticalCenter:parent.verticalCenter
@@ -363,7 +363,7 @@ Item {
                 if(root.pendingAlbumRoute && session.browseOperation==="album")
                     return session.browseError || (session.browsing ? "Opening album…" : "");
                 if(root.page==="discover" && worldData.onlineMode)
-                    return session.browseOperation==="catalogueSearch" ? session.browseError || (session.browsing ? "Loading catalogue…" : session.catalogueNotice) : session.catalogueNotice;
+                    return !worldData.query.trim() ? "" : session.browseOperation==="catalogueSearch" ? session.browseError || (session.browsing ? "Loading catalogue…" : session.catalogueNotice) : session.catalogueNotice;
                 if(root.page==="discover" && session.browseOperation==="search")
                     return session.browseError || (session.browsing ? "Searching local music…" : "");
                 if(root.page==="library" && world.currentTab==="library" && session.browseOperation==="search")

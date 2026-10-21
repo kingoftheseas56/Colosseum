@@ -47,6 +47,48 @@ signals:
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
+    void discoveryRegistersExactTracksAndPublicPlaylistRoutes(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
+        QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        QVERIFY(source.request("discover-trending","discover","trending",{{"refresh",true}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);
+        QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(done.last()[2].toMap().value("records").toList().size(),1);
+        QVERIFY(source.request("play","resolve","provider-recording")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);
+        QCOMPARE(done.last()[2].toMap().value("videoId").toString(),QString("abcdefghijk"));
+        QCOMPARE(done.last()[2].toMap().value("trackId").toString(),QString("provider-recording"));
+        QVERIFY(source.request("discover-charts","discover","charts",{{"refresh",true}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,10000);
+        QVERIFY(source.request("browse","album","public-playlist")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),4,10000);
+        QVERIFY(done.last()[3].toString().isEmpty());
+        const auto playlist=done.last()[2].toMap();
+        QCOMPARE(playlist.value("id").toString(),QString("public-playlist"));
+        QCOMPARE(playlist.value("type").toString(),QString("Playlist"));
+        QCOMPARE(playlist.value("browseId").toString(),QString("ytm:playlist:PLtest"));
+        QCOMPARE(playlist.value("tracks").toList().size(),1);
+    }
+    void discoveryCacheIsFastRefreshableAndCancellable(){
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));QSignalSpy done(&provider,&VinylProvider::completed);
+        QVERIFY(provider.requestPayload("discover-trending","discover","trending",{{"refresh",true}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);
+        const auto python=qgetenv("COLOSSEUM_VINYL_PYTHON");
+        qputenv("COLOSSEUM_VINYL_PYTHON","missing-discovery-runtime.exe");
+        provider.request("discover-trending","discover","trending");
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);
+        QVERIFY(done.last()[3].toString().isEmpty());
+        QVERIFY(done.last()[2].toMap().value("_cached").toBool());
+        QVERIFY(done.last()[2].toMap().value("_cacheError").toString().isEmpty());
+        provider.requestPayload("discover-trending","discover","trending",{{"refresh",true}});
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,10000);
+        QVERIFY(done.last()[2].toMap().value("_cached").toBool());
+        QVERIFY(!done.last()[2].toMap().value("_cacheError").toString().isEmpty());
+        provider.request("discover-trending","discover","trending");provider.cancel("discover-trending");
+        QTest::qWait(50);QCOMPARE(done.size(),3);
+        qputenv("COLOSSEUM_VINYL_PYTHON",python);
+    }
     void summariesPreserveQueuedReleaseContext(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
