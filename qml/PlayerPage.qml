@@ -336,6 +336,9 @@ Item {
     // Pre-background position for that re-demand. Kept apart from the
     // wake-reconnect seek, which recovery retries reset.
     property real streamRouteRestoreSec: -1
+    // Playback intent at that re-demand: a fresh source load autoplays, so a
+    // deliberate pause is re-applied once the route reopens.
+    property bool streamRouteRestorePaused: false
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -1706,6 +1709,7 @@ Item {
             return true
         root.streamRouteRestorePending = true
         root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position : -1
+        root.streamRouteRestorePaused = mpv.pause
         root.resetRecoveryWatch()
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
@@ -2833,6 +2837,7 @@ Item {
         root.streamRouteUrl = ""
         root.streamRouteRestorePending = false
         root.streamRouteRestoreSec = -1
+        root.streamRouteRestorePaused = false
         // A real close ends the stream's demand; minimize never reaches here.
         if (typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3768,6 +3773,9 @@ Item {
                 root.streamRouteRestoreSec = -1
                 root.wakeReconnectPendingSeek = -1
                 mpv.seekExact(restoreSec)
+                if (root.streamRouteRestorePaused)
+                    mpv.pause = true
+                root.streamRouteRestorePaused = false
                 startupOwnedByUi = true
             } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
