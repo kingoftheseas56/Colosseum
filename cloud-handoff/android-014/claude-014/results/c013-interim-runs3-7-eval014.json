@@ -1,0 +1,208 @@
+[
+ {
+  "rep": "run3",
+  "evaluator": "task014-eval_rep_014",
+  "isolation": {
+   "accepted": true,
+   "problems": [],
+   "verifies": [
+    {
+     "session": "0x77a2632dfe90",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x77a2632dfe90",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    }
+   ],
+   "admissions": 1
+  },
+  "isolation_pass": true
+ },
+ {
+  "rep": "run4",
+  "evaluator": "task014-eval_rep_014",
+  "isolation": {
+   "accepted": true,
+   "problems": [],
+   "verifies": [
+    {
+     "session": "0x77a2632cd500",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x77a2632cd500",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    }
+   ],
+   "admissions": 1
+  },
+  "isolation_pass": true
+ },
+ {
+  "rep": "run5",
+  "evaluator": "task014-eval_rep_014",
+  "isolation": {
+   "accepted": true,
+   "problems": [],
+   "verifies": [
+    {
+     "session": "0x77a26339f8c0",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x77a26339f8c0",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    },
+    {
+     "session": "0x77a263392570",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x77a263392570",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    },
+    {
+     "session": "0x77a263392570",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x77a263392570",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    }
+   ],
+   "admissions": 2
+  },
+  "isolation_pass": true
+ },
+ {
+  "rep": "run6",
+  "evaluator": "task014-eval_rep_014",
+  "isolation": {
+   "accepted": false,
+   "problems": [
+    "no isolation-verify readback line",
+    "no fixture admission line"
+   ],
+   "verifies": [],
+   "admissions": 0
+  },
+  "isolation_pass": false
+ },
+ {
+  "rep": "run7",
+  "evaluator": "task014-eval_rep_014",
+  "isolation": {
+   "accepted": true,
+   "problems": [],
+   "verifies": [
+    {
+     "session": "0x70948ea8b360",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x70948ea8b360",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    },
+    {
+     "session": "0x70948ebb7bd0",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x70948ebb7bd0",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    },
+    {
+     "session": "0x70948ebb7bd0",
+     "fields": {
+      "isolation_pass": true,
+      "session_instance": "0x70948ebb7bd0",
+      "torrent_count": 0,
+      "enable_dht": false,
+      "enable_lsd": false,
+      "enable_upnp": false,
+      "enable_natpmp": false,
+      "listen_interfaces": "127.0.0.1:0",
+      "dht_bootstrap_nodes": "",
+      "max_pex_peers": 0,
+      "live_dht_running": false,
+      "live_listening": true
+     },
+     "problems": []
+    }
+   ],
+   "admissions": 2
+  },
+  "isolation_pass": true
+ }
+]

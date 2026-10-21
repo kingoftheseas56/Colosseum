@@ -116,6 +116,9 @@ struct FakeEngine {
     std::uint32_t lastInactivityTimeoutMs = 0xffffffffu;
     int destroyCount = 0;
     int addTorrentCount = 0;
+    // Per add_torrent request: source type and magnet text (empty for DATA).
+    std::vector<int> receivedSourceTypes;
+    QStringList receivedMagnets;
     int prepareCount = 0;
     std::uint64_t nextRequestId = 0;
     QStringList stopStreamIds;
@@ -150,6 +153,8 @@ struct FakeEngine {
         createCount = 0;
         destroyCount = 0;
         addTorrentCount = 0;
+        receivedSourceTypes.clear();
+        receivedMagnets.clear();
         prepareCount = 0;
         nextRequestId = 0;
         stopStreamIds.clear();
@@ -265,10 +270,14 @@ nuvio_engine_status fake_add_torrent(
 ) {
     std::lock_guard lock(fake().mutex);
     ++fake().addTorrentCount;
-    // The torrent id travels inside the magnet URI.
+    // The torrent id travels inside the magnet URI; explicit metadata is
+    // always the task-owned synthetic torrent A.
     QString magnet = QString::fromUtf8(request->magnet_uri ? request->magnet_uri : "");
+    fake().receivedSourceTypes.push_back(static_cast<int>(request->source_type));
+    fake().receivedMagnets << magnet;
     const auto mark = magnet.lastIndexOf(QLatin1Char(':'));
-    const auto id = magnet.mid(mark + 1).toStdString();
+    const auto id = request->source_type == NUVIO_ENGINE_TORRENT_SOURCE_DATA
+        ? std::string(kInfoHashA) : magnet.mid(mark + 1).toStdString();
     auto event = fake().makeEvent(NUVIO_ENGINE_EVENT_TORRENT_METADATA_READY, id.c_str());
     event.request_id = ++fake().nextRequestId;
     if (requestId != nullptr) {
@@ -437,6 +446,10 @@ private slots:
     void stopDuringInflightPrepareSuppressesAndRemoves();
     void stopKeepsPrefetchOwnedTorrent();
     void replayAfterStopWaitsForPendingRemoval();
+    // Task014: a demand deferred behind a pending removal keeps its input.
+    void heldRemovalReplayKeepsExplicitMetadata();
+    void heldRemovalReplayKeepsCustomMagnet();
+    void heldRemovalPrefetchUsesFetchGeneration();
     void playerOwnedRoutesDoNotIdleExpire();
     void engineStoppedActiveRouteIsNotReused();
     void isolatedSessionStartsFromEmptyRoots();
@@ -641,6 +654,86 @@ void TestNuvioStreamBackend::replayAfterStopWaitsForPendingRemoval() {
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
     QCOMPARE(fake().addTorrentCount, 2);
     QCOMPARE(backend.streamUrl(kInfoHashA, 0), ready.at(1).at(0).toString());
+}
+
+namespace {
+void releaseHeldRemovals() {
+    std::lock_guard lock(fake().mutex);
+    for (const auto &event : fake().heldRemoved) fake().pushEvent(event);
+    fake().heldRemoved.clear();
+}
+} // namespace
+
+void TestNuvioStreamBackend::heldRemovalReplayKeepsExplicitMetadata() {
+    FakeEngineReset reset;
+    fake().holdRemoved = true;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    const QByteArray metadata("task-owned synthetic metadata for the injected provider");
+    backend.playTorrentData(metadata, kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QCOMPARE(fake().receivedSourceTypes.at(0), int(NUVIO_ENGINE_TORRENT_SOURCE_DATA));
+    backend.stop();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    // Reopened with the same metadata while removal is still pending.
+    backend.playTorrentData(metadata, kInfoHashA, 0);
+    QTest::qWait(300);
+    QCOMPARE(fake().addTorrentCount, 1);
+    QVERIFY(backend.starting());
+    releaseHeldRemovals();
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().receivedSourceTypes.size(), size_t(2));
+    // The replayed demand must still carry explicit metadata, not a magnet:
+    // isolated fixture admission rejects a metadata-less demand.
+    QCOMPARE(fake().receivedSourceTypes.at(1), int(NUVIO_ENGINE_TORRENT_SOURCE_DATA));
+}
+
+void TestNuvioStreamBackend::heldRemovalReplayKeepsCustomMagnet() {
+    FakeEngineReset reset;
+    fake().holdRemoved = true;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    const auto custom = QStringLiteral("magnet:?dn=task014-custom&xt=urn:btih:") +
+        QString::fromLatin1(kInfoHashA);
+    backend.playMagnet(custom, kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QCOMPARE(fake().receivedMagnets.at(0), custom);
+    backend.stop();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    backend.playMagnet(custom, kInfoHashA, 0);
+    QTest::qWait(300);
+    QCOMPARE(fake().addTorrentCount, 1);
+    releaseHeldRemovals();
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().receivedMagnets.size(), qsizetype(2));
+    QCOMPARE(fake().receivedMagnets.at(1), custom);
+}
+
+void TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration() {
+    FakeEngineReset reset;
+    fake().holdRemoved = true;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.stop();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1, 10000);
+    // Foreground generation is now 2 (play + stop); the prefetch is fetch
+    // generation 1. It waits on the pending removal of the same torrent.
+    backend.prefetch(kInfoHashA, 0);
+    QTest::qWait(300);
+    QCOMPARE(fake().addTorrentCount, 1);
+    // Closing the player again must not drop the unrelated prefetch owner.
+    backend.stop();
+    QTest::qWait(300);
+    QCOMPARE(fake().removedTorrentIds.count(QString::fromLatin1(kInfoHashA)), 1);
+    releaseHeldRemovals();
+    // The deferred prefetch is fenced by its own (fetch) generation.
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(fake().addTorrentCount, 2);
+    QCOMPARE(ready.count(), 1);
+    QCOMPARE(fetch.first().at(1).toString(), QString::fromLatin1(kInfoHashA));
 }
 
 void TestNuvioStreamBackend::playerOwnedRoutesDoNotIdleExpire() {

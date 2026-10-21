@@ -1,0 +1,124 @@
+********* Start testing of TestNuvioStreamBackend *********
+Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-llp64 shared (dynamic) release build; by MSVC 2022), windows 11
+PASS   : TestNuvioStreamBackend::initTestCase()
+QINFO  : TestNuvioStreamBackend::backgroundPropertyChangesMustNotify() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::backgroundPropertyChangesMustNotify()
+QINFO  : TestNuvioStreamBackend::backgroundStartingAndRapidTransitionsMustNotify() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::backgroundStartingAndRapidTransitionsMustNotify()
+PASS   : TestNuvioStreamBackend::startupFailureSurfacesAsUnavailable()
+QINFO  : TestNuvioStreamBackend::validMetadataAndPreparePublishLoopbackUrl() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::validMetadataAndPreparePublishLoopbackUrl()
+QINFO  : TestNuvioStreamBackend::staleRequestCompletionIsSuppressedAndRetired() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::staleRequestCompletionIsSuppressedAndRetired() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::staleRequestCompletionIsSuppressedAndRetired()
+QINFO  : TestNuvioStreamBackend::rapidSourceSwitchRetiresPriorRoute() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::rapidSourceSwitchRetiresPriorRoute() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::rapidSourceSwitchRetiresPriorRoute()
+QINFO  : TestNuvioStreamBackend::stopRetiresRouteAndRemovesTorrent() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::stopRetiresRouteAndRemovesTorrent() [nuvio013] stop: retired route "0123456789abcdef0123456789abcdef01234567" foreground demands 1
+QINFO  : TestNuvioStreamBackend::stopRetiresRouteAndRemovesTorrent() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::stopRetiresRouteAndRemovesTorrent()
+QINFO  : TestNuvioStreamBackend::stopDuringInflightPrepareSuppressesAndRemoves() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::stopDuringInflightPrepareSuppressesAndRemoves() [nuvio013] stop: retired route "" foreground demands 1
+QINFO  : TestNuvioStreamBackend::stopDuringInflightPrepareSuppressesAndRemoves() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::stopDuringInflightPrepareSuppressesAndRemoves()
+QINFO  : TestNuvioStreamBackend::stopKeepsPrefetchOwnedTorrent() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::stopKeepsPrefetchOwnedTorrent() [nuvio013] stop: retired route "0123456789abcdef0123456789abcdef01234567" foreground demands 1
+QINFO  : TestNuvioStreamBackend::stopKeepsPrefetchOwnedTorrent() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::stopKeepsPrefetchOwnedTorrent()
+QINFO  : TestNuvioStreamBackend::replayAfterStopWaitsForPendingRemoval() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::replayAfterStopWaitsForPendingRemoval() [nuvio013] stop: retired route "0123456789abcdef0123456789abcdef01234567" foreground demands 1
+QINFO  : TestNuvioStreamBackend::replayAfterStopWaitsForPendingRemoval() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::replayAfterStopWaitsForPendingRemoval()
+QINFO  : TestNuvioStreamBackend::heldRemovalReplayKeepsExplicitMetadata() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::heldRemovalReplayKeepsExplicitMetadata() [nuvio013] stop: retired route "0123456789abcdef0123456789abcdef01234567" foreground demands 1
+QINFO  : TestNuvioStreamBackend::heldRemovalReplayKeepsExplicitMetadata() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::heldRemovalReplayKeepsExplicitMetadata()
+QINFO  : TestNuvioStreamBackend::heldRemovalReplayKeepsCustomMagnet() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::heldRemovalReplayKeepsCustomMagnet() [nuvio013] stop: retired route "0123456789abcdef0123456789abcdef01234567" foreground demands 1
+QINFO  : TestNuvioStreamBackend::heldRemovalReplayKeepsCustomMagnet() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::heldRemovalReplayKeepsCustomMagnet()
+QINFO  : TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration() [nuvio013] stop: retired route "0123456789abcdef0123456789abcdef01234567" foreground demands 1
+QINFO  : TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration() [nuvio013] stop: retired route "" foreground demands 0
+PASS   : TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration()
+QINFO  : TestNuvioStreamBackend::playerOwnedRoutesDoNotIdleExpire() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::playerOwnedRoutesDoNotIdleExpire()
+QINFO  : TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused() [nuvio013] engine stopped the active route "stream-1"
+PASS   : TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused()
+QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio013] isolated session root reset "C:/Users/Suprabha/AppData/Local/Temp/tst_nuvio_stream_backend-ORindS/data" true
+QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio013] isolated session root reset "C:/Users/Suprabha/AppData/Local/Temp/tst_nuvio_stream_backend-ORindS/cache" true
+QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QWARN  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio] isolation-verify: session creation failed: "new session failed isolation readback"
+PASS   : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots()
+QINFO  : TestNuvioStreamBackend::prefetchDoesNotHijackActivePlayback() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::prefetchDoesNotHijackActivePlayback()
+QINFO  : TestNuvioStreamBackend::differentTorrentPrefetchPreservesPlayback() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::differentTorrentPrefetchPreservesPlayback()
+QINFO  : TestNuvioStreamBackend::sameTorrentOldPrepareIsNotAcceptedForNewFile() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::sameTorrentOldPrepareIsNotAcceptedForNewFile()
+QINFO  : TestNuvioStreamBackend::prefetchOfDifferentFileInActiveTorrentIsDeferred() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::prefetchOfDifferentFileInActiveTorrentIsDeferred()
+QINFO  : TestNuvioStreamBackend::prefetchRouteIsPromotedByPlayWithoutReprepare() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::prefetchRouteIsPromotedByPlayWithoutReprepare() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::prefetchRouteIsPromotedByPlayWithoutReprepare()
+QINFO  : TestNuvioStreamBackend::inFlightPrefetchIsPromotedByForegroundPlay() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::inFlightPrefetchIsPromotedByForegroundPlay() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::inFlightPrefetchIsPromotedByForegroundPlay()
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::malformedUrlIsRejected() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::malformedUrlIsRejected()
+QINFO  : TestNuvioStreamBackend::oldErrorEventsDoNotFailCurrentChain() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::oldErrorEventsDoNotFailCurrentChain()
+QINFO  : TestNuvioStreamBackend::backgroundLifecycleInvalidatesAndReconstructs() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::backgroundLifecycleInvalidatesAndReconstructs() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::backgroundLifecycleInvalidatesAndReconstructs()
+QINFO  : TestNuvioStreamBackend::staleStatsCallbacksStopAfterRetirement() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::staleStatsCallbacksStopAfterRetirement()
+QINFO  : TestNuvioStreamBackend::statisticsCorrelateWithVerifiedBytes() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::statisticsCorrelateWithVerifiedBytes()
+QINFO  : TestNuvioStreamBackend::ownedTeardownDuringInflightPrepare() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::ownedTeardownDuringInflightPrepare()
+QINFO  : TestNuvioStreamBackend::teardownDoesNotBlockGuiAndDestroysExactlyOnce() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::teardownDoesNotBlockGuiAndDestroysExactlyOnce()
+QINFO  : TestNuvioStreamBackend::queuedReadyMustNotPublishAfterBackground() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+PASS   : TestNuvioStreamBackend::queuedReadyMustNotPublishAfterBackground()
+QINFO  : TestNuvioStreamBackend::destructionDuringBackgroundDestroyMustNotBlockGui() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::destructionDuringBackgroundDestroyMustNotBlockGui() Destructor during background destroy milliseconds: 0
+PASS   : TestNuvioStreamBackend::destructionDuringBackgroundDestroyMustNotBlockGui()
+QINFO  : TestNuvioStreamBackend::olderDeferredFileMustNotOverrideLatestDifferentTorrent() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::olderDeferredFileMustNotOverrideLatestDifferentTorrent() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::olderDeferredFileMustNotOverrideLatestDifferentTorrent()
+QINFO  : TestNuvioStreamBackend::destructionDuringDelayedCreateMustNotBlockGui() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
+QINFO  : TestNuvioStreamBackend::destructionDuringDelayedCreateMustNotBlockGui() [nuvio013] released torrent "0123456789abcdef0123456789abcdef01234567" status "fake status"
+PASS   : TestNuvioStreamBackend::destructionDuringDelayedCreateMustNotBlockGui()
+QINFO  : TestNuvioStreamBackend::facadeReflectsEngineUnavailableState() "[nuvio] startup engine path: /libnuvio_engine.so, api available: false"
+PASS   : TestNuvioStreamBackend::facadeReflectsEngineUnavailableState()
+PASS   : TestNuvioStreamBackend::cleanupTestCase()
+Totals: 36 passed, 0 failed, 0 skipped, 0 blacklisted, 14063ms
+********* Finished testing of TestNuvioStreamBackend *********

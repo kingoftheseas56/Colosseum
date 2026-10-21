@@ -195,14 +195,6 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
         std::uint64_t prepareRequestId = 0;
     };
 
-    struct DeferredDemand {
-        QString infoHash;
-        int fileIdx = -1;
-        bool fetch = false;
-        quint64 generation = 0;
-        quint64 epoch = 0;
-    };
-
     enum class TaskKind { Demand, Quiesce, VerifyIsolation, Stop };
 
     struct Task {
@@ -215,6 +207,10 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
         QString magnetOverride; // historical task-only magnet seam (disabled in diagnostic profile)
         QByteArray torrentSource; // pinned local .torrent metadata, no MP4 payload
     };
+
+    // A deferred demand is replayed later exactly as it was asked: the whole
+    // task (explicit metadata, custom magnet, file, ownership, fences).
+    using DeferredDemand = Task;
 
     void enqueueTask(Task &&task);
     void workerLoop();
@@ -666,13 +662,7 @@ QString NuvioStreamBackend::WorkerState::retireActiveRoute() {
     // A prefetch deferred behind the retired foreground source may run now.
     if (m_deferredPrefetch.has_value() &&
         m_deferredPrefetch->infoHash == retired.infoHash) {
-        Task task;
-        task.kind = TaskKind::Demand;
-        task.generation = m_deferredPrefetch->generation;
-        task.epoch = m_deferredPrefetch->epoch;
-        task.infoHash = m_deferredPrefetch->infoHash;
-        task.fileIdx = m_deferredPrefetch->fileIdx;
-        task.fetch = true;
+        Task task = std::move(*m_deferredPrefetch);
         m_deferredPrefetch.reset();
         enqueueTask(std::move(task));
     }
@@ -782,8 +772,7 @@ void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
         // file of the playing torrent now would destroy playback. Foreground
         // playback owns the torrent; hold the prefetch until playback moves.
         if (conflictsWithActive) {
-            m_deferredPrefetch =
-                DeferredDemand{task.infoHash, task.fileIdx, true, task.generation, task.epoch};
+            m_deferredPrefetch = std::move(task);
             return;
         }
         if (prefetchRouteMatches) {
@@ -801,8 +790,9 @@ void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
     // Re-adding a torrent whose removal is still pending would revive the
     // handle being torn down; wait for the engine's TORRENT_REMOVED instead.
     if (m_removing.count(task.infoHash) != 0) {
-        m_waiting.push_back(DeferredDemand{task.infoHash, task.fileIdx, task.fetch, task.generation, task.epoch});
-        if (!task.fetch) setStarting(true);
+        const bool fetch = task.fetch;
+        m_waiting.push_back(std::move(task));
+        if (!fetch) setStarting(true);
         return;
     }
 
@@ -831,7 +821,7 @@ void NuvioStreamBackend::WorkerState::handleDemand(Task task) {
         // pending prepare per torrent. Retire the old chain's outcome and run
         // this demand when that chain clears.
         chain.superseded = true;
-        m_waiting.push_back(DeferredDemand{task.infoHash, task.fileIdx, task.fetch, task.generation, task.epoch});
+        m_waiting.push_back(std::move(task));
         return;
     }
 
@@ -952,18 +942,13 @@ void NuvioStreamBackend::WorkerState::issueWaitingDemands(const QString &torrent
             ++entry;
         }
     }
-    for (const auto &demand : eligible) {
-        Task task;
-        task.kind = TaskKind::Demand;
-        task.generation = demand.generation;
-        task.epoch = demand.epoch;
-        if (task.epoch != m_epoch.load() ||
-            task.generation != (task.fetch ? m_fetchGeneration.load() : m_generation.load()))
+    for (auto &demand : eligible) {
+        // Fence against the demand's own generation counter: a deferred
+        // prefetch is current against m_fetchGeneration, not m_generation.
+        if (demand.epoch != m_epoch.load() ||
+            demand.generation != (demand.fetch ? m_fetchGeneration.load() : m_generation.load()))
             continue;
-        task.infoHash = demand.infoHash;
-        task.fileIdx = demand.fileIdx;
-        task.fetch = demand.fetch;
-        enqueueTask(std::move(task));
+        enqueueTask(std::move(demand));
     }
 }
 
