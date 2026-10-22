@@ -952,8 +952,16 @@ Item {
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
-    // The shell wallpaper remains visible, as in the three worlds.
-    Rectangle { anchors.fill: parent; color: theme.background; visible: !root.backdrop }
+    // Vault owns the full page. Sample only the shell wallpaper, so the preserved
+    // Home/world/detail beneath this loader cannot show through the content or chrome.
+    Rectangle { anchors.fill: parent; color: theme.background }
+    ShaderEffectSource {
+        anchors.fill: parent
+        sourceItem: root.backdrop
+        live: true
+        hideSource: false
+        visible: root.backdrop !== null
+    }
 
     Flickable {
         id: page
