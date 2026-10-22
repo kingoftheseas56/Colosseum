@@ -3735,6 +3735,18 @@ Item {
                     mpv.releaseVideoSurface()
             }
         }
+        Connections {
+            // Android Media3: a seek/play after a natural end re-arms the same file.
+            // Undo onEndFile's state only; startup/resume logic ran once at fileLoaded.
+            target: mpv
+            ignoreUnknownSignals: true
+            function onFileResumed() {
+                root.cancelUpNext()
+                root.fileReady = true
+                root.syncPowerInhibit()
+                root.syncWatchPartyPlayerObservation()
+            }
+        }
         Component.onCompleted: {
             // mpv's own --profile=fast, applied option-by-option (the named profile isn't
             // guaranteed across libmpv versions). Rationale: on this machine one integrated GPU

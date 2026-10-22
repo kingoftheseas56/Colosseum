@@ -158,6 +158,9 @@ Q_SIGNALS:
     void gifFailed();
     void fileStarted();
     void fileLoaded();
+    // A naturally ended source re-armed by seek/play is playable again. Unlike
+    // fileLoaded (once per load), it carries no startup/resume semantics.
+    void fileResumed();
     void endFile(QString reason);
     void playbackError(QString code, QString message);
     void videoReconfig();
@@ -188,6 +191,7 @@ private:
     QString m_videoAspect = QStringLiteral("auto");
     QSize m_videoSize;
     bool m_fileLoadedEmitted = false;
+    bool m_resumeAfterEnd = false;
     bool m_surfaceReleased = false;
     quint64 m_restoreLifecycleEpoch = 0;
 };

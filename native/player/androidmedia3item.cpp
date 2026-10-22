@@ -216,9 +216,9 @@ bool AndroidMedia3Item::rearmIfEnded(quint64 generation)
 {
     if (!m_state.snapshot().ended || !m_state.rearmAfterEnd(generation))
         return false;
-    // The host's next READY announces the reopened file again (fileLoaded),
-    // as for a fresh load: the page re-enters its playable state.
-    m_fileLoadedEmitted = false;
+    // fileLoaded stays once per load: the page's startup/resume logic must not
+    // run again. The host's next READY announces fileResumed instead.
+    m_resumeAfterEnd = true;
     return true;
 }
 
@@ -336,6 +336,7 @@ void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &header
     const quint64 generation = m_state.beginLoad(url, headers);
     m_state.noteUserPlay(generation);
     m_fileLoadedEmitted = false;
+    m_resumeAfterEnd = false;
     m_restoreLifecycleEpoch = 0;
     m_surfaceReleased = false;
     m_videoSize = {};
@@ -621,6 +622,9 @@ void AndroidMedia3Item::handleReady(quint64 generation, qint64 durationMs,
     if (!m_fileLoadedEmitted) {
         m_fileLoadedEmitted = true;
         emit fileLoaded();
+    } else if (m_resumeAfterEnd) {
+        m_resumeAfterEnd = false;
+        emit fileResumed();
     }
     if (lifecycleAction == Colosseum::Player::HostPlaybackAction::Resume)
         callHost("play");
