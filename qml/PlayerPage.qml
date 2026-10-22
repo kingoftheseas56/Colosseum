@@ -1020,6 +1020,8 @@ Item {
     property bool errored: false
     property string statusMsg: ""
     property bool controlsShown: true
+    // Touch (Android): whether the HUD was up when the finger went down.
+    property bool controlsShownAtPress: true
     property bool seeking: false
     property real seekPreview: mpv.position
     property real seekTargetSec: -1
@@ -4162,6 +4164,7 @@ Item {
         // wakeChrome → controlsShown true → the arrow is back instantly.
         cursorShape: (root.controlsShown && !root.starting) ? Qt.ArrowCursor : Qt.BlankCursor
         onPositionChanged: root.wakeChrome()
+        onPressed: root.controlsShownAtPress = root.controlsShown
         onClicked: function(mouse) {
             // Right-click = More controls at the cursor (native-player convention,
             // Hemanth 2026-07-18) — the ⋯ button it replaces is gone from the bar.
@@ -4172,6 +4175,17 @@ Item {
             // A click that only dismisses an open menu must NOT also toggle play/pause.
             if (root.anyMenuOpen) {
                 root.closeMenus()
+                return
+            }
+            // Touch convention (Hemanth 2026-10-22): a tap on the video shows or
+            // hides the HUD; play/pause stays on its button.
+            if (PlatformRuntime.android) {
+                if (root.controlsShownAtPress) {
+                    hideTimer.stop()
+                    root.controlsShown = false
+                } else {
+                    root.wakeChrome()
+                }
                 return
             }
             root.togglePlayPause()
