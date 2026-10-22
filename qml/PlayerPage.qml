@@ -336,9 +336,10 @@ Item {
     // Pre-background position for that re-demand. Kept apart from the
     // wake-reconnect seek, which recovery retries reset.
     property real streamRouteRestoreSec: -1
-    // Playback intent at that re-demand: a fresh source load autoplays, so a
-    // deliberate pause is re-applied once the route reopens.
-    property bool streamRouteRestorePaused: false
+    // Playback intent at that re-demand ("paused"/"playing", "" when none): a
+    // fresh source load autoplays, so the reopen re-applies it whether or not a
+    // position seek is needed.
+    property string streamRouteRestoreIntent: ""
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -1457,6 +1458,8 @@ Item {
             return
         }
         var c = root.streamCandidates[index] || ({})
+        // A fresh stream start is not a retired-route reopen.
+        root.streamRouteRestoreIntent = ""
         root.currentStreamIndex = index
         root.streamRetryCount = 0
         root.mediaResumeHash = c.infoHash || ""
@@ -1709,7 +1712,7 @@ Item {
             return true
         root.streamRouteRestorePending = true
         root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position : -1
-        root.streamRouteRestorePaused = mpv.pause
+        root.streamRouteRestoreIntent = mpv.pause ? "paused" : "playing"
         root.resetRecoveryWatch()
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
@@ -2837,7 +2840,7 @@ Item {
         root.streamRouteUrl = ""
         root.streamRouteRestorePending = false
         root.streamRouteRestoreSec = -1
-        root.streamRouteRestorePaused = false
+        root.streamRouteRestoreIntent = ""
         // A real close ends the stream's demand; minimize never reaches here.
         if (typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3767,15 +3770,17 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = false
-            if (root.streamRouteRestoreSec > 1) {
-                // Re-demanded after the background quiesce: reopen where it was.
+            if (root.streamRouteRestoreIntent !== "" || root.streamRouteRestoreSec > 1) {
+                // Re-demanded after the background quiesce: reopen where it was,
+                // with the playback intent it had (a near-start position has no seek).
                 var restoreSec = root.streamRouteRestoreSec
+                var restorePaused = root.streamRouteRestoreIntent === "paused"
                 root.streamRouteRestoreSec = -1
+                root.streamRouteRestoreIntent = ""
                 root.wakeReconnectPendingSeek = -1
-                mpv.seekExact(restoreSec)
-                if (root.streamRouteRestorePaused)
-                    mpv.pause = true
-                root.streamRouteRestorePaused = false
+                if (restoreSec > 1)
+                    mpv.seekExact(restoreSec)
+                mpv.pause = restorePaused
                 startupOwnedByUi = true
             } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
