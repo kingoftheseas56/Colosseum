@@ -16,7 +16,17 @@ Item {
     // Setup is optional (configurable, not configurationRequired): the plain link also works.
     readonly property bool canSkip: sheet.open && sheet.addon.setupRequired !== true
                                     && typeof Extensions !== "undefined"
-                                    && !Extensions.isInstalled(sheet.addon.manifestUrl)
+                                    && !sheet.switchedOnAt(sheet.addon.manifestUrl)
+    // A built-in add-on that ships switched off (Torrentio) is present but not on: the plain
+    // link must stay one tap away instead of forcing the browser setup round trip.
+    function switchedOnAt(url) {
+        var u = Extensions.normalizeUrl(url)
+        var rows = Extensions.installed()
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i].transportUrl === u && rows[i].enabled !== false)
+                return true
+        return false
+    }
     signal closeRequested()
     signal installRequested(string url)
 
