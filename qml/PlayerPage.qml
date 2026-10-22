@@ -3742,6 +3742,9 @@ Item {
             ignoreUnknownSignals: true
             function onFileResumed() {
                 root.cancelUpNext()
+                // A new playback segment: recovery clocks from the original load
+                // would read a replay at 0 s as "source did not start".
+                root.resetRecoveryWatch()
                 root.fileReady = true
                 root.syncPowerInhibit()
                 root.syncWatchPartyPlayerObservation()

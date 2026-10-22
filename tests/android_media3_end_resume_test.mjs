@@ -37,6 +37,9 @@ if (resumed) {
     check(root.fileReady === true, "fileResumed restores the playable state");
     check(calls.includes("cancelUpNext"), "fileResumed cancels an Up Next countdown");
     check(calls.includes("syncPowerInhibit"), "fileResumed re-syncs the screen-awake inhibit");
+    // T20: replay at 0 s tripped "source did not start" on stale recovery clocks.
+    check(calls.indexOf("resetRecoveryWatch") >= 0 && calls.indexOf("resetRecoveryWatch") < 2,
+          "fileResumed restarts the recovery watch before re-entering the playable state");
     check(!calls.includes("seekExact") && mpv.pause === false && root.pendingSeekSec === 0,
           "fileResumed neither seeks nor changes pause (the user's seek/play stands)");
 }
