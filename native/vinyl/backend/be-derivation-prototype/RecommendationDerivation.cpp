@@ -19,16 +19,15 @@ bool hasControlCharacters(const QString &text)
 
 bool isAllowedRecommendationKind(CanonicalEntityKind kind)
 {
-    return kind == CanonicalEntityKind::Recording
+    return kind == CanonicalEntityKind::Release
+        || kind == CanonicalEntityKind::Recording
         || kind == CanonicalEntityKind::ReleaseGroup
         || kind == CanonicalEntityKind::Artist;
 }
 
-QString canonicalSortKey(const CanonicalEntityRef &entity)
+QString canonicalSortKey(const RecommendationEntityRef &entity)
 {
-    return QStringLiteral("%1:%2")
-        .arg(static_cast<int>(entity.kind()))
-        .arg(entity.mbidString());
+    return entity.stableKey();
 }
 
 bool isRecent(qint64 occurredAtMs,
@@ -92,7 +91,7 @@ QString derivationErrorCodeName(DerivationErrorCode code)
 }
 
 const EntityHistoryAggregate *RecommendationDerivationOutput::findAggregate(
-    const CanonicalEntityRef &entity) const
+    const RecommendationEntityRef &entity) const
 {
     for (const auto &aggregate : m_aggregates) {
         if (aggregate.entity() == entity)
@@ -124,7 +123,7 @@ DerivationResult<RecommendationDerivationOutput> deriveRecommendationInputs(
     QVector<BehavioralSignalObservation> observations;
     QSet<QString> deliberatelyReplayedRecordings;
 
-    auto aggregateFor = [&](const CanonicalEntityRef &entity)
+    auto aggregateFor = [&](const RecommendationEntityRef &entity)
         -> EntityHistoryAggregate & {
         for (auto &aggregate : aggregates) {
             if (aggregate.entity() == entity)
@@ -135,7 +134,7 @@ DerivationResult<RecommendationDerivationOutput> deriveRecommendationInputs(
     };
 
     auto emitSignal = [&](const ListenEvent &event,
-                          const CanonicalEntityRef &entity,
+                          const RecommendationEntityRef &entity,
                           BehavioralSignalKind kind)
         -> std::optional<DerivationError> {
         const QString idText =
@@ -181,7 +180,7 @@ DerivationResult<RecommendationDerivationOutput> deriveRecommendationInputs(
         if (!recording.has_value())
             continue;
 
-        const auto entity = CanonicalEntityRef::from(*recording);
+        const auto entity = RecommendationEntityRef(CanonicalEntityRef::from(*recording));
         auto &aggregate = aggregateFor(entity);
 
         if (event.kind() == ListenEventKind::Start) {
@@ -337,7 +336,7 @@ DerivationResult<RecommendationExposureId> RecommendationExposureId::parse(
 DerivationResult<ExposureEvidenceRef> ExposureEvidenceRef::create(
     ExposureEvidenceKind kind,
     QString sourceId,
-    std::optional<CanonicalEntityRef> relatedEntity)
+    std::optional<RecommendationEntityRef> relatedEntity)
 {
     sourceId = sourceId.trimmed();
     if (sourceId.isEmpty() || sourceId.size() > 512
@@ -360,7 +359,7 @@ DerivationResult<RecommendationExposureRecord>
 RecommendationExposureRecord::create(
     ProfileScopeId profileId,
     RecommendationExposureId exposureId,
-    CanonicalEntityRef entity,
+    RecommendationEntityRef entity,
     qint64 recommendedAtMs,
     int rankPosition,
     QString rankingConfigVersion,
@@ -371,7 +370,7 @@ RecommendationExposureRecord::create(
             DerivationErrorCode::InvalidExposure,
             QStringLiteral("entity"),
             QStringLiteral(
-                "exposure entity must be Recording, ReleaseGroup, or Artist"));
+                "exposure entity must be Recording, Release, ReleaseGroup, or Artist"));
     }
     rankingConfigVersion = rankingConfigVersion.trimmed();
     if (recommendedAtMs <= 0 || rankPosition <= 0

@@ -5203,3 +5203,51 @@ target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_a
 add_test(NAME colosseum.vinyl_personal_library COMMAND vinyl_personal_library_contracts)
 set_tests_properties(colosseum.vinyl_personal_library PROPERTIES LABELS "vinyl;personal;qttest" TIMEOUT 45
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
+
+# Recommendation backend contract mains remain standalone executables.
+add_executable(vinyl_be1_contract_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be1-recommendation-candidate-prototype/test_recommendation_candidate_contract.cpp")
+target_link_libraries(vinyl_be1_contract_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be1_contract COMMAND vinyl_be1_contract_test)
+
+add_executable(vinyl_be2_state_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be2-feedback-taste-state-prototype/test_feedback_taste_state.cpp")
+target_link_libraries(vinyl_be2_state_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be2_state COMMAND vinyl_be2_state_test)
+
+add_executable(vinyl_be2_persistence_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be2-feedback-taste-state-prototype/test_feedback_taste_persistence.cpp")
+target_link_libraries(vinyl_be2_persistence_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be2_persistence COMMAND vinyl_be2_persistence_test)
+
+add_executable(vinyl_derivation_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be-derivation-prototype/test_recommendation_derivation.cpp")
+target_link_libraries(vinyl_derivation_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_derivation COMMAND vinyl_derivation_test)
+
+add_executable(vinyl_be3_ranker_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be3-deterministic-ranker-prototype/test_deterministic_ranker.cpp")
+target_link_libraries(vinyl_be3_ranker_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
+
+add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
+set_target_properties(vinyl_recommendation_contracts_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_recommendation_contracts_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_recommendation_contracts_test PRIVATE colosseum_vinyl_backend Qt6::Test)
+add_test(NAME colosseum.vinyl_recommendation_contracts COMMAND vinyl_recommendation_contracts_test)
+set_tests_properties(
+    colosseum.vinyl_be1_contract colosseum.vinyl_be2_state colosseum.vinyl_be2_persistence
+    colosseum.vinyl_derivation colosseum.vinyl_be3_ranker colosseum.vinyl_recommendation_contracts
+    PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
+
+if(MSVC)
+    foreach(vinyl_recommendation_target IN ITEMS
+            vinyl_be1_contract_test
+            vinyl_be2_state_test
+            vinyl_be2_persistence_test
+            vinyl_derivation_test
+            vinyl_be3_ranker_test
+            vinyl_recommendation_contracts_test)
+        target_compile_options(${vinyl_recommendation_target} PRIVATE /utf-8)
+    endforeach()
+endif()

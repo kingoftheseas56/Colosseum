@@ -187,6 +187,11 @@ int main(int argc, char **argv)
             "canonical BE2 serialization must ignore insertion order");
     QJsonObject migration = QJsonDocument::fromJson(first).object();
     migration.insert(QStringLiteral("version"), 1);
+    auto legacyRows = migration.value("entities").toArray();
+    for (int index=0; index<legacyRows.size(); ++index) {
+        auto row=legacyRows[index].toObject(); row.remove("identity"); legacyRows[index]=row;
+    }
+    migration.insert("entities", legacyRows);
     const QByteArray v1Fixture =
         QJsonDocument(migration).toJson(QJsonDocument::Compact);
     const TasteProfileState migrated = mustPersist(

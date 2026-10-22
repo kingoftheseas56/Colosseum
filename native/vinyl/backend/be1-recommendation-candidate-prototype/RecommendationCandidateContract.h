@@ -1,6 +1,6 @@
 #pragma once
 
-#include "VinylDomainTypes.h"
+#include "RecommendationEntityRef.h"
 
 #include <QString>
 #include <QVector>
@@ -101,26 +101,28 @@ QString recommendationSourceFamilyName(RecommendationSourceFamily family);
 struct RecommendationCanonicalContext final {
     std::optional<ArtistMbid> artistMbid;
     std::optional<ReleaseGroupMbid> releaseGroupMbid;
+    std::optional<RecommendationEntityRef> providerArtist;
+    std::optional<RecommendationEntityRef> providerReleaseGroup;
 };
 
 class RecommendationSeed final
 {
 public:
     static RecommendationCandidateResult<RecommendationSeed> create(
-        CanonicalEntityRef entity,
+        RecommendationEntityRef entity,
         QString context);
 
-    const CanonicalEntityRef &entity() const noexcept { return m_entity; }
+    const RecommendationEntityRef &entity() const noexcept { return m_entity; }
     const QString &context() const noexcept { return m_context; }
 
 private:
-    RecommendationSeed(CanonicalEntityRef entity, QString context)
+    RecommendationSeed(RecommendationEntityRef entity, QString context)
         : m_entity(std::move(entity))
         , m_context(std::move(context))
     {
     }
 
-    CanonicalEntityRef m_entity;
+    RecommendationEntityRef m_entity;
     QString m_context;
 };
 
@@ -289,18 +291,24 @@ class RecommendationCandidateSet;
 class RecommendationCandidate final
 {
 public:
+    // Legacy MBID-only callers retain their original recording-playability contract.
     static RecommendationCandidateResult<RecommendationCandidate> create(
-        CanonicalEntityRef canonical,
-        RecommendationContribution contribution);
+        CanonicalEntityRef canonical, RecommendationContribution contribution);
+    // Typed inputs must carry a separately qualified playable destination.
+    static RecommendationCandidateResult<RecommendationCandidate> create(
+        RecommendationEntityRef canonical,
+        RecommendationContribution contribution,
+        bool directlyPlayable = false);
 
-    const CanonicalEntityRef &canonicalEntity() const noexcept
+    const RecommendationEntityRef &canonicalEntity() const noexcept
     {
         return m_canonical;
     }
 
     bool isDirectlyPlayable() const noexcept
     {
-        return m_canonical.kind() == CanonicalEntityKind::Recording;
+        return m_canonical.kind() == CanonicalEntityKind::Recording
+            && m_directlyPlayable;
     }
 
     const QVector<RecommendationContribution> &contributions() const noexcept
@@ -310,15 +318,17 @@ public:
 
 private:
     RecommendationCandidate(
-        CanonicalEntityRef canonical,
-        QVector<RecommendationContribution> contributions)
+        RecommendationEntityRef canonical,
+        QVector<RecommendationContribution> contributions, bool directlyPlayable = false)
         : m_canonical(std::move(canonical))
         , m_contributions(std::move(contributions))
+        , m_directlyPlayable(directlyPlayable)
     {
     }
 
-    CanonicalEntityRef m_canonical;
+    RecommendationEntityRef m_canonical;
     QVector<RecommendationContribution> m_contributions;
+    bool m_directlyPlayable = false;
 
     friend class RecommendationCandidateSet;
 };

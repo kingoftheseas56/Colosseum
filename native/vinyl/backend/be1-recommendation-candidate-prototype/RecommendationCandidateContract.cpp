@@ -1,10 +1,36 @@
 #include "RecommendationCandidateContract.h"
 
 #include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <algorithm>
 
 #include <cmath>
 
 namespace vinyl {
+namespace {
+QByteArray contributionKey(const RecommendationContribution &c) {
+    const auto &p = c.provenance(); const auto &context = c.canonicalContext();
+    QStringList evidence;
+    for (const auto &e : c.evidence())
+        evidence.append(QString::fromUtf8(QJsonDocument(QJsonArray{static_cast<int>(e.kind()), e.detail(),
+            e.relatedCanonicalEntity() ? RecommendationEntityRef(*e.relatedCanonicalEntity()).stableKey() : QString()}).toJson(QJsonDocument::Compact)));
+    std::sort(evidence.begin(), evidence.end()); evidence.removeDuplicates();
+    QJsonArray key{p.generatorId().value(), static_cast<int>(p.sourceFamily()),
+        p.providerId() ? p.providerId()->value() : QString(),
+        p.providerCandidateId() ? p.providerCandidateId()->value() : QString(),
+        p.providerModelId() ? *p.providerModelId() : QString(),
+        p.seed() ? p.seed()->entity().stableKey() : QString(), p.seed() ? p.seed()->context() : QString(),
+        context.artistMbid ? context.artistMbid->toString() : QString(),
+        context.releaseGroupMbid ? context.releaseGroupMbid->toString() : QString(),
+        context.providerArtist ? context.providerArtist->stableKey() : QString(),
+        context.providerReleaseGroup ? context.providerReleaseGroup->stableKey() : QString(),
+        c.rawProviderScore() ? QJsonValue(*c.rawProviderScore()) : QJsonValue(QJsonValue::Null),
+        QJsonArray::fromStringList(evidence)};
+    return QJsonDocument(key).toJson(QJsonDocument::Compact);
+}
+}
+
 
 QString recommendationCandidateErrorCodeName(
     RecommendationCandidateErrorCode code)
@@ -66,7 +92,7 @@ QString recommendationSourceFamilyName(RecommendationSourceFamily family)
 }
 
 RecommendationCandidateResult<RecommendationSeed> RecommendationSeed::create(
-    CanonicalEntityRef entity,
+    RecommendationEntityRef entity,
     QString context)
 {
     const QString normalized = context.trimmed();
@@ -175,6 +201,13 @@ RecommendationContribution::create(
     std::optional<double> rawProviderScore,
     QVector<RecommendationReasonEvidence> evidence)
 {
+    if ((canonicalContext.providerArtist && (canonicalContext.providerArtist->isCanonical()
+            || canonicalContext.providerArtist->kind() != CanonicalEntityKind::Artist))
+        || (canonicalContext.providerReleaseGroup && (canonicalContext.providerReleaseGroup->isCanonical()
+            || canonicalContext.providerReleaseGroup->kind() != CanonicalEntityKind::ReleaseGroup)))
+        return RecommendationCandidateResult<RecommendationContribution>::failure(
+            RecommendationCandidateErrorCode::InvalidSeedContext, "provider_context");
+
     if (rawProviderScore.has_value()
         && !std::isfinite(*rawProviderScore)) {
         return RecommendationCandidateResult<RecommendationContribution>::
@@ -202,9 +235,19 @@ RecommendationContribution::create(
 }
 
 RecommendationCandidateResult<RecommendationCandidate>
+RecommendationCandidate::create(CanonicalEntityRef canonical, RecommendationContribution contribution)
+{
+    if (canonical.kind() != CanonicalEntityKind::Artist && canonical.kind() != CanonicalEntityKind::ReleaseGroup
+        && canonical.kind() != CanonicalEntityKind::Recording)
+        return RecommendationCandidateResult<RecommendationCandidate>::failure(
+            RecommendationCandidateErrorCode::InvalidCanonicalKind, "canonical");
+    return create(RecommendationEntityRef(canonical), std::move(contribution), true);
+}
+
+RecommendationCandidateResult<RecommendationCandidate>
 RecommendationCandidate::create(
-    CanonicalEntityRef canonical,
-    RecommendationContribution contribution)
+    RecommendationEntityRef canonical,
+    RecommendationContribution contribution, bool directlyPlayable)
 {
     switch (canonical.kind()) {
     case CanonicalEntityKind::Recording:
@@ -212,6 +255,7 @@ RecommendationCandidate::create(
     case CanonicalEntityKind::Artist:
         break;
     case CanonicalEntityKind::Release:
+        break;
     case CanonicalEntityKind::ReleaseTrack:
     case CanonicalEntityKind::Work:
         return RecommendationCandidateResult<RecommendationCandidate>::failure(
@@ -228,7 +272,7 @@ RecommendationCandidate::create(
     return RecommendationCandidateResult<RecommendationCandidate>::success(
         RecommendationCandidate(
             std::move(canonical),
-            std::move(contributions)));
+            std::move(contributions), directlyPlayable));
 }
 
 RecommendationCandidateSet RecommendationCandidateSet::normalize(
@@ -241,9 +285,7 @@ RecommendationCandidateSet RecommendationCandidateSet::normalize(
 
     for (auto &candidate : candidates) {
         const QString key =
-            canonicalEntityKindName(candidate.m_canonical.kind())
-            + QLatin1Char(':')
-            + candidate.m_canonical.mbidString();
+            candidate.m_canonical.stableKey();
         const auto existing = indexByCanonical.constFind(key);
 
         if (existing == indexByCanonical.constEnd()) {
@@ -254,8 +296,13 @@ RecommendationCandidateSet RecommendationCandidateSet::normalize(
         }
 
         auto &target = normalized[existing.value()];
-        for (auto &contribution : candidate.m_contributions)
-            target.m_contributions.push_back(std::move(contribution));
+        target.m_directlyPlayable = target.m_directlyPlayable || candidate.m_directlyPlayable;
+        for (auto &contribution : candidate.m_contributions) {
+            const auto contributionIdentity = contributionKey(contribution);
+            if (std::none_of(target.m_contributions.cbegin(), target.m_contributions.cend(),
+                [&](const auto &existing) { return contributionKey(existing) == contributionIdentity; }))
+                target.m_contributions.push_back(std::move(contribution));
+        }
     }
 
     return RecommendationCandidateSet(std::move(normalized));

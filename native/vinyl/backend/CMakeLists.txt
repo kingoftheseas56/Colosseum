@@ -59,6 +59,8 @@ add_library(colosseum_vinyl_backend STATIC
     ${BD1_DIR}/VinylSignalPathTypes.cpp
     ${BD2_DIR}/VinylMpvObservability.cpp
     ${BE1_DIR}/RecommendationCandidateContract.cpp
+    ${BE1_DIR}/RecommendationEntityRef.cpp
+    ${BACKEND_DIR}/../VinylRecommendationIdentity.cpp
     ${BE2_DIR}/FeedbackTasteState.cpp
     ${BE2_DIR}/FeedbackTastePersistence.cpp
     ${BE_DERIVATION_DIR}/RecommendationDerivation.cpp

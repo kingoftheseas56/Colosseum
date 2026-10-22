@@ -61,15 +61,17 @@ Commands below are **planned verification**, not results. `$BuildDir` is the exe
 
 ### Task 2: Provider-aware recommendation identities without false MBIDs
 
-**Files:** Create `native/vinyl/VinylRecommendationIdentity.{h,cpp}` and `native/vinyl/backend/be1-recommendation-candidate-prototype/RecommendationEntityRef.h`. Modify BE1 candidate contract, BE2 feedback/persistence, BE derivation and BE3 ranker headers/implementations, associated existing tests, `native/vinyl/backend/CMakeLists.txt`, `tests/CMakeLists.txt`. Create `tests/vinyl_recommendation_contracts.cpp`.
+**Files:** Create `native/vinyl/VinylRecommendationIdentity.{h,cpp}` and `native/vinyl/backend/be1-recommendation-candidate-prototype/RecommendationEntityRef.{h,cpp}`. Modify BE1 candidate contract, BE2 feedback/persistence, BE derivation and BE3 ranker headers/implementations, associated existing tests, `native/vinyl/backend/CMakeLists.txt`, `tests/CMakeLists.txt`. Create `tests/vinyl_recommendation_contracts.cpp`.
 
 **Interfaces:** `RecommendationEntityRef` stores entity kind plus `std::variant<CanonicalEntityRef,ProviderItemRef>`; provides typed factories, stable serialized key and equality. Existing MBID constructors/factories remain supported. `VinylRecommendationIdentity::fromCatalogue(QVariantMap item) -> QVariantMap` returns `{ok, ref, destination, mappingStatus, error}`; a provider ref cannot be relabeled verified by parsing a UUID. Canonical feature relationships continue to require canonical IDs. Provider artist/release context is carried explicitly for diversity/seed affinity, not inserted into BF1 as a canonical edge.
 
-- [ ] Add failing contract tests `providerAndCanonicalNeverAlias`, `generatedUuidIsNotCanonical`, `collaboratorsRemainSeparate`, `ambiguousVersionCannotPlay`, `canonicalSnapshotV1MigratesLosslessly`, `unknownSnapshotVersionPreservesStoredBytes`, `duplicateContributionsDoNotMultiplySupport`.
-- [ ] Extend existing recommendation contracts to the typed union and snapshot version 2. Preserve current canonical semantics and migration; active-state errors never overwrite a valid saved snapshot. Convert verified equivalents to a single key only when mapping evidence warrants it.
-- [ ] Update BE3 artist/release diversity-key extraction for provider-native context; keep all existing ranker/default canonical tests. No identity changes to Collection, playback queues or saved playlist occurrence IDs.
-- [ ] Build `vinyl_recommendation_contracts_test` linked to the existing backend; register/run `ctest --test-dir $BuildDir -R 'colosseum\.vinyl_recommendation_contracts$' --output-on-failure`. Register the affected existing BE contract tests with this target or separate focused tests so canonical regressions are actually executed, not merely compiled.
-- [ ] Commit `Support typed provider identities in Vinyl recommendations`. Root owns this task; it is not a simple mass-replacement job.
+- [x] Add failing contract tests `providerAndCanonicalNeverAlias`, `generatedUuidIsNotCanonical`, `collaboratorsRemainSeparate`, `ambiguousVersionCannotPlay`, `canonicalSnapshotV1MigratesLosslessly`, `unknownSnapshotVersionPreservesStoredBytes`, `duplicateContributionsDoNotMultiplySupport`.
+- [x] Extend existing recommendation contracts to the typed union and feedback snapshot version 3 (the existing writer was already version 2). Preserve current canonical semantics and migration; active-state errors never overwrite a valid saved snapshot. Convert verified equivalents to a single key only when mapping evidence warrants it.
+- [x] Update BE3 artist/release diversity-key extraction for provider-native context; keep all existing ranker/default canonical tests. No identity changes to Collection, playback queues or saved playlist occurrence IDs.
+- [x] Build `vinyl_recommendation_contracts_test` linked to the existing backend; register/run `ctest --test-dir $BuildDir -R 'colosseum\.vinyl_recommendation_contracts$' --output-on-failure`. Register the affected existing BE contract tests with this target or separate focused tests so canonical regressions are actually executed, not merely compiled.
+- [x] Commit `Support typed provider identities in Vinyl recommendations`. Root owns this task; it is not a simple mass-replacement job.
+
+**Received 2026-10-22:** [Identity contracts receiving record](../reviews/2026-10-22-vinyl-recommendation-identities.md). 20 focused suites passed, including all five existing BE contract mains and native feedback-port validation. Feedback v1/v2 canonical readers remain; typed recording playability is explicit, and album candidate/exposure eligibility agrees. Live enrichment/mapping qualification remains Task 3.
 
 ### Task 3: Bounded catalogue enrichment and candidate transports
 

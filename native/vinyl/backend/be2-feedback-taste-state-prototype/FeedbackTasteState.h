@@ -1,6 +1,6 @@
 #pragma once
 
-#include "VinylDomainTypes.h"
+#include "RecommendationEntityRef.h"
 
 #include <QString>
 #include <QVector>
@@ -125,12 +125,12 @@ class BehavioralSignalObservation final
 public:
     static TasteResult<BehavioralSignalObservation> create(
         BehaviorObservationId observationId,
-        CanonicalEntityRef canonical,
+        RecommendationEntityRef canonical,
         BehavioralSignalKind kind,
         qint64 occurredAtMs);
 
     const BehaviorObservationId &observationId() const noexcept { return m_observationId; }
-    const CanonicalEntityRef &canonical() const noexcept { return m_canonical; }
+    const RecommendationEntityRef &canonical() const noexcept { return m_canonical; }
     BehavioralSignalKind kind() const noexcept { return m_kind; }
     qint64 occurredAtMs() const noexcept { return m_occurredAtMs; }
 
@@ -138,7 +138,7 @@ public:
 
 private:
     BehavioralSignalObservation(BehaviorObservationId observationId,
-                                CanonicalEntityRef canonical,
+                                RecommendationEntityRef canonical,
                                 BehavioralSignalKind kind,
                                 qint64 occurredAtMs)
         : m_observationId(std::move(observationId))
@@ -149,7 +149,7 @@ private:
     }
 
     BehaviorObservationId m_observationId;
-    CanonicalEntityRef m_canonical;
+    RecommendationEntityRef m_canonical;
     BehavioralSignalKind m_kind;
     qint64 m_occurredAtMs = 0;
 };
@@ -216,7 +216,7 @@ private:
 class EntityTasteState final
 {
 public:
-    const CanonicalEntityRef &canonical() const noexcept { return m_canonical; }
+    const RecommendationEntityRef &canonical() const noexcept { return m_canonical; }
     const ExplicitTasteFeedbackState &explicitFeedback() const noexcept { return m_explicitFeedback; }
     const RecommendationSuppressionState &suppression() const noexcept { return m_suppression; }
     const QVector<BehavioralSignalObservation> &behavioralSignals() const noexcept
@@ -225,12 +225,12 @@ public:
     }
 
 private:
-    explicit EntityTasteState(CanonicalEntityRef canonical)
+    explicit EntityTasteState(RecommendationEntityRef canonical)
         : m_canonical(std::move(canonical))
     {
     }
 
-    CanonicalEntityRef m_canonical;
+    RecommendationEntityRef m_canonical;
     ExplicitTasteFeedbackState m_explicitFeedback;
     RecommendationSuppressionState m_suppression;
     QVector<BehavioralSignalObservation> m_behavioralSignals;
@@ -250,26 +250,26 @@ public:
     int size() const noexcept { return m_states.size(); }
     const QVector<EntityTasteState> &states() const noexcept { return m_states; }
 
-    const EntityTasteState *find(const CanonicalEntityRef &canonical) const;
+    const EntityTasteState *find(const RecommendationEntityRef &canonical) const;
 
     TasteMutationStatus applyExplicitFeedback(
-        const CanonicalEntityRef &canonical,
+        const RecommendationEntityRef &canonical,
         ExplicitTasteFeedback feedback,
         quint64 revision,
         qint64 changedAtMs,
         std::optional<ProviderItemRef> providerFeedbackRef = std::nullopt);
 
-    TasteMutationStatus setHidden(const CanonicalEntityRef &canonical,
+    TasteMutationStatus setHidden(const RecommendationEntityRef &canonical,
                                   bool hidden,
                                   quint64 revision,
                                   qint64 changedAtMs);
 
-    TasteMutationStatus setSnoozedUntil(const CanonicalEntityRef &canonical,
+    TasteMutationStatus setSnoozedUntil(const RecommendationEntityRef &canonical,
                                         std::optional<qint64> snoozedUntilMs,
                                         quint64 revision,
                                         qint64 changedAtMs);
 
-    TasteMutationStatus setDoNotRecommend(const CanonicalEntityRef &canonical,
+    TasteMutationStatus setDoNotRecommend(const RecommendationEntityRef &canonical,
                                           bool doNotRecommend,
                                           quint64 revision,
                                           qint64 changedAtMs);
@@ -277,8 +277,8 @@ public:
     TasteMutationStatus recordBehavioralSignal(BehavioralSignalObservation observation);
 
 private:
-    int indexOf(const CanonicalEntityRef &canonical) const;
-    EntityTasteState &ensureState(const CanonicalEntityRef &canonical);
+    int indexOf(const RecommendationEntityRef &canonical) const;
+    EntityTasteState &ensureState(const RecommendationEntityRef &canonical);
 
     ProfileScopeId m_profileId;
     QVector<EntityTasteState> m_states;

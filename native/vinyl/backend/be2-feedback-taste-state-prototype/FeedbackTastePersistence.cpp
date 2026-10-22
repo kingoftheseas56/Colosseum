@@ -66,18 +66,18 @@ QJsonValue revisionToJson(quint64 revision)
     return QString::number(revision);
 }
 
-TastePersistenceResult<CanonicalEntityRef> canonicalFromJson(
+TastePersistenceResult<RecommendationEntityRef> canonicalFromJson(
     const QJsonObject &object, const QString &field)
 {
     const QJsonValue kindValue = object.value(QStringLiteral("kind"));
     const QJsonValue mbidValue = object.value(QStringLiteral("mbid"));
     if (!kindValue.isString() || !mbidValue.isString())
-        return malformed<CanonicalEntityRef>(
+        return malformed<RecommendationEntityRef>(
             field, QStringLiteral("Canonical identity requires kind and MBID."));
     const QString kind = kindValue.toString();
     const QString mbid = mbidValue.toString();
 
-#define VINYL_PARSE_CANONICAL(name, type)     if (kind == QStringLiteral(name)) {         auto id = type::parse(mbid, field + QStringLiteral(".mbid"));         if (id.ok()) return TastePersistenceResult<CanonicalEntityRef>::success(             CanonicalEntityRef::from(*id.value));     }
+#define VINYL_PARSE_CANONICAL(name, type)     if (kind == QStringLiteral(name)) {         auto id = type::parse(mbid, field + QStringLiteral(".mbid"));         if (id.ok()) return TastePersistenceResult<RecommendationEntityRef>::success(             CanonicalEntityRef::from(*id.value));     }
     VINYL_PARSE_CANONICAL("artist", ArtistMbid)
     VINYL_PARSE_CANONICAL("release_group", ReleaseGroupMbid)
     VINYL_PARSE_CANONICAL("release", ReleaseMbid)
@@ -86,16 +86,13 @@ TastePersistenceResult<CanonicalEntityRef> canonicalFromJson(
     VINYL_PARSE_CANONICAL("work", WorkMbid)
 #undef VINYL_PARSE_CANONICAL
 
-    return malformed<CanonicalEntityRef>(
+    return malformed<RecommendationEntityRef>(
         field, QStringLiteral("Unsupported or invalid canonical identity."));
 }
 
-QJsonObject canonicalToJson(const CanonicalEntityRef &canonical)
+QJsonObject canonicalToJson(const RecommendationEntityRef &entity)
 {
-    QJsonObject out;
-    out.insert(QStringLiteral("kind"), canonicalEntityKindName(canonical.kind()));
-    out.insert(QStringLiteral("mbid"), canonical.mbidString());
-    return out;
+    return entity.toJson();
 }
 
 QJsonValue providerRefToJson(const std::optional<ProviderItemRef> &ref)
@@ -245,7 +242,7 @@ QJsonObject entityToJson(const EntityTasteState &state)
 }
 
 TastePersistenceResult<BehavioralSignalObservation> behaviorFromJson(
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     const QJsonObject &object,
     const QString &field)
 {
@@ -335,7 +332,7 @@ TastePersistenceResult<std::optional<quint64>> nullableRevision(
 }
 TastePersistenceResult<bool> restoreExplicitState(
     TasteProfileState &state,
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     const QJsonObject &object,
     const QString &field)
 {
@@ -394,7 +391,7 @@ TastePersistenceResult<bool> restoreExplicitState(
 }
 TastePersistenceResult<bool> restoreSuppressionState(
     TasteProfileState &state,
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     const QJsonObject &object,
     const QString &field)
 {
@@ -503,16 +500,25 @@ TastePersistenceResult<bool> restoreSuppressionState(
 TastePersistenceResult<bool> restoreEntity(
     TasteProfileState &state,
     const QJsonObject &object,
-    const QString &field)
+    const QString &field, int version)
 {
     const QString unknown = firstUnknownKey(
-        object, {"kind", "mbid", "explicit", "suppression", "behavior"});
+        object, {"identity", "kind", "mbid", "providerId", "itemId", "explicit", "suppression", "behavior"});
     if (!unknown.isEmpty())
         return malformed<bool>(
             field + QLatin1Char('.') + unknown,
             QStringLiteral("Unknown entity-state field."));
 
+    auto identityObject = object;
+    identityObject.remove("explicit"); identityObject.remove("suppression"); identityObject.remove("behavior");
     auto canonical = canonicalFromJson(object, field);
+    if (version >= 3) {
+        auto parsed = RecommendationEntityRef::fromJson(identityObject);
+        if (!parsed.ok()) return malformed<bool>(field, "Invalid recommendation identity.");
+        canonical = TastePersistenceResult<RecommendationEntityRef>::success(*parsed.value);
+    } else if (identityObject.contains("identity") || identityObject.contains("providerId") || identityObject.contains("itemId")) {
+        return malformed<bool>(field, "Legacy snapshots accept only canonical identities.");
+    }
     if (!canonical.ok())
         return TastePersistenceResult<bool>::failure(
             canonical.error.code, canonical.error.field, canonical.error.detail);
@@ -606,11 +612,9 @@ TastePersistenceResult<QByteArray> FeedbackTastePersistence::capture(
         ordered.end(),
         [](const EntityTasteState *left, const EntityTasteState *right) {
             const QString leftKey =
-                canonicalEntityKindName(left->canonical().kind())
-                + QLatin1Char(':') + left->canonical().mbidString();
+                left->canonical().stableKey();
             const QString rightKey =
-                canonicalEntityKindName(right->canonical().kind())
-                + QLatin1Char(':') + right->canonical().mbidString();
+                right->canonical().stableKey();
             return leftKey < rightKey;
         });
 
@@ -699,7 +703,7 @@ TastePersistenceResult<TasteProfileState> FeedbackTastePersistence::restore(
             return malformed<TasteProfileState>(
                 field, QStringLiteral("Entity state must be an object."));
         }
-        auto status = restoreEntity(restored, value.toObject(), field);
+        auto status = restoreEntity(restored, value.toObject(), field, static_cast<int>(version));
         if (!status.ok()) {
             return TastePersistenceResult<TasteProfileState>::failure(
                 status.error.code, status.error.field, status.error.detail);

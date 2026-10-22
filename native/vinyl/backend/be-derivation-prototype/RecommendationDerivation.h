@@ -12,7 +12,7 @@
 namespace vinyl::recommendation {
 
 inline constexpr int kRecommendationDerivationVersion = 1;
-inline constexpr int kRecommendationExposureSchemaVersion = 1;
+inline constexpr int kRecommendationExposureSchemaVersion = 2;
 
 enum class DerivationErrorCode {
     None,
@@ -100,12 +100,12 @@ struct RecommendationDerivationConfig final {
 class EntityHistoryAggregate final
 {
 public:
-    explicit EntityHistoryAggregate(CanonicalEntityRef entity)
+    explicit EntityHistoryAggregate(RecommendationEntityRef entity)
         : m_entity(std::move(entity))
     {
     }
 
-    const CanonicalEntityRef &entity() const noexcept { return m_entity; }
+    const RecommendationEntityRef &entity() const noexcept { return m_entity; }
     int playCount() const noexcept { return m_playCount; }
     const std::optional<qint64> &lastPlayedAtMs() const noexcept
     {
@@ -121,7 +121,7 @@ public:
     }
 
 private:
-    CanonicalEntityRef m_entity;
+    RecommendationEntityRef m_entity;
     int m_playCount = 0;
     std::optional<qint64> m_lastPlayedAtMs;
     int m_recentCompletionCount = 0;
@@ -165,7 +165,7 @@ public:
     }
 
     const EntityHistoryAggregate *findAggregate(
-        const CanonicalEntityRef &entity) const;
+        const RecommendationEntityRef &entity) const;
 
 private:
     ProfileScopeId m_profileId;
@@ -227,11 +227,11 @@ public:
     static DerivationResult<ExposureEvidenceRef> create(
         ExposureEvidenceKind kind,
         QString sourceId,
-        std::optional<CanonicalEntityRef> relatedEntity = std::nullopt);
+        std::optional<RecommendationEntityRef> relatedEntity = std::nullopt);
 
     ExposureEvidenceKind kind() const noexcept { return m_kind; }
     const QString &sourceId() const noexcept { return m_sourceId; }
-    const std::optional<CanonicalEntityRef> &relatedEntity() const noexcept
+    const std::optional<RecommendationEntityRef> &relatedEntity() const noexcept
     {
         return m_relatedEntity;
     }
@@ -246,7 +246,7 @@ public:
 private:
     ExposureEvidenceRef(ExposureEvidenceKind kind,
                         QString sourceId,
-                        std::optional<CanonicalEntityRef> relatedEntity)
+                        std::optional<RecommendationEntityRef> relatedEntity)
         : m_kind(kind)
         , m_sourceId(std::move(sourceId))
         , m_relatedEntity(std::move(relatedEntity))
@@ -255,7 +255,7 @@ private:
 
     ExposureEvidenceKind m_kind;
     QString m_sourceId;
-    std::optional<CanonicalEntityRef> m_relatedEntity;
+    std::optional<RecommendationEntityRef> m_relatedEntity;
 };
 
 class RecommendationExposureRecord final
@@ -264,7 +264,7 @@ public:
     static DerivationResult<RecommendationExposureRecord> create(
         ProfileScopeId profileId,
         RecommendationExposureId exposureId,
-        CanonicalEntityRef entity,
+        RecommendationEntityRef entity,
         qint64 recommendedAtMs,
         int rankPosition,
         QString rankingConfigVersion,
@@ -279,7 +279,7 @@ public:
     {
         return m_exposureId;
     }
-    const CanonicalEntityRef &entity() const noexcept { return m_entity; }
+    const RecommendationEntityRef &entity() const noexcept { return m_entity; }
     qint64 recommendedAtMs() const noexcept { return m_recommendedAtMs; }
     int rankPosition() const noexcept { return m_rankPosition; }
     const QString &rankingConfigVersion() const noexcept
@@ -297,7 +297,7 @@ private:
     RecommendationExposureRecord(
         ProfileScopeId profileId,
         RecommendationExposureId exposureId,
-        CanonicalEntityRef entity,
+        RecommendationEntityRef entity,
         qint64 recommendedAtMs,
         int rankPosition,
         QString rankingConfigVersion,
@@ -314,7 +314,7 @@ private:
 
     ProfileScopeId m_profileId;
     RecommendationExposureId m_exposureId;
-    CanonicalEntityRef m_entity;
+    RecommendationEntityRef m_entity;
     qint64 m_recommendedAtMs = 0;
     int m_rankPosition = 0;
     QString m_rankingConfigVersion;

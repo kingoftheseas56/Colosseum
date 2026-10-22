@@ -56,7 +56,7 @@ class FeedbackTastePersistence final
 {
 public:
     static constexpr int MinimumSupportedVersion = 1;
-    static constexpr int SchemaVersion = 2;
+    static constexpr int SchemaVersion = 3;
 
     static QString schemaName();
 

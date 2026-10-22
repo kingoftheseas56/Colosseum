@@ -114,7 +114,7 @@ struct RankExplanationEvidence final {
     RankEvidenceKind kind = RankEvidenceKind::CandidateGeneratorSupport;
     QString sourceId;
     qint64 scoreDelta = 0;
-    std::optional<CanonicalEntityRef> relatedEntity;
+    std::optional<RecommendationEntityRef> relatedEntity;
 
     bool operator==(const RankExplanationEvidence &other) const noexcept
     {
@@ -136,7 +136,7 @@ struct RankerFeatureContext final {
 class RankedRecommendation final
 {
 public:
-    RankedRecommendation(CanonicalEntityRef entity,
+    RankedRecommendation(RecommendationEntityRef entity,
                          bool directlyPlayable,
                          qint64 score,
                          QVector<RankExplanationEvidence> explanation)
@@ -147,7 +147,7 @@ public:
     {
     }
 
-    const CanonicalEntityRef &entity() const noexcept { return m_entity; }
+    const RecommendationEntityRef &entity() const noexcept { return m_entity; }
     bool directlyPlayable() const noexcept { return m_directlyPlayable; }
     qint64 score() const noexcept { return m_score; }
     const QVector<RankExplanationEvidence> &explanation() const noexcept
@@ -156,7 +156,7 @@ public:
     }
 
 private:
-    CanonicalEntityRef m_entity;
+    RecommendationEntityRef m_entity;
     bool m_directlyPlayable = false;
     qint64 m_score = 0;
     QVector<RankExplanationEvidence> m_explanation;
@@ -167,7 +167,7 @@ class RankerOutput final
 public:
     RankerOutput(QString configVersion,
                  QVector<RankedRecommendation> ranked,
-                 QVector<CanonicalEntityRef> suppressed)
+                 QVector<RecommendationEntityRef> suppressed)
         : m_configVersion(std::move(configVersion))
         , m_ranked(std::move(ranked))
         , m_suppressed(std::move(suppressed))
@@ -179,7 +179,7 @@ public:
     {
         return m_ranked;
     }
-    const QVector<CanonicalEntityRef> &suppressed() const noexcept
+    const QVector<RecommendationEntityRef> &suppressed() const noexcept
     {
         return m_suppressed;
     }
@@ -187,7 +187,7 @@ public:
 private:
     QString m_configVersion;
     QVector<RankedRecommendation> m_ranked;
-    QVector<CanonicalEntityRef> m_suppressed;
+    QVector<RecommendationEntityRef> m_suppressed;
 };
 
 RankerResult<RankerOutput> rankDeterministically(

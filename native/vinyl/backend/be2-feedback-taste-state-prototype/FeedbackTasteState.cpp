@@ -149,7 +149,7 @@ QString behavioralSignalKindName(BehavioralSignalKind kind)
 
 TasteResult<BehavioralSignalObservation> BehavioralSignalObservation::create(
     BehaviorObservationId observationId,
-    CanonicalEntityRef canonical,
+    RecommendationEntityRef canonical,
     BehavioralSignalKind kind,
     qint64 occurredAtMs)
 {
@@ -177,7 +177,7 @@ bool BehavioralSignalObservation::samePayload(
 }
 
 const EntityTasteState *TasteProfileState::find(
-    const CanonicalEntityRef &canonical) const
+    const RecommendationEntityRef &canonical) const
 {
     const int index = indexOf(canonical);
     if (index < 0)
@@ -186,7 +186,7 @@ const EntityTasteState *TasteProfileState::find(
 }
 
 TasteMutationStatus TasteProfileState::applyExplicitFeedback(
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     ExplicitTasteFeedback feedback,
     quint64 revision,
     qint64 changedAtMs,
@@ -227,7 +227,7 @@ TasteMutationStatus TasteProfileState::applyExplicitFeedback(
 }
 
 TasteMutationStatus TasteProfileState::setHidden(
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     bool hidden,
     quint64 revision,
     qint64 changedAtMs)
@@ -246,7 +246,7 @@ TasteMutationStatus TasteProfileState::setHidden(
 }
 
 TasteMutationStatus TasteProfileState::setSnoozedUntil(
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     std::optional<qint64> snoozedUntilMs,
     quint64 revision,
     qint64 changedAtMs)
@@ -291,7 +291,7 @@ TasteMutationStatus TasteProfileState::setSnoozedUntil(
 }
 
 TasteMutationStatus TasteProfileState::setDoNotRecommend(
-    const CanonicalEntityRef &canonical,
+    const RecommendationEntityRef &canonical,
     bool doNotRecommend,
     quint64 revision,
     qint64 changedAtMs)
@@ -330,7 +330,7 @@ TasteMutationStatus TasteProfileState::recordBehavioralSignal(
     return TasteMutationStatus::success(true);
 }
 
-int TasteProfileState::indexOf(const CanonicalEntityRef &canonical) const
+int TasteProfileState::indexOf(const RecommendationEntityRef &canonical) const
 {
     for (int i = 0; i < m_states.size(); ++i) {
         if (m_states.at(i).canonical() == canonical)
@@ -340,7 +340,7 @@ int TasteProfileState::indexOf(const CanonicalEntityRef &canonical) const
 }
 
 EntityTasteState &TasteProfileState::ensureState(
-    const CanonicalEntityRef &canonical)
+    const RecommendationEntityRef &canonical)
 {
     const int existing = indexOf(canonical);
     if (existing >= 0)

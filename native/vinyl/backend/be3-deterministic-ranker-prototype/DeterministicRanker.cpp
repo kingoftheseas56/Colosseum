@@ -55,14 +55,12 @@ qint64 calibratedScore(double raw, const RawScoreCalibration &calibration)
     return qRound64(scaled);
 }
 
-QString canonicalKey(const CanonicalEntityRef &entity)
+QString canonicalKey(const RecommendationEntityRef &entity)
 {
-    return QStringLiteral("%1:%2")
-        .arg(static_cast<int>(entity.kind()))
-        .arg(entity.mbidString());
+    return entity.stableKey();
 }
 
-QString relatedKey(const std::optional<CanonicalEntityRef> &entity)
+QString relatedKey(const std::optional<RecommendationEntityRef> &entity)
 {
     return entity.has_value() ? canonicalKey(*entity) : QString();
 }
@@ -108,7 +106,7 @@ bool suppressedAt(const EntityTasteState *state, qint64 nowMs)
 }
 
 bool explicitlyPositive(const TasteProfileState &taste,
-                        const CanonicalEntityRef &entity)
+                        const RecommendationEntityRef &entity)
 {
     const auto *state = taste.find(entity);
     return state != nullptr
@@ -122,33 +120,37 @@ std::optional<QString> artistKeyFor(
     const RankerFeatureContext &features)
 {
     QStringList keys;
+    QStringList providerKeys;
     const auto &entity = candidate.canonicalEntity();
 
     if (entity.kind() == CanonicalEntityKind::Artist)
-        keys.push_back(entity.mbidString());
+        return entity.stableKey();
 
     for (const auto &contribution : candidate.contributions()) {
+        if (contribution.canonicalContext().providerArtist)
+            providerKeys.push_back(contribution.canonicalContext().providerArtist->stableKey());
         if (contribution.canonicalContext().artistMbid.has_value())
             keys.push_back(
-                contribution.canonicalContext().artistMbid->toString());
+                RecommendationEntityRef(CanonicalEntityRef::from(*contribution.canonicalContext().artistMbid)).stableKey());
     }
 
-    if (entity.kind() == CanonicalEntityKind::ReleaseGroup) {
+    if (entity.isCanonical() && entity.kind() == CanonicalEntityKind::ReleaseGroup) {
         for (const auto &releaseGroup : features.releaseGroups) {
             if (releaseGroup.mbid.toString() != entity.mbidString())
                 continue;
             for (const auto &credit : releaseGroup.artistCredit)
-                keys.push_back(credit.artistMbid.toString());
+                keys.push_back(RecommendationEntityRef(CanonicalEntityRef::from(credit.artistMbid)).stableKey());
         }
-    } else if (entity.kind() == CanonicalEntityKind::Recording) {
+    } else if (entity.isCanonical() && entity.kind() == CanonicalEntityKind::Recording) {
         for (const auto &recording : features.recordings) {
             if (recording.mbid.toString() != entity.mbidString())
                 continue;
             for (const auto &credit : recording.artistCredit)
-                keys.push_back(credit.artistMbid.toString());
+                keys.push_back(RecommendationEntityRef(CanonicalEntityRef::from(credit.artistMbid)).stableKey());
         }
     }
 
+    if (keys.isEmpty()) keys = providerKeys;
     keys.removeDuplicates();
     std::sort(keys.begin(), keys.end());
     if (keys.isEmpty())
@@ -160,18 +162,22 @@ std::optional<QString> releaseGroupKeyFor(
     const RecommendationCandidate &candidate)
 {
     QStringList keys;
+    QStringList providerKeys;
     const auto &entity = candidate.canonicalEntity();
 
     if (entity.kind() == CanonicalEntityKind::ReleaseGroup)
-        keys.push_back(entity.mbidString());
+        return entity.stableKey();
 
     for (const auto &contribution : candidate.contributions()) {
+        if (contribution.canonicalContext().providerReleaseGroup)
+            providerKeys.push_back(contribution.canonicalContext().providerReleaseGroup->stableKey());
         if (contribution.canonicalContext().releaseGroupMbid.has_value()) {
             keys.push_back(
-                contribution.canonicalContext().releaseGroupMbid->toString());
+                RecommendationEntityRef(CanonicalEntityRef::from(*contribution.canonicalContext().releaseGroupMbid)).stableKey());
         }
     }
 
+    if (keys.isEmpty()) keys = providerKeys;
     keys.removeDuplicates();
     std::sort(keys.begin(), keys.end());
     if (keys.isEmpty())
@@ -180,7 +186,7 @@ std::optional<QString> releaseGroupKeyFor(
 }
 
 struct BaseCandidate final {
-    CanonicalEntityRef entity;
+    RecommendationEntityRef entity;
     bool directlyPlayable = false;
     qint64 baseScore = 0;
     QVector<RankExplanationEvidence> explanation;
@@ -192,7 +198,7 @@ void addEvidence(BaseCandidate &candidate,
                  RankEvidenceKind kind,
                  QString sourceId,
                  qint64 delta,
-                 std::optional<CanonicalEntityRef> related = std::nullopt)
+                 std::optional<RecommendationEntityRef> related = std::nullopt)
 {
     const qint64 next = saturatedAdd(candidate.baseScore, delta);
     const qint64 appliedDelta = saturatedSubtract(next, candidate.baseScore);
@@ -248,12 +254,12 @@ QString relationshipSourceId(const context::ContextRelationship &relationship)
 }
 
 QStringList relationshipEvidenceFor(
-    const CanonicalEntityRef &candidate,
+    const RecommendationEntityRef &candidate,
     const TasteProfileState &taste,
     const RankerFeatureContext &features)
 {
     QStringList sources;
-    if (!features.contextGraph.has_value())
+    if (!candidate.isCanonical() || !features.contextGraph.has_value())
         return sources;
 
     for (const auto &relationship :
@@ -266,7 +272,7 @@ QStringList relationshipEvidenceFor(
                     && (!evidence.sourceItem.trimmed().isEmpty() || !evidence.assertionKey.trimmed().isEmpty());
             });
         if (!evidenced) continue;
-        std::optional<CanonicalEntityRef> other;
+        std::optional<RecommendationEntityRef> other;
         if (relationship.source == candidate)
             other = relationship.target;
         else if (relationship.target == candidate)
@@ -286,7 +292,7 @@ QStringList relationshipEvidenceFor(
 }
 
 QStringList discoveryEvidenceFor(
-    const CanonicalEntityRef &candidate,
+    const RecommendationEntityRef &candidate,
     const RankerFeatureContext &features)
 {
     QStringList sources;
@@ -311,7 +317,7 @@ QStringList discoveryEvidenceFor(
 }
 
 QStringList recentExposureIds(
-    const CanonicalEntityRef &candidate,
+    const RecommendationEntityRef &candidate,
     const RecommendationExposureLog &exposureLog,
     const DeterministicRankerConfig &config)
 {
@@ -434,7 +440,7 @@ RankerResult<RankerOutput> rankDeterministically(
     }
 
     QVector<BaseCandidate> remaining;
-    QVector<CanonicalEntityRef> suppressed;
+    QVector<RecommendationEntityRef> suppressed;
 
     for (const auto &candidate : candidates.candidates()) {
         const auto &entity = candidate.canonicalEntity();
@@ -586,8 +592,8 @@ RankerResult<RankerOutput> rankDeterministically(
     std::sort(
         suppressed.begin(),
         suppressed.end(),
-        [](const CanonicalEntityRef &left,
-           const CanonicalEntityRef &right) {
+        [](const RecommendationEntityRef &left,
+           const RecommendationEntityRef &right) {
             return canonicalKey(left) < canonicalKey(right);
         });
 

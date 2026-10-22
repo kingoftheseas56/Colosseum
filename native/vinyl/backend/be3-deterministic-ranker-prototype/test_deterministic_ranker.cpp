@@ -245,7 +245,7 @@ const vinyl::recommendation::RankedRecommendation *findRanked(
 }
 
 bool containsEntity(
-    const QVector<vinyl::CanonicalEntityRef> &entities,
+    const QVector<vinyl::RecommendationEntityRef> &entities,
     const vinyl::CanonicalEntityRef &entity)
 {
     for (const auto &candidate : entities) {

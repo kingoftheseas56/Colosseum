@@ -1,5 +1,7 @@
 #include <QtTest>
 #include <QQuickItem>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "vinyl/VinylBackendSession.h"
 #include "VinylSessionPersistence.h"
 #include "FeedbackTastePersistence.h"
@@ -119,6 +121,78 @@ private slots:
         session.setProfileScope("profile-b");QVERIFY(!session.feedbackState()["ok"].toBool());
         QVERIFY(!session.storeFeedbackSnapshot(QString::fromUtf8(*snapshot.value)));
         QCOMPARE(ports.feedback,QString::fromUtf8(*snapshot.value));
+    }
+    void providerNativeArtistFeedbackPersistsAndRejectsInvalidSnapshotsAtomically() {
+        const QString uuid = QStringLiteral("11111111-1111-4111-8111-111111111111");
+        const auto provider = vinyl::ProviderId::parse(QStringLiteral("catalogue.provider"));
+        const auto providerItemId = vinyl::ProviderItemId::parse(uuid);
+        const auto artistMbid = vinyl::ArtistMbid::parse(uuid);
+        QVERIFY(provider.ok());
+        QVERIFY(providerItemId.ok());
+        QVERIFY(artistMbid.ok());
+
+        const vinyl::ProviderItemRef providerItem(*provider.value, *providerItemId.value);
+        const auto providerArtist = vinyl::RecommendationEntityRef::fromProvider(
+            vinyl::CanonicalEntityKind::Artist, providerItem);
+        const auto canonicalArtist = vinyl::RecommendationEntityRef::fromCanonical(
+            vinyl::CanonicalEntityRef::from(*artistMbid.value));
+        QVERIFY(providerArtist != canonicalArtist);
+
+        auto profile = vinyl::ProfileScopeId::parse(QStringLiteral("profile-a"));
+        QVERIFY(profile.ok());
+        vinyl::TasteProfileState taste(*profile.value);
+        QVERIFY(taste.applyExplicitFeedback(providerArtist,
+                    vinyl::ExplicitTasteFeedback::Positive, 1, 1000).ok);
+        QVERIFY(taste.applyExplicitFeedback(canonicalArtist,
+                    vinyl::ExplicitTasteFeedback::Negative, 1, 1000).ok);
+        QCOMPARE(taste.size(), 2);
+
+        const auto snapshot = vinyl::FeedbackTastePersistence::capture(taste);
+        QVERIFY(snapshot.ok());
+        const auto snapshotDocument = QJsonDocument::fromJson(*snapshot.value);
+        QVERIFY(snapshotDocument.isObject());
+        QCOMPARE(snapshotDocument.object().value(QStringLiteral("version")).toInt(), 3);
+
+        PersonalPorts ports;
+        VinylBackendSession session;
+        session.setProfileScope(QStringLiteral("profile-a"));
+        QVERIFY(session.setProperty("preferences", QVariant::fromValue<QObject *>(&ports)));
+        const QString snapshotText = QString::fromUtf8(*snapshot.value);
+        QVERIFY(session.storeFeedbackSnapshot(snapshotText));
+        QCOMPARE(ports.feedback, snapshotText);
+        QVERIFY(session.feedbackState().value(QStringLiteral("ok")).toBool());
+
+        const auto restored = vinyl::FeedbackTastePersistence::restore(
+            *profile.value, ports.feedback.toUtf8());
+        QVERIFY(restored.ok());
+        QCOMPARE(restored.value->size(), 2);
+        const auto *restoredProviderArtist = restored.value->find(providerArtist);
+        const auto *restoredCanonicalArtist = restored.value->find(canonicalArtist);
+        QVERIFY(restoredProviderArtist != nullptr);
+        QVERIFY(restoredCanonicalArtist != nullptr);
+        QVERIFY(restoredProviderArtist != restoredCanonicalArtist);
+        QVERIFY(restoredProviderArtist->explicitFeedback().feedback()
+                == vinyl::ExplicitTasteFeedback::Positive);
+        QVERIFY(restoredCanonicalArtist->explicitFeedback().feedback()
+                == vinyl::ExplicitTasteFeedback::Negative);
+
+        const QString savedBytes = ports.feedback;
+        QJsonObject unknownVersionObject = snapshotDocument.object();
+        unknownVersionObject.insert(QStringLiteral("version"), 4);
+        const QString unknownVersionSnapshot = QString::fromUtf8(
+            QJsonDocument(unknownVersionObject).toJson(QJsonDocument::Compact));
+        QVERIFY(!session.storeFeedbackSnapshot(unknownVersionSnapshot));
+        QCOMPARE(ports.feedback, savedBytes);
+
+        auto foreignProfile = vinyl::ProfileScopeId::parse(QStringLiteral("profile-b"));
+        QVERIFY(foreignProfile.ok());
+        vinyl::TasteProfileState foreignTaste(*foreignProfile.value);
+        QVERIFY(foreignTaste.applyExplicitFeedback(providerArtist,
+                    vinyl::ExplicitTasteFeedback::Positive, 1, 1000).ok);
+        const auto foreignSnapshot = vinyl::FeedbackTastePersistence::capture(foreignTaste);
+        QVERIFY(foreignSnapshot.ok());
+        QVERIFY(!session.storeFeedbackSnapshot(QString::fromUtf8(*foreignSnapshot.value)));
+        QCOMPARE(ports.feedback, savedBytes);
     }
     void replacingAnUnresolvedOccurrenceRetiresCoordinatorIntent() {
         DeferredSource source;VinylBackendSession session;
