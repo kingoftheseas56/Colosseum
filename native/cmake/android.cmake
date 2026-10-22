@@ -70,6 +70,24 @@ if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
     endif()
 endif()
 
+# Product-preview install beside the real app: only the package id changes.
+# Product behavior (no fixture seams, no test isolation) and its own app data.
+set(COLOSSEUM_ANDROID_PREVIEW_PACKAGE "" CACHE STRING
+    "Side-by-side product-preview Android package id (org.qtproject.example.colosseum.preview<id>)")
+if(COLOSSEUM_ANDROID_PREVIEW_PACKAGE)
+    if(NOT COLOSSEUM_ANDROID_PREVIEW_PACKAGE MATCHES
+            "^org[.]qtproject[.]example[.]colosseum[.]preview[0-9a-z]+$")
+        message(FATAL_ERROR
+            "COLOSSEUM_ANDROID_PREVIEW_PACKAGE must be org.qtproject.example.colosseum.preview<id>")
+    endif()
+    if(COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE)
+        message(FATAL_ERROR
+            "COLOSSEUM_ANDROID_PREVIEW_PACKAGE and COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE are exclusive")
+    endif()
+    set_property(TARGET colosseum PROPERTY
+        QT_ANDROID_PACKAGE_NAME "${COLOSSEUM_ANDROID_PREVIEW_PACKAGE}")
+endif()
+
 # Android needs the same source-shaped runtime tree as desktop, but APKs cannot
 # read a checkout beside the native library. Build a generated package overlay
 # whose assets/colosseum-runtime tree is filtered for Android and can be copied
