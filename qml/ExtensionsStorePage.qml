@@ -45,7 +45,17 @@ Item {
 
     function isInstalled(a) {
         if (!a || typeof Extensions === "undefined") return false
-        return Extensions.isInstalled(a.id) || Extensions.isInstalled(a.manifestUrl)
+        if (!(Extensions.isInstalled(a.id) || Extensions.isInstalled(a.manifestUrl))) return false
+        // A row that ships switched off (Torrentio, NoTorrent) is not installed to the user
+        // until it is switched on; otherwise its card looked the same before and after Set up.
+        var url = Extensions.normalizeUrl(a.manifestUrl)
+        var rows = Extensions.installed()
+        for (var i = 0; i < rows.length; ++i) {
+            var r = rows[i]
+            if ((r.id === a.id || r.transportUrl === url) && r.enabled !== false)
+                return true
+        }
+        return false
     }
     function setBusy(slug, on) {
         var next = {}

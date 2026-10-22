@@ -158,8 +158,9 @@ Item {
         color: card.installed ? "#45403a" : "#e9c46a"
         Text {
             anchors.centerIn: parent
+            // Same state word as the desktop badge; a configurable add-on stays tappable to set up again.
             text: card.busy ? "Adding…" : card.installed
-                  ? (card.addon.configurable ? "Set up" : "Installed")
+                  ? "✓ Installed"
                   : (card.addon.configurable ? "Set up" : "Install")
             color: card.installed ? "#ffffff" : "#171717"
             font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
