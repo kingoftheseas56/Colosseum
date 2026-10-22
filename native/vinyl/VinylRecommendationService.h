@@ -4,6 +4,8 @@
 #include <QTimer>
 #include <QVariantMap>
 #include <QVariantList>
+#include <functional>
+#include <memory>
 
 // Profile-scoped onboarding/read model. Preferences and catalogue remain owners.
 class VinylRecommendationService : public QObject {
@@ -19,8 +21,15 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(QVariantList draftArtists READ draftArtists NOTIFY stateChanged)
     Q_PROPERTY(QVariantList selectedArtists READ selectedArtists NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap homeCollections READ homeCollections WRITE setHomeCollections NOTIFY homeChanged)
+    Q_PROPERTY(QVariantList homeSections READ homeSections NOTIFY homeChanged)
+    Q_PROPERTY(QString homeStatus READ homeStatus NOTIFY homeChanged)
+    Q_PROPERTY(QString homeError READ homeError NOTIFY homeChanged)
+    Q_PROPERTY(int homeRevision READ homeRevision NOTIFY homeChanged)
+    Q_PROPERTY(QVariantMap homeSnapshot READ homeSnapshot NOTIFY homeChanged)
 public:
-    explicit VinylRecommendationService(QObject *parent=nullptr);
+    explicit VinylRecommendationService(QObject *parent=nullptr,std::function<qint64()> clock={});
+    ~VinylRecommendationService() override;
     QObject* source() const{return m_source;}
     QObject* preferences() const{return m_preferences;}
     QString profileScope() const{return m_scope;}
@@ -45,9 +54,18 @@ public:
     Q_INVOKABLE void beginTasteEdit();
     Q_INVOKABLE void cancelTasteEdit();
     Q_INVOKABLE void cancelSearch();
+    QVariantMap homeCollections() const;
+    void setHomeCollections(const QVariantMap&);
+    QVariantList homeSections() const;
+    QString homeStatus() const;
+    QString homeError() const;
+    int homeRevision() const;
+    QVariantMap homeSnapshot() const;
+    Q_INVOKABLE void refreshHome(bool force=false);
 signals:
     void stateChanged();
     void resultsChanged();
+    void homeChanged();
 private slots:
     void loadPreferences();
     void accept(const QString&,int,const QVariant&,const QString&);
@@ -63,4 +81,14 @@ private:
     void dispatch();
     static QVariantMap artist(const QVariantMap&);
     static QVariantList uniqueArtists(const QVariantList&);
+    struct HomeState;
+    std::shared_ptr<HomeState> m_home;
+    void initializeHome(std::function<qint64()>);
+    void cancelHome(bool clear);
+    void clearHomeProfile();
+    void homeSeedsChanged();
+    void visitHome();
+    void rebuildHome();
+    void pumpHome();
+    bool acceptHome(const QString&,int,const QVariant&,const QString&);
 };

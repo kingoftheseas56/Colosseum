@@ -351,7 +351,8 @@ bool validConfig(const DeterministicRankerConfig &config)
         || config.maxRelationshipCount < 0
         || config.maxDiscoveryCount < 0
         || config.maxRecentExposureCount < 0
-        || config.maxDiversityRepeatCount < 0) {
+        || config.maxDiversityRepeatCount < 0 || config.seedAffinityWeight < 0
+        || config.maxPerArtist < 0 || config.maxRecordingsPerReleaseGroup < 0) {
         return false;
     }
 
@@ -411,6 +412,8 @@ QString rankEvidenceKindName(RankEvidenceKind kind)
         return QStringLiteral("diversity_artist_adjustment");
     case RankEvidenceKind::DiversityReleaseGroupAdjustment:
         return QStringLiteral("diversity_release_group_adjustment");
+    case RankEvidenceKind::SeedAffinity:
+        return QStringLiteral("seed_affinity");
     }
     return QStringLiteral("unknown");
 }
@@ -480,6 +483,19 @@ RankerResult<RankerOutput> rankDeterministically(
             if (it.value()) addEvidence(base, RankEvidenceKind::CalibratedGeneratorScore,
                 QStringLiteral("be3:calibration:") + it.key(), *it.value());
         }
+
+        QMap<QString,QPair<RecommendationEntityRef,double>> affinities;
+        for(const auto &affinity:features.seedAffinities){
+            if(affinity.entity!=entity||affinity.seed.kind()!=CanonicalEntityKind::Artist
+                ||!std::isfinite(affinity.multiplier)||affinity.multiplier<=0||affinity.multiplier>1)continue;
+            const auto key=affinity.seed.stableKey();
+            auto prior=affinities.find(key);
+            if(prior==affinities.end())affinities.insert(key,{affinity.seed,affinity.multiplier});
+            else prior->second=std::max(prior->second,affinity.multiplier);
+        }
+        for(auto it=affinities.cbegin();it!=affinities.cend();++it)
+            addEvidence(base,RankEvidenceKind::SeedAffinity,"home:seed:"+it.key(),
+                qRound64(double(config.seedAffinityWeight)*it->second),it->first);
 
         if (tasteState != nullptr
             && tasteState->explicitFeedback().hasExplicitMutation()) {
@@ -600,6 +616,7 @@ RankerResult<RankerOutput> rankDeterministically(
     QVector<RankedRecommendation> ranked;
     QHash<QString, int> artistCounts;
     QHash<QString, int> releaseGroupCounts;
+    QHash<QString, int> recordingGroupCounts;
 
     while (!remaining.isEmpty()
            && ranked.size() < config.maxResults) {
@@ -611,6 +628,9 @@ RankerResult<RankerOutput> rankDeterministically(
 
         for (int i = 0; i < remaining.size(); ++i) {
             const auto &candidate = remaining[i];
+            if(config.maxPerArtist>0&&candidate.artistKey&&artistCounts.value(*candidate.artistKey)>=config.maxPerArtist)continue;
+            if(config.maxRecordingsPerReleaseGroup>0&&candidate.entity.kind()==CanonicalEntityKind::Recording
+                &&candidate.releaseGroupKey&&recordingGroupCounts.value(*candidate.releaseGroupKey)>=config.maxRecordingsPerReleaseGroup)continue;
 
             qint64 artistAdjustment = 0;
             if (candidate.artistKey.has_value()) {
@@ -647,6 +667,7 @@ RankerResult<RankerOutput> rankDeterministically(
             }
         }
 
+        if(bestIndex<0)break;
         BaseCandidate selected = remaining.takeAt(bestIndex);
 
         if (bestArtistAdjustment != 0
@@ -685,6 +706,8 @@ RankerResult<RankerOutput> rankDeterministically(
             ++artistCounts[*selected.artistKey];
         if (selected.releaseGroupKey.has_value())
             ++releaseGroupCounts[*selected.releaseGroupKey];
+        if (selected.entity.kind()==CanonicalEntityKind::Recording && selected.releaseGroupKey.has_value())
+            ++recordingGroupCounts[*selected.releaseGroupKey];
     }
 
     return RankerResult<RankerOutput>::success(

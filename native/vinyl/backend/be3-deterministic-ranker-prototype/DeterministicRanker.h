@@ -88,6 +88,10 @@ struct DeterministicRankerConfig final {
     qint64 repeatedArtistPenalty = -130;
     qint64 repeatedReleaseGroupPenalty = -80;
     int maxDiversityRepeatCount = 3;
+    // Opt-in Home policy; existing callers retain their established ranking.
+    qint64 seedAffinityWeight = 0;
+    int maxPerArtist = 0;
+    int maxRecordingsPerReleaseGroup = 0;
 
     QVector<RawScoreCalibration> rawScoreCalibrations;
 };
@@ -106,6 +110,7 @@ enum class RankEvidenceKind {
     ExposureFatigue,
     DiversityArtistAdjustment,
     DiversityReleaseGroupAdjustment,
+    SeedAffinity,
 };
 
 QString rankEvidenceKindName(RankEvidenceKind kind);
@@ -125,12 +130,19 @@ struct RankExplanationEvidence final {
     }
 };
 
+struct SeedAffinityEvidence final {
+    RecommendationEntityRef entity;
+    RecommendationEntityRef seed;
+    double multiplier = 1.0;
+};
+
 struct RankerFeatureContext final {
     std::optional<context::ContextGraph> contextGraph;
     QVector<catalogue::Artist> artists;
     QVector<catalogue::ReleaseGroup> releaseGroups;
     QVector<catalogue::Recording> recordings;
     QVector<discovery::DiscoveryCollection> discoveryCollections;
+    QVector<SeedAffinityEvidence> seedAffinities;
 };
 
 class RankedRecommendation final

@@ -115,6 +115,15 @@ public:
         data["items"]=normalized;*out=data;return true;
     }
     Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value){return requestPayload(lane,operation,value,{});}
+    Q_INVOKABLE QVariantMap cachedRecommendation(const QString &operation,const QString &value,const QVariantMap &payload) const {
+        if(!homeOperation(operation))return {};
+        auto input=QJsonObject::fromVariantMap(payload);input.remove("refresh");input["operation"]=operation;input["value"]=value;input["cacheSchema"]=2;
+        const auto key=QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(input).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
+        const auto path=m_cacheRoot+"/"+key+".json";
+        auto data=readCache(path,key,operation,value,payload,true,true);
+        if(data.isEmpty()){data=readCache(path,key,operation,value,payload,true,false);if(!data.isEmpty())data["_stale"]=true;}
+        if(!data.isEmpty())data["_cached"]=true;return data;
+    }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
         static const QStringList operations{"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","recommendationIdentity","recordingMatch","populationCandidates"};
         static const QStringList lanes{"browse","queue","play","playFallback","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population"};

@@ -5065,6 +5065,12 @@ add_test(NAME colosseum.qml.vinyl_personal_library_native
 add_test(NAME colosseum.qml.vinyl_home_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_home_flow.qml")
+add_test(NAME colosseum.qml.vinyl_personalized_home_native
+    COMMAND vinyl_native_session_bridge
+         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personalized_home.qml")
+set_tests_properties(colosseum.qml.vinyl_personalized_home_native PROPERTIES
+    LABELS "qml;vinyl;recommendations;native-adapter" TIMEOUT 90
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 foreach(onboarding_case IN ITEMS artist_onboarding artist_onboarding_service)
     add_test(NAME colosseum.qml.vinyl_${onboarding_case}_native COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_${onboarding_case}.qml")
@@ -5231,6 +5237,19 @@ target_link_libraries(vinyl_be3_ranker_test PRIVATE colosseum_vinyl_backend Qt6:
 add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
 
 add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
+add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp)
+target_sources(vinyl_recommendation_service_test PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHome.cpp")
+set_target_properties(vinyl_recommendation_service_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_recommendation_service_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_recommendation_service_test PRIVATE colosseum_vinyl_backend Qt6::Qml Qt6::Test)
+add_test(NAME colosseum.vinyl_recommendation_service COMMAND vinyl_recommendation_service_test)
+set_tests_properties(colosseum.vinyl_recommendation_service PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
+if(MSVC)
+    target_compile_options(vinyl_recommendation_service_test PRIVATE /utf-8)
+endif()
 set_target_properties(vinyl_recommendation_contracts_test PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_recommendation_contracts_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(vinyl_recommendation_contracts_test PRIVATE colosseum_vinyl_backend Qt6::Test)

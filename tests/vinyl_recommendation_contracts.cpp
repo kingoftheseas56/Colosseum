@@ -26,6 +26,57 @@ QVariantMap catalogueArtist(QString id = "UCPoQYATXIYvN5WB0c4f6jfQ") {
 class RecommendationContracts : public QObject {
     Q_OBJECT
 private slots:
+    void seedAffinityIsDistinctFromFeedbackAndDeduplicatesRelations() {
+        using namespace vinyl::recommendation;
+        auto provider=*ProviderId::parse("youtube-music").value;
+        auto ref=[&](CanonicalEntityKind kind,const QString &id){return RecommendationEntityRef::fromProvider(kind,ProviderItemRef(provider,*ProviderItemId::parse(id).value));};
+        const auto item=ref(CanonicalEntityKind::Release,"release"),seed=ref(CanonicalEntityKind::Artist,"seed"),other=ref(CanonicalEntityKind::Artist,"other");
+        auto candidate=*RecommendationCandidate::create(item,contribution()).value;
+        auto profile=*ProfileScopeId::parse("home-test").value;TasteProfileState taste(profile);
+        RecommendationDerivationOutput history(profile,kRecommendationDerivationVersion,{},{});
+        DeterministicRankerConfig config;config.version="vinyl-home-v1";config.nowMs=123456;config.seedAffinityWeight=300;
+        RankerFeatureContext features;features.seedAffinities={{item,seed,1.0},{item,seed,1.0},{item,other,1.0}};
+        auto ranked=rankDeterministically(RecommendationCandidateSet::normalize({candidate,candidate}),taste,history,RecommendationExposureLog(profile),features,config);
+        QVERIFY(ranked.ok());QCOMPARE(ranked.value->ranked().first().score(),qint64(620));
+        int count=0;for(const auto &reason:ranked.value->ranked().first().explanation()){
+            QVERIFY(reason.kind!=RankEvidenceKind::ExplicitPositive);
+            if(reason.kind==RankEvidenceKind::SeedAffinity)++count;
+        }
+        QCOMPARE(count,2);QCOMPARE(taste.size(),0);
+        features.seedAffinities={{item,seed,0.5},{item,seed,0.5}};
+        ranked=rankDeterministically(RecommendationCandidateSet::normalize({candidate}),taste,history,RecommendationExposureLog(profile),features,config);
+        QVERIFY(ranked.ok());QCOMPARE(ranked.value->ranked().first().score(),qint64(170));
+    }
+    void homeDiversityCapsReturnFewerItemsAndKeepDistinctVersions() {
+        using namespace vinyl::recommendation;
+        auto provider=*ProviderId::parse("youtube-music").value;
+        auto ref=[&](CanonicalEntityKind kind,const QString &id){return RecommendationEntityRef::fromProvider(kind,ProviderItemRef(provider,*ProviderItemId::parse(id).value));};
+        RecommendationCanonicalContext context;context.providerArtist=ref(CanonicalEntityKind::Artist,"artist");
+        QVector<RecommendationCandidate> input;
+        for(int i=0;i<5;++i)input.append(*RecommendationCandidate::create(ref(CanonicalEntityKind::Release,"version-"+QString::number(i)),contribution(context)).value);
+        auto profile=*ProfileScopeId::parse("home-test").value;TasteProfileState taste(profile);
+        RecommendationDerivationOutput history(profile,kRecommendationDerivationVersion,{},{});
+        DeterministicRankerConfig config;config.version="vinyl-home-v1";config.nowMs=123456;config.maxPerArtist=3;
+        auto ranked=rankDeterministically(RecommendationCandidateSet::normalize(input),taste,history,RecommendationExposureLog(profile),{},config);
+        QVERIFY(ranked.ok());QCOMPARE(ranked.value->ranked().size(),3);
+        config.maxPerArtist=0;
+        ranked=rankDeterministically(RecommendationCandidateSet::normalize(input),taste,history,RecommendationExposureLog(profile),{},config);
+        QVERIFY(ranked.ok());QCOMPARE(ranked.value->ranked().size(),5);
+        context.releaseGroupMbid=*ReleaseGroupMbid::parse("11111111-1111-4111-8111-111111111111").value;input.clear();
+        for(int i=0;i<4;++i)input.append(*RecommendationCandidate::create(ref(CanonicalEntityKind::Recording,"track-"+QString::number(i)),contribution(context)).value);
+        config.maxRecordingsPerReleaseGroup=2;
+        ranked=rankDeterministically(RecommendationCandidateSet::normalize(input),taste,history,RecommendationExposureLog(profile),{},config);
+        QVERIFY(ranked.ok());QCOMPARE(ranked.value->ranked().size(),2);
+        RankerFeatureContext features;
+        for(int i=0;i<2;++i) {
+            const auto release=ref(CanonicalEntityKind::Release,"album-"+QString::number(i));
+            input.append(*RecommendationCandidate::create(release,contribution(context)).value);
+            features.seedAffinities.append({release,ref(CanonicalEntityKind::Artist,"seed"),1.0});
+        }
+        config.seedAffinityWeight=1000;
+        ranked=rankDeterministically(RecommendationCandidateSet::normalize(input),taste,history,RecommendationExposureLog(profile),features,config);
+        QVERIFY(ranked.ok());QCOMPARE(ranked.value->ranked().size(),4);
+    }
     void providerAndCanonicalNeverAlias() {
         auto id = *ProviderItemId::parse(artistRef().mbidString()).value;
         auto provider = *ProviderId::parse("youtube-music").value;

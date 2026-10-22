@@ -94,11 +94,13 @@ Commands below are **planned verification**, not results. `$BuildDir` is the exe
 
 **Interfaces:** Implement `refreshHome(bool force)`, `homeSections`, snapshot/revision/error notifications and transient per-lane fencing. Inputs are committed selections, Collection membership, Task 3 evidence and Task 2 identities. A successful response never rewrites the selected profile's library or queue.
 
-- [ ] Add failing tests `disjointSeedsYieldDifferentRelevantPools`, `allUnmappedSeedsStillProduceProviderNativeCandidates`, `oneFailedLaneKeepsOtherSections`, `stableInputClockAndConfigProduceSameOrder`, `retryAndPaginationCannotBoostScore`, `diversityKeepsDistinctVersions`, `lateReplyCannotReplaceNewSeeds`, `refreshDoesNotMutateQueue`.
-- [ ] Build independent source contributions, validate/merge via BE1 and run BE3 using `vinyl-home-v1`. Implement the design's +300 seed-affinity evidence, budgets, fairness cursor and diversity policy. Seed selections remain distinct from explicit Positive feedback. Use no population-score calibration unless a scale and bounded multiplier are documented and fixture-tested.
-- [ ] Emit real `From your artists`, `Related discoveries`, `New from your artists` sections, hiding unsupported/empty lanes. All reasons reference actual seeds/evidence; undated releases cannot enter the New row. Cache-first sections arrive without waiting for the eight-second background budget.
-- [ ] Build `vinyl_recommendation_service_test`; run `ctest --test-dir $BuildDir -R 'colosseum\.vinyl_recommendation_(contracts|service)$' --output-on-failure`. Record source/config/fixture hashes and explicit evaluation time for reproducibility.
-- [ ] Commit `Rank Vinyl Home candidates from explicit artist tastes`. Root owns orchestration/ranking acceptance.
+- [x] Add failing tests `disjointSeedsYieldDifferentRelevantPools`, `allUnmappedSeedsStillProduceProviderNativeCandidates`, `oneFailedLaneKeepsOtherSections`, `stableInputClockAndConfigProduceSameOrder`, `retryAndPaginationCannotBoostScore`, `diversityKeepsDistinctVersions`, `lateReplyCannotReplaceNewSeeds`, `refreshDoesNotMutateQueue`.
+- [x] Build independent source contributions, validate/merge via BE1 and run BE3 using `vinyl-home-v1`. Implement the design's +300 seed-affinity evidence, budgets, fairness cursor and diversity policy. Seed selections remain distinct from explicit Positive feedback. Use no population-score calibration unless a scale and bounded multiplier are documented and fixture-tested.
+- [x] Emit real `From your artists`, `Related discoveries`, `New from your artists` sections, hiding unsupported/empty lanes. All reasons reference actual seeds/evidence; undated releases cannot enter the New row. Cache-first sections arrive without waiting for the eight-second background budget.
+- [x] Build `vinyl_recommendation_service_test`; run `ctest --test-dir $BuildDir -R 'colosseum\.vinyl_recommendation_(contracts|service)$' --output-on-failure`. Record source/config/fixture hashes and explicit evaluation time for reproducibility.
+- [x] Commit `Rank Vinyl Home candidates from explicit artist tastes`. Root owns orchestration/ranking acceptance.
+
+**Received 2026-10-22:** [Personalized ranking receiving record](../reviews/2026-10-22-vinyl-personalized-ranking.md). Native composition/ranking and minimum existing-QML binding/routes passed 22 focused suites and actual Main journeys. Qualified history/exposure and full later-task closure remain open.
 
 ### Task 5: Qualified history, feedback, suppression and exposure
 

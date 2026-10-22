@@ -9,6 +9,7 @@ Item {
     required property var session
     property var personalLibrary: null
     property var recommendationService: null
+    property var homeListSnapshot: null
     property string profile: "local"
     property var preferencesStore: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
     property var searchHistoryStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
@@ -22,6 +23,18 @@ Item {
     property string artistSearchText: ""
     readonly property bool usesRecommendationService: !!recommendationService && !!preferencesStore
         && typeof preferencesStore.setVinylTasteSelections === "function"
+    readonly property int homeRevision: usesRecommendationService
+        ? Number(recommendationService.homeRevision) || 0 : 0
+    readonly property string homeStatus: usesRecommendationService
+        ? String(recommendationService.homeStatus || "empty") : "empty"
+    readonly property string homeError: usesRecommendationService
+        ? String(recommendationService.homeError || "") : ""
+    readonly property var recommendationHomeSections: {
+        var revision = homeRevision;
+        var sections = usesRecommendationService ? recommendationService.homeSections || [] : [];
+        sections = session.plainData(sections);
+        return Array.isArray(sections) ? sections : [];
+    }
     readonly property string onboardingState: usesRecommendationService
         ? recommendationService.onboardingState
         : fallbackEditing ? "editing" : fallbackTastePickerOpen ? "draft" : fallbackPickerAnswered ? "answered" : "unanswered"
@@ -83,6 +96,51 @@ Item {
                 cover:row.cover || "",editionId:row.editionId,trackId:row.trackId,
                 unavailable:!session.personalRowAvailable(row),resumeEntry:entry};
         }).filter(item=>!!item).slice(0,6);
+    }
+    function retryHomeRecommendations() {
+        if(usesRecommendationService && typeof recommendationService.refreshHome === "function")
+            return recommendationService.refreshHome(true);
+        return false;
+    }
+    function personalizedHomeRow(section) {
+        if(!section || section.kind!=="recommendations" || !Array.isArray(section.items)) return null;
+        var identity=String(section.id || section.key || "").trim();
+        if(!identity) return null;
+        var items=section.items.map(function(source) {
+            if(!source || typeof source!=="object") return null;
+            var item=Object.assign({},source),destination=item.destination || {};
+            var kind=String(item.kind || (destination.kind==="album" ? "albums"
+                : destination.kind==="artist" ? "artists" : destination.kind==="song" ? "songs" : ""));
+            if(["albums","artists","songs"].indexOf(kind)<0) return null;
+            if(kind==="songs") {
+                var tracks=item.record && Array.isArray(item.record.tracks) ? item.record.tracks : [];
+                var trackIndex=Number(item.trackIndex);
+                if(!Number.isInteger(trackIndex) || trackIndex<0 || trackIndex>=tracks.length) {
+                    var trackIds=[String(item.trackId || ""),String(destination.id || ""),String(destination.providerId || "")];
+                    trackIndex=tracks.findIndex(function(track){return track && track.id
+                        && trackIds.indexOf(String(track.id))>=0;});
+                }
+                if(destination.kind!=="song" || destination.playable!==true
+                    || trackIndex<0 || trackIndex>=tracks.length || tracks[trackIndex].available===false) return null;
+                item.trackIndex=trackIndex;
+            }
+            item.id=String(item.id || destination.id || destination.providerId || "");
+            item.title=String(item.title || item.name || "");
+            if(!item.id || !item.title) return null;
+            item.kind=kind;
+            item.destination=destination;
+            item.cover=String(item.cover || "");
+            if(kind==="artists") {
+                item.artistId=String(destination.id || destination.providerId || item.artistId || "");
+                item.artist=String(item.artist || item.title);
+                item.round=true;
+            }
+            return item;
+        }).filter(function(item) { return !!item; });
+        if(!items.length) return null;
+        return {key:"personalized:"+identity,sectionId:identity,title:String(section.title || "Recommendations"),
+            kind:"recommendations",recommendation:true,items:items,status:String(section.status || "ready"),
+            error:String(section.error || ""),canRetry:section.canRetry===true};
     }
     readonly property bool catalogueReachable: true
     readonly property bool cataloguePagingSupported: !!session.source && session.source.catalogueSearchVersion===1
@@ -245,6 +303,7 @@ Item {
     }
     readonly property var homeRows: {
         if(session.profileActive===false || session.shuttingDown)return [];
+        var nativeSections=recommendationHomeSections;
         var result=[];
         var continuing=[],active=session.activeQueueRow;
         if(active)continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
@@ -252,6 +311,10 @@ Item {
             unavailable:typeof session.personalRowAvailable==="function" && !session.personalRowAvailable(active)});
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
         if(continuing.length)result.push({key:"continue-listening",title:"Continue listening",kind:"resume",items:continuing});
+        nativeSections.forEach(function(section) {
+            var row=personalizedHomeRow(section);
+            if(row) result.push(row);
+        });
         var tasteArtists = usesRecommendationService ? recommendationService.selectedArtists || [] : [];
         var tasteItems = tasteArtists.map(function(artist) {
             var provider = String(artist.provider || "");
@@ -319,7 +382,10 @@ Item {
         });
     }
     function row(key,home) {
-        if(home) return homeRows.find(function(r){return r.key===key}) || {key:key,title:"Collection",items:[]};
+        if(home) {
+            if(homeListSnapshot && homeListSnapshot.key===key) return homeListSnapshot;
+            return homeRows.find(function(r){return r.key===key}) || {key:key,title:"Collection",items:[]};
+        }
         if(key==="library") return {key:key,title:"Your library",kind:"albums",items:project(filteredLibraryAlbums,"albums")};
         if(key.indexOf("local-")===0) {var kind=key.slice(6),online=browseStates.discover.onlineMode;return {key:key,title:(online ? "Catalogue " : "Local ")+kind,kind:kind,items:project(discoverAlbums,kind,online)};}
         return shelves.find(function(r){return r.key===key}) || {key:key,title:"Collection",items:[]};
@@ -423,6 +489,12 @@ Item {
     function activate(item) {itemRequested(item);}
     function openList(key,home) {
         var sections={"saved-songs":"songs","saved-albums":"albums","saved-artists":"artists","playlists":"playlists"};
+        homeListSnapshot=null;
+        if(home) {
+            var selected=homeRows.find(function(r){return r.key===key;});
+            if(selected && selected.recommendation===true)
+                homeListSnapshot=JSON.parse(JSON.stringify(selected));
+        }
         if(home && personalLibrary && sections[key]){openHomeDestination("library",sections[key]);return;}
         listRequested(key,home);
     }
@@ -431,7 +503,7 @@ Item {
         target:root.session
         ignoreUnknownSignals:true
         function onLibraryChanged(){root.refreshSearch();}
-        function onProfileGenerationChanged(){root.recentContinue=[];root.loadTaste();root.resetBrowseState();}
+        function onProfileGenerationChanged(){root.recentContinue=[];root.homeListSnapshot=null;root.loadTaste();root.resetBrowseState();}
         function onPlayingTrackChanged(){if(root.activeTab==="home")root.refreshHome();}
         function onPausedChanged(){if(root.activeTab==="home")root.refreshHome();}
         function onQueueChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshHome);}

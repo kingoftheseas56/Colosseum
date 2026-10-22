@@ -110,9 +110,11 @@ Item {
     function parkFocus() {root.forceActiveFocus(Qt.OtherFocusReason);}
     function focusLibrary() {Qt.callLater(root.parkFocus);}
     function showHome() {
+        var alreadyOnHome=world.currentTab==="home";
         searchOpen=false;artistSearchOpen=false;recentSearchMenu.close();
         session.cancelBrowse();pendingAlbumRoute=null;routeStack=[];world.listKey="";world.setTab("home");
-        worldData.selectTab("home");worldData.refreshHome();page="home";
+        if(alreadyOnHome) {worldData.selectTab("home");worldData.refreshHome();}
+        page="home";
         world.parkPage(0);Qt.callLater(root.parkFocus);
     }
     function openHomeDestination(tab,section,id) {
@@ -163,6 +165,32 @@ Item {
             if(item.unavailable){session.browseError="This song is no longer available.";return;}
             if(item.resumeCurrent){if(session.playingIndex<0)return;session.paused=false;root.showSong();}
             else if(session.resumeSavedCheckpoint(item.resumeEntry))root.showSong();
+            return;
+        }
+        var destination=item.destination || {};
+        if(destination.kind==="album") {
+            // The existing catalogue owns stable album UUIDs; its browse route
+            // accepts the provider browse ID before that record is registered.
+            var destinationAlbumId=String(destination.provider==="youtube-music"
+                ? destination.providerId || "" : destination.id || destination.providerId || "");
+            if(destinationAlbumId) openAlbum(destinationAlbumId);
+            return;
+        }
+        if(destination.kind==="artist") {
+            showArtist({id:String(destination.id || destination.providerId || ""),
+                name:String(item.name || item.artist || item.title || "")});
+            return;
+        }
+        if(destination.kind==="song") {
+            var record=item.record || null, tracks=record && Array.isArray(record.tracks) ? record.tracks : [];
+            var trackIndex=Number(item.trackIndex);
+            if(!Number.isInteger(trackIndex) || trackIndex<0 || trackIndex>=tracks.length) {
+                var trackIds=[String(item.trackId || ""),String(destination.id || ""),String(destination.providerId || "")];
+                trackIndex=tracks.findIndex(function(track){return track && trackIds.indexOf(String(track.id || ""))>=0;});
+            }
+            if(record && trackIndex>=0 && trackIndex<tracks.length)
+                showBrowseSong(record,trackIndex,String(item.editionId || ""));
+            else session.browseError="Song details are not available.";
             return;
         }
         if(item.kind==="playlists"){root.openHomeDestination("library","playlists",item.id);return;}
@@ -266,6 +294,14 @@ Item {
         id:recommendations
         source:session.source
         preferences:worldData.preferencesStore
+        homeCollections: {
+            var boundProfileScope=recommendations.profileScope;
+            var boundProfileGeneration=recommendations.profileGeneration;
+            return recommendations.profileActive
+                && boundProfileScope===session.profileScope
+                && boundProfileGeneration===session.profileGeneration
+                ? personalData.homeCollections : ({});
+        }
         suggestions:worldData.project(worldData.libraryAlbums,"artists")
             .concat((personalData.homeCollections && personalData.homeCollections.artists) || [])
         profileScope:session.profileScope
@@ -394,7 +430,7 @@ Item {
         id:song;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
         visible:root.page==="song";pageData:root.browsingSong ? browseSong : session;browseMode:root.browsingSong;artistNavigationEnabled:true
         backLabel:"Back";onBackRequested:root.goBack();onArtistRequested:name=>root.showRecordArtist(name,root.browsingSong ? browseSong.album : session.playingEdition.sourceAlbum || {})
-        onPlayRequested:browseSong.play()
+        onPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
         onCreditsRequested:{creditsPopup.pageData=song.pageData;creditsPopup.open()}
         onAlbumRequested:{if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
     }

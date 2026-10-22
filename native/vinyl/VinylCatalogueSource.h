@@ -30,6 +30,7 @@ class VinylCatalogueSource final : public QObject,
     Q_PROPERTY(bool cached READ cached NOTIFY artistChanged)
     Q_PROPERTY(QObject* canonicalArtistService READ canonicalArtistService CONSTANT)
 public:
+    Q_INVOKABLE QVariantMap cachedRecommendation(const QString &operation,const QString &value,const QVariantMap &options) const {return m_provider->cachedRecommendation(operation,value,options);}
     VinylCatalogueSource(VinylLocalSource *,VinylProvider *,CollectionStore *,QObject *parent=nullptr);
     int cataloguePageVersion() const {return 1;}
     int discoveryVersion() const {return 1;}
