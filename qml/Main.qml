@@ -1851,7 +1851,6 @@ Window {
         || searchLayer.active
         || worldSearchLayer.active
         || universeLayer.active
-        || universeHallLayer.active
         || onePieceArcLayer.active
         || vaultLayer.active
         || continueSeeAllLayer.active
