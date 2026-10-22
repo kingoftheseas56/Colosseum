@@ -91,6 +91,9 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         else if(album.value("type")=="Playlist") {remoteValue=album.value("playlistId").toString();remoteOperation=lane=="browse"?"playlistPage":"playlist";}
         else remoteValue=album.value("browseId",value).toString();
     }
+    // Recommendation destinations use the same provider namespace as search.
+    // A summary need not have been opened (and registered) before navigation.
+    if(operation=="album"&&!local&&remoteValue.startsWith("ytm:album:"))remoteValue=remoteValue.mid(10);
     if((operation=="resolve"||operation=="resolveFallback")&&!local){remoteValue=m_videos.value(value);}
     if(operation=="resolve"&&lane=="play"&&!local&&m_torrent&&m_remoteTracks.contains(value)){
         auto intent=m_remoteTracks.value(value);
@@ -115,7 +118,7 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
     }
     const int transport=local?m_local->request(lane,operation,value,options):m_provider->requestPayload(lane,operation=="resolveFallback"?"resolve":remoteOperation,remoteValue,options);
     if(transport<0)return -1;
-    m_pending.insert(lane,{id,transport,local,operation,value});return id;
+    m_pending.insert(lane,{id,transport,local,operation,value});m_pending[lane].options=options;return id;
 }
 void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &data,const QString &error,bool local){
     if(lane=="playFallback"&&!local){
@@ -127,6 +130,20 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
     if(!m_pending.contains(lane))return;const auto pending=m_pending.value(lane);
     if(pending.torrent||pending.local!=local||pending.transportId!=id)return;m_pending.remove(lane);
     QVariant result=data;
+    if(error.isEmpty()&&!local&&VinylProvider::homeOperation(pending.operation)){
+        QVariantMap normalized;
+        if(!VinylProvider::normalizeHome(pending.operation,pending.value,pending.options,data,&normalized)){
+            emit completed(lane,pending.id,{},"The recommendation response is invalid.");return;
+        }
+        if(pending.operation=="recordingMatch"&&normalized.value("status")=="verified"){
+            auto track=normalized.value("items").toList().value(0).toMap();QStringList names,ids;
+            for(const auto &entry:track.value("artistRefs").toList()){const auto artist=entry.toMap();names.append(artist.value("name").toString());ids.append("ytm:artist:"+artist.value("providerId").toString());}
+            track["artists"]=names;track["artistIds"]=ids;
+            remember({{"id",track.value("id")},{"browseId",track.value("id")},{"type","Song"},{"title",track.value("title")},
+                {"artists",names},{"artistIds",ids},{"origin","youtube-music"},{"cover",track.value("cover")},{"tracks",QVariantList{track}}});
+        }
+        emit completed(lane,pending.id,normalized,{});return;
+    }
     if(error.isEmpty()){
         if(pending.operation=="album")result=remember(data.toMap());
         else if(pending.operation=="catalogueSearch"){

@@ -72,7 +72,7 @@ private:
         int id;int transportId;bool local;QString operation,value;
         bool torrent=false;QString fallbackReason;
         int fallbackTransportId=-1;bool fallbackReady=false;
-        QVariant fallbackData;QString fallbackError;
+        QVariant fallbackData;QString fallbackError;QVariantMap options;
     };
     VinylLocalSource *m_local;VinylProvider *m_provider;QPointer<CollectionStore> m_collection;
     int m_serial=0;QHash<QString,Pending> m_pending;

@@ -65,8 +65,12 @@ class ProviderUnavailableError(ProviderError):
 
 
 class RateLimitError(ProviderError):
-    def __init__(self, message="Provider rate limit exceeded"):
+    def __init__(self, message="Provider rate limit exceeded", retry_after=60):
         super().__init__(message, code="rate_limited")
+        self.retry_after = max(1, min(3600, int(retry_after)))
+
+    def to_dict(self):
+        return dict(super().to_dict(), retryAfterSeconds=self.retry_after)
 
 
 def identity(kind, source_key):
@@ -552,6 +556,14 @@ def _call_provider(fn, *args, not_found_on_error=False, **kwargs):
     except ProviderError:
         raise
     except Exception as exc:
+        status = getattr(exc, "code", None) if isinstance(exc, urllib.error.HTTPError) else getattr(getattr(exc, "response", None), "status_code", None)
+        if status in (429, 503):
+            headers = getattr(exc, "headers", None) or getattr(getattr(exc, "response", None), "headers", {})
+            try:
+                retry = int(headers.get("Retry-After", 60))
+            except (TypeError, ValueError):
+                retry = 60
+            raise RateLimitError(retry_after=retry) from exc
         if _is_timeout_exception(exc):
             raise ProviderTimeoutError("YouTube Music request timed out.") from exc
         if _is_not_found_exception(exc):
@@ -925,9 +937,18 @@ class MusicBrainzClient:
                     status = getattr(resp, "status", 200)
                     if status == 503:
                         raise urllib.error.HTTPError(url, 503, "Service Unavailable", {}, None)
-                    return json.load(resp)
+                    body = resp.read(4 * 1024 * 1024 + 1)
+                    if len(body) > 4 * 1024 * 1024:
+                        raise ProviderUnavailableError("MusicBrainz response exceeded its limit.")
+                    return json.loads(body)
             except urllib.error.HTTPError as exc:
                 last_error = exc
+                if exc.code == 429:
+                    try:
+                        retry = int((exc.headers or {}).get("Retry-After", 60))
+                    except (TypeError, ValueError):
+                        retry = 60
+                    raise RateLimitError(retry_after=retry) from exc
                 if exc.code == 503:
                     if attempt + 1 >= self.max_retries:
                         raise RateLimitError("MusicBrainz service unavailable (HTTP 503) after backoff.") from exc
@@ -1287,7 +1308,338 @@ def fetch_artist_artwork(mbid, get_json=None):
     return result
 
 
-def handle(request, client=None, mb_client=None):
+# Home operations are deliberately separate from full artist-page enumeration.
+HOME_OPERATIONS = {"artistCandidates", "recommendationIdentity", "recordingMatch", "populationCandidates"}
+LB_ARTIST_EVIDENCE_QUALIFIED = True  # Public artist-radio route qualified 2026-10-22; failures remain optional.
+
+
+def home_envelope(request, source, status="unavailable", complete=False):
+    return {"version": 1, "seed": request.get("seed") or {}, "items": [],
+            "provenance": {"source": source, "generator": "artist-catalogue" if source == "youtube-music" else "artist-evidence"},
+            "fetchedAt": now_iso(request.get("fetchedAt")), "complete": complete, "status": status}
+
+
+def home_seed(request):
+    seed = request.get("seed")
+    if (not isinstance(seed, dict) or seed.get("provider") != "youtube-music"
+            or seed.get("kind") != "artist" or seed.get("providerId") != request.get("value")):
+        raise InvalidArgumentError("A provider-bound artist selection is required.")
+    validate_channel_id(seed.get("providerId"))
+    if len(str(seed.get("name", ""))) > 300:
+        raise InvalidArgumentError("Artist name is oversized.")
+    return seed
+
+
+def home_raw_artist(client, seed):
+    raw = _call_provider(client.get_artist, seed["providerId"], not_found_on_error=True)
+    if (not isinstance(raw, dict)
+            or not isinstance(raw.get("name"), str) or not raw["name"].strip()
+            or len(json.dumps(raw, ensure_ascii=True).encode()) > 4 * 1024 * 1024):
+        raise ProviderUnavailableError("The artist response is invalid or belongs to another artist.")
+    # ytmusicapi's returned channelId is a subscription channel, explicitly
+    # documented as different from its input artist browse ID. Never alias it.
+    for section in ("albums", "singles"):
+        shelf = raw.get(section)
+        owner = shelf.get("browseId", "") if isinstance(shelf, dict) else ""
+        if owner.startswith("MPAD"):
+            owner = owner[4:]
+        if owner.startswith("UC") and owner != seed["providerId"]:
+            raise ProviderUnavailableError("The release shelf belongs to another artist.")
+    return raw
+
+
+def home_artist_refs(raw):
+    out, seen = [], set()
+    if not isinstance(raw, list) or len(raw) > 64:
+        return out
+    for artist in raw:
+        if not isinstance(artist, dict):
+            continue
+        cid = artist.get("id") or artist.get("channelId")
+        if isinstance(cid, str) and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", cid) and cid not in seen:
+            seen.add(cid)
+            out.append({"kind": "artist", "provider": "youtube-music", "providerId": cid,
+                        "id": "ytm:artist:" + cid, "name": str(artist.get("name") or "")[:300]})
+    return out
+
+
+def home_card(kind, raw, relation):
+    if not isinstance(raw, dict):
+        return None
+    key = raw.get("videoId") if kind == "song" else raw.get("browseId")
+    title = raw.get("title") or raw.get("name") or ""
+    pattern = r"UC[A-Za-z0-9_-]{22}" if kind == "artist" else r"[A-Za-z0-9_-]{11}" if kind == "song" else r"[A-Za-z0-9_-]{1,160}"
+    if not isinstance(key, str) or not re.fullmatch(pattern, key) or not isinstance(title, str) or not title.strip() or len(title) > 4096:
+        return None
+    if raw.get("isAvailable") is False:
+        return None
+    prefix = "artist" if kind == "artist" else "track" if kind == "song" else "album"
+    out = {"kind": kind, "provider": "youtube-music", "providerId": key, "id": "ytm:" + prefix + ":" + key,
+           "title": title, "name": title, "image": cover(raw), "cover": cover(raw), "relation": relation,
+           "artistRefs": home_artist_refs(raw.get("artists", [])), "mappingStatus": "unresolved"}
+    year = str(raw.get("year") or "")
+    if re.fullmatch(r"\d{4}", year):
+        out["year"] = year
+    release_date = raw.get("releaseDate")
+    if isinstance(release_date, str):
+        try:
+            datetime.date.fromisoformat(release_date)
+            out["releaseDate"] = release_date
+            out["dateSource"] = "youtube-music"
+        except ValueError:
+            pass
+    if raw.get("type"):
+        out["releaseType"] = str(raw["type"])[:80]
+    if kind == "song":
+        out["seconds"] = home_duration(raw)
+        out["videoId"] = key
+        if raw.get("version"):
+            out["version"] = str(raw["version"])[:300]
+    return out
+
+
+def home_duration(raw):
+    duration = raw.get("duration_seconds") or raw.get("seconds")
+    if isinstance(duration, (int, float)) and not isinstance(duration, bool) and 0 < duration <= 86400:
+        return int(duration)
+    return secs(raw.get("duration")) or 0
+
+
+def artist_candidates(request, client):
+    result = home_envelope(request, "youtube-music")
+    seed = home_seed(request)
+    raw = home_raw_artist(client, seed)
+    seen = set()
+    for section, kind, relation, limit in [("albums", "album", "own-release", 20), ("singles", "album", "own-release", 20),
+                                            ("songs", "song", "top-recording", 10), ("related", "artist", "related-artist", 10)]:
+        shelf = raw.get(section)
+        values = shelf.get("results", []) if isinstance(shelf, dict) else []
+        if not isinstance(values, list):
+            raise ProviderUnavailableError("The artist shelf has an invalid shape.")
+        for value in values[:limit]:
+            card = home_card(kind, value, relation)
+            if card and card["id"] not in seen:
+                card["seedArtistRef"] = seed
+                seen.add(card["id"])
+                result["items"].append(card)
+    result["status"] = "ready" if result["items"] else "empty"
+    result["capabilities"] = {name: isinstance(raw.get(name), dict) for name in ("albums", "singles", "songs", "related")}
+    result["artist"] = {"name": raw["name"], "providerId": seed["providerId"], "provider": "youtube-music",
+                        "biography": str(raw.get("description") or "")[:10000], "image": cover(raw)}
+    return result
+
+
+def channel_relation(detail, channel):
+    for relation in detail.get("relations", []):
+        if not isinstance(relation, dict):
+            continue
+        target = (relation.get("url") or {}).get("resource", "")
+        parsed = urllib.parse.urlparse(target)
+        if parsed.hostname in {"youtube.com", "www.youtube.com", "music.youtube.com", "m.youtube.com"} and parsed.path.rstrip("/") == "/channel/" + channel:
+            return target
+    return None
+
+
+def recommendation_identity(request, client, mb_client=None):
+    result = home_envelope(request, "musicbrainz", "unresolved", True)
+    seed = home_seed(request)
+    raw = home_raw_artist(client, seed)
+    mb = mb_client or MusicBrainzClient(max_retries=1, timeout=2.5)
+    name = raw["name"].strip()[:300]
+    query = urllib.parse.urlencode({"query": 'artist:"' + name.replace('"', '') + '"', "limit": 5, "fmt": "json"})
+    searched = mb.get_json("https://musicbrainz.org/ws/2/artist/?" + query)
+    if not isinstance(searched, dict) or not isinstance(searched.get("artists"), list):
+        raise ProviderUnavailableError("The artist identity search is incomplete.")
+    result["complete"] = int(searched.get("count", len(searched["artists"]))) <= len(searched["artists"])
+    candidates = [a for a in searched["artists"][:5] if isinstance(a, dict) and MBID_RE.fullmatch(str(a.get("id", ""))) and uuid.UUID(a["id"]).int != 0
+                  and fold(a.get("name", "")) == fold(name)]
+    result["mappingStatus"] = "ambiguous" if len(candidates) > 1 else "unresolved"
+    result["status"] = result["mappingStatus"]
+    if len(candidates) > 2:  # A name alone cannot choose one; no discography walk.
+        return result
+    confirmed = []
+    for candidate in candidates:
+        detail = mb.get_json("https://musicbrainz.org/ws/2/artist/" + candidate["id"] + "?inc=url-rels%2Brelease-groups&fmt=json")
+        if not isinstance(detail, dict) or detail.get("id", "").lower() != candidate["id"].lower():
+            raise ProviderUnavailableError("The canonical artist detail is invalid.")
+        relation = channel_relation(detail, seed["providerId"])
+        method, evidence = ("external-id", [relation]) if relation else (None, [])
+        # Unique name plus two independently dated releases is corroboration,
+        # not a name-only guess; never use it to select between same-name artists.
+        if not method and len(candidates) == 1:
+            own = set()
+            for section in ("albums", "singles"):
+                for entry in (raw.get(section) or {}).get("results", [])[:20]:
+                    if isinstance(entry, dict) and re.fullmatch(r"\d{4}", str(entry.get("year", ""))):
+                        own.add((fold(entry.get("title", "")), str(entry["year"])))
+            for group in detail.get("release-groups", [])[:25]:
+                if isinstance(group, dict) and (fold(group.get("title", "")), str(group.get("first-release-date", ""))[:4]) in own:
+                    evidence.append(group.get("id"))
+            evidence = list(dict.fromkeys(e for e in evidence if isinstance(e, str) and MBID_RE.fullmatch(e)))
+            if len(evidence) >= 2:
+                method = "corroborated-metadata"
+        if method:
+            mapping = {"status": "verified", "provider": "youtube-music", "providerId": seed["providerId"], "kind": "artist",
+                       "mbid": candidate["id"].lower(), "method": method, "evidence": evidence,
+                       "fetchedAtMs": int(datetime.datetime.fromisoformat(result["fetchedAt"].replace("Z", "+00:00")).timestamp() * 1000)}
+            confirmed.append((mapping, detail))
+    if len(confirmed) == 1 and result["complete"]:
+        mapping, detail = confirmed[0]
+        result.update({"status": "verified", "mappingStatus": "verified", "mapping": mapping, "mbid": mapping["mbid"],
+                       "artist": {"name": detail.get("name", name), "disambiguation": detail.get("disambiguation", "")}})
+    elif len(confirmed) > 1:
+        result.update({"status": "ambiguous", "mappingStatus": "ambiguous"})
+    return result
+
+
+def recording_version(raw):
+    text = str(raw.get("version") or "") + " " + str(raw.get("title") or "")
+    markers = set(re.findall(r"\b(live|cover|remaster(?:ed)?|remix|acoustic|instrumental|karaoke|radio edit|demo|mono|stereo)\b", text.lower()))
+    explicit = fold(str(raw.get("version") or ""))
+    if explicit and explicit not in {"studio", "original", "album", "album version", "original version"}:
+        markers.add(explicit)
+    return frozenset(markers)
+
+
+def recording_match(request, client):
+    result = home_envelope(request, "youtube-music", "unresolved", True)
+    recording = request.get("recording")
+    if not isinstance(recording, dict):
+        raise InvalidArgumentError("A recording identity is required.")
+    title, refs = recording.get("title"), recording.get("artistRefs")
+    seconds = home_duration(recording)
+    if not isinstance(title, str) or not 1 <= len(title) <= 300 or not isinstance(refs, list) or not 1 <= len(refs) <= 64 or seconds <= 0:
+        raise InvalidArgumentError("Recording title, artists, version and duration are required.")
+    expected = set()
+    for ref in refs:
+        if not isinstance(ref, dict) or ref.get("provider") != "youtube-music" or ref.get("kind") != "artist":
+            raise InvalidArgumentError("Recording artists must have provider identities.")
+        expected.add(validate_channel_id(ref.get("providerId")))
+    query = title + " " + " ".join(str(a.get("name", "")) for a in refs[:3])
+    if hasattr(client, "_send_request"):
+        page = read_search_page(client, query[:300], "songs", "")
+        rows, complete = page["items"], not bool(page["continuation"])
+    else:
+        rows, complete = _call_provider(client.search, query[:300], filter="songs", limit=20), True
+    if not isinstance(rows, list) or len(json.dumps(rows).encode()) > 4 * 1024 * 1024:
+        raise ProviderUnavailableError("The recording search is invalid.")
+    matches = {}
+    for row in rows[:20]:
+        if not isinstance(row, dict):
+            continue
+        ids = {a["providerId"] for a in home_artist_refs(row.get("artists", []))}
+        if (fold(row.get("title", "")) != fold(title) or ids != expected or abs(home_duration(row) - seconds) > 2
+                or recording_version(row) != recording_version(recording)):
+            continue
+        card = home_card("song", row, "recording-match")
+        if card:
+            matches[card["providerId"]] = card
+    result["complete"] = complete
+    if len(matches) > 1:
+        result["status"] = "ambiguous"
+    elif len(matches) == 1 and complete:
+        card = next(iter(matches.values()))
+        card["playbackMatch"] = {"status": "verified", "provider": "youtube-music", "providerId": card["providerId"],
+                                 "artistMatched": True, "versionMatched": True, "durationMatched": True,
+                                 "method": "exact-metadata", "fetchedAtMs": int(time.time() * 1000)}
+        result.update({"status": "verified", "videoId": card["providerId"], "items": [card]})
+    elif not complete:
+        result["status"] = "partial"
+    return result
+
+
+class ListenBrainzArtistEvidence:
+    def __init__(self, urlopen_fn=None):
+        self.urlopen = urlopen_fn or urllib.request.urlopen
+
+    def get(self, mbid):
+        params = urllib.parse.urlencode({"mode": "easy", "max_similar_artists": 5, "max_recordings_per_artist": 5, "pop_begin": 0, "pop_end": 100})
+        req = urllib.request.Request("https://api.listenbrainz.org/1/lb-radio/artist/" + mbid + "?" + params,
+                                     headers={"User-Agent": MB_USER_AGENT, "Accept": "application/json"})
+        with self.urlopen(req, timeout=4) as response:
+            body = response.read(4 * 1024 * 1024 + 1)
+            if len(body) > 4 * 1024 * 1024:
+                raise ProviderUnavailableError("The population response exceeded its limit.")
+            return json.loads(body)
+
+
+def population_candidates(request, population_client=None):
+    result = home_envelope(request, "listenbrainz", "unavailable", True)
+    seed = request.get("seed") or {}
+    # Only explicit canonical artist identities; provider UUID shapes prove nothing.
+    mbid = seed.get("mbid", "") if seed.get("identity") == "canonical" and seed.get("kind") == "artist" else ""
+    if not MBID_RE.fullmatch(str(mbid)) or uuid.UUID(mbid).int == 0:
+        raise InvalidArgumentError("Population evidence requires a verified canonical artist reference.")
+    if not LB_ARTIST_EVIDENCE_QUALIFIED and population_client is None:
+        result["error"] = "The optional population source has not passed its live capability gate."
+        return result
+    data = (population_client or ListenBrainzArtistEvidence()).get(mbid)
+    if not isinstance(data, dict):
+        raise ProviderUnavailableError("The population evidence response is malformed.")
+    for artist, rows in list(data.items())[:10]:
+        if not MBID_RE.fullmatch(artist) or uuid.UUID(artist).int == 0 or not isinstance(rows, list):
+            raise ProviderUnavailableError("The population artist identity is malformed.")
+        for row in rows[:10]:
+            recording = row.get("recording_mbid", "") if isinstance(row, dict) else ""
+            if (not MBID_RE.fullmatch(str(recording)) or row.get("similar_artist_mbid") != artist
+                    or uuid.UUID(recording).int == 0):
+                raise ProviderUnavailableError("The population recording identity is malformed.")
+            result["items"].append({"ref": {"identity": "canonical", "kind": "recording", "mbid": recording.lower()},
+                                    "artistMbid": artist.lower(), "relation": "population-evidence", "destination": {},
+                                    "available": False, "title": str(row.get("recording_name") or "")[:300],
+                                    "artistName": str(row.get("similar_artist_name") or "")[:300]})
+            if len(result["items"]) >= 60:
+                break
+        if len(result["items"]) >= 60:
+            break
+    result["status"] = "ready" if result["items"] else "empty"
+    return result
+
+
+def handle_home(request, client=None, mb_client=None, population_client=None):
+    operation = request.get("operation")
+    source = "musicbrainz" if operation == "recommendationIdentity" else "listenbrainz" if operation == "populationCandidates" else "youtube-music"
+    result = home_envelope(request, source)
+    try:
+        if len(json.dumps(request).encode()) > 256 * 1024:
+            raise InvalidArgumentError("The recommendation request is oversized.")
+        if operation == "populationCandidates":
+            return population_candidates(request, population_client)
+        if operation in {"artistCandidates", "recommendationIdentity"}:
+            home_seed(request)
+        if client is None:
+            import functools
+            import requests
+            from ytmusicapi import YTMusic
+            session = requests.Session()
+            session.request = functools.partial(session.request, timeout=4)
+            client = YTMusic(requests_session=session, location=request.get("region", "IN"))
+        if operation == "artistCandidates":
+            return artist_candidates(request, client)
+        if operation == "recommendationIdentity":
+            return recommendation_identity(request, client, mb_client)
+        if operation == "recordingMatch":
+            return recording_match(request, client)
+    except Exception as exc:
+        result["error"] = "The recommendation source is unavailable. Existing catalogue music remains available."
+        result["sourceStatus"] = getattr(exc, "code", "unavailable")
+        status = getattr(exc, "code", "")
+        http_status = getattr(exc, "code", None) if isinstance(exc, urllib.error.HTTPError) else getattr(getattr(exc, "response", None), "status_code", None)
+        if status == "rate_limited" or http_status in (429, 503):
+            result["sourceStatus"] = "rate_limited"
+            try:
+                retry = int(getattr(exc, "retry_after", (getattr(exc, "headers", None) or {}).get("Retry-After", 60)))
+            except (TypeError, ValueError):
+                retry = 60
+            result["retryAfterSeconds"] = max(1, min(3600, retry))
+        if operation == "recommendationIdentity":
+            result["mappingStatus"] = "unavailable"
+        return result
+
+
+def handle(request, client=None, mb_client=None, population_client=None):
+    if request.get("operation") in HOME_OPERATIONS:
+        return handle_home(request, client, mb_client, population_client)
     operation, value = request["operation"], str(request.get("value", "")).strip()
     region = request.get("region", "IN")
     if operation == "discover" and (value not in DISCOVERY_KEYS or not isinstance(region, str) or not re.fullmatch(r"[A-Z]{2}", region)):
