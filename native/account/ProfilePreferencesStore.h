@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QVariant>
 
 #include <memory>
 #include <optional>
@@ -32,14 +33,17 @@ class ProfilePreferencesStore final : public QObject {
 
     Q_PROPERTY(bool vinylTasteAnswered READ vinylTasteAnswered NOTIFY vinylTasteChanged)
     Q_PROPERTY(QStringList vinylTasteArtistIds READ vinylTasteArtistIds NOTIFY vinylTasteChanged)
+    Q_PROPERTY(QVariantList vinylTasteArtists READ vinylTasteArtists NOTIFY vinylTasteChanged)
     Q_PROPERTY(QString vinylFeedbackSnapshot READ vinylFeedbackSnapshot NOTIFY vinylFeedbackChanged)
     Q_PROPERTY(QString vinylPersistenceError READ vinylPersistenceError NOTIFY vinylPersistenceErrorChanged)
 public:
     bool vinylTasteAnswered() const { return m_vinylTasteAnswered; }
     QStringList vinylTasteArtistIds() const { return m_vinylTasteArtistIds; }
+    QVariantList vinylTasteArtists() const { return m_vinylTasteArtists; }
     QString vinylFeedbackSnapshot() const { return m_vinylFeedbackSnapshot; }
     QString vinylPersistenceError() const { return m_vinylPersistenceError; }
     Q_INVOKABLE bool setVinylTaste(bool answered, const QStringList &artistIds);
+    Q_INVOKABLE bool setVinylTasteSelections(bool answered, const QVariantList &artists);
     Q_INVOKABLE bool setVinylFeedbackSnapshot(const QString &snapshot);
     explicit ProfilePreferencesStore(
         QObject *parent = nullptr);
@@ -134,6 +138,10 @@ private:
         const QStringList &values);
     bool persistConversionMap(const RatingsReviewsConversionMap &map);
     bool removeConversionMap(const QString &providerId);
+    bool persistVinylTaste(
+        bool answered,
+        const QStringList &artistIds,
+        const QVariantList &artists);
 
     static bool isExactCanonicalProviderList(const QStringList &providerIds);
     static QStringList normalizedProviderOrder(const QStringList &providerIds);
@@ -164,6 +172,7 @@ private:
 
     bool m_vinylTasteAnswered = false;
     QStringList m_vinylTasteArtistIds;
+    QVariantList m_vinylTasteArtists;
     QString m_vinylFeedbackSnapshot;
     QString m_vinylPersistenceError;
     int m_revision = 0;

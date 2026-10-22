@@ -3991,6 +3991,19 @@ set_tests_properties(colosseum.qttest.profile_preferences_sync PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
 
+add_executable(vinyl_taste_selections_test
+    auto/account/tst_vinyl_taste_selections.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h")
+target_include_directories(vinyl_taste_selections_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_taste_selections_test PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(vinyl_taste_selections_test PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.qttest.vinyl_taste_selections COMMAND vinyl_taste_selections_test)
+set_tests_properties(colosseum.qttest.vinyl_taste_selections PROPERTIES
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120 LABELS "vinyl;preferences")
+
 add_executable(tst_vinyl_feedback_snapshot
     auto/account/tst_vinyl_feedback_snapshot.cpp
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
@@ -5052,6 +5065,13 @@ add_test(NAME colosseum.qml.vinyl_personal_library_native
 add_test(NAME colosseum.qml.vinyl_home_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_home_flow.qml")
+foreach(onboarding_case IN ITEMS artist_onboarding artist_onboarding_service)
+    add_test(NAME colosseum.qml.vinyl_${onboarding_case}_native COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_${onboarding_case}.qml")
+    set_tests_properties(colosseum.qml.vinyl_${onboarding_case}_native PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+        TIMEOUT 120 LABELS "vinyl;qml;onboarding")
+endforeach()
 add_test(NAME colosseum.qml.vinyl_discovery_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_discovery.qml")

@@ -9,6 +9,7 @@
 #include <QSGRendererInterface>
 #include "vinyl/VinylLocalSource.h"
 #include "vinyl/VinylBackendSession.h"
+#include "vinyl/VinylRecommendationService.h"
 #include "engine/VaultIdentity.h"
 class Setup : public QObject {
     Q_OBJECT
@@ -54,6 +55,7 @@ public slots:
 
     void qmlEngineAvailable(QQmlEngine *engine) {
         qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl",1,0,"VinylBackendSession");
+        qmlRegisterType<VinylRecommendationService>("Colosseum.Vinyl",1,0,"VinylRecommendationService");
         engine->addImportPath(QStringLiteral(VINYL_CONTRACT_IMPORTS));
         QDir().mkpath(directory.path()+"/identity");
         changeIdentityAudio(directory.path()+"/one.wav",16000);

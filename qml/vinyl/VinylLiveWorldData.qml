@@ -8,21 +8,49 @@ Item {
     objectName: "vinylLiveWorldData"
     required property var session
     property var personalLibrary: null
+    property var recommendationService: null
     property string profile: "local"
     property var preferencesStore: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
     property var searchHistoryStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
     property string personalError: ""
-    readonly property string persistenceError: personalError || (preferencesStore ? preferencesStore.vinylPersistenceError || "" : "")
+    property bool fallbackPickerAnswered: false
+    property bool fallbackTastePickerOpen: false
+    property bool fallbackEditing: false
+    property var fallbackPicks: []
+    property var fallbackPickerDraft: []
+    property string fallbackPickerQuery: ""
+    property string artistSearchText: ""
+    readonly property bool usesRecommendationService: !!recommendationService && !!preferencesStore
+        && typeof preferencesStore.setVinylTasteSelections === "function"
+    readonly property string onboardingState: usesRecommendationService
+        ? recommendationService.onboardingState
+        : fallbackEditing ? "editing" : fallbackTastePickerOpen ? "draft" : fallbackPickerAnswered ? "answered" : "unanswered"
+    readonly property bool pickerAnswered: usesRecommendationService
+        ? onboardingState === "answered" : fallbackPickerAnswered
+    readonly property bool tastePickerOpen: usesRecommendationService
+        ? activeTab === "home" && (onboardingState === "draft" || onboardingState === "editing")
+        : fallbackTastePickerOpen
+    readonly property var picks: usesRecommendationService
+        ? recommendationService.selectedArtists : fallbackPicks
+    readonly property var pickerDraft: usesRecommendationService
+        ? (recommendationService.draftArtists || []).map(function(artist) { return artist.key || artist.id; })
+        : fallbackPickerDraft
+    readonly property string pickerQuery: usesRecommendationService
+        ? artistSearchText : fallbackPickerQuery
+    readonly property string persistenceError: personalError
+        || (usesRecommendationService ? recommendationService.error || ""
+            : preferencesStore ? preferencesStore.vinylPersistenceError || "" : "")
     readonly property var recentSearches: {
         var revision = searchHistoryStore ? searchHistoryStore.revision : 0;
         return searchHistoryStore ? JSON.parse(JSON.stringify(searchHistoryStore.list("Vinyl"))) : [];
     }
     function rememberSearch() { if(searchHistoryStore) searchHistoryStore.record("Vinyl",query); }
     function loadTaste() {
+        if(usesRecommendationService) return;
         personalError = "";
-        pickerAnswered = preferencesStore ? !!preferencesStore.vinylTasteAnswered : false;
-        picks = preferencesStore ? JSON.parse(JSON.stringify(preferencesStore.vinylTasteArtistIds || [])) : [];
-        pickerDraft = picks.slice(); pickerQuery = "";
+        fallbackPickerAnswered = preferencesStore ? !!preferencesStore.vinylTasteAnswered : false;
+        fallbackPicks = preferencesStore ? JSON.parse(JSON.stringify(preferencesStore.vinylTasteArtistIds || [])) : [];
+        fallbackPickerDraft = fallbackPicks.slice(); fallbackPickerQuery = "";
     }
     onPreferencesStoreChanged: loadTaste()
     Component.onCompleted: loadTaste()
@@ -103,7 +131,10 @@ Item {
         browseStates=next;
     }
     function selectTab(tab) {
-        if(["home","discover","library"].indexOf(tab)<0 || tab===activeTab) return;
+        if(["home","discover","library"].indexOf(tab)<0) return;
+        if(tab==="home" && usesRecommendationService && typeof recommendationService.beginHomeVisit==="function")
+            recommendationService.beginHomeVisit();
+        if(tab===activeTab) return;
         saveBrowseState();
         if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0) session.cancelBrowse();
         changingTab=true;activeTab=tab;
@@ -172,12 +203,15 @@ Item {
     onLensChanged: {saveBrowseState();if(!changingTab && cataloguePagingSupported && activeTab==="discover" && onlineMode && query.trim())session.searchCatalogue(query.trim(),lens.kind,false);}
     onSortOrderChanged: saveBrowseState()
     onOnlineModeChanged: saveBrowseState()
-    property bool pickerAnswered: false
-    property bool tastePickerOpen: false
-    property var picks: []
-    property var pickerDraft: []
-    property string pickerQuery: ""
     readonly property string tasteNotice: "Taste choices are saved to this profile."
+    readonly property var artistResults: usesRecommendationService ? recommendationService.artistResults || ({}) : ({})
+    readonly property var artistResultItems: {
+        return artistResults.items || [];
+    }
+    readonly property bool artistSearchLoading: usesRecommendationService && artistResults.status === "loading"
+    readonly property bool artistSearchHasMore: Object.keys((artistResults.nextCursor || {})).length > 0
+    readonly property string artistSearchError: usesRecommendationService
+        ? (artistResults.error || recommendationService.error || "") : ""
     readonly property string lensTitle: [lens.language,lens.decade,lens.genre,lens.country].filter(function(v){return !!v}).join(" · ") || (onlineMode ? "Catalogue matches" : "Local music")
     function filtered(records,state,localSearch) {return records.filter(function(a) {
         if(!Lists.matches(a,state.lens)) return false;
@@ -218,6 +252,20 @@ Item {
             unavailable:typeof session.personalRowAvailable==="function" && !session.personalRowAvailable(active)});
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
         if(continuing.length)result.push({key:"continue-listening",title:"Continue listening",kind:"resume",items:continuing});
+        var tasteArtists = usesRecommendationService ? recommendationService.selectedArtists || [] : [];
+        var tasteItems = tasteArtists.map(function(artist) {
+            var provider = String(artist.provider || "");
+            var providerId = String(artist.providerId || "");
+            var destination = provider === "youtube-music"
+                ? (providerId.indexOf("ytm:artist:") === 0 ? providerId : "ytm:artist:" + providerId)
+                : provider === "local" ? String(artist.localId || providerId)
+                    : String(artist.destination || "");
+            var name = String(artist.name || artist.title || "");
+            return {id:destination,artistId:destination,kind:"artists",artist:name,title:name,
+                cover:String(artist.image || artist.cover || ""),round:true,subtitle:"",
+                tasteKey:String(artist.key || "")};
+        }).filter(function(item) { return !!item.artistId && !!item.title; });
+        if(tasteItems.length)result.push({key:"taste-artists",title:"Your artists",kind:"artists",items:tasteItems});
         var collections=personalLibrary ? personalLibrary.homeCollections : null;
         if(collections) {
             var songs=collections.songs.map(item=>Object.assign({},item,{kind:"saved-song",subtitle:item.artist}));
@@ -289,19 +337,88 @@ Item {
         var next=Object.assign({},lens);next[key]=value;lens=next;return true;
     }
     function setKind(kind) {if(["albums","artists","songs"].indexOf(kind)<0 && !(kind==="playlists" && onlineMode))return false;lens=Object.assign({},lens,{kind:kind});return true;}
-    function setPickerQuery(value) {pickerQuery=value;}
-    function togglePickerArtist(id) {var next=pickerDraft.slice(),at=next.indexOf(id);if(at<0)next.push(id);else next.splice(at,1);pickerDraft=next;}
-    function artistOptions(value) {return project(libraryAlbums,"artists").filter(function(a){return a.title.toLowerCase().indexOf(String(value||"").toLowerCase())>=0});}
+    function prepareArtistSearch() {
+        if(usesRecommendationService) {
+            artistSearchText=String((recommendationService.artistResults || {}).query || "");
+        } else fallbackPickerQuery="";
+    }
+    function setArtistSearchQuery(value) {
+        artistSearchText=String(value || "");
+        if(usesRecommendationService) {
+            recommendationService.searchArtists(artistSearchText.trim(), {});
+        } else fallbackPickerQuery=artistSearchText;
+    }
+    function submitArtistSearch() {
+        if(usesRecommendationService) return recommendationService.searchArtists(artistSearchText.trim(), {});
+        return true;
+    }
+    function retryArtistSearch() {
+        if(usesRecommendationService) return recommendationService.searchArtists(artistSearchText.trim(), {});
+        return false;
+    }
+    function loadMoreArtistSearch() {
+        if(usesRecommendationService && artistSearchHasMore)
+            return recommendationService.searchArtists(artistSearchText.trim(), artistResults.nextCursor);
+        return false;
+    }
+    function setPickerQuery(value) {setArtistSearchQuery(value);}
+    function togglePickerArtist(artist) {
+        if(usesRecommendationService) {
+            var ref = artist && artist.artistRef ? artist.artistRef : artist;
+            if(ref && typeof ref === "object") recommendationService.toggleDraftArtist(ref);
+            return;
+        }
+        var id = artist && typeof artist === "object" ? artist.id : artist;
+        var next=fallbackPickerDraft.slice(),at=next.indexOf(id);
+        if(at<0)next.push(id);else next.splice(at,1);
+        fallbackPickerDraft=next;
+    }
+    function artistOptions(value) {
+        var rows;
+        if(usesRecommendationService) rows=artistResultItems;
+        else rows=project(libraryAlbums,"artists").filter(function(a){return a.title.toLowerCase().indexOf(String(value||"").toLowerCase())>=0});
+        return rows.map(function(artist) {
+            var item=Object.assign({},artist);
+            item.id=String(artist.key || artist.id || artist.providerId || "");
+            item.key=String(artist.key || item.id);
+            item.title=String(artist.name || artist.title || "");
+            item.cover=String(artist.image || artist.cover || "");
+            item.artistRef=artist;
+            return item;
+        }).filter(function(item){return !!item.id && !!item.title;});
+    }
     function answerPicker(values) {
+        if(usesRecommendationService) {
+            var committed=recommendationService.commitTaste(false);
+            if(!committed) personalError=recommendationService.error || "Taste choices could not be saved.";
+            else personalError="";
+            return committed;
+        }
         var valid=artistOptions("").map(function(a){return a.id});
+        values=values || fallbackPickerDraft;
         var selected=values.filter(function(v,i){return valid.indexOf(v)>=0 && values.indexOf(v)===i});
         if(!preferencesStore || !preferencesStore.setVinylTaste(true,selected)) {personalError="Taste choices could not be saved.";return false;}
-        loadTaste();tastePickerOpen=false; return true;
+        fallbackPicks=selected;fallbackPickerAnswered=true;fallbackEditing=false;fallbackPickerDraft=selected.slice();fallbackTastePickerOpen=false; return true;
     }
-    function skipPicker() {answerPicker([]);}
+    function skipPicker() {
+        if(usesRecommendationService) {
+            var committed=recommendationService.commitTaste(true);
+            if(!committed) personalError=recommendationService.error || "Taste choices could not be saved.";
+            else personalError="";
+            return committed;
+        }
+        return answerPicker([]);
+    }
+    function beginTasteEdit() {
+        if(usesRecommendationService) return recommendationService.beginTasteEdit();
+        fallbackPickerDraft=fallbackPicks.slice();fallbackEditing=true;fallbackTastePickerOpen=true;return true;
+    }
+    function cancelTasteEdit() {
+        if(usesRecommendationService) return recommendationService.cancelTasteEdit();
+        fallbackPickerDraft=fallbackPicks.slice();fallbackPickerQuery="";fallbackEditing=false;fallbackTastePickerOpen=false;return true;
+    }
     function resetPicker() {
-        if(!preferencesStore || !preferencesStore.setVinylTaste(false,[])) {personalError="Taste choices could not be saved.";return false;}
-        loadTaste();tastePickerOpen=true;return true;
+        return beginTasteEdit();
     }
     function activate(item) {itemRequested(item);}
     function openList(key,home) {
@@ -314,7 +431,7 @@ Item {
         target:root.session
         ignoreUnknownSignals:true
         function onLibraryChanged(){root.refreshSearch();}
-        function onProfileGenerationChanged(){root.recentContinue=[];root.tastePickerOpen=false;root.loadTaste();root.resetBrowseState();}
+        function onProfileGenerationChanged(){root.recentContinue=[];root.loadTaste();root.resetBrowseState();}
         function onPlayingTrackChanged(){if(root.activeTab==="home")root.refreshHome();}
         function onPausedChanged(){if(root.activeTab==="home")root.refreshHome();}
         function onQueueChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshHome);}

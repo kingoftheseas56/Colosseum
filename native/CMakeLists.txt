@@ -3071,6 +3071,7 @@ target_sources(colosseum PRIVATE
     torrent/MusicTorrentQueryPlanner.h torrent/MusicTorrentQueryPlanner.cpp)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
 add_library(colosseum_vinyl_app STATIC
+    vinyl/VinylRecommendationService.h vinyl/VinylRecommendationService.cpp
     vinyl/VinylBackendSession.h vinyl/VinylBackendSession.cpp)
 target_include_directories(colosseum_vinyl_app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(colosseum_vinyl_app PRIVATE colosseum_vinyl_backend

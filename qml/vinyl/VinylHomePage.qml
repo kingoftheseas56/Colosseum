@@ -12,6 +12,8 @@ Item {
     readonly property var rowKeys: homeRows.map(function(row) { return row.key; })
     readonly property var coldShelfKeys: (worldData.coldShelves || []).map(function(row) { return row.key; })
     readonly property bool showTastePicker: worldData.tastePickerOpen === true
+    readonly property bool showTasteEdit: worldData.pickerAnswered === true && !showTastePicker
+        && typeof worldData.beginTasteEdit === "function"
     readonly property var visibleHomeRows: homeRows.filter(function(row) {
         return row && row.items && row.items.length > 0;
     })
@@ -23,16 +25,32 @@ Item {
     implicitHeight: showTastePicker
         ? picker.implicitHeight
         : hasHomeItems
-            ? shelves.implicitHeight
+            ? shelves.y + shelves.implicitHeight
             : emptyState.y + emptyState.implicitHeight + 24
 
     Theme { id: theme }
+
+    VinylWorldButton {
+        objectName: "vinylTasteEdit"
+        x: Math.max(0, parent.width - width)
+        y: 0
+        visible: root.showTasteEdit
+        enabled: visible
+        label: "Edit tastes"
+        accessibleName: label
+        symbol: "edit"
+        backdrop: root.backdrop
+        onTriggered: {
+            if (typeof root.worldData.beginTasteEdit === "function")
+                root.worldData.beginTasteEdit()
+        }
+    }
 
     Column {
         id: emptyState
         objectName: "vinylHomeEmpty"
         x: Math.max(0, (parent.width - width) / 2)
-        y: 24
+        y: root.showTasteEdit ? 64 : 24
         width: Math.min(parent.width, 480)
         spacing: 18
         visible: !root.showTastePicker && !root.hasHomeItems
@@ -80,6 +98,7 @@ Item {
 
     Column {
         id: shelves
+        y: root.showTasteEdit ? 56 : 0
         width: parent.width
         spacing: 54
         visible: !root.showTastePicker && root.hasHomeItems

@@ -237,10 +237,11 @@ TestCase {
     function test_dockedTabsClipScrollingTaste(data) {
         host.width=data.width;world.width=data.width;
         seed(1);world.worldData.resetPicker();world.worldView.setTab("home");wait(0);
-        var search=item("vinylPickerSearch"),tabs=item("vinylDockedTabs");
-        var probe=clipProbeFactory.createObject(search,{x:4,y:4});
-        var searchY=search.mapToItem(world.worldView,0,0).y;
-        // Scroll the actual search field into the sticky strip, left of the pills.
+        var heading=item("vinylPickerQuestion"),tabs=item("vinylDockedTabs");
+        var probe=clipProbeFactory.createObject(heading,{x:4,y:4});
+        var searchY=heading.mapToItem(world.worldView,0,0).y;
+        // The picker now uses shared chrome search. Its heading remains
+        // scrolling page content and must still clip beneath the sticky strip.
         world.worldScroll.contentY=searchY-10;
         waitForRendering(world);verify(tabs.visible);
         var point=probe.mapToItem(world,4,4);
@@ -254,6 +255,8 @@ TestCase {
         verify(probeVisible(pixelAt(shot,point)),"Unclipped probe must remain visible");
         probe.destroy();
         world.worldView.syncPickerPlacement();wait(0);
+        world.enterDiscoverSearch(true,false);wait(0);
+        var search=item("vinylSearchInput");
         mouseClick(search,search.width/2,search.height/2);
         tryCompare(search,"activeFocus",true);
         keyClick(Qt.Key_A);compare(world.worldData.pickerQuery,"a");

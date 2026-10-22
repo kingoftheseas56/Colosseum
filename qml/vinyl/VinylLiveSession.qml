@@ -337,6 +337,7 @@ Item {
     property int epoch: 0
     // Import callbacks use this profile-only generation; track changes must not invalidate imports.
     property int profileGeneration: 0
+    readonly property string profileScope: backend.profileScope
     property bool resetting: false
     property bool shuttingDown: false
     property bool profileActive: true

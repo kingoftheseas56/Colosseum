@@ -166,6 +166,7 @@
 #include "vinyl/VinylCatalogueSource.h"
 #include "vinyl/VinylLocalSource.h"
 #include "vinyl/VinylBackendSession.h"
+#include "vinyl/VinylRecommendationService.h"
 #include "vinyl/VinylAvailability.h"
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
 #include "devtools/VinylTestProfileController.h"
@@ -1730,6 +1731,7 @@ int main(int argc, char *argv[]) {
 #endif
     auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices, vinylResolutionDelayMs);
     qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl", 1, 0, "VinylBackendSession");
+    qmlRegisterType<VinylRecommendationService>("Colosseum.Vinyl", 1, 0, "VinylRecommendationService");
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylLocalSource, &VinylLocalSource::shuttingDown);
     // Prefer the assembled app's helper/runtime; source-tree launches retain an
