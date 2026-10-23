@@ -20,6 +20,8 @@ constexpr auto kSyncActivityHistoryKey = "privacy/syncActivityHistory";
 constexpr auto kMainSyncProviderKey = "sync/mainSyncProvider";
 constexpr auto kVinylTasteKey = "vinyl/taste";
 constexpr auto kVinylFeedbackSnapshotKey = "vinyl/feedbackSnapshot";
+constexpr auto kVinylRecommendationExposureSnapshotKey =
+    "vinyl/recommendationExposureSnapshot";
 constexpr int kVinylTasteVersion = 1;
 constexpr qsizetype kMaximumVinylTasteBytes = 4 * 1024 * 1024;
 constexpr int kMaximumVinylTasteArtists = 512;
@@ -31,6 +33,14 @@ constexpr auto kRatingsReviewsDefaultReviewKey = "ratingsReviews/defaultReviewDe
 constexpr auto kRatingsReviewsConversionGroup = "ratingsReviews/conversionMaps";
 
 bool isValidVinylFeedbackSnapshot(const QString &snapshot) {
+    if (snapshot.contains(QChar::Null)
+        || snapshot.size() > kMaximumVinylFeedbackSnapshotBytes) {
+        return false;
+    }
+    return snapshot.toUtf8().size() <= kMaximumVinylFeedbackSnapshotBytes;
+}
+
+bool isValidVinylRecommendationExposureSnapshot(const QString &snapshot) {
     if (snapshot.contains(QChar::Null)
         || snapshot.size() > kMaximumVinylFeedbackSnapshotBytes) {
         return false;
@@ -624,6 +634,41 @@ bool ProfilePreferencesStore::setVinylFeedbackSnapshot(const QString &snapshot) 
     return true;
 }
 
+bool ProfilePreferencesStore::setVinylRecommendationExposureSnapshot(
+    const QString &snapshot) {
+    if (!isValidVinylRecommendationExposureSnapshot(snapshot)) {
+        m_vinylPersistenceError = QStringLiteral(
+            "Recommendation exposure snapshot must be at most 4 MiB of UTF-8 and contain no NUL.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    const QString key = QString::fromLatin1(
+        kVinylRecommendationExposureSnapshotKey);
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    m_settings->setValue(key, snapshot);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
+        m_vinylPersistenceError = QStringLiteral(
+            "Recommendation exposure snapshot could not be saved.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    m_vinylRecommendationExposureSnapshot = snapshot;
+    m_vinylPersistenceError.clear();
+    ++m_revision;
+    emit vinylRecommendationExposureChanged();
+    emit vinylPersistenceErrorChanged();
+    emit changed();
+    return true;
+}
+
 void ProfilePreferencesStore::setRememberSearchHistory(bool enabled) {
     if (m_rememberSearchHistory == enabled)
         return;
@@ -855,6 +900,21 @@ void ProfilePreferencesStore::load() {
         } else {
             m_vinylPersistenceError = QStringLiteral(
                 "Saved feedback snapshot is malformed and could not be loaded.");
+        }
+    }
+
+    const QString recommendationExposureSnapshotKey = QString::fromLatin1(
+        kVinylRecommendationExposureSnapshotKey);
+    if (m_settings->contains(recommendationExposureSnapshotKey)) {
+        const QVariant raw = m_settings->value(
+            recommendationExposureSnapshotKey);
+        const QString snapshot = raw.toString();
+        if (raw.metaType().id() == QMetaType::QString
+            && isValidVinylRecommendationExposureSnapshot(snapshot)) {
+            m_vinylRecommendationExposureSnapshot = snapshot;
+        } else {
+            m_vinylPersistenceError = QStringLiteral(
+                "Saved recommendation exposure snapshot is malformed and could not be loaded.");
         }
     }
 

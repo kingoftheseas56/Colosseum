@@ -27,6 +27,10 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(QString homeError READ homeError NOTIFY homeChanged)
     Q_PROPERTY(int homeRevision READ homeRevision NOTIFY homeChanged)
     Q_PROPERTY(QVariantMap homeSnapshot READ homeSnapshot NOTIFY homeChanged)
+    Q_PROPERTY(QObject* activityStore READ activityStore WRITE setActivityStore NOTIFY stateChanged)
+    Q_PROPERTY(QObject* historyStore READ historyStore WRITE setHistoryStore NOTIFY stateChanged)
+    Q_PROPERTY(bool keepHistory READ keepHistory WRITE setKeepHistory NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap historySnapshot READ historySnapshot NOTIFY homeChanged)
 public:
     explicit VinylRecommendationService(QObject *parent=nullptr,std::function<qint64()> clock={});
     ~VinylRecommendationService() override;
@@ -62,6 +66,15 @@ public:
     int homeRevision() const;
     QVariantMap homeSnapshot() const;
     Q_INVOKABLE void refreshHome(bool force=false);
+    QObject *activityStore() const{return m_activityStore;}
+    QObject *historyStore() const{return m_historyStore;}
+    bool keepHistory() const{return m_keepHistory;}
+    void setActivityStore(QObject*);
+    void setHistoryStore(QObject*);
+    void setKeepHistory(bool);
+    QVariantMap historySnapshot() const;
+    Q_INVOKABLE bool setFeedback(const QVariantMap &ref,const QString &action,int expectedGeneration);
+    Q_INVOKABLE bool recordVisibleItems(const QString &shelf,const QString &snapshot,const QVariantList &refs,int expectedGeneration);
 signals:
     void stateChanged();
     void resultsChanged();
@@ -69,8 +82,11 @@ signals:
 private slots:
     void loadPreferences();
     void accept(const QString&,int,const QVariant&,const QString&);
+    void historyInputsChanged();
 private:
     QPointer<QObject> m_source,m_preferences;
+    QPointer<QObject> m_activityStore,m_historyStore;
+    bool m_keepHistory=true;
     QString m_scope="local",m_state="unanswered",m_error,m_query;
     int m_generation=0,m_request=-1;
     bool m_active=true,m_committing=false;
@@ -91,4 +107,5 @@ private:
     void rebuildHome();
     void pumpHome();
     bool acceptHome(const QString&,int,const QVariant&,const QString&);
+    bool storeExposure(const QString &snapshot);
 };

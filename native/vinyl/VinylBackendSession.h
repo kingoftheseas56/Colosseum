@@ -42,6 +42,8 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(QString sourceKind READ sourceKind NOTIFY stateChanged)
     Q_PROPERTY(QString fallbackReason READ fallbackReason NOTIFY stateChanged)
     Q_PROPERTY(QString repeatMode READ repeatMode NOTIFY stateChanged)
+    Q_PROPERTY(QString playbackEndingReason READ playbackEndingReason NOTIFY stateChanged)
+    Q_PROPERTY(QString listeningOrigin READ listeningOrigin NOTIFY stateChanged)
 public:
     explicit VinylBackendSession(QObject *parent=nullptr);
     ~VinylBackendSession() override;
@@ -68,6 +70,9 @@ public:
     QString sourceKind() const { return m_sourceKind; }
     QString fallbackReason() const { return m_fallbackReason; }
     QString repeatMode() const { return m_repeat; }
+    QString playbackEndingReason() const {return m_endingReason;}
+    QString listeningOrigin() const {return m_listeningOrigin;}
+    Q_INVOKABLE QVariantMap listeningIdentity() const;
 
     Q_INVOKABLE bool replaceRows(const QVariantList &rows,int index,bool shuffle);
     Q_INVOKABLE bool appendRows(const QVariantList &rows,bool playNext);
@@ -135,11 +140,14 @@ private:
     static qint64 monotonicMs();
     void listeningPauseTransition(bool paused);
     void publishState();
+    void endPlayback(const QString &reason);
     QPointer<QObject> m_source,m_surface;
     QPointer<QObject> m_collection,m_preferences;
     QPointer<MpvItem> m_player;
     QString m_profile,m_repeat="off",m_state="idle",m_error,m_quality="Local audio";
     QString m_sourceKind,m_fallbackReason;
+    QString m_endingReason="stop",m_listeningOrigin="manual";
+    bool m_naturalAdvancing=false,m_navigationBack=false;
     bool m_forceFallback=false,m_fallbackAttempted=false;
     qint64 m_lastProgressMs=0;
     double m_lastProgress=0;

@@ -1,6 +1,7 @@
 #include "RecommendationDerivation.h"
 
 #include <QSet>
+#include <QCryptographicHash>
 
 #include <algorithm>
 
@@ -287,6 +288,83 @@ DerivationResult<RecommendationDerivationOutput> deriveRecommendationInputs(
             std::move(observations),
             std::move(aggregates),
             config.historyComplete));
+}
+
+DerivationResult<RecommendationDerivationOutput> deriveQualifiedRecommendationInputs(
+    const ProfileScopeId &profile, const QVector<QualifiedListeningSession> &input,
+    const RecommendationDerivationConfig &config)
+{
+    if(config.version!=kRecommendationDerivationVersion || config.nowMs<=0
+        || config.recentWindowMs<=0 || config.earlySkipPositionMs<0)
+        return DerivationResult<RecommendationDerivationOutput>::failure(
+            DerivationErrorCode::InvalidConfiguration,"config");
+    QVector<EntityHistoryAggregate> aggregates;
+    QVector<BehavioralSignalObservation> observations;
+    auto aggregateFor=[&](const RecommendationEntityRef &ref)->EntityHistoryAggregate& {
+        for(auto &aggregate:aggregates)if(aggregate.entity()==ref)return aggregate;
+        aggregates.append(EntityHistoryAggregate(ref));return aggregates.back();
+    };
+    auto sessions=input;
+    std::sort(sessions.begin(),sessions.end(),[](const auto &a,const auto &b){
+        return a.atMs==b.atMs?a.sessionId<b.sessionId:a.atMs<b.atMs;
+    });
+    QSet<QString> seen,replayed;
+    for(const auto &session:sessions) {
+        if(session.sessionId.isEmpty() || seen.contains(session.sessionId) || session.atMs<=0
+            || session.atMs>config.nowMs || session.qualifiedMs<0
+            || session.recording.kind()!=CanonicalEntityKind::Recording)continue;
+        seen.insert(session.sessionId);
+        auto entities=session.contexts;entities.prepend(session.recording);
+        QSet<QString> entityKeys;
+        const bool qualified=session.qualifiedMs>=10000;
+        // Skip is an explicit manual outcome even when playback began through
+        // album continuation or autoplay. Start origin controls seed decay.
+        const bool skip=(session.origin=="manual" || session.origin=="album-continuation" || session.origin=="autoplay") && session.outcome=="skip"
+            && session.positionMs>=0 && session.positionMs<=config.earlySkipPositionMs
+            && isRecent(session.outcomeAtMs,config);
+        const bool completion=qualified && session.outcome=="natural-eof"
+            && session.outcomeAtMs>0 && session.outcomeAtMs<=config.nowMs;
+        if(!qualified && !skip)continue;
+        for(const auto &entity:entities) {
+            if(!isAllowedRecommendationKind(entity.kind()) || entityKeys.contains(entity.stableKey()))continue;
+            entityKeys.insert(entity.stableKey());auto &aggregate=aggregateFor(entity);
+            auto signal=[&](BehavioralSignalKind kind,qint64 at) {
+                const auto text=session.sessionId+":"+entity.stableKey()+":"+behavioralSignalKindName(kind);
+                const auto id=BehaviorObservationId::parse("activity-"+QString::fromLatin1(
+                    QCryptographicHash::hash(text.toUtf8(),QCryptographicHash::Sha256).toHex()));
+                if(!id.ok())return;
+                const auto observation=BehavioralSignalObservation::create(*id.value,entity,kind,at);
+                if(observation.ok())observations.append(*observation.value);
+            };
+            if(qualified) {
+                ++aggregate.m_playCount;
+                aggregate.m_lastPlayedAtMs=std::max(aggregate.m_lastPlayedAtMs.value_or(0),session.atMs);
+                if(session.origin=="manual") {
+                    if(replayed.contains(entity.stableKey()))signal(BehavioralSignalKind::Replay,session.atMs);
+                    replayed.insert(entity.stableKey());
+                }
+            }
+            if(completion) {
+                if(isRecent(session.outcomeAtMs,config))++aggregate.m_recentCompletionCount;
+                if(session.origin=="autoplay") {
+                    ++aggregate.m_passiveAutoplayCompletionCount;
+                    signal(BehavioralSignalKind::PassiveAutoplayCompletion,session.outcomeAtMs);
+                } else if(session.origin=="manual" || session.origin=="album-continuation") {
+                    ++aggregate.m_naturalCompletionCount;
+                    signal(BehavioralSignalKind::NaturalCompletion,session.outcomeAtMs);
+                }
+            }
+            if(skip){++aggregate.m_recentSkipCount;++aggregate.m_earlySkipCount;}
+        }
+    }
+    // One early exit is weak evidence. Only repeated retained manual skips
+    // affect ranking; none is written as explicit Negative feedback.
+    for(auto &aggregate:aggregates)if(aggregate.m_earlySkipCount<2)aggregate.m_earlySkipCount=0;
+    std::sort(aggregates.begin(),aggregates.end(),[](const auto &a,const auto &b){
+        return a.entity().stableKey()<b.entity().stableKey();
+    });
+    return DerivationResult<RecommendationDerivationOutput>::success(
+        RecommendationDerivationOutput(profile,config.version,std::move(observations),std::move(aggregates),false));
 }
 
 QString exposureEvidenceKindName(ExposureEvidenceKind kind)

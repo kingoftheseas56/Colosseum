@@ -5,6 +5,7 @@
 #include "VinylSessionPersistence.h"
 #include "VinylListenEventLedger.h"
 #include "FeedbackTastePersistence.h"
+#include "VinylRecommendationIdentity.h"
 #include "VinylPlaylist.h"
 #include "player/mpvitem.h"
 #include <QQuickItem>
@@ -18,6 +19,7 @@
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QUrl>
+#include <QScopedValueRollback>
 #include <QUuid>
 #include <chrono>
 #include <cmath>
@@ -159,7 +161,7 @@ bool VinylBackendSession::replaceRows(const QVariantList &input,int index,bool s
         auto item=occurrence(row);if(!item||!queue.append(*item).ok)return false;
         metadata.insert(item->occurrenceId().value(),row);
     }
-    emit playbackEnding(false);cancelResolution();m_backend->coordinator.clear();
+    endPlayback("stop");m_listeningOrigin="manual";cancelResolution();m_backend->coordinator.clear();
     m_backend->queue=std::move(queue);m_rows=std::move(metadata);m_duration=0;m_resume=0;m_state="idle";
     if(shuffle)m_backend->queue.shuffle(QRandomGenerator::global()->generate64());
     m_shuffleEnabled=shuffle;
@@ -189,7 +191,9 @@ bool VinylBackendSession::appendRows(const QVariantList &input,bool playNext) {
 }
 void VinylBackendSession::playQueue(int index) {
     if(m_shutdown||!m_profileActive||index<0||index>=m_backend->queue.size())return;
-    emit playbackEnding(false);cancelResolution();
+    endPlayback(m_loaded && !m_paused && m_state=="playing" && !seekPending()
+        && index!=activeIndex() && !m_naturalAdvancing && !m_navigationBack?"skip":"stop");
+    m_listeningOrigin=m_naturalAdvancing?"album-continuation":"manual";cancelResolution();
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}
     m_backend->queue.activate(m_backend->queue.items()[index].occurrenceId());emit queueChanged();beginActive();
 }
@@ -198,7 +202,7 @@ void VinylBackendSession::removeQueue(int index) {
     const bool current=index==activeIndex();const bool paused=m_paused;
     const auto id=m_backend->queue.items()[index].occurrenceId();
     if(current){
-        emit playbackEnding(false);cancelResolution();
+        endPlayback("stop");cancelResolution();
         if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}
     }
     m_backend->queue.remove(id);m_rows.remove(id.value());
@@ -212,7 +216,7 @@ void VinylBackendSession::moveQueue(int from,int to) {
 }
 void VinylBackendSession::clearQueue() {
     if(m_shutdown||!m_profileActive)return;
-    emit playbackEnding(false);cancelResolution();m_backend->coordinator.clear();m_rows.clear();
+    endPlayback("stop");cancelResolution();m_backend->coordinator.clear();m_rows.clear();
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
     m_resume=0;m_duration=0;m_paused=true;m_shuffleEnabled=false;m_state="idle";m_error.clear();emit queueChanged();publishState();
 }
@@ -418,7 +422,7 @@ void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) {
 bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double> resume) {
     if(m_shutdown||!m_profileActive||m_sourceKind!="torrent"||m_fallbackAttempted||activeIndex()<0)return false;
     const auto at=resume.value_or(position());const bool play=!m_paused;
-    emit playbackEnding(false);cancelResolution();
+    endPlayback("stop");cancelResolution();
     if(!m_backend->coordinator.stop().ok)return false;
     retirePlayer();m_fallbackAttempted=true;m_fallbackReason=reason;m_sourceKind="youtube";
     beginActive(at,play,true);return true;
@@ -461,25 +465,27 @@ void VinylBackendSession::next(int delta) {
         if(m_repeat!="all")return;index=(index+m_backend->queue.size())%m_backend->queue.size();
     }
     const bool wasPaused=m_paused;
+    QScopedValueRollback<bool> direction(m_navigationBack,delta<0);
     playQueue(index);
     if(wasPaused)setPaused(true);
 }
 void VinylBackendSession::naturalEnd(const PlaybackWorkToken &token) {
     if(!m_backend->adapter.validateWorkToken(token).ok)return;
-    emit playbackEnding(true);
+    endPlayback("natural-eof");
+    QScopedValueRollback<bool> continuation(m_naturalAdvancing,true);
     if(m_repeat=="one"){playQueue(activeIndex());return;}
     if(activeIndex()+1<m_backend->queue.size()||m_repeat=="all"){next(1);return;}
     m_backend->callbacks.ended(token);m_resume=m_duration;m_loaded=false;m_paused=true;m_state="ended";publishState();
 }
 void VinylBackendSession::fail(const QString &message) {
-    emit playbackEnding(false);m_error=message;m_state="error";m_paused=true;
+    endPlayback("failure");m_error=message;m_state="error";m_paused=true;
     if(m_backend->session.activeWorkToken())m_backend->callbacks.failed(*m_backend->session.activeWorkToken(),"host_failure",message);
     if(m_player)m_player->setPause(true);publishState();
 }
 void VinylBackendSession::retry() { if(activeIndex()>=0){const auto at=position();cancelResolution();
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}beginActive(at);} }
 void VinylBackendSession::suspend() {
-    const auto at=position();emit playbackEnding(false);cancelResolution();m_backend->coordinator.stop();retirePlayer();
+    const auto at=position();endPlayback("stop");cancelResolution();m_backend->coordinator.stop();retirePlayer();
     m_resume=at;m_paused=true;m_state=activeIndex()>=0?"paused":"idle";publishState();
 }
 void VinylBackendSession::clearProfile() {
@@ -577,6 +583,38 @@ bool VinylBackendSession::restoreLegacy(const QVariantList &input,int index,bool
     m_resume=position;m_duration=duration;m_shuffleEnabled=shuffle;m_state=index>=0?"paused":"idle";emit queueChanged();publishState();return true;
 }
 
+void VinylBackendSession::endPlayback(const QString &reason) {
+    m_endingReason=reason;emit playbackEnding(reason=="natural-eof");
+}
+QVariantMap VinylBackendSession::listeningIdentity() const {
+    const auto row=activeRow(),edition=row.value("edition").toMap(),album=edition.value("sourceAlbum").toMap();
+    const bool yt=album.value("origin")=="youtube-music";
+    QVariantMap track;
+    for(const auto &value:album.value("tracks").toList())if(value.toMap().value("id")==row.value("trackId")){track=value.toMap();break;}
+    if(track.isEmpty())track=row.value("track").toMap();
+    auto convert=[&](QVariantMap raw,const QString &kind,const QString &id) {
+        raw["kind"]=kind;raw["provider"]=yt?"youtube-music":"local";raw["providerId"]=id;
+        if(yt)raw["id"]=(kind=="song"?"ytm:track:":"ytm:album:")+id;
+        return VinylRecommendationIdentity::fromCatalogue(raw).value("ref").toMap();
+    };
+    const auto recording=convert(track,"song",yt?track.value("videoId").toString():row.value("trackId").toString());
+    if(recording.isEmpty())return {};
+    QVariantMap result{{"entityRef",recording}};
+    const auto albumType=album.value("type").toString();
+    if(albumType!="Song" && albumType!="Playlist") {
+        const auto release=convert(album,"album",yt?album.value("providerIds").toMap().value("youtube-music",album.value("browseId")).toString():album.value("id").toString());
+        if(!release.isEmpty())result["releaseRef"]=release;
+    }
+    QVariantList artists;
+    auto ids=track.value("artistIds").toStringList();if(ids.isEmpty())ids=album.value("artistIds").toStringList();
+    for(const auto &id:ids) {
+        const bool artistYt=id.startsWith("ytm:artist:");
+        const auto ref=VinylRecommendationIdentity::fromCatalogue({{"kind","artist"},{"provider",artistYt?"youtube-music":"local"},
+            {"providerId",artistYt?id.mid(11):id}}).value("ref").toMap();
+        if(!ref.isEmpty() && !artists.contains(ref))artists.append(ref);
+    }
+    result["artistRefs"]=artists;return result;
+}
 void VinylBackendSession::beginListeningFacts() {
     m_backend->listenRecorder.reset();m_backend->listens.reset();
     m_backend->projectedListeningMs=0;

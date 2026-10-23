@@ -294,6 +294,9 @@ Item {
         id:recommendations
         source:session.source
         preferences:worldData.preferencesStore
+        activityStore:session.profileActive ? session.activitySink : null
+        historyStore:session.profileActive && typeof ProfileHistory!=="undefined" ? ProfileHistory : null
+        keepHistory:!session.activityPreferences || session.activityPreferences.keepActivityHistory!==false
         homeCollections: {
             var boundProfileScope=recommendations.profileScope;
             var boundProfileGeneration=recommendations.profileGeneration;

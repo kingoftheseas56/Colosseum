@@ -160,6 +160,10 @@ Item {
                 row: modelData
                 home: true
                 cold: false
+                backdrop: root.backdrop
+                pageFlick: root.pageFlick
+                homePageVisible: root.visible && root.worldData.activeTab === "home"
+                    && !root.showTastePicker
                 width: shelves.width
                 cardSize: root.cardSize
             }

@@ -76,9 +76,13 @@ TestCase {
             property var draftArtists: []
             property var artistResults: ({query:"",items:[],hasMore:false,nextCursor:{},error:""})
             property var homeSections: []
+            property var homeSnapshot: ({exposureSnapshotId:"visit-0"})
             property string homeStatus: "empty"
             property string homeError: ""
             property int homeRevision: 0
+            property int profileGeneration: 0
+            property var feedbackCalls: []
+            property var exposureCalls: []
             property string error: ""
             property int homeVisits: 0
             property int homeRefreshes: 0
@@ -90,11 +94,22 @@ TestCase {
             function commitTaste(skip) { onboardingState = "answered"; return true; }
             function toggleDraftArtist(artist) { return true; }
             function searchArtists(query, cursor) { return true; }
-            function setHome(sections, status, error) {
+            function setFeedback(ref, action, expectedGeneration) {
+                feedbackCalls = feedbackCalls.concat([{ref:ref,action:action,generation:expectedGeneration}]);
+                return true;
+            }
+            function recordVisibleItems(shelfId, snapshotId, refs, expectedGeneration) {
+                exposureCalls = exposureCalls.concat([{shelfId:shelfId,snapshotId:snapshotId,
+                    refs:refs,generation:expectedGeneration}]);
+                return true;
+            }
+            function setHome(sections, status, error, suppressedItems) {
                 homeSections = sections || [];
                 homeStatus = status || "ready";
                 homeError = error || "";
                 homeRevision++;
+                homeSnapshot = {exposureSnapshotId:"visit-" + homeRevision,
+                    suppressedItems:suppressedItems || []};
             }
         }
     }
@@ -121,13 +136,22 @@ TestCase {
     }
 
     function card(id, title, kind, destination, fields) {
+        var entityKind = kind === "artists" ? "artist" : kind === "songs" ? "recording" : "release_group";
         return Object.assign({id:id,title:title,cover:"",kind:kind,destination:destination,
-            key:"recommendation:"+id,artistRefs:[],reason:""}, fields || {});
+            key:"recommendation:"+id,ref:{identity:"provider",kind:entityKind,
+                providerId:"youtube-music",itemId:id},artistRefs:[],reason:""}, fields || {});
     }
 
     function section(items, fields) {
         return Object.assign({id:"for-you",key:"for-you",title:"Made for you",
             kind:"recommendations",items:items,status:"ready",error:"",canRetry:false}, fields || {});
+    }
+
+    function revealCardVertically(cardItem) {
+        var flick=world.worldView.pageFlick;
+        var contentTop=cardItem.mapToItem(flick.contentItem,0,0).y;
+        flick.contentY=Math.max(0,contentTop-80);
+        wait(180);
     }
 
     function init() {
@@ -343,5 +367,269 @@ TestCase {
         recommendations.setHome([],"empty","");
         world.session.clearProfile();
         compare(world.worldData.row(key,true).items.length,0);
+    }
+
+    function test_personalizedCardFeedbackUsesTypedRefAndDoesNotNavigateOrPlay() {
+        var creditedArtist = {provider:"youtube-music",providerId:"UCabcdefghijklmnopqrstuv",name:"Credited Artist"};
+        recommendations.setHome([section([card("feedback-target","Suggested release","albums",
+            {kind:"album",provider:"youtube-music",providerId:"MPRE_feedback",id:"ytm:album:MPRE_feedback"},
+            {artistRefs:[creditedArtist]})])]);
+        var cardItem = findChild(world,"vinylCard_personalized:for-you_0");
+        verify(cardItem !== null);
+        revealCardVertically(cardItem);
+        var actions = findChild(cardItem,"vinylRecommendationActions_feedback-target");
+        verify(actions !== null && actions.accessibleName.indexOf("Suggested release") >= 0);
+        verify(actions.contextEnabled);
+        host.contentItem.forceActiveFocus(Qt.OtherFocusReason);
+        verify(cardItem.openFeedbackMenu());
+        var availableActions=cardItem.feedbackOptions.map(function(option){return option.action;});
+        verify(["like","dislike","neutral","hide","unhide","snooze-7d","unsnooze",
+            "exclude-artist","allow-artist"].every(function(action){return availableActions.indexOf(action)>=0;}));
+        var like = cardItem.feedbackActionFor("like");
+        verify(like !== null && like.accessibleName === "Like this recommendation");
+        wait(50);
+        verify(!like.activeFocus,"Pointer entry must not give the first feedback action a focus frame");
+        verify(like.activate(Qt.MouseFocusReason));
+
+        compare(recommendations.feedbackCalls.length,1);
+        compare(recommendations.feedbackCalls[0].action,"like");
+        compare(JSON.stringify(recommendations.feedbackCalls[0].ref),JSON.stringify(cardItem.item.ref));
+        compare(recommendations.feedbackCalls[0].generation,world.session.profileGeneration);
+        tryCompare(cardItem,"feedbackMenuOpen",false);
+        verify(actions.activate(Qt.MouseFocusReason));
+        tryCompare(cardItem,"feedbackMenuOpen",true);
+        tryVerify(function(){return cardItem.feedbackActionFor("exclude-artist-0")!==null;});
+        var fewerFromArtist=cardItem.feedbackActionFor("exclude-artist-0");
+        verify(fewerFromArtist !== null && fewerFromArtist.activate(Qt.MouseFocusReason));
+        compare(recommendations.feedbackCalls.length,2);
+        compare(recommendations.feedbackCalls[1].action,"exclude-artist");
+        compare(recommendations.feedbackCalls[1].ref.identity,"provider");
+        compare(recommendations.feedbackCalls[1].ref.kind,"artist");
+        compare(recommendations.feedbackCalls[1].ref.providerId,"youtube-music");
+        compare(recommendations.feedbackCalls[1].ref.itemId,creditedArtist.providerId);
+        compare(world.page,"home");
+        compare(world.session.playingIndex,-1);
+        compare(world.session.queue.length,0);
+    }
+
+    function test_tasteArtistCanRestoreRecommendationsWithoutAVisibleRecommendationCard() {
+        recommendations.setHome([]);
+        var artistCard=findChild(world,"vinylCard_taste-artists_0");
+        verify(artistCard!==null);
+        revealCardVertically(artistCard);
+        compare(recommendations.homeSections.length,0);
+        verify(artistCard.feedbackAvailable);
+        compare(artistCard.item.ref.identity,"provider");
+        compare(artistCard.item.ref.kind,"artist");
+        compare(artistCard.item.ref.providerId,"local");
+        compare(artistCard.item.ref.itemId,"native-artist");
+        verify(artistCard.openFeedbackMenu());
+
+        var exclude=artistCard.feedbackActionFor("exclude-current-artist");
+        var allow=artistCard.feedbackActionFor("allow-current-artist");
+        verify(exclude!==null && allow!==null);
+        compare(allow.accessibleName,"Allow Native Artist again");
+        verify(allow.activate(Qt.MouseFocusReason));
+
+        compare(recommendations.feedbackCalls.length,1);
+        compare(recommendations.feedbackCalls[0].action,"allow-artist");
+        compare(JSON.stringify(recommendations.feedbackCalls[0].ref),JSON.stringify(artistCard.item.ref));
+        compare(recommendations.feedbackCalls[0].generation,world.session.profileGeneration);
+        compare(world.page,"home");
+        compare(world.session.playingIndex,-1);
+        compare(world.session.queue.length,0);
+    }
+
+    function test_tasteArtistRecoversSuppressedItemsAfterCardsLeaveHome() {
+        var matchingArtist={provider:"local",providerId:"native-artist",localId:"native-artist",name:"Native Artist"};
+        var hiddenRef={identity:"provider",kind:"release_group",providerId:"youtube-music",itemId:"hidden-release"};
+        var snoozedRef={identity:"provider",kind:"release_group",providerId:"youtube-music",itemId:"snoozed-release"};
+        var excludedArtistRef={identity:"provider",kind:"artist",providerId:"youtube-music",
+            itemId:"UCcollaboratorabcdefghijkl"};
+        recommendations.setHome([section([card("departed-release","Departed release","albums",
+            {kind:"album",provider:"youtube-music",providerId:"MPRE_departed",id:"ytm:album:MPRE_departed"})])]);
+        var recommendationCard=findChild(world,"vinylCard_personalized:for-you_0");
+        verify(recommendationCard!==null);
+
+        recommendations.setHome([],"ready","",[
+            {ref:hiddenRef,title:"Hidden release",artistRefs:[matchingArtist],seedArtistRef:null,
+                hidden:true,snoozed:false,excluded:false},
+            {ref:snoozedRef,title:"Snoozed release",artistRefs:[],seedArtistRef:matchingArtist,
+                hidden:false,snoozed:true,excluded:false},
+            {ref:{identity:"provider",kind:"release_group",providerId:"youtube-music",itemId:"excluded-release"},
+                title:"Release with excluded collaborator",artistRefs:[matchingArtist,
+                    {provider:"youtube-music",providerId:excludedArtistRef.itemId,name:"Collaborator B"}],
+                seedArtistRef:matchingArtist,excludedArtistRefs:[{ref:excludedArtistRef,name:"Collaborator B"}],
+                hidden:false,snoozed:false,excluded:true},
+            {ref:{identity:"provider",kind:"artist",providerId:"local",itemId:"native-artist"},
+                title:"Excluded Native Artist",artistRefs:[],seedArtistRef:null,excluded:true,
+                hidden:false,snoozed:false},
+            {ref:{identity:"provider",kind:"release_group",providerId:"youtube-music",itemId:"other"},
+                title:"Unrelated release",artistRefs:[{provider:"local",providerId:"other-artist"}],
+                seedArtistRef:null,hidden:true,snoozed:false,excluded:false}
+        ]);
+        compare(findChild(world,"vinylCard_personalized:for-you_0"),null);
+        var artistCard=findChild(world,"vinylCard_taste-artists_0");
+        verify(artistCard!==null);
+        revealCardVertically(artistCard);
+
+        var suppressed=world.worldData.suppressedRecommendationsForArtist(artistCard.item.ref);
+        compare(suppressed.length,4);
+        verify(suppressed.some(function(entry){return entry.title==="Hidden release";}));
+        verify(suppressed.some(function(entry){return entry.title==="Snoozed release";}));
+        verify(suppressed.some(function(entry){return entry.title==="Release with excluded collaborator";}));
+        verify(suppressed.some(function(entry){return entry.title==="Excluded Native Artist";}));
+        verify(artistCard.openFeedbackMenu());
+        var unhide=artistCard.feedbackOptions.find(function(option){return option.action==="unhide";});
+        var unsnooze=artistCard.feedbackOptions.find(function(option){return option.action==="unsnooze";});
+        var allowExcluded=artistCard.feedbackOptions.find(function(option){
+            return option.action==="allow-artist" && option.label.indexOf("Collaborator B")>=0
+                && option.label.indexOf("Release with excluded collaborator")>=0;
+        });
+        verify(unhide!==undefined && unhide.label.indexOf("Hidden release")>=0);
+        verify(unsnooze!==undefined && unsnooze.label.indexOf("Snoozed release")>=0);
+        verify(allowExcluded!==undefined);
+        var unhideAction=artistCard.feedbackActionFor(unhide.key);
+        verify(unhideAction!==null && unhideAction.activate(Qt.MouseFocusReason));
+        compare(recommendations.feedbackCalls[0].action,"unhide");
+        compare(recommendations.feedbackCalls[0].ref.identity,hiddenRef.identity);
+        compare(recommendations.feedbackCalls[0].ref.kind,hiddenRef.kind);
+        compare(recommendations.feedbackCalls[0].ref.providerId,hiddenRef.providerId);
+        compare(recommendations.feedbackCalls[0].ref.itemId,hiddenRef.itemId);
+
+        verify(artistCard.openFeedbackMenu());
+        var unsnoozeAction=artistCard.feedbackActionFor(unsnooze.key);
+        verify(unsnoozeAction!==null && unsnoozeAction.activate(Qt.MouseFocusReason));
+        compare(recommendations.feedbackCalls[1].action,"unsnooze");
+        compare(recommendations.feedbackCalls[1].ref.identity,snoozedRef.identity);
+        compare(recommendations.feedbackCalls[1].ref.kind,snoozedRef.kind);
+        compare(recommendations.feedbackCalls[1].ref.providerId,snoozedRef.providerId);
+        compare(recommendations.feedbackCalls[1].ref.itemId,snoozedRef.itemId);
+
+        verify(artistCard.openFeedbackMenu());
+        var allowAction=artistCard.feedbackActionFor(allowExcluded.key);
+        verify(allowAction!==null && allowAction.activate(Qt.MouseFocusReason));
+        compare(recommendations.feedbackCalls[2].action,"allow-artist");
+        compare(recommendations.feedbackCalls[2].ref.identity,excludedArtistRef.identity);
+        compare(recommendations.feedbackCalls[2].ref.kind,excludedArtistRef.kind);
+        compare(recommendations.feedbackCalls[2].ref.providerId,excludedArtistRef.providerId);
+        compare(recommendations.feedbackCalls[2].ref.itemId,excludedArtistRef.itemId);
+        verify(recommendations.feedbackCalls.every(function(call){
+            return call.generation===world.session.profileGeneration;
+        }));
+        compare(world.page,"home");
+        compare(world.session.playingIndex,-1);
+        compare(world.session.queue.length,0);
+    }
+
+    function test_savedArtistRecoversHiddenRecommendationWithoutTasteSelection() {
+        recommendations.selectedArtists=[];
+        var hiddenRef={identity:"provider",kind:"release_group",providerId:"youtube-music",
+            itemId:"saved-artist-hidden-release"};
+        recommendations.setHome([section([card("saved-artist-departed","Departed recommendation","albums",
+            {kind:"album",provider:"youtube-music",providerId:"MPRE_saved_artist_departed",
+                id:"ytm:album:MPRE_saved_artist_departed"})])]);
+        verify(world.worldData.homeRows.some(function(row){return row.key==="saved-artists";}));
+        verify(!world.worldData.homeRows.some(function(row){return row.key==="taste-artists";}));
+
+        recommendations.setHome([],"ready","",[
+            {ref:hiddenRef,title:"Hidden local artist release",
+                artistRefs:[{provider:"local",providerId:"native-artist",name:"Native Artist"}],
+                seedArtistRef:null,hidden:true,snoozed:false,excluded:false}
+        ]);
+        compare(findChild(world,"vinylCard_personalized:for-you_0"),null);
+        var savedArtistCard=findChild(world,"vinylCard_saved-artists_0");
+        verify(savedArtistCard!==null);
+        revealCardVertically(savedArtistCard);
+        verify(savedArtistCard.feedbackAvailable);
+        compare(savedArtistCard.item.ref.identity,"provider");
+        compare(savedArtistCard.item.ref.kind,"artist");
+        compare(savedArtistCard.item.ref.providerId,"local");
+        compare(savedArtistCard.item.ref.itemId,"native-artist");
+        verify(savedArtistCard.openFeedbackMenu());
+        var restoreOption=savedArtistCard.feedbackOptions.find(function(option){
+            return option.action==="unhide" && option.label.indexOf("Hidden local artist release")>=0;
+        });
+        verify(restoreOption!==undefined);
+        var restoreAction=savedArtistCard.feedbackActionFor(restoreOption.key);
+        verify(restoreAction!==null && restoreAction.activate(Qt.MouseFocusReason));
+        compare(recommendations.feedbackCalls.length,1);
+        compare(recommendations.feedbackCalls[0].action,"unhide");
+        compare(recommendations.feedbackCalls[0].ref.identity,"provider");
+        compare(recommendations.feedbackCalls[0].ref.kind,hiddenRef.kind);
+        compare(recommendations.feedbackCalls[0].ref.providerId,hiddenRef.providerId);
+        compare(recommendations.feedbackCalls[0].ref.itemId,hiddenRef.itemId);
+        compare(recommendations.feedbackCalls[0].generation,world.session.profileGeneration);
+        var providerRef=world.worldData.recommendationArtistRef({id:"ytm:artist:UCsavedArtist",name:"Provider Artist"});
+        compare(providerRef.providerId,"youtube-music");
+        compare(providerRef.itemId,"UCsavedArtist");
+        compare(world.worldData.recommendationArtistRef({name:"Name without identity"}),null);
+        compare(world.page,"home");
+        compare(world.session.playingIndex,-1);
+        compare(world.session.queue.length,0);
+    }
+
+    function test_staleFeedbackGenerationIsRejectedBeforeServiceCall() {
+        recommendations.setHome([section([card("stale-feedback","Suggested release","albums",
+            {kind:"album",provider:"youtube-music",providerId:"MPRE_stale",id:"ytm:album:MPRE_stale"})])]);
+        var cardItem = findChild(world,"vinylCard_personalized:for-you_0");
+        verify(cardItem !== null);
+        revealCardVertically(cardItem);
+        verify(cardItem !== null && cardItem.openFeedbackMenu());
+        var capturedGeneration = cardItem.feedbackGeneration;
+        var exposureCount = recommendations.exposureCalls.length;
+        world.session.profileGeneration++;
+
+        verify(!world.worldData.setRecommendationFeedback(cardItem.item.ref,"dislike",capturedGeneration));
+        verify(!world.worldData.recordVisibleRecommendation(cardItem.recommendationRow,
+            cardItem.item,capturedGeneration,true));
+        compare(recommendations.feedbackCalls.length,0);
+        compare(recommendations.exposureCalls.length,exposureCount);
+    }
+
+    function test_visibleExposureSendsOnlyVisibleCardsWithSnapshotAndGeneration() {
+        var cards = [];
+        for (var i=0;i<12;i++) {
+            cards.push(card("visible-"+i,"Suggested "+i,"albums",
+                {kind:"album",provider:"youtube-music",providerId:"MPRE_visible_"+i,
+                    id:"ytm:album:MPRE_visible_"+i}));
+        }
+        var sections=[section(cards)];
+        for (var row=1;row<6;row++) {
+            var itemId=row===5 ? "below-fold" : "below-row-"+row;
+            sections.push(section([card(itemId,"Recommendation "+row,"albums",
+                {kind:"album",provider:"youtube-music",providerId:"MPRE_below_"+row,
+                    id:"ytm:album:MPRE_below_"+row})],
+                {id:row===5 ? "below-fold-section" : "below-row-section-"+row,
+                    key:row===5 ? "below-fold-section" : "below-row-section-"+row,
+                    title:row===5 ? "Below fold" : "Recommendation row "+row}));
+        }
+        recommendations.setHome(sections);
+        var firstCard=findChild(world,"vinylCard_personalized:for-you_0");
+        verify(firstCard !== null);
+        revealCardVertically(firstCard);
+        tryVerify(function(){return recommendations.exposureCalls.length>0;});
+
+        verify(recommendations.exposureCalls.every(function(call) {
+            return call.shelfId.length>0 && call.snapshotId === recommendations.homeSnapshot.exposureSnapshotId
+                && call.refs.length === 1 && call.generation === world.session.profileGeneration;
+        }));
+        verify(!recommendations.exposureCalls.some(function(call) {
+            return call.refs[0].itemId === "below-fold";
+        }));
+        verify(recommendations.exposureCalls.length < cards.length);
+    }
+
+    function test_hiddenHomeDoesNotRecordCardExposure() {
+        recommendations.setHome([section([card("hidden-card","Suggested release","albums",
+            {kind:"album",provider:"youtube-music",providerId:"MPRE_hidden",id:"ytm:album:MPRE_hidden"})])]);
+        var firstCard=findChild(world,"vinylCard_personalized:for-you_0");
+        verify(firstCard !== null);
+        revealCardVertically(firstCard);
+        tryVerify(function(){return recommendations.exposureCalls.length>0;});
+        recommendations.exposureCalls = [];
+        world.showBrowseSong(rawAlbum,0);
+        wait(180);
+        compare(recommendations.exposureCalls.length,0);
     }
 }

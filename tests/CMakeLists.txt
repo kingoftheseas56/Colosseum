@@ -2530,6 +2530,25 @@ add_custom_command(TARGET tst_consumption_history POST_BUILD
             "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
             "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
 add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
+get_target_property(vinyl_music_activity_sources tst_consumption_history SOURCES)
+list(REMOVE_ITEM vinyl_music_activity_sources auto/consumption_history/tst_consumption_history.cpp)
+add_library(vinyl_test_activity_owners STATIC ${vinyl_music_activity_sources})
+target_include_directories(vinyl_test_activity_owners PUBLIC "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_test_activity_owners PUBLIC Qt6::Core Qt6::Sql)
+set_target_properties(vinyl_test_activity_owners PROPERTIES AUTOMOC ON)
+add_executable(tst_vinyl_music_actions auto/account/tst_vinyl_music_actions.cpp ${vinyl_music_activity_sources})
+target_include_directories(tst_vinyl_music_actions PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vinyl_music_actions PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vinyl_music_actions PROPERTIES AUTOMOC ON RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vinyl_music_actions COMMAND tst_vinyl_music_actions)
+set_tests_properties(colosseum.qttest.vinyl_music_actions PROPERTIES LABELS "vinyl;activity;history;unit" TIMEOUT 60)
+add_executable(vinyl_recommendation_history_test vinyl_recommendation_history_test.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
+target_include_directories(vinyl_recommendation_history_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_recommendation_history_test PRIVATE colosseum_vinyl_backend vinyl_test_activity_owners Qt6::Test)
+set_target_properties(vinyl_recommendation_history_test PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.vinyl_recommendation_history COMMAND vinyl_recommendation_history_test)
+set_tests_properties(colosseum.vinyl_recommendation_history PROPERTIES LABELS "vinyl;recommendations;history;unit" TIMEOUT 60)
 set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
     LABELS "unit;qttest;activity;history;profile"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
@@ -5039,7 +5058,7 @@ add_executable(vinyl_native_session_bridge
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
 set_target_properties(vinyl_native_session_bridge PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_native_session_bridge PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(vinyl_native_session_bridge PRIVATE colosseum_vinyl_app colosseum_vinyl_backend
+target_link_libraries(vinyl_native_session_bridge PRIVATE colosseum_vinyl_app colosseum_vinyl_backend vinyl_test_activity_owners
     Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest MpvQt::MpvQt)
 target_compile_definitions(vinyl_native_session_bridge PRIVATE
     VINYL_CONTRACT_IMPORTS="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
@@ -5187,7 +5206,7 @@ if(TARGET colosseum_vinyl_app)
         target_compile_definitions(tst_vinyl_native_${vinyl_check} PRIVATE
             VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
         target_link_libraries(tst_vinyl_native_${vinyl_check} PRIVATE
-            colosseum_vinyl_app colosseum_vinyl_backend
+            colosseum_vinyl_app colosseum_vinyl_backend vinyl_test_activity_owners
             Qt6::Core Qt6::Gui Qt6::Network Qt6::Quick Qt6::Test MpvQt::MpvQt)
         set_target_properties(tst_vinyl_native_${vinyl_check} PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -5205,7 +5224,7 @@ add_executable(vinyl_personal_library_contracts vinyl_personal_library_harness.c
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h")
 set_target_properties(vinyl_personal_library_contracts PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_personal_library_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_app Qt6::Test Qt6::Quick MpvQt::MpvQt)
+target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_app vinyl_test_activity_owners Qt6::Test Qt6::Quick MpvQt::MpvQt)
 add_test(NAME colosseum.vinyl_personal_library COMMAND vinyl_personal_library_contracts)
 set_tests_properties(colosseum.vinyl_personal_library PROPERTIES LABELS "vinyl;personal;qttest" TIMEOUT 45
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
@@ -5241,10 +5260,11 @@ add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_te
 target_sources(vinyl_recommendation_service_test PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.h"
-    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHome.cpp")
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHome.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
 set_target_properties(vinyl_recommendation_service_test PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_recommendation_service_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(vinyl_recommendation_service_test PRIVATE colosseum_vinyl_backend Qt6::Qml Qt6::Test)
+target_link_libraries(vinyl_recommendation_service_test PRIVATE colosseum_vinyl_backend vinyl_test_activity_owners Qt6::Qml Qt6::Test)
 add_test(NAME colosseum.vinyl_recommendation_service COMMAND vinyl_recommendation_service_test)
 set_tests_properties(colosseum.vinyl_recommendation_service PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
 if(MSVC)

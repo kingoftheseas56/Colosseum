@@ -29,6 +29,12 @@ Item {
         ? String(recommendationService.homeStatus || "empty") : "empty"
     readonly property string homeError: usesRecommendationService
         ? String(recommendationService.homeError || "") : ""
+    readonly property var recommendationHomeSnapshot: {
+        var revision = homeRevision;
+        if(!usesRecommendationService || !recommendationService.homeSnapshot) return ({});
+        var snapshot = session.plainData(recommendationService.homeSnapshot);
+        return snapshot && typeof snapshot === "object" ? snapshot : ({});
+    }
     readonly property var recommendationHomeSections: {
         var revision = homeRevision;
         var sections = usesRecommendationService ? recommendationService.homeSections || [] : [];
@@ -102,7 +108,7 @@ Item {
             return recommendationService.refreshHome(true);
         return false;
     }
-    function personalizedHomeRow(section) {
+    function personalizedHomeRow(section, snapshot, generation) {
         if(!section || section.kind!=="recommendations" || !Array.isArray(section.items)) return null;
         var identity=String(section.id || section.key || "").trim();
         if(!identity) return null;
@@ -138,9 +144,74 @@ Item {
             return item;
         }).filter(function(item) { return !!item; });
         if(!items.length) return null;
-        return {key:"personalized:"+identity,sectionId:identity,title:String(section.title || "Recommendations"),
+        return {key:"personalized:"+identity,sectionId:identity,
+            exposureSnapshotId:String(snapshot && snapshot.exposureSnapshotId || ""),
+            profileGeneration:generation,title:String(section.title || "Recommendations"),
             kind:"recommendations",recommendation:true,items:items,status:String(section.status || "ready"),
             error:String(section.error || ""),canRetry:section.canRetry===true};
+    }
+    function recommendationProfileGeneration() {
+        var generation = Number(session.profileGeneration);
+        return Number.isInteger(generation) && generation >= 0 ? generation : 0;
+    }
+    function recommendationArtistRef(artist) {
+        if(!artist || typeof artist !== "object") return null;
+        var provider=String(artist.provider || "").trim();
+        var providerId=String(artist.providerId || artist.localId || "").trim();
+        var artistId=String(artist.artistId || "").trim();
+        var id=String(artist.id || "").trim();
+        if(providerId.indexOf("ytm:artist:")===0 || artistId.indexOf("ytm:artist:")===0
+            || id.indexOf("ytm:artist:")===0) {
+            provider="youtube-music";
+            var ytmId=providerId.indexOf("ytm:artist:")===0 ? providerId
+                : artistId.indexOf("ytm:artist:")===0 ? artistId : id;
+            providerId=ytmId.slice("ytm:artist:".length);
+        }
+        if(!providerId) providerId=artistId || id;
+        if(!provider) provider="local";
+        if(!providerId) return null;
+        return {identity:"provider",kind:"artist",providerId:provider,itemId:providerId};
+    }
+    function recommendationRefsEqual(left, right) {
+        return !!left && !!right
+            && String(left.identity || "")==="provider" && String(right.identity || "")==="provider"
+            && String(left.kind || "")===String(right.kind || "")
+            && String(left.providerId || "")===String(right.providerId || "")
+            && String(left.itemId || "")===String(right.itemId || "");
+    }
+    function suppressedRecommendationsForArtist(artistRef) {
+        if(!artistRef || artistRef.identity!=="provider" || artistRef.kind!=="artist"
+            || !artistRef.providerId || !artistRef.itemId) return [];
+        var snapshot=recommendationHomeSnapshot;
+        var suppressed=snapshot && Array.isArray(snapshot.suppressedItems) ? snapshot.suppressedItems : [];
+        return suppressed.filter(function(entry) {
+            if(!entry || typeof entry!=="object"
+                || (entry.hidden!==true && entry.snoozed!==true && entry.excluded!==true)) return false;
+            if(recommendationRefsEqual(entry.ref,artistRef)) return true;
+            if(recommendationRefsEqual(recommendationArtistRef(entry.seedArtistRef),artistRef)) return true;
+            var credits=Array.isArray(entry.artistRefs) ? entry.artistRefs : [];
+            return credits.some(function(artist) {
+                return recommendationRefsEqual(recommendationArtistRef(artist),artistRef);
+            });
+        }).slice(0,300);
+    }
+    function setRecommendationFeedback(ref, action, expectedGeneration) {
+        var generation=Number(expectedGeneration);
+        if(!usesRecommendationService || typeof recommendationService.setFeedback!=="function"
+            || !ref || typeof ref!=="object" || !String(action || "")
+            || !session.profileActive || session.shuttingDown
+            || !Number.isInteger(generation) || generation!==recommendationProfileGeneration()) return false;
+        return recommendationService.setFeedback(ref,String(action),generation)===true;
+    }
+    function recordVisibleRecommendation(row, item, expectedGeneration, actuallyVisible) {
+        var generation=Number(expectedGeneration);
+        if(!actuallyVisible || !row || row.recommendation!==true || !item || !item.ref
+            || !usesRecommendationService || typeof recommendationService.recordVisibleItems!=="function"
+            || activeTab!=="home" || tastePickerOpen || !session.profileActive || session.shuttingDown
+            || !row.sectionId || !row.exposureSnapshotId
+            || !Number.isInteger(generation) || generation!==recommendationProfileGeneration()) return false;
+        return recommendationService.recordVisibleItems(String(row.sectionId),String(row.exposureSnapshotId),
+            [item.ref],generation)===true;
     }
     readonly property bool catalogueReachable: true
     readonly property bool cataloguePagingSupported: !!session.source && session.source.catalogueSearchVersion===1
@@ -304,6 +375,8 @@ Item {
     readonly property var homeRows: {
         if(session.profileActive===false || session.shuttingDown)return [];
         var nativeSections=recommendationHomeSections;
+        var snapshot=recommendationHomeSnapshot;
+        var generation=recommendationProfileGeneration();
         var result=[];
         var continuing=[],active=session.activeQueueRow;
         if(active)continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
@@ -312,7 +385,7 @@ Item {
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
         if(continuing.length)result.push({key:"continue-listening",title:"Continue listening",kind:"resume",items:continuing});
         nativeSections.forEach(function(section) {
-            var row=personalizedHomeRow(section);
+            var row=personalizedHomeRow(section,snapshot,generation);
             if(row) result.push(row);
         });
         var tasteArtists = usesRecommendationService ? recommendationService.selectedArtists || [] : [];
@@ -326,18 +399,23 @@ Item {
             var name = String(artist.name || artist.title || "");
             return {id:destination,artistId:destination,kind:"artists",artist:name,title:name,
                 cover:String(artist.image || artist.cover || ""),round:true,subtitle:"",
-                tasteKey:String(artist.key || "")};
+                tasteKey:String(artist.key || ""),ref:recommendationArtistRef(artist)};
         }).filter(function(item) { return !!item.artistId && !!item.title; });
-        if(tasteItems.length)result.push({key:"taste-artists",title:"Your artists",kind:"artists",items:tasteItems});
+        if(tasteItems.length)result.push({key:"taste-artists",title:"Your artists",kind:"artists",
+            profileGeneration:generation,items:tasteItems});
         var collections=personalLibrary ? personalLibrary.homeCollections : null;
         if(collections) {
             var songs=collections.songs.map(item=>Object.assign({},item,{kind:"saved-song",subtitle:item.artist}));
             var albums=collections.albums.map(item=>Object.assign({},item,{kind:"albums",subtitle:item.artist}));
-            var artists=collections.artists.map(item=>Object.assign({},item,{kind:"artists",round:true,subtitle:""}));
+            var artists=collections.artists.map(function(item) {
+                return Object.assign({},item,{kind:"artists",round:true,subtitle:"",
+                    ref:recommendationArtistRef(item)});
+            });
             var playlists=collections.playlists.map(item=>Object.assign({},item,{kind:"playlists",subtitle:item.count+ (item.count===1 ? " song" : " songs")}));
             if(songs.length)result.push({key:"saved-songs",title:"Saved songs",kind:"saved-song",items:songs.slice(0,24)});
             if(albums.length)result.push({key:"saved-albums",title:"Saved albums",kind:"albums",items:albums.slice(0,24)});
-            if(artists.length)result.push({key:"saved-artists",title:"Saved artists",kind:"artists",items:artists.slice(0,24)});
+            if(artists.length)result.push({key:"saved-artists",title:"Saved artists",kind:"artists",
+                profileGeneration:generation,items:artists.slice(0,24)});
             if(playlists.length)result.push({key:"playlists",title:"Your playlists",kind:"playlists",items:playlists.slice(0,24)});
         } else if(visibleLibraryAlbums.length)result.push({key:"local-albums",title:"Your library",kind:"albums",items:project(visibleLibraryAlbums,"albums")});
         return result;

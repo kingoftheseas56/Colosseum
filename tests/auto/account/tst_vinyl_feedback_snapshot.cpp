@@ -32,17 +32,225 @@ QString snapshotValue(const QObject *store) {
 QString persistenceError(const QObject *store) {
     return store->property("vinylPersistenceError").toString();
 }
+
+bool invokeRecommendationExposureSnapshotSetter(
+    QObject *store,
+    const QString &snapshot,
+    bool *committed) {
+    bool result = false;
+    const bool invoked = QMetaObject::invokeMethod(
+        store,
+        "setVinylRecommendationExposureSnapshot",
+        Qt::DirectConnection,
+        Q_RETURN_ARG(bool, result),
+        Q_ARG(QString, snapshot));
+    if (committed)
+        *committed = result;
+    return invoked;
+}
+
+QString recommendationExposureSnapshotValue(const QObject *store) {
+    return store->property("vinylRecommendationExposureSnapshot").toString();
+}
 }
 
 class tst_vinyl_feedback_snapshot : public QObject {
     Q_OBJECT
 
 private slots:
+    void recommendationExposureSnapshotApiIsExposed();
+    void recommendationExposureSnapshotPersistsAndClears();
+    void recommendationExposureSnapshotUsesUtf8ByteLimitAndRejectsNul();
+    void malformedStoredRecommendationExposureSnapshotIsNotPublished();
+    void failedSyncRetainsPreviousRecommendationExposureSnapshot();
     void snapshotIsExposedAndPersists();
     void snapshotUsesUtf8ByteLimitAndRejectsNul();
     void malformedStoredSnapshotIsNotPublished();
     void failedSyncRetainsPreviousSnapshot();
 };
+
+void tst_vinyl_feedback_snapshot::recommendationExposureSnapshotApiIsExposed() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    ProfilePreferencesStore store(
+        temporary.filePath(QStringLiteral("preferences.ini")));
+
+    const int propertyIndex = store.metaObject()->indexOfProperty(
+        "vinylRecommendationExposureSnapshot");
+    QVERIFY2(propertyIndex >= 0,
+             "recommendation exposure snapshot must be a Qt property");
+    const QMetaProperty snapshotProperty =
+        store.metaObject()->property(propertyIndex);
+    QVERIFY(snapshotProperty.isReadable());
+    QVERIFY(snapshotProperty.hasNotifySignal());
+    QVERIFY(store.metaObject()->indexOfMethod(
+                "setVinylRecommendationExposureSnapshot(QString)") >= 0);
+}
+
+void tst_vinyl_feedback_snapshot::
+    recommendationExposureSnapshotPersistsAndClears() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("preferences.ini"));
+    const QString value = QStringLiteral(
+        "{\"version\":2,\"profileId\":\"account-a\",\"exposures\":[]}");
+
+    ProfilePreferencesStore store(path);
+    QSignalSpy changed(
+        &store, SIGNAL(vinylRecommendationExposureChanged()));
+    QVERIFY(changed.isValid());
+    bool committed = false;
+    QVERIFY(invokeRecommendationExposureSnapshotSetter(
+        &store, value, &committed));
+    QVERIFY(committed);
+    QCOMPARE(recommendationExposureSnapshotValue(&store), value);
+    QCOMPARE(changed.count(), 1);
+
+    {
+        QSettings settings(path, QSettings::IniFormat);
+        QCOMPARE(settings.value(QStringLiteral(
+                                  "vinyl/recommendationExposureSnapshot"))
+                     .toString(),
+                 value);
+    }
+    {
+        ProfilePreferencesStore reloaded(path);
+        QCOMPARE(recommendationExposureSnapshotValue(&reloaded), value);
+        QVERIFY(persistenceError(&reloaded).isEmpty());
+        QVERIFY(invokeRecommendationExposureSnapshotSetter(
+            &reloaded, QString(), &committed));
+        QVERIFY(committed);
+    }
+    {
+        ProfilePreferencesStore cleared(path);
+        QVERIFY(recommendationExposureSnapshotValue(&cleared).isEmpty());
+    }
+}
+
+void tst_vinyl_feedback_snapshot::
+    recommendationExposureSnapshotUsesUtf8ByteLimitAndRejectsNul() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    ProfilePreferencesStore store(
+        temporary.filePath(QStringLiteral("preferences.ini")));
+
+    const QString atLimit = QString(1398101, QChar(0x20ac)) + QLatin1Char('x');
+    const QString overLimit(1398102, QChar(0x20ac));
+    QCOMPARE(atLimit.toUtf8().size(), 4194304);
+    QCOMPARE(overLimit.toUtf8().size(), 4194306);
+
+    bool committed = false;
+    QVERIFY(invokeRecommendationExposureSnapshotSetter(
+        &store, atLimit, &committed));
+    QVERIFY(committed);
+    QCOMPARE(recommendationExposureSnapshotValue(&store), atLimit);
+
+    QVERIFY(invokeRecommendationExposureSnapshotSetter(
+        &store, overLimit, &committed));
+    QVERIFY(!committed);
+    QCOMPARE(recommendationExposureSnapshotValue(&store), atLimit);
+    QVERIFY(!persistenceError(&store).isEmpty());
+
+    QString withNul = QStringLiteral("exposure snapshot");
+    withNul.insert(8, QChar::Null);
+    QVERIFY(invokeRecommendationExposureSnapshotSetter(
+        &store, withNul, &committed));
+    QVERIFY(!committed);
+    QCOMPARE(recommendationExposureSnapshotValue(&store), atLimit);
+}
+
+void tst_vinyl_feedback_snapshot::
+    malformedStoredRecommendationExposureSnapshotIsNotPublished() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    const QString wrongTypePath = temporary.filePath(
+        QStringLiteral("wrong-type.ini"));
+    {
+        QSettings settings(wrongTypePath, QSettings::IniFormat);
+        settings.setValue(QStringLiteral(
+                              "vinyl/recommendationExposureSnapshot"),
+                          QVariantMap{{QStringLiteral("unexpected"), true}});
+        settings.sync();
+        QCOMPARE(settings.status(), QSettings::NoError);
+    }
+    {
+        ProfilePreferencesStore store(wrongTypePath);
+        QVERIFY(recommendationExposureSnapshotValue(&store).isEmpty());
+        QVERIFY(!persistenceError(&store).isEmpty());
+    }
+
+    const QString oversizedPath = temporary.filePath(
+        QStringLiteral("oversized.ini"));
+    {
+        QSettings settings(oversizedPath, QSettings::IniFormat);
+        settings.setValue(QStringLiteral(
+                              "vinyl/recommendationExposureSnapshot"),
+                          QString(4194305, QLatin1Char('x')));
+        settings.sync();
+        QCOMPARE(settings.status(), QSettings::NoError);
+    }
+    {
+        ProfilePreferencesStore store(oversizedPath);
+        QVERIFY(recommendationExposureSnapshotValue(&store).isEmpty());
+        QVERIFY(!persistenceError(&store).isEmpty());
+    }
+
+    const QString nulPath = temporary.filePath(
+        QStringLiteral("embedded-nul.ini"));
+    QString withNul = QStringLiteral("stored exposure");
+    withNul.insert(7, QChar::Null);
+    {
+        QSettings settings(nulPath, QSettings::IniFormat);
+        settings.setValue(QStringLiteral(
+                              "vinyl/recommendationExposureSnapshot"),
+                          withNul);
+        settings.sync();
+        QCOMPARE(settings.status(), QSettings::NoError);
+    }
+    {
+        ProfilePreferencesStore store(nulPath);
+        QVERIFY(recommendationExposureSnapshotValue(&store).isEmpty());
+        QVERIFY(!persistenceError(&store).isEmpty());
+    }
+}
+
+void tst_vinyl_feedback_snapshot::
+    failedSyncRetainsPreviousRecommendationExposureSnapshot() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString directory = temporary.filePath(QStringLiteral("live"));
+    const QString backup = directory + QStringLiteral("-backup");
+    QVERIFY(QDir().mkdir(directory));
+    const QString path = directory + QStringLiteral("/preferences.ini");
+
+    {
+        ProfilePreferencesStore store(path);
+        bool committed = false;
+        QVERIFY(invokeRecommendationExposureSnapshotSetter(
+            &store, QStringLiteral("retained snapshot"), &committed));
+        QVERIFY(committed);
+        QVERIFY(QDir().rename(directory, backup));
+
+        {
+            QFile blocker(directory);
+            QVERIFY(blocker.open(QIODevice::WriteOnly));
+            QVERIFY(invokeRecommendationExposureSnapshotSetter(
+                &store, QStringLiteral("replacement snapshot"), &committed));
+            QVERIFY(!committed);
+            QCOMPARE(recommendationExposureSnapshotValue(&store),
+                     QStringLiteral("retained snapshot"));
+            QVERIFY(!persistenceError(&store).isEmpty());
+        }
+
+        QVERIFY(QFile::remove(directory));
+        QVERIFY(QDir().rename(backup, directory));
+    }
+
+    ProfilePreferencesStore reloaded(path);
+    QCOMPARE(recommendationExposureSnapshotValue(&reloaded),
+             QStringLiteral("retained snapshot"));
+}
 
 void tst_vinyl_feedback_snapshot::snapshotIsExposedAndPersists() {
     QTemporaryDir temporary;

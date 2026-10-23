@@ -97,6 +97,20 @@ struct RecommendationDerivationConfig final {
     bool historyComplete = false;
 };
 
+// Read adapter input for retained, qualified host activity. This is not a BA4
+// event replay: missing origins/outcomes stay unknown and never imply a play.
+struct QualifiedListeningSession final {
+    QString sessionId;
+    RecommendationEntityRef recording;
+    QVector<RecommendationEntityRef> contexts;
+    qint64 atMs = 0;
+    qint64 qualifiedMs = 0;
+    QString origin;
+    QString outcome;
+    qint64 outcomeAtMs = 0;
+    qint64 positionMs = 0;
+};
+
 class EntityHistoryAggregate final
 {
 public:
@@ -133,6 +147,10 @@ private:
     friend DerivationResult<class RecommendationDerivationOutput>
     deriveRecommendationInputs(const ListenEventLedger &ledger,
                                const RecommendationDerivationConfig &config);
+    friend DerivationResult<class RecommendationDerivationOutput>
+    deriveQualifiedRecommendationInputs(const ProfileScopeId &profile,
+                                        const QVector<QualifiedListeningSession> &sessions,
+                                        const RecommendationDerivationConfig &config);
 };
 
 class RecommendationDerivationOutput final
@@ -177,6 +195,11 @@ private:
 
 DerivationResult<RecommendationDerivationOutput> deriveRecommendationInputs(
     const ListenEventLedger &ledger,
+    const RecommendationDerivationConfig &config);
+
+DerivationResult<RecommendationDerivationOutput> deriveQualifiedRecommendationInputs(
+    const ProfileScopeId &profile,
+    const QVector<QualifiedListeningSession> &sessions,
     const RecommendationDerivationConfig &config);
 
 enum class ExposureEvidenceKind {

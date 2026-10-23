@@ -78,7 +78,14 @@ void VinylRecommendationService::invalidate() {
 }
 void VinylRecommendationService::setPreferences(QObject *value) {
     if(m_preferences==value)return;invalidate();if(m_preferences)disconnect(m_preferences,nullptr,this,nullptr);m_preferences=value;
-    if(value)connect(value,SIGNAL(vinylTasteChanged()),this,SLOT(loadPreferences()));loadPreferences();
+    if(value){
+        connect(value,SIGNAL(vinylTasteChanged()),this,SLOT(loadPreferences()));
+        // Lightweight test/legacy preferences may not expose these optional ports.
+        if(value->metaObject()->indexOfSignal("vinylFeedbackChanged()")>=0)
+            connect(value,SIGNAL(vinylFeedbackChanged()),this,SLOT(historyInputsChanged()));
+        if(value->metaObject()->indexOfSignal("vinylRecommendationExposureChanged()")>=0)
+            connect(value,SIGNAL(vinylRecommendationExposureChanged()),this,SLOT(historyInputsChanged()));
+    }loadPreferences();
 }
 void VinylRecommendationService::setProfileScope(const QString &value){if(m_scope==value)return;invalidate();m_scope=value;loadPreferences();}
 void VinylRecommendationService::setProfileGeneration(int value){if(m_generation==value)return;invalidate();m_generation=value;loadPreferences();}

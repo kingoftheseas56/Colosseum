@@ -273,6 +273,9 @@ Item {
     readonly property bool activityEnabled: profileActive && !shuttingDown && activitySink!==null
         && (!activityPreferences || activityPreferences.keepActivityHistory!==false)
     property bool activityActive: false
+    property string activitySessionId: ""
+    property var activityMusicIdentity: ({})
+    property string activityMusicOrigin: "manual"
     property var activityRecorder: activityTracker
     ActivityPlaybackTracker {
         id: activityTracker
@@ -284,10 +287,13 @@ Item {
         try {
             if(!activitySink.newSessionId) return;
             var row=queue[queueIndex];if(!row) return;
+            activitySessionId=activitySink.newSessionId();
+            activityMusicIdentity=backend.listeningIdentity();activityMusicOrigin=backend.listeningOrigin;
             activityRecorder.begin({world:"vinyl",kind:"music",titleKey:row.albumId,
                 itemKey:JSON.stringify([row.albumId,row.editionId,row.discIndex,row.trackIndex,row.trackId]),
-                title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session"},activitySink.newSessionId());
+                title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session"},activitySessionId);
             backend.beginListeningFacts();activityActive=true;activityDiscontinuity(position);
+            recordMusicAction("start");
             activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));
         } catch(failure) {console.warn("Vinyl Activity begin",failure);activityActive=false;}
     }
@@ -310,8 +316,20 @@ Item {
             if(natural) activityRecorder.naturalEof(Math.round(position*1000),Math.round(duration*1000));
             activityRecorder.endSession(Math.round(position*1000),Math.round(duration*1000));
         } catch(failure) {}
+        recordMusicAction(natural ? "natural-eof" : backend.playbackEndingReason || "stop");
         backend.endListeningFacts(natural);
         activityActive=false;
+    }
+    function recordMusicAction(action) {
+        if(!activityEnabled || !activityActive || !activitySessionId || !activitySink
+            || typeof activitySink.recordMusicAction!=="function" || !activityMusicIdentity.entityRef)return;
+        var row=queue[queueIndex];if(!row)return;
+        var fact=Object.assign({},activityMusicIdentity,{sessionId:activitySessionId,world:"vinyl",kind:"music",
+            titleKey:row.albumId,itemKey:JSON.stringify([row.albumId,row.editionId,row.discIndex,row.trackIndex,row.trackId]),
+            title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session",
+            utcOffsetMinutes:-new Date().getTimezoneOffset(),atMs:Date.now(),action:action,origin:activityMusicOrigin,
+            positionMs:Math.max(0,Math.round(position*1000)),durationMs:Math.max(0,Math.round(duration*1000))});
+        activitySink.recordMusicAction(fact);
     }
     function scheduleActivityBegin() {
         var sink=activitySink, scope=profileGeneration, generation=epoch;
