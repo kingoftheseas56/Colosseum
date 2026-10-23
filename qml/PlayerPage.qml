@@ -3921,7 +3921,8 @@ Item {
         id: media3SubtitleOverlay
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: root.controlsShown ? 118 : 52
+        // clear of the dock AND its state line (Buffering / ENDS) that rides above it
+        anchors.bottomMargin: root.controlsShown ? bottomDock.height + 40 : 52
         width: Math.min(parent.width * 0.86, 1180)
         z: 24
         spacing: 4

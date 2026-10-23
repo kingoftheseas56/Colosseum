@@ -241,6 +241,15 @@ Item {
     // drivable headlessly, and so a delayed/failed switch can't masquerade as success.
     function pickTrack(id) {
         selectionError = "";
+        if (String(id).indexOf("ext:") === 0) {
+            // an add-on row that is not loaded yet: the player adds it under a NEW track id,
+            // so it confirms like an online pick, never by matching this id.
+            pendingBaseId = selectedId;
+            pendingOnline = true; pendingId = ""; pendingOff = false;
+            trackPicked(String(id));
+            pendingTimer.restart();
+            return;
+        }
         pendingId = String(id); pendingOff = false; pendingOnline = false;
         trackPicked(String(id));
         pendingTimer.restart();
@@ -375,7 +384,8 @@ Item {
         parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
         z: menu.overlayParent ? 40 : 30
-        width: menu.panelWidth
+        // narrow windows (a portrait tablet is ~750 wide) shrink the panel to fit
+        width: Math.min(menu.panelWidth, (menu.overlayParent ? menu.overlayParent.width : menu.panelWidth + 20) - 20)
         height: menu.panelHeight
         onVisibleChanged: if (visible) menu.positionPanel(panel)
         radius: 22
