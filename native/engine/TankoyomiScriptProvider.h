@@ -4,7 +4,9 @@
 
 #include <QObject>
 #include <QHash>
+#include <QJsonObject>
 #include <QPointer>
+#include <QUrl>
 #include <memory>
 #include <QJSEngine>
 #include <QJSValue>
@@ -30,6 +32,11 @@ public:
                             QStringList allowedHosts,
                             QNetworkAccessManager *nam,
                             MangaImageHostResolver::Lookup lookup,
+                            QObject *parent = nullptr);
+    TankoyomiScriptProvider(QString providerId,
+                            QString language,
+                            QUrl workerBase,
+                            QNetworkAccessManager *nam,
                             QObject *parent = nullptr);
     ~TankoyomiScriptProvider() override;
 
@@ -57,6 +64,13 @@ public:
 
 private:
     struct Fetch;
+    struct WorkerCall;
+    void invokeWorker(const QString &method, const QString &token, const QJsonObject &payload);
+    void finishWorkerCall(const std::shared_ptr<WorkerCall> &call,
+                          bool ok,
+                          const QVariant &value,
+                          const QString &message);
+    void readWorkerResponse(const std::shared_ptr<WorkerCall> &call);
     void issueFetch(const std::shared_ptr<Fetch> &fetch);
     void finishFetch(const std::shared_ptr<Fetch> &fetch, bool ok, const QString &payload);
     void invoke(const QString &method, const QString &token, const QJSValueList &args);
@@ -65,15 +79,19 @@ private:
 
     QString m_providerId;
     QString m_language;
+    QUrl m_workerBase;
     QStringList allowedHosts;
     QString m_loadError;
     bool m_ready = false;
+    bool m_workerMode = false;
+    quint64 m_nextWorkerCallId = 1;
     QJSEngine m_engine;
     QJSValue m_provider;
     QJSValue m_context;
     QJSValue m_run;
     QJSValue m_deliverFetch;
     QPointer<QNetworkAccessManager> m_nam;
+    QHash<quint64, std::shared_ptr<WorkerCall>> m_workerCalls;
     QHash<QString, std::shared_ptr<Fetch>> m_fetches;
     MangaImageHostResolver m_hostResolver;
     QHash<QString, QString> m_pins;

@@ -907,7 +907,7 @@ file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
 qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
-    FILES ${TANKOYOMI_RESOURCE_FILES})
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/manifest.json")
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 if(NOT ANDROID)
     # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API only on desktop.
@@ -1121,6 +1121,16 @@ add_executable(tankoyomi_series_matcher_harness
     ../tests/tankoyomi_series_matcher_harness.cpp)
 target_include_directories(tankoyomi_series_matcher_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_series_matcher_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_worker_transport_harness
+    ../tests/tankoyomi_worker_transport_harness.cpp
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+    engine/TankoyomiNetworkPolicy.cpp)
+target_include_directories(tankoyomi_worker_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_worker_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 
 add_executable(tankoyomi_network_policy_harness
     engine/TankoyomiNetworkPolicy.cpp

@@ -10,6 +10,21 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Tankoyomi Worker transport (2026-10-23)
+
+`colosseum.tankoyomi_worker_transport_harness` is registered with labels
+`unit;tankoyomi;network` and a 120-second CTest timeout. It uses a fake network
+manager, with no live network, to cover Worker method URLs and payloads, response
+schema/UTF-8/size bounds, redirect and HTTP rejection, queued completion,
+cancellation and the 45-second request deadline. The standalone Windows run
+passed; fast cases passed again after the URL-format warning correction. A
+fresh paired CTest run passed 2/2 (transport 45.12 seconds, service 0.63 seconds).
+The service-configuration harness now checks asynchronous remote inventory
+refresh, persisted order/enabled overrides and cache preservation on invalid,
+oversized, redirect and non-200 responses. These tests are distinct from live
+provider availability and reader qualification, recorded
+in [the checkpoint receipt](tankoyomi-worker-checkpoint-2026-10-23.md).
+
 ## Discover asynchronous state preservation (2026-10-15)
 
 `colosseum.tankoban_discover_async_preservation` runs the real Tankoban Discover

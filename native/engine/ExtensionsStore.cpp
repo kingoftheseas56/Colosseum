@@ -80,7 +80,7 @@ QString transportIdentity(const QString &transportUrl)
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 14;
+constexpr int kHouseDefaultsVersion = 15;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -690,7 +690,7 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
         manifest("colosseum.well.nyaa", "Nyaa", "",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
-    add("colosseum.well.tankoyomi", "colosseum://well/tankoyomi", false,
+    add("colosseum.well.tankoyomi", "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", false,
         manifest("colosseum.well.tankoyomi", "Tankoyomi",
                   "Language-aware chapter sources for Tankoban Chapter Mode.",
                   { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true));
@@ -806,7 +806,15 @@ void ExtensionsStore::migrateDefaults()
     const int legacyWeebCentralAt = indexOfId(QStringLiteral("colosseum.well.weebcentral.pages"));
     if (legacyWeebCentralAt >= 0 && indexOfId(QStringLiteral("colosseum.well.tankoyomi")) < 0) {
         m_items[legacyWeebCentralAt].insert(QStringLiteral("id"), QStringLiteral("colosseum.well.tankoyomi"));
-        m_items[legacyWeebCentralAt].insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/tankoyomi"));
+        m_items[legacyWeebCentralAt].insert(QStringLiteral("transportUrl"), QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
+        changed = true;
+    }
+
+    const int tankoyomiAt = indexOfId(QStringLiteral("colosseum.well.tankoyomi"));
+    if (tankoyomiAt >= 0 && m_items[tankoyomiAt].value(QStringLiteral("transportUrl")).toString()
+                               == QLatin1String("colosseum://well/tankoyomi")) {
+        m_items[tankoyomiAt].insert(QStringLiteral("transportUrl"),
+            QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
         changed = true;
     }
 
