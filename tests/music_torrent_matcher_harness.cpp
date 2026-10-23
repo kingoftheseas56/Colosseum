@@ -69,6 +69,12 @@ int main()
     release = file; release.path = QStringLiteral("Nas - Illmatic (1994) [MP3 320] 88/01. The Genesis.mp3");
     const MusicTorrentTrack nas{QStringLiteral("Nas"), QStringLiteral("Illmatic"), QStringLiteral("The Genesis"), 1, 1, 0, 1994};
     require(MusicTorrentMatcher::pick(nas, {release}).index == 7, "observed Nas manifest selects exact track");
+    release.path = QStringLiteral("Nas - Illmatic (1994) FLAC 88/01. The Genesis.flac");
+    require(MusicTorrentMatcher::pick(nas, {release}).index == 7, "observed unbracketed format and uploader suffix");
+    release.path = QStringLiteral("Nas - Illmatic (2004) FLAC 88/01. The Genesis.flac");
+    require(MusicTorrentMatcher::pick(nas, {release}).index < 0, "plain format cannot hide conflicting year");
+    release.path = QStringLiteral("Nas - Illmatic (Live) FLAC 88/01. The Genesis.flac");
+    require(MusicTorrentMatcher::pick(nas, {release}).index < 0, "plain format cannot hide alternate edition");
     auto deluxe = track; deluxe.album = QStringLiteral("Album (Deluxe)");
     release.path = QStringLiteral("Artist - Album (Deluxe) [FLAC]/01 Song.flac");
     require(MusicTorrentMatcher::pick(deluxe, {release}).index == 7, "explicit exact edition remains selectable");

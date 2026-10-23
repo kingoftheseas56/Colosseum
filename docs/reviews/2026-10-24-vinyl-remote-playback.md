@@ -1,0 +1,67 @@
+# Vinyl remote playback and seeking qualification
+
+Date: 2026-10-24. Branch: `codex/vinyl-production-flow`; starting commit: `30b8c7ab05d2afd8af663d1f972c59e324bf523f`.
+
+## Result and boundary
+
+Exact torrent audio and real YouTube fallback are freshly demonstrated inside production Main, using the existing catalogue, canonical queue, StreamServer and MpvItem. Discovery scheduling, a release-name parsing gap, seek acknowledgement ordering and a controlled blocked-read seek defect are fixed. **The final app passed a complete strict torrent seek/EOF journey, but public torrent discovery, startup and seek reliability still vary. Broad Q1/Q2/Q6 qualification remains open.** Failed public-source probes are retained below; this is not full M3 reliability closure.
+
+No custom search API, replacement player, additional canonical store, hardcoded magnet, pre-seeded fixture torrent or relaxed recording identity was installed. Actual-app journeys invoke the existing semantic actions; they do not claim physical desktop mouse automation or human listening acceptance.
+
+## Retained changes
+
+- Start scoped manifest retrieval when a useful search batch arrives, while other indexers continue collecting. Collection expiry cannot cancel an in-flight manifest. Preserve the four-second overall discovery deadline, three-attempt bound, exact-file admission and cancellation fences.
+- Recognize the observed technical suffix `FLAC 88` alongside existing bracketed format labels. Artist, album, title, numbering, release year, ambiguity, edition and contradictory decoded-tag checks remain enforced. No substring/fuzzy song matching was added.
+- Accept native seek-start/restart evidence delivered before the controller's accepted-command reply. Complete only after acceptance and matching work/entry/target/deadline evidence. The controller drains its native event client before taking an observation-serial fence; both start and restart must be beyond that fence. Reset early evidence for each physical command and retirement.
+- Reopen tracked HTTP seeks at the requested start position on the same MpvItem and logical generation, preserving headers, pause and canonical occurrence. A real FILE_LOADED observation (`seek-loaded`) establishes the new entry boundary; only a later decoded restart at the target completes it. Do not issue a second seek after the positioned load. Rejected replacements cannot fall through to ordinary seeking.
+- Use a 128 KiB stream buffer in Vinyl's private HTTP audio core. The shared 32 MiB video setting caused forward seeks within most of a song to read intervening bytes rather than request the target range. This behavior is explicit in the linked [mpv stream implementation](https://github.com/mpv-player/mpv/blob/7b8915bc1/stream/stream.c#L705-L713). Other worlds retain their settings; no speculative timeout or HTTP backend switch remains.
+- Extend the existing real-app driver and runner with measured startup samples, playing/paused seek stress, an explicit torrent-to-YouTube recovery journey, another real recording and selectable inspection mode. Default strict torrent qualification remains strict. The runner fails on unsuccessful phases.
+- Optional `COLOSSEUM_VINYL_TRACE` records discovery stages and public manifest facts without playback URLs or request headers.
+
+## Build and deterministic checks
+
+Final Windows Qt 6.11.1/MSVC app SHA256: `4DD4E703880CB88A1DD780D670A159E41D317BD149982B2405F6DEAC61E44F32`. Earlier actual-app evidence used `CC4DB56A8AFEDFF093D7DA8F35273A8FE0224C6E7C59A1F917BB702D3C3D3100`; its proof is labeled separately.
+
+Runtime QML tree identifier: `d0f490e262d356318f63ac1e03420c5f58d3f5884f1ee318f87c7ccc57ae7cc2`. The runner separately hashes the manifest file itself.
+
+Nine focused CTest suites passed against the final sources: music matcher, scoped stream contracts, torrent provider, catalogue source, native session bridge, player seek, playback queue, playback actions and native mpv events. Evidence: `range-jump-focused-tests.log` (9/9, 61.24 seconds) and `range-jump-LastTest.log` under the evidence root below. No full product suite was run. Two earlier runs incorrectly forced an offscreen platform on the windowed native-event executable without its plugin path; the corrected Qt plugin/window environment passed.
+
+RED controls reproduced the early-event acknowledgement race, stale pre-dispatch evidence, delayed useful-batch retrieval and rejected unbracketed format suffix. GREEN coverage also includes command-drained native backlog, rejected seek fallback, late replies after profile retirement, collection-timer supersession and a later useful batch following a rejected manifest. These controlled observations do not prove public swarm availability.
+
+Luna xhigh supplied bounded regressions and source receiving review. Its signal-arity and stale-event findings were repaired. The source review is distinct from the parent's builds and actual-app qualification. libmpv does not provide a seek request serial on its native playback events; entry, generation, command boundary, target and deadline remain combined evidence rather than an invented native request identifier.
+
+## Real app evidence
+
+Evidence root: `D:/Colosseum-Vinyl-Remote-20261024`. Logs, isolated profiles, screenshots, runtime caches and media stay outside Git.
+
+The strict loopback regression holds **every** sequential HTTP response crossing a 20-second byte frontier, including repeated byte-zero requests. Target bytes remain available through Range requests. `range-jump-LastTest.log` proves a stalled, previously advancing source reopened and requested offset **1,439,788** near 90 seconds, with a real target restart and no fallback. Paused seeks to 5 and 0 seconds, rapid 45/75/90 requests ending at 90, required HTTP headers, unchanged MpvItem/generation/occurrence and one resolver call all passed. A weaker initial fixture could pass by fetching the whole file again; it was tightened before final acceptance. The tightened test failed with the large stream buffer, even with bounded curl requests (`bounded-progressive.log`). Earlier ordinary-seek negative controls also failed (`progressive-control.log`).
+
+Final-binary strict public torrent run: **`range-jump-genesis-strict`**. Nas / Illmatic / **The Genesis**, canonical `80529ae2-373b-5822-9afb-f1de57d2107a`, hash `fec9baa6f4920edf4c25d47cff112d57a6253f08`, file 0 `Nas - Illmatic (1994) FLAC 88/01. The Genesis.flac`. Matching decoded title/artist/album, stereo FLAC and WASAPI output; loaded at **5,456 ms**, advancing at **7,591 ms**. Seek 12, pause/resume, seek 104.333/105.333, real native restart, natural EOF to N.Y. State of Mind and profile retirement all passed **without changing provider**. Receipt pins the final binary and driver.
+
+Final-binary committed-runner path: **`vinyl-remote-01b95f28bc01424b91b60c2bfdba7ade`**. Stan (feat. Dido), canonical `cd87bdcb-108b-5bc5-86e5-13daa63513ce`, exact catalogue video `gOMhN-hfMtY`, real Opus stereo/WASAPI after torrent discovery failed. **Twelve paused and twelve playing tail/back cycles**, pause/resume, natural EOF and retirement passed. The paused phase loaded at 4,624 ms and advanced at 7,186 ms; the playing phase loaded at 4,404 ms and advanced at 6,999 ms. `result.json` pins app/driver/manifest/profile/process identities and verifies owned streaming-runtime shutdown for both completed phases. The final `fallback-review` app remains open and paused on Stan, PID 39684, identified by its process receipt. It loaded at 4,399 ms and advanced at 6,967 ms.
+
+Earlier evidence (before the final blocked-read/buffer repair):
+
+| Journey | Observed result |
+| --- | --- |
+| `torrent-exact-final` | Nas / Illmatic / **N.Y. State of Mind**, canonical `1af8a186-a488-5b2e-954d-0b8dfaee54c0`, hash `fec9baa6f4920edf4c25d47cff112d57a6253f08`, file 1, `Nas - Illmatic (1994) FLAC 88/02. N.Y. State Of Mind.flac`. Actual matching title/artist/album tags, stereo FLAC, WASAPI and advancing audio. Seek 12/pause/resume passed; cold last-second seek did not. This preceded the final native observation-fence refinement. |
+| `final-genesis-recovery` | **Earlier app binary.** Nas / Illmatic / **The Genesis**, canonical `80529ae2-373b-5822-9afb-f1de57d2107a`, same hash, file 0, matching decoded tags, stereo FLAC/WASAPI. Loaded at 4,747 ms and advancing at 6,935 ms after selection. A torrent seek timed out; real YouTube video `Ufc81wjxOyE` resumed at 12.118 seconds with the same canonical recording and queue occurrence. Pause/resume, end seek, natural EOF to the next album track and profile retirement passed. |
+| `final-youtube-flow` | **Earlier app binary.** Stan (feat. Dido), canonical `cd87bdcb-108b-5bc5-86e5-13daa63513ce`, exact catalogue video `gOMhN-hfMtY`. Discovery timeout led to real Opus stereo/WASAPI playback. Loaded at 4,391 ms; advancing at 6,982 ms. Twelve playing tail/back cycles, pause/resume, natural EOF and retirement passed. |
+| `vinyl-remote-25c84c877c2e4e68a67d2009a4baa887` | **Earlier committed-runner path and earlier app binary.** Twelve paused tail/back cycles passed, followed by natural EOF, retirement and verified shutdown of the app-owned streaming runtime. Stan loaded at 4,364 ms and was advancing at 6,746 ms. Its inspection app was subsequently closed for rebuilding; this is retained historical evidence. |
+
+These startup values include real provider work and existing runtime/cache state. An isolated profile is not a cleared shared torrent cache, a universally cold network, or a latency guarantee.
+
+## Retained failures and next work
+
+- `baseline-torrent`, `torrent-stages` and `torrent-pipelined` fell back before torrent playback. Stage tracing identified delayed manifest retrieval and the unrecognized FLAC suffix; those software gaps were reproduced and fixed.
+- Later strict final-binary probes (`final-torrent-flow`, `vinyl-remote-a37515a933d5440f83c1376015c7e392`) still hit the existing torrent startup deadline and correctly failed their strict qualification. `final-genesis-flow` decoded the exact torrent but failed strict provider continuity during seek. The explicit recovery journey above qualifies preservation across that failure, not continuous torrent seeking.
+- Earlier out-of-cache torrent seeks remained accepted/seek-start without decoded restart before the ten-second watchdog. The acknowledgement fix alone did not repair the blocked read; reopening alone still failed with the large stream buffer. The final combined repair passes the strict controlled origin and the full public Genesis flow. Wider recordings/providers and unavailable-piece cases remain broader qualification work.
+- Final-binary N.Y. State of Mind probes `range-jump-torrent-strict` and `range-jump-torrent-repeat` respectively hit discovery timeout and the existing torrent startup deadline. They do not invalidate the decoded Genesis/seek proof, and that proof does not establish universal swarm availability or startup latency.
+- The prior final-binary runner `vinyl-remote-cea87aa79b754d53ae659ae5d076fe19` passed both YouTube stress phases, but its subsequent strict Genesis inspection reached decoded torrent output and then fell back during seek-to-12. The overall run correctly failed; it has no green `result.json`. The cause of that live repeat is not established as unavailable pieces versus another transport case. `genesis-range-diagnostic` stalled before its advancing-audio logging hook, so its probe captured no target-range evidence. Neither is classified as a passed torrent seek. More live transport/availability investigation remains required.
+- A separate instrumented rerun, `genesis-byte-availability`, completed strict Genesis playback, seek 12, pause/resume, tail seek, native EOF and retirement on the same final binary. Its external diagnostic driver installed mpv logging and a loopback HTTP probe; those are not product changes. The probe received 206 for 1,025 bytes at offset 9,197,374 in 423 ms, a metadata-tail read rather than proof about the previously failed seek target. That run did not reproduce or explain the failed inspection and is separate from the uninstrumented strict pass.
+- A smaller buffer alone, shorter network timeouts, bounded curl requests alone and the alternate HTTP backend did not establish reliable seeking. Only the final reopen plus scoped stream-buffer repair is retained. The [mpv network-backend documentation](https://mpv.io/manual/master/#network-backend-libcurl) informed those diagnostics.
+- A full C: drive interrupted one link. Thirty-eight task-created disposable Local/Roaming profiles were moved intact to `archived-test-profiles` on D:; `relocation.json` maps their prior paths. Normal app data was not moved. Logs/screenshots and the final inspection profile remain separately identified.
+- Initial driver/runner mistakes were identified and excluded as product evidence: the early `seekPending()` call and a phase-result variable colliding with a new parameter. The corrected runner was exercised for both strict failure and successful paused stress/inspection.
+- CUE image spans, broad provider/failure combinations, whole-machine offline behavior, physical account switching, perceived audio quality and a startup SLA remain outside this receiving result.
+
+Authored, built, focused-tested and actual-app observations above are separate from branch push, main integration and release. This work does not merge into main or publish a release.

@@ -36,7 +36,7 @@ bool hasEvent(const QSignalSpy &spy, const QString &kind, qint64 entryId,
               quint64 generation)
 {
     for (const auto &args : spy) {
-        if (args.size() == 6 && args.at(0).toString() == kind
+        if (args.size() == 7 && args.at(0).toString() == kind
             && args.at(1).toLongLong() == entryId
             && args.at(4).toULongLong() == generation) {
             return true;
@@ -49,7 +49,7 @@ bool hasSeekReply(const QSignalSpy &spy, quint64 serial, bool success,
                   quint64 generation)
 {
     for (const auto &args : spy) {
-        if (args.size() == 3 && args.at(0).toULongLong() == serial
+        if (args.size() == 4 && args.at(0).toULongLong() == serial
             && args.at(1).toBool() == success
             && args.at(2).toULongLong() == generation) {
             return true;
@@ -85,20 +85,21 @@ void tst_mpvitem_native_events::nativeEntryAndSeekEventsCarryTheLoadGeneration()
 
     QTRY_VERIFY_WITH_TIMEOUT(
         std::any_of(nativeEvents.cbegin(), nativeEvents.cend(), [generation](const auto &args) {
-            return args.size() == 6 && args.at(0).toString() == QLatin1String("loaded")
+            return args.size() == 7 && args.at(0).toString() == QLatin1String("loaded")
                 && args.at(1).toLongLong() >= 0
                 && args.at(4).toULongLong() == generation;
         }), 5000);
 
     qint64 entryId = -1;
     for (const auto &args : nativeEvents) {
-        if (args.size() == 6 && args.at(0).toString() == QLatin1String("loaded")
+        if (args.size() == 7 && args.at(0).toString() == QLatin1String("loaded")
             && args.at(4).toULongLong() == generation) {
             entryId = args.at(1).toLongLong();
             QVERIFY(std::isfinite(args.at(2).toDouble()));
             QVERIFY(std::isfinite(args.at(3).toDouble()));
             QVERIFY(args.at(3).toDouble() > 0.0);
             QVERIFY(args.at(5).toLongLong() > 0);
+            QVERIFY(args.at(6).toULongLong() > 0);
             break;
         }
     }

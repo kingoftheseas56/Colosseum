@@ -15,6 +15,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <memory>
+#include <atomic>
 
 #include "playerbackendcontract.h"
 
@@ -172,6 +173,9 @@ public:
     // Token-aware counterpart for native playback adapters. Runs on MpvQt's
     // existing controller thread and reports whether libmpv accepted the seek.
     Q_INVOKABLE void seekExactTracked(double seconds, quint64 requestSerial);
+    // Fence native observations already produced on the decoder thread, even
+    // when their queued GUI delivery crosses a new command in the same clock tick.
+    Q_INVOKABLE quint64 nativeObservationSerial() const { return m_decodeEvents->observationSerial.load(); }
     Q_INVOKABLE void seekStep(double delta);
     Q_INVOKABLE void frameStep();
     Q_INVOKABLE void frameBackStep();
@@ -229,8 +233,9 @@ Q_SIGNALS:
     void playbackError(QString code, QString message);
     void nativePlaybackEvent(const QString &kind, qint64 entryId,
                              double positionSeconds, double durationSeconds,
-                             quint64 loadGeneration, qint64 monotonicMs);
-    void trackedSeekReply(quint64 requestSerial, bool success, quint64 loadGeneration);
+                             quint64 loadGeneration, qint64 monotonicMs, quint64 observationSerial);
+    void trackedSeekReply(quint64 requestSerial, bool success, quint64 loadGeneration,
+                          quint64 observationFence);
     void videoReconfig();
     void decodedDimensionsChanged();
     // One aggregated stats map (mpv property names as keys) per requestPlaybackStatsAsync()
@@ -293,6 +298,9 @@ private:
     // to MpvQt's controller thread, at the ordered load-command boundary.
     quint64 m_decodeGeneration{0};
     struct DecodeEvents {
+        std::atomic<quint64> observationSerial{0};
+        QObject *eventSource{nullptr}; // controller-thread owned native client
+        quint64 reopenSeekSerial{0};
         // Also fences a running direct adapter against derived destruction.
         QMutex lifetime;
         MpvItem *target{nullptr};

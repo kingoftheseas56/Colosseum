@@ -133,6 +133,7 @@ private:
     void fail(const QString &message);
     void naturalEnd(const vinyl::PlaybackWorkToken &token);
     void dispatchSeek(const vinyl::PlaybackSeekCommand &command);
+    void observeSeekRestart(const vinyl::PlaybackWorkToken &token,qint64 entry,double position,qint64 observedMs);
     QVariantMap activeRow() const;
     bool validRow(const QVariantMap &row) const;
     bool inspectCheckpoint(const QVariantMap &checkpoint,QVariantList *rows,QString *activeId) const;

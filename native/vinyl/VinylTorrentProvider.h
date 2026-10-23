@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QSet>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QVariantMap>
 
 class QNetworkAccessManager;
@@ -39,10 +40,12 @@ private:
     void tryNextCandidate();
     void finish(const QVariantMap &data, const QString &error);
     void clearTransport();
+    void trace(const QString &stage,const QVariantMap &facts={}) const;
 
     QPointer<TankorentSearchService> m_search;
     QPointer<StreamServer> m_stream;
     QTimer m_deadline, m_stage;
+    QElapsedTimer m_elapsed;
     int m_deadlineMs = 4000;
     int m_serial = 0, m_active = -1, m_queryIndex = 0, m_attempted = 0;
     MusicTorrentTrack m_track;

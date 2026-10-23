@@ -204,7 +204,7 @@ void MpvItem::setupConnections()
     connect(controller, &MpvController::asyncReply,
             this, &MpvItem::onAsyncReply, Qt::QueuedConnection);
     QMetaObject::invokeMethod(controller, [controller, state] {
-        new PlaybackEvents(controller, [state](const mpv_event &event) {
+        state->eventSource = new PlaybackEvents(controller, [state](const mpv_event &event) {
             QMutexLocker lock(&state->lifetime);
             if (state->target)
                 state->target->handlePlaybackEvent(event);
@@ -319,6 +319,19 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
         }, Qt::QueuedConnection);
         if (state.reconfigured)
             refreshDecodedDimensions();
+        if (const auto serial = state.reopenSeekSerial) {
+            state.reopenSeekSerial = 0;
+            const auto fence = state.observationSerial.load();
+            // loadfile's start option already positions the new demuxer. A
+            // redundant seek here can block behind its first network read again.
+            // Record the real FILE_LOADED boundary, then require a decoded
+            // restart at the requested target in the session's seek ledger.
+            emitNativePlaybackEvent(QStringLiteral("seek-loaded"), state.streamEntry, generation);
+            QMetaObject::invokeMethod(this, [this, generation, serial, fence] {
+                if (generation == m_decodeGeneration)
+                    Q_EMIT trackedSeekReply(serial, true, generation, fence);
+            }, Qt::QueuedConnection);
+        }
     } else if (event.event_id == MPV_EVENT_VIDEO_RECONFIG) {
         state.reconfigured = true;
         refreshDecodedDimensions();
@@ -335,6 +348,7 @@ void MpvItem::emitNativePlaybackEvent(const QString &kind, qint64 entryId,
     Q_ASSERT(QThread::currentThread() == m_decodeWorker);
     auto *controller = mpvController();
     const qint64 monotonicMs = monotonicMillisecondsSinceEpoch();
+    const quint64 observationSerial = ++m_decodeEvents->observationSerial;
     double position = controller->getProperty(MpvProperties::self()->Position).toDouble();
     double duration = controller->getProperty(MpvProperties::self()->Duration).toDouble();
     if (!qIsFinite(position) || position < 0.0)
@@ -343,10 +357,10 @@ void MpvItem::emitNativePlaybackEvent(const QString &kind, qint64 entryId,
         duration = 0.0;
 
     QMetaObject::invokeMethod(this, [this, kind, entryId, position, duration,
-                                     generation, monotonicMs] {
+                                     generation, monotonicMs, observationSerial] {
         if (generation == m_decodeGeneration) {
             Q_EMIT nativePlaybackEvent(kind, entryId, position, duration,
-                                       generation, monotonicMs);
+                                       generation, monotonicMs, observationSerial);
         }
     }, Qt::QueuedConnection);
 }
@@ -555,6 +569,7 @@ void MpvItem::issueLoadFile(const QString &file)
         state->started = false;
         state->loaded = false;
         state->reconfigured = false;
+        state->reopenSeekSerial = 0;
         const auto result = controller->command(
             {QStringLiteral("loadfile"), path, QStringLiteral("replace")}).toMap();
         state->expectedEntry = result.value(QStringLiteral("playlist_entry_id"), -1).toLongLong();
@@ -629,8 +644,15 @@ void MpvItem::seekExactTracked(double seconds, quint64 requestSerial)
     const auto state = m_decodeEvents;
     auto *controller = mpvController();
     const double target = qMax(0.0, seconds);
+    const bool remote = m_currentUrl.scheme() == QLatin1String("http")
+        || m_currentUrl.scheme() == QLatin1String("https");
+    const auto resource = m_currentUrl.toString(QUrl::FullyEncoded);
     QMetaObject::invokeMethod(controller,
-        [controller, state, generation, requestSerial, target] {
+        [controller, state, generation, requestSerial, target, remote, resource] {
+            // Drain older native events on their own thread BEFORE taking the
+            // command boundary. Their GUI deliveries may still be queued.
+            if (state->eventSource)
+                static_cast<PlaybackEvents *>(state->eventSource)->drain();
             // Keep the same lifetime fence used by PlaybackEvents while touching
             // the item or queuing a reply. The command runs on the controller
             // thread and is rejected if this load has gone stale.
@@ -641,23 +663,49 @@ void MpvItem::seekExactTracked(double seconds, quint64 requestSerial)
 
             bool success = state->generation == generation
                 && state->expectedEntry >= 0;
+            const quint64 observationFence = state->observationSerial.load();
             if (success) {
-                const QVariant result = controller->command(
-                    QStringList{QStringLiteral("seek"),
-                                QString::number(target, 'f', 3),
-                                QStringLiteral("absolute"),
-                                QStringLiteral("exact")});
-                if (result.metaType() == QMetaType::fromType<ErrorReturn>())
-                    success = result.value<ErrorReturn>().error >= 0;
+                if (remote) {
+                    // A demuxer blocked reading the old range cannot service a
+                    // normal seek, even for a reported cached target. Reopen
+                    // this same resource at the target before read-ahead starts.
+                    // Keep core headers/pause and the logical load generation;
+                    // the new native entry remains bound to the same work token.
+                    state->expectedEntry = -1;
+                    state->acceptNextEntry = state->started = state->loaded = state->reconfigured = false;
+                    state->reopenSeekSerial = requestSerial;
+                    const auto result = controller->command(
+                        {QStringLiteral("loadfile"), resource, QStringLiteral("replace"),
+                         QStringLiteral("-1"), QStringLiteral("start=%1").arg(target, 0, 'f', 3)});
+                    state->expectedEntry = result.toMap().value(QStringLiteral("playlist_entry_id"), -1).toLongLong();
+                    if (state->expectedEntry < 0) {
+                        const auto playlist = controller->getProperty(QStringLiteral("playlist")).toList();
+                        if (playlist.size() == 1)
+                            state->expectedEntry = playlist.first().toMap().value(QStringLiteral("id"), -1).toLongLong();
+                    }
+                    success = (result.metaType() != QMetaType::fromType<ErrorReturn>()
+                        || result.value<ErrorReturn>().error >= 0) && state->expectedEntry >= 0;
+                    if (success) return; // FILE_LOADED acknowledges the positioned replacement.
+                    state->reopenSeekSerial = 0;
+                }
+                if (success) {
+                    const QVariant result = controller->command(
+                        QStringList{QStringLiteral("seek"),
+                                    QString::number(target, 'f', 3),
+                                    QStringLiteral("absolute"),
+                                    QStringLiteral("exact")});
+                    if (result.metaType() == QMetaType::fromType<ErrorReturn>())
+                        success = result.value<ErrorReturn>().error >= 0;
+                }
             }
 
             QMetaObject::invokeMethod(targetItem,
-                [targetItem, requestSerial, success, generation] {
+                [targetItem, requestSerial, success, generation, observationFence] {
                     // A reply can outlive a replacement load. Never let it
                     // complete work for the newer stream.
                     if (generation == targetItem->m_decodeGeneration) {
                         Q_EMIT targetItem->trackedSeekReply(requestSerial, success,
-                                                            generation);
+                                                            generation, observationFence);
                     }
                 }, Qt::QueuedConnection);
         }, Qt::QueuedConnection);

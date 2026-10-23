@@ -57,6 +57,10 @@ struct VinylBackendSession::Backend {
     MpvPlaylistEntryWorkLedger entries;
     SerializedMpvSeekState seeks;
     std::optional<PlaybackSeekCommand> physicalSeek;
+    struct SeekRestart {qint64 entry;double position;qint64 observedMs;quint64 observationSerial;};
+    std::optional<SeekRestart> earlySeekRestart;
+    quint64 seekObservationFence=0;
+    quint64 seekStartSerial=0;
     std::optional<PlaybackLoadInput> input;
     std::unique_ptr<ListenEventLedger> listens;
     std::unique_ptr<ListenEventRecorder> listenRecorder;
@@ -309,7 +313,7 @@ void VinylBackendSession::cancelResolution() {
     if(m_source)QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("play")));
 }
 void VinylBackendSession::retirePlayer() {
-    m_loaded=false;m_backend->entries.clear();m_backend->seeks.clear();m_backend->physicalSeek.reset();m_seekAccepted=false;
+    m_loaded=false;m_backend->entries.clear();m_backend->seeks.clear();m_backend->physicalSeek.reset();m_backend->earlySeekRestart.reset();m_seekAccepted=false;
     m_backend->listenRecorder.reset();m_backend->listens.reset();
     auto *old=m_player.data();m_player=nullptr;
     if(old){disconnect(old,nullptr,this,nullptr);old->setPause(true);old->stopPlayback();old->deleteLater();}
@@ -326,7 +330,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
     m_backend->seeks.bindWork(token);
     const auto generation=m_epoch;
     connect(item,&MpvItem::nativePlaybackEvent,this,[this,item,token,generation](
-        const QString &kind,qint64 entry,double position,double duration,quint64 load,qint64 observedMs) {
+        const QString &kind,qint64 entry,double position,double duration,quint64 load,qint64 observedMs,quint64 observationSerial) {
         if(m_shutdown||!m_profileActive||m_player!=item||generation!=m_epoch||load!=item->playbackGeneration())return;
         if(kind=="loaded") {
             if(!m_backend->entries.bind(entry,token)){fail("The playback identity could not be confirmed.");return;}
@@ -353,31 +357,39 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             m_loaded=true;m_state="playing";
             m_lastProgress=0;m_lastProgressMs=monotonicMs();
             if(std::isfinite(duration)&&duration>0){m_duration=duration;m_backend->callbacks.durationObserved(token,duration);}
-            if(m_resume>0)m_backend->adapter.seek(qRound64(m_resume*1000));
+            if(m_resume>0&&!m_backend->physicalSeek)m_backend->adapter.seek(qRound64(m_resume*1000));
             publishState();
-        }else if(kind=="seek-start"&&m_seekAccepted)m_backend->seeks.observeSeekStart(token);
-        else if(kind=="restart") {
-            if(!m_seekAccepted)return;
-            auto work=m_backend->entries.tokenFor(entry);if(!work||*work!=token)return;
-            auto advance=m_backend->seeks.observePlaybackRestart(token,millisecondsFromMpvSeconds(position),observedMs);
-            if(advance){
-                m_backend->callbacks.seekApplied(advance->completed,position);
-                m_resume=position;emit discontinuity(position);
-                m_lastProgress=position;m_lastProgressMs=monotonicMs();
-                m_backend->physicalSeek.reset();m_seekAccepted=false;
-                if(advance->nextPhysical)dispatchSeek(*advance->nextPhysical);
-                publishState();
+        }else if(kind=="seek-start"||kind=="seek-loaded") {
+            if(observationSerial>m_backend->seekObservationFence) {
+                m_backend->seekStartSerial=observationSerial;
+                m_backend->seeks.observeSeekStart(token);
             }
+        }
+        else if(kind=="restart") {
+            if(!m_backend->physicalSeek||observationSerial<=m_backend->seekObservationFence)return;
+            // The decoder and controller have different event queues. Retain
+            // early restart evidence, but never complete a rejected command.
+            if(!m_seekAccepted){m_backend->earlySeekRestart=Backend::SeekRestart{entry,position,observedMs,observationSerial};return;}
+            if(m_backend->seekStartSerial<=m_backend->seekObservationFence)return;
+            observeSeekRestart(token,entry,position,observedMs);
         }else if(kind.startsWith("ended-")){
             auto work=m_backend->entries.tokenFor(entry);if(!work||*work!=token)return;
             if(kind=="ended-eof")naturalEnd(*work);
             else if(kind=="ended-error"&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
         }
     });
-    connect(item,&MpvItem::trackedSeekReply,this,[this,item,token](quint64 serial,bool success,quint64 load) {
+    connect(item,&MpvItem::trackedSeekReply,this,[this,item,token](quint64 serial,bool success,quint64 load,quint64 observationFence) {
         if(m_player!=item||load!=item->playbackGeneration()||!m_backend->physicalSeek
             ||m_backend->physicalSeek->sequence()!=serial||m_backend->physicalSeek->workToken()!=token)return;
-        if(success){m_seekAccepted=true;return;}
+        if(success){
+            m_seekAccepted=true;
+            m_backend->seekObservationFence=observationFence;
+            if(const auto early=m_backend->earlySeekRestart){
+                m_backend->earlySeekRestart.reset();
+                if(early->observationSerial>observationFence&&m_backend->seekStartSerial>observationFence)
+                    observeSeekRestart(token,early->entry,early->position,early->observedMs);
+            }return;
+        }
         auto failed=m_backend->seeks.failActive(*m_backend->physicalSeek);
         if(failed){
             const auto target=position();
@@ -407,6 +419,12 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
     // This first host adapter admits whole local files. Never silently discard a
     // future bounded source's start/end options and play the wrong album span.
     if(!options.isEmpty()){fail("This bounded source is not connected to the local player yet.");retirePlayer();return;}
+    // mpv skips forward by reading when the jump fits its stream buffer. The
+    // shared 32 MiB video setting can therefore read most of a song instead of
+    // requesting its target range, and block on missing torrent pieces. Use
+    // mpv's ordinary 128 KiB stream buffer in Vinyl's private audio core.
+    if(QUrl(resource).scheme().startsWith("http"))
+        item->setProperty(QStringLiteral("stream-buffer-size"),128*1024);
     item->loadFileWithHeaders(resource,fields);item->setPause(m_paused);
     QTimer::singleShot(15000,this,[this,item,generation] {
         if(m_player==item&&generation==m_epoch&&!m_loaded&&!tryFallback("Torrent audio did not start in time."))fail("The audio did not start in time. Retry this track.");
@@ -432,11 +450,23 @@ void VinylBackendSession::seekExact(const PlaybackSeekCommand &command,double) {
 }
 void VinylBackendSession::dispatchSeek(const PlaybackSeekCommand &command) {
     if(!m_player)return;
-    m_backend->physicalSeek=command;m_seekAccepted=false;
+    m_backend->physicalSeek=command;m_backend->earlySeekRestart.reset();m_backend->seekStartSerial=0;m_seekAccepted=false;
+    m_backend->seekObservationFence=m_player->nativeObservationSerial();
     const auto transform=m_backend->timeState.transformFor(command.workToken());
     if(!transform)return;
     const auto physical=transform->physicalPositionForTrack(command.targetMs());
     if(physical)m_player->seekExactTracked(*physical/1000.0,command.sequence());
+}
+void VinylBackendSession::observeSeekRestart(const PlaybackWorkToken &token,qint64 entry,double position,qint64 observedMs) {
+    auto work=m_backend->entries.tokenFor(entry);if(!work||*work!=token)return;
+    auto advance=m_backend->seeks.observePlaybackRestart(token,millisecondsFromMpvSeconds(position),observedMs);
+    if(!advance)return;
+    m_backend->callbacks.seekApplied(advance->completed,position);
+    m_resume=position;emit discontinuity(position);
+    m_lastProgress=position;m_lastProgressMs=monotonicMs();
+    m_backend->physicalSeek.reset();m_backend->earlySeekRestart.reset();m_seekAccepted=false;
+    if(advance->nextPhysical)dispatchSeek(*advance->nextPhysical);
+    publishState();
 }
 void VinylBackendSession::stop(const PlaybackWorkToken &) { retirePlayer(); }
 void VinylBackendSession::setPaused(bool paused) {

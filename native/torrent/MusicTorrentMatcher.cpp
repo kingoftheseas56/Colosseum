@@ -17,13 +17,18 @@ bool releaseAlbum(QString folder, const MusicTorrentTrack& track)
 {
     if (equal(folder, track.album)) return true;
     // Strip only a known technical suffix, never arbitrary bracketed words.
-    // Numeric uploader suffixes (e.g. "[MP3 320] 88") are accepted only after
+    // Numeric uploader suffixes (e.g. "[MP3 320] 88" or "FLAC 88") are accepted only after
     // this audio-format marker. Edition/live/remix labels stay in the identity.
     static const QRegularExpression format(QStringLiteral(
         R"(\s*[\[(](?:mp3(?:[ -]+(?:v0|v2|128|192|256|320)(?:\s*kbps)?)?|flac(?:\s+(?:16|24)[ -]?(?:bit)?)?|alac|aac|ogg|opus|wav)[\])]\s*(?:\d{1,3})?\s*$)"),
         QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression plainFormat(QStringLiteral(
+        R"(\s+(?:flac|alac|mp3(?:[ -]+(?:v0|v2|128|192|256|320)(?:\s*kbps)?)?)\s+\d{1,3}\s*$)"),
+        QRegularExpression::CaseInsensitiveOption);
     const auto audio = format.match(folder);
+    const auto plainAudio = plainFormat.match(folder);
     if (audio.hasMatch()) folder.truncate(audio.capturedStart());
+    else if (plainAudio.hasMatch()) folder.truncate(plainAudio.capturedStart());
     folder = folder.trimmed();
     if (equal(folder, track.album)) return true;
     static const QRegularExpression year(QStringLiteral(R"(\s*[\[(]((?:19|20)\d{2})[\])]\s*$)"));
