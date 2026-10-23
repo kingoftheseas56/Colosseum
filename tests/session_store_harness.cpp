@@ -77,6 +77,9 @@ void runSuite()
     int replacements = 0;
     QObject::connect(&store, &SessionStore::targetReplaced,
                      [&replacements](const QString &) { ++replacements; });
+    int sourceSwaps = 0;
+    QObject::connect(&store, &SessionStore::sourceReplaced,
+                     [&sourceSwaps](const QString &) { ++sourceSwaps; });
 
     const QString c1 = store.openOrSwitch(
         comicDesc(QStringLiteral("Shared Title"), QStringLiteral("series-a"),
@@ -147,12 +150,18 @@ void runSuite()
     require(s2Refreshed == s1, "same episode keeps the same session id after re-resolution");
     require(replacements == beforeRefreshSignals,
             "same episode transport refresh is not a content replacement");
+    require(sourceSwaps == 1, "same episode on another source emits sourceReplaced");
     require(store.get(s1).value(QStringLiteral("savedState")).toMap()
                 .value(QStringLiteral("position")).toInt() == 37,
             "same episode transport refresh preserves playback state");
     require(store.get(s1).value(QStringLiteral("target")).toMap()
                 .value(QStringLiteral("infoHash")).toString() == QStringLiteral("betterhash"),
             "same episode transport refresh installs the newest source descriptor");
+    store.openOrSwitch(
+        showDesc(QStringLiteral("tt-show"), QStringLiteral("tt-show:1:2"),
+                 QStringLiteral("BETTERHASH"), 7, QStringLiteral("Episode 2 renamed"),
+                 QStringLiteral("http://127.0.0.1/new")));
+    require(sourceSwaps == 1, "metadata-only refresh of the same source is not a source swap");
 
     store.switchTo(QString());
     const QString r1 = store.openOrSwitch(

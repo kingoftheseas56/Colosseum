@@ -68,10 +68,16 @@ public:
                 // Exact-content reopen: refresh transport/path/metadata while preserving
                 // captured state. A parked session must reactivate from the newest target,
                 // but its resume position still belongs to this exact content identity.
+                const bool newSource = sourceKeyFor(rec.value(QStringLiteral("target")).toMap())
+                                    != sourceKeyFor(desc.value(QStringLiteral("target")).toMap());
                 rec.insert(QStringLiteral("title"), desc.value(QStringLiteral("title")));
                 rec.insert(QStringLiteral("target"), desc.value(QStringLiteral("target")));
                 m_sessions[i] = rec;
                 bump();
+                // a different source of the same content: a warm-kept old stream must not
+                // resume in its place (seen on Android, 2026-10-23).
+                if (newSource)
+                    emit sourceReplaced(id);
             }
             setActive(id);
             return id;
@@ -537,6 +543,8 @@ signals:
     void activeChanged(const QString &prevId, const QString &nextId);
     // one-tab-per-show: an existing session's target was swapped in place (same id).
     void targetReplaced(const QString &id);
+    // same content, another stream source (captured position kept).
+    void sourceReplaced(const QString &id);
 
 private:
     int browserIdentityIndex(const QVariantMap &identity) const {
@@ -617,6 +625,13 @@ private:
             tk = contentKeyFor(desc);
         return desc.value(QStringLiteral("appType")).toString() + QStringLiteral("\x1f")
              + desc.value(QStringLiteral("contentKind")).toString() + QStringLiteral("\x1f") + tk;
+    }
+
+    // Which stream plays the content: picking another source changes this, not the content key.
+    static QString sourceKeyFor(const QVariantMap &target) {
+        return target.value(QStringLiteral("infoHash")).toString().toLower() + QStringLiteral("")
+             + QString::number(target.value(QStringLiteral("fileIdx")).toInt()) + QStringLiteral("")
+             + target.value(QStringLiteral("streamUrl")).toString();
     }
 
     // The per-content chain — on a show-key match this tells "same show, different

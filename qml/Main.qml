@@ -1984,6 +1984,14 @@ Window {
             if (Sessions.activeId === id)
                 win.activateSession(Sessions.get(id))
         }
+        // the same film from another source row: the warm old stream must not resume as the
+        // pick; activation plays the new source from the kept position.
+        function onSourceReplaced(id) {
+            if (win.warmPlayerSessionId === id)
+                win.warmPlayerSessionId = ""
+            if (Sessions.activeId === id)
+                win.activateSession(Sessions.get(id))
+        }
     }
     Connections {
         target: win
