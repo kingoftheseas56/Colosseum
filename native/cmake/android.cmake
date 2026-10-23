@@ -20,6 +20,8 @@ target_sources(colosseum PRIVATE
     player/androidmedia3item.h
     player/androidmedia3videonode.cpp
     player/androidmedia3videonode.h
+    player/subtitlesidecar.cpp
+    player/subtitlesidecar.h
     player/androidseekthumbnailer.h
     player/MediaAdmissionProbe_android.cpp
     player/MediaAdmissionProbe.h

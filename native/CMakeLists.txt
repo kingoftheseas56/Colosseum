@@ -1366,6 +1366,13 @@ add_executable(session_store_harness
 target_include_directories(session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(session_store_harness PRIVATE Qt6::Core)
 
+add_executable(subtitle_sidecar_parser_test
+    ../tests/subtitle_sidecar_parser_test.cpp
+    player/subtitlesidecar.cpp
+    player/subtitlesidecar.h)
+target_include_directories(subtitle_sidecar_parser_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(subtitle_sidecar_parser_test PRIVATE Qt6::Core)
+
 add_executable(background_work_coordinator_harness
     ../tests/background_work_coordinator_harness.cpp
     work/BackgroundWorkCoordinator.cpp

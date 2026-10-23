@@ -3,10 +3,12 @@
 #ifdef Q_OS_ANDROID
 
 #include "androidmedia3videonode.h"
+#include "subtitlesidecar.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
+#include <QFile>
 #include <QHash>
 #include <QJniEnvironment>
 #include <QJsonArray>
@@ -15,6 +17,9 @@
 #include <QMetaObject>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPointer>
 #include <QSGNode>
 
@@ -24,6 +29,7 @@
 
 namespace {
 constexpr auto kMedia3HostClass = "org/colosseum/player/Media3PlayerHost";
+constexpr qint64 kMaxSidecarBytes = 8 * 1024 * 1024;
 
 QMutex g_media3ItemsMutex;
 QHash<jlong, QPointer<AndroidMedia3Item>> g_media3Items;
@@ -127,7 +133,35 @@ double AndroidMedia3Item::speed() const { return m_state.snapshot().speed; }
 QString AndroidMedia3Item::audioTrack() const { return m_audioTrack; }
 QString AndroidMedia3Item::subtitleTrack() const { return m_subtitleTrack; }
 QVariantList AndroidMedia3Item::audioTracks() const { return m_state.audioTracks(); }
-QVariantList AndroidMedia3Item::subtitleTracks() const { return m_state.subtitleTracks(); }
+QVariantList AndroidMedia3Item::subtitleTracks() const
+{
+    // Embedded Media3 rows, then sidecar rows. While a sidecar is the active
+    // subtitle Media3 text is disabled, so no embedded row may look selected.
+    QVariantList out;
+    for (const QVariant &entry : m_state.subtitleTracks()) {
+        QVariantMap map = entry.toMap();
+        if (!m_activeExternalId.isEmpty())
+            map.insert(QStringLiteral("selected"), false);
+        out.append(map);
+    }
+    for (const ExternalSubtitle &ext : m_externalSubtitles) {
+        QVariantMap map;
+        map.insert(QStringLiteral("id"), ext.id);
+        map.insert(QStringLiteral("title"), ext.title);
+        map.insert(QStringLiteral("label"), ext.title);
+        map.insert(QStringLiteral("lang"), ext.lang);
+        map.insert(QStringLiteral("codec"), QString());
+        map.insert(QStringLiteral("channels"), QString());
+        map.insert(QStringLiteral("selected"), ext.id == m_activeExternalId);
+        map.insert(QStringLiteral("external"), true);
+        map.insert(QStringLiteral("forced"), false);
+        map.insert(QStringLiteral("default"), false);
+        map.insert(QStringLiteral("hearingImpaired"), false);
+        map.insert(QStringLiteral("url"), ext.url);
+        out.append(map);
+    }
+    return out;
+}
 QVariantList AndroidMedia3Item::chapters() const { return m_state.chapters(); }
 QVariantList AndroidMedia3Item::subtitleCues() const { return m_state.subtitleCues(); }
 double AndroidMedia3Item::audioDelay() const { return m_audioDelay; }
@@ -282,9 +316,24 @@ void AndroidMedia3Item::setSubtitleTrack(const QString &value)
 {
     if (m_subtitleTrack == value)
         return;
-    callHostTrack("selectSubtitleTrack", value);
+    const bool wasExternal = !m_activeExternalId.isEmpty();
+    if (findExternalSubtitle(value)) {
+        // Media3 text goes off; the sidecar cues are published in its place.
+        callHostTrack("selectSubtitleTrack", QString());
+        m_activeExternalId = value;
+        clearPublishedCues();
+        updateSidecarCues();
+    } else {
+        // Embedded track or Off: sidecar cues stop; Media3 cues take over again.
+        m_activeExternalId.clear();
+        if (wasExternal)
+            clearPublishedCues();
+        callHostTrack("selectSubtitleTrack", value);
+    }
     m_subtitleTrack = value;
     emit subtitleTrackChanged();
+    if (wasExternal || !m_activeExternalId.isEmpty())
+        emit trackListChanged();
 }
 
 void AndroidMedia3Item::setAudioDelay(double value)
@@ -299,6 +348,7 @@ void AndroidMedia3Item::setSubDelay(double value)
     if (m_subDelay == value) return;
     m_subDelay = value;
     emit subDelayChanged();
+    updateSidecarCues();
 }
 
 void AndroidMedia3Item::setPanscan(double value)
@@ -330,9 +380,11 @@ void AndroidMedia3Item::loadSource(const QString &url)
 void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &headers)
 {
     const auto before = m_state.snapshot();
-    const bool hadTracks = !m_state.audioTracks().isEmpty() || !m_state.subtitleTracks().isEmpty();
+    const bool hadTracks = !m_state.audioTracks().isEmpty() || !m_state.subtitleTracks().isEmpty()
+            || !m_externalSubtitles.isEmpty();
     const bool hadChapters = !m_state.chapters().isEmpty();
     const bool hadCues = !m_state.subtitleCues().isEmpty();
+    clearExternalSubtitles();
     const quint64 generation = m_state.beginLoad(url, headers);
     m_state.noteUserPlay(generation);
     m_fileLoadedEmitted = false;
@@ -478,11 +530,153 @@ void AndroidMedia3Item::frameBackStep() {}
 void AndroidMedia3Item::addSubtitle(const QString &url, const QString &title,
                                     const QString &lang, bool select)
 {
-    Q_UNUSED(url)
-    Q_UNUSED(title)
-    Q_UNUSED(lang)
-    Q_UNUSED(select)
+    const QString source = url.trimmed();
+    const quint64 generation = m_state.generation();
+    if (source.isEmpty() || generation == 0)
+        return;
+    for (const ExternalSubtitle &ext : std::as_const(m_externalSubtitles)) {
+        if (ext.url == source) {
+            if (select)
+                setSubtitleTrack(ext.id);
+            return;
+        }
+    }
+
+    const QUrl parsed(source);
+    const QString scheme = parsed.scheme().toLower();
+    qInfo() << "[nuvio014] subtitle: add" << scheme << parsed.host() << "select" << select;
+    if (scheme == QLatin1String("http") || scheme == QLatin1String("https")) {
+        if (!m_subtitleNam)
+            m_subtitleNam = new QNetworkAccessManager(this);
+        QNetworkRequest request(parsed);
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                             QNetworkRequest::NoLessSafeRedirectPolicy);
+        request.setTransferTimeout(20000);
+        QNetworkReply *reply = m_subtitleNam->get(request);
+        m_subtitleReplies.append(reply);
+        connect(reply, &QNetworkReply::finished, this,
+                [this, reply, generation, source, title, lang, select]() {
+            m_subtitleReplies.removeAll(reply);
+            reply->deleteLater();
+            if (!m_state.accepts(generation))
+                return;
+            if (reply->error() != QNetworkReply::NoError) {
+                qWarning() << "[nuvio014] subtitle: fetch failed" << reply->errorString();
+                return;
+            }
+            finishExternalSubtitle(generation, source, title, lang, select, reply->readAll());
+        });
+        return;
+    }
+
+    // Local sources: file:// URLs, content:// URIs (Qt's QFile resolves those on
+    // Android) and bare paths. Any other scheme is not something we can read.
+    QString path = source;
+    if (scheme == QLatin1String("file")) {
+        path = parsed.toLocalFile();
+    } else if (scheme.size() > 1 && scheme != QLatin1String("content")) {
+        qWarning() << "[nuvio014] subtitle: unsupported source scheme" << scheme;
+        return;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "[nuvio014] subtitle: cannot open local source" << file.errorString();
+        return;
+    }
+    finishExternalSubtitle(generation, source, title, lang, select, file.read(kMaxSidecarBytes + 1));
 }
+
+void AndroidMedia3Item::finishExternalSubtitle(quint64 generation, const QString &source,
+                                               const QString &title, const QString &lang,
+                                               bool select, const QByteArray &bytes)
+{
+    if (!m_state.accepts(generation))
+        return;
+    if (bytes.isEmpty() || bytes.size() > kMaxSidecarBytes) {
+        qWarning() << "[nuvio014] subtitle: unusable payload size" << bytes.size();
+        return;
+    }
+    auto cues = Colosseum::Player::parseSidecarSubtitles(
+            Colosseum::Player::decodeSubtitleBytes(bytes));
+    if (cues.isEmpty()) {
+        qWarning() << "[nuvio014] subtitle: no cues parsed from" << bytes.size() << "bytes";
+        return;
+    }
+    ExternalSubtitle ext;
+    ext.id = QStringLiteral("x:%1").arg(++m_nextExternalSubtitle);
+    ext.title = !title.trimmed().isEmpty() ? title.trimmed()
+                : (!lang.isEmpty() ? lang : QStringLiteral("Subtitle"));
+    ext.lang = lang;
+    ext.url = source;
+    ext.cues = std::move(cues);
+    qInfo() << "[nuvio014] subtitle: loaded" << ext.id << ext.cues.size() << "cues";
+    const QString id = ext.id;
+    m_externalSubtitles.append(std::move(ext));
+    emit trackListChanged();
+    if (select)
+        setSubtitleTrack(id);
+}
+
+const AndroidMedia3Item::ExternalSubtitle *AndroidMedia3Item::findExternalSubtitle(
+        const QString &id) const
+{
+    if (id.isEmpty())
+        return nullptr;
+    for (const ExternalSubtitle &ext : m_externalSubtitles)
+        if (ext.id == id)
+            return &ext;
+    return nullptr;
+}
+
+void AndroidMedia3Item::clearExternalSubtitles()
+{
+    for (QNetworkReply *reply : std::as_const(m_subtitleReplies)) {
+        reply->disconnect(this);
+        reply->abort();
+        reply->deleteLater();
+    }
+    m_subtitleReplies.clear();
+    m_externalSubtitles.clear();
+    m_activeExternalId.clear();
+    m_activeSidecarCues.clear();
+}
+
+// Drops whatever cue set is published (Media3's or the sidecar's) so the next source
+// of cues starts from empty.
+void AndroidMedia3Item::clearPublishedCues()
+{
+    const bool hadCues = !m_state.subtitleCues().isEmpty();
+    m_activeSidecarCues.clear();
+    m_state.replaceSubtitleCues(m_state.generation(), {});
+    if (hadCues)
+        emit subtitleCuesChanged();
+}
+
+// Publishes the sidecar cues showing at (position - subDelay), in the same shape as
+// parseCues(), and emits only when the active set changes. mpv's sub-delay is positive
+// for "later", hence the subtraction.
+void AndroidMedia3Item::updateSidecarCues()
+{
+    const ExternalSubtitle *ext = findExternalSubtitle(m_activeExternalId);
+    if (!ext)
+        return;
+    const QList<int> active = Colosseum::Player::activeSidecarCues(
+            ext->cues, msFromSeconds(position() - m_subDelay));
+    if (active == m_activeSidecarCues)
+        return;
+    QList<Colosseum::Player::Media3CueRow> rows;
+    rows.reserve(active.size());
+    for (const int index : active) {
+        Colosseum::Player::Media3CueRow row;
+        row.text = ext->cues.at(index).text;
+        rows.append(std::move(row));
+    }
+    if (!m_state.replaceSubtitleCues(m_state.generation(), rows))
+        return;
+    m_activeSidecarCues = active;
+    emit subtitleCuesChanged();
+}
+
 void AndroidMedia3Item::setSubOption(const QString &key, const QVariant &value)
 {
     Q_UNUSED(key)
@@ -596,6 +790,7 @@ void AndroidMedia3Item::handlePlaybackSnapshot(
                                 bufferedPercentage, paused, volume, muted, speed))
         return;
     publishSnapshotChanges(before);
+    updateSidecarCues();
 }
 
 void AndroidMedia3Item::handleReady(quint64 generation, qint64 durationMs,
@@ -714,6 +909,7 @@ void AndroidMedia3Item::handleSeekDiscontinuity(quint64 generation,
     const auto before = m_state.snapshot();
     m_state.noteSeekDiscontinuity(generation, newPositionMs);
     publishSnapshotChanges(before);
+    updateSidecarCues();
 }
 
 void AndroidMedia3Item::handleTracks(quint64 generation, const QString &json)
@@ -743,6 +939,8 @@ void AndroidMedia3Item::handleTracks(quint64 generation, const QString &json)
             break;
         }
     }
+    if (!m_activeExternalId.isEmpty())
+        selectedSubtitle = m_activeExternalId; // Media3 text is off while a sidecar is active
     if (m_subtitleTrack != selectedSubtitle) {
         m_subtitleTrack = selectedSubtitle;
         emit subtitleTrackChanged();
@@ -769,6 +967,8 @@ void AndroidMedia3Item::handleMetadata(quint64 generation, const QString &json)
 
 void AndroidMedia3Item::handleCues(quint64 generation, const QString &json)
 {
+    if (!m_activeExternalId.isEmpty())
+        return; // the sidecar owns subtitleCues while it is the selected track
     if (!m_state.replaceSubtitleCues(generation, parseCues(json)))
         return;
     emit subtitleCuesChanged();

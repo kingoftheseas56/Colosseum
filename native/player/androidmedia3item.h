@@ -6,13 +6,18 @@
 #ifdef Q_OS_ANDROID
 
 #include <QJniObject>
+#include <QList>
 #include <QQuickItem>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 
 #include "androidmedia3state.h"
+#include "subtitlesidecar.h"
 #include "playerbackendcontract.h"
+
+class QNetworkAccessManager;
+class QNetworkReply;
 
 class AndroidMedia3Item : public QQuickItem, public PlayerBackendContract
 {
@@ -179,6 +184,22 @@ private:
     QString formatTime(double seconds) const;
     jlong nativeHandle() const;
 
+    // External (sidecar) subtitles: fetched and parsed in C++, drawn through the same
+    // subtitleCues overlay as embedded Media3 text; Media3 itself is never re-prepared.
+    struct ExternalSubtitle {
+        QString id;
+        QString title;
+        QString lang;
+        QString url;
+        QList<Colosseum::Player::SidecarCue> cues;
+    };
+    void finishExternalSubtitle(quint64 generation, const QString &source, const QString &title,
+                                const QString &lang, bool select, const QByteArray &bytes);
+    const ExternalSubtitle *findExternalSubtitle(const QString &id) const;
+    void clearExternalSubtitles();
+    void updateSidecarCues();
+    void clearPublishedCues();
+
     Colosseum::Player::AndroidMedia3State m_state;
     QJniObject m_host;
     QString m_mediaTitle;
@@ -194,6 +215,12 @@ private:
     bool m_resumeAfterEnd = false;
     bool m_surfaceReleased = false;
     quint64 m_restoreLifecycleEpoch = 0;
+    QNetworkAccessManager *m_subtitleNam = nullptr;
+    QList<QNetworkReply *> m_subtitleReplies;
+    QList<ExternalSubtitle> m_externalSubtitles;
+    QString m_activeExternalId;
+    QList<int> m_activeSidecarCues;
+    int m_nextExternalSubtitle = 0;
 };
 
 #endif // Q_OS_ANDROID
