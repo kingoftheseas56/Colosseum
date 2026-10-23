@@ -2,8 +2,10 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QUrl>
 
 #include <cmath>
+#include <cstdio>
 
 using Colosseum::Player::AndroidMedia3State;
 using Colosseum::Player::HostPlaybackAction;
@@ -12,10 +14,16 @@ using Colosseum::Player::Media3CueRow;
 using Colosseum::Player::Media3TrackRow;
 
 namespace {
+int assertionCount = 0;
+
 void require(bool condition, const char *message)
 {
-    if (!condition)
+    ++assertionCount;
+    if (!condition) {
+        std::fprintf(stderr, "FAIL: android_media3_state_harness: %s\n", message);
+        std::fflush(stderr);
         qFatal("android_media3_state_harness: %s", message);
+    }
 }
 
 bool near(double a, double b, double epsilon = 0.0001)
@@ -28,6 +36,45 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     AndroidMedia3State state;
+
+    const QString rawAndroidPath = QString::fromUtf8(
+        "/storage/emulated/0/Movies/Night of the Living Dead - \xE2\x98\x83 #100%?.mp4");
+    const QString expectedAndroidFileUrl = QStringLiteral(
+        "file:///storage/emulated/0/Movies/Night%20of%20the%20Living%20Dead%20-%20%E2%98%83%20%23100%25%3F.mp4");
+    state.beginLoad(rawAndroidPath, {});
+    require(state.snapshot().currentUrl == expectedAndroidFileUrl,
+            "raw Android absolute paths must become fully encoded file URIs");
+    require(QUrl(state.snapshot().currentUrl).toLocalFile() == rawAndroidPath,
+            "canonical file URI must round-trip spaces, Unicode, #, %, and ? in the local path");
+    std::printf("PASS: raw absolute Android path is fully encoded and round-trips to its local path\n");
+    std::fflush(stdout);
+
+    const QString explicitHttp = QStringLiteral(
+        "http://127.0.0.1:8787/media%20path/movie.mp4?token=a%2Fb#chapter");
+    state.beginLoad(explicitHttp, {});
+    require(state.snapshot().currentUrl == explicitHttp,
+            "explicit loopback HTTP URLs must remain byte-for-byte unchanged");
+    std::printf("PASS: explicit loopback HTTP URL is preserved\n");
+    std::fflush(stdout);
+
+    const QString explicitContent = QStringLiteral(
+        "content://media/external/video/media/42?title=Night%20of%20the%20Living%20Dead");
+    state.beginLoad(explicitContent, {});
+    require(state.snapshot().currentUrl == explicitContent,
+            "explicit content URIs must remain byte-for-byte unchanged");
+    std::printf("PASS: explicit content URI is preserved\n");
+    std::fflush(stdout);
+
+    const QString explicitFile = QStringLiteral(
+        "file:///storage/emulated/0/Movies/explicit%20name%20%CE%BB%23%25%3F.mp4");
+    state.beginLoad(explicitFile, {});
+    require(state.snapshot().currentUrl == explicitFile,
+            "explicit file URIs must remain byte-for-byte unchanged");
+    require(QUrl(state.snapshot().currentUrl).toLocalFile()
+                == QString::fromUtf8("/storage/emulated/0/Movies/explicit name \xCE\xBB#%?.mp4"),
+            "explicit file URI must still decode to its original local path");
+    std::printf("PASS: explicit file URI is preserved and decodes correctly\n");
+    std::fflush(stdout);
 
     QVariantMap firstHeaders;
     firstHeaders.insert(QStringLiteral("Referer"), QStringLiteral("https://a.invalid/"));
@@ -281,5 +328,7 @@ int main(int argc, char **argv)
             "an errored source stays terminal");
 
     qInfo().noquote() << QStringLiteral("ANDROID_MEDIA3_STATE_OK");
+    std::printf("ANDROID_MEDIA3_STATE_OK assertions=%d\n", assertionCount);
+    std::fflush(stdout);
     return 0;
 }

@@ -1,5 +1,7 @@
 #include "androidmedia3state.h"
 
+#include <QUrl>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -68,7 +70,10 @@ quint64 AndroidMedia3State::beginLoad(const QString &url, const QVariantMap &hea
 void AndroidMedia3State::resetSourceScopedState(const QString &url, const QVariantMap &headers)
 {
     m_snapshot = AndroidMedia3Snapshot{};
-    m_snapshot.currentUrl = url;
+    // Downloaded files arrive as filesystem paths. Media3's admission and
+    // DataSource both require a file URI, including escaped filename bytes.
+    m_snapshot.currentUrl = url.startsWith(QLatin1Char('/'))
+        ? QUrl::fromLocalFile(url).toString(QUrl::FullyEncoded) : url;
     m_snapshot.headers = headers;
     m_pendingVideoWidth = 0;
     m_pendingVideoHeight = 0;

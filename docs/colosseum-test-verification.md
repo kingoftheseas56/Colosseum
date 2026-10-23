@@ -10,6 +10,16 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Android Media3 local download URI (2026-10-24)
+
+`android_media3_state_harness.cpp` exercises the real source state owner. Raw
+absolute Android paths become fully encoded file URIs and round-trip spaces,
+Unicode and URI punctuation; explicit HTTP, content and file URIs remain exact.
+The unmodified owner fails the new raw-path assertion. The fixed host harness
+passes 121 assertions. `test_android_media3_java_host_contract.py` passes all
+seven admission checks; Java admission rules are unchanged. Device playback
+qualification is separate from these host checks.
+
 ## Discover asynchronous state preservation (2026-10-15)
 
 `colosseum.tankoban_discover_async_preservation` runs the real Tankoban Discover

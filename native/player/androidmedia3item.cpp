@@ -416,7 +416,7 @@ void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &header
         return;
     }
 
-    const QJniObject javaUrl = QJniObject::fromString(url);
+    const QJniObject javaUrl = QJniObject::fromString(m_state.snapshot().currentUrl);
     const QJniObject headerMap = javaHeaders(headers);
     m_host.callMethod<void>("load", "(JLjava/lang/String;Ljava/util/Map;)V",
                             jlong(generation), javaUrl.object<jstring>(), headerMap.object<jobject>());
