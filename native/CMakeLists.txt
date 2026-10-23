@@ -668,16 +668,10 @@ qt_add_executable(colosseum
     torrent/TorrentResult.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
-    torrent/PirateBayIndexer.cpp
-    torrent/PirateBayIndexer.h
-    torrent/ExtTorrentsIndexer.cpp
-    torrent/ExtTorrentsIndexer.h
-    torrent/TorrentsCsvIndexer.cpp
-    torrent/TorrentsCsvIndexer.h
-    torrent/KnabenIndexer.cpp
-    torrent/KnabenIndexer.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/BookTorrentRanker.cpp
     torrent/BookTorrentRanker.h
     torrent/BookTorrentFilePicker.cpp
@@ -1878,6 +1872,8 @@ add_executable(comic_downloader_archive_ingest_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -1936,6 +1932,8 @@ add_executable(comic_downloader_legacy_migration_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -1990,6 +1988,8 @@ add_executable(comic_downloader_ingest_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2051,6 +2051,8 @@ add_executable(comic_downloader_pack_demux_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2105,6 +2107,8 @@ add_executable(comic_torrents_search_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2169,6 +2173,8 @@ add_executable(comic_torrent_pack_transport_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2331,6 +2337,20 @@ add_executable(knaben_indexer_harness
 )
 target_include_directories(knaben_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(knaben_indexer_harness PRIVATE Qt6::Core Qt6::Network)
+
+# tankorent_worker_transport_harness — mocked QNAM coverage for the native
+# source-agnostic Worker adapter, response validation, routing, and cancellation.
+add_executable(tankorent_worker_transport_harness
+    ../tests/tankorent_worker_transport_harness.cpp
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(tankorent_worker_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankorent_worker_transport_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(manga_volume_index_harness
     ../tests/manga_volume_index_harness.cpp

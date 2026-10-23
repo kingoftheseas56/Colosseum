@@ -10,6 +10,17 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Tankorent Worker transport (2026-10-23)
+
+`colosseum.tankorent_worker_transport_harness` is registered with labels
+`unit;torrent;network` and the standard 120-second timeout. Fake-network cases
+cover request/category mapping, persisted source selection, explicit/unfiltered
+routing, result/schema validation, health errors, redirects, bounded replies,
+cancellation and the 25-second deadline followed by a late reply. Fresh Windows
+CTest passed in 27.52 seconds. The existing comic search harness also compiled
+and passed. Live source and actual-app evidence are separate and recorded in
+[the Tankorent checkpoint receipt](tankorent-worker-checkpoint-2026-10-23.md).
+
 ## Tankoyomi Worker transport (2026-10-23)
 
 `colosseum.tankoyomi_worker_transport_harness` is registered with labels

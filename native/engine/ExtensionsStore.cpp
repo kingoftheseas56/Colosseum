@@ -80,7 +80,7 @@ QString transportIdentity(const QString &transportUrl)
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 15;
+constexpr int kHouseDefaultsVersion = 16;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -707,7 +707,7 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
     // search is only ever asked for "books" and "comics", never audiobooks. Left in place
     // rather than silently changed, because dropping it changes Biblio's roster.
-    add("colosseum.well.indexers", "colosseum://well/indexers", false,
+    add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
         manifest("colosseum.well.indexers", "Tankorent", "",
                  { QStringLiteral("stream") },
                  { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
@@ -815,6 +815,16 @@ void ExtensionsStore::migrateDefaults()
                                == QLatin1String("colosseum://well/tankoyomi")) {
         m_items[tankoyomiAt].insert(QStringLiteral("transportUrl"),
             QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
+        changed = true;
+    }
+
+    // Generation 16: move only the built-in Tankorent endpoint. Retain the
+    // extension identity, rank, user enablement and any custom transport URL.
+    const int tankorentAt = indexOfId(QStringLiteral("colosseum.well.indexers"));
+    if (tankorentAt >= 0 && m_items[tankorentAt].value(QStringLiteral("transportUrl")).toString()
+                               == QLatin1String("colosseum://well/indexers")) {
+        m_items[tankorentAt].insert(QStringLiteral("transportUrl"),
+            QStringLiteral("https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json"));
         changed = true;
     }
 
