@@ -81,7 +81,9 @@ Item {
     readonly property int episodeContentHeight: page.episodes.length * page.compactEpisodeRowHeight
                                                 + (page.nextUpEpisodeIndex >= 0
                                                    ? page.nextUpEpisodeRowHeight - page.compactEpisodeRowHeight : 0)
-    readonly property real episodeVirtualContentY: episodeVirtualSpace.mapToItem(pageCol, 0, 0).y
+    // Track each layout ancestor: mapToItem() alone does not notify this binding
+    // when the surrounding Columns reposition the episode section.
+    readonly property real episodeVirtualContentY: episodesSection.y + episodesCol.y + episodeVirtualSpace.y
     readonly property real episodeWindowLocalTop: flick.contentY - page.episodeVirtualContentY
     readonly property real episodeWindowLocalBottom: page.episodeWindowLocalTop + flick.height
     readonly property int episodeWindowStart: page.computeEpisodeWindowStart()
