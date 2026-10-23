@@ -331,7 +331,15 @@ void VinylRecommendationService::rebuildHome(){
             if(m_historyStore || envelope.value("historyResetGeneration").toInteger(-1)==0)storeExposure({});
         }
     }
-    struct Node {QVariantMap card;QSet<QString> sections;QVector<RecommendationCandidate> candidates;QVector<SeedAffinityEvidence> affinities;};
+    // Exposure captured in this visit is durable for future visits. Applying it
+    // immediately would move the cards being observed and expose replacements.
+    RecommendationExposureLog priorVisitExposure(*profile.value);
+    for(const auto &record:exposure.records()) {
+        const auto shelf=record.evidence().first().sourceId().mid(5); // validated home:<shelf>
+        const auto currentId="visible-"+digest(QVariantList{m_home->visitId,shelf,record.entity().stableKey()});
+        if(record.exposureId().value()!=currentId)priorVisitExposure.append(record);
+    }
+    struct Node {QVariantMap card;QMap<QString,QVariantMap> artistContexts;QSet<QString> sections;QVector<RecommendationCandidate> candidates;QVector<SeedAffinityEvidence> affinities;};
     QMap<QString,Node> nodes;QMap<QString,QSet<QString>> generators;QVariantList sourceSnapshot;
     auto seedIdentity=[this](const QVariantMap &seed)->std::optional<RecommendationEntityRef>{
         const auto identity=m_home->identities.value(seed.value("key").toString());
@@ -362,6 +370,14 @@ void VinylRecommendationService::rebuildHome(){
             card["record"]=QVariantMap{{"id",destination.value("id")},{"browseId",destination.value("id")},{"type","Song"},{"origin","youtube-music"},{"title",raw.value("title")},{"cover",card.value("cover")},{"artists",names},{"artistIds",artistIds},{"tracks",QVariantList{track}}};card["trackIndex"]=0;
         }
         if(node.card.isEmpty()||wire(card)<wire(node.card))node.card=card;
+        auto credits=raw.value("artistRefs").toList();
+        // An own-release shelf establishes its owner even when the provider
+        // omits credits. A related artist's seed is only its discovery source.
+        if(raw.value("relation")=="own-release")credits.append(seed);
+        for(const auto &value:credits)if(const auto artist=typed(value.toMap()))
+            node.artistContexts.insert(artist->stableKey(),value.toMap());
+        QVariantList mergedCredits;for(const auto &credit:node.artistContexts)mergedCredits.append(credit);
+        node.card["artistRefs"]=mergedCredits;
         node.sections.insert(section);
         const auto date=QDate::fromString(raw.value("releaseDate").toString(),Qt::ISODate);const auto today=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date();
         if(section=="from-your-artists"&&destination.value("kind")=="album"&&date.isValid()&&date<=today&&date.daysTo(today)<=90)node.sections.insert("new-from-your-artists");
@@ -452,7 +468,7 @@ void VinylRecommendationService::rebuildHome(){
         DeterministicRankerConfig config;config.version="vinyl-home-v1";config.nowMs=now;config.maxResults=300;config.seedAffinityWeight=300;
         config.maxPerArtist=distinctSeeds.size()==1&&section!="related-discoveries"?0:3;config.maxRecordingsPerReleaseGroup=2;
         const auto ranked=rankDeterministically(RecommendationCandidateSet::normalize(pool),taste,
-            *derived.value,exposure,features,config);
+            *derived.value,priorVisitExposure,features,config);
         if(!ranked.ok())continue;QVariantList preferred,repeated;
         for(const auto &entry:ranked.value->ranked()){auto card=nodes.value(entry.entity().stableKey()).card;QVariantList reasons;
             for(const auto &e:entry.explanation()){QVariantMap reason{{"kind",rankEvidenceKindName(e.kind)},{"sourceId",e.sourceId},{"scoreDelta",e.scoreDelta}};if(e.relatedEntity)reason["seed"]=e.relatedEntity->toJson().toVariantMap();reasons.append(reason);}
@@ -559,6 +575,7 @@ void VinylRecommendationService::rebuildHome(){
     QVariantMap mappings;for(auto it=m_home->identities.cbegin();it!=m_home->identities.cend();++it)mappings[it.key()]=it.value();
     const QVariantMap inputs{{"catalogue",sourceSnapshot},{"identities",mappings},{"library",m_home->collections.value("albums")},{"feedback",feedback},{"seeds",m_home->seeds},{"history",m_home->history}};
     auto configPolicy=policy();configPolicy["seedDecay"]=QVariantList{30,100,1.0,0.75,0.5};configPolicy["historyVersion"]=1;
+    configPolicy["exposureApplication"]="prior-visits";
     configPolicy["historyShelves"]=QVariantMap{{"version",1},{"requireRetainedPlay",true},{"lessPlayed","positive-count-below-library-max"},{"maxShelf",12},{"rediscoverOrder","oldest-retained-play"}};
     const auto sourceHash=digest(inputs);
     const QVariantMap snapshot{{"configVersion","vinyl-home-v1"},{"evaluatedAtMs",now},{"sourceHash",sourceHash},{"configHash",digest(configPolicy)},{"seedHash",m_home->seedHash},{"candidateCount",nodes.size()},{"historyComplete",false},{"optionalUnavailableCount",m_home->optionalUnavailable.size()},

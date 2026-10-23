@@ -350,6 +350,47 @@ QStringList runTwoSeedOrder(bool reverseCompletion)
 class VinylRecommendationServiceTest final : public QObject {
     Q_OBJECT
 private slots:
+    void visibleExposureDoesNotRerankTheCurrentVisit() {
+        HomeFixture fixture({artistSeed(1)});ActivityStore activity;fixture.service.setActivityStore(&activity);
+        const auto call=fixture.source.pendingRequests("artistCandidates").first();
+        auto payload=fixture.source.defaultReply(call);QVariantList candidates;
+        for(int i=0;i<16;++i)candidates.append(albumCandidate(call.options.value("seed").toMap(),
+            QString("MPRE_%1").arg(i,8,10,QLatin1Char('0')),QString("Release %1").arg(i)));
+        payload["items"]=candidates;fixture.source.complete(call,payload);QCoreApplication::processEvents();
+        const auto before=sectionItems(fixture.service,"from-your-artists");QCOMPARE(before.size(),12);
+        const auto token=fixture.service.homeSnapshot().value("exposureSnapshotId").toString();
+        const auto ref=before.first().toMap().value("ref").toMap();
+        QVERIFY(fixture.service.recordVisibleItems("from-your-artists",token,{ref},0));
+        QCOMPARE(sectionItems(fixture.service,"from-your-artists"),before);
+        // An unrelated input refresh within the visit must not apply the new
+        // exposure either. The fatigue is retained for the next Home visit.
+        fixture.service.setHomeCollections({{"songs",QVariantList()}});
+        QCOMPARE(sectionItems(fixture.service,"from-your-artists"),before);
+        fixture.service.beginHomeVisit();
+        QVERIFY(sectionItems(fixture.service,"from-your-artists")!=before);
+        QVERIFY(!fixture.preferences.exposure.isEmpty());
+    }
+    void implicitOwnArtistCreditsRespectSuppressionAndRecovery() {
+        HomeFixture fixture({artistSeed(1)});
+        const auto call=fixture.source.pendingRequests("artistCandidates").first();
+        auto payload=fixture.source.defaultReply(call);
+        auto own=payload.value("items").toList().first().toMap();own["artistRefs"]=QVariantList();
+        const auto seed=call.options.value("seed").toMap();
+        const auto other=artistSeed(2);auto related=other;related["title"]=other.value("name");
+        related["relation"]="related-artist";related["seedArtistRef"]=seed;related["artistRefs"]=QVariantList();
+        payload["items"]=QVariantList{own,related};fixture.source.complete(call,payload);QCoreApplication::processEvents();
+        QCOMPARE(sectionItems(fixture.service,"from-your-artists").size(),1);
+        const QVariantMap artist{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",seed.value("providerId")}};
+        QVERIFY(fixture.service.setFeedback(artist,"exclude-artist",0));
+        QVERIFY(sectionItems(fixture.service,"from-your-artists").isEmpty());
+        QCOMPARE(sectionItems(fixture.service,"related-discoveries").size(),1);
+        const auto suppressed=fixture.service.homeSnapshot().value("suppressedItems").toList();
+        QVERIFY(std::any_of(suppressed.begin(),suppressed.end(),[&](const auto &value){
+            const auto item=value.toMap();return item.value("title")==own.value("title")&&!item.value("excludedArtistRefs").toList().isEmpty();
+        }));
+        QVERIFY(fixture.service.setFeedback(artist,"allow-artist",0));
+        QCOMPARE(sectionItems(fixture.service,"from-your-artists").size(),1);
+    }
     void retainedLibraryRowsRequireQualifiedHistoryAndOrderByEvidence() {
         HomeFixture fixture({});ActivityStore activity;
         auto album=[](QString id) {return QVariantMap{{"id",id},{"title",id},{"origin","local"},
