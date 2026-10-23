@@ -340,6 +340,7 @@ Item {
     // fresh source load autoplays, so the reopen re-applies it whether or not a
     // position seek is needed.
     property string streamRouteRestoreIntent: ""
+    property var streamRouteRestoreSubtitle: null
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -571,6 +572,7 @@ Item {
     function addOnlineSubtitle(url, title, lang) {
         if (!url || !url.length)
             return
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         root.addedOnlineUrls[url] = true
         root.subModelRev++
@@ -580,6 +582,7 @@ Item {
     function loadSubtitleFile(fileUrl) {
         if (!fileUrl)
             return false
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         var raw = String(fileUrl)
         root.addedOnlineUrls[raw] = true
@@ -831,6 +834,7 @@ Item {
     }
 
     function resetTrackAutomation() {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedAudio = false
         root.trackAutoDoneKey = ""
         root.autoAudioTrackId = ""
@@ -915,6 +919,7 @@ Item {
     }
 
     function pickSubtitleTrack(trackId) {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         var row = null
         for (var i = 0; i < root.subRows.length; i++)
@@ -929,6 +934,7 @@ Item {
     }
 
     function turnSubtitlesOff() {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         mpv.subtitleTrack = ""
         root.saveTrackPreference({ "subtitlesOff": true, "subDelay": mpv.subDelay })
@@ -945,6 +951,8 @@ Item {
         if (!root.supportsPlayerCapability("subtitleDelay"))
             return
         mpv.subDelay = root.round2(mpv.subDelay + delta)
+        if (root.streamRouteRestoreSubtitle)
+            root.streamRouteRestoreSubtitle.delay = mpv.subDelay
         root.saveTrackPreference({ "subDelay": mpv.subDelay })
     }
 
@@ -952,6 +960,8 @@ Item {
         if (!root.supportsPlayerCapability("subtitleDelay"))
             return
         mpv.subDelay = 0
+        if (root.streamRouteRestoreSubtitle)
+            root.streamRouteRestoreSubtitle.delay = 0
         root.saveTrackPreference({ "subDelay": 0 })
     }
 
@@ -1461,6 +1471,7 @@ Item {
         }
         var c = root.streamCandidates[index] || ({})
         // A fresh stream start is not a retired-route reopen.
+        root.streamRouteRestoreSubtitle = null
         root.streamRouteRestoreIntent = ""
         root.currentStreamIndex = index
         root.streamRetryCount = 0
@@ -1715,12 +1726,33 @@ Item {
         root.streamRouteRestorePending = true
         root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position : -1
         root.streamRouteRestoreIntent = mpv.pause ? "paused" : "playing"
+        var subtitle = root.selectedSubtitleRow()
+        root.streamRouteRestoreSubtitle = subtitle && subtitle.external && subtitle.url
+                ? { "url": subtitle.url, "title": subtitle.title || subtitle.label,
+                    "lang": subtitle.lang || "", "delay": mpv.subDelay } : null
         root.resetRecoveryWatch()
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
         console.info("[player] Stream.play via restoreRetiredStreamRoute at", root.streamRouteRestoreSec)
         Stream.play(root.streamRouteHash, root.streamRouteFileIdx)
         return true
+    }
+
+    function restoreStreamRouteSubtitle() {
+        var subtitle = root.streamRouteRestoreSubtitle
+        root.streamRouteRestoreSubtitle = null
+        // Media3 clears all sidecars on loadSource. Re-add only the selected
+        // sidecar for this same-route reopen; other rows may be picked again.
+        root.addedOnlineUrls = ({})
+        root.subModelRev++
+        if (!subtitle)
+            return
+        root.userTouchedSubs = true
+        root.autoSubDone = true
+        mpv.subDelay = subtitle.delay
+        root.addedOnlineUrls[subtitle.url] = true
+        mpv.addSubtitle(subtitle.url, subtitle.title, subtitle.lang, true)
+        console.info("[player] restored sidecar subtitle", subtitle.lang, "sync", subtitle.delay)
     }
 
     function tickWakeReconnect() {
@@ -2841,6 +2873,7 @@ Item {
         mpv.stopPlayback()
         root.streamRouteUrl = ""
         root.streamRouteRestorePending = false
+        root.streamRouteRestoreSubtitle = null
         root.streamRouteRestoreSec = -1
         root.streamRouteRestoreIntent = ""
         // A real close ends the stream's demand; minimize never reaches here.
@@ -3798,6 +3831,7 @@ Item {
                 if (restoreSec > 1)
                     mpv.seekExact(restoreSec)
                 mpv.pause = restorePaused
+                root.restoreStreamRouteSubtitle()
                 startupOwnedByUi = true
             } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor

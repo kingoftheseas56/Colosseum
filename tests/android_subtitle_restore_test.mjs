@@ -1,0 +1,70 @@
+// Execute the actual retired-route and file-loaded QML bodies. A Media3 reload
+// drops sidecars; only a same-route restore may re-add the selected one.
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const qml = readFileSync(new URL('../qml/PlayerPage.qml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+function body(name) {
+    const m = new RegExp(`function ${name}\\([^)]*\\) \\{([\\s\\S]*?)\\n    \\}\\n`).exec(qml);
+    return m ? m[1] : '';
+}
+function run(selected, delay = 0.4, duringReconnect = null) {
+    const additions = [], demands = [];
+    const mpv = { position: 123, pause: true, subDelay: delay, subtitleTrack: selected?.id || '',
+        addSubtitle: (...args) => additions.push(args), seekExact() {} };
+    const values = { streamRouteRestorePending: false, streamRouteRestoreSec: -1,
+        streamRouteRestoreIntent: '', streamRouteRestoreSubtitle: null,
+        streamRouteHash: 'abc', streamRouteFileIdx: 0, streamRouteRetired: () => true,
+        selectedSubtitleRow: () => selected, addedOnlineUrls: { old: true }, subModelRev: 0,
+        pendingSeekSec: -1, userTouchedSubs: false, currentShowKey: () => 'video:tt0063350' };
+    const root = new Proxy(values, { get: (o, k) => k in o ? o[k] : () => {} });
+    const watchdog = { restart() {}, stop() {} };
+    root.restoreStreamRouteSubtitle = new Function('root', 'mpv', 'console', body('restoreStreamRouteSubtitle')).bind(null, root, mpv, { info() {} });
+    new Function('root', 'mpv', 'streamWatchdog', 'Stream', 'PlatformRuntime', 'console', body('restoreRetiredStreamRoute'))(
+        root, mpv, watchdog, { play: (...a) => demands.push(a) }, { applicationState: 'active' }, { info() {} });
+    if (duringReconnect)
+        duringReconnect(root, mpv);
+    // Duplicate activation while waiting must preserve the first snapshot.
+    new Function('root', 'mpv', 'streamWatchdog', 'Stream', 'PlatformRuntime', 'console', body('restoreRetiredStreamRoute'))(
+        root, mpv, watchdog, { play: (...a) => demands.push(a) }, { applicationState: 'active' }, { info() {} });
+    mpv.subtitleTrack = ''; mpv.subDelay = 0; mpv.position = 0;
+    const loaded = /onFileLoaded:\s*\{([\s\S]*?)\n        \}\n        onPlaybackError:/.exec(qml)[1];
+    new Function('root', 'mpv', 'streamWatchdog', loaded)(root, mpv, watchdog);
+    return { root, mpv, additions, demands };
+}
+const sidecar = { id: 'x:7', external: true, url: 'https://example.test/english.srt', title: 'English', lang: 'eng' };
+const r = run(sidecar);
+assert.deepEqual(r.additions, [[sidecar.url, sidecar.title, sidecar.lang, true]], 'same-route reload re-adds the exact selected sidecar once');
+assert.equal(r.mpv.subDelay, 0.4, 'same-route reload preserves sync');
+assert.equal(r.root.streamRouteRestoreSubtitle, null, 'restore snapshot consumed');
+assert.deepEqual(r.root.addedOnlineUrls, { [sidecar.url]: true }, 'cleared Media3 sidecars become available again');
+assert.equal(r.demands.length, 1, 'duplicate activation does not duplicate demand');
+assert.equal(run(null).additions.length, 0, 'Off stays off');
+assert.equal(run({ id: 's:1', external: false }).additions.length, 0, 'embedded track is not re-added');
+assert.equal(run(sidecar, 0.4, (root, mpv) => {
+    root.saveTrackPreference = () => {};
+    new Function('root', 'mpv', body('turnSubtitlesOff'))(root, mpv);
+}).additions.length, 0, 'Off chosen during reconnect cancels the old sidecar snapshot');
+for (const [name, delta, expected] of [['adjustSubtitleDelay', 0.1, 0.5], ['resetSubtitleDelay', 0, 0]]) {
+    const changed = run(sidecar, 0.4, (root, mpv) => {
+        root.supportsPlayerCapability = () => true;
+        root.round2 = value => Math.round(value * 100) / 100;
+        root.saveTrackPreference = () => {};
+        new Function('root', 'mpv', 'delta', body(name))(root, mpv, delta);
+    });
+    assert.equal(changed.mpv.subDelay, expected, `${name} during reconnect wins over the captured sync`);
+}
+// Reset happens on genuinely new media and replacement sources, without retaining
+// adapter sidecars across loadSource calls.
+for (const name of ['resetTrackAutomation', 'playStreamAt', 'stop']) {
+    const root = new Proxy({ streamRouteRestoreSubtitle: sidecar, streamCandidates: [{}],
+        isStreamDead: () => false, directStreamUrl: () => '', currentStreamIndex: 0 },
+        { get: (o, k) => k in o ? o[k] : () => {} });
+    if (name === 'playStreamAt') {
+        new Function('root','mpv','streamWatchdog','Stream','console','index','reason', body(name))(
+            root, { position: 0 }, { restart() {} }, { play() {} }, { info() {} }, 0, 'switch');
+    } else {
+        new Function('root','mpv','Stream', body(name))(root, { stopPlayback() {} }, { stopDemand() {} });
+    }
+    assert.equal(root.streamRouteRestoreSubtitle, null, `${name} discards stale subtitle restore`);
+}
+console.log('ANDROID_SUBTITLE_RESTORE PASS');
