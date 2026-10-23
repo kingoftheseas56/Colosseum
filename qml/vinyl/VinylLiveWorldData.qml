@@ -25,15 +25,31 @@ Item {
         && typeof preferencesStore.setVinylTasteSelections === "function"
     readonly property int homeRevision: usesRecommendationService
         ? Number(recommendationService.homeRevision) || 0 : 0
-    readonly property string homeStatus: usesRecommendationService
-        ? String(recommendationService.homeStatus || "empty") : "empty"
-    readonly property string homeError: usesRecommendationService
-        ? String(recommendationService.homeError || "") : ""
+    readonly property bool homePublicDiscovery: usesRecommendationService && pickerAnswered
+        && (session.plainData(recommendationService.selectedArtists) || []).length===0
+        && visibleLibraryAlbums.length===0 && (!personalLibrary || !personalLibrary.homeCollections
+            || ["songs","albums","artists","playlists"].every(key=>(personalLibrary.homeCollections[key] || []).length===0))
+        && session.profileActive && !session.shuttingDown
+    readonly property string homeStatus: homePublicDiscovery
+        ? discoveryLoading ? "loading" : discoveryError ? publicHomeRows.some(row=>row.items.length) ? "stale" : "error"
+            : publicHomeRows.some(row=>row.items.length) ? "ready" : "empty"
+        : usesRecommendationService ? String(recommendationService.homeStatus || "empty") : "empty"
+    readonly property string homeError: homePublicDiscovery ? discoveryError
+        : usesRecommendationService ? String(recommendationService.homeError || "") : ""
     readonly property var recommendationHomeSnapshot: {
         var revision = homeRevision;
         if(!usesRecommendationService || !recommendationService.homeSnapshot) return ({});
         var snapshot = session.plainData(recommendationService.homeSnapshot);
         return snapshot && typeof snapshot === "object" ? snapshot : ({});
+    }
+    readonly property string homeHistoryFence: JSON.stringify([
+        recommendationHomeSnapshot.historyEnabled,
+        recommendationHomeSnapshot.activityResetGeneration,
+        recommendationHomeSnapshot.historyResetGeneration])
+    onHomeHistoryFenceChanged: {
+        // Stable See-all copies contain private ranking explanations too.
+        // Public catalogue snapshots remain independent of listening privacy.
+        if(homeListSnapshot && homeListSnapshot.recommendation===true)homeListSnapshot=null;
     }
     readonly property var recommendationHomeSections: {
         var revision = homeRevision;
@@ -104,9 +120,14 @@ Item {
         }).filter(item=>!!item).slice(0,6);
     }
     function retryHomeRecommendations() {
+        if(homePublicDiscovery)return retryDiscovery();
         if(usesRecommendationService && typeof recommendationService.refreshHome === "function")
             return recommendationService.refreshHome(true);
         return false;
+    }
+    function retryHomeRow(row) {
+        if(row && String(row.key || "").indexOf("home-discover-")===0)return retryDiscovery();
+        return retryHomeRecommendations();
     }
     function personalizedHomeRow(section, snapshot, generation) {
         if(!section || section.kind!=="recommendations" || !Array.isArray(section.items)) return null;
@@ -117,7 +138,8 @@ Item {
             var item=Object.assign({},source),destination=item.destination || {};
             var kind=String(item.kind || (destination.kind==="album" ? "albums"
                 : destination.kind==="artist" ? "artists" : destination.kind==="song" ? "songs" : ""));
-            if(["albums","artists","songs"].indexOf(kind)<0) return null;
+            if(["albums","artists","songs","saved-song"].indexOf(kind)<0) return null;
+            if(kind==="saved-song" && (destination.kind!=="saved-song" || item.unavailable===true || !item.row))return null;
             if(kind==="songs") {
                 var tracks=item.record && Array.isArray(item.record.tracks) ? item.record.tracks : [];
                 var trackIndex=Number(item.trackIndex);
@@ -143,12 +165,14 @@ Item {
             }
             return item;
         }).filter(function(item) { return !!item; });
-        if(!items.length) return null;
+        var status=String(section.status || "ready");
+        if(!items.length && ["loading","error","stale"].indexOf(status)<0) return null;
         return {key:"personalized:"+identity,sectionId:identity,
             exposureSnapshotId:String(snapshot && snapshot.exposureSnapshotId || ""),
             profileGeneration:generation,title:String(section.title || "Recommendations"),
-            kind:"recommendations",recommendation:true,items:items,status:String(section.status || "ready"),
-            error:String(section.error || ""),canRetry:section.canRetry===true};
+            kind:"recommendations",recommendation:true,items:items,status:status,loading:section.loading===true,
+            error:String(section.error || ""),canRetry:section.canRetry===true,
+            fetchedAt:String(section.fetchedAt || ""),reason:String(section.reason || "")};
     }
     function recommendationProfileGeneration() {
         var generation = Number(session.profileGeneration);
@@ -227,9 +251,19 @@ Item {
     readonly property string discoveryError: discoveryOrder.map(key=>discoverySections[key] || {}).map(row=>row.error || "").filter((value,index,all)=>value && all.indexOf(value)===index).join(" ")
     readonly property bool discoveryCached: discoveryOrder.some(key=>(discoverySections[key] || {}).cached===true)
     readonly property string discoveryFetchedAt: discoveryOrder.map(key=>(discoverySections[key] || {}).fetchedAt || "").filter(value=>!!value).sort()[0] || ""
-    function ensureDiscovery() {if(discoveryLanding && typeof session.requestDiscovery==="function")session.requestDiscovery(false);}
+    function ensureDiscovery() {if((discoveryLanding || (activeTab==="home" && homePublicDiscovery)) && typeof session.requestDiscovery==="function")session.requestDiscovery(false);}
     function retryDiscovery() {if(typeof session.requestDiscovery==="function")session.requestDiscovery(true);}
     onDiscoveryLandingChanged: ensureDiscovery()
+    onHomePublicDiscoveryChanged: if(homePublicDiscovery)Qt.callLater(root.ensureDiscovery)
+    readonly property var publicHomeRows: !homePublicDiscovery ? [] : discoveryOrder.map(function(key) {
+        var row=discoverySections[key] || {},items=row.items || [],loading=!!(session.discoveryRequests || {})[key];
+        var titles={"new-releases":"New releases",trending:"Trending",artists:"Popular artists",charts:"Charts"};
+        if(!items.length && !loading && !row.error)return null;
+        return Object.assign({},row,{key:"home-discover-"+key,title:"Discover · "+String(row.title || titles[key]),
+            items:items,kind:row.kind || (key==="artists" ? "artists" : "albums"),personal:false,recommendation:false,
+            status:loading ? "loading" : row.error ? items.length ? "stale" : "error" : "ready",
+            loading:loading,canRetry:!loading,error:String(row.error || "")});
+    }).filter(row=>!!row)
     readonly property var libraryAlbums: session.library.map(function(entry) {
         var a = entry.payload && entry.payload.album ? entry.payload.album : entry;
         return Object.assign({}, a, {artists:a.artists || [], tracks:(a.tracks || []).map(function(t) {
@@ -377,7 +411,7 @@ Item {
         var nativeSections=recommendationHomeSections;
         var snapshot=recommendationHomeSnapshot;
         var generation=recommendationProfileGeneration();
-        var result=[];
+        var result=[],historyRows=[];
         var continuing=[],active=session.activeQueueRow;
         if(active)continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
             editionId:active.editionId,title:active.title,subtitle:active.artist,cover:active.cover || "",
@@ -386,7 +420,9 @@ Item {
         if(continuing.length)result.push({key:"continue-listening",title:"Continue listening",kind:"resume",items:continuing});
         nativeSections.forEach(function(section) {
             var row=personalizedHomeRow(section,snapshot,generation);
-            if(row) result.push(row);
+            if(!row)return;
+            if(section.id==="rediscover-library" || section.id==="less-played")historyRows.push(row);
+            else result.push(row);
         });
         var tasteArtists = usesRecommendationService ? recommendationService.selectedArtists || [] : [];
         var tasteItems = tasteArtists.map(function(artist) {
@@ -418,7 +454,8 @@ Item {
                 profileGeneration:generation,items:artists.slice(0,24)});
             if(playlists.length)result.push({key:"playlists",title:"Your playlists",kind:"playlists",items:playlists.slice(0,24)});
         } else if(visibleLibraryAlbums.length)result.push({key:"local-albums",title:"Your library",kind:"albums",items:project(visibleLibraryAlbums,"albums")});
-        return result;
+        historyRows.sort((a,b)=>(a.sectionId==="rediscover-library"?0:1)-(b.sectionId==="rediscover-library"?0:1));
+        return result.concat(historyRows,publicHomeRows);
     }
     readonly property var coldShelves: []
     readonly property var shelfKeys: shelves.map(function(r){return r.key})
@@ -570,7 +607,7 @@ Item {
         homeListSnapshot=null;
         if(home) {
             var selected=homeRows.find(function(r){return r.key===key;});
-            if(selected && selected.recommendation===true)
+            if(selected && (selected.recommendation===true || selected.personal===false))
                 homeListSnapshot=JSON.parse(JSON.stringify(selected));
         }
         if(home && personalLibrary && sections[key]){openHomeDestination("library",sections[key]);return;}

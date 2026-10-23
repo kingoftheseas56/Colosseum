@@ -49,8 +49,14 @@ TestCase {
         id: recommendationAlbumSource
         QtObject {
             property string requested: ""
+            property int discoveryVersion: 1
+            property var requestCalls: []
             signal completed(string lane, int requestId, var data, string error)
-            function request(lane, operation, value) { requested=value; return 1; }
+            function request(lane, operation, value) {
+                requested=value;
+                requestCalls=requestCalls.concat([{lane:lane,operation:operation,value:value}]);
+                return 1;
+            }
             function cancel(lane: string): void {}
             function setAlbums(values) {}
         }
@@ -348,14 +354,188 @@ TestCase {
         recommendations.setHome([],"loading","");
         var status=findChild(world,"vinylHomeRecommendationsStatus");
         var retry=findChild(world,"vinylHomeRecommendationsRetry");
-        verify(status !== null && status.visible);
+        verify(status !== null && status.visible,
+            "A populated factual Home may keep its compact global recommendation status.");
         verify(retry !== null && !retry.visible);
 
         recommendations.setHome([],"error","The request failed.");
         tryCompare(retry,"visible",true);
+        var statusCopy=findChild(world,"vinylHomeRecommendationsStatusText");
+        verify(statusCopy!==null);
+        compare(statusCopy.text,"Some recommendations could not be loaded.");
         verify(retry.activate(Qt.MouseFocusReason));
         compare(recommendations.homeRefreshes,1);
         compare(recommendations.lastRefreshForced,true);
+    }
+
+    function test_homeShelfStatusesStayLocalAndPreserveCachedCards() {
+        var cached = section([card("stale-release","Cached release","albums",
+            {kind:"album",provider:"local",providerId:"release",id:"release",playable:false})],
+            {id:"stale-lane",key:"stale-lane",title:"From your artists",status:"stale",
+                reason:"Showing cached results after a provider timeout."});
+        var loading = section([], {id:"loading-lane",key:"loading-lane",title:"Related discoveries",
+            status:"loading",loading:true,reason:"Loading related discoveries…"});
+        var failed = section([], {id:"failed-lane",key:"failed-lane",title:"New releases",
+            status:"error",error:"This shelf could not be refreshed.",canRetry:true});
+        var empty = section([], {id:"empty-lane",key:"empty-lane",title:"Empty lane",status:"empty"});
+        recommendations.setHome([cached,loading,failed,empty],"partial","One recommendation lane failed.");
+
+        var rows=world.worldData.homeRows;
+        var cachedRow=rows.find(function(row){return row.key==="personalized:stale-lane";});
+        var loadingRow=rows.find(function(row){return row.key==="personalized:loading-lane";});
+        var failedRow=rows.find(function(row){return row.key==="personalized:failed-lane";});
+        verify(cachedRow!==undefined,"A stale recommendation shelf must keep its cached cards.");
+        compare(cachedRow.items[0].id,"stale-release");
+        compare(cachedRow.status,"stale");
+        verify(loadingRow!==undefined,"A known empty loading lane must remain visible.");
+        compare(loadingRow.status,"loading");
+        verify(failedRow!==undefined,"A known empty failed lane must remain visible for retry.");
+        compare(failedRow.status,"error");
+        verify(!rows.some(function(row){return row.key==="personalized:empty-lane";}),
+            "An empty lane without a pending or failed state must stay hidden.");
+        verify(rows.some(function(row){return row.key==="saved-albums"; }),
+            "Factual shelves must remain available during a partial recommendation failure.");
+        var factual=rows.find(function(row){return row.key==="saved-albums";});
+        verify(factual.status===undefined,"Factual shelves must not inherit recommendation status.");
+
+        var staleStatus=findChild(world,"vinylShelfStatus_personalized:stale-lane");
+        var loadingStatus=findChild(world,"vinylShelfStatus_personalized:loading-lane");
+        var failedStatus=findChild(world,"vinylShelfStatus_personalized:failed-lane");
+        verify(staleStatus!==null && staleStatus.visible);
+        verify(staleStatus.text.toLowerCase().indexOf("cached")>=0);
+        verify(loadingStatus!==null && loadingStatus.visible);
+        verify(loadingStatus.text.toLowerCase().indexOf("loading")>=0);
+        verify(failedStatus!==null && failedStatus.visible);
+        compare(failedStatus.text,"Could not load this shelf.");
+        verify(!findChild(world,"vinylHomeSeeAll_personalized:loading-lane").visible,
+            "A pending empty shelf must not offer an empty See-all destination");
+        verify(!findChild(world,"vinylHomeSeeAll_personalized:failed-lane").visible);
+        var globalStatus=findChild(world,"vinylHomeRecommendationsStatus");
+        verify(globalStatus!==null && !globalStatus.visible,
+            "A row-local failure must not be repeated as a page-wide status.");
+
+        var retry=findChild(world,"vinylShelfRetry_personalized:failed-lane");
+        verify(retry!==null && retry.visible);
+        verify(!retry.focusOnPointer,"Shelf retry must not focus from pointer entry.");
+        var previousRefreshes=recommendations.homeRefreshes;
+        verify(retry.activate(Qt.MouseFocusReason));
+        verify(!retry.activeFocus,"Pointer activation must leave keyboard focus unchanged.");
+        compare(recommendations.homeRefreshes,previousRefreshes+1);
+        compare(recommendations.lastRefreshForced,true);
+    }
+
+    function test_emptySkippedHomeOffersLoadingAndAvailableDestinations() {
+        var source=recommendationAlbumSource.createObject(test);
+        world.session.source=source;
+        collection.seed([]);
+        world.session.refreshLibrary();
+        world.personalLibrary.refreshModels();
+        recommendations.selectedArtists=[];
+        world.worldData.recentContinue=[];
+        recommendations.setHome([],"loading","");
+        world.session.discoverySections={};
+        world.session.discoveryRequests={"new-releases":1};
+
+        var page=findChild(world,"vinylHomePage");
+        var message=findChild(world,"vinylHomeEmptyMessage");
+        var discover=findChild(world,"vinylHomeDiscover");
+        var library=findChild(world,"vinylHomeLibrary");
+        verify(page!==null && !page.hasHomeItems);
+        verify(!world.worldData.homeRows.some(function(row){return row.recommendation===true;}),
+            "Cold public discovery must not be mixed into personalized recommendation rows.");
+        compare(world.worldData.homeStatus,"loading");
+        verify(message!==null && message.visible);
+        verify(message.text.indexOf("Loading")>=0);
+        var loadingShelf=findChild(world,"vinylShelfStatus_home-discover-new-releases");
+        verify(loadingShelf===null,
+            "A no-cache Home should not render empty per-shelf placeholders.");
+        var homeStatus=findChild(world,"vinylHomeRecommendationsStatus");
+        verify(homeStatus!==null && !homeStatus.visible,
+            "The central empty state owns loading copy when no shelf has cards.");
+        verify(discover!==null && discover.visible);
+        verify(library!==null && library.visible);
+        var retry=findChild(world,"vinylHomeRetry");
+        verify(retry!==null && !retry.visible);
+        verify(discover.activate(Qt.MouseFocusReason));
+        compare(world.worldView.currentTab,"discover");
+
+        world.showHome();
+        world.session.discoveryRequests={};
+        world.session.discoverySections={"new-releases":{title:"New releases",items:[],
+            error:"The catalogue could not be reached. Retry when it is available."}};
+        message=findChild(world,"vinylHomeEmptyMessage");
+        verify(message!==null && message.visible);
+        compare(world.worldData.homeStatus,"error");
+        compare(message.text,"Catalogue unavailable.");
+        var failedShelf=findChild(world,"vinylShelfStatus_home-discover-new-releases");
+        verify(failedShelf===null,
+            "An empty failed public shelf should be represented by the central empty state.");
+        discover=findChild(world,"vinylHomeDiscover");
+        library=findChild(world,"vinylHomeLibrary");
+        verify(discover!==null && discover.visible && library!==null && library.visible);
+        retry=findChild(world,"vinylHomeRetry");
+        verify(retry!==null && retry.visible,
+            "An empty failed Home should offer one central retry action.");
+        verify(!homeStatus.visible,"The central error state must not be repeated in a banner.");
+        var visibleRetryCount=0;
+        ["vinylHomeRetry","vinylHomeRecommendationsRetry",
+            "vinylShelfRetry_home-discover-new-releases"].forEach(function(name) {
+            var candidate=findChild(world,name);
+            if(candidate!==null && candidate.visible)visibleRetryCount++;
+        });
+        compare(visibleRetryCount,1);
+        var callsBeforeRetry=source.requestCalls.length;
+        verify(retry.activate(Qt.MouseFocusReason));
+        verify(source.requestCalls.slice(callsBeforeRetry).some(function(call){return call.operation==="discover"; }),
+            "The central retry should refresh the failed public discovery catalogue.");
+        verify(library.activate(Qt.MouseFocusReason));
+        compare(world.worldView.currentTab,"library");
+        compare(world.session.queue.length,0);
+        world.session.source=NativeSource;
+        source.destroy();
+    }
+
+    function test_homeCardBoundsAndPointerEntryRemainStable() {
+        recommendations.setHome([section([
+            card("bound-a","Release A","albums",{kind:"album",provider:"local",providerId:"a",id:"a"}),
+            card("bound-b","Release B","albums",{kind:"album",provider:"local",providerId:"b",id:"b"})
+        ])]);
+        var page=findChild(world,"vinylHomePage");
+        verify(page!==null);
+        compare(page.cardColumns,5);
+        verify(page.cardSize>=120 && page.cardSize<=page.width);
+        var first=findChild(world,"vinylCard_personalized:for-you_0");
+        verify(first!==null);
+        compare(first.width,page.cardSize);
+        verify(!first.focusOnPointer,"Home cards must not acquire a focus frame on pointer entry.");
+
+        world.width=460;
+        tryVerify(function(){return page.width>300 && page.width<world.width;});
+        tryVerify(function(){return page.cardColumns>=1 && page.cardColumns<=2;});
+        verify(page.cardSize>=120 && page.cardSize<=page.width);
+        compare(first.width,page.cardSize);
+    }
+
+    function test_recommendationFeedbackAndRefreshPreservePlayback() {
+        recommendations.setHome([section([card("playing-release","Suggested release","albums",
+            {kind:"album",provider:"local",providerId:"release",id:"release",playable:false})])]);
+        world.session.playAlbum(rawAlbum,0);
+        tryVerify(function(){return world.session.playingIndex===0 && world.session.queue.length===2;});
+        var playerBar=findChild(world,"vinylPlayerBar");
+        verify(playerBar!==null && playerBar.visible);
+        verify(playerBar.y-(world.worldScroll.y+world.worldScroll.height)>=50,
+            "The scrollable Home viewport must leave room above the active playback bar.");
+        var playingId=world.session.queue[world.session.playingIndex].trackId;
+        var queueIds=world.session.queue.map(function(row){return row.trackId;});
+        var generation=world.session.profileGeneration;
+        verify(world.worldData.setRecommendationFeedback(
+            world.worldData.homeRows.find(function(row){return row.recommendation;}).items[0].ref,
+            "like",generation));
+        recommendations.setHome([section([card("replacement-release","Replacement release","albums",
+            {kind:"album",provider:"local",providerId:"other",id:"other",playable:false})])]);
+        compare(world.session.queue.map(function(row){return row.trackId;}),queueIds);
+        compare(world.session.queue[world.session.playingIndex].trackId,playingId);
+        compare(world.session.playingIndex,0);
     }
 
     function test_profileClearDropsRecommendationListSnapshot() {

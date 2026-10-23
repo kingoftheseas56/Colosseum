@@ -407,25 +407,32 @@ void VinylRecommendationService::rebuildHome(){
             add(row,seed,"library-membership","from-your-artists",true);
         }
     }
-    QVariantList suppressedItems;
-    for(const auto &node:nodes) {
-        const auto ref=RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(node.card.value("ref").toMap()));
-        if(!ref.ok())continue;const auto own=taste.find(*ref.value);
+    QVariantList suppressedItems;QSet<QString> suppressedKeys;
+    auto appendSuppressed=[&](const QVariantMap &card) {
+        const auto ref=RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(card.value("ref").toMap()));
+        if(!ref.ok())return true;const auto own=taste.find(*ref.value);
         const bool hidden=own && own->suppression().hidden(),snoozed=own && own->suppression().isSnoozedAt(now);
         QVariantList excluded;
         if(own && own->suppression().doNotRecommend() && ref.value->kind()==CanonicalEntityKind::Artist)
-            excluded.append(QVariantMap{{"ref",node.card.value("ref")},{"name",node.card.value("title")}});
-        for(const auto &value:node.card.value("artistRefs").toList()) {
+            excluded.append(QVariantMap{{"ref",card.value("ref")},{"name",card.value("title")}});
+        bool artistSuppressed=false;
+        for(const auto &value:card.value("artistRefs").toList()) {
             const auto credit=value.toMap();if(const auto artistRef=typed(credit)) {
-                if(const auto state=taste.find(*artistRef);state && state->suppression().doNotRecommend())
-                    excluded.append(QVariantMap{{"ref",artistRef->toJson().toVariantMap()},{"name",credit.value("name",credit.value("title"))}});
+                if(const auto state=taste.find(*artistRef)) {
+                    artistSuppressed|=state->suppression().doNotRecommend() || state->suppression().hidden() || state->suppression().isSnoozedAt(now);
+                    if(state->suppression().doNotRecommend())excluded.append(QVariantMap{{"ref",artistRef->toJson().toVariantMap()},{"name",credit.value("name",credit.value("title"))}});
+                }
             }
         }
-        if(hidden || snoozed || !excluded.isEmpty())suppressedItems.append(QVariantMap{
-            {"ref",node.card.value("ref")},{"title",node.card.value("title")},{"artistRefs",node.card.value("artistRefs")},
-            {"seedArtistRef",node.card.value("seedArtistRef")},{"hidden",hidden},{"snoozed",snoozed},
-            {"excluded",!excluded.isEmpty()},{"excludedArtistRefs",excluded}});
-    }
+        const bool suppressed=hidden || snoozed || artistSuppressed || !excluded.isEmpty();
+        if(suppressed && !suppressedKeys.contains(ref.value->stableKey())) {
+            suppressedKeys.insert(ref.value->stableKey());suppressedItems.append(QVariantMap{
+                {"ref",card.value("ref")},{"title",card.value("title")},{"artistRefs",card.value("artistRefs")},
+                {"seedArtistRef",card.value("seedArtistRef")},{"hidden",hidden},{"snoozed",snoozed},
+                {"excluded",!excluded.isEmpty()},{"excludedArtistRefs",excluded}});
+        }return suppressed;
+    };
+    for(const auto &node:nodes)appendSuppressed(node.card);
     const bool loading=!m_home->active.isEmpty()||!m_home->waiting.isEmpty();QVariantList sections;QSet<QString> prior,distinctSeeds;
     for(const auto &seed:m_home->seeds)if(const auto ref=seedIdentity(seed.toMap()))distinctSeeds.insert(ref->stableKey());
     const QStringList sectionIds{"from-your-artists","related-discoveries","new-from-your-artists"};
@@ -460,13 +467,104 @@ void VinylRecommendationService::rebuildHome(){
             {"status",stale||!m_home->failed.isEmpty()?"stale":loading?"loading":"ready"},{"loading",loading},{"error",m_home->error},{"fetchedAt",fetched},
             {"canRetry",!loading},{"configVersion",config.version},{"evaluatedAtMs",now}});
     }
-    m_home->status=loading?"loading":sections.isEmpty()?m_home->failed.isEmpty()?"empty":"error":m_home->failed.isEmpty()?"ready":"stale";
+    // An actual failed/pending artist lane is actionable even without cached
+    // cards. Unsupported related/new lanes never become empty placeholders.
+    if(!m_home->failed.isEmpty() && m_home->error.isEmpty())m_home->error="The music catalogue is unavailable.";
+    const bool hasOwn=std::any_of(sections.begin(),sections.end(),[](const auto &s){return s.toMap().value("id")=="from-your-artists";});
+    const bool pendingArtists=std::any_of(m_home->waiting.begin(),m_home->waiting.end(),[](const auto &j){return j.operation=="artistCandidates";})
+        || std::any_of(m_home->active.begin(),m_home->active.end(),[](const auto &a){return a.job.operation=="artistCandidates";});
+    if(!hasOwn && (pendingArtists || !m_home->failed.isEmpty()))sections.prepend(QVariantMap{
+        {"id","from-your-artists"},{"key","from-your-artists"},{"title","From your artists"},{"kind","recommendations"},
+        {"items",QVariantList()},{"status",pendingArtists?"loading":"error"},{"loading",pendingArtists},
+        {"error",m_home->error},{"canRetry",!loading},{"evaluatedAtMs",now}});
+    struct RetainedItem {QVariantMap card;qint64 count,last;QString key;};
+    QList<RetainedItem> retainedAlbums;QSet<QString> retainedKeys;qint64 highestCount=0;
+    for(const auto &value:m_home->collections.value("albums").toList()) {
+        const auto album=value.toMap().value("album").toMap();if(album.isEmpty())continue;
+        const bool yt=album.value("origin")=="youtube-music";
+        auto raw=album;raw["kind"]="album";raw["provider"]=yt?"youtube-music":"local";
+        raw["providerId"]=yt?album.value("providerIds").toMap().value("youtube-music",album.value("browseId")):album.value("id");
+        if(yt)raw["id"]="ytm:album:"+raw.value("providerId").toString();
+        const auto converted=VinylRecommendationIdentity::fromCatalogue(raw);if(!converted.value("ok").toBool())continue;
+        const auto ref=RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(converted.value("ref").toMap()));
+        if(!ref.ok() || retainedKeys.contains(ref.value->stableKey()))continue;
+        qint64 count=0,last=0;
+        for(const auto &aggregate:derived.value->aggregates())if(aggregate.entity()==*ref.value) {
+            count=aggregate.playCount();last=aggregate.lastPlayedAtMs().value_or(0);break;
+        }
+        // Missing retained history is unknown, never evidence of zero lifetime plays.
+        if(count<=0 || last<=0)continue;
+        QVariantList credits;const auto ids=album.value("artistIds").toStringList(),names=album.value("artists").toStringList();
+        for(int i=0;i<ids.size();++i) {
+            const bool artistYt=ids[i].startsWith("ytm:artist:");
+            if(yt && !artistYt)continue;
+            credits.append(QVariantMap{{"kind","artist"},{"provider",artistYt?"youtube-music":"local"},
+                {"providerId",artistYt?ids[i].mid(11):ids[i]},{"name",names.value(i)}});
+        }
+        QVariantMap card{{"id",converted.value("destination").toMap().value("id")},{"key",ref.value->stableKey()},
+            {"typedKey",converted.value("ref")},{"ref",converted.value("ref")},{"kind","albums"},
+            {"title",album.value("title")},{"subtitle",names.join(QStringLiteral(" · "))},{"cover",album.value("cover")},
+            {"destination",converted.value("destination")},{"artistRefs",credits},{"configVersion","vinyl-home-v1"},
+            {"reasons",QVariantList{QVariantMap{{"kind","retained_listening"},{"sourceId","profile-qualified-activity"},{"playCount",count},{"lastPlayedAtMs",last}}}}};
+        if(card.value("title").toString().isEmpty() || appendSuppressed(card))continue;
+        retainedKeys.insert(ref.value->stableKey());highestCount=std::max(highestCount,count);
+        retainedAlbums.append({card,count,last,ref.value->stableKey()});
+    }
+    // Saved-song cards retain the personal library's already-resolved route.
+    // A history reference is not a new remote playback-match attestation.
+    for(const auto &value:m_home->collections.value("songs").toList()) {
+        auto card=value.toMap();const auto row=card.value("row").toMap(),track=row.value("track").toMap();
+        if(row.isEmpty() || card.value("unavailable").toBool())continue;
+        const auto album=row.value("edition").toMap().value("sourceAlbum").toMap();
+        const bool yt=album.value("origin")=="youtube-music";
+        const auto converted=VinylRecommendationIdentity::fromCatalogue({{"kind","song"},{"provider",yt?"youtube-music":"local"},
+            {"providerId",yt?track.value("videoId"):row.value("trackId",track.value("id"))}});
+        if(!converted.value("ok").toBool())continue;
+        const auto ref=RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(converted.value("ref").toMap()));
+        if(!ref.ok() || retainedKeys.contains(ref.value->stableKey()))continue;
+        qint64 count=0,last=0;for(const auto &aggregate:derived.value->aggregates())if(aggregate.entity()==*ref.value) {
+            count=aggregate.playCount();last=aggregate.lastPlayedAtMs().value_or(0);break;
+        }
+        if(count<=0 || last<=0 || card.value("id").toString().isEmpty() || card.value("title").toString().isEmpty())continue;
+        QVariantList credits;auto ids=track.value("artistIds").toStringList(),names=track.value("artists").toStringList();
+        if(ids.isEmpty()){ids=album.value("artistIds").toStringList();names=album.value("artists").toStringList();}
+        for(int i=0;i<ids.size();++i) {
+            const bool artistYt=ids[i].startsWith("ytm:artist:");if(yt && !artistYt)continue;
+            credits.append(QVariantMap{{"kind","artist"},{"provider",artistYt?"youtube-music":"local"},
+                {"providerId",artistYt?ids[i].mid(11):ids[i]},{"name",names.value(i)}});
+        }
+        card["kind"]="saved-song";card["ref"]=converted.value("ref");card["key"]=ref.value->stableKey();card["typedKey"]=converted.value("ref");
+        card["destination"]=QVariantMap{{"kind","saved-song"},{"id",card.value("id")}};
+        card["subtitle"]=card.value("artist");card["artistRefs"]=credits;card["configVersion"]="vinyl-home-v1";
+        card["reasons"]=QVariantList{QVariantMap{{"kind","retained_listening"},{"sourceId","profile-qualified-activity"},{"playCount",count},{"lastPlayedAtMs",last}}};
+        if(appendSuppressed(card))continue;retainedKeys.insert(ref.value->stableKey());highestCount=std::max(highestCount,count);
+        retainedAlbums.append({card,count,last,ref.value->stableKey()});
+    }
+    std::sort(retainedAlbums.begin(),retainedAlbums.end(),[](const auto &a,const auto &b){return a.last==b.last?a.key<b.key:a.last<b.last;});
+    auto less=retainedAlbums;
+    less.erase(std::remove_if(less.begin(),less.end(),[highestCount](const auto &a){return a.count>=highestCount;}),less.end());
+    std::sort(less.begin(),less.end(),[](const auto &a,const auto &b){return a.count==b.count?(a.last==b.last?a.key<b.key:a.last<b.last):a.count<b.count;});
+    if(less.size()>12)less=less.mid(0,12);
+    QSet<QString> lessKeys;for(const auto &item:less)lessKeys.insert(item.key);
+    auto historySection=[&](const QString &id,const QString &title,const QList<RetainedItem> &values) {
+        QVariantList items;for(const auto &item:values)if(items.size()<12)items.append(item.card);
+        if(!items.isEmpty())sections.append(QVariantMap{{"id",id},{"key",id},{"title",title},{"kind","recommendations"},
+            {"items",items},{"status","ready"},{"loading",false},{"canRetry",false},{"evaluatedAtMs",now},{"configVersion","vinyl-home-v1"}});
+    };
+    QList<RetainedItem> rediscover;for(const auto &item:retainedAlbums)if(!lessKeys.contains(item.key))rediscover.append(item);
+    historySection("rediscover-library","Rediscover your library",rediscover);
+    historySection("less-played","Less played",less);
+    const bool hasCards=std::any_of(sections.begin(),sections.end(),[](const auto &s){return !s.toMap().value("items").toList().isEmpty();});
+    m_home->status=loading?"loading":!hasCards?m_home->failed.isEmpty()?"empty":"error":m_home->failed.isEmpty()?"ready":"stale";
     QVariantMap mappings;for(auto it=m_home->identities.cbegin();it!=m_home->identities.cend();++it)mappings[it.key()]=it.value();
     const QVariantMap inputs{{"catalogue",sourceSnapshot},{"identities",mappings},{"library",m_home->collections.value("albums")},{"feedback",feedback},{"seeds",m_home->seeds},{"history",m_home->history}};
     auto configPolicy=policy();configPolicy["seedDecay"]=QVariantList{30,100,1.0,0.75,0.5};configPolicy["historyVersion"]=1;
+    configPolicy["historyShelves"]=QVariantMap{{"version",1},{"requireRetainedPlay",true},{"lessPlayed","positive-count-below-library-max"},{"maxShelf",12},{"rediscoverOrder","oldest-retained-play"}};
     const auto sourceHash=digest(inputs);
     const QVariantMap snapshot{{"configVersion","vinyl-home-v1"},{"evaluatedAtMs",now},{"sourceHash",sourceHash},{"configHash",digest(configPolicy)},{"seedHash",m_home->seedHash},{"candidateCount",nodes.size()},{"historyComplete",false},{"optionalUnavailableCount",m_home->optionalUnavailable.size()},
-        {"qualifiedManualSessions",manualSessions},{"seedMultiplier",seedMultiplier},{"exposureSnapshotId",digest(QVariantList{m_home->visitId,sourceHash})},{"exposureCount",exposure.records().size()},{"suppressedItems",suppressedItems}};
+        {"qualifiedManualSessions",manualSessions},{"seedMultiplier",seedMultiplier},{"exposureSnapshotId",digest(QVariantList{m_home->visitId,sourceHash})},{"exposureCount",exposure.records().size()},{"suppressedItems",suppressedItems},
+        {"historyEnabled",m_keepHistory && m_home->history.value("enabled").toBool()},
+        {"activityResetGeneration",QVariant::fromValue(m_home->activityReset)},{"historyResetGeneration",m_home->historyReset}};
     if(sections!=m_home->sections||snapshot!=m_home->snapshot){m_home->sections=sections;m_home->snapshot=snapshot;++m_home->revision;}
     emit homeChanged();
 }

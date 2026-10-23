@@ -32,6 +32,8 @@ Item {
             return "<circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M12 12l5-5\"/>";
         case "search":
             return "<circle cx=\"10.8\" cy=\"10.8\" r=\"6.3\"/><path d=\"m15.5 15.5 4.2 4.2\"/>";
+        case "discover":
+            return "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m15.7 8.3-2.3 5.1-5.1 2.3 2.3-5.1z\" fill=\"ICON_COLOR\" stroke=\"none\"/>";
         case "lyrics":
             return "<path d=\"M5 5.5h14v13H5zM8 9h8M8 12h8M8 15h5\"/><path d=\"M7 3.5h10\"/>";
         case "notes":

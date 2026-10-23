@@ -350,6 +350,95 @@ QStringList runTwoSeedOrder(bool reverseCompletion)
 class VinylRecommendationServiceTest final : public QObject {
     Q_OBJECT
 private slots:
+    void retainedLibraryRowsRequireQualifiedHistoryAndOrderByEvidence() {
+        HomeFixture fixture({});ActivityStore activity;
+        auto album=[](QString id) {return QVariantMap{{"id",id},{"title",id},{"origin","local"},
+            {"artistIds",QStringList{"library-artist"}},{"artists",QStringList{"Library Artist"}},
+            {"tracks",QVariantList{QVariantMap{{"id",id+"-track"},{"title","Track"}}}}};};
+        fixture.service.setHomeCollections({{"albums",QVariantList{QVariantMap{{"album",album("older")}},
+            QVariantMap{{"album",album("frequent")}},QVariantMap{{"album",album("unknown")}}}}});
+        fixture.service.setActivityStore(&activity);
+        QVERIFY(sectionItems(fixture.service,"rediscover-library").isEmpty());
+        QVERIFY(sectionItems(fixture.service,"less-played").isEmpty());
+        auto listen=[&](QString id,int index,qint64 at,bool qualify=true) {
+            QVariantMap fact{{"sessionId",id+QString::number(index)},{"world","vinyl"},{"kind","music"},
+                {"titleKey",id},{"itemKey",id+"-track"},{"title","Track"},{"syncable",false},{"utcOffsetMinutes",0}};
+            auto start=fact;start.insert("atMs",at);start.insert("action","start");start.insert("origin","manual");
+            start.insert("positionMs",0);start.insert("durationMs",60000);
+            start.insert("entityRef",QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","local"},{"itemId",id+"-track"}});
+            start.insert("releaseRef",QVariantMap{{"identity","provider"},{"kind","release"},{"providerId","local"},{"itemId",id}});
+            start.insert("artistRefs",QVariantList{QVariantMap{{"identity","provider"},{"kind","artist"},{"providerId","local"},{"itemId","library-artist"}}});
+            QVERIFY(activity.recordMusicAction(start));if(!qualify)return;
+            fact.insert("startAtMs",at+1000);fact.insert("endAtMs",at+13000);fact.insert("activeMs",12000);fact.insert("rateMilli",1000);
+            QVERIFY(activity.recordPlaybackDelta(fact));
+        };
+        listen("older",0,kFixedNowMs-3LL*86400000);
+        listen("frequent",0,kFixedNowMs-2LL*86400000);
+        listen("frequent",1,kFixedNowMs-86400000);
+        listen("unknown",0,kFixedNowMs-30000,false);
+        auto rediscover=sectionItems(fixture.service,"rediscover-library");QCOMPARE(rediscover.size(),1);
+        QCOMPARE(providerItemId(rediscover.first().toMap()),QString("frequent")); // Leave the lower-count alternative to its own row.
+        auto less=sectionItems(fixture.service,"less-played");QCOMPARE(less.size(),1);
+        QCOMPARE(providerItemId(less.first().toMap()),QString("older"));
+        QVERIFY(!fixture.service.homeSnapshot().value("historyComplete").toBool());
+        QVERIFY(fixture.service.setFeedback(less.first().toMap().value("ref").toMap(),"hide",0));
+        QVERIFY(!sectionHasProviderId(fixture.service,"rediscover-library","older"));
+        fixture.service.setKeepHistory(false);
+        QVERIFY(sectionItems(fixture.service,"rediscover-library").isEmpty());
+        QVERIFY(sectionItems(fixture.service,"less-played").isEmpty());
+        fixture.service.setKeepHistory(true);QVERIFY(activity.clearAll());
+        QVERIFY(sectionItems(fixture.service,"rediscover-library").isEmpty());
+    }
+    void equalOrUnknownCountsDoNotClaimLessPlayed() {
+        HomeFixture fixture({});ActivityStore activity;fixture.service.setActivityStore(&activity);
+        QVariantList albums;
+        for(const QString id:{QString("one"),QString("two")}) {
+            albums.append(QVariantMap{{"album",QVariantMap{{"id",id},{"title",id},{"origin","local"}}}});
+        }
+        fixture.service.setHomeCollections({{"albums",albums}});
+        QVERIFY(sectionItems(fixture.service,"less-played").isEmpty());
+        QVERIFY(sectionItems(fixture.service,"rediscover-library").isEmpty());
+        for(const QString id:{QString("one"),QString("two")}) {
+            QVariantMap fact{{"sessionId",id},{"world","vinyl"},{"kind","music"},{"titleKey",id},{"itemKey",id},
+                {"title",id},{"syncable",false},{"utcOffsetMinutes",0}};
+            auto start=fact;start.insert("atMs",kFixedNowMs-30000);start.insert("action","start");start.insert("origin","manual");
+            start.insert("positionMs",0);start.insert("durationMs",60000);
+            start.insert("entityRef",QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","local"},{"itemId",id+"-track"}});
+            start.insert("releaseRef",QVariantMap{{"identity","provider"},{"kind","release"},{"providerId","local"},{"itemId",id}});
+            QVERIFY(activity.recordMusicAction(start));fact.insert("startAtMs",kFixedNowMs-20000);fact.insert("endAtMs",kFixedNowMs-8000);fact.insert("activeMs",12000);fact.insert("rateMilli",1000);
+            QVERIFY(activity.recordPlaybackDelta(fact));
+        }
+        QCOMPARE(sectionItems(fixture.service,"rediscover-library").size(),2);
+        QVERIFY(sectionItems(fixture.service,"less-played").isEmpty());
+    }
+    void savedSongsUseTheirExistingLibraryRouteAndTypedListeningIdentity() {
+        HomeFixture fixture({});ActivityStore activity;fixture.service.setActivityStore(&activity);
+        const QVariantMap track{{"id","owned-track"},{"title","Owned track"},{"localPath","fixture.wav"}};
+        fixture.service.setHomeCollections({{"songs",QVariantList{QVariantMap{{"id","saved-song-id"},{"title","Owned track"},
+            {"artist","Owned artist"},{"row",QVariantMap{{"trackId","owned-track"},{"track",track}}}}}}});
+        QVariantMap fact{{"sessionId","song-listen"},{"world","vinyl"},{"kind","music"},{"titleKey","album"},
+            {"itemKey","track"},{"title","Track"},{"syncable",false},{"utcOffsetMinutes",0}};
+        auto start=fact;start.insert("atMs",kFixedNowMs-30000);start.insert("action","start");start.insert("origin","manual");
+        start.insert("positionMs",0);start.insert("durationMs",60000);
+        start.insert("entityRef",QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","local"},{"itemId","owned-track"}});
+        QVERIFY(activity.recordMusicAction(start));fact.insert("startAtMs",kFixedNowMs-20000);fact.insert("endAtMs",kFixedNowMs-8000);fact.insert("activeMs",12000);fact.insert("rateMilli",1000);
+        QVERIFY(activity.recordPlaybackDelta(fact));
+        const auto items=sectionItems(fixture.service,"rediscover-library");QCOMPARE(items.size(),1);
+        const auto card=items.first().toMap();QCOMPARE(card.value("kind").toString(),QString("saved-song"));
+        QCOMPARE(card.value("ref").toMap().value("itemId").toString(),QString("owned-track"));
+        QCOMPARE(card.value("destination").toMap().value("id").toString(),QString("saved-song-id"));
+    }
+    void pendingAndUnavailableCatalogueHaveActionableShelfState() {
+        HomeFixture fixture({artistSeed(1)});
+        auto section=sectionById(fixture.service.homeSections(),"from-your-artists");
+        QCOMPARE(section.value("status").toString(),QString("loading"));
+        QVERIFY(section.value("items").toList().isEmpty());
+        const auto pending=fixture.source.pendingRequests("artistCandidates");QVERIFY(!pending.isEmpty());
+        fixture.source.complete(pending.first(),{},"Offline fixture");QCoreApplication::processEvents();
+        section=sectionById(fixture.service.homeSections(),"from-your-artists");
+        QCOMPARE(section.value("status").toString(),QString("error"));QVERIFY(section.value("canRetry").toBool());
+        QVERIFY(section.value("items").toList().isEmpty());
+    }
     void exposureRestoreValidatesProfileWindowAndWholeEnvelope() {
         HomeFixture fixture({artistSeed(1)});pumpSuccessfulReplies(fixture.source);
         ActivityStore activity;fixture.service.setActivityStore(&activity);

@@ -401,4 +401,68 @@ TestCase {
         compare(world.session.queueSerial, before);
         compare(world.session.queue.length, 0);
     }
+
+    function useHomeSections(sections) {
+        var prefs=Qt.createQmlObject('import QtQuick; QtObject {property bool vinylTasteAnswered:true; signal vinylTasteChanged(); function setVinylTasteSelections(answered,artists){return true;}}',world);
+        var service=Qt.createQmlObject('import QtQuick; QtObject {property string onboardingState:"answered"; property var selectedArtists:[]; property var homeSections:[]; property var homeSnapshot:({}); property int homeRevision:1; property string homeStatus:"ready"; property string homeError:""; function beginHomeVisit(){} function refreshHome(force){}}',world);
+        service.homeSections=sections;
+        world.worldData.preferencesStore=prefs;world.worldData.recommendationService=service;
+        return service;
+    }
+    function test_historyRowsFollowSavedCollectionsAndRetainSeeAllSnapshot() {
+        var item={id:"release",title:"Native Release",kind:"albums",ref:{identity:"provider",kind:"release",providerId:"local",itemId:"release"},
+            destination:{kind:"album",provider:"local",providerId:"release",id:"release"}};
+        var section=function(id){return {id:id,title:id,kind:"recommendations",items:[item],status:"ready"};};
+        var service=useHomeSections([section("rediscover-library"),section("less-played"),section("from-your-artists")]);
+        var keys=world.worldData.homeRows.map(row=>row.key);
+        verify(keys.indexOf("personalized:from-your-artists")<keys.indexOf("saved-albums"));
+        verify(keys.indexOf("saved-albums")<keys.indexOf("personalized:rediscover-library"));
+        verify(keys.indexOf("personalized:rediscover-library")<keys.indexOf("personalized:less-played"));
+        world.worldData.openList("personalized:rediscover-library",true);
+        service.homeSections=[];
+        compare(world.worldData.row("personalized:rediscover-library",true).items[0].id,"release");
+        world.session.clearProfile();wait(0);
+        compare(world.worldData.homeRows.length,0);
+        verify(world.worldData.homeListSnapshot===null);
+    }
+    function test_coldSkippedHomeUsesExistingPublicDiscovery() {
+        collection.seed([]);progress.seed([]);world.session.refreshLibrary();world.personalLibrary.refreshModels();
+        useHomeSections([]);
+        world.session.discoverySections={trending:{key:"trending",title:"Trending",items:[{id:"public-album",kind:"albums",title:"Public release"}],records:[],cached:true}};
+        world.showHome();wait(0);
+        verify(world.worldData.homePublicDiscovery===true);
+        var publicRow=homeRow("home-discover-trending");verify(publicRow!==null);
+        compare(publicRow.personal,false);compare(publicRow.recommendation,false);
+        compare(publicRow.items[0].id,"public-album");
+        world.session.discoverySections={"new-releases":{error:"Synthetic source failure"}};
+        compare(homeRow("home-discover-new-releases").title,"Discover · New releases");
+        collection.seed([albumEntry(rawAlbum)]);world.session.refreshLibrary();world.personalLibrary.refreshModels();wait(0);
+        verify(!world.worldData.homePublicDiscovery);
+        verify(homeRow("home-discover-trending")===null);
+    }
+    function test_privacyFenceInvalidatesPersonalSeeAllCopies() {
+        var item={id:"release",title:"Native Release",kind:"albums",destination:{kind:"album",provider:"local",providerId:"release",id:"release"}};
+        var service=useHomeSections([{id:"rediscover-library",title:"Rediscover your library",kind:"recommendations",items:[item],status:"ready"}]);
+        service.homeSnapshot={historyEnabled:true,activityResetGeneration:0,historyResetGeneration:0};wait(0);
+        world.worldData.openList("personalized:rediscover-library",true);
+        verify(world.worldData.homeListSnapshot!==null);
+        service.homeSections=[];service.homeSnapshot={historyEnabled:false,activityResetGeneration:0,historyResetGeneration:0};wait(0);
+        verify(world.worldData.homeListSnapshot===null,"History-off must clear copied personal evidence");
+        service.homeSections=[{id:"rediscover-library",title:"Rediscover your library",kind:"recommendations",items:[item],status:"ready"}];
+        service.homeSnapshot={historyEnabled:true,activityResetGeneration:0,historyResetGeneration:0};wait(0);
+        world.worldData.openList("personalized:rediscover-library",true);
+        service.homeSections=[];service.homeSnapshot={historyEnabled:true,activityResetGeneration:1,historyResetGeneration:1};wait(0);
+        verify(world.worldData.homeListSnapshot===null,"History clear must invalidate the copied list");
+    }
+    function test_publicSeeAllSnapshotSurvivesPlaybackAndHomeEligibilityChange() {
+        collection.seed([]);progress.seed([]);world.session.refreshLibrary();world.personalLibrary.refreshModels();
+        useHomeSections([]);
+        world.session.discoverySections={trending:{key:"trending",title:"Trending",items:[{id:"public-album",kind:"albums",title:"Public release"}],records:[]}};
+        world.showHome();wait(0);
+        world.worldData.openList("home-discover-trending",true);
+        verify(world.worldData.homeListSnapshot!==null,"Public See-all must have the same stable-route contract");
+        world.session.discoverySections={};
+        verify(world.session.playPersonalRows([rowAt(0)],false,0));
+        compare(world.worldData.row("home-discover-trending",true).items[0].id,"public-album");
+    }
 }
