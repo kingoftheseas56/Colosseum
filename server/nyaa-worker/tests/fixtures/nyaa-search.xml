@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Nyaa search: fixture</title>
+    <item>
+      <title><![CDATA[ [Group] A title & an extra scene ]]></title>
+      <link>https://nyaa.si/download/1234567.torrent</link>
+      <guid isPermaLink="true">https://nyaa.si/view/1234567</guid>
+      <dc:creator>uploader &amp; team</dc:creator>
+      <nyaa:seeders>42</nyaa:seeders>
+      <nyaa:leechers>7</nyaa:leechers>
+      <nyaa:infoHash>ABCDEF0123456789ABCDEF0123456789ABCDEF01</nyaa:infoHash>
+      <nyaa:size>1.5 GiB</nyaa:size>
+    </item>
+    <item>
+      <title>URL with query is rejected</title>
+      <link>https://nyaa.si/view/42?redirect=https://evil.example</link>
+      <nyaa:infoHash>0123456789abcdef0123456789abcdef01234567</nyaa:infoHash>
+      <nyaa:size>512 MB</nyaa:size>
+    </item>
+    <item>
+      <title>Lookalike host is rejected</title>
+      <link>https://nyaa.si.evil.example/view/43</link>
+      <nyaa:infoHash>0123456789abcdef0123456789abcdef01234567</nyaa:infoHash>
+      <nyaa:size>512 MB</nyaa:size>
+    </item>
+  </channel>
+</rss>

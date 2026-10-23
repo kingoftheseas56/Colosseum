@@ -21,6 +21,24 @@ CTest passed in 27.52 seconds. The existing comic search harness also compiled
 and passed. Live source and actual-app evidence are separate and recorded in
 [the Tankorent checkpoint receipt](tankorent-worker-checkpoint-2026-10-23.md).
 
+## Nyaa Worker transport (2026-10-24)
+
+`colosseum.manga_nyaa_worker_harness` is registered with labels
+`unit;torrent;network` and the standard 120-second timeout. Its fake-network
+cases cover Worker request/schema bounds, strict torrent URL validation,
+redirect/error handling with duplicate provider errors collapsed to one concise
+reason, bounded streaming bodies, independent deadlines, partial query success,
+cancellation and duplicate/late completion. The native
+metainfo fetcher cases also cover URL rejection, redirect rejection, its 4 MiB
+body cap, reply destruction and absolute deadline. The isolated Windows harness
+passed, as did `manga_tankoban_logic_harness` with RSS parsing enabled only for
+that fixture target. `manga_tankoban_service_harness` verifies failed discovery
+surfaces the provider reason after fallback cards, remains retryable without a
+negative TTL, and leaves stale verified cards usable without an acquisition
+failure; its non-index series path preserves the same signal order. These are
+source-level checks; live Worker availability and actual-app qualification are
+separate gates.
+
 ## Tankoyomi Worker transport (2026-10-23)
 
 `colosseum.tankoyomi_worker_transport_harness` is registered with labels

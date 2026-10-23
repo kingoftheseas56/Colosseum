@@ -218,6 +218,7 @@ public:
 signals:
     void volumesChanged(const QString& seriesId);
     void sourcesReady(const QString& volumeId, const QVariantList& results);
+    void sourcesFailed(const QString& volumeId, const QString& reason);
     void progress(const QString& volumeId, double done, double total);
     void finished(const QString& volumeId);
     void failed(const QString& volumeId, const QString& reason);
