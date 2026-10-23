@@ -159,6 +159,7 @@ void DownloadStore::pauseJob(const QString &id) {
         && j.state != QStringLiteral("downloading"))
         return;
     cleanupJob(j);   // aborts the reply, closes the file; the .part STAYS on disk
+    j.lifecyclePaused = false;
     j.state = QStringLiteral("paused");
     j.speed = 0.0; j.etaSec = -1; j.lastSampleMs = 0; j.lastSampleBytes = 0;
     saveQueue();
@@ -171,10 +172,10 @@ void DownloadStore::resumeJob(const QString &id) {
     if (i < 0 || m_jobs.at(i).state != QStringLiteral("paused"))
         return;
     Job &j = m_jobs[i];
-    // Same-session url still in hand → append from the .part via Range.
-    // Post-restart (url gone) → re-resolve; the source may differ, so the
-    // .part is truncated at startHttp — never append a different file.
-    j.resumeFromPart = !j.url.isEmpty();
+    // A fresh torrent route may serve the same immutable hash/file identity.
+    // feedTorrentUrl checks that identity again before allowing an append.
+    j.resumeFromPart = !j.url.isEmpty() || !j.partialInfoHash.isEmpty();
+    j.lifecyclePaused = false;
     j.state = QStringLiteral("queued");
     saveQueue();
     touch();
@@ -182,6 +183,8 @@ void DownloadStore::resumeJob(const QString &id) {
 }
 
 void DownloadStore::pump() {
+    if (!m_foreground)
+        return;
     if (activeIndex() >= 0)
         return;   // MAX_ACTIVE_VIDEO = 1: one live job at a time
     for (int i = 0; i < m_jobs.size(); ++i) {
@@ -208,13 +211,88 @@ void DownloadStore::feedUrl(const QString &id, const QString &url) {
 
 void DownloadStore::feedSource(const QString &id, const QString &url, const QVariantMap &headers) {
     const int i = jobIndex(id);
-    if (i < 0 || url.isEmpty())
+    if (i < 0 || url.isEmpty() || !m_foreground
+        || m_jobs.at(i).state != QStringLiteral("resolving"))
         return;
     Job &j = m_jobs[i];
     j.url = url;
     j.request.insert(QStringLiteral("headers"), headers);
-    if (j.state == QStringLiteral("resolving"))
-        startHttp(j);
+    // A direct source replacing a torrent cannot inherit the old file prefix.
+    if (!j.partialInfoHash.isEmpty()) {
+        j.resumeFromPart = false;
+        j.partialInfoHash.clear();
+        j.partialFileIdx = -1;
+    }
+    startHttp(j);
+}
+
+void DownloadStore::feedTorrentUrl(const QString &id, const QString &url,
+                                   const QString &infoHash, int fileIdx) {
+    const int i = jobIndex(id);
+    if (i < 0 || url.isEmpty() || !m_foreground
+        || m_jobs.at(i).state != QStringLiteral("resolving"))
+        return;
+    const QString hash = infoHash.trimmed().toLower();
+    static const QRegularExpression validHash(QStringLiteral("^(?:[0-9a-f]{40}|[0-9a-f]{64})$"));
+    if (!validHash.match(hash).hasMatch() || fileIdx < 0) {
+        failJob(id, QStringLiteral("Invalid resolved torrent identity"));
+        return;
+    }
+    Job &j = m_jobs[i];
+    if (j.partialInfoHash != hash || j.partialFileIdx != fileIdx)
+        j.resumeFromPart = false;
+    j.partialInfoHash = hash;
+    j.partialFileIdx = fileIdx;
+    // Pin rank-best/hash-only selections too: reconnect must resolve this file.
+    j.request.insert(QStringLiteral("infoHash"), hash);
+    j.request.insert(QStringLiteral("fileIdx"), fileIdx);
+    j.request.insert(QStringLiteral("headers"), QVariantMap{});
+    j.url = url;
+    startHttp(j);
+    saveQueue();
+}
+
+void DownloadStore::setForeground(bool foreground) {
+    if (m_foreground == foreground)
+        return;
+    m_foreground = foreground;
+    if (!foreground) {
+        // Fence source-search callbacks before disconnecting the HTTP replies.
+        emit resolutionReset();
+        const auto retiringRoute = [](const Job &j) {
+            const QString host = QUrl(j.url).host();
+            return !j.partialInfoHash.isEmpty() || host == QStringLiteral("127.0.0.1")
+                || host == QStringLiteral("::1") || host == QStringLiteral("localhost");
+        };
+        QStringList ids;
+        for (const Job &j : m_jobs)
+            if ((j.state == QStringLiteral("queued") || j.state == QStringLiteral("resolving")
+                 || j.state == QStringLiteral("downloading"))
+                && (j.url.isEmpty() || retiringRoute(j)))
+                ids.append(j.id);
+        for (const QString &id : ids) {
+            pauseJob(id);
+            const int i = jobIndex(id);
+            if (i < 0) continue;
+            Job &j = m_jobs[i];
+            j.lifecyclePaused = true;
+            qInfo() << "[videoq] lifecycle paused" << id << "retained bytes"
+                    << QFileInfo(j.partPath).size();
+        }
+        // Manually paused jobs also own retired URLs, but stay manually paused.
+        for (Job &j : m_jobs) {
+            if (retiringRoute(j))
+                j.url.clear();
+        }
+        saveQueue();
+    } else {
+        QStringList ids;
+        for (const Job &j : m_jobs)
+            if (j.lifecyclePaused) ids.append(j.id);
+        for (const QString &id : ids)
+            resumeJob(id);
+        pump();
+    }
 }
 
 void DownloadStore::failJob(const QString &id, const QString &reason) {
@@ -311,6 +389,8 @@ void DownloadStore::startHttp(Job &job) {
         job.baseOffset = partSize;
         req.setRawHeader(QByteArrayLiteral("Range"),
                          QByteArrayLiteral("bytes=") + QByteArray::number(partSize) + "-");
+        qInfo() << "[videoq] Range resume" << job.id << "offset" << partSize
+                << "torrent" << job.partialInfoHash << "file" << job.partialFileIdx;
     }
     job.reply = m_network.get(req);
     const QString id = job.id;
@@ -593,6 +673,21 @@ void DownloadStore::loadQueue() {
         if (!j.outputPath.isEmpty())
             j.partPath = j.outputPath + QStringLiteral(".part");
         j.error = o.value(QStringLiteral("error")).toString();
+        j.partialInfoHash = o.value(QStringLiteral("partialInfoHash")).toString();
+        j.partialFileIdx = o.value(QStringLiteral("partialFileIdx")).toInt(-1);
+        // Older queues already pinned an exact torrent before starting HTTP.
+        // Preserve those partials on upgrade; hash-only/unpinned jobs cannot
+        // establish the identity of existing bytes and must start cleanly.
+        if (!o.contains(QStringLiteral("partialInfoHash")) && QFileInfo(j.partPath).isFile()) {
+            const QString hash = j.request.value(QStringLiteral("infoHash")).toString().trimmed().toLower();
+            bool indexOk = false;
+            const int fileIdx = j.request.value(QStringLiteral("fileIdx")).toInt(&indexOk);
+            static const QRegularExpression validHash(QStringLiteral("^(?:[0-9a-f]{40}|[0-9a-f]{64})$"));
+            if (indexOk && fileIdx >= 0 && validHash.match(hash).hasMatch()) {
+                j.partialInfoHash = hash;
+                j.partialFileIdx = fileIdx;
+            }
+        }
         m_jobs.append(j);
     }
     if (!m_jobs.isEmpty())
@@ -608,7 +703,9 @@ void DownloadStore::saveQueue() const {
             {QStringLiteral("request"), QJsonObject::fromVariantMap(j.request)},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
-            {QStringLiteral("outputPath"), j.outputPath}
+            {QStringLiteral("outputPath"), j.outputPath},
+            {QStringLiteral("partialInfoHash"), j.partialInfoHash},
+            {QStringLiteral("partialFileIdx"), j.partialFileIdx}
         });
     }
     QSaveFile f(baseDir() + QStringLiteral("/queue.json"));

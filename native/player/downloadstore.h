@@ -52,6 +52,11 @@ public:
     // resolver handshake (Main.qml answers needResolve with one of these)
     Q_INVOKABLE void feedUrl(const QString &id, const QString &url);
     Q_INVOKABLE void feedSource(const QString &id, const QString &url, const QVariantMap &headers);
+    Q_INVOKABLE void feedTorrentUrl(const QString &id, const QString &url,
+                                   const QString &infoHash, int fileIdx);
+    // Android pauses before its local torrent routes retire; foreground return
+    // re-resolves those routes without discarding a verified source's prefix.
+    Q_INVOKABLE void setForeground(bool foreground);
     Q_INVOKABLE void failJob(const QString &id, const QString &reason);
 
     // ── downloaded-videos library ──
@@ -67,6 +72,7 @@ signals:
     void libraryChanged();   // the persisted downloaded-videos set changed
     void removed(const QString &id);
     void needResolve(const QString &id, const QString &streamId, const QString &mediaType);
+    void resolutionReset();
 
 private:
     struct Job {
@@ -83,7 +89,10 @@ private:
         qint64 lastSampleMs = 0;
         qint64 lastSampleBytes = 0;
         qint64 baseOffset = 0;       // resume: bytes already in .part before this reply
-        bool resumeFromPart = false;   // set by resumeJob when the paused url is still valid
+        bool resumeFromPart = false;   // same URL or revalidated immutable torrent/file
+        bool lifecyclePaused = false;  // manual Pause must not auto-resume
+        QString partialInfoHash;       // identity of bytes already in .part
+        int partialFileIdx = -1;
         QString outputPath;
         QString partPath;
         QNetworkReply *reply = nullptr;
@@ -127,4 +136,5 @@ private:
     QList<Job> m_jobs;
     QHash<QString, Entry> m_index;
     int m_queueRevision = 0;
+    bool m_foreground = true;
 };

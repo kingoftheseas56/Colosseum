@@ -4261,9 +4261,36 @@ set_tests_properties(colosseum.downloadstore_source_headers_harness PROPERTIES
     LABELS "unit;network;contract"
     TIMEOUT 15)
 
+# Foreground lifecycle must pause engine-backed downloads before route teardown,
+# retain the partial file, then re-resolve the same source before Range resume.
+add_executable(downloadstore_lifecycle_harness
+    downloadstore_lifecycle_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h")
+target_include_directories(downloadstore_lifecycle_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(downloadstore_lifecycle_harness PRIVATE
+    Qt6::Core Qt6::Network Qt6::Gui)
+set_target_properties(downloadstore_lifecycle_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.downloadstore_lifecycle_harness
+    COMMAND downloadstore_lifecycle_harness)
+set_tests_properties(colosseum.downloadstore_lifecycle_harness PROPERTIES
+    LABELS "unit;network;lifecycle"
+    TIMEOUT 30)
+add_test(NAME colosseum.downloadstore_legacy_resume_harness
+    COMMAND downloadstore_lifecycle_harness --legacy-compat)
+set_tests_properties(colosseum.downloadstore_legacy_resume_harness PROPERTIES
+    LABELS "unit;network;lifecycle;compatibility"
+    TIMEOUT 30)
+
 # Stage the Qt runtime DLLs required by the standalone Function 0008 harness.
 foreach(_qt_target Qt6::Core Qt6::Network Qt6::Gui)
     add_custom_command(TARGET downloadstore_source_headers_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:${_qt_target}>"
+                "${CMAKE_CURRENT_BINARY_DIR}/..")
+    add_custom_command(TARGET downloadstore_lifecycle_harness POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:${_qt_target}>"
                 "${CMAKE_CURRENT_BINARY_DIR}/..")

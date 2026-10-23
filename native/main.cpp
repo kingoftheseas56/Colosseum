@@ -1141,12 +1141,7 @@ int main(int argc, char *argv[]) {
     // reconstruct fresh engine state on the next explicit foreground demand).
     // The startup warmUp() call below stays a no-op on Android: the backend
     // is born only on an explicit play()/prefetch(), never at launch.
-    QObject::connect(
-        platformRuntime,
-        &Colosseum::Platform::Runtime::applicationStateChanged,
-        stream,
-        [platformRuntime, stream]() { stream->setForeground(platformRuntime->foreground()); });
-    // QML lifecycle handlers run before the connection above; a re-demand
+    // QML lifecycle handlers run before the coordinator installed below; a re-demand
     // they issue reads the live state rather than racing this slot.
     stream->setForegroundProbe([platformRuntime]() { return platformRuntime->foreground(); });
 #endif
@@ -1492,6 +1487,22 @@ int main(int argc, char *argv[]) {
     // Current-player video download state exposed to QML as `Download`.
     auto *download = new DownloadStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Download"), download);
+#ifdef Q_OS_ANDROID
+    const auto syncVideoForeground = [platformRuntime, stream, download]() {
+        if (platformRuntime->foreground()) {
+            stream->setForeground(true);
+            download->setForeground(true);
+        } else {
+            // Disconnect/preserve HTTP partials before retiring engine routes.
+            download->setForeground(false);
+            stream->setForeground(false);
+        }
+    };
+    QObject::connect(platformRuntime,
+                     &Colosseum::Platform::Runtime::applicationStateChanged,
+                     stream, syncVideoForeground);
+    syncVideoForeground();
+#endif
     if (qEnvironmentVariableIsSet("COLOSSEUM_VIDEOQ_SELFTEST"))
         download->selfTest(qEnvironmentVariable("COLOSSEUM_VIDEOQ_SELFTEST"));
 

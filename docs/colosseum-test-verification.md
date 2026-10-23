@@ -1247,6 +1247,8 @@ measure that change independently.
 | CTest name | Labels | Notes |
 |---|---|---|
 | `colosseum.window_state_policy_harness` | unit, windows | qFatal idiom — first failure hides the rest (slice-3 conversion pilot) |
+| `colosseum.downloadstore_lifecycle_harness` | unit, network, lifecycle | loopback DownloadStore transfer: foreground loss pauses engine-backed work and retains exact partial bytes; same hash/file index re-resolves and Range/206 completes; changed identity truncates; ignored Range/200 restarts cleanly; manual pause stays paused; unrelated external direct HTTP continues in background |
+| `colosseum.downloadstore_legacy_resume_harness` | unit, network, lifecycle, compatibility | persisted pre-lifecycle paused exact-pinned job retains its `.part` and re-resumes via fresh same-identity Range/206; hash-only legacy job with fileIdx -1 truncates and downloads without Range |
 | `colosseum.search_history_store_harness` | unit | |
 | `colosseum.progress_store_harness` | unit | |
 | `colosseum.collection_store_harness` | unit | |
