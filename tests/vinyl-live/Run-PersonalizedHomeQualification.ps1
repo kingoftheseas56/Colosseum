@@ -42,7 +42,9 @@ if(@($values|Where-Object {$_ -match '["\r\n]'}).Count){throw 'Unsupported quote
 $arguments=@($values|ForEach-Object {'"'+$_+'"'})
 $head=(& git -C $repo rev-parse HEAD).Trim()
 $receipt=[ordered]@{phase=$Phase;journey=$Journey;profile=$ProfileTag;sourceHead=$head;nativeHomeSha256=(Get-FileHash -LiteralPath (Join-Path $repo 'native/vinyl/VinylRecommendationHome.cpp') -Algorithm SHA256).Hash;driverSha256=(Get-FileHash -LiteralPath $driver -Algorithm SHA256).Hash;appSha256=(Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;offlineProxy=[bool]$Offline;unavailableHelper=[bool]$Unavailable;startedUtc=[DateTime]::UtcNow.ToString('o')}
-$p=Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory $BuildDir -WindowStyle Normal -PassThru -RedirectStandardOutput ($prefix+'.stdout.log') -RedirectStandardError ($prefix+'.stderr.log')
+# QML overrides retain the launch directory. Content's shared local assets use
+# the source resource root, just as the normal Main startup layout does.
+$p=Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory $repo -WindowStyle Normal -PassThru -RedirectStandardOutput ($prefix+'.stdout.log') -RedirectStandardError ($prefix+'.stderr.log')
 $receipt.pid=$p.Id;$receipt.processStartUtc=$p.StartTime.ToUniversalTime().ToString('o')
 $receipt|ConvertTo-Json -Depth 5|Set-Content -LiteralPath ($prefix+'.receipt.json') -Encoding utf8
 Write-Output "Started $Phase PID=$($p.Id) profile=$ProfileTag"

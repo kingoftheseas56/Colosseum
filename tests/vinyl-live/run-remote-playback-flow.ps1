@@ -17,6 +17,7 @@ $hash=(Get-FileHash -LiteralPath $AppPath).Hash
 $qmlManifest=Join-Path (Split-Path $AppPath) 'qml-build.manifest'
 $qmlHash=(Get-FileHash -LiteralPath $qmlManifest).Hash
 $driver=Join-Path $PSScriptRoot 'RemotePlaybackFlow.qml'
+$repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $keys=@('PATH','QT_PLUGIN_PATH','QML_IMPORT_PATH','QT_QUICK_CONTROLS_STYLE','QSG_RHI_BACKEND','QT_FORCE_STDERR_LOGGING','QT_QPA_PLATFORM','COLOSSEUM_APPDATA_TAG','COLOSSEUM_VINYL_PYTHON','COLOSSEUM_ENABLE_VINYL','COLOSSEUM_DEV','COLOSSEUM_STREAM_SERVER')
 $original=@{};foreach($key in $keys){$original[$key]=[Environment]::GetEnvironmentVariable($key,'Process')}
 $phaseResults=@()
@@ -30,7 +31,7 @@ try{
   $review=$phase.Contains('review')
   $stdout=Join-Path $directory "$phase.stdout.log";$stderr=Join-Path $directory "$phase.stderr.log"
   $arguments=@($driver,$phase,$directory)|ForEach-Object {'"'+[string]$_+'"'}
-  $process=Start-Process -FilePath $AppPath -ArgumentList $arguments -WorkingDirectory (Split-Path $AppPath) -WindowStyle Normal -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+  $process=Start-Process -FilePath $AppPath -ArgumentList $arguments -WorkingDirectory $repo -WindowStyle Normal -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
   @{pid=$process.Id;startTicks=$process.StartTime.ToUniversalTime().Ticks;app=$AppPath;sha256=$hash;phase=$phase}|ConvertTo-Json|Set-Content (Join-Path $directory "$phase.process.json") -Encoding UTF8
   Write-Output "Remote playback phase $phase ($run)"
   $deadline=[DateTime]::UtcNow.AddSeconds(340)
