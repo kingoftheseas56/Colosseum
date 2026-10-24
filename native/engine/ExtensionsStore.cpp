@@ -80,7 +80,7 @@ QString transportIdentity(const QString &transportUrl)
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 17;
+constexpr int kHouseDefaultsVersion = 18;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -687,7 +687,7 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // Array order IS ask-order, and each world's rank is that world's filtered index.
     // This order gives Tankoban 1-4 and Biblio 1-3 exactly as the design's roster says,
     // with the one shared Torrent Indexers row landing 4th in Tankoban and 2nd in Biblio.
-    add("colosseum.well.nyaa", "https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/manifest.json", false,
+    add("colosseum.well.nyaa", "https://colosseum-nyaa-metadata.onrender.com/manifest.json", false,
         manifest("colosseum.well.nyaa", "Nyaa", "",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
     add("colosseum.well.tankoyomi", "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", false,
@@ -828,14 +828,18 @@ void ExtensionsStore::migrateDefaults()
         changed = true;
     }
 
-    // Generation 17: move only the built-in Nyaa search endpoint while
-    // preserving opt-in, order, timestamps and custom transport URLs.
+    // Generation 18: move only the built-in Nyaa search endpoint from either
+    // prior built-in form; preserve opt-in, order, timestamps and custom URLs.
     const int nyaaAt = indexOfId(QStringLiteral("colosseum.well.nyaa"));
-    if (nyaaAt >= 0 && m_items[nyaaAt].value(QStringLiteral("transportUrl")).toString()
-                           == QLatin1String("colosseum://well/nyaa")) {
-        m_items[nyaaAt].insert(QStringLiteral("transportUrl"),
-            QStringLiteral("https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/manifest.json"));
-        changed = true;
+    if (nyaaAt >= 0) {
+        const QString nyaaUrl = m_items[nyaaAt].value(QStringLiteral("transportUrl")).toString();
+        if (nyaaUrl == QLatin1String("colosseum://well/nyaa")
+            || nyaaUrl
+                == QLatin1String("https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/manifest.json")) {
+            m_items[nyaaAt].insert(QStringLiteral("transportUrl"),
+                QStringLiteral("https://colosseum-nyaa-metadata.onrender.com/manifest.json"));
+            changed = true;
+        }
     }
 
     for (const char* id : kRetiredIds) {

@@ -31,7 +31,7 @@ namespace MangaTankoban {
 namespace {
 
 constexpr const char* kNyaaWorkerEndpoint =
-    "https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/v1/nyaa/search";
+    "https://colosseum-nyaa-metadata.onrender.com/v1/nyaa/search";
 constexpr const char* kTrustResource = ":/tankoban/manga_uploader_trust.json";
 constexpr int kMaxQueryLength = 512;
 constexpr int kMaxQueries = 8;
