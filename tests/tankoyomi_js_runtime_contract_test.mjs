@@ -25,7 +25,7 @@ check(cpp.includes('fetchText') && cpp.includes('fetchJson'), 'runtime exposes s
 check(h.includes('QStringList allowedHosts'), 'runtime receives a manifest origin allowlist');
 check(cpp.includes('TankoyomiNetworkPolicy::metadataHostAllowed'), 'runtime rejects undeclared network hosts through the shared policy');
 check(cpp.includes('ManualRedirectPolicy') && cpp.includes('TankoyomiNetworkPolicy::redirectAllowed'), 'each metadata redirect re-enters the capability policy');
-check(service.includes('descriptor.allowedHosts, nam, resolverLookup, this'),
+check(service.includes('descriptor.allowedHosts, m_nam, resolverLookup, this'),
   'service injects its network manager and resolver seam into provider transport');
 check(cpp.includes('setTransferTimeout'), 'provider metadata requests have a finite timeout');
 for (const path of providerPaths) {
@@ -33,9 +33,10 @@ for (const path of providerPaths) {
   check(!src.includes('async function') && !src.includes(' await '), `${path} avoids unsupported async/await`);
 }
 check(cmake.includes('GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS'),
-  'CMake auto-discovers Tankoyomi provider resources');
-check(cmake.includes('qt_add_resources(colosseum "tankoyomi_resources"'),
-  'auto-discovered providers are embedded through Qt resources');
+  'CMake auto-discovers provider resources for local transport fixtures');
+const productionResources = cmake.match(/qt_add_resources\(colosseum "tankoyomi_resources"[\s\S]*?\)/)?.[0] || '';
+check(productionResources.includes('/manifest.json"') && !productionResources.includes('${TANKOYOMI_RESOURCE_FILES}'),
+  'production embeds inventory only; provider scripts execute in the Worker');
 check(!qrc.includes('tankoyomi/languages/'),
   'base app QRC no longer hardcodes provider scripts');
 check(service.includes('m_registry.providersForLanguage'),

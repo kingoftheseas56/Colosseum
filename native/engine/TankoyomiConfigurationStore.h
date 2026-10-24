@@ -30,6 +30,8 @@ public:
 
     QString defaultLanguage() const { return m_defaultLanguage; }
     int revision() const { return m_revision; }
+    // Replace remote inventory while retaining the user's persisted overlay.
+    bool replaceRegistry(const TankoyomiProviderRegistry &registry);
 
     // QML-facing projections. Provider rows include every valid manifest
     // provider, including providers whose manifest default is disabled.

@@ -7,11 +7,47 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
+#include <QStringDecoder>
 #include <QUrl>
 #include <QTimer>
+
+namespace {
+constexpr qint64 kWorkerResponseLimit = 2 * 1024 * 1024;
+constexpr int kWorkerDeadlineMs = 45000;
+
+bool isWorkerPathComponent(const QString &value)
+{
+    static const QRegularExpression pattern(QStringLiteral("^[A-Za-z0-9_-]+$"));
+    return pattern.match(value).hasMatch();
+}
+
+bool isValidWorkerBase(const QUrl &url, const QString &providerId, const QString &language)
+{
+    if (!url.isValid() || url.isRelative()
+        || url.scheme().compare(QLatin1String("https"), Qt::CaseInsensitive) != 0
+        || url.host().isEmpty() || (url.port(-1) != -1 && url.port(-1) != 443)
+        || !url.userInfo(QUrl::FullyEncoded).isEmpty()
+        || url.authority(QUrl::FullyEncoded).contains(QLatin1Char('@'))
+        || url.hasQuery() || url.hasFragment())
+        return false;
+    return isWorkerPathComponent(providerId) && isWorkerPathComponent(language);
+}
+
+QUrl workerMethodUrl(const QUrl &base, const QString &language,
+                     const QString &providerId, const QString &method)
+{
+    QByteArray encoded = base.toEncoded(QUrl::FullyEncoded);
+    while (encoded.endsWith('/')) encoded.chop(1);
+    encoded += QByteArrayLiteral("/v1/") + language.toLatin1() + '/'
+        + providerId.toLatin1() + '/' + method.toLatin1();
+    return QUrl::fromEncoded(encoded, QUrl::StrictMode);
+}
+} // namespace
 
 TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
                                                  QString language,
@@ -165,18 +201,56 @@ this.__tankoyomiNextCallbackId = 1;
     m_ready = true;
 }
 
+TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
+                                                 QString language,
+                                                 QUrl workerBase,
+                                                 QNetworkAccessManager *nam,
+                                                 QObject *parent)
+    : QObject(parent),
+      m_providerId(std::move(providerId)),
+      m_language(std::move(language)),
+      m_workerBase(std::move(workerBase)),
+      m_workerMode(true),
+      m_nam(nam ? nam : new QNetworkAccessManager(this)),
+      m_hostResolver(MangaImageHostResolver::Lookup(), this)
+{
+    if (!isValidWorkerBase(m_workerBase, m_providerId, m_language)) {
+        m_loadError = QStringLiteral("Invalid Tankoyomi worker configuration");
+        return;
+    }
+    m_ready = true;
+}
+
 void TankoyomiScriptProvider::searchSeries(const QString &token, const QString &query)
 {
+    if (m_workerMode) {
+        QJsonObject payload;
+        payload.insert(QStringLiteral("query"), query);
+        invokeWorker(QStringLiteral("searchSeries"), token, payload);
+        return;
+    }
     invoke(QStringLiteral("searchSeries"), token, {m_engine.toScriptValue(query)});
 }
 
 void TankoyomiScriptProvider::getChapters(const QString &token, const QVariantMap &series)
 {
+    if (m_workerMode) {
+        QJsonObject payload;
+        payload.insert(QStringLiteral("series"), QJsonObject::fromVariantMap(series));
+        invokeWorker(QStringLiteral("getChapters"), token, payload);
+        return;
+    }
     invoke(QStringLiteral("getChapters"), token, {m_engine.toScriptValue(series)});
 }
 
 void TankoyomiScriptProvider::getPages(const QString &token, const QVariantMap &chapter)
 {
+    if (m_workerMode) {
+        QJsonObject payload;
+        payload.insert(QStringLiteral("chapter"), QJsonObject::fromVariantMap(chapter));
+        invokeWorker(QStringLiteral("getPages"), token, payload);
+        return;
+    }
     invoke(QStringLiteral("getPages"), token, {m_engine.toScriptValue(chapter)});
 }
 
@@ -224,8 +298,31 @@ struct TankoyomiScriptProvider::Fetch
     QPointer<QNetworkReply> reply;
 };
 
+struct TankoyomiScriptProvider::WorkerCall
+{
+    quint64 id = 0;
+    QString token;
+    QString method;
+    QByteArray response;
+    bool settled = false;
+    QPointer<QTimer> deadline;
+    QPointer<QNetworkReply> reply;
+};
+
 TankoyomiScriptProvider::~TankoyomiScriptProvider()
 {
+    const auto workerCalls = m_workerCalls.values();
+    m_workerCalls.clear();
+    for (const auto &call : workerCalls) {
+        call->settled = true;
+        if (call->deadline) call->deadline->stop();
+        if (call->reply) {
+            disconnect(call->reply, nullptr, this, nullptr);
+            if (!call->reply->isFinished()) call->reply->abort();
+            call->reply->deleteLater();
+        }
+    }
+
     // The manager can outlive this provider. Cancel its work before QJSEngine
     // destruction, rather than leaving replies attached to a shared manager.
     const auto pending = m_fetches.values();
@@ -239,6 +336,181 @@ TankoyomiScriptProvider::~TankoyomiScriptProvider()
             fetch->reply->deleteLater();
         }
     }
+}
+
+void TankoyomiScriptProvider::invokeWorker(const QString &method,
+                                           const QString &token,
+                                           const QJsonObject &payload)
+{
+    if (!m_ready) {
+        const QString message = m_loadError.isEmpty()
+            ? QStringLiteral("Tankoyomi worker is unavailable") : m_loadError;
+        QMetaObject::invokeMethod(this, [this, token, message] { emit failed(token, message); },
+                                  Qt::QueuedConnection);
+        return;
+    }
+    if (!m_nam) {
+        QMetaObject::invokeMethod(this, [this, token] {
+            emit failed(token, QStringLiteral("Tankoyomi worker network manager is unavailable"));
+        }, Qt::QueuedConnection);
+        return;
+    }
+
+    const QUrl endpoint = workerMethodUrl(m_workerBase, m_language, m_providerId, method);
+    if (!endpoint.isValid()) {
+        QMetaObject::invokeMethod(this, [this, token] {
+            emit failed(token, QStringLiteral("Invalid Tankoyomi worker endpoint"));
+        }, Qt::QueuedConnection);
+        return;
+    }
+
+    auto call = std::make_shared<WorkerCall>();
+    call->id = m_nextWorkerCallId++;
+    call->token = token;
+    call->method = method;
+    m_workerCalls.insert(call->id, call);
+
+    QNetworkRequest request(endpoint);
+    request.setRawHeader("Content-Type", "application/json");
+    request.setRawHeader("Accept", "application/json");
+    request.setRawHeader("User-Agent", "Colosseum-Tankoyomi/1");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(kWorkerDeadlineMs);
+
+    auto *deadline = new QTimer(this);
+    deadline->setSingleShot(true);
+    call->deadline = deadline;
+    connect(deadline, &QTimer::timeout, this, [this, call] {
+        finishWorkerCall(call, false, QVariant(), QStringLiteral("Tankoyomi worker request timeout"));
+    });
+    deadline->start(kWorkerDeadlineMs);
+
+    const QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    QNetworkReply *reply = m_nam->post(request, body);
+    call->reply = reply;
+    if (!reply) {
+        finishWorkerCall(call, false, QVariant(), QStringLiteral("Tankoyomi worker request could not start"));
+        return;
+    }
+    connect(reply, &QIODevice::readyRead, this, [this, call] { readWorkerResponse(call); });
+    connect(reply, &QNetworkReply::finished, this, [this, call, reply] {
+        if (call->settled) return;
+        readWorkerResponse(call);
+        if (call->settled) return;
+
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QUrl redirect = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
+        if ((status >= 300 && status < 400) || !redirect.isEmpty()) {
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker redirect rejected"));
+            return;
+        }
+        if (status < 200 || status >= 300) {
+            const QString message = status > 0
+                ? QStringLiteral("Tankoyomi worker returned HTTP %1").arg(status)
+                : QStringLiteral("Tankoyomi worker transport failed");
+            finishWorkerCall(call, false, QVariant(), message);
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError) {
+            finishWorkerCall(call, false, QVariant(), QStringLiteral("Tankoyomi worker transport failed"));
+            return;
+        }
+
+        QStringDecoder utf8(QStringDecoder::Utf8);
+        utf8.decode(call->response);
+        if (utf8.hasError()) {
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker returned invalid UTF-8 JSON"));
+            return;
+        }
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(call->response, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker returned invalid JSON"));
+            return;
+        }
+
+        const QJsonObject response = document.object();
+        const QJsonValue version = response.value(QStringLiteral("contractVersion"));
+        if (!version.isDouble() || version.toDouble() != 1.0) {
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker contract version is unsupported"));
+            return;
+        }
+        const bool hasResult = response.contains(QStringLiteral("result"));
+        const bool hasError = response.contains(QStringLiteral("error"));
+        if (hasResult == hasError) {
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker response has an invalid schema"));
+            return;
+        }
+        if (hasError) {
+            if (!response.value(QStringLiteral("error")).isString()) {
+                finishWorkerCall(call, false, QVariant(),
+                                 QStringLiteral("Tankoyomi worker response has an invalid schema"));
+                return;
+            }
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker rejected the %1 request").arg(call->method));
+            return;
+        }
+        if (!response.value(QStringLiteral("result")).isArray()) {
+            finishWorkerCall(call, false, QVariant(),
+                             QStringLiteral("Tankoyomi worker response has an invalid schema"));
+            return;
+        }
+        finishWorkerCall(call, true,
+                         response.value(QStringLiteral("result")).toArray().toVariantList(), QString());
+    });
+}
+
+void TankoyomiScriptProvider::readWorkerResponse(const std::shared_ptr<WorkerCall> &call)
+{
+    if (call->settled || !call->reply) return;
+    const qint64 available = call->reply->bytesAvailable();
+    if (available < 0 || available > kWorkerResponseLimit - call->response.size()) {
+        finishWorkerCall(call, false, QVariant(),
+                         QStringLiteral("Tankoyomi worker response exceeds 2 MiB"));
+        return;
+    }
+    if (available == 0) return;
+    const QByteArray chunk = call->reply->read(available);
+    if (chunk.size() > kWorkerResponseLimit - call->response.size()) {
+        finishWorkerCall(call, false, QVariant(),
+                         QStringLiteral("Tankoyomi worker response exceeds 2 MiB"));
+        return;
+    }
+    call->response.append(chunk);
+}
+
+void TankoyomiScriptProvider::finishWorkerCall(const std::shared_ptr<WorkerCall> &call,
+                                               bool ok,
+                                               const QVariant &value,
+                                               const QString &message)
+{
+    if (!call || call->settled) return;
+    call->settled = true;
+    m_workerCalls.remove(call->id);
+    if (call->deadline) {
+        call->deadline->stop();
+        call->deadline->deleteLater();
+        call->deadline.clear();
+    }
+    if (call->reply) {
+        disconnect(call->reply, nullptr, this, nullptr);
+        if (!call->reply->isFinished()) call->reply->abort();
+        call->reply->deleteLater();
+        call->reply.clear();
+    }
+
+    const QString token = call->token;
+    QMetaObject::invokeMethod(this, [this, token, ok, value, message] {
+        if (ok) emit resolved(token, value);
+        else emit failed(token, message);
+    }, Qt::QueuedConnection);
 }
 
 bool TankoyomiScriptProvider::hostAllowed(const QString &host) const

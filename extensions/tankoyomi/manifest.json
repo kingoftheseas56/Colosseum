@@ -1,6 +1,6 @@
 {
   "id": "colosseum.well.tankoyomi",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "name": "Tankoyomi",
   "description": "Language-aware manga chapter source router for Tankoban Chapter Mode.",
   "type": "tankoyomi",
@@ -74,6 +74,28 @@
             "es.niadd.com"
           ],
           "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "mangasin",
+          "name": "MangaSin",
+          "entry": "languages/es/mangasin.js",
+          "priority": 3,
+          "enabled": false,
+          "allowedHosts": [
+            "m440.in"
+          ],
+          "pageAccessPolicy": "public-https"
+        },
+        {
+          "id": "lectorxd",
+          "name": "LectorXD",
+          "entry": "languages/es/lectorxd.js",
+          "priority": 4,
+          "enabled": false,
+          "allowedHosts": [
+            "lectorxd.com"
+          ],
+          "pageAccessPolicy": "public-https"
         }
       ]
     },
@@ -81,7 +103,9 @@
       "code": "pt",
       "label": "Português (Brasil)",
       "countryCode": "BR",
-      "aliases": ["pt-BR"],
+      "aliases": [
+        "pt-BR"
+      ],
       "providers": [
         {
           "id": "taiyo",
@@ -102,7 +126,8 @@
           "priority": 2,
           "enabled": true,
           "allowedHosts": [
-            "mangaonline.green"
+            "mangaonline.green",
+            "mangaonline.love"
           ],
           "pageAccessPolicy": "public-https"
         },
@@ -114,7 +139,8 @@
           "enabled": true,
           "allowedHosts": [
             "www.manganight.com.br",
-            "api.mangadex.org"
+            "api.mangadex.org",
+            "manganight.com.br"
           ],
           "pageAccessPolicy": "public-https"
         }
@@ -171,5 +197,10 @@
         }
       ]
     }
-  ]
+  ],
+  "contractVersion": 1,
+  "transport": {
+    "type": "https-json",
+    "baseUrl": "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev"
+  }
 }

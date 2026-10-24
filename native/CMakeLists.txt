@@ -668,16 +668,10 @@ qt_add_executable(colosseum
     torrent/TorrentResult.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
-    torrent/PirateBayIndexer.cpp
-    torrent/PirateBayIndexer.h
-    torrent/ExtTorrentsIndexer.cpp
-    torrent/ExtTorrentsIndexer.h
-    torrent/TorrentsCsvIndexer.cpp
-    torrent/TorrentsCsvIndexer.h
-    torrent/KnabenIndexer.cpp
-    torrent/KnabenIndexer.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/BookTorrentRanker.cpp
     torrent/BookTorrentRanker.h
     torrent/BookTorrentFilePicker.cpp
@@ -907,7 +901,7 @@ file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
 qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
-    FILES ${TANKOYOMI_RESOURCE_FILES})
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/manifest.json")
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 if(NOT ANDROID)
     # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API only on desktop.
@@ -1121,6 +1115,16 @@ add_executable(tankoyomi_series_matcher_harness
     ../tests/tankoyomi_series_matcher_harness.cpp)
 target_include_directories(tankoyomi_series_matcher_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_series_matcher_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_worker_transport_harness
+    ../tests/tankoyomi_worker_transport_harness.cpp
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+    engine/TankoyomiNetworkPolicy.cpp)
+target_include_directories(tankoyomi_worker_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_worker_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 
 add_executable(tankoyomi_network_policy_harness
     engine/TankoyomiNetworkPolicy.cpp
@@ -1868,6 +1872,8 @@ add_executable(comic_downloader_archive_ingest_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -1926,6 +1932,8 @@ add_executable(comic_downloader_legacy_migration_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -1980,6 +1988,8 @@ add_executable(comic_downloader_ingest_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2041,6 +2051,8 @@ add_executable(comic_downloader_pack_demux_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2095,6 +2107,8 @@ add_executable(comic_torrents_search_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2159,6 +2173,8 @@ add_executable(comic_torrent_pack_transport_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2297,8 +2313,39 @@ add_executable(manga_tankoban_logic_harness
 )
 target_include_directories(manga_tankoban_logic_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_tankoban_logic_harness PRIVATE
-    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban"
+    COLOSSEUM_MANGA_NYAA_RSS_FIXTURES=1)
 target_link_libraries(manga_tankoban_logic_harness PRIVATE Qt6::Core Qt6::Network)
+
+# The Nyaa Worker is a JSON transport only; local query planning, trust,
+# volume matching, ranking, and candidate derivation stay in MangaNyaaSource.
+add_executable(manga_nyaa_worker_harness
+    ../tests/manga_nyaa_worker_harness.cpp
+    engine/CbzArchive.cpp
+    engine/MangaTankobanService.cpp
+    engine/MangaTankobanService.h
+    engine/MangaTankobanLogic.cpp
+    engine/MangaSynopsisEnricher.cpp
+    engine/MangaVolumeIndex.cpp
+    engine/MangaVolumeArchiveIngestor.cpp
+    engine/MangaVolumePacker.cpp
+    engine/MangaScraper.h
+    torrent/MangaNyaaSource.cpp
+    torrent/MangaTorrentDiscovery.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeTorrentDownloader.cpp
+    torrent/MangaVolumeRequestLedger.cpp
+    torrent/MangaVolumeFilePicker.cpp
+    torrent/MangaTorrentIndex.cpp
+    torrent/MangaTorrentIndexer.cpp
+    third_party/miniz/miniz.c
+)
+target_include_directories(manga_nyaa_worker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(manga_nyaa_worker_harness PRIVATE
+    COLOSSEUM_MANGA_NYAA_TESTING=1
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
+target_link_libraries(manga_nyaa_worker_harness PRIVATE
+    Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 
 # knaben_probe — in-process Cloudflare/results gate for the knaben.org meta-search
 # aggregator, a candidate Tankorent indexer. Hits the API through Qt's QNAM (the
@@ -2321,6 +2368,20 @@ add_executable(knaben_indexer_harness
 )
 target_include_directories(knaben_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(knaben_indexer_harness PRIVATE Qt6::Core Qt6::Network)
+
+# tankorent_worker_transport_harness — mocked QNAM coverage for the native
+# source-agnostic Worker adapter, response validation, routing, and cancellation.
+add_executable(tankorent_worker_transport_harness
+    ../tests/tankorent_worker_transport_harness.cpp
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(tankorent_worker_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankorent_worker_transport_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(manga_volume_index_harness
     ../tests/manga_volume_index_harness.cpp

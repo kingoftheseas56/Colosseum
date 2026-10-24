@@ -7,10 +7,57 @@
 #include <QVariantMap>
 #include <QTimer>
 #include <QDebug>
+#include <QFile>
+#include <QFileInfo>
+#include <QDir>
+#include <QStandardPaths>
+#include <QSaveFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 
 #include <memory>
 
 namespace {
+constexpr qint64 kManifestLimit = 1024 * 1024;
+QUrl workerBase()
+{
+    QFile file(QStringLiteral(":/tankoyomi/manifest.json"));
+    if (!file.open(QIODevice::ReadOnly)) return {};
+    const auto transport = QJsonDocument::fromJson(file.readAll()).object()
+                               .value(QStringLiteral("transport")).toObject();
+    const QUrl base(transport.value(QStringLiteral("baseUrl")).toString());
+    if (transport.value(QStringLiteral("type")) != QLatin1String("https-json")
+        || !base.isValid() || base.scheme() != QLatin1String("https") || base.host().isEmpty()
+        || !base.userInfo().isEmpty() || base.hasQuery() || base.hasFragment()
+        || base.port(443) != 443 || (!base.path().isEmpty() && base.path() != QLatin1String("/"))) return {};
+    return base;
+}
+QString manifestCachePath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+        + QStringLiteral("/tankoyomi/manifest-v1.json");
+}
+bool validRemoteManifest(const QByteArray &data)
+{
+    const auto root = QJsonDocument::fromJson(data).object();
+    return data.size() <= kManifestLimit
+        && root.value(QStringLiteral("id")) == QLatin1String("colosseum.well.tankoyomi")
+        && root.value(QStringLiteral("contractVersion")).toInt() == 1
+        && TankoyomiProviderRegistry(data).isValid();
+}
+TankoyomiProviderRegistry initialRegistry()
+{
+    if (!workerBase().isEmpty()) {
+        QFile cached(manifestCachePath());
+        if (cached.open(QIODevice::ReadOnly) && cached.size() <= kManifestLimit) {
+            const QByteArray data = cached.readAll();
+            if (validRemoteManifest(data)) return TankoyomiProviderRegistry(data);
+        }
+    }
+    return TankoyomiProviderRegistry::fromResource();
+}
 QString searchTitleForQuery(const TankoyomiSeriesQuery &query)
 {
     if (!query.discoveryTitle.trimmed().isEmpty()) return query.discoveryTitle.trimmed();
@@ -46,8 +93,19 @@ TankoyomiChapterService::TankoyomiChapterService(
     QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
     int providerAttemptTimeoutMs, MangaImageHostResolver::Lookup resolverLookup,
     QObject *parent)
+    : TankoyomiChapterService(nam, configuration, providerAttemptTimeoutMs, std::move(resolverLookup),
+                              initialRegistry(), workerBase(), parent)
+{
+}
+
+TankoyomiChapterService::TankoyomiChapterService(
+    QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
+    int providerAttemptTimeoutMs, MangaImageHostResolver::Lookup resolverLookup,
+    const TankoyomiProviderRegistry &registry, const QUrl &remoteBase, QObject *parent)
     : QObject(parent),
-      m_registry(TankoyomiProviderRegistry::fromResource()),
+      m_registry(registry),
+      m_nam(nam ? nam : new QNetworkAccessManager(this)),
+      m_workerBase(remoteBase),
       m_providerAttemptTimeoutMs(qMax(1, providerAttemptTimeoutMs))
 {
     if (!m_registry.isValid()) return;
@@ -55,6 +113,15 @@ TankoyomiChapterService::TankoyomiChapterService(
     if (!m_configuration)
         m_configuration = new TankoyomiConfigurationStore(m_registry, this);
 
+    addProviders(std::move(resolverLookup));
+    if (!m_workerBase.isEmpty()) {
+        qInfo() << "[tankoyomi] provider execution: Worker" << m_workerBase.host();
+        QTimer::singleShot(0, this, &TankoyomiChapterService::refreshRemoteRegistry);
+    }
+}
+
+void TankoyomiChapterService::addProviders(MangaImageHostResolver::Lookup resolverLookup)
+{
     const QVariantList languageRows = m_registry.languages();
     for (const QVariant &languageValue : languageRows) {
         const QString language = languageValue.toMap().value(QStringLiteral("code")).toString();
@@ -63,12 +130,47 @@ TankoyomiChapterService::TankoyomiChapterService(
         // validated inventory so a user can enable a manifest-disabled source.
         for (const TankoyomiProviderDescriptor &descriptor
               : m_registry.allProvidersForLanguage(language)) {
-            auto *provider = new TankoyomiScriptProvider(
-                descriptor.id, descriptor.language, descriptor.resourcePath,
-                descriptor.allowedHosts, nam, resolverLookup, this);
-            m_providers.insert(providerKey(descriptor.language, descriptor.id), provider);
+            const QString key = providerKey(descriptor.language, descriptor.id);
+            if (m_providers.contains(key)) continue;
+            auto *provider = m_workerBase.isEmpty()
+                ? new TankoyomiScriptProvider(descriptor.id, descriptor.language, descriptor.resourcePath,
+                      descriptor.allowedHosts, m_nam, resolverLookup, this)
+                : new TankoyomiScriptProvider(descriptor.id, descriptor.language, m_workerBase, m_nam, this);
+            m_providers.insert(key, provider);
         }
     }
+}
+
+void TankoyomiChapterService::refreshRemoteRegistry()
+{
+    QNetworkRequest request(m_workerBase.resolved(QUrl(QStringLiteral("/manifest.json"))));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(10000);
+    auto *reply = m_nam->get(request);
+    auto bytes = std::make_shared<QByteArray>();
+    connect(reply, &QNetworkReply::readyRead, reply, [reply, bytes] {
+        bytes->append(reply->read(qMax<qint64>(0, kManifestLimit + 1 - bytes->size())));
+        if (bytes->size() > kManifestLimit) reply->abort();
+    });
+    QTimer::singleShot(15000, reply, [reply] { if (!reply->isFinished()) reply->abort(); });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, bytes] {
+        bytes->append(reply->read(qMax<qint64>(0, kManifestLimit + 1 - bytes->size())));
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError
+            || reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200
+            || !validRemoteManifest(*bytes)) {
+            qWarning() << "[tankoyomi] remote inventory unavailable; retaining cached inventory";
+            return;
+        }
+        m_registry = TankoyomiProviderRegistry(*bytes);
+        addProviders();
+        m_configuration->replaceRegistry(m_registry);
+        const QString path = manifestCachePath();
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QSaveFile cache(path);
+        if (cache.open(QIODevice::WriteOnly) && cache.write(*bytes) == bytes->size()) cache.commit();
+        qInfo() << "[tankoyomi] Worker inventory refreshed" << m_workerBase.host();
+    });
 }
 
 QList<TankoyomiProviderDescriptor> TankoyomiChapterService::candidateProviders(

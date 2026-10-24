@@ -26,6 +26,7 @@
 #include <QStringList>
 #include <QTimer>
 #include <QVariant>
+#include <memory>
 #include <utility>
 
 #ifdef HAS_LIBTORRENT
@@ -67,21 +68,125 @@ MangaTorrentMetainfoFetcher::MangaTorrentMetainfoFetcher(QNetworkAccessManager* 
 
 void MangaTorrentMetainfoFetcher::fetch(const QString& url, const QString& requestKey)
 {
-    if (!m_nam || url.isEmpty()) {
-        emit fetchFailed(requestKey, QStringLiteral("no fetcher network / empty url"));
+    if (!m_nam || !MangaNyaaSource::isValidTorrentUrl(url)) {
+        emit fetchFailed(requestKey, QStringLiteral("fetcher network unavailable or invalid Nyaa torrent URL"));
         return;
     }
+    constexpr qint64 maxMetainfoBytes = 4 * 1024 * 1024;
+#ifdef COLOSSEUM_MANGA_NYAA_TESTING
+    constexpr int absoluteDeadlineMs = 50;
+#else
+    constexpr int absoluteDeadlineMs = 15000;
+#endif
+#ifdef COLOSSEUM_MANGA_NYAA_TESTING
+    const QString deadlineMessage = QStringLiteral("Nyaa metainfo request exceeded the test deadline");
+#else
+    const QString deadlineMessage = QStringLiteral("Nyaa metainfo request exceeded the 15 second deadline");
+#endif
     QNetworkRequest request{QUrl(url)}; // braces: paren form hits the vexing parse
-    request.setTransferTimeout(15000); // bounded: one dead host must not stall the merge
+    request.setTransferTimeout(absoluteDeadlineMs);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
     QNetworkReply* reply = m_nam->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, requestKey]() {
+    reply->setReadBufferSize(maxMetainfoBytes + 1);
+    const auto response = std::make_shared<QByteArray>();
+    const auto tooLarge = std::make_shared<bool>(false);
+    const auto completed = std::make_shared<bool>(false);
+    auto* deadline = new QTimer(this);
+    deadline->setSingleShot(true);
+    const QPointer<QNetworkReply> safeReply(reply);
+    const auto readAvailable = [reply, response, tooLarge, maxMetainfoBytes]() {
+        if (*tooLarge)
+            return;
+        while (reply->bytesAvailable() > 0) {
+            const qint64 remaining = maxMetainfoBytes + 1 - response->size();
+            if (remaining <= 0) {
+                *tooLarge = true;
+                reply->abort();
+                return;
+            }
+            const QByteArray chunk = reply->read(qMin<qint64>(remaining, reply->bytesAvailable()));
+            if (chunk.isEmpty())
+                break;
+            response->append(chunk);
+            if (response->size() > maxMetainfoBytes) {
+                *tooLarge = true;
+                reply->abort();
+                return;
+            }
+        }
+    };
+    connect(reply, &QIODevice::readyRead, this, readAvailable);
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply, requestKey, response, tooLarge, completed, readAvailable, deadline]() {
+        if (*completed)
+            return;
+        readAvailable();
+        if (*completed)
+            return;
+        *completed = true;
+        deadline->stop();
+        deadline->deleteLater();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QNetworkReply::NetworkError networkError = reply->error();
+        const QString networkErrorText = reply->errorString();
+        const QByteArray body = *response;
+        const bool responseTooLarge = *tooLarge;
+        QObject::disconnect(reply, nullptr, this, nullptr);
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            emit fetchFailed(requestKey, reply->errorString());
+        if (responseTooLarge) {
+            emit fetchFailed(requestKey, QStringLiteral("Nyaa metainfo response exceeds the 4 MiB limit"));
             return;
         }
-        emit fetched(requestKey, reply->readAll());
+        if (status >= 300 && status < 400) {
+            emit fetchFailed(requestKey,
+                             QStringLiteral("Nyaa metainfo redirects are not followed (HTTP %1)").arg(status));
+            return;
+        }
+        if (networkError != QNetworkReply::NoError) {
+            emit fetchFailed(requestKey, networkErrorText);
+            return;
+        }
+        if (status < 200 || status >= 300) {
+            emit fetchFailed(requestKey,
+                             QStringLiteral("Nyaa metainfo request failed (HTTP %1)").arg(status));
+            return;
+        }
+        emit fetched(requestKey, body);
     });
+
+    connect(deadline, &QTimer::timeout, this,
+            [this, safeReply, requestKey, completed, deadline, deadlineMessage]() {
+        if (*completed)
+            return;
+        *completed = true;
+        if (safeReply) {
+            QObject::disconnect(safeReply, nullptr, this, nullptr);
+            safeReply->abort();
+            safeReply->deleteLater();
+        }
+        deadline->deleteLater();
+        emit fetchFailed(requestKey, deadlineMessage);
+    });
+    connect(reply, &QObject::destroyed, this,
+            [this, requestKey, completed, deadline]() {
+        if (*completed)
+            return;
+        *completed = true;
+        deadline->stop();
+        deadline->deleteLater();
+        emit fetchFailed(requestKey,
+                         QStringLiteral("Nyaa metainfo reply was destroyed before completion"));
+    });
+    deadline->start(absoluteDeadlineMs);
+
+    bool contentLengthOk = false;
+    const qlonglong contentLength = reply->header(QNetworkRequest::ContentLengthHeader)
+                                        .toLongLong(&contentLengthOk);
+    if (contentLengthOk && contentLength > maxMetainfoBytes) {
+        *tooLarge = true;
+        reply->abort();
+    }
 }
 
 // ── MangaTorrentEngineAdapter (real engine, HAS_LIBTORRENT only) ──────────────
@@ -293,11 +398,14 @@ void MangaTankobanService::wireSignals()
                     bool hasVerified = false;
                     for (const VolumeMapping& m : rows)
                         hasVerified = hasVerified || m.status == MappingStatus::Verified;
-                    if (!hasVerified)
+                    if (!hasVerified) {
                         onSourcesFound(volId, {}); // nothing durable → WeebCentral card as before
+                        emit sourcesFailed(volId, reason); // discovery errors are not acquisitions
+                    }
                     return;
                 }
                 onSourcesFound(volId, {}); // Nyaa returned nothing → still a WeebCentral card
+                emit sourcesFailed(volId, reason); // discovery errors are not acquisitions
             });
 
     connect(m_transport, &MangaVolumeTorrentDownloader::resolving, this,

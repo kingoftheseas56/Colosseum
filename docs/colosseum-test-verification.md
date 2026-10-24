@@ -10,6 +10,50 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Tankorent Worker transport (2026-10-23)
+
+`colosseum.tankorent_worker_transport_harness` is registered with labels
+`unit;torrent;network` and the standard 120-second timeout. Fake-network cases
+cover request/category mapping, persisted source selection, explicit/unfiltered
+routing, result/schema validation, health errors, redirects, bounded replies,
+cancellation and the 25-second deadline followed by a late reply. Fresh Windows
+CTest passed in 27.52 seconds. The existing comic search harness also compiled
+and passed. Live source and actual-app evidence are separate and recorded in
+[the Tankorent checkpoint receipt](tankorent-worker-checkpoint-2026-10-23.md).
+
+## Nyaa Worker transport (2026-10-24)
+
+`colosseum.manga_nyaa_worker_harness` is registered with labels
+`unit;torrent;network` and the standard 120-second timeout. Its fake-network
+cases cover Worker request/schema bounds, strict torrent URL validation,
+redirect/error handling with duplicate provider errors collapsed to one concise
+reason, bounded streaming bodies, independent deadlines, partial query success,
+cancellation and duplicate/late completion. The native
+metainfo fetcher cases also cover URL rejection, redirect rejection, its 4 MiB
+body cap, reply destruction and absolute deadline. The isolated Windows harness
+passed, as did `manga_tankoban_logic_harness` with RSS parsing enabled only for
+that fixture target. `manga_tankoban_service_harness` verifies failed discovery
+surfaces the provider reason after fallback cards, remains retryable without a
+negative TTL, and leaves stale verified cards usable without an acquisition
+failure; its non-index series path preserves the same signal order. These are
+source-level checks; live Worker availability and actual-app qualification are
+separate gates.
+
+## Tankoyomi Worker transport (2026-10-23)
+
+`colosseum.tankoyomi_worker_transport_harness` is registered with labels
+`unit;tankoyomi;network` and a 120-second CTest timeout. It uses a fake network
+manager, with no live network, to cover Worker method URLs and payloads, response
+schema/UTF-8/size bounds, redirect and HTTP rejection, queued completion,
+cancellation and the 45-second request deadline. The standalone Windows run
+passed; fast cases passed again after the URL-format warning correction. A
+fresh paired CTest run passed 2/2 (transport 45.12 seconds, service 0.63 seconds).
+The service-configuration harness now checks asynchronous remote inventory
+refresh, persisted order/enabled overrides and cache preservation on invalid,
+oversized, redirect and non-200 responses. These tests are distinct from live
+provider availability and reader qualification, recorded
+in [the checkpoint receipt](tankoyomi-worker-checkpoint-2026-10-23.md).
+
 ## Discover asynchronous state preservation (2026-10-15)
 
 `colosseum.tankoban_discover_async_preservation` runs the real Tankoban Discover
