@@ -3,9 +3,14 @@ import "VinylArtistCatalogue.js" as Catalogue
 
 // Presentation projection only. Canonical records, queue and playback belong to
 // the existing local source / Collection / VinylLiveSession owners.
-QtObject {
+Item {
     id: root
     property var session: null
+    property var catalogueService: session && session.source && typeof session.source.openArtist === "function" ? session.source : null
+    property bool online: false
+    readonly property var onlineArtist: online && catalogueService ? catalogueService.artist : ({})
+    readonly property bool loading: online && catalogueService ? catalogueService.artistBusy : false
+    readonly property string catalogueStatus: !online || !catalogueService ? "" : (catalogueService.cached ? "Offline · cached artist catalogue. " : "") + (loading ? "Loading artist catalogue…" : catalogueService.artistError || "")
     property string name: ""
     property string artistId: ""
     property string filter: "all"
@@ -51,10 +56,11 @@ QtObject {
         return {album:album || {id:ref.albumId}, track:available ? track : {id:ref.trackId,title:ref.title || "Unavailable track",available:false},
             index:ref.index, editionId:ref.editionId, discIndex:ref.discIndex, trackIndex:ref.trackIndex, unavailable:!available};
     }
-    readonly property string error: session ? (session.error || session.browseError || "") : "Local audio is unavailable."
-    readonly property var albums: ((session && session.library) || []).map(function(entry) {
+    readonly property string error: catalogueStatus || (session ? (session.error || session.browseError || "") : "Local audio is unavailable.")
+    readonly property var localAlbums: ((session && session.library) || []).map(function(entry) {
         return entry.payload && entry.payload.album ? entry.payload.album : entry;
     })
+    readonly property var albums: online && catalogueService ? catalogueService.artistAlbums.concat(catalogueService.artistSingles).concat(localAlbums.filter(function(a){return a.origin === "local" && (a.artists || []).indexOf(name)>=0;})) : localAlbums
     readonly property var record: {
         var releases = [], songs = [];
         albums.forEach(function(album) {
@@ -81,13 +87,14 @@ QtObject {
         return {id:artistId, name:name, releases:releases, songs:songs, collaborators:[]};
     }
     readonly property var artist: {
+        if(online) return onlineArtist;
         for (var i = 0; i < record.releases.length; ++i) {
             var value = record.releases[i].album.artist;
             if (value && typeof value === "object" && value.name === name) return value;
         }
         return {};
     }
-    readonly property var context: ({sources:[], facts:[], roles:"Local artist", biography:artist.biography || ""})
+    readonly property var context: ({sources:[], facts:[], roles:online ? "Catalogue artist" : "Local artist", biography:artist.biography || ""})
     readonly property var releases: record.releases.filter(function(r) {
         return !r.album.kind || r.album.kind === "album";
     })
@@ -98,6 +105,7 @@ QtObject {
     function releaseCards(records) {
         return Catalogue.releaseCards(records).map(function(card) {
             var localTypes = {album:"Album", single:"Single", video:"Video", live:"Live"};
+            card.browsable = !!card.album.browseId && card.album.origin === "youtube-music";
             card.category = card.category === "Appears on" ? card.category
                 : card.album.category || card.album.releaseType || localTypes[card.album.kind] || "Album";
             card.subtitle = [card.year ? String(card.year) : "", card.category].filter(Boolean).join(" · ");
@@ -130,7 +138,7 @@ QtObject {
         return {title:song.track.title, subtitle:song.album.title, cover:song.album.cover || "", song:song};
     })
     // Preserve the approved Singles track-list contract without curated fixtures.
-    readonly property var singlesRows: songOrder.map(function(song,index) {
+    readonly property var singlesRows: online ? singles.map(function(a,index){return {rowIndex:index,number:("0"+(index+1)).slice(-2),title:a.title,subtitle:a.year || "",albumTitle:a.title,year:a.year || "",cover:a.cover || "",playable:false,album:a,track:{title:a.title,available:false},index:0,song:{album:a,track:{title:a.title,available:false},index:0}};}) : songOrder.map(function(song,index) {
         return {rowIndex:index, number:("0" + (index+1)).slice(-2), title:song.track.title,
             subtitle:song.album.title, albumTitle:song.album.title, year:song.album.year || "",
             cover:song.album.cover || "", playable:song.track.available !== false,
@@ -144,10 +152,15 @@ QtObject {
                 playable:(a.tracks || []).some(function(t) { return t.available !== false; })};
         });
     }
-    readonly property var media: ({portrait:{cover:artist.cover || ""}, videos:mediaCards("video"),
+    readonly property var localMedia: ({portrait:{cover:artist.cover || ""}, videos:mediaCards("video"),
         livePerformances:mediaCards("live"), relatedArtists:[], popularSongs:[], featuredPlaylists:[], artistPlaylists:[], provider:"", sourceUrl:""})
+    function providerMedia(rows,kind) {
+        return (rows || []).map(function(row){return {id:row.videoId,title:row.title,cover:row.thumbnail || "",subtitle:kind === "live" ? "Live performance · catalogue" : "Video · catalogue",provider:"YouTube Music",sourceUrl:"https://music.youtube.com/watch?v="+row.videoId,kind:kind,playable:false};});
+    }
+    readonly property var media: online && catalogueService ? ({portrait:{cover:""}, videos:providerMedia(catalogueService.artistMedia.videos,"video"),livePerformances:providerMedia(catalogueService.artistMedia.livePerformances,"live"), relatedArtists:(onlineArtist.relatedArtists || []).map(function(a){return {id:"ytm:artist:"+a.id,title:a.name,name:a.name,artistRef:{id:"ytm:artist:"+a.id,name:a.name},cover:a.thumbnail || ""};}),popularSongs:[],featuredPlaylists:[],artistPlaylists:[],provider:"YouTube Music",sourceUrl:"https://music.youtube.com/channel/"+(onlineArtist.channelId || "")}) : localMedia
     readonly property var liveCards: media.livePerformances
-    readonly property var backdropOptions: (artist.backdrops || []).map(function(photo,index) {
+    readonly property var backdropOptions: online && catalogueService && catalogueService.artistArtwork
+        ? (catalogueService.artistArtwork.photos || []) : (artist.backdrops || []).map(function(photo,index) {
         return {id:"local-" + index, name:"Photo " + (index+1), era:"Local artwork", cover:photo,
             fallbackCover:record.releases.length ? record.releases[0].album.cover || "" : "",
             focalX:0.5, focalY:0.4, autoRotate:true};
@@ -169,16 +182,19 @@ QtObject {
         return -1;
     }
     readonly property var queuedSong: queuedSongIndex >= 0 ? singlesRows[queuedSongIndex] : null
-    readonly property bool demoPlaying: queuedSongIndex >= 0 && session && !session.paused && !session.error
+    readonly property bool playingOnlineArtist: online && session && albums.some(function(a){return a.id===session.playingEdition.albumId || (a.providerEditions || []).some(function(e){return e.browseId===session.playingEdition.browseId;});})
+    readonly property bool demoPlaying: (queuedSongIndex >= 0 || playingOnlineArtist) && session && !session.paused && !session.error
     readonly property real playbackFraction: session && session.duration > 0 ? Math.max(0,Math.min(1,session.position/session.duration)) : 0
-    readonly property bool playable: singlesRows.some(function(row) { return row.playable; })
+    readonly property bool playable: singlesRows.some(function(row) { return row.playable; }) || (online && albums.some(function(a){return !!a.browseId;}))
     function artwork(url) { return url ? String(url) : ""; }
     function selectReleaseCategory(category) { categoryFilter = category || "All"; filter = categoryFilter === "All" ? "all" : categoryFilter; }
-    function search(query) { return Catalogue.searchArtistCatalogue(allDiscographyCards, singlesRows, media.videos, liveCards, query); }
+    function search(query) { return Catalogue.searchArtistCatalogue(allDiscographyCards, online ? [] : singlesRows, media.videos, liveCards, query); }
     function open(value) {
         var nextName = typeof value === "object" ? value.name || "" : String(value || "");
         var nextId = typeof value === "object" ? value.id || "" : "";
         if (name === nextName && artistId === nextId) return;
+        online = nextId.indexOf("ytm:artist:")===0 || (nextName!=="" && !nextId && !localAlbums.some(function(a){return (a.artists || []).indexOf(nextName)>=0;}));
+        if(catalogueService) {if(online) catalogueService.openArtist({id:nextId,name:nextName});else catalogueService.leaveArtist();}
         name = nextName; artistId = nextId; personalError = ""; lastCreatedPlaylistId = "";
         filter = "all"; categoryFilter = "All"; newestFirst = true; allSongs = false;
         activeTab = "albums"; selectedWallpaper = "auto"; customBackdropUrl = "";
@@ -187,23 +203,35 @@ QtObject {
         var row = singlesRows[index];
         if (session && row && row.playable) session.playAlbum(row.album, row.index, row.song.editionId);
     }
+    function enqueueDemoSong(index,playNext) {
+        var row=singlesRows[index];
+        return !!(session && row && row.playable && session.enqueueSong(row.album,row.index,row.song.editionId,!!playNext));
+    }
     function toggleDemoPlayback() {
         if (!session) return;
+        if(online){if(playingOnlineArtist)session.togglePause();else if(albums.length)session.playCatalogueAlbum(albums[0].id,false);return;}
         if (queuedSongIndex >= 0) session.togglePause();
         else for (var i=0; i<singlesRows.length; ++i) if (singlesRows[i].playable) { queueDemoSong(i); return; }
     }
     function stepDemoSong(delta) { if (session) session.next(delta); }
     function shuffleDemoSong() {
+        if(online && session && albums.length){session.playCatalogueAlbum(albums[0].id,true);return;}
         if (session && playable) session.playSongs(songOrder.filter(function(s) { return s.track.available !== false; }), true);
     }
     function toggleSaved() {
         if (!saveEnabled) return false;
-        var ok = collectionStore.setVinylArtistSaved({id:canonicalArtistId,name:name}, !saved);
+        var ids=online && catalogueService && catalogueService.artistIdentity.mbid ? {musicbrainz:catalogueService.artistIdentity.mbid} : {};
+        var ok = collectionStore.setVinylArtistSaved({id:canonicalArtistId,name:name,externalIds:ids}, !saved);
         personalError = ok ? "" : collectionStore.persistenceError || "Artist could not be saved.";
         return ok;
     }
     function createPlaylist(title) {
         if (!playlistEnabled) return false;
+        if(session && typeof session.createPlaylistFromSongs==="function") {
+            lastCreatedPlaylistId=session.createPlaylistFromSongs(title,songOrder,canonicalArtistId);
+            personalError=lastCreatedPlaylistId ? "" : session.personalError || "Playlist could not be saved.";
+            return !!lastCreatedPlaylistId;
+        }
         var refs = songOrder.map(function(s) { return {albumId:s.album.id,editionId:s.editionId,trackId:s.track.id,
             discIndex:s.discIndex,trackIndex:s.trackIndex,index:s.index,title:s.track.title}; });
         var id = collectionStore.createVinylPlaylist(title, canonicalArtistId, refs);

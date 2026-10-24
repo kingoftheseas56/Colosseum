@@ -2,9 +2,12 @@
 
 #include "ProfilePreferencesStore.h"
 
+#include <QByteArray>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QSet>
 #include <QSettings>
+#include <QUuid>
 
 #include <algorithm>
 
@@ -15,10 +18,420 @@ constexpr auto kRememberSearchHistoryKey = "privacy/rememberSearchHistory";
 constexpr auto kKeepActivityHistoryKey = "privacy/keepActivityHistory";
 constexpr auto kSyncActivityHistoryKey = "privacy/syncActivityHistory";
 constexpr auto kMainSyncProviderKey = "sync/mainSyncProvider";
+constexpr auto kVinylTasteKey = "vinyl/taste";
+constexpr auto kVinylFeedbackSnapshotKey = "vinyl/feedbackSnapshot";
+constexpr auto kVinylRecommendationExposureSnapshotKey =
+    "vinyl/recommendationExposureSnapshot";
+constexpr int kVinylTasteVersion = 1;
+constexpr qsizetype kMaximumVinylTasteBytes = 4 * 1024 * 1024;
+constexpr int kMaximumVinylTasteArtists = 512;
+constexpr qsizetype kMaximumVinylTasteTextBytes = 4096;
+constexpr qsizetype kMaximumVinylFeedbackSnapshotBytes = 4 * 1024 * 1024;
 constexpr auto kRatingsReviewsProviderOrderKey = "ratingsReviews/providerOrder";
 constexpr auto kRatingsReviewsDefaultRatingKey = "ratingsReviews/defaultRatingDestinations";
 constexpr auto kRatingsReviewsDefaultReviewKey = "ratingsReviews/defaultReviewDestinations";
 constexpr auto kRatingsReviewsConversionGroup = "ratingsReviews/conversionMaps";
+
+bool isValidVinylFeedbackSnapshot(const QString &snapshot) {
+    if (snapshot.contains(QChar::Null)
+        || snapshot.size() > kMaximumVinylFeedbackSnapshotBytes) {
+        return false;
+    }
+    return snapshot.toUtf8().size() <= kMaximumVinylFeedbackSnapshotBytes;
+}
+
+bool isValidVinylRecommendationExposureSnapshot(const QString &snapshot) {
+    if (snapshot.contains(QChar::Null)
+        || snapshot.size() > kMaximumVinylFeedbackSnapshotBytes) {
+        return false;
+    }
+    return snapshot.toUtf8().size() <= kMaximumVinylFeedbackSnapshotBytes;
+}
+
+bool containsNul(const QVariant &value) {
+    switch (value.metaType().id()) {
+    case QMetaType::QString:
+        return value.toString().contains(QChar::Null);
+    case QMetaType::QStringList:
+        for (const QString &entry : value.toStringList()) {
+            if (entry.contains(QChar::Null))
+                return true;
+        }
+        return false;
+    case QMetaType::QVariantList:
+        for (const QVariant &entry : value.toList()) {
+            if (containsNul(entry))
+                return true;
+        }
+        return false;
+    case QMetaType::QVariantMap:
+        {
+        const QVariantMap entries = value.toMap();
+        for (auto it = entries.cbegin(); it != entries.cend(); ++it) {
+            if (it.key().contains(QChar::Null) || containsNul(it.value()))
+                return true;
+        }
+        return false;
+        }
+    default:
+        return false;
+    }
+}
+
+bool isSaneTastePayload(const QVariant &payload) {
+    if (containsNul(payload))
+        return false;
+    return QJsonDocument::fromVariant(payload)
+               .toJson(QJsonDocument::Compact)
+               .size()
+        <= kMaximumVinylTasteBytes;
+}
+
+bool isTasteText(
+    const QVariantMap &map,
+    const QString &field,
+    qsizetype maxBytes,
+    bool allowEmpty,
+    QString *value = nullptr,
+    bool allowLegacyUtf16Bound = false) {
+    const QVariant raw = map.value(field);
+    if (raw.metaType().id() != QMetaType::QString)
+        return false;
+    const QString text = raw.toString();
+    if (text.contains(QChar::Null)
+        || (text.toUtf8().size() > maxBytes
+            && !(allowLegacyUtf16Bound && text.size() <= 4096))
+        || (!allowEmpty && text.trimmed().isEmpty())) {
+        return false;
+    }
+    if (value)
+        *value = text;
+    return true;
+}
+
+QString vinylArtistKey(const QString &provider, const QString &providerId) {
+    const QJsonArray identity{
+        provider,
+        QStringLiteral("artist"),
+        providerId};
+    return QString::fromUtf8(
+        QJsonDocument(identity).toJson(QJsonDocument::Compact));
+}
+
+QString vinylArtistLegacyId(const QString &provider, const QString &providerId) {
+    if (provider == QStringLiteral("youtube-music"))
+        return QStringLiteral("ytm:artist:") + providerId;
+    return providerId;
+}
+
+bool isUuid(const QString &text) {
+    const QUuid uuid = QUuid::fromString(text);
+    return !uuid.isNull()
+        && uuid.toString(QUuid::WithoutBraces).compare(text, Qt::CaseInsensitive) == 0;
+}
+
+bool normalizeVinylArtist(
+    const QVariant &raw,
+    bool allowLegacyCompatibility,
+    QVariantMap *normalized,
+    QString *legacyId,
+    QString *error) {
+    if (raw.metaType().id() != QMetaType::QVariantMap) {
+        if (error)
+            *error = QStringLiteral("Taste selection is not an artist map.");
+        return false;
+    }
+
+    const QVariantMap input = raw.toMap();
+    static const QSet<QString> allowedFields{
+        QStringLiteral("key"), QStringLiteral("kind"), QStringLiteral("provider"),
+        QStringLiteral("providerId"), QStringLiteral("name"), QStringLiteral("image"),
+        QStringLiteral("canonicalMbid"), QStringLiteral("mappingStatus"),
+        QStringLiteral("legacyId")};
+    for (auto it = input.cbegin(); it != input.cend(); ++it) {
+        if (!allowedFields.contains(it.key())) {
+            if (error)
+                *error = QStringLiteral("Taste selection contains an unsupported field.");
+            return false;
+        }
+    }
+
+    QString key;
+    QString kind;
+    QString provider;
+    QString providerId;
+    QString name;
+    QString image;
+    QString mappingStatus;
+    if (!isTasteText(input, QStringLiteral("key"),
+                     allowLegacyCompatibility ? 32 * 1024 : kMaximumVinylTasteTextBytes * 2,
+                     false, &key)
+        || !isTasteText(input, QStringLiteral("kind"), 32, false, &kind)
+        || !isTasteText(input, QStringLiteral("provider"), 64, false, &provider)
+        || !isTasteText(input, QStringLiteral("providerId"), kMaximumVinylTasteTextBytes,
+                        true, &providerId, allowLegacyCompatibility)
+        || !isTasteText(input, QStringLiteral("name"), kMaximumVinylTasteTextBytes,
+                        false, &name, allowLegacyCompatibility)
+        || !isTasteText(input, QStringLiteral("image"), 64 * 1024, true, &image)
+        || !isTasteText(input, QStringLiteral("mappingStatus"), 128, false, &mappingStatus)) {
+        if (error)
+            *error = QStringLiteral("Taste artist fields are malformed or oversized.");
+        return false;
+    }
+
+    if (kind != QStringLiteral("artist")
+        || (provider != QStringLiteral("youtube-music")
+            && provider != QStringLiteral("local")
+            && provider != QStringLiteral("musicbrainz"))) {
+        if (error)
+            *error = QStringLiteral("Taste artist provider or kind is unsupported.");
+        return false;
+    }
+
+    const QString expectedLegacyId = vinylArtistLegacyId(provider, providerId);
+    if (expectedLegacyId.size() > kMaximumVinylTasteTextBytes) {
+        if (error)
+            *error = QStringLiteral("Taste artist legacy ID is oversized.");
+        return false;
+    }
+
+    static const QSet<QString> mappingStatuses{
+        QStringLiteral("unresolved"), QStringLiteral("ambiguous"),
+        QStringLiteral("unavailable"), QStringLiteral("verified")};
+    if (!mappingStatuses.contains(mappingStatus)) {
+        if (error)
+            *error = QStringLiteral("Taste artist mapping status is unsupported.");
+        return false;
+    }
+
+    const QVariant suppliedLegacyId = input.value(QStringLiteral("legacyId"));
+    const bool retainedLegacyYoutube = allowLegacyCompatibility
+        && provider == QStringLiteral("youtube-music")
+        && suppliedLegacyId.metaType().id() == QMetaType::QString
+        && suppliedLegacyId.toString() == expectedLegacyId;
+    if (providerId.trimmed().isEmpty() && !retainedLegacyYoutube) {
+        if (error)
+            *error = QStringLiteral("Taste artist provider ID is empty.");
+        return false;
+    }
+    if (provider == QStringLiteral("musicbrainz") && !isUuid(providerId)) {
+        if (error)
+            *error = QStringLiteral("MusicBrainz artist IDs must be UUIDs.");
+        return false;
+    }
+
+    const QString expectedKey = vinylArtistKey(provider, providerId);
+    if (key != expectedKey) {
+        if (error)
+            *error = QStringLiteral("Taste artist key does not match its provider identity.");
+        return false;
+    }
+    const qsizetype maximumKeyBytes = allowLegacyCompatibility
+        ? static_cast<qsizetype>(providerId.size()) * 6 + 128
+        : kMaximumVinylTasteTextBytes * 2;
+    if (expectedKey.toUtf8().size() > maximumKeyBytes) {
+        if (error)
+            *error = QStringLiteral("Taste artist key is oversized.");
+        return false;
+    }
+    if (expectedLegacyId.toUtf8().size() > kMaximumVinylTasteTextBytes
+        && !allowLegacyCompatibility) {
+        if (error)
+            *error = QStringLiteral("Taste artist legacy ID is oversized.");
+        return false;
+    }
+    if (input.contains(QStringLiteral("legacyId"))) {
+        QString suppliedLegacyId;
+        if (!isTasteText(input, QStringLiteral("legacyId"), kMaximumVinylTasteTextBytes,
+                         false, &suppliedLegacyId, allowLegacyCompatibility)
+            || suppliedLegacyId != expectedLegacyId) {
+            if (error)
+                *error = QStringLiteral("Taste artist legacy ID does not match its provider identity.");
+            return false;
+        }
+    }
+
+    QVariantMap result{
+        {QStringLiteral("key"), key},
+        {QStringLiteral("kind"), kind},
+        {QStringLiteral("provider"), provider},
+        {QStringLiteral("providerId"), providerId},
+        {QStringLiteral("name"), name},
+        {QStringLiteral("image"), image},
+        {QStringLiteral("mappingStatus"), mappingStatus}};
+    if (input.contains(QStringLiteral("legacyId")))
+        result.insert(QStringLiteral("legacyId"), expectedLegacyId);
+    if (mappingStatus == QStringLiteral("verified")
+        && !input.contains(QStringLiteral("canonicalMbid"))) {
+        if (error)
+            *error = QStringLiteral("Verified taste artists require a canonical MusicBrainz UUID.");
+        return false;
+    }
+    if (input.contains(QStringLiteral("canonicalMbid"))) {
+        QString canonicalMbid;
+        if (!isTasteText(input, QStringLiteral("canonicalMbid"), 36, false, &canonicalMbid)
+            || !isUuid(canonicalMbid)
+            || mappingStatus != QStringLiteral("verified")) {
+            if (error)
+                *error = QStringLiteral("Canonical MusicBrainz UUIDs require verified mapping status.");
+            return false;
+        }
+        result.insert(QStringLiteral("canonicalMbid"), canonicalMbid);
+    }
+
+    if (normalized)
+        *normalized = result;
+    if (legacyId)
+        *legacyId = expectedLegacyId;
+    return true;
+}
+
+QVariantMap vinylArtistFromLegacyId(const QString &id) {
+    QString provider = QStringLiteral("local");
+    QString providerId = id;
+    const QString youtubePrefix = QStringLiteral("ytm:artist:");
+    if (id.startsWith(youtubePrefix)) {
+        provider = QStringLiteral("youtube-music");
+        providerId = id.mid(youtubePrefix.size());
+    }
+
+    return QVariantMap{
+        {QStringLiteral("key"), vinylArtistKey(provider, providerId)},
+        {QStringLiteral("kind"), QStringLiteral("artist")},
+        {QStringLiteral("provider"), provider},
+        {QStringLiteral("providerId"), providerId},
+        {QStringLiteral("name"), id},
+        {QStringLiteral("image"), QString()},
+        {QStringLiteral("mappingStatus"), QStringLiteral("unresolved")},
+        {QStringLiteral("legacyId"), id}};
+}
+
+bool isLegacyCompatibilitySelection(const QVariantMap &artist) {
+    const QString provider = artist.value(QStringLiteral("provider")).toString();
+    const QString providerId = artist.value(QStringLiteral("providerId")).toString();
+    const QString key = artist.value(QStringLiteral("key")).toString();
+    const QString name = artist.value(QStringLiteral("name")).toString();
+    const QString legacyId = artist.value(QStringLiteral("legacyId")).toString();
+    if (key != vinylArtistKey(provider, providerId)
+        || legacyId != vinylArtistLegacyId(provider, providerId)) {
+        return false;
+    }
+
+    return providerId.toUtf8().size() > kMaximumVinylTasteTextBytes
+        || name.toUtf8().size() > kMaximumVinylTasteTextBytes
+        || legacyId.toUtf8().size() > kMaximumVinylTasteTextBytes
+        || key.toUtf8().size() > kMaximumVinylTasteTextBytes * 2
+        || (provider == QStringLiteral("youtube-music") && providerId.trimmed().isEmpty());
+}
+
+bool matchesExistingLegacyIdentity(
+    const QVariant &candidate,
+    const QVariantList &existingArtists) {
+    if (candidate.metaType().id() != QMetaType::QVariantMap)
+        return false;
+    const QVariantMap input = candidate.toMap();
+    for (const QVariant &existing : existingArtists) {
+        if (existing.metaType().id() != QMetaType::QVariantMap)
+            continue;
+        const QVariantMap previous = existing.toMap();
+        if (!isLegacyCompatibilitySelection(previous))
+            continue;
+
+        bool identityMatches = true;
+        for (const QString &field : {QStringLiteral("key"), QStringLiteral("provider"),
+                                     QStringLiteral("providerId"), QStringLiteral("legacyId")}) {
+            const QVariant candidateValue = input.value(field);
+            const QVariant previousValue = previous.value(field);
+            if (candidateValue.metaType().id() != QMetaType::QString
+                || previousValue.metaType().id() != QMetaType::QString
+                || candidateValue.toString() != previousValue.toString()) {
+                identityMatches = false;
+                break;
+            }
+        }
+        if (!identityMatches)
+            continue;
+
+        // If a caller changes a field that needs the legacy size allowance,
+        // the value must still be the one retained from the trusted selection.
+        for (const QString &field : {QStringLiteral("key"), QStringLiteral("providerId"),
+                                     QStringLiteral("name"), QStringLiteral("legacyId")}) {
+            const QVariant candidateValue = input.value(field);
+            if (candidateValue.metaType().id() != QMetaType::QString)
+                continue;
+            const qsizetype strictByteLimit = field == QStringLiteral("key")
+                ? kMaximumVinylTasteTextBytes * 2
+                : kMaximumVinylTasteTextBytes;
+            if (candidateValue.toString().toUtf8().size() > strictByteLimit
+                && candidateValue.toString() != previous.value(field).toString()) {
+                identityMatches = false;
+                break;
+            }
+        }
+        if (identityMatches)
+            return true;
+    }
+    return false;
+}
+
+bool normalizeVinylArtists(
+    const QVariantList &input,
+    bool answered,
+    bool allowLegacyCompatibility,
+    QVariantList *artists,
+    QStringList *artistIds,
+    QString *error,
+    const QVariantList *existingLegacyArtists = nullptr) {
+    if (input.size() > kMaximumVinylTasteArtists || (!answered && !input.isEmpty())) {
+        if (error)
+            *error = QStringLiteral("Taste selections exceed their limit or are unanswered.");
+        return false;
+    }
+
+    QVariantList normalized;
+    QStringList ids;
+    QSet<QString> keys;
+    QSet<QString> legacyIds;
+    for (const QVariant &raw : input) {
+        QVariantMap artist;
+        QString legacyId;
+        const bool preserveLegacyIdentity = allowLegacyCompatibility
+            || (existingLegacyArtists
+                && matchesExistingLegacyIdentity(raw, *existingLegacyArtists));
+        if (!normalizeVinylArtist(raw, preserveLegacyIdentity, &artist, &legacyId, error))
+            return false;
+        const QString key = artist.value(QStringLiteral("key")).toString();
+        if (keys.contains(key) || legacyIds.contains(legacyId)) {
+            if (error)
+                *error = QStringLiteral("Taste selections contain duplicate artist identities.");
+            return false;
+        }
+        keys.insert(key);
+        legacyIds.insert(legacyId);
+        ids.append(legacyId);
+        normalized.append(artist);
+    }
+
+    if (artists)
+        *artists = normalized;
+    if (artistIds)
+        *artistIds = ids;
+    return true;
+}
+
+bool isValidLegacyTasteIds(const QStringList &ids, bool answered) {
+    if (ids.size() > kMaximumVinylTasteArtists || (!answered && !ids.isEmpty()))
+        return false;
+    QSet<QString> seen;
+    for (const QString &id : ids) {
+        if (id.trimmed().isEmpty() || id.contains(QChar::Null)
+            || id.size() > kMaximumVinylTasteTextBytes || seen.contains(id)) {
+            return false;
+        }
+        seen.insert(id);
+    }
+    return true;
+}
 }
 
 ProfilePreferencesStore::
@@ -105,29 +518,154 @@ setShowExplicit(
 }
 
 bool ProfilePreferencesStore::setVinylTaste(bool answered, const QStringList &artistIds) {
-    if (artistIds.size() > 512 || (!answered && !artistIds.isEmpty())) return false;
-    QStringList validated;
-    for (const auto &id : artistIds) {
-        if (id.trimmed().isEmpty() || id.size() > 4096 || validated.contains(id)) return false;
-        validated.append(id);
+    if (!isValidLegacyTasteIds(artistIds, answered)) {
+        m_vinylPersistenceError = QStringLiteral("Taste choices are malformed or oversized.");
+        emit vinylPersistenceErrorChanged();
+        return false;
     }
-    const QString key = QStringLiteral("vinyl/taste");
+
+    QVariantList legacyArtists;
+    legacyArtists.reserve(artistIds.size());
+    for (const QString &id : artistIds)
+        legacyArtists.append(vinylArtistFromLegacyId(id));
+
+    QVariantList normalizedArtists;
+    QStringList projectedIds;
+    QString validationError;
+    if (!normalizeVinylArtists(legacyArtists, answered, true,
+                               &normalizedArtists, &projectedIds, &validationError)
+        || projectedIds != artistIds) {
+        m_vinylPersistenceError = validationError.isEmpty()
+            ? QStringLiteral("Taste choices are malformed or oversized.")
+            : validationError;
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+    return persistVinylTaste(answered, artistIds, normalizedArtists);
+}
+
+bool ProfilePreferencesStore::setVinylTasteSelections(
+    bool answered,
+    const QVariantList &artists) {
+    QVariantList normalizedArtists;
+    QStringList artistIds;
+    QString validationError;
+    if (!normalizeVinylArtists(artists, answered, false,
+                               &normalizedArtists, &artistIds, &validationError,
+                               &m_vinylTasteArtists)) {
+        m_vinylPersistenceError = validationError;
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+    return persistVinylTaste(answered, artistIds, normalizedArtists);
+}
+
+bool ProfilePreferencesStore::persistVinylTaste(
+    bool answered,
+    const QStringList &artistIds,
+    const QVariantList &artists) {
+    const QVariantMap payload{
+        {QStringLiteral("answered"), answered},
+        {QStringLiteral("artistIds"), artistIds},
+        {QStringLiteral("artists"), artists},
+        {QStringLiteral("version"), kVinylTasteVersion}};
+    if (!isSaneTastePayload(payload)) {
+        m_vinylPersistenceError = QStringLiteral("Taste choices contain NUL or exceed 4 MiB.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    const QString key = QString::fromLatin1(kVinylTasteKey);
     const bool existed = m_settings->contains(key);
     const QVariant previous = m_settings->value(key);
-    const QVariantMap value{{QStringLiteral("answered"), answered}, {QStringLiteral("artistIds"), validated}};
-    m_settings->setValue(key, value);
+    m_settings->setValue(key, payload);
     m_settings->sync();
     if (m_settings->status() != QSettings::NoError) {
-        if (existed) m_settings->setValue(key, previous); else m_settings->remove(key);
+        if (existed)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
         m_vinylPersistenceError = QStringLiteral("Taste choices could not be saved.");
         emit vinylPersistenceErrorChanged();
         return false;
     }
+
     m_vinylTasteAnswered = answered;
-    m_vinylTasteArtistIds = validated;
+    m_vinylTasteArtistIds = artistIds;
+    m_vinylTasteArtists = artists;
     m_vinylPersistenceError.clear();
     ++m_revision;
-    emit vinylTasteChanged(); emit vinylPersistenceErrorChanged(); emit changed();
+    emit vinylTasteChanged();
+    emit vinylPersistenceErrorChanged();
+    emit changed();
+    return true;
+}
+
+bool ProfilePreferencesStore::setVinylFeedbackSnapshot(const QString &snapshot) {
+    if (!isValidVinylFeedbackSnapshot(snapshot)) {
+        m_vinylPersistenceError = QStringLiteral(
+            "Feedback snapshot must be at most 4 MiB of UTF-8 and contain no NUL.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    const QString key = QString::fromLatin1(kVinylFeedbackSnapshotKey);
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    m_settings->setValue(key, snapshot);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
+        m_vinylPersistenceError = QStringLiteral(
+            "Feedback snapshot could not be saved.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    m_vinylFeedbackSnapshot = snapshot;
+    m_vinylPersistenceError.clear();
+    ++m_revision;
+    emit vinylFeedbackChanged();
+    emit vinylPersistenceErrorChanged();
+    emit changed();
+    return true;
+}
+
+bool ProfilePreferencesStore::setVinylRecommendationExposureSnapshot(
+    const QString &snapshot) {
+    if (!isValidVinylRecommendationExposureSnapshot(snapshot)) {
+        m_vinylPersistenceError = QStringLiteral(
+            "Recommendation exposure snapshot must be at most 4 MiB of UTF-8 and contain no NUL.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    const QString key = QString::fromLatin1(
+        kVinylRecommendationExposureSnapshotKey);
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    m_settings->setValue(key, snapshot);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
+        m_vinylPersistenceError = QStringLiteral(
+            "Recommendation exposure snapshot could not be saved.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    m_vinylRecommendationExposureSnapshot = snapshot;
+    m_vinylPersistenceError.clear();
+    ++m_revision;
+    emit vinylRecommendationExposureChanged();
+    emit vinylPersistenceErrorChanged();
+    emit changed();
     return true;
 }
 
@@ -286,26 +824,98 @@ bool ProfilePreferencesStore::commitMainSyncProvider(
 }
 
 void ProfilePreferencesStore::load() {
-    if (m_settings->contains(QStringLiteral("vinyl/taste"))) {
-        const QVariant raw = m_settings->value(QStringLiteral("vinyl/taste"));
+    const QString vinylTasteKey = QString::fromLatin1(kVinylTasteKey);
+    if (m_settings->contains(vinylTasteKey)) {
+        const QVariant raw = m_settings->value(vinylTasteKey);
         const QVariantMap taste = raw.toMap();
         const QVariant answered = taste.value(QStringLiteral("answered"));
         const QVariant ids = taste.value(QStringLiteral("artistIds"));
+        const bool hasArtists = taste.contains(QStringLiteral("artists"));
+        const bool hasVersion = taste.contains(QStringLiteral("version"));
         bool valid = raw.metaType().id() == QMetaType::QVariantMap
             && answered.metaType().id() == QMetaType::Bool
-            && (ids.metaType().id() == QMetaType::QStringList || ids.metaType().id() == QMetaType::QVariantList);
-        QStringList checked;
-        const auto values = ids.toList();
-        valid = valid && values.size() <= 512;
-        for (const auto &value : values) {
-            const QString id = value.toString();
-            if (value.metaType().id() != QMetaType::QString || id.trimmed().isEmpty()
-                || id.size() > 4096 || checked.contains(id)) valid = false;
-            checked.append(id);
+            && (ids.metaType().id() == QMetaType::QStringList
+                || ids.metaType().id() == QMetaType::QVariantList);
+
+        QStringList checkedIds;
+        const QVariantList values = ids.toList();
+        valid = valid && values.size() <= kMaximumVinylTasteArtists;
+        for (const QVariant &value : values) {
+            if (value.metaType().id() != QMetaType::QString) {
+                valid = false;
+                break;
+            }
+            checkedIds.append(value.toString());
         }
-        valid = valid && (answered.toBool() || checked.isEmpty());
-        if (valid) { m_vinylTasteAnswered = answered.toBool(); m_vinylTasteArtistIds = checked; }
-        else m_vinylPersistenceError = QStringLiteral("Saved taste choices are malformed and could not be loaded.");
+        const bool answeredValue = answered.toBool();
+        valid = valid && isValidLegacyTasteIds(checkedIds, answeredValue);
+
+        QVariantList loadedArtists;
+        QStringList projectedIds;
+        QString validationError;
+        if (valid && !hasArtists && !hasVersion) {
+            QVariantList migrated;
+            migrated.reserve(checkedIds.size());
+            for (const QString &id : checkedIds)
+                migrated.append(vinylArtistFromLegacyId(id));
+            valid = normalizeVinylArtists(
+                migrated, answeredValue, true, &loadedArtists, &projectedIds,
+                &validationError)
+                && projectedIds == checkedIds;
+        } else if (valid) {
+            const QVariant version = taste.value(QStringLiteral("version"));
+            const QVariant rawArtists = taste.value(QStringLiteral("artists"));
+            valid = isSaneTastePayload(raw)
+                && hasArtists && hasVersion
+                && version.metaType().id() == QMetaType::Int
+                && version.toInt() == kVinylTasteVersion
+                && rawArtists.metaType().id() == QMetaType::QVariantList;
+            if (valid) {
+                valid = normalizeVinylArtists(
+                    rawArtists.toList(), answeredValue, true, &loadedArtists,
+                    &projectedIds, &validationError)
+                    && projectedIds == checkedIds;
+            }
+        }
+
+        if (valid) {
+            m_vinylTasteAnswered = answeredValue;
+            m_vinylTasteArtistIds = checkedIds;
+            m_vinylTasteArtists = loadedArtists;
+        } else {
+            m_vinylPersistenceError = validationError.isEmpty()
+                ? QStringLiteral("Saved taste choices are malformed and could not be loaded.")
+                : validationError;
+        }
+    }
+
+    const QString feedbackSnapshotKey =
+        QString::fromLatin1(kVinylFeedbackSnapshotKey);
+    if (m_settings->contains(feedbackSnapshotKey)) {
+        const QVariant raw = m_settings->value(feedbackSnapshotKey);
+        const QString snapshot = raw.toString();
+        if (raw.metaType().id() == QMetaType::QString
+            && isValidVinylFeedbackSnapshot(snapshot)) {
+            m_vinylFeedbackSnapshot = snapshot;
+        } else {
+            m_vinylPersistenceError = QStringLiteral(
+                "Saved feedback snapshot is malformed and could not be loaded.");
+        }
+    }
+
+    const QString recommendationExposureSnapshotKey = QString::fromLatin1(
+        kVinylRecommendationExposureSnapshotKey);
+    if (m_settings->contains(recommendationExposureSnapshotKey)) {
+        const QVariant raw = m_settings->value(
+            recommendationExposureSnapshotKey);
+        const QString snapshot = raw.toString();
+        if (raw.metaType().id() == QMetaType::QString
+            && isValidVinylRecommendationExposureSnapshot(snapshot)) {
+            m_vinylRecommendationExposureSnapshot = snapshot;
+        } else {
+            m_vinylPersistenceError = QStringLiteral(
+                "Saved recommendation exposure snapshot is malformed and could not be loaded.");
+        }
     }
 
     m_hasShowExplicitValue =

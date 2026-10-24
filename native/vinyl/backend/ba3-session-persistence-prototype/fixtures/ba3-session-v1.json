@@ -1,0 +1,25 @@
+{
+  "schema": "colosseum.vinyl.session-persistence",
+  "version": 1,
+  "profileScopeId": "local",
+  "queue": {
+    "items": [
+      {
+        "occurrenceId": "wave3-v1-a",
+        "recordingMbid": "11111111-1111-4111-8111-111111111111",
+        "releaseContext": null
+      },
+      {
+        "occurrenceId": "wave3-v1-b",
+        "recordingMbid": "22222222-2222-4222-8222-222222222222",
+        "releaseContext": null
+      }
+    ],
+    "activeOccurrenceId": "wave3-v1-b"
+  },
+  "resume": {
+    "occurrenceId": "wave3-v1-b",
+    "playWhenReady": true,
+    "positionSeconds": 42.5
+  }
+}

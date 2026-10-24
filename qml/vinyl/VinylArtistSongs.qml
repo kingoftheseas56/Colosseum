@@ -15,6 +15,8 @@ Column {
         ? artistData.singlesRows
         : (fullView ? artistData.songOrder
             : (artistData.popularSongs.length ? artistData.popularSongs : artistData.songOrder).slice(0, 5))
+    readonly property bool compactQueueAvailable: root.compactListMode && !!root.artistData
+        && typeof root.artistData.enqueueDemoSong === "function"
 
     signal songRequested(var song)
     signal albumRequested(var album)
@@ -92,7 +94,9 @@ Column {
                 Text {
                     visible: parent.width >= 680
                     x: parent.width * 0.62
-                    width: Math.max(100, parent.width * 0.26)
+                    width: root.compactQueueAvailable
+                        ? Math.max(0, Math.min(parent.width * 0.26, parent.width - x - 134))
+                        : Math.max(100, parent.width * 0.26)
                     anchors.verticalCenter: parent.verticalCenter
                     text: "RELEASE"
                     color: theme.inkDimmer
@@ -103,7 +107,7 @@ Column {
                 }
                 Text {
                     anchors.right: parent.right
-                    anchors.rightMargin: 20
+                    anchors.rightMargin: root.compactQueueAvailable ? 88 : 20
                     anchors.verticalCenter: parent.verticalCenter
                     text: "YEAR"
                     horizontalAlignment: Text.AlignRight
@@ -151,24 +155,29 @@ Column {
                         anchors.fill: parent
                         color: row.isQueued
                             ? Qt.rgba(0.94, 0.77, 0.29, 0.11)
-                            : (play.interactionActive || album.interactionActive ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                            : (play.interactionActive || album.interactionActive
+                                || nextAction.interactionActive || queueAction.interactionActive
+                                ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                     }
 
                     KeyboardAction {
+                        focusOnPointer: false
                         id: play
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesRow_" + row.index)
                             : ((root.fullView ? "vinylArtistFullSong_" : "vinylArtistSong_") + row.index)
-                        width: parent.width >= 680 ? parent.width * 0.61 : parent.width - 84
+                        width: parent.width >= 680 ? parent.width * 0.61
+                            : parent.width - (root.compactQueueAvailable ? 124 : 84)
                         height: parent.height
                         focusRadius: 8
                         focusInset: -4
                         spaceActivates: true
-                        enabled: !root.artistData.liveMode || !row.isCompact || row.modelData.playable
+                        enabled: !root.artistData.liveMode || !row.isCompact || row.modelData.playable || (row.albumPayload && row.albumPayload.origin==="youtube-music")
                         accessibleName: row.isCompact
-                            ? (row.trackTitle + ", " + String(row.modelData.year || "") + (root.artistData.liveMode ? "; play local track" : "; queue demonstration track"))
+                            ? (row.trackTitle + ", " + String(row.modelData.year || "") + (row.albumPayload && row.albumPayload.origin==="youtube-music" ? "; open catalogue release" : root.artistData.liveMode ? "; play local track" : "; queue demonstration track"))
                             : ("Play " + row.trackTitle)
                         onTriggered: {
+                            if(row.isCompact && row.albumPayload && row.albumPayload.origin==="youtube-music") {root.albumRequested(row.albumPayload);return;}
                             if (row.isCompact) {
                                 root.artistData.queueDemoSong(row.index);
                                 if (row.modelData.playable && row.songPayload)
@@ -289,20 +298,23 @@ Column {
 
                     // Release / Album column (.track-album parity)
                     KeyboardAction {
+                        focusOnPointer: false
                         id: album
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesAlbum_" + row.index)
                             : ((root.fullView ? "vinylArtistFullSongAlbum_" : "vinylArtistSongAlbum_") + row.index)
                         visible: !row.isCompact || parent.width >= 680
                         x: parent.width * 0.62
-                        width: parent.width * 0.28
+                        width: root.compactQueueAvailable
+                            ? Math.max(0, Math.min(parent.width * 0.28, parent.width - x - 134))
+                            : parent.width * 0.28
                         height: parent.height
                         focusRadius: 6
                         focusInset: -4
-                        enabled: !row.isCompact || !!(row.albumPayload && row.albumPayload.tracks && row.albumPayload.tracks.length > 0)
+                        enabled: !row.isCompact || !!(row.albumPayload && (row.albumPayload.origin==="youtube-music" || (row.albumPayload.tracks && row.albumPayload.tracks.length > 0)))
                         accessibleName: "Open " + row.releaseTitle
                         onTriggered: {
-                            if (row.albumPayload && row.albumPayload.tracks && row.albumPayload.tracks.length > 0)
+                            if (row.albumPayload && (row.albumPayload.origin==="youtube-music" || (row.albumPayload.tracks && row.albumPayload.tracks.length > 0)))
                                 root.albumRequested(row.albumPayload);
                         }
                         onActiveFocusChanged: if (activeFocus) root.itemFocused(album)
@@ -321,7 +333,8 @@ Column {
                     // Year (compact mode) or duration (legacy mode)
                     Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: row.isCompact ? 20 : 8
+                        anchors.rightMargin: row.isCompact
+                            ? (root.compactQueueAvailable ? 88 : 20) : 8
                         anchors.verticalCenter: parent.verticalCenter
                         readonly property real seconds: (!row.isCompact && row.modelData.track)
                             ? Number(row.modelData.track.seconds) : 0
@@ -340,6 +353,38 @@ Column {
                         height: 1
                         color: theme.edge
                         opacity: row.isCompact ? 0.55 : 0.4
+                    }
+
+                    KeyboardAction {
+                        id: nextAction
+                        focusOnPointer: false
+                        objectName: row.isCompact ? "vinylArtistSinglesNext_" + row.index : ""
+                        visible: row.isCompact && root.compactQueueAvailable
+                        x: parent.width - 76
+                        y: (parent.height - 32) / 2
+                        width: 32; height: 32
+                        enabled: visible && row.modelData.playable !== false
+                        accessibleName: "Play next: " + row.trackTitle
+                        onActiveFocusChanged: if (activeFocus) root.itemFocused(nextAction)
+                        onTriggered: root.artistData.enqueueDemoSong(row.index, true)
+                        Rectangle { anchors.fill: parent; radius: 7; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                        VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.inkDim }
+                    }
+
+                    KeyboardAction {
+                        id: queueAction
+                        focusOnPointer: false
+                        objectName: row.isCompact ? "vinylArtistSinglesQueue_" + row.index : ""
+                        visible: row.isCompact && root.compactQueueAvailable
+                        x: parent.width - 40
+                        y: (parent.height - 32) / 2
+                        width: 32; height: 32
+                        enabled: visible && row.modelData.playable !== false
+                        accessibleName: "Add to queue: " + row.trackTitle
+                        onActiveFocusChanged: if (activeFocus) root.itemFocused(queueAction)
+                        onTriggered: root.artistData.enqueueDemoSong(row.index, false)
+                        Rectangle { anchors.fill: parent; radius: 7; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                        VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
                     }
                 }
             }

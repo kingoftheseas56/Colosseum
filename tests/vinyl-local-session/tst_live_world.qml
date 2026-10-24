@@ -7,7 +7,7 @@ TestCase {
     property var host
     property var world
     property var collection
-    Component {id:storeFactory;QtObject {property var entries:[];function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}}}
+    Component {id:storeFactory;QtObject {property var entries:[];function setVinylArtistSaved(artist,saved){entries=entries.filter(function(e){return e.id!==artist.id;});if(saved)entries=entries.concat([{id:artist.id,type:"artist",title:artist.name,payload:{artistId:artist.id}}]);return true;}function items(world){return entries}function has(world,id){return entries.some(function(e){return e.id===id})}function add(world,entry){entries=entries.concat([entry]);return true;}function replaceItems(world,removeIds,replacements){entries=entries.filter(function(e){return removeIds.indexOf(e.id)<0;}).concat(replacements);return true;}}}
     QtObject { id:preferences
         property bool vinylTasteAnswered:false
         property var vinylTasteArtistIds:[]
@@ -18,22 +18,56 @@ TestCase {
     property var source
     Component {id:windowFactory;Window {width:1280;height:720;visible:true}}
     Component {id:sourceFactory;QtObject {
+        property var artist: ({})
+        property var artistAlbums: []
+        property var artistSingles: []
+        property var artistMedia: ({})
+        property var artistIdentity: ({})
+        property var artistArtwork: ({})
+        property bool artistBusy:false
+        property bool cached:false
+        property string artistError:""
+        property var lastArtistRef: ({})
+        function openArtist(value){lastArtistRef=value;artist={name:value.name,id:value.id,relatedArtists:[{id:"UCedvOgsKFzcK3hA5taf3KoQ",name:"Shared name"}]};}
+        function leaveArtist(){artist={};artistIdentity={};}
         property int serial:0
+        property int importStarts:0
+        property int importCancels:0
+        property int identityDecisions:0
+        property int lastImportId:0
+        property var importPaths:[]
         property int cataloguePageVersion:0
         property var importOutcome: ({albums:[],errors:[]})
         function importFiles(paths) {return importOutcome;}
+        function startImport(paths) {importStarts++;importPaths=paths.slice();lastImportId=++serial;return lastImportId;}
+        function cancelImport() {importCancels++;}
+        function decideImportIdentity(relationship,choice) {identityDecisions++;return true;}
         signal completed(string lane,int requestId,var data,string error)
+        signal importCompleted(int id,var result)
+        signal importProgress(int id,int processed,int total,string fileName)
         signal profileLeaving()
         signal profileEntered()
         signal checkpointRequested()
         signal shuttingDown()
         function request(lane,op,id){return ++serial}
-        function cancel(lane){}
+        function cancel(lane: string){}
         function setAlbums(values){}
     }}
     function record(index,artistId) {return {id:"album-"+index,title:"Album "+("00"+index).slice(-3),origin:"local",artists:["Local Artist"],artistIds:[artistId || "artist-one"],year:2000+index%20,genre:index%2 ? "Folk" : "Jazz",tracks:[{id:"track-"+index,title:"Song "+index,artists:["Local Artist"],seconds:80,lyrics:[{text:"First supplied line"},{text:"Second supplied line"}],notes:{0:[{text:"Supplied note"}]},credits:[{role:"Performer",names:["Local Artist"]}]}]};}
     function seed(count) {var records=[];for(var i=0;i<count;i++)records.push({id:"album-"+i,payload:{album:record(i)}});collection.entries=records;world.session.refreshLibrary();wait(0);return records;}
     function item(name){return findChild(world,name)}
+    function pixelAt(shot,point) {
+        // grabImage returns device pixels on native Windows (150% here),
+        // while mapToItem returns logical coordinates. Window-frame clipping
+        // can shorten the image height, so derive both axes from its width.
+        var scale=shot.width/world.width;
+        return shot.pixel(Math.floor(point.x*scale),Math.floor(point.y*scale));
+    }
+    function probeVisible(pixel) {
+        // Native fractional-DPI composition slightly dims this marker (248–252
+        // rather than 255). Test presence, including in the negative control.
+        return pixel.r>=0.96 && pixel.b>=0.96 && pixel.g<=0.02;
+    }
     function init(){host=windowFactory.createObject(test);source=sourceFactory.createObject(test);var c=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");compare(c.status,Component.Ready,c.errorString());world=c.createObject(host.contentItem,{width:1280,height:720});world.session.source=source;preferences.setVinylTaste(false,[]);world.worldData.preferencesStore=preferences;collection=storeFactory.createObject(test);world.session.collectionStore=collection;wait(0);}
     function cleanup(){
         // Detach/destroy the item tree while its Window and injected owners still
@@ -55,39 +89,174 @@ TestCase {
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
     }
     Component { id:clipProbeFactory; Rectangle { width:8; height:8; color:"#ff00ff"; z:1000 } }
-    function test_importErrorSurvivesLibraryNavigationAndRetryStatusUpdates() {
-        source.importOutcome={albums:[],errors:["This audio file no longer exists: /missing.wav"]};
-        world.importLocalFiles(["/missing.wav"]);tryCompare(world,"importing",false);
-        verify(world.importStatus.indexOf("no longer exists")>=0);
-        verify(world.session.browseError.indexOf("no longer exists")>=0);
-        world.session.importFinished({imported:1,errors:[]});
-        compare(world.importStatus,"Opened 1 local audio file.");
-        world.session.importFinished({imported:0,errors:["Identity decision required"],pendingIdentity:true});
-        verify(world.importStatus.indexOf("cancel and open these files again")>=0);
+    function test_onlineArtistSaveKeyStaysStable() {
+        world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
+        var key=world.artistData.canonicalArtistId;
+        verify(world.artistData.toggleSaved());tryCompare(world.artistData,"saved",true);
+        source.artistIdentity={mbid:"11111111-1111-4111-8111-111111111111"};
+        compare(world.artistData.canonicalArtistId,key);compare(world.artistData.saved,true);
+        verify(world.artistData.toggleSaved());verify(!collection.has("Vinyl",key));
+    }
+    function test_artistSearchPopup_data(){return [{tag:"desktop",width:1280},{tag:"narrow",width:640}];}
+    function test_artistSearchPopup(data){
+        host.width=data.width;world.width=data.width;seed(3);world.showArtist("Local Artist");
+        host.requestActivate();tryCompare(host,"active",true);
+        var page=item("vinylArtistPage"),origin=item("vinylArtistSearchButton");
+        origin.forceActiveFocus(Qt.TabFocusReason);
+        page.openSearchDialog(origin);
+        var popup=item("vinylArtistSearchDialog"),input=item("vinylArtistSearchInput"),results=item("vinylArtistSearchResultsList");
+        tryCompare(popup,"opened",true);tryCompare(results,"count",6);
+        verify(popup.width<=popup.parent.width-40);verify(popup.height<=popup.parent.height-48);
+        compare(popup.background.radius,24);compare(input.background.radius,14);
+        verify(item("vinylArtistSearchClose")!==null);
+        tryVerify(function(){return results.itemAtIndex(0)!==null;});
+        verify(findChild(results.itemAtIndex(0),"vinylArtistSearchResult_0_art")!==null);
+        input.forceActiveFocus();keyClick(Qt.Key_Down);tryCompare(results.itemAtIndex(0),"activeFocus",true);
+        keyClick(Qt.Key_Up);tryCompare(input,"activeFocus",true);
+        input.text="does-not-match";tryCompare(results,"count",0);verify(item("vinylArtistSearchEmpty").visible);
+        keyClick(Qt.Key_Escape);tryCompare(popup,"opened",false);tryCompare(origin,"activeFocus",true);
+        page.openSearchDialog(origin);tryCompare(popup,"opened",true);
+        input.text="Album 000";tryCompare(results,"count",2);keyClick(Qt.Key_Down);
+        tryCompare(results.itemAtIndex(0),"activeFocus",true);keyClick(Qt.Key_Return);tryCompare(popup,"opened",false);
+        verify(world.session.browsing);source.completed("browse",world.session.browseRequest,record(0),"");
+        tryCompare(world,"page","album");compare(world.session.queue.length,0);
+    }
+    function test_onlineArtistUsesArtworkFramesAndRotationStates(){
+        compare(item("vinylArtistBackdropsButton"),null);
+        compare(item("vinylArtistBackdropsDialog"),null);
+        world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
+        var hero=item("vinylArtistPage").heroItem;
+        source.artistSingles=[{id:"single",title:"A release",kind:"single",origin:"youtube-music",browseId:"MPRE_single",artists:["Artist"],artistIds:["ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"],tracks:[]}];
+        var hits=world.artistData.search("A release");compare(hits.length,1);compare(hits[0].type,"Single");
+        compare(hero.eligiblePhotoCount,0);compare(hero.rotationMode,"fallback");
+        var photos=[];for(var i=0;i<4;i++)photos.push({id:"photo-"+i,cover:"",name:"Photo "+i,era:"TheAudioDB",autoRotate:true});
+        source.artistArtwork={photos:photos};tryCompare(hero,"eligiblePhotoCount",4);compare(hero.rotationMode,"multi-rotate");
+        hero.setBackdrop("photo-2");compare(hero.rotationMode,"pinned");verify(!hero.slideshowEnabled);
+        hero.setBackdrop("auto");verify(hero.slideshowEnabled);hero.advanceSlideshow();compare(hero.slideshowIndex,1);
+        source.artistArtwork={photos:photos.slice(0,1)};tryCompare(hero,"rotationMode","static");verify(!hero.slideshowEnabled);
+        source.artistArtwork={photos:[]};tryCompare(hero,"rotationMode","fallback");
+        compare(String(hero.currentSynchronizedSource),"");
+        source.artistArtwork={photos:[{id:"broken",name:"Broken photo",era:"Test",cover:"file:///missing-vinyl-artist-photo.jpg",autoRotate:true}]};
+        tryCompare(hero,"eligiblePhotoCount",0);compare(hero.rotationMode,"fallback");
+    }
+    function test_artistSelectionMatchesWorldPills() {
+        seed(2);world.showArtist("Local Artist");wait(0);
+        var page=item("vinylArtistPage"),albums=item("vinylArtistTab_albums"),videos=item("vinylArtistTab_videos");
+        verify(albums!==null && videos!==null);
+        page.switchTab("albums",true);waitForRendering(world);
+        var shared=item("vinylArtistSharedTabs");
+        verify(shared.activeFocus);compare(shared.currentTab,"albums");
+        compare(albums.activeState,true);compare(videos.activeState,false);
+        tryCompare(albums,"color","#f0c44a");
+        verify(albums.width>60 && albums.height>30,"Shared pill reserves space around the caption");
+        page.switchTab("videos",true);waitForRendering(world);
+        compare(shared.currentTab,"videos");compare(videos.activeState,true);compare(albums.activeState,false);
+        tryCompare(videos,"color","#f0c44a");
+    }
+    function test_onlineArtistPlayLoadsAnAdmittedAlbumThroughExistingSession(){
+        world.showArtist({id:"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ",name:"Artist"});
+        source.artistAlbums=[{id:"album-0",browseId:"MPRE_test",title:"Album",origin:"youtube-music",artists:["Artist"],artistIds:["ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"],tracks:[]}];
+        verify(world.artistData.playable);
+        world.artistData.toggleDemoPlayback();verify(world.session.queueRequest>=0);
+        source.completed("queue",world.session.queueRequest,record(0),"");
+        tryCompare(world.session,"playingIndex",0);compare(world.session.playingTrack.id,"track-0");
+    }
+    function test_relatedArtistRetainsKnownProviderIdentity_data(){return [{tag:"shelf",full:false},{tag:"category",full:true}];}
+    function test_relatedArtistRetainsKnownProviderIdentity(data){
+        world.showArtist({id:"ytm:artist:UCfM3zsQsOnfWNUppiycmBuw",name:"Artist"});
+        var page=item("vinylArtistPage"),row=world.artistData.media.relatedArtists[0];
+        if(data.full){page.openCategory("related");wait(0);var card=item("vinylArtistFullCategory_0");verify(card!==null);card.cardRequested(row);}
+        else item("vinylArtistRelatedSection").activated(row);
+        compare(source.lastArtistRef.id,"ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ");
+    }
+    function test_liveWorldHasNoGlobalShortcutRow() {
+        compare(item("vinylNavigation"),null);
+        compare(item("vinylOpenFiles"),null);
+        compare(item("vinylOpenFolder"),null);
+        compare(item("vinylNowPlaying"),null);
+        compare(item("vinylQueueButton"),null);
+        compare(item("vinylCatalogueMode"),null);
+        var top=item("vinylTopBar");
+        verify(top!==null);
+        compare(item("vinylLibraryHeader").y,top.y+top.height+24);
+        compare(item("vinylAlbumBack").y,top.y+top.height+24);
+    }
+    function test_asyncImportControlsProgressCancelAndAlbumAwareStatus() {
+        var fileDialog=item("vinylOpenFilesDialog");
+        verify(item("vinylOpenFolderDialog")!==null);
+        verify(fileDialog.nameFilters[0].indexOf("*.ape")>=0 && fileDialog.nameFilters[0].indexOf("*.m4b")>=0);
+        world.importLocalFiles(["file:///music/Album"]);
+        compare(source.importStarts,1);
+        compare(source.importPaths,["file:///music/Album"]);
+        tryCompare(world,"importing",true);
+        compare(world.page,"library");
+        source.importProgress(source.lastImportId,2,4,"track.flac");
+        tryCompare(world.session,"importProcessed",2);
+        tryVerify(function(){return item("vinylStatus").text.indexOf("2 of 4 files")>=0;});
+        var firstId=source.lastImportId;
+        source.importCompleted(firstId,{importedTracks:7,albums:[record(0),record(1)],errors:[]});
+        tryCompare(world,"importing",false);
+        tryVerify(function(){return world.importStatus.indexOf("7 tracks")>=0 && world.importStatus.indexOf("2 albums")>=0;});
+
+        world.importLocalFiles(["file:///music/Album"]);
+        tryCompare(source,"importStarts",2);
+        var identityRequest=source.lastImportId;
+        source.importCompleted(identityRequest,{importedTracks:0,albums:[],errors:[],identityCeremonies:[{relationship:"relationship-1"}]});
+        tryCompare(world,"importing",false);
+        verify(world.importStatus.indexOf("Choose an identity option")>=0);
+        verify(world.session.decideImportIdentity("relationship-1","existing"));
+        tryCompare(source,"importStarts",3);
+        compare(source.importPaths,["file:///music/Album"]);
+        tryCompare(world,"importing",true);
+        source.importCompleted(source.lastImportId,{importedTracks:3,albums:[record(2)],errors:[]});
+        tryCompare(world,"importing",false);
+        tryVerify(function(){return world.importStatus.indexOf("3 tracks")>=0 && world.importStatus.indexOf("1 album")>=0;});
+
+        world.importLocalFiles(["/cancel-me"]);
+        tryCompare(world,"importing",true);
+        var cancelButton=item("vinylCancelImport");
+        verify(cancelButton.visible && cancelButton.enabled && cancelButton.width>0 && cancelButton.height>0);
+        verify(cancelButton.activate(Qt.MouseFocusReason));
+        tryCompare(world,"importing",false);
+        compare(source.importCancels,1);
+        compare(world.importStatus,"Import cancelled. Your library was kept.");
+        tryCompare(item("vinylStatus"),"text","Import cancelled. Your library was kept.");
+
+        world.importLocalFiles(["/source-replaced"]);
+        tryCompare(world,"importing",true);
+        var replacement=sourceFactory.createObject(test);
+        world.session.source=replacement;
+        tryCompare(world,"importing",false);
+        compare(source.importCancels,2);
+        world.session.source=source;
+        replacement.destroy();
     }
     function test_dockedTabsClipScrollingTaste_data() {
         return [{tag:"narrow",width:1024},{tag:"wide",width:1280}];
     }
     function test_dockedTabsClipScrollingTaste(data) {
         host.width=data.width;world.width=data.width;
-        seed(1);world.worldView.setTab("home");wait(0);
-        var search=item("vinylPickerSearch"),tabs=item("vinylDockedTabs");
-        var probe=clipProbeFactory.createObject(search,{x:4,y:4});
-        var searchY=search.mapToItem(world.worldView,0,0).y;
-        // Scroll the actual search field into the sticky strip, left of the pills.
+        seed(1);world.worldData.resetPicker();world.worldView.setTab("home");wait(0);
+        var heading=item("vinylPickerQuestion"),tabs=item("vinylDockedTabs");
+        var probe=clipProbeFactory.createObject(heading,{x:4,y:4});
+        var searchY=heading.mapToItem(world.worldView,0,0).y;
+        // The picker now uses shared chrome search. Its heading remains
+        // scrolling page content and must still clip beneath the sticky strip.
         world.worldScroll.contentY=searchY-10;
         waitForRendering(world);verify(tabs.visible);
         var point=probe.mapToItem(world,4,4);
         var shot=grabImage(world);
-        verify(!Qt.colorEqual(shot.pixel(point.x,point.y),"#ff00ff"),
+        verify(!probeVisible(pixelAt(shot,point)),
                "Scrolling taste content must not paint inside the sticky tab viewport");
         // The same content must paint and remain interactive below that strip.
         world.worldScroll.contentY=searchY-world.worldView.dockedInset-10;
         waitForRendering(world);
         point=probe.mapToItem(world,4,4);shot=grabImage(world);
-        compare(shot.pixel(point.x,point.y),"#ff00ff");
+        verify(probeVisible(pixelAt(shot,point)),"Unclipped probe must remain visible");
         probe.destroy();
         world.worldView.syncPickerPlacement();wait(0);
+        world.enterDiscoverSearch(true,false);wait(0);
+        var search=item("vinylSearchInput");
         mouseClick(search,search.width/2,search.height/2);
         tryCompare(search,"activeFocus",true);
         keyClick(Qt.Key_A);compare(world.worldData.pickerQuery,"a");
@@ -101,12 +270,13 @@ TestCase {
     }
     function test_worldTabInitialContentBelowStickyStrip(data) {
         host.width=data.width;world.width=data.width;seed(8);
-        var cases=[{tab:"home",name:"vinylPickerQuestion"},
+        var cases=[{tab:"home",name:"vinylHomeRow_saved-albums"},
                    {tab:"discover",name:"vinylLensTitle"},
-                   {tab:"library",name:"vinylListCard_0"}];
+                   {tab:"library",name:"vinylLibraryAlbum_0"}];
         for(var i=0;i<cases.length;i++) {
             // Exercise a fresh tab entry, rather than the saved startup carousel offset.
             world.worldView.tabOffsets={};
+            world.worldView.tabRoutes={};
             world.worldView.setTab(cases[i].tab);wait(0);
             var target=item(cases[i].name);verify(target && target.visible);
             var top=target.mapToItem(world,0,0).y;
@@ -116,7 +286,8 @@ TestCase {
             var probe=clipProbeFactory.createObject(target,{x:4,y:4});
             waitForRendering(world);
             var point=probe.mapToItem(world,4,4);
-            compare(grabImage(world).pixel(point.x,point.y),"#ff00ff");
+            var shot=grabImage(world);
+            verify(probeVisible(pixelAt(shot,point)),cases[i].tab+" content probe must remain visible");
             probe.destroy();
         }
     }
@@ -137,12 +308,17 @@ TestCase {
         for(var i=0;i<13;i++){var a=record(i);a.year=1900+i*10;albums.push(a);}
         world.session.library=albums;
         world.session.playAlbum(albums[0],0);
-        world.worldView.setTab("discover");wait(0);
+        world.worldView.setTab("discover");world.worldData.setOnlineMode(false);wait(0);
         world.pushRoute();
         var trigger=item("vinylFilter_decade"),menu=item("vinylFilterMenu");
-        trigger.forceActiveFocus();keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
+        // A newly resized native Window may not yet own OS keyboard focus.
+        host.requestActivate();tryCompare(host,"active",true);
+        waitForRendering(world);
+        trigger.forceActiveFocus();tryCompare(trigger,"activeFocus",true);
+        keyClick(Qt.Key_Return);tryCompare(menu,"opened",true);
         var scroll=item("vinylFilterMenuScroll");
-        verify(scroll.contentHeight>scroll.height,"All decades require scrolling in this viewport");
+        tryVerify(function(){return scroll.contentHeight>scroll.height;},5000,
+                  "All decades require scrolling after popup layout settles");
         var popupTop=menu.contentItem.mapToItem(world,0,0).y-menu.topPadding;
         verify(popupTop>=world.worldScroll.y,"Popup stays below the page header");
         verify(popupTop+menu.height<=world.contentBottom+1,"Popup stays above the player");
@@ -207,6 +383,7 @@ TestCase {
     }
     function test_recentSearchMenuKeyboardAndProfileClosure(){
         seed(2);history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
+        world.enterDiscoverSearch(false,false);wait(0);
         var input=item("vinylSearchInput");input.forceActiveFocus();keyClick(Qt.Key_Q);keyClick(Qt.Key_A);keyClick(Qt.Key_Return);wait(0);
         compare(history.recent[0],"qa");var recent=item("vinylRecentSearches");verify(recent.visible);
         host.width=1024;world.width=1024;wait(0);var point=recent.mapToItem(world,recent.width,recent.height);verify(point.x<=world.width,"Recent recall fits 1024 width");
@@ -232,6 +409,10 @@ TestCase {
             verify(control!==null && control.visible && control.enabled);
             verify(isFinite(control.width) && control.width>0,names[i]+" needs positive width");
             verify(isFinite(control.height) && control.height>0,names[i]+" needs positive height");
+            // Large sleeve art can put actions below the fold. The album's
+            // Flickable must let pointer users bring each action into view.
+            var localCenter=control.mapToItem(page,control.width/2,control.height/2);
+            if(localCenter.y>page.height-24) {page.contentY+=localCenter.y-page.height+24;wait(0);}
             var center=control.mapToItem(world,control.width/2,control.height/2);
             verify(center.x>=0 && center.x<world.width && center.y>=0 && center.y<world.height,
                    names[i]+" center must fit the viewport");
@@ -243,13 +424,15 @@ TestCase {
         var edition=world.session.playingEditionId,disc=world.session.playingDisc;
         var index=world.session.playingIndex,count=world.session.queue.length;
         var queueControl=item("vinylAlbumQueue");
+        var queueCenter=queueControl.mapToItem(page,queueControl.width/2,queueControl.height/2);
+        if(queueCenter.y>page.height-24){page.contentY+=queueCenter.y-page.height+24;wait(0);}
         mouseClick(queueControl,queueControl.width/2,queueControl.height/2);wait(0);
         compare(world.session.queue.length,count+1);
         compare(world.session.playingEditionId,edition);
         compare(world.session.playingDisc,disc);compare(world.session.playingIndex,index);
     }
     function test_emptyDiscoverHasOneTabBarAndNoEmptyShelf(){
-        seed(0);world.worldView.setTab("discover");wait(0);
+        seed(0);world.worldView.setTab("discover");world.worldData.setOnlineMode(false);wait(0);
         var flowing=item("vinylFlowTabs"),docked=item("vinylDockedTabs"),empty=item("vinylDiscoverEmpty"),discover=item("vinylDiscoverPage");
         verify(flowing!==null && docked!==null && empty!==null);
         compare(Number(flowing.visible)+Number(docked.visible),1,"Exactly one tab bar can be painted");
@@ -262,13 +445,15 @@ TestCase {
     }
     function test_pointerSeeAllThenKeyboardBack(){
         seed(8);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
-        var more=item("vinylHomeSeeAll_local-albums");verify(more!==null);verify(more.visible);
-        mouseClick(more);wait(0);compare(world.worldView.listKey,"local-albums");
-        var list=item("vinylListPage");var focus=host.activeFocusItem;
+        var more=item("vinylHomeSeeAll_saved-albums");verify(more!==null);verify(more.visible);
+        more.forceActiveFocus(Qt.TabFocusReason);mouseClick(more);wait(0);compare(world.page,"library");
+        var list=item("vinylPersonalLibraryPage");var focus=host.activeFocusItem;
         verify(focus!==null && focus.visible,"Opening a list must move focus away from its hidden origin");
+        compare(focus,world,"Pointer navigation starts at a neutral origin without selecting a card");
+        keyClick(Qt.Key_Down);wait(0);focus=host.activeFocusItem;
         var ancestor=focus,inList=false;while(ancestor){if(ancestor===list){inList=true;break;}ancestor=ancestor.parent;}
-        verify(inList,"List receives focus after pointer See all");
-        keyClick(Qt.Key_Escape);wait(0);compare(world.worldView.listKey,"");verify(more.activeFocus,"Back returns focus to original See all");
+        verify(inList,"First keyboard navigation enters the list");
+        keyClick(Qt.Key_Escape);wait(0);compare(world.page,"home");verify(more.activeFocus,"Back returns focus to original See all");
     }
     function test_emptySingleLongRefreshed(){
         seed(0);compare(world.worldData.listItems("library").length,0);
@@ -283,11 +468,11 @@ TestCase {
     function test_canonicalArtistsAndTaste(){
         world.session.library=[record(0,"artist-one"),record(1,"artist-two")];wait(0);
         var artists=world.worldData.artistOptions("");compare(artists.length,2);verify(artists[0].id!==artists[1].id);
-        world.worldData.answerPicker(["artist-two"]);compare(world.worldData.homeRows[0].items.length,1);compare(world.worldData.homeRows[0].items[0].albumId,"album-1");
+        world.worldData.answerPicker(["artist-two"]);compare(world.worldData.picks.length,1);compare(world.worldData.picks[0],"artist-two");
         world.activateItem(artists[1]);compare(world.page,"artist");compare(world.artistData.artistId,"artist-two");
     }
     function test_nestedBackRetainsLibraryAndArtist(){
-        seed(40);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setLens("genre","Jazz");world.worldData.openList("local-albums",false);wait(0);
+        seed(40);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);world.worldData.setLens("genre","Jazz");world.worldData.openList("local-albums",false);wait(0);
         world.worldScroll.contentY=world.worldView.contentTop+100;var y=world.worldScroll.contentY;
         world.showArtist({name:"Local Artist",id:"artist-one"});world.artistData.activeTab="singles";
         world.openAlbum("album-2");source.completed("browse",world.session.browseRequest,record(2),"");compare(world.page,"album");
@@ -302,7 +487,7 @@ TestCase {
         world.goBack();compare(world.session.shownAlbumId,"album-0");
     }
     function test_playbackIdentityUnaffectedByBrowse(){
-        seed(3);world.session.playingEdition=world.session.normalize(record(0));world.session.playingIndex=0;
+        seed(3);world.session.playAlbum(record(0),0);
         world.showBrowseSong(record(2),0);compare(item("vinylSongPage").songTitle,"Song 2");compare(world.session.playingTrack.title,"Song 0");
         world.showSong();compare(item("vinylSongPage").songTitle,"Song 0");world.goBack();compare(item("vinylSongPage").songTitle,"Song 2");
     }
@@ -361,6 +546,98 @@ TestCase {
         var pending=world.session.browseRequest;world.worldData.query="";
         source.completed("browse",pending,{items:[record(1)],revision:"r1",nextOffset:-1,complete:true},"");
         verify(!world.session.searchComplete);compare(world.worldData.albums.length,3);
+    }
+
+    function test_homeDoesNotExposeAnInertLibraryFilter() {
+        seed(2);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
+        verify(!item("vinylSearchInput").visible,"Home has no active Library/Discover filter");
+        item("vinylTopBar").searchClicked();wait(0);
+        compare(world.page,"discover");verify(item("vinylSearchInput").visible);verify(item("vinylSearchInput").activeFocus);
+    }
+    function test_searchDetourReplacesSavedDiscoverView() {
+        seed(8);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
+        world.worldData.openList("local-albums",false);wait(0);
+        world.worldView.setTab("library");
+        world.openAlbum("album-0");source.completed("browse",world.session.browseRequest,record(0),"");
+        item("vinylTopBar").searchClicked();wait(0);
+        world.setQuery("remote");world.submitSearch();
+        source.completed("browse",world.session.browseRequest,{albums:[record(0)],artists:[]},"");
+        verify(world.goBack());verify(world.goBack());compare(world.page,"library");
+        world.worldView.setTab("discover");wait(0);
+        compare(world.worldData.query,"remote");compare(world.worldView.listKey,"");
+    }
+    function test_libraryCarouselOpensCanonicalLibrary() {
+        seed(3);world.worldData.skipPicker();world.worldData.openList("library",false);wait(0);
+        world.worldView.setTab("home");wait(0);
+        var carousel=item("vinylCarousel");
+        var index=carousel.slides.findIndex(function(slide){return slide.key==="library";});verify(index>=0);
+        carousel.primaryClicked(index);wait(0);
+        compare(world.page,"library");compare(world.worldView.listKey,"");
+    }
+    function test_tabsRetainIndependentListDetours() {
+        seed(8);world.worldData.skipPicker();
+        world.worldView.setTab("home");world.worldData.openList("local-albums",true);wait(0);
+        var homeY=world.worldScroll.contentY;
+        world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
+        world.worldData.setKind("songs");world.worldData.openList("local-songs",false);wait(0);
+        world.worldScroll.contentY=world.worldView.contentTop+70;wait(0);
+        var discoverY=world.worldScroll.contentY;
+        world.worldView.setTab("library");wait(0);compare(world.worldView.listKey,"");
+        world.worldView.setTab("home");wait(0);
+        compare(world.worldView.listKey,"local-albums");verify(world.worldView.listHome);compare(world.worldScroll.contentY,homeY);
+        world.worldView.setTab("discover");wait(0);
+        compare(world.worldView.listKey,"local-songs");verify(!world.worldView.listHome);compare(world.worldScroll.contentY,discoverY);
+        verify(world.goBack());compare(world.worldView.listKey,"");compare(world.page,"discover");
+    }
+    function test_topBarSearchDetourRestoresLibraryListRoute() {
+        seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
+        world.worldData.openList("library",false);wait(0);
+        world.worldScroll.contentY=world.worldView.contentTop+90;wait(0);
+        var list=item("vinylListPage");
+        tryVerify(function(){var candidate=findChild(list,"vinylListCard_2");return candidate && candidate.visible;},5000,"Library list delegate must load");
+        var card=findChild(list,"vinylListCard_2");card.forceActiveFocus();tryCompare(card,"activeFocus",true);
+        var savedY=world.worldScroll.contentY;
+        world.openAlbum("album-2");source.completed("browse",world.session.browseRequest,record(2),"");
+        compare(world.page,"album");
+
+        item("vinylTopBar").searchClicked();wait(0);
+        compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
+        compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
+        verify(world.worldData.onlineMode,"TopBar search enters catalogue mode");
+        world.setQuery("detour query");world.submitSearch();verify(world.session.browsing);
+
+        verify(world.goBack());compare(world.page,"album");
+        verify(!world.session.browsing,"Back cancels in-flight search while restoring the route");
+        verify(world.goBack());compare(world.page,"library");
+        compare(world.worldView.currentTab,"library");compare(world.worldView.listKey,"library");
+        tryCompare(world.worldScroll,"contentY",savedY);
+        tryVerify(function(){var restored=findChild(item("vinylListPage"),"vinylListCard_2");return restored && restored.activeFocus;},5000,"Back restores list-card focus");
+    }
+
+    function test_searchModeDetourRestoresLibraryListAndUsesDiscoverMode() {
+        seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
+        world.worldData.openList("library",false);wait(0);
+        world.worldScroll.contentY=world.worldView.contentTop+110;wait(0);
+        var list=item("vinylListPage");
+        tryVerify(function(){var candidate=findChild(list,"vinylListCard_1");return candidate && candidate.visible;},5000,"Library list delegate must load");
+        var card=findChild(list,"vinylListCard_1");card.forceActiveFocus();tryCompare(card,"activeFocus",true);
+        var savedY=world.worldScroll.contentY;
+        world.openAlbum("album-1");source.completed("browse",world.session.browseRequest,record(1),"");
+        compare(world.page,"album");
+
+        world.enterDiscoverSearch(false,true);wait(0);
+        compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
+        compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
+        compare(world.worldData.onlineMode,false,"The Discover request sets Discover mode without changing hidden Library state");
+        source.cataloguePageVersion=1;
+        world.setQuery("local detour query");world.submitSearch();verify(world.session.browsing);
+
+        verify(world.goBack());compare(world.page,"album");
+        verify(!world.session.browsing,"Back cancels in-flight local search while restoring the route");
+        verify(world.goBack());compare(world.page,"library");
+        compare(world.worldView.currentTab,"library");compare(world.worldView.listKey,"library");
+        tryCompare(world.worldScroll,"contentY",savedY);
+        tryVerify(function(){var restored=findChild(item("vinylListPage"),"vinylListCard_1");return restored && restored.activeFocus;},5000,"Back restores list-card focus");
     }
 
 }

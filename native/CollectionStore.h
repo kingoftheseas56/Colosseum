@@ -132,10 +132,14 @@ public:
         if (m_map.contains(key) && m_map.value(key).toMap().value(QStringLiteral("type")).toString() != QLatin1String("artist"))
             return false;
         if (!saved) return remove(QStringLiteral("Vinyl"), id);
+        auto payload=m_map.value(key).toMap().value(QStringLiteral("payload")).toMap();
+        payload.insert(QStringLiteral("artistId"),id);
+        const auto mbid=artist.value(QStringLiteral("externalIds")).toMap().value(QStringLiteral("musicbrainz")).toString();
+        if(!QUuid(mbid).isNull())payload.insert(QStringLiteral("externalIds"),QVariantMap{{QStringLiteral("musicbrainz"),mbid.toLower()}});
         return add(QStringLiteral("Vinyl"), {{QStringLiteral("id"), id},
             {QStringLiteral("type"), QStringLiteral("artist")},
             {QStringLiteral("title"), name},
-            {QStringLiteral("payload"), QVariantMap{{QStringLiteral("artistId"), id}}}});
+            {QStringLiteral("payload"), payload}});
     }
 
     Q_INVOKABLE QString createVinylPlaylist(const QString &title, const QString &artistId,

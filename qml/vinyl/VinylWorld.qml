@@ -13,10 +13,13 @@ Item {
     property real dockedInset: 0
     property Item dockedTabBar: null
     property var tabOffsets: ({})
+    property var tabRoutes: ({})
     property Item listReturnFocus: null
+    readonly property var personalData: root.worldData.personalLibrary || null
+    readonly property Item libraryDestination: personalLibraryHost.item || library
     function focusCurrent() {
         if (listKey) list.focusCurrent();
-        else if (currentTab === "library") library.focusCurrent();
+        else if (currentTab === "library") libraryDestination.focusCurrent();
         else if(dockedTabBar && dockedTabBar.visible) dockedTabBar.forceActiveFocus();
         else tabs.forceActiveFocus();
     }
@@ -35,29 +38,86 @@ Item {
         root.pageFlick.contentY=y
         Qt.callLater(function(){root.pageFlick.contentY=y})
     }
+    function captureRouteState() {
+        return {
+            currentTab:currentTab,
+            listKey:listKey,
+            listHome:listHome,
+            listReturnY:listReturnY,
+            listReturnFocus:listReturnFocus,
+            tabOffsets:Object.assign({},tabOffsets),
+            scrollY:pageFlick.contentY,
+            listIndex:list.currentIndex,
+            listSelectedId:list.selectedId,
+            libraryIndex:libraryDestination.currentIndex,
+            librarySelectedId:libraryDestination.selectedId,
+            libraryView:personalLibraryHost.item ? personalLibraryHost.item.captureViewState() : null
+        };
+    }
+    function restoreRouteState(state) {
+        if(!state) return;
+        currentTab=state.currentTab || "library";
+        listKey=state.listKey || "";
+        listHome=!!state.listHome;
+        listReturnY=Number(state.listReturnY) || 0;
+        listReturnFocus=state.listReturnFocus || null;
+        var offsets=Object.assign({},tabOffsets);
+        offsets[currentTab]=state.scrollY!==undefined ? state.scrollY : (state.tabOffsets || {})[currentTab];
+        tabOffsets=offsets;
+        if(state.listIndex!==undefined) list.currentIndex=state.listIndex;
+        if(state.listSelectedId!==undefined) list.selectedId=state.listSelectedId;
+        if(state.libraryView && personalLibraryHost.item)personalLibraryHost.item.restoreViewState(state.libraryView);
+        if(state.libraryIndex!==undefined) libraryDestination.currentIndex=state.libraryIndex;
+        if(state.librarySelectedId!==undefined) libraryDestination.selectedId=state.librarySelectedId;
+    }
+    function resetRouteState(tab) {
+        tabOffsets={};tabRoutes={};listKey="";listHome=false;listReturnY=0;listReturnFocus=null;
+        list.currentIndex=0;list.selectedId="";library.currentIndex=0;library.selectedId="";
+        currentTab=["home","discover","library"].indexOf(tab)>=0 ? tab : "library";
+        parkPage(Math.max(0,root.contentTop-root.dockedInset));
+    }
     function syncPickerPlacement() {
-        if (currentTab==="home" && !root.worldData.pickerAnswered && !listKey) parkPage(root.pickerParkY)
+        if(currentTab==="home" && root.worldData.tastePickerOpen===true && !listKey)parkPage(root.pickerParkY);
+    }
+    function rememberCurrentTab() {
+        var offsets=Object.assign({},tabOffsets)
+        offsets[currentTab]=pageFlick.contentY
+        tabOffsets=offsets
+        var routes=Object.assign({},tabRoutes)
+        routes[currentTab]=captureRouteState();tabRoutes=routes
     }
     function setTab(tab) {
         if (["home","discover","library"].indexOf(tab)<0 || tab===currentTab) return
-        var offsets=Object.assign({},tabOffsets)
-        offsets[currentTab]=listKey ? listReturnY : pageFlick.contentY
-        tabOffsets=offsets
-        listKey="";currentTab=tab
+        rememberCurrentTab()
+        currentTab=tab
+        var destination=tabRoutes[tab]
+        if(destination) restoreRouteState(destination)
+        else {
+            listKey="";listHome=false;listReturnY=0;listReturnFocus=null
+            list.currentIndex=0;list.selectedId="";library.currentIndex=0;library.selectedId=""
+        }
         // First entry to a tab parks at the tab bar; later entries return to
         // where the listener left that tab, list detours included.
         parkPage(tabOffsets[tab] !== undefined ? tabOffsets[tab] : Math.max(0,root.contentTop-root.dockedInset))
         syncPickerPlacement()
     }
+    onCurrentTabChanged: {
+        if(root.worldData && typeof root.worldData.selectTab==="function")
+            root.worldData.selectTab(currentTab)
+    }
     function showList(key,home) {
         listReturnY=pageFlick.contentY
         listReturnFocus=Window.window ? Window.window.activeFocusItem : null
         listHome=home;listKey=key
-        Qt.callLater(function(){root.pageFlick.contentY=Math.max(0,root.contentTop-root.dockedInset);list.focusCurrent()})
+        Qt.callLater(function(){root.pageFlick.contentY=Math.max(0,root.contentTop-root.dockedInset);root.forceActiveFocus(Qt.OtherFocusReason)})
     }
     function backFromList() {
         listKey=""
-        Qt.callLater(function(){root.pageFlick.contentY=root.listReturnY;if(root.listReturnFocus)root.listReturnFocus.forceActiveFocus()})
+        Qt.callLater(function(){root.pageFlick.contentY=root.listReturnY;var target=root.listReturnFocus;if(target && target.visible && target.enabled && target.accessibleName!==undefined)target.forceActiveFocus(Qt.TabFocusReason);else root.forceActiveFocus(Qt.OtherFocusReason)})
+    }
+    function backFromLibrary() {
+        if(personalData && personalData.selectedPlaylistId){personalData.openPlaylist("");parkPage(Math.max(0,contentTop-dockedInset));return true;}
+        return false;
     }
     Theme { id: theme }
     FeaturedCarousel {
@@ -75,6 +135,10 @@ Item {
         onPrimaryClicked: index => {
             var s=slides[index]
             if(s.key==="resume") root.worldData.resume()
+            else if(s.key==="local-albums" || s.key==="library") {
+                root.setTab("library");root.listKey="";root.listHome=false
+                root.parkPage(Math.max(0,root.contentTop-root.dockedInset))
+            }
             else {root.setTab("discover");root.worldData.openList(s.key,false)}
         }
     }
@@ -99,7 +163,7 @@ Item {
         VinylLens {
             id: lens
             width: parent.width
-            visible: root.currentTab==="discover"
+            visible: root.currentTab==="discover" && root.worldData.discoveryLanding!==true
             worldData: root.worldData
             backdrop: root.backdrop
             pageFlick: root.pageFlick
@@ -109,7 +173,7 @@ Item {
             y: lens.visible ? lens.implicitHeight+30 : 0
             width: parent.width
             height: root.listKey ? list.implicitHeight : root.currentTab==="home" ? home.implicitHeight
-                  : root.currentTab==="discover" ? discover.implicitHeight : library.implicitHeight
+                  : root.currentTab==="discover" ? discover.implicitHeight : root.libraryDestination.implicitHeight
         VinylHomePage {
             id: home
             width: parent.width
@@ -130,12 +194,20 @@ Item {
             id: library
             objectName:"vinylLibraryPage"
             width: parent.width
-            visible:!root.listKey&&root.currentTab==="library"
+            visible:!root.personalData&&!root.listKey&&root.currentTab==="library"
             listKey: "library"
             showBack: false
             worldData: root.worldData
             backdrop: root.backdrop
             pageFlick: root.pageFlick
+        }
+        Loader {
+            id:personalLibraryHost
+            width:parent.width;active:!!root.personalData
+            visible:active && !root.listKey && root.currentTab==="library"
+            sourceComponent: Component {
+                VinylPersonalLibraryPage {width:personalLibraryHost.width;libraryData:root.personalData;backdrop:root.backdrop;pageFlick:root.pageFlick}
+            }
         }
         VinylListPage {
             id: list
@@ -155,6 +227,7 @@ Item {
         target: root.worldData
         function onListRequested(key,home) {root.showList(key,home)}
         function onPickerAnsweredChanged() {root.syncPickerPlacement()}
+        function onTastePickerOpenChanged() {root.syncPickerPlacement()}
         function onProfileChanged() {root.syncPickerPlacement()}
     }
 }
