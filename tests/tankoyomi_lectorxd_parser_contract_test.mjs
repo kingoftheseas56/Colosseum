@@ -26,8 +26,18 @@ function contextFor(responses) {
   };
 }
 
-// The route shape, selectors, and sample chapter path come from the pinned
-// HaruNeko LectorXD adapter at 88ce1fa5e2e08a00949d2f00619c4bb1e17de29f.
+function escapeHtmlAttribute(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function chapterListIsland(propsJson) {
+  return `<astro-island component-url="/_astro/ChapterList.fixture.js" props="${escapeHtmlAttribute(propsJson)}"></astro-island>`;
+}
+
+// The legacy anchor route and sample chapter path come from HaruNeko commit
+// 88ce1fa5e2e08a00949d2f00619c4bb1e17de29f. Current ChapterList hydration
+// comes from HaruNeko commit f00b48e4e2c48252d419e73cb2041baa127a0ca8.
 // Image paths below are deterministic parser fixtures, not captured live URLs.
 const seriesHtml = [
   '<div class="grid">',
@@ -58,6 +68,8 @@ assert.doesNotMatch(providerSource, /\basync\s+function\b|\bawait\b|\bfetch\s*\(
   'provider uses the scoped Promise network context');
 assert.doesNotMatch(providerSource, /new\s+URL\s*\(/,
   'provider does not depend on the browser-only URL constructor');
+assert.doesNotMatch(providerSource, /\beval\s*\(|\b(?:new\s+)?Function\s*\(/,
+  'provider never executes upstream scripts or serialized code');
 
 // HaruNeko's pinned adapter defines catalog pagination but no title-search
 // route. The provider must surface that limitation instead of returning a
@@ -69,6 +81,133 @@ assert.doesNotMatch(providerSource, /new\s+URL\s*\(/,
     /LectorXD title search is unsupported/
   );
   assert.equal(ctx.calls.length, 0, 'unsupported search does not make a guessed request');
+}
+
+// Astro 7.0.4 commit 5978993531ba3f02a4c639d223f810e80a1fa7d3 serializes
+// object fields as [type, value]: type 0 is a plain value/object and type 1 is
+// an array. Sources: https://github.com/withastro/astro/blob/5978993531ba3f02a4c639d223f810e80a1fa7d3/packages/astro/src/runtime/server/serialize.ts
+// and https://github.com/withastro/astro/blob/5978993531ba3f02a4c639d223f810e80a1fa7d3/packages/astro/src/runtime/server/astro-island.ts;
+// values are HTML-escaped before placing JSON in the props attribute.
+{
+  const serializedProps = JSON.stringify({
+    chapters: [1, [
+      [0, { chapter: [0, 20.5] }],
+      [0, { chapter: [0, '19'] }],
+      [0, { chapter: [0, 20.5] }]
+    ]],
+    unrelated: [3, '2026-10-25T00:00:00.000Z'],
+    entityText: [0, '&quot; must remain literal after one HTML decode']
+  });
+  const html = chapterListIsland(serializedProps);
+  const ctx = contextFor({ [SERIES_URL]: html });
+  const rows = await provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL });
+
+  assert.deepEqual(rows.map(row => row.id), [
+    SERIES_PATH + '/leer/19', SERIES_PATH + '/leer/20.5'
+  ]);
+  assert.deepEqual(rows.map(row => row.number), [19, 20.5]);
+  assert.deepEqual(rows.map(row => row.title), ['Capítulo 19', 'Capítulo 20.5']);
+  assert(rows.every(row => row.seriesId === SERIES_PATH && row.seriesUrl === SERIES_URL));
+  assert.equal(ctx.calls.length, 1);
+}
+
+// Unrelated serialized metadata does not consume the chapter budget or make
+// ordinary long chapter lists fail. The 1 MiB props, depth 32, and 8,000-row
+// limits bound parsing; only the row's chapter tuple is interpreted.
+{
+  const longChapters = Array.from({ length: 1200 }, (_, index) => [0, {
+    chapter: [0, index + 1],
+    title: [0, `Chapter label ${index + 1}`],
+    date: [3, '2026-10-25T00:00:00.000Z'],
+    cover: [0, { src: [0, '/covers/fixture.webp'], width: [0, 320] }],
+    tags: [1, [[0, 'fixture'], [0, 'serialized metadata']]],
+    author: [0, 'Fixture author'],
+    language: [0, 'es'],
+    extraA: [0, true],
+    extraB: [0, null],
+    extraC: [0, index]
+  }]);
+  const html = chapterListIsland(JSON.stringify({
+    chapters: [1, longChapters],
+    unrelated: [3, '2026-10-25T00:00:00.000Z']
+  }));
+  const ctx = contextFor({ [SERIES_URL]: html });
+  const rows = await provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL });
+  assert.equal(rows.length, 1200);
+  assert.deepEqual(rows.slice(0, 3).map(row => row.number), [1, 2, 3]);
+  assert.equal(rows[1199].number, 1200);
+}
+
+// Once the ChapterList island is present, malformed or unsupported explicit
+// props must fail closed instead of falling back to server-rendered anchors.
+{
+  const fallbackAnchor = `<a href="${CHAPTER_PATH}"><h4>Capítulo 20</h4></a>`;
+  const malformedProps = JSON.stringify({ chapters: [2, 'not supported'] });
+  const ctx = contextFor({ [SERIES_URL]: chapterListIsland(malformedProps) + fallbackAnchor });
+  await assert.rejects(
+    () => provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL }),
+    /LectorXD Astro chapter props are invalid/
+  );
+}
+
+// Malformed numeric route segments and foreign URLs cannot escape the
+// canonical series path. Legacy anchors remain supported when no island exists.
+{
+  const foreignUrlProps = JSON.stringify({
+    chapters: [1, [[0, { chapter: [0, 'https://evil.example/manhwa/foreign/leer/1'] }]]]
+  });
+  const ctx = contextFor({ [SERIES_URL]: chapterListIsland(foreignUrlProps) });
+  await assert.rejects(
+    () => provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL }),
+    /chapter entry is invalid/
+  );
+}
+
+{
+  const malformedNestedTuple = JSON.stringify({
+    chapters: [1, [[0, { chapter: [2, '21'] }]]]
+  });
+  const ctx = contextFor({ [SERIES_URL]: chapterListIsland(malformedNestedTuple) });
+  await assert.rejects(
+    () => provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL }),
+    /chapter value has an unsupported Astro type/
+  );
+}
+
+{
+  const legacyWithForeignLinks = [
+    `<a href="${SERIES_PATH}/leer/2"><h4>Capítulo 2</h4></a>`,
+    '<a href="https://evil.example/manhwa/foreign/leer/1"><h4>Capítulo 1</h4></a>',
+    '<a href="/manga/otro-titulo/leer/1"><h4>Capítulo 1</h4></a>'
+  ].join('');
+  const ctx = contextFor({ [SERIES_URL]: legacyWithForeignLinks });
+  const rows = await provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL });
+  assert.deepEqual(rows.map(row => row.id), [SERIES_PATH + '/leer/2']);
+}
+
+// Hydration JSON nesting and chapter inventories have independent bounds.
+{
+  let deepValue = [0, 'leaf'];
+  for (let i = 0; i < 30; i++) deepValue = [1, [deepValue]];
+  const html = chapterListIsland(JSON.stringify({
+    chapters: [1, [[0, { chapter: [0, 1] }]]],
+    nested: deepValue
+  }));
+  const ctx = contextFor({ [SERIES_URL]: html });
+  await assert.rejects(
+    () => provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL }),
+    /LectorXD Astro chapter props are invalid/
+  );
+}
+
+{
+  const tooManyChapters = Array.from({ length: 8100 }, (_, i) => [0, { chapter: [0, i] }]);
+  const html = chapterListIsland(JSON.stringify({ chapters: [1, tooManyChapters] }));
+  const ctx = contextFor({ [SERIES_URL]: html });
+  await assert.rejects(
+    () => provider.getChapters(ctx, { id: SERIES_PATH, url: SERIES_URL }),
+    /LectorXD Astro chapter props are invalid/
+  );
 }
 
 {

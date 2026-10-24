@@ -9,6 +9,9 @@
   const IMAGE_HOSTS = new Set(['s1.cdnlxd.xyz', 's2.cdnlxd.xyz']);
   const SERIES_PATH_RE = /^\/(?:manga|manhwa|manhua|novela)\/[^/]+\/?$/i;
   const CHAPTER_PATH_RE = /^\/(?:manga|manhwa|manhua|novela)\/[^/]+\/leer\/[^/]+\/?$/i;
+  const MAX_ASTRO_PROPS_LENGTH = 1024 * 1024;
+  const MAX_ASTRO_JSON_DEPTH = 32;
+  const MAX_ASTRO_CHAPTERS = 8000;
   const need = function(ctx, name) {
     if (!ctx || typeof ctx[name] !== 'function') throw new Error('Tankoyomi runtime missing ' + name + '()');
     return ctx[name].bind(ctx);
@@ -23,10 +26,22 @@
       .replace(/<style\b[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ').trim());
   };
-  const attr = function(markup, name) {
+  const decodeAttribute = function(value) {
+    const entities = {
+      '&nbsp;': ' ', '&amp;': '&', '&quot;': '"', '&#39;': "'",
+      '&apos;': "'", '&lt;': '<', '&gt;': '>'
+    };
+    return String(value || '').replace(/&(?:nbsp|amp|quot|#39|apos|lt|gt);/gi, function(entity) {
+      return entities[entity.toLowerCase()] || entity;
+    });
+  };
+  const attribute = function(markup, name) {
     const re = new RegExp('(?:^|\\s)' + name + '\\s*=\\s*(["\\\'])([\\s\\S]*?)\\1', 'i');
     const m = String(markup || '').match(re);
-    return m ? decode(m[2]).trim() : '';
+    return m ? decodeAttribute(m[2]).trim() : null;
+  };
+  const attr = function(markup, name) {
+    return attribute(markup, name) || '';
   };
   function localUrl(value, base) {
     const raw = decode(value).trim();
@@ -103,10 +118,174 @@
     return Number.isFinite(number) ? number : null;
   }
 
+  function invalidAstroProps(detail) {
+    return new Error('LectorXD Astro chapter props are invalid' + (detail ? ': ' + detail : ''));
+  }
+
+  function hasBoundedJsonDepth(value) {
+    let depth = 0, inString = false, escaped = false;
+    for (let i = 0; i < value.length; i++) {
+      const ch = value.charAt(i);
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === '{' || ch === '[') {
+        depth++;
+        if (depth > MAX_ASTRO_JSON_DEPTH) return false;
+      } else if (ch === '}' || ch === ']') {
+        depth--;
+        if (depth < 0) return false;
+      }
+    }
+    return !inString && depth === 0;
+  }
+
+  function isRecord(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function astroTupleValue(tuple, type, hasValue) {
+    if (!Array.isArray(tuple) || tuple.length < 1 || tuple.length > 2 || tuple[0] !== type)
+      throw invalidAstroProps('unexpected Astro tuple');
+    if (hasValue && tuple.length !== 2) throw invalidAstroProps('Astro tuple value is missing');
+    return tuple.length === 2 ? tuple[1] : undefined;
+  }
+
+  function astroChapterValues(propsText) {
+    // Astro 7.0.4 commit 5978993531ba3f02a4c639d223f810e80a1fa7d3
+    // serializes props as per-field [tag, value] tuples. Read only chapters,
+    // each row object, and its primitive chapter field; unrelated props may
+    // use other Astro tags and are intentionally left untouched.
+    if (propsText == null || !propsText) throw invalidAstroProps('ChapterList props are missing');
+    if (propsText.length > MAX_ASTRO_PROPS_LENGTH || !hasBoundedJsonDepth(propsText))
+      throw invalidAstroProps('props exceed parser limits');
+
+    let props;
+    try {
+      props = JSON.parse(propsText);
+    } catch (_) {
+      throw invalidAstroProps('props are not valid JSON');
+    }
+    if (!isRecord(props)) throw invalidAstroProps('props must be an object');
+
+    if (!Object.prototype.hasOwnProperty.call(props, 'chapters'))
+      throw invalidAstroProps('chapters are missing');
+
+    const serializedChapters = props.chapters;
+    const chapters = astroTupleValue(serializedChapters, 1, true);
+    if (!Array.isArray(chapters) || chapters.length > MAX_ASTRO_CHAPTERS)
+      throw invalidAstroProps('chapters must be a bounded array');
+
+    const out = [];
+    for (let i = 0; i < chapters.length; i++) {
+      const row = astroTupleValue(chapters[i], 0, true);
+      if (!isRecord(row)) throw invalidAstroProps('chapter row must be an object');
+      if (!Object.prototype.hasOwnProperty.call(row, 'chapter'))
+        throw invalidAstroProps('chapter value is missing');
+
+      const chapterTuple = row.chapter;
+      if (!Array.isArray(chapterTuple) || chapterTuple.length < 1 || chapterTuple.length > 2 || chapterTuple[0] !== 0)
+        throw invalidAstroProps('chapter value has an unsupported Astro type');
+      const chapterValue = chapterTuple.length === 2 ? chapterTuple[1] : undefined;
+      if (typeof chapterValue !== 'string' && typeof chapterValue !== 'number')
+        throw invalidAstroProps('chapter value must be a string or number');
+      out.push(chapterValue);
+    }
+    return out;
+  }
+
+  function chapterListIsland(html) {
+    const islandRe = /<astro-island\b([^>]*)>/gi;
+    let match;
+    while ((match = islandRe.exec(String(html || '')))) {
+      const componentUrl = attribute(match[1], 'component-url');
+      if (componentUrl && componentUrl.indexOf('ChapterList') >= 0) return match[1];
+    }
+    return null;
+  }
+
+  function chapterIdentifier(value) {
+    let segment;
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value) || value < 0) return null;
+      segment = String(value);
+    } else if (typeof value === 'string') {
+      segment = value.trim();
+      if (!/^[0-9]+(?:[.,][0-9]+)?$/.test(segment)) return null;
+    } else {
+      return null;
+    }
+    const number = Number(segment.replace(',', '.'));
+    return Number.isFinite(number) ? { segment, number } : null;
+  }
+
+  function astroChapterRows(propsText, info) {
+    const chapters = astroChapterValues(propsText);
+    const rows = [], seen = new Set();
+    const prefix = info.id.replace(/\/$/, '') + '/leer/';
+    for (const value of chapters) {
+      const identifier = chapterIdentifier(value);
+      if (!identifier) throw invalidAstroProps('chapter entry is invalid');
+      const chapterPath = prefix + identifier.segment;
+      if (!CHAPTER_PATH_RE.test(chapterPath) || !chapterPath.toLowerCase().startsWith(prefix.toLowerCase()))
+        throw invalidAstroProps('chapter path is outside the canonical series');
+      if (seen.has(chapterPath)) continue;
+      seen.add(chapterPath);
+      const title = 'Capítulo ' + identifier.segment;
+      rows.push({
+        id: chapterPath,
+        seriesId: info.id,
+        seriesUrl: info.url,
+        number: identifier.number,
+        title,
+        label: title,
+        url: BASE + chapterPath,
+        source: 'lectorxd',
+        language: 'es'
+      });
+    }
+    return rows.sort(function(a, b) { return a.number - b.number; });
+  }
+
+  function legacyChapterRows(html, info) {
+    const out = [], seen = new Set();
+    const anchorRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = anchorRe.exec(String(html || '')))) {
+      const href = attr(match[1], 'href');
+      const link = localUrl(href, info.url);
+      if (!link || !CHAPTER_PATH_RE.test(link.pathname)) continue;
+      const chapterPath = link.pathname;
+      if (!chapterPath.toLowerCase().startsWith(info.id.toLowerCase().replace(/\/$/, '') + '/leer/')) continue;
+      if (seen.has(chapterPath)) continue;
+      const heading = match[2].match(/<h4\b[^>]*>([\s\S]*?)<\/h4>/i);
+      const title = strip(heading ? heading[1] : match[2]);
+      const number = chapterNumber(title);
+      if (!title || number == null) continue;
+      seen.add(chapterPath);
+      out.push({
+        id: chapterPath,
+        seriesId: info.id,
+        seriesUrl: info.url,
+        number,
+        title,
+        label: title,
+        url: BASE + chapterPath,
+        source: 'lectorxd',
+        language: 'es'
+      });
+    }
+    return out.sort(function(a, b) { return a.number - b.number; });
+  }
+
   function searchSeries(ctx, query) {
     if (!String(query || '').trim()) return Promise.resolve([]);
-    // The pinned public HaruNeko LectorXD adapter supports catalogue pagination
-    // and direct URLs, but defines no title-search route. Do not invent one.
+    // HaruNeko LectorXD source f00b48e4e2c48252d419e73cb2041baa127a0ca8
+    // confirms catalogue pagination and direct URLs, but defines no title-search route.
     return Promise.reject(new Error('LectorXD title search is unsupported until a verified search route is available'));
   }
 
@@ -114,34 +293,11 @@
     const fetchText = need(ctx, 'fetchText');
     const info = seriesInfo(series);
     return fetchText(info.url, { headers: { Referer: BASE + '/' } }).then(function(html) {
-      const out = [], seen = new Set();
-      const anchorRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
-      let match;
-      while ((match = anchorRe.exec(String(html || '')))) {
-        const href = attr(match[1], 'href');
-        const link = localUrl(href, info.url);
-        if (!link || !CHAPTER_PATH_RE.test(link.pathname)) continue;
-        const chapterPath = link.pathname;
-        if (!chapterPath.toLowerCase().startsWith(info.id.toLowerCase().replace(/\/$/, '') + '/leer/')) continue;
-        if (seen.has(chapterPath)) continue;
-        const heading = match[2].match(/<h4\b[^>]*>([\s\S]*?)<\/h4>/i);
-        const title = strip(heading ? heading[1] : match[2]);
-        const number = chapterNumber(title);
-        if (!title || number == null) continue;
-        seen.add(chapterPath);
-        out.push({
-          id: chapterPath,
-          seriesId: info.id,
-          seriesUrl: info.url,
-          number,
-          title,
-          label: title,
-          url: BASE + chapterPath,
-          source: 'lectorxd',
-          language: 'es'
-        });
+      const islandAttributes = chapterListIsland(html);
+      if (islandAttributes !== null) {
+        return astroChapterRows(attribute(islandAttributes, 'props'), info);
       }
-      return out.sort(function(a, b) { return a.number - b.number; });
+      return legacyChapterRows(html, info);
     });
   }
 

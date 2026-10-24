@@ -49,4 +49,26 @@ The initial blocked-provider captures occurred behind the splash and were reject
 2. LectorXD needs a verified title-search implementation, usable upstream access and the same complete live check. Direct-series fixtures alone do not satisfy the app's title discovery path.
 3. Existing provider availability is mixed. Metadata checks succeeded for several English/Spanish/French routes, while other Portuguese/French routes returned upstream failures or empty chapters. A page-URL response alone is not reader qualification; complete provider parity is not established.
 4. The app still logs the pre-existing `Main.qml:1991` `universeHallLayer` reference error and some poster-fetch failures; these files were not changed by this checkpoint.
-5. No Linux build/runtime or account acceptance was rerun here. Remaining native addon migration and the 1.1.9 v2 release are later checkpoints.
+5. No Linux build/runtime or account acceptance was rerun here. Integrated Windows/Linux qualification and the 1.1.9 v2 release are later checkpoints. Only configurable addon systems Tankoyomi and Tankorent move to Workers; standalone Nyaa, LibGen, AudioBookBay and GetComics integrations and downloads remain native.
+
+## Spanish source follow-up — 2026-10-25
+
+**Status: parser improvement verified; live source enablement blocked.** Both registrations remain disabled. This follow-up does not change the deployed revision `0.2.1` or publish a release.
+
+### MangaSin
+
+- The actual production Worker handler, run locally with normal upstream requests, returned 20 search results, 837 One Piece chapters and 56 HTTPS page URLs for chapter 1. The current chapter key and ordinary reader-page parser still work. Image payloads were not fetched in this check.
+- Two spaced requests to the deployed Worker returned HTTP 502 with `Upstream returned HTTP 403`. Direct requests succeeded. This isolates the failure to the hosted access path, but does not establish which upstream IP, runtime or edge policy caused it.
+- A source-provided fanmade row numbered zero sorts first and returns no pages. Chapter 1 was selected explicitly for the metadata check; source numbering and ordering were not silently changed.
+
+### LectorXD
+
+- Updated direct-series chapter parsing to the Astro ChapterList contract in [HaruNeko commit f00b48e](https://github.com/MikeZeDev/haruneko/blob/f00b48e4e2c48252d419e73cb2041baa127a0ca8/web/src/engine/websites/LectorXD.ts). Serialization follows the pinned [official Astro serializer](https://github.com/withastro/astro/blob/5978993531ba3f02a4c639d223f810e80a1fa7d3/packages/astro/src/runtime/server/serialize.ts).
+- Reads only serialized chapter data, without executing upstream scripts. Parsing is bounded to 1 MiB, JSON depth 32 and 8,000 chapters. Unrelated fields are ignored; canonical chapter paths are validated, deduplicated and sorted. Legacy anchors remain supported when no ChapterList island exists; malformed explicit props fail instead of falling back.
+- Title search remains explicitly unsupported: catalogue pagination does not establish a title-search protocol. Normal direct catalogue access returned a Cloudflare block page with HTTP 403, and the deployed direct-series request also received upstream HTTP 403.
+
+### Verification and release boundary
+
+- MangaSin and LectorXD parser contracts passed. All 15 Worker tests passed, including production-provider API routing, Astro fixtures, upstream denial handling and unsupported-search behavior. A 1,200-chapter fixture with unrelated metadata also passed.
+- Fresh isolated-profile runs of the actual Windows app visibly rendered HTTP 502 with zero chapters for each source, after the startup splash disappeared. Screenshots were inspected. These are error-path checks against the existing deployment, not successful reader checks for the parser follow-up.
+- Neither candidate has completed hosted search → chapters → images → actual app reader qualification. MangaSin requires usable Worker access; LectorXD additionally requires a verified title-search implementation. Keep both disabled until those checks pass.
