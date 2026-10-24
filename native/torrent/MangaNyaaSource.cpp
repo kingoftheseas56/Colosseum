@@ -20,9 +20,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
-#ifdef COLOSSEUM_MANGA_NYAA_RSS_FIXTURES
 #include <QXmlStreamReader>
-#endif
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -30,17 +28,16 @@
 namespace MangaTankoban {
 namespace {
 
-constexpr const char* kNyaaWorkerEndpoint =
-    "https://colosseum-nyaa-metadata.onrender.com/v1/nyaa/search";
+constexpr const char* kNyaaRssEndpoint = "https://nyaa.si/";
 constexpr const char* kTrustResource = ":/tankoban/manga_uploader_trust.json";
 constexpr int kMaxQueryLength = 512;
 constexpr int kMaxQueries = 8;
-constexpr int kMaxWorkerResults = 100;
 constexpr int kMaxResponseBytes = 1024 * 1024;
 constexpr int kMaxTitleLength = 512;
 constexpr int kMaxUploaderLength = 256;
 constexpr int kMaxTorrentUrlLength = 128;
-constexpr qint64 kMaxJsonSafeInteger = 9007199254740991LL;
+constexpr int kMaxRssItems = 100;
+constexpr int kMaxXmlNesting = 64;
 
 bool hasControlCharacters(const QString& value)
 {
@@ -51,150 +48,24 @@ bool hasControlCharacters(const QString& value)
     return false;
 }
 
-bool readWorkerString(const QJsonObject& object, const QString& key, QString& out,
-                      int maximumLength, bool allowEmpty)
+bool validInfoHash(const QString& hash)
 {
-    const QJsonValue value = object.value(key);
-    if (!value.isString())
-        return false;
-    out = value.toString();
-    return out.size() <= maximumLength && !hasControlCharacters(out)
-        && (allowEmpty || !out.trimmed().isEmpty());
+    static const QRegularExpression shape(QStringLiteral("^[0-9a-fA-F]{40}$"));
+    return shape.match(hash).hasMatch();
 }
 
-bool readWorkerInteger(const QJsonValue& value, qint64 minimum, qint64 maximum,
-                       qint64& out)
+bool parseCount(const QString& raw, int& count)
 {
-    if (!value.isDouble())
+    static const QRegularExpression digits(QStringLiteral("^[0-9]{1,10}$"));
+    const QString value = raw.trimmed();
+    if (!digits.match(value).hasMatch())
         return false;
-    const double number = value.toDouble();
-    if (!std::isfinite(number) || std::floor(number) != number
-        || number < static_cast<double>(minimum)
-        || number > static_cast<double>(maximum))
+    bool ok = false;
+    const int parsed = value.toInt(&ok);
+    if (!ok || parsed < 0)
         return false;
-    out = static_cast<qint64>(number);
+    count = parsed;
     return true;
-}
-
-bool titleHasDigitalHint(const QString& title);
-
-bool readWorkerRow(const QJsonValue& value, const QString& query,
-                   qint64 discoveredAt, MangaNyaaCandidate& candidate)
-{
-    if (!value.isObject())
-        return false;
-    const QJsonObject row = value.toObject();
-    QString title;
-    QString uploader;
-    QString infoHash;
-    QString torrentUrl;
-    qint64 sizeBytes = 0;
-    qint64 seeders = 0;
-    qint64 leechers = 0;
-    static const QRegularExpression infoHashPattern(QStringLiteral("^[0-9A-Fa-f]{40}$"));
-    if (!readWorkerString(row, QStringLiteral("title"), title,
-                          kMaxTitleLength, false)
-        || !readWorkerString(row, QStringLiteral("uploader"), uploader,
-                             kMaxUploaderLength, true)
-        || !readWorkerString(row, QStringLiteral("infoHash"), infoHash, 40, false)
-        || !readWorkerString(row, QStringLiteral("torrentUrl"), torrentUrl,
-                             kMaxTorrentUrlLength, false)
-        || !infoHashPattern.match(infoHash).hasMatch()
-        || !readWorkerInteger(row.value(QStringLiteral("sizeBytes")), 0,
-                              kMaxJsonSafeInteger, sizeBytes)
-        || !readWorkerInteger(row.value(QStringLiteral("seeders")), 0,
-                              std::numeric_limits<int>::max(), seeders)
-        || !readWorkerInteger(row.value(QStringLiteral("leechers")), 0,
-                              std::numeric_limits<int>::max(), leechers)
-        || !MangaNyaaSource::isValidTorrentUrl(torrentUrl))
-        return false;
-
-    candidate = MangaNyaaCandidate{};
-    candidate.title = title;
-    candidate.uploader = uploader.trimmed();
-    candidate.infoHash = infoHash.toLower();
-    candidate.magnetUri = BookTorrentMagnet::buildMagnet(candidate.infoHash);
-    candidate.sizeBytes = sizeBytes;
-    candidate.seeders = static_cast<int>(seeders);
-    candidate.leechers = static_cast<int>(leechers);
-    candidate.torrentUrl = torrentUrl;
-    candidate.query = query;
-    candidate.discoveredAt = discoveredAt;
-
-    const auto coverage = MangaVolumeIdentity::detectCoverage(
-        candidate.title, MangaVolumeIdentity::EvidenceSource::ReleaseTitle);
-    if (coverage.has()) {
-        candidate.coverageLo = coverage.lo.canonical;
-        candidate.coverageHi = coverage.hi.canonical;
-        candidate.standalone = coverage.isSingle();
-    }
-    candidate.digitalHint = titleHasDigitalHint(candidate.title);
-    return true;
-}
-
-bool parseWorkerResponse(const QByteArray& payload, const QString& query,
-                         QList<MangaNyaaCandidate>& candidates, QString& error)
-{
-    QJsonParseError parseError{};
-    const QJsonDocument document = QJsonDocument::fromJson(payload, &parseError);
-    if (!document.isObject()) {
-        error = parseError.error == QJsonParseError::NoError
-            ? QStringLiteral("response is not a JSON object")
-            : QStringLiteral("invalid JSON response");
-        return false;
-    }
-    const QJsonObject object = document.object();
-    qint64 version = 0;
-    if (!readWorkerInteger(object.value(QStringLiteral("contractVersion")), 1, 1, version)
-        || !object.value(QStringLiteral("sourceId")).isString()
-        || object.value(QStringLiteral("sourceId")).toString() != QLatin1String("nyaa")) {
-        error = QStringLiteral("contract version or source id is invalid");
-        return false;
-    }
-    const QJsonValue resultValue = object.value(QStringLiteral("result"));
-    if (!resultValue.isArray()) {
-        error = QStringLiteral("success response has no result array");
-        return false;
-    }
-    const QJsonArray result = resultValue.toArray();
-    if (result.size() > kMaxWorkerResults) {
-        error = QStringLiteral("response contains more than 100 results");
-        return false;
-    }
-
-    const qint64 discoveredAt = QDateTime::currentMSecsSinceEpoch();
-    QList<MangaNyaaCandidate> parsed;
-    parsed.reserve(result.size());
-    for (const QJsonValue& row : result) {
-        MangaNyaaCandidate candidate;
-        if (!readWorkerRow(row, query, discoveredAt, candidate)) {
-            error = QStringLiteral("result row failed validation");
-            return false;
-        }
-        parsed.append(candidate);
-    }
-    candidates = std::move(parsed);
-    return true;
-}
-
-QString safeWorkerHttpError(const QByteArray& payload)
-{
-    QJsonParseError parseError{};
-    const QJsonDocument document = QJsonDocument::fromJson(payload, &parseError);
-    if (!document.isObject())
-        return {};
-    const QJsonObject object = document.object();
-    qint64 version = 0;
-    QString error;
-    if (!readWorkerInteger(object.value(QStringLiteral("contractVersion")), 1, 1, version)
-        || !object.value(QStringLiteral("sourceId")).isString()
-        || object.value(QStringLiteral("sourceId")).toString() != QLatin1String("nyaa")
-        || !readWorkerString(object, QStringLiteral("error"), error, 512, false))
-        return {};
-    error = error.trimmed();
-    if (error.size() > 240)
-        error.truncate(240);
-    return error;
 }
 
 QString norm(const QString& s)
@@ -218,26 +89,32 @@ QString foldWords(const QString& s)
     return out.simplified();
 }
 
-#ifdef COLOSSEUM_MANGA_NYAA_RSS_FIXTURES
-// Parse a Nyaa "36.4 MiB" fixture size string into bytes. Best-effort; 0 absent.
+// Parse Nyaa's human-readable size without allowing malformed or huge values
+// to overflow the signed byte count. Zero represents an absent/invalid size.
 qint64 parseSize(const QString& raw)
 {
     static const QRegularExpression re(
-        QStringLiteral(R"(([0-9]*\.?[0-9]+)\s*(TiB|GiB|MiB|KiB|B))"),
+        QStringLiteral(R"(^\s*([0-9]{1,18}(?:\.[0-9]{1,6})?)\s*(TiB|GiB|MiB|KiB|B)\s*$)"),
         QRegularExpression::CaseInsensitiveOption);
     const auto m = re.match(raw);
     if (!m.hasMatch())
         return 0;
-    const double value = m.captured(1).toDouble();
+    bool ok = false;
+    const double value = m.captured(1).toDouble(&ok);
+    if (!ok || !std::isfinite(value) || value < 0)
+        return 0;
     const QString unit = m.captured(2).toLower();
     double mult = 1.0;
     if (unit == QLatin1String("kib")) mult = 1024.0;
     else if (unit == QLatin1String("mib")) mult = 1024.0 * 1024.0;
     else if (unit == QLatin1String("gib")) mult = 1024.0 * 1024.0 * 1024.0;
     else if (unit == QLatin1String("tib")) mult = 1024.0 * 1024.0 * 1024.0 * 1024.0;
-    return static_cast<qint64>(value * mult);
+    const double bytes = value * mult;
+    const double signedLimit = std::ldexp(1.0, std::numeric_limits<qint64>::digits);
+    if (!std::isfinite(bytes) || bytes >= signedLimit)
+        return 0;
+    return static_cast<qint64>(bytes);
 }
-#endif
 
 // Volume-coverage detection for release titles lives in the ONE shared owner,
 // MangaVolumeIdentity (Arc 18 M1) — the local integer-era grammar this file
@@ -393,79 +270,158 @@ QStringList queryVariants(const QString& seriesTitle, const QString& volumeNumbe
     return out;
 }
 
-#ifdef COLOSSEUM_MANGA_NYAA_RSS_FIXTURES
-QList<MangaNyaaCandidate> MangaNyaaSource::parseRss(const QByteArray& payload)
-{
-    QList<MangaNyaaCandidate> out;
-    QXmlStreamReader xml(payload);
-    MangaNyaaCandidate cur;
-    QString sizeText;
-    QString tag;
-    bool inItem = false;
+namespace {
 
-    // QXmlStreamReader has namespace processing on by default, so xml.name()
-    // yields the LOCAL name ("infoHash", not "nyaa:infoHash"). Element compares
-    // below use local names so the nyaa: extension elements still match.
+bool parseRssPayload(const QByteArray& payload, QList<MangaNyaaCandidate>& candidates,
+                     QString& error)
+{
+    candidates.clear();
+    if (payload.isEmpty() || payload.size() > kMaxResponseBytes) {
+        error = payload.isEmpty() ? QStringLiteral("RSS response is empty")
+                                  : QStringLiteral("RSS response exceeds the 1 MiB limit");
+        return false;
+    }
+
+    QXmlStreamReader xml(payload);
+    QList<MangaNyaaCandidate> parsed;
+    MangaNyaaCandidate current;
+    QString title;
+    QString infoHash;
+    QString torrentUrl;
+    QString uploader;
+    QString fallbackAuthor;
+    QString sizeText;
+    QString seedersText;
+    QString leechersText;
+    QString field;
+    bool rootSeen = false;
+    bool inItem = false;
+    int xmlDepth = 0;
+    int itemCount = 0;
+    int invalidItemCount = 0;
+
     while (!xml.atEnd() && !xml.hasError()) {
         const auto t = xml.readNext();
+        if (t == QXmlStreamReader::DTD) {
+            error = QStringLiteral("RSS document type declarations are not accepted");
+            return false;
+        }
         if (t == QXmlStreamReader::StartElement) {
-            tag = xml.name().toString();
-            if (tag == QStringLiteral("item")) {
-                cur = MangaNyaaCandidate{};
+            if (++xmlDepth > kMaxXmlNesting) {
+                error = QStringLiteral("RSS XML exceeds the nesting limit");
+                return false;
+            }
+            const QString name = xml.name().toString(); // namespace-aware local name
+            if (!rootSeen) {
+                rootSeen = true;
+                if (name != QLatin1String("rss")) {
+                    error = QStringLiteral("response root is not RSS");
+                    return false;
+                }
+            }
+            if (name == QLatin1String("item")) {
+                if (inItem || ++itemCount > kMaxRssItems) {
+                    error = QStringLiteral("RSS contains too many or nested items");
+                    return false;
+                }
+                current = MangaNyaaCandidate{};
+                title.clear();
+                infoHash.clear();
+                torrentUrl.clear();
+                uploader.clear();
+                fallbackAuthor.clear();
                 sizeText.clear();
+                seedersText.clear();
+                leechersText.clear();
                 inItem = true;
+            } else if (inItem) {
+                field = name;
             }
         } else if (t == QXmlStreamReader::EndElement) {
-            if (xml.name() == QStringLiteral("item") && inItem) {
-                cur.sizeBytes = parseSize(sizeText);
-                const auto coverage = MangaVolumeIdentity::detectCoverage(
-                    cur.title, MangaVolumeIdentity::EvidenceSource::ReleaseTitle);
-                if (coverage.has()) {
-                    cur.coverageLo = coverage.lo.canonical;
-                    cur.coverageHi = coverage.hi.canonical;
-                    cur.standalone = coverage.isSingle();
-                }
-                cur.digitalHint = titleHasDigitalHint(cur.title);
-                out.append(cur);
+            --xmlDepth;
+            const QString name = xml.name().toString();
+            if (name == QLatin1String("item") && inItem) {
                 inItem = false;
+                int seeders = 0;
+                int leechers = 0;
+                const QString chosenUploader = uploader.trimmed().isEmpty()
+                    ? fallbackAuthor : uploader;
+                if (title.trimmed().isEmpty() || title.size() > kMaxTitleLength
+                    || hasControlCharacters(title) || !validInfoHash(infoHash.trimmed())
+                    || !MangaNyaaSource::isValidTorrentUrl(torrentUrl.trimmed())
+                    || chosenUploader.size() > kMaxUploaderLength
+                    || hasControlCharacters(chosenUploader)
+                    || !parseCount(seedersText, seeders) || !parseCount(leechersText, leechers)) {
+                    ++invalidItemCount;
+                    field.clear();
+                    continue;
+                }
+
+                current.title = title.trimmed();
+                current.infoHash = infoHash.trimmed().toLower();
+                current.magnetUri = BookTorrentMagnet::buildMagnet(current.infoHash);
+                current.torrentUrl = torrentUrl.trimmed();
+                current.uploader = chosenUploader.trimmed();
+                current.seeders = seeders;
+                current.leechers = leechers;
+                current.sizeBytes = parseSize(sizeText);
+                const auto coverage = MangaVolumeIdentity::detectCoverage(
+                    current.title, MangaVolumeIdentity::EvidenceSource::ReleaseTitle);
+                if (coverage.has()) {
+                    current.coverageLo = coverage.lo.canonical;
+                    current.coverageHi = coverage.hi.canonical;
+                    current.standalone = coverage.isSingle();
+                }
+                current.digitalHint = titleHasDigitalHint(current.title);
+                parsed.append(current);
+            } else if (inItem && name == field) {
+                field.clear();
             }
-            tag.clear();
-        } else if (t == QXmlStreamReader::Characters && inItem && !xml.isWhitespace()) {
+        } else if (t == QXmlStreamReader::Characters && inItem && !field.isEmpty()) {
             const QString text = xml.text().toString();
-            if (tag == QStringLiteral("title")) {
-                cur.title += text; // characters may arrive in chunks
-            } else if (tag == QStringLiteral("infoHash")) {
-                cur.infoHash = text.trimmed().toLower();
-                // Nyaa's RSS exposes no trackers (its <link> is the .torrent file
-                // URL), so a bare magnet here would ride DHT alone — and on this
-                // network DHT is unreliable, leaving downloads stuck at
-                // "resolving" forever (2026-08-16). Persist the tracker-bearing
-                // form so ledger rows are self-sufficient; TB2's comics mode gets
-                // the same effect by capturing Nyaa's full HTML magnet href.
-                cur.magnetUri = BookTorrentMagnet::buildMagnet(cur.infoHash);
-            } else if (tag == QStringLiteral("seeders")) {
-                cur.seeders = text.toInt();
-            } else if (tag == QStringLiteral("leechers")) {
-                cur.leechers = text.toInt();
-            } else if (tag == QStringLiteral("size")) {
+            if (field == QLatin1String("title")) {
+                title += text;
+            } else if (field == QLatin1String("infoHash")) {
+                infoHash += text;
+            } else if (field == QLatin1String("seeders")) {
+                seedersText += text;
+            } else if (field == QLatin1String("leechers")) {
+                leechersText += text;
+            } else if (field == QLatin1String("size")) {
                 sizeText += text;
-            } else if (tag == QStringLiteral("uploader") || tag == QStringLiteral("author")) {
-                // Prefer the namespaced <nyaa:uploader>; <author> is the fallback.
-                // First-write-wins preserves the preferred value.
-                if (cur.uploader.isEmpty())
-                    cur.uploader = text.trimmed();
-            } else if (tag == QStringLiteral("link")) {
-                // Nyaa's RSS <link> is the .torrent metainfo URL, not a magnet.
-                // Retained (Arc 18 M2) so the indexer can enumerate real file
-                // identity without payload bytes; first-write-wins.
-                if (cur.torrentUrl.isEmpty())
-                    cur.torrentUrl = text.trimmed();
+            } else if (field == QLatin1String("uploader")) {
+                uploader += text;
+            } else if (field == QLatin1String("author")) {
+                fallbackAuthor += text;
+            } else if (field == QLatin1String("link")) {
+                torrentUrl += text;
             }
         }
     }
-    return out;
+
+    if (xml.hasError() || !rootSeen || inItem) {
+        candidates.clear(); // malformed input fails closed; never return a partial batch
+        error = QStringLiteral("RSS XML is malformed");
+        return false;
+    }
+    if (itemCount > 0 && parsed.isEmpty() && invalidItemCount == itemCount) {
+        error = QStringLiteral("RSS items failed validation");
+        return false;
+    }
+    candidates = std::move(parsed);
+    return true;
 }
-#endif
+
+} // namespace
+
+QList<MangaNyaaCandidate> MangaNyaaSource::parseRss(const QByteArray& payload)
+{
+    QList<MangaNyaaCandidate> candidates;
+    QString error;
+    if (!parseRssPayload(payload, candidates, error))
+        return {};
+    return candidates;
+}
 
 QList<MangaNyaaCandidate> MangaNyaaSource::filterAndRank(const SeriesSnapshot& series,
                                                         const QString& targetVolume,
@@ -533,7 +489,7 @@ QList<MangaNyaaCandidate> MangaNyaaSource::filterAndRank(const SeriesSnapshot& s
 }
 
 MangaNyaaSource::MangaNyaaSource(QNetworkAccessManager* nam, QObject* parent)
-    : QObject(parent), m_nam(nam), m_workerEndpoint(QString::fromLatin1(kNyaaWorkerEndpoint))
+    : QObject(parent), m_nam(nam), m_rssEndpoint(QString::fromLatin1(kNyaaRssEndpoint))
 {
     qRegisterMetaType<QList<MangaTankoban::MangaNyaaCandidate>>(
         "QList<MangaTankoban::MangaNyaaCandidate>");
@@ -542,10 +498,10 @@ MangaNyaaSource::MangaNyaaSource(QNetworkAccessManager* nam, QObject* parent)
 
 #ifdef COLOSSEUM_MANGA_NYAA_TESTING
 MangaNyaaSource::MangaNyaaSource(QNetworkAccessManager* nam,
-                                 const QUrl& workerEndpoint,
+                                 const QUrl& rssEndpoint,
                                  int deadlineMs,
                                  QObject* parent)
-    : QObject(parent), m_nam(nam), m_workerEndpoint(workerEndpoint),
+    : QObject(parent), m_nam(nam), m_rssEndpoint(rssEndpoint),
       m_deadlineMs(qMax(1, deadlineMs))
 {
     qRegisterMetaType<QList<MangaTankoban::MangaNyaaCandidate>>(
@@ -645,18 +601,23 @@ void MangaNyaaSource::startSearch(const QString& vid, const SeriesSnapshot& seri
     m_pending.insert(vid, pending);
 
     for (const QString& query : validQueries) {
-        QJsonObject payload;
-        payload.insert(QStringLiteral("query"), query);
-        QNetworkRequest request(m_workerEndpoint);
-        request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-        request.setRawHeader("Accept", "application/json");
+        QUrl url = m_rssEndpoint;
+        QUrlQuery params;
+        params.addQueryItem(QStringLiteral("page"), QStringLiteral("rss"));
+        params.addQueryItem(QStringLiteral("c"), QStringLiteral("3_1"));
+        params.addQueryItem(QStringLiteral("s"), QStringLiteral("seeders"));
+        params.addQueryItem(QStringLiteral("o"), QStringLiteral("desc"));
+        params.addQueryItem(QStringLiteral("q"), query);
+        url.setQuery(params);
+
+        QNetworkRequest request(url);
+        request.setRawHeader("Accept", "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8");
         request.setRawHeader("User-Agent", "Colosseum-Nyaa/1");
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::ManualRedirectPolicy);
         request.setTransferTimeout(m_deadlineMs);
 
-        QNetworkReply* reply = m_nam->post(
-            request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
+        QNetworkReply* reply = m_nam->get(request);
         if (!reply) {
             completeQuery(vid, {}, QStringLiteral("network manager did not create a reply"));
             continue;
@@ -732,7 +693,6 @@ void MangaNyaaSource::onReplyFinished(QNetworkReply* reply)
     const ReplyState state = m_replies.value(reply);
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const QNetworkReply::NetworkError networkError = reply->error();
-    const QString networkErrorText = reply->errorString();
     releaseReply(reply, false);
 
     if (status >= 300 && status < 400) {
@@ -740,30 +700,30 @@ void MangaNyaaSource::onReplyFinished(QNetworkReply* reply)
                       QStringLiteral("redirects are not followed (HTTP %1)").arg(status));
         return;
     }
-    if ((status > 0 && status < 200) || status >= 300) {
-        const QString remoteError = safeWorkerHttpError(state.body);
-        const QString message = !remoteError.isEmpty()
-            ? remoteError
-            : QStringLiteral("Nyaa search failed (HTTP %1)").arg(status);
+    if (status < 200 || status >= 300) {
+        const QString message = status > 0
+            ? QStringLiteral("Nyaa search failed (HTTP %1)").arg(status)
+            : QStringLiteral("Nyaa request failed (network error %1)").arg(int(networkError));
         completeQuery(state.volumeId, {}, message);
         return;
     }
     if (networkError != QNetworkReply::NoError) {
-        completeQuery(state.volumeId, {}, networkErrorText);
-        return;
-    }
-    if (status < 200 || status >= 300) {
         completeQuery(state.volumeId, {},
-                      QStringLiteral("Worker request failed (HTTP %1)").arg(status));
+                      QStringLiteral("Nyaa request failed (network error %1)").arg(int(networkError)));
         return;
     }
 
     QList<MangaNyaaCandidate> batch;
     QString parseError;
-    if (!parseWorkerResponse(state.body, state.query, batch, parseError)) {
+    if (!parseRssPayload(state.body, batch, parseError)) {
         completeQuery(state.volumeId, {},
-                      QStringLiteral("Worker %1").arg(parseError));
+                      QStringLiteral("Invalid Nyaa RSS: %1").arg(parseError));
         return;
+    }
+    const qint64 discoveredAt = QDateTime::currentMSecsSinceEpoch();
+    for (MangaNyaaCandidate& candidate : batch) {
+        candidate.query = state.query;
+        candidate.discoveredAt = discoveredAt;
     }
     completeQuery(state.volumeId, batch);
 }

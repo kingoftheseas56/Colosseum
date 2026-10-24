@@ -1,5 +1,5 @@
-// Focused fake-network contract for the Nyaa Worker transport. Keeps query
-// planning, trust/ranking and torrent ownership in the production MangaNyaaSource.
+// Focused fake-network coverage for native Nyaa RSS discovery and metainfo
+// retrieval. Query planning, trust/ranking and torrent ownership stay native.
 #include "torrent/MangaNyaaSource.h"
 #include "engine/MangaTankobanService.h"
 
@@ -13,6 +13,8 @@
 #include <QNetworkRequest>
 #include <QPointer>
 #include <QTimer>
+#include <QUrlQuery>
+#include <QXmlStreamWriter>
 
 #include <cstdlib>
 #include <cstring>
@@ -120,6 +122,7 @@ public:
     }
 
     struct Request {
+        QNetworkAccessManager::Operation operation;
         QNetworkRequest request;
         QByteArray body;
         QPointer<FakeReply> reply;
@@ -136,7 +139,7 @@ protected:
         const int index = requests.size();
         ReplyPlan plan = m_planner(request, body, index);
         auto* reply = new FakeReply(request, operation, std::move(plan), this);
-        requests.append({request, body, reply});
+        requests.append({operation, request, body, reply});
         return reply;
     }
 
@@ -161,22 +164,47 @@ QJsonObject validRow(const QString& title = QStringLiteral("Example Manga Vol 02
 
 QByteArray response(const QJsonArray& rows)
 {
-    QJsonObject root;
-    root.insert(QStringLiteral("contractVersion"), 1);
-    root.insert(QStringLiteral("sourceId"), QStringLiteral("nyaa"));
-    root.insert(QStringLiteral("result"), rows);
-    return QJsonDocument(root).toJson(QJsonDocument::Compact);
+    static const QString nyaaNamespace = QStringLiteral("https://nyaa.si/xmlns/nyaa");
+    QByteArray xml;
+    QXmlStreamWriter writer(&xml);
+    writer.writeStartDocument();
+    writer.writeStartElement(QStringLiteral("rss"));
+    writer.writeAttribute(QStringLiteral("version"), QStringLiteral("2.0"));
+    writer.writeNamespace(nyaaNamespace, QStringLiteral("nyaa"));
+    writer.writeStartElement(QStringLiteral("channel"));
+    const auto nyaaElement = [&writer](const QString& name, const QString& value) {
+        writer.writeStartElement(nyaaNamespace, name);
+        writer.writeCharacters(value);
+        writer.writeEndElement();
+    };
+    for (const QJsonValue& value : rows) {
+        const QJsonObject row = value.toObject();
+        writer.writeStartElement(QStringLiteral("item"));
+        writer.writeTextElement(QStringLiteral("title"), row.value(QStringLiteral("title")).toString());
+        writer.writeTextElement(QStringLiteral("link"), row.value(QStringLiteral("torrentUrl")).toString());
+        nyaaElement(QStringLiteral("infoHash"), row.value(QStringLiteral("infoHash")).toString());
+        nyaaElement(QStringLiteral("uploader"), row.value(QStringLiteral("uploader")).toString());
+        nyaaElement(QStringLiteral("seeders"), row.value(QStringLiteral("seeders")).toVariant().toString());
+        nyaaElement(QStringLiteral("leechers"), row.value(QStringLiteral("leechers")).toVariant().toString());
+        nyaaElement(QStringLiteral("size"), row.value(QStringLiteral("sizeBytes")).toVariant().toString()
+                                                + QStringLiteral(" B"));
+        writer.writeEndElement();
+    }
+    writer.writeEndElement();
+    writer.writeEndElement();
+    writer.writeEndDocument();
+    return xml;
 }
 
 QByteArray emptyResponse()
 {
-    return response({});
+    return response(QJsonArray{});
 }
 
 SeriesSnapshot testSeries()
 {
     SeriesSnapshot series;
-    series.seriesId = QStringLiteral("worker-test-series");
+    series.seriesId = QStringLiteral("native-rss-test-series");
     series.title = QStringLiteral("Example Manga");
     return series;
 }
@@ -215,7 +243,7 @@ void testStrictNyaaUrl()
 
 void testValidAndEmptyResponses()
 {
-    const QUrl endpoint(QStringLiteral("https://worker.test/v1/nyaa/search"));
+    const QUrl endpoint(QStringLiteral("https://nyaa.si/"));
     FakeNetworkAccessManager nam([](const QNetworkRequest&, const QByteArray&, int index) {
         ReplyPlan plan;
         plan.body = index == 0 ? response(QJsonArray{validRow()}) : emptyResponse();
@@ -254,22 +282,31 @@ void testValidAndEmptyResponses()
     require(candidate.discoveredAt > 0 && !candidate.query.isEmpty(),
             "query provenance and discovery timestamp are derived locally");
 
-    require(!nam.requests.isEmpty(), "search emitted Worker requests");
-    require(nam.requests.size() <= 8, "query family remains capped at eight Worker requests");
+    require(!nam.requests.isEmpty(), "search emitted native RSS requests");
+    require(nam.requests.size() <= 8, "query family remains capped at eight RSS requests");
     for (const auto& request : nam.requests) {
-        require(request.request.url() == endpoint, "injected Worker endpoint is used by harness");
+        require(request.operation == QNetworkAccessManager::GetOperation,
+                "Nyaa search uses a native GET request");
+        const QUrl requestedUrl = request.request.url();
+        require(requestedUrl.scheme() == QStringLiteral("https")
+                    && requestedUrl.host() == QStringLiteral("nyaa.si")
+                    && requestedUrl.path() == QStringLiteral("/"),
+                "Nyaa requests target the canonical HTTPS origin");
         require(request.request.attribute(QNetworkRequest::RedirectPolicyAttribute).toInt()
                     == QNetworkRequest::ManualRedirectPolicy,
-                "Worker redirects are disabled");
-        require(request.request.header(QNetworkRequest::ContentTypeHeader).toString()
-                    == QStringLiteral("application/json"),
-                "Worker requests use JSON content type");
-        const QJsonDocument sent = QJsonDocument::fromJson(request.body);
-        require(sent.isObject() && sent.object().keys() == QStringList{QStringLiteral("query")},
-                "Worker request body contains only query");
-        require(sent.object().value(QStringLiteral("query")).isString()
-                    && sent.object().value(QStringLiteral("query")).toString().size() <= 512,
-                "each Worker query is a bounded string");
+                "native RSS redirects are disabled");
+        require(request.request.rawHeader("Accept").contains("application/rss+xml"),
+                "native request explicitly accepts RSS XML");
+        require(request.body.isEmpty(), "native RSS request has no body");
+        const QUrlQuery query(requestedUrl);
+        require(query.queryItemValue(QStringLiteral("page")) == QStringLiteral("rss")
+                    && query.queryItemValue(QStringLiteral("c")) == QStringLiteral("3_1")
+                    && query.queryItemValue(QStringLiteral("s")) == QStringLiteral("seeders")
+                    && query.queryItemValue(QStringLiteral("o")) == QStringLiteral("desc"),
+                "native RSS request retains Nyaa category and seeder ordering");
+        const QString searchQuery = query.queryItemValue(QStringLiteral("q"));
+        require(!searchQuery.isEmpty() && searchQuery.size() <= 512,
+                "each RSS query is bounded and preserved in URL provenance");
     }
 
     FakeNetworkAccessManager emptyNam([](const QNetworkRequest&, const QByteArray&, int) {
@@ -283,18 +320,18 @@ void testValidAndEmptyResponses()
     QObject::connect(&emptySource, &MangaNyaaSource::searchSucceeded,
                      [&emptySuccess](const QString&, const QList<MangaNyaaCandidate>& rows) {
         ++emptySuccess;
-        require(rows.isEmpty(), "empty Worker result is preserved");
+        require(rows.isEmpty(), "empty RSS result is preserved");
     });
     QObject::connect(&emptySource, &MangaNyaaSource::searchFailed,
                      [&emptyFailure](const QString&, const QString&) { ++emptyFailure; });
     emptySource.search(testSeries(), QStringLiteral("2"));
     waitForOutcome(emptySource);
-    require(emptySuccess == 1 && emptyFailure == 0, "empty result is a successful search");
+    require(emptySuccess == 1 && emptyFailure == 0, "empty RSS feed is a successful search");
 }
 
-void testStrictSchemaAndResultLimit()
+void testStrictRssValidation()
 {
-    const QUrl endpoint(QStringLiteral("https://worker.test/v1/nyaa/search"));
+    const QUrl endpoint(QStringLiteral("https://nyaa.si/"));
     const auto runInvalid = [&endpoint](const QByteArray& body, const char* reason) {
         FakeNetworkAccessManager nam([body](const QNetworkRequest&, const QByteArray&, int) {
             ReplyPlan plan;
@@ -313,58 +350,72 @@ void testStrictSchemaAndResultLimit()
         require(successes == 0 && !failure.isEmpty(), reason);
     };
 
-    QJsonObject stringCountRoot;
-    stringCountRoot.insert(QStringLiteral("contractVersion"), 1);
-    stringCountRoot.insert(QStringLiteral("sourceId"), QStringLiteral("nyaa"));
-    QJsonObject stringCountRow = validRow();
-    stringCountRow.insert(QStringLiteral("seeders"), QStringLiteral("17"));
-    stringCountRoot.insert(QStringLiteral("result"), QJsonArray{stringCountRow});
-    runInvalid(QJsonDocument(stringCountRoot).toJson(QJsonDocument::Compact),
-               "numeric strings are rejected for seeder counts");
+    runInvalid(response(QJsonArray{validRow(
+        QStringLiteral("Example Manga Vol 02"), QStringLiteral("not-a-hash"))}),
+               "malformed RSS infohashes fail strict validation");
 
-    QJsonObject badHashRoot;
-    badHashRoot.insert(QStringLiteral("contractVersion"), 1);
-    badHashRoot.insert(QStringLiteral("sourceId"), QStringLiteral("nyaa"));
-    badHashRoot.insert(QStringLiteral("result"), QJsonArray{validRow(
-        QStringLiteral("Example Manga Vol 02"), QStringLiteral("not-a-hash"))});
-    runInvalid(QJsonDocument(badHashRoot).toJson(QJsonDocument::Compact),
-               "malformed infohash is rejected");
-
-    QJsonObject unsafeUrlRoot;
-    unsafeUrlRoot.insert(QStringLiteral("contractVersion"), 1);
-    unsafeUrlRoot.insert(QStringLiteral("sourceId"), QStringLiteral("nyaa"));
-    unsafeUrlRoot.insert(QStringLiteral("result"), QJsonArray{validRow(
+    runInvalid(response(QJsonArray{validRow(
         QStringLiteral("Example Manga Vol 02"),
         QStringLiteral("0123456789abcdef0123456789abcdef01234567"),
-        QStringLiteral("https://nyaa.si:443/download/123456.torrent"))});
-    runInvalid(QJsonDocument(unsafeUrlRoot).toJson(QJsonDocument::Compact),
+        QStringLiteral("https://nyaa.si:443/download/123456.torrent"))}),
                "unsafe metainfo URL is rejected before it reaches native fetching");
+
+    runInvalid(QByteArray("<!DOCTYPE rss [<!ENTITY x 'expanded'>]><rss><channel></channel></rss>"),
+               "RSS DTD declarations are rejected before entity expansion");
+    QByteArray deeplyNested("<rss><channel>");
+    for (int i = 0; i < 63; ++i)
+        deeplyNested.append("<x>");
+    runInvalid(deeplyNested,
+               "RSS XML nesting beyond 64 elements is rejected");
+    runInvalid(QByteArray("<rss xmlns:nyaa=\"https://nyaa.si/xmlns/nyaa\"><channel>"
+                          "<item><title>Example Manga Vol 02</title>"
+                          "<link>https://nyaa.si/download/123456.torrent</link>"
+                          "<nyaa:seeders>17</nyaa:seeders><nyaa:leechers>3</nyaa:leechers>"
+                          "<nyaa:infoHash>0123456789abcdef0123456789abcdef01234567</nyaa:infoHash>"
+                          "<nyaa:uploader>TrustedUploader</nyaa:uploader></item>"
+                          "<item><title>"),
+               "malformed XML fails closed without returning earlier partial items");
+    runInvalid(QByteArray{}, "empty non-XML response is rejected");
 
     QJsonArray tooMany;
     for (int i = 0; i < 101; ++i)
         tooMany.append(validRow());
-    runInvalid(response(tooMany), "Worker responses over 100 rows are rejected");
+    runInvalid(response(tooMany), "RSS feeds over 100 items are rejected");
+}
 
-    QJsonObject wrongSource;
-    wrongSource.insert(QStringLiteral("contractVersion"), 1);
-    wrongSource.insert(QStringLiteral("sourceId"), QStringLiteral("other"));
-    wrongSource.insert(QStringLiteral("result"), QJsonArray{});
-    runInvalid(QJsonDocument(wrongSource).toJson(QJsonDocument::Compact),
-               "wrong Worker source id is rejected");
+void testSplitRssFields()
+{
+    const QByteArray xml(
+        "<rss xmlns:nyaa=\"https://nyaa.si/xmlns/nyaa\"><channel><item>"
+        "<title>Grand<![CDATA[ ]]>Blue Vol 02</title>"
+        "<link>https://nyaa.si/download/<![CDATA[123456]]>.torrent</link>"
+        "<nyaa:infoHash>0123456789abcdef0123<![CDATA[456789abcdef01234567]]></nyaa:infoHash>"
+        "<nyaa:seeders>1<![CDATA[7]]></nyaa:seeders><nyaa:leechers>3</nyaa:leechers>"
+        "<nyaa:size>1<![CDATA[.5]]> MiB</nyaa:size>"
+        "<author>Fallback Author</author><nyaa:uploader>Preferred Uploader</nyaa:uploader>"
+        "</item></channel></rss>");
+    const QList<MangaNyaaCandidate> rows = MangaNyaaSource::parseRss(xml);
+    require(rows.size() == 1, "RSS field text split across CDATA sections is assembled");
+    const MangaNyaaCandidate& row = rows.front();
+    require(row.title == QStringLiteral("Grand Blue Vol 02"),
+            "whitespace-only title chunks are preserved between text segments");
+    require(row.torrentUrl == QStringLiteral("https://nyaa.si/download/123456.torrent"),
+            "split canonical link text is fully accumulated");
+    require(row.infoHash == QStringLiteral("0123456789abcdef0123456789abcdef01234567"),
+            "split infohash text is fully accumulated");
+    require(row.seeders == 17 && row.leechers == 3 && row.sizeBytes == 1572864,
+            "split numeric RSS fields retain their complete values");
+    require(row.uploader == QStringLiteral("Preferred Uploader"),
+            "Nyaa uploader takes precedence over RSS author fallback");
 }
 
 void testHttpErrorAndStreamingLimit()
 {
-    const QUrl endpoint(QStringLiteral("https://worker.test/v1/nyaa/search"));
-    QJsonObject errorEnvelope;
-    errorEnvelope.insert(QStringLiteral("contractVersion"), 1);
-    errorEnvelope.insert(QStringLiteral("sourceId"), QStringLiteral("nyaa"));
-    errorEnvelope.insert(QStringLiteral("error"), QStringLiteral("upstream temporarily unavailable"));
-    const QByteArray remoteError = QJsonDocument(errorEnvelope).toJson(QJsonDocument::Compact);
-    FakeNetworkAccessManager httpNam([remoteError](const QNetworkRequest&, const QByteArray&, int index) {
+    const QUrl endpoint(QStringLiteral("https://nyaa.si/"));
+    FakeNetworkAccessManager httpNam([](const QNetworkRequest&, const QByteArray&, int index) {
         ReplyPlan plan;
         plan.status = index == 0 ? 302 : 503;
-        plan.body = index == 0 ? emptyResponse() : remoteError;
+        plan.body = emptyResponse();
         return plan;
     });
     MangaNyaaSource httpSource(&httpNam, endpoint, 200, nullptr);
@@ -374,8 +425,8 @@ void testHttpErrorAndStreamingLimit()
     httpSource.search(testSeries(), QStringLiteral("2"));
     waitForOutcome(httpSource);
     require(httpFailure.contains(QStringLiteral("redirects are not followed"))
-                && httpFailure.contains(QStringLiteral("upstream temporarily unavailable")),
-            "redirects fail closed and bounded Worker error envelopes are surfaced safely");
+                && httpFailure.contains(QStringLiteral("HTTP 503")),
+            "redirects and non-2xx Nyaa responses fail with bounded status errors");
 
     const QByteArray oversized(1024 * 1024 + 1, 'x');
     FakeNetworkAccessManager largeNam([oversized](const QNetworkRequest&, const QByteArray&, int index) {
@@ -396,17 +447,10 @@ void testHttpErrorAndStreamingLimit()
 
 void testRepeatedProviderErrorsAndPartialResults()
 {
-    const QUrl endpoint(QStringLiteral("https://worker.test/v1/nyaa/search"));
-    QJsonObject errorEnvelope;
-    errorEnvelope.insert(QStringLiteral("contractVersion"), 1);
-    errorEnvelope.insert(QStringLiteral("sourceId"), QStringLiteral("nyaa"));
-    errorEnvelope.insert(QStringLiteral("error"), QStringLiteral("Nyaa returned HTTP 429"));
-    const QByteArray errorBody = QJsonDocument(errorEnvelope).toJson(QJsonDocument::Compact);
-
-    FakeNetworkAccessManager failedNam([errorBody](const QNetworkRequest&, const QByteArray&, int) {
+    const QUrl endpoint(QStringLiteral("https://nyaa.si/"));
+    FakeNetworkAccessManager failedNam([](const QNetworkRequest&, const QByteArray&, int) {
         ReplyPlan plan;
         plan.status = 503;
-        plan.body = errorBody;
         return plan;
     });
     MangaNyaaSource failedSource(&failedNam, endpoint, 200, nullptr);
@@ -425,17 +469,16 @@ void testRepeatedProviderErrorsAndPartialResults()
     require(failedNam.requests.size() > 1,
             "the repeated-error case spans multiple query-family requests");
     require(successSignals == 0
-                && failure == QStringLiteral("Nyaa returned HTTP 429"),
+                && failure == QStringLiteral("Nyaa search failed (HTTP 503)"),
             "identical provider errors are collapsed to one concise reason");
     require(!failure.contains(QStringLiteral("<b>Private Series</b>"))
                 && !failure.contains(QStringLiteral("Private Series")),
             "provider errors do not echo query or catalogue title text");
 
-    FakeNetworkAccessManager partialNam([errorBody](const QNetworkRequest&, const QByteArray&, int index) {
+    FakeNetworkAccessManager partialNam([](const QNetworkRequest&, const QByteArray&, int index) {
         ReplyPlan plan;
         if (index < 2) {
             plan.status = 503;
-            plan.body = errorBody;
         } else {
             plan.body = index == 2 ? response(QJsonArray{validRow()}) : emptyResponse();
         }
@@ -463,7 +506,7 @@ void testRepeatedProviderErrorsAndPartialResults()
 
 void testIndependentDeadlinesAndPartialSuccess()
 {
-    const QUrl endpoint(QStringLiteral("https://worker.test/v1/nyaa/search"));
+    const QUrl endpoint(QStringLiteral("https://nyaa.si/"));
     FakeNetworkAccessManager nam([](const QNetworkRequest&, const QByteArray&, int index) {
         ReplyPlan plan;
         if (index == 0) {
@@ -494,7 +537,7 @@ void testIndependentDeadlinesAndPartialSuccess()
 
 void testDuplicateCompletionAndCancellation()
 {
-    const QUrl endpoint(QStringLiteral("https://worker.test/v1/nyaa/search"));
+    const QUrl endpoint(QStringLiteral("https://nyaa.si/"));
     FakeNetworkAccessManager duplicateNam([](const QNetworkRequest&, const QByteArray&, int) {
         ReplyPlan plan;
         plan.body = emptyResponse();
@@ -545,7 +588,7 @@ void testDuplicateCompletionAndCancellation()
                      [&invalidQueryFailures](const QString&, const QString&) { ++invalidQueryFailures; });
     invalidQuerySource.search(tooLong, QStringLiteral("2"));
     require(invalidQueryFailures == 1 && invalidQueryNam.requests.isEmpty(),
-            "queries above 512 characters fail without Worker traffic");
+            "queries above 512 characters fail without native RSS traffic");
 
     FakeNetworkAccessManager destructionNam([](const QNetworkRequest&, const QByteArray&, int) {
         ReplyPlan plan;
@@ -712,12 +755,13 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     testStrictNyaaUrl();
     testValidAndEmptyResponses();
-    testStrictSchemaAndResultLimit();
+    testStrictRssValidation();
+    testSplitRssFields();
     testHttpErrorAndStreamingLimit();
     testRepeatedProviderErrorsAndPartialResults();
     testIndependentDeadlinesAndPartialSuccess();
     testDuplicateCompletionAndCancellation();
     testNativeMetainfoFetcher();
-    std::cout << "manga_nyaa_worker_harness: ALL PASS\n";
+    std::cout << "manga_nyaa_worker_harness: native RSS ALL PASS\n";
     return 0;
 }

@@ -2313,12 +2313,11 @@ add_executable(manga_tankoban_logic_harness
 )
 target_include_directories(manga_tankoban_logic_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_tankoban_logic_harness PRIVATE
-    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban"
-    COLOSSEUM_MANGA_NYAA_RSS_FIXTURES=1)
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_tankoban_logic_harness PRIVATE Qt6::Core Qt6::Network)
 
-# The Nyaa Worker is a JSON transport only; local query planning, trust,
-# volume matching, ranking, and candidate derivation stay in MangaNyaaSource.
+# Focused native Nyaa RSS/metainfo transport coverage; local query planning,
+# trust, volume matching, ranking and candidate derivation stay in MangaNyaaSource.
 add_executable(manga_nyaa_worker_harness
     ../tests/manga_nyaa_worker_harness.cpp
     engine/CbzArchive.cpp

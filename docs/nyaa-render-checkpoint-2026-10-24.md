@@ -1,5 +1,7 @@
 # Nyaa metadata hosting checkpoint — 2026-10-24
 
+Superseded by the user's October 25 decision: [Nyaa is native again](nyaa-native-checkpoint-2026-10-25.md). This receipt preserves the Render experiment; the app no longer uses Render for Nyaa search.
+
 Render successfully runs the existing Nyaa search handler and the production Windows app completed live search followed by native torrent retrieval, hash verification and file indexing. The service remains a free qualification instance. Its idle-start behavior is a release gate; no release or master merge was performed.
 
 ## Hosting decision

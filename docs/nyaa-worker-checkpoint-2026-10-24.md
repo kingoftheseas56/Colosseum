@@ -1,5 +1,7 @@
 # Nyaa search Worker checkpoint — 2026-10-24
 
+Current architecture: [Nyaa is native again](nyaa-native-checkpoint-2026-10-25.md) following the user's October 25 decision. The hosted experiments below are historical.
+
 Hosting follow-up: the [Render checkpoint](nyaa-render-checkpoint-2026-10-24.md) records successful live search and native metainfo/file-mapping qualification using the same handler on Render. The Worker-specific failure and error-path evidence below remain historical; production hosting readiness is tracked in the follow-up.
 
 The Nyaa search migration is implemented and deployed, but live qualification is blocked by upstream HTTP 429 responses to Worker requests. Torrent retrieval, metainfo decoding and hash verification, file indexing, identity storage and downloads remain native. This remains a draft checkpoint and must not be released as a qualified migration.

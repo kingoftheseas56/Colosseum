@@ -11,14 +11,13 @@
 // series-title match, hash-less rows).
 //
 // This remains a manga-specific source rather than a generic
-// torrent/TankorentSearchService indexer: the Worker returns Nyaa metadata, but
+// torrent/TankorentSearchService indexer: Nyaa RSS supplies metadata, while
 // uploader trust and volume filtering are local manga decisions. Torrent bytes
 // are still fetched and consumed by Colosseum's native torrent path.
 //
 // Concern split (intentional, so the pure logic is harness-testable):
-//   * queryVariants is pure and trust-agnostic. The optional parseRss helper is
-//     compiled only for legacy logic fixtures; production discovery receives
-//     normalized JSON from the Nyaa Worker.
+//   * queryVariants and parseRss are pure and trust-agnostic. Production
+//     discovery also fetches and parses Nyaa's fixed-origin RSS endpoint.
 //   * filterAndRank is where every trust-dependent and volume-target decision
 //     happens: uploader inference, tier tagging, blocked drop, coverage/target
 //     match, chapter-pack / raw / weak-match / hash-less rejection, dedup by
@@ -89,20 +88,17 @@ public:
     ~MangaNyaaSource() override;
 
 #ifdef COLOSSEUM_MANGA_NYAA_TESTING
-    // Test-only injection seam. Production builds expose only the fixed Worker
-    // endpoint and deadline through the constructor above.
-    MangaNyaaSource(QNetworkAccessManager* nam, const QUrl& workerEndpoint,
+    // Test-only endpoint/deadline seam. Production always uses nyaa.si.
+    MangaNyaaSource(QNetworkAccessManager* nam, const QUrl& rssEndpoint,
                     int deadlineMs, QObject* parent = nullptr);
 #endif
 
-    // Worker results and the native metainfo fetcher both enforce this exact
+    // RSS results and the native metainfo fetcher both enforce this exact
     // Nyaa download URL shape before allowing native torrent retrieval.
     static bool isValidTorrentUrl(const QString& raw);
 
-    // Optional fixture-only parser kept for the existing RSS logic fixtures.
-#ifdef COLOSSEUM_MANGA_NYAA_RSS_FIXTURES
+    // Pure RSS parse with locally derived volume coverage and digital hints.
     static QList<MangaNyaaCandidate> parseRss(const QByteArray& payload);
-#endif
 
     // Pure filter + rank. Rejects chapter packs, wrong-target / no-coverage rows,
     // blocked uploaders, raw/untranslated releases, weak series-title matches and
@@ -121,7 +117,7 @@ public:
                                                    const TrustTable& trust,
                                                    bool seriesMode = false);
 
-    // Fire one bounded Worker request per query in the family. Results land on
+    // Fire one bounded Nyaa RSS GET per query in the family. Results land on
     // searchSucceeded keyed by MangaTankoban::volumeId(series.seriesId,
     // targetVolume); a failure with no results lands on searchFailed.
     void search(const SeriesSnapshot& series, const QString& targetVolume);
@@ -163,7 +159,7 @@ private:
     };
 
     void loadTrustResource();
-    // Shared by search()/searchSeries(): fires the bounded Worker query family,
+    // Shared by search()/searchSeries(): fires the bounded RSS query family,
     // tracks each reply under `vid`, then ranks with the right mode.
     void startSearch(const QString& vid, const SeriesSnapshot& series,
                      const QString& targetVolume, bool seriesMode);
@@ -177,7 +173,7 @@ private:
     void completeSearch(const QString& vid);
 
     QPointer<QNetworkAccessManager> m_nam;
-    QUrl m_workerEndpoint;
+    QUrl m_rssEndpoint;
     int m_deadlineMs = 20000;
     TrustTable m_trust;
     QHash<QString, PendingSearch> m_pending; // keyed by volumeId
