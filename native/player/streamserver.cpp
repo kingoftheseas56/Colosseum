@@ -1,4 +1,5 @@
 #include "streamserver.h"
+#include "StreamRuntimeIntegrity.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -55,6 +56,9 @@ QString prepareRuntimeScript(const QString &runtimeDir, const QString &cacheDir,
     source.close();
     if (!script.contains("11470"))
         return {};
+
+    if (!StreamRuntimeIntegrity::apply(script))
+        qWarning("[stream] unrecognized runtime: peer integrity guard was not applied");
 
     // Disable the bundle's fixed-range retry, then update every internal default-port URL.
     // Replace 11474 first so a selected port with those digits cannot be rewritten twice.
@@ -228,6 +232,7 @@ void StreamServer::startManifest(const QString &token, quint64 generation)
     if (it == m_scoped.end() || it->generation != generation || it->started || !ready()) return;
     it->started = true; it->port = m_port;
     const auto hash = it->hash;
+    const int requestPort = it->port;
     const QUrl endpoint(QStringLiteral("http://127.0.0.1:%1/%2/create").arg(m_port).arg(hash));
     QNetworkRequest request(endpoint);
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
@@ -242,12 +247,26 @@ void StreamServer::startManifest(const QString &token, quint64 generation)
         bytes->append(reply->readAll());
         if (bytes->size() > 4 * 1024 * 1024) reply->abort();
     });
-    connect(reply, &QNetworkReply::finished, this, [this, token, generation, reply, bytes, hash, endpoint] {
+    connect(reply, &QNetworkReply::finished, this, [this, token, generation, reply, bytes, hash, endpoint, requestPort] {
         auto current = m_scoped.find(token);
         if (current == m_scoped.end() || current->generation != generation || current->reply != reply) return;
+        const auto networkError = reply->error();
         bytes->append(reply->readAll()); current->reply = nullptr;
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError || reply->url() != endpoint
+        if (networkError == QNetworkReply::ConnectionRefusedError) {
+            // The listener can disappear after readiness. Keep this token and
+            // generation pending until the shared server recovery path is done.
+            current->started = false;
+            current->port = -1;
+            if (m_port == requestPort)
+                recoverDeadServer(requestPort);
+            else if (m_port > 0)
+                startManifest(token, generation);
+            else
+                ensureStarted();
+            return;
+        }
+        if (networkError != QNetworkReply::NoError || reply->url() != endpoint
             || reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200
             || reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid()
             || bytes->size() > 4 * 1024 * 1024) {
@@ -278,6 +297,9 @@ void StreamServer::startManifest(const QString &token, quint64 generation)
             admitted.append(row);
         }
         current->files = admitted;
+        // A validated scoped response is health evidence even when the
+        // best-effort /settings request failed. A later outage is independent.
+        m_consecutiveHealthRestarts = 0;
         Q_EMIT torrentManifestReady(token, hash, admitted);
     });
 }

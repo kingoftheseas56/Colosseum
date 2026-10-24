@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QSet>
+#include <QHash>
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QVariantMap>
@@ -38,21 +39,26 @@ private:
     void startNextQuery();
     void finishSearch();
     void tryNextCandidate();
+    void retireCandidate(const QString &token);
     void finish(const QVariantMap &data, const QString &error);
     void clearTransport();
     void trace(const QString &stage,const QVariantMap &facts={}) const;
 
     QPointer<TankorentSearchService> m_search;
     QPointer<StreamServer> m_stream;
-    QTimer m_deadline, m_stage;
+    QTimer m_deadline;
     QElapsedTimer m_elapsed;
     int m_deadlineMs = 4000;
     int m_serial = 0, m_active = -1, m_queryIndex = 0, m_attempted = 0;
     MusicTorrentTrack m_track;
     QStringList m_queries;
-    QString m_searchHandle, m_streamToken;
+    QString m_searchHandle;
     QList<TorrentResult> m_candidates;
     QSet<QString> m_seen;
-    TorrentResult m_candidate;
-    MusicTorrentMatch m_match;
+    struct PendingCandidate {
+        TorrentResult torrent;
+        MusicTorrentMatch match;
+        qint64 startedMs = 0;
+    };
+    QHash<QString, PendingCandidate> m_pending;
 };

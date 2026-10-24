@@ -4,6 +4,7 @@
 #include "torrent/TorrentIndexer.h"
 #include "torrent/PirateBayIndexer.h"
 #include <QNetworkAccessManager>
+#include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QTest>
 #include <QSettings>
@@ -45,14 +46,18 @@ public:
     explicit MusicMockSearch(QNetworkAccessManager *network) : TankorentSearchService(network) {}
     QStringList media;
     QList<TorrentResult> rows;
+    QList<QList<TorrentResult>> rowsByQuery;
+    int queryCount = 0;
     bool stall = false;
     bool slowCompanion = false;
     QList<MusicMockIndexer *> slowIndexers;
 protected:
     QList<TorrentIndexer *> buildIndexersFor(const QString &type, const QString &) override {
         media.append(type);
+        const auto queryRows = queryCount < rowsByQuery.size() ? rowsByQuery.at(queryCount) : rows;
+        ++queryCount;
         auto *indexer = new MusicMockIndexer(this);
-        indexer->rows = rows;
+        indexer->rows = queryRows;
         indexer->stall = stall;
         if(!slowCompanion)return {indexer};
         auto *slow=new MusicMockIndexer(this);slow->stall=true;
@@ -142,7 +147,8 @@ private slots:
         const int id = provider.resolve(track());
         QCOMPARE(completed.count(), 0);
         QTRY_COMPARE(stream.manifestIds.size(), 1);
-        QCOMPARE(search.media, QStringList{QStringLiteral("music")});
+        QVERIFY(!search.media.isEmpty());
+        for (const auto &media : search.media) QCOMPARE(media, QStringLiteral("music"));
         stream.manifest(0, {file()});
         QCOMPARE(completed.count(), 1);
         QCOMPARE(completed.first().at(0).toInt(), id);
@@ -222,6 +228,65 @@ private slots:
         QCOMPARE(completed.first().at(1).toMap().value("provider").toString(), QStringLiteral("torrent"));
         QCOMPARE(stream.fileIndex, 7);
     }
+    void lateHighSeederBatchRacesHangingManifestWithinDeadline() {
+        QNetworkAccessManager network; MusicMockSearch search(&network); MusicMockStream stream;
+        search.rows = {candidate(99)}; // one seeder; its manifest never answers
+        search.slowCompanion = true;
+        VinylTorrentProvider provider(&search, &stream, nullptr); // keep the 4s global deadline
+        QSignalSpy completed(&provider, &VinylTorrentProvider::completed);
+        QElapsedTimer elapsed;
+        elapsed.start();
+
+        provider.resolve(track());
+        QTRY_COMPARE_WITH_TIMEOUT(stream.manifestIds.size(), 1, 250);
+        const QString loserToken = stream.manifestIds.first();
+        QTest::qWait(1300); // the useful batch arrives after the old 1s collection cutoff
+        search.slowIndexers.last()->publish({candidate(0)}); // 100 seeders
+
+        // The stronger candidate must be admitted while the first manifest's
+        // 3s stage is still pending, without resetting the overall 4s deadline.
+        QTRY_COMPARE_WITH_TIMEOUT(stream.manifestIds.size(), 2, 500);
+        QVERIFY2(elapsed.elapsed() < 3000, "second manifest was not requested before the first candidate stage expired");
+        stream.manifest(1, {file()});
+        QCOMPARE(completed.size(), 1);
+        QCOMPARE(completed.first().at(1).toMap().value("provider").toString(), QStringLiteral("torrent"));
+        QCOMPARE(completed.first().at(1).toMap().value("infoHash").toString(), candidate(0).infoHash);
+        QCOMPARE(stream.fileIndex, 7);
+        QVERIFY2(elapsed.elapsed() < 4000, "winning candidate exceeded the unchanged global deadline");
+        QVERIFY(stream.cancelled.contains(loserToken));
+
+        // A canceled, late loser callback must not replace the accepted result.
+        stream.manifest(0, {file(99)});
+        QCOMPARE(completed.size(), 1);
+        QCOMPARE(completed.first().at(1).toMap().value("fileIdx").toInt(), 7);
+        QCOMPARE(completed.first().at(1).toMap().value("infoHash").toString(), candidate(0).infoHash);
+        QCOMPARE(stream.fileIndex, 7);
+    }
+    void laterQueryRacesPendingManifestWithinInflightBound() {
+        QNetworkAccessManager network; MusicMockSearch search(&network); MusicMockStream stream;
+        search.rowsByQuery = {{candidate(99)}, {candidate(0)}, {candidate(2)}};
+        VinylTorrentProvider provider(&search, &stream, nullptr);
+        QSignalSpy completed(&provider, &VinylTorrentProvider::completed);
+        QElapsedTimer elapsed;
+        elapsed.start();
+
+        provider.resolve(track());
+        QTRY_VERIFY_WITH_TIMEOUT(stream.manifestIds.size() >= 1, 250);
+        const QString firstToken = stream.manifestIds.at(0);
+        QTRY_COMPARE_WITH_TIMEOUT(search.queryCount, 2, 500);
+        QTRY_COMPARE_WITH_TIMEOUT(stream.manifestIds.size(), 2, 500);
+        QVERIFY(elapsed.elapsed() < 3000);
+        QCOMPARE(search.queryCount, 2); // pending limit prevents starting query 3
+
+        stream.manifest(1, {file()});
+        QCOMPARE(completed.size(), 1);
+        QCOMPARE(completed.first().at(1).toMap().value("infoHash").toString(), candidate(0).infoHash);
+        QVERIFY(stream.cancelled.contains(firstToken));
+        stream.manifest(0, {file(99)});
+        QCOMPARE(completed.size(), 1);
+        QCOMPARE(completed.first().at(1).toMap().value("infoHash").toString(), candidate(0).infoHash);
+        QCOMPARE(stream.manifestIds.size(), 2);
+    }
     void supersessionAndCancellationIgnoreLateReplies() {
         QNetworkAccessManager network; MusicMockSearch search(&network); MusicMockStream stream;
         search.rows = {candidate(1)};
@@ -239,6 +304,42 @@ private slots:
         stream.manifest(2, {file()});
         QCOMPARE(completed.count(), 1);
         QVERIFY(stream.cancelled.contains(stream.manifestIds.at(2)));
+    }
+    void supersessionRetiresBothRacingManifestRequests() {
+        QNetworkAccessManager network; MusicMockSearch search(&network); MusicMockStream stream;
+        search.rows = {candidate(1), candidate(2)};
+        VinylTorrentProvider provider(&search, &stream, nullptr);
+        QSignalSpy completed(&provider, &VinylTorrentProvider::completed);
+
+        provider.resolve(track());
+        QTRY_COMPARE_WITH_TIMEOUT(stream.manifestIds.size(), 1, 250);
+        const QString firstToken = stream.manifestIds.at(0);
+        QTRY_COMPARE_WITH_TIMEOUT(stream.manifestIds.size(), 2, 1800);
+        const QString secondToken = stream.manifestIds.at(1);
+
+        auto replacementTrack = track();
+        replacementTrack["title"] = QStringLiteral("New Song");
+        const int replacementRequest = provider.resolve(replacementTrack);
+        QVERIFY(stream.cancelled.contains(firstToken));
+        QVERIFY(stream.cancelled.contains(secondToken));
+        QTRY_COMPARE_WITH_TIMEOUT(stream.manifestIds.size(), 3, 250);
+        const QString replacementToken = stream.manifestIds.at(2);
+
+        // Canceled replies from both old candidates cannot complete or alter
+        // the replacement request, even after its token is live.
+        stream.manifest(0, {file(98)});
+        stream.manifest(1, {file(99)});
+        QCOMPARE(completed.size(), 0);
+        QCOMPARE(stream.fileIndex, -1);
+
+        auto replacementFile = file();
+        replacementFile["path"] = QStringLiteral("Artist/Album/01 New Song.flac");
+        stream.manifest(2, {replacementFile});
+        QCOMPARE(completed.size(), 1);
+        QCOMPARE(completed.first().at(0).toInt(), replacementRequest);
+        QCOMPARE(completed.first().at(1).toMap().value("infoHash").toString(), candidate(1).infoHash);
+        QCOMPARE(stream.fileId, replacementToken);
+        QCOMPARE(stream.fileIndex, 7);
     }
     void ambiguousCandidatesNeverPlayAndAttemptsAreBounded() {
         QNetworkAccessManager network; MusicMockSearch search(&network); MusicMockStream stream;

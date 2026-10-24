@@ -23,7 +23,7 @@ Main {
     readonly property string directory: Qt.application.arguments[3]
     readonly property bool fallback: mode.indexOf("fallback")===0
     readonly property bool stress: mode.indexOf("stress")>=0
-    readonly property bool playingStress: mode==="fallback-playing-stress"
+    readonly property bool playingStress: mode.indexOf("playing-stress")>=0
     readonly property bool genesis: mode.indexOf("genesis")>=0
     readonly property int catalogueIndex: fallback||genesis?0:1
     function fail(message){console.error("VINYL_REMOTE_FAIL",stage,message);cycle.stop();Qt.exit(19);}

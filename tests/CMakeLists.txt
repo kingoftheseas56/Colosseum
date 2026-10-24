@@ -5138,6 +5138,10 @@ set_tests_properties(colosseum.qml.vinyl_local_session PROPERTIES
 
 find_program(COLOSSEUM_VINYL_TEST_NODE NAMES node)
 if(COLOSSEUM_VINYL_TEST_NODE)
+    add_test(NAME colosseum.vinyl_runtime_integrity
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-live/runtime_integrity.test.mjs")
+    set_tests_properties(colosseum.vinyl_runtime_integrity PROPERTIES
+        LABELS "unit;vinyl;stream" TIMEOUT 30)
     add_test(NAME colosseum.vinyl_shell_back
         COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_shell_back_test.mjs")
     set_tests_properties(colosseum.vinyl_shell_back PROPERTIES

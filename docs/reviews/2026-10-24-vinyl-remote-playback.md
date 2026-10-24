@@ -4,6 +4,8 @@ Date: 2026-10-24. Branch: `codex/vinyl-production-flow`; starting commit: `30b8c
 
 ## Result and boundary
 
+Follow-up: the remaining reproduced intermittency was diagnosed and repaired in [the torrent reliability follow-up](2026-10-24-vinyl-torrent-reliability.md). The observations below describe the earlier binary and remain historical evidence.
+
 Exact torrent audio and real YouTube fallback are freshly demonstrated inside production Main, using the existing catalogue, canonical queue, StreamServer and MpvItem. Discovery scheduling, a release-name parsing gap, seek acknowledgement ordering and a controlled blocked-read seek defect are fixed. **The final app passed a complete strict torrent seek/EOF journey, but public torrent discovery, startup and seek reliability still vary. Broad Q1/Q2/Q6 qualification remains open.** Failed public-source probes are retained below; this is not full M3 reliability closure.
 
 No custom search API, replacement player, additional canonical store, hardcoded magnet, pre-seeded fixture torrent or relaxed recording identity was installed. Actual-app journeys invoke the existing semantic actions; they do not claim physical desktop mouse automation or human listening acceptance.
