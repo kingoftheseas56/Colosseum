@@ -1734,7 +1734,11 @@ Window {
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
-        if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
+        if (theatreSeriesLayer.active && theatreSeriesLayer.item) {
+            theatreSeriesLayer.item.itemData = item
+            if (item.resumeSources)
+                theatreSeriesLayer.item.openResumeSources(item.resumeSources)
+        }
         else theatreSeriesLayer.active = true
     }
     function closeTheatreSeries() { theatreSeriesLayer.active = false }
@@ -2863,12 +2867,32 @@ Window {
                                         "title": title, "cover": cover })
                 return
             }
-            // downloaded file first: resume the LOCAL copy at position, never a stream fetch
-            if (r.localPath && String(r.localPath).length)
+            // Existing local copies stay local. A deleted download reopens the
+            // same title/episode's Watch sheet without choosing a source for the user.
+            if (r.localPath && String(r.localPath).length) {
+                if (typeof Download !== "undefined" && typeof Download.localFileAvailable === "function"
+                        && !Download.localFileAvailable(String(r.localPath))) {
+                    var sourceId = String(r.subId || entry.id || "")
+                    var rootId = EpisodeBrowser.seriesRootId(sourceId)
+                    if (/^(tt\d+|(?:mal|kitsu|anilist|anidb):\d+)$/.test(rootId)) {
+                        var sourceType = r.subType === "series" || presentation.type === "series"
+                                         || sourceId !== rootId ? "series" : "movie"
+                        var showTitle = EpisodeBrowser.showTitleFrom(title)
+                        win.openTheatreSeries({ "id": rootId, "type": sourceType,
+                            "title": showTitle, "cover": cover, "resumeSources": {
+                                "id": sourceId, "type": sourceType, "title": title,
+                                "context": { "title": showTitle, "backdrop": cover,
+                                    "imdbId": rootId, "season": EpisodeBrowser.seasonOf(sourceId),
+                                    "episode": sourceType === "series" ? Number(sourceId.split(":").pop()) || 0 : 0,
+                                    "resumePosition": Number(r.position) || 0 } } })
+                        return
+                    }
+                }
                 win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
                                             "title": title, "art": cover,
                                             "kind": r.subType === "series" ? "episode" : "movie",
                                             "position": r.position || 0 })
+            }
             else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, cover, r.subType || "", r.subId || "", [], {}, r.position || 0)
             else if (presentation.type) win.openTheatreSeries({ id: String(entry.id).split(":")[0],
                                                                 type: presentation.type, title: title, cover: cover })
@@ -2997,6 +3021,8 @@ Window {
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
         setGuiStallContext("open", "Player")
+        if (position === undefined && playbackContext)
+            position = Number(playbackContext.resumePosition) || 0
         // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
         // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
         // a movie's subId IS its id. Downloads keep auto-adding; one shelf, no saved-vs-watched split.
@@ -4628,6 +4654,8 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
+            if (theatreSeriesLayer.pendingItem.resumeSources)
+                item.openResumeSources(theatreSeriesLayer.pendingItem.resumeSources)
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
                 item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })

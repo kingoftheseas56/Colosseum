@@ -545,6 +545,34 @@ bool DownloadStore::hasVideo(const QString &id) const {
     return m_index.contains(id);
 }
 
+bool DownloadStore::localFileAvailable(const QString &path) const {
+    if (path.isEmpty())
+        return false;
+
+    QString localPath;
+    // QUrl parses a Windows drive letter as a URI scheme. Keep absolute paths
+    // in their filesystem representation before considering URL syntax.
+    if (QDir::isAbsolutePath(path)) {
+        localPath = path;
+    } else {
+        const QUrl url(path);
+        if (url.scheme().isEmpty()) {
+            localPath = path;
+        } else if (url.scheme().compare(QStringLiteral("file"), Qt::CaseInsensitive) == 0
+                   && url.isValid()) {
+            localPath = url.toLocalFile();
+        } else {
+            return false;
+        }
+    }
+
+    if (localPath.isEmpty())
+        return false;
+
+    const QFileInfo info(localPath);
+    return info.isFile() && info.isReadable();
+}
+
 // ── paths / naming (unchanged) ──
 
 QString DownloadStore::buildDefaultDownloadDir() const {

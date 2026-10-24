@@ -4284,13 +4284,34 @@ set_tests_properties(colosseum.downloadstore_legacy_resume_harness PROPERTIES
     LABELS "unit;network;lifecycle;compatibility"
     TIMEOUT 30)
 
-# Stage the Qt runtime DLLs required by the standalone Function 0008 harness.
+# Local video routing must check the real filesystem rather than index membership.
+add_executable(downloadstore_local_file_availability_harness
+    downloadstore_local_file_availability_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h")
+target_include_directories(downloadstore_local_file_availability_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(downloadstore_local_file_availability_harness PRIVATE
+    Qt6::Core Qt6::Network Qt6::Gui)
+set_target_properties(downloadstore_local_file_availability_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.downloadstore_local_file_availability_harness
+    COMMAND downloadstore_local_file_availability_harness)
+set_tests_properties(colosseum.downloadstore_local_file_availability_harness PROPERTIES
+    LABELS "unit;filesystem;contract"
+    TIMEOUT 15)
+
+# Stage the Qt runtime DLLs required by the standalone download harnesses.
 foreach(_qt_target Qt6::Core Qt6::Network Qt6::Gui)
     add_custom_command(TARGET downloadstore_source_headers_harness POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:${_qt_target}>"
                 "${CMAKE_CURRENT_BINARY_DIR}/..")
     add_custom_command(TARGET downloadstore_lifecycle_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:${_qt_target}>"
+                "${CMAKE_CURRENT_BINARY_DIR}/..")
+    add_custom_command(TARGET downloadstore_local_file_availability_harness POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:${_qt_target}>"
                 "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -4872,3 +4893,14 @@ endforeach()
 # identical target.
 include("${COLOSSEUM_NATIVE_DIR}/cmake/NuvioBackendTests.cmake")
 colosseum_add_nuvio_backend_tests()
+
+# Android 018 focused Node regressions; these are deterministic and use no providers.
+if(COLOSSEUM_FERIA_TEST_NODE)
+    foreach(test_name android_continue_missing_download theatre_pinned_header_scrim theatre_search_year)
+        add_test(NAME colosseum.${test_name}
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
+        set_tests_properties(colosseum.${test_name} PROPERTIES
+            LABELS "unit;node;regression"
+            TIMEOUT 30)
+    endforeach()
+endif()

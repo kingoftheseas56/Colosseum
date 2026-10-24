@@ -476,6 +476,14 @@ Item {
         }
     }
 
+    function openResumeSources(request) {
+        if (!request || !request.id) return
+        var context = request.context || ({})
+        page.sheetEpisode = request.type === "series"
+            ? { "id": request.id, "season": context.season, "episode": context.episode } : null
+        sources.show(request.type, request.id, request.title, context)
+    }
+
     function openEpisodeForPlay(v) {
         if (!v) return
         var label=page.title+" - S"+page.episodeSeason(v)+"E"+page.episodeNumber(v)
@@ -1720,7 +1728,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(0.024, 0.027, 0.043, 0.97)
+            color: Qt.rgba(0.024, 0.027, 0.043, 1.0)
             opacity: ledgerBarFloat.pinned ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom

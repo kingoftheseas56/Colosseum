@@ -49,6 +49,7 @@ public:
     Q_INVOKABLE void resumeJob(const QString &id);   // paused → queued (Range-append if same-session url)
     Q_INVOKABLE QVariantList jobs() const;
     Q_INVOKABLE bool hasVideo(const QString &id) const;   // already in the library
+    Q_INVOKABLE bool localFileAvailable(const QString &path) const;
     // resolver handshake (Main.qml answers needResolve with one of these)
     Q_INVOKABLE void feedUrl(const QString &id, const QString &url);
     Q_INVOKABLE void feedSource(const QString &id, const QString &url, const QVariantMap &headers);

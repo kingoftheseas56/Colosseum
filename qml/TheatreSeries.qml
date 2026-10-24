@@ -463,6 +463,14 @@ Item {
         }
     }
 
+    function openResumeSources(request) {
+        if (!request || !request.id) return
+        var context = request.context || ({})
+        page.sheetEpisode = request.type === "series"
+            ? { "id": request.id, "season": context.season, "episode": context.episode } : null
+        sources.show(request.type, request.id, request.title, context)
+    }
+
     function openEpisodeForPlay(v) {
         if (!v) return
         var label=page.title+" - S"+page.episodeSeason(v)+"E"+page.episodeNumber(v)
@@ -1818,7 +1826,7 @@ Item {
             anchors.right: parent.right
             y: seasonChromeFloat.pinned ? -seasonChromeFloat.y : 0
             height: seasonChromeFloat.pinned ? (seasonChromeFloat.y + chromeCol.height) : 0
-            color: page.phoneNarrow ? "#08090d" : Qt.rgba(0.016, 0.02, 0.035, 0.93)
+            color: page.phoneNarrow ? "#08090d" : Qt.rgba(0.016, 0.02, 0.035, 1.0)
             opacity: seasonChromeFloat.pinned ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             Rectangle {

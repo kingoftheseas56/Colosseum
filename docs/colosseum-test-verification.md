@@ -20,6 +20,39 @@ passes 121 assertions. `test_android_media3_java_host_contract.py` passes all
 seven admission checks; Java admission rules are unchanged. Device playback
 qualification is separate from these host checks.
 
+## Android 018 Theatre and deleted-download regressions (2026-10-24)
+
+Three deterministic Node tests are registered with CTest:
+`colosseum.android_continue_missing_download`,
+`colosseum.theatre_pinned_header_scrim`, and `colosseum.theatre_search_year`.
+The missing-download and search tests execute production `Main.qml` and
+`WorldSearch.js` function bodies in a JavaScript VM, with no provider or account
+access. The missing-download test covers existing versus deleted local files,
+preserves the saved episode identity and resume position, and opens sources for
+a deleted file; it passes eight cases. Against baseline `Main.qml`, it is red
+because a missing local copy is sent to local playback. The search fixture uses
+the actual IMDb identities for The Dunes (`tt6910678`, 2021, rating 6.3) and
+Dune Drifter (`tt11835714`). Its native year-filter assertion is red against
+baseline `WorldSearch.js`; the fixed source passes native and legacy year
+behavior. The header source test is red on the prior translucent desktop scrim
+values and passes with both scrims opaque while preserving their pinned-state
+fades.
+
+The native `colosseum.downloadstore_local_file_availability_harness` compiles
+the production DownloadStore implementation with a focused host harness. It
+accepts existing local paths and file URIs and rejects missing paths, non-file
+URIs, and remote URLs. This proves the filesystem predicate in the native
+owner, not app routing at runtime.
+
+For visual coverage, an offscreen Qt 6.11.1 harness loaded the actual Theatre
+page components from temporary source copies, seeded 32 local Bonanza episodes,
+jumped to episode 30, and captured both pages at 1600 x 1000. The baseline/fixed
+header-band pixel comparisons passed and show row text behind the translucent
+headers disappearing with the opaque scrims. Captures and the runner receipt
+are retained under the task's `work/018/evidence/actual-render/` folder. This
+is component-level desktop evidence, not a full-app launch or Android runtime
+proof; full-app and device validation remain pending.
+
 ## Discover asynchronous state preservation (2026-10-15)
 
 `colosseum.tankoban_discover_async_preservation` runs the real Tankoban Discover

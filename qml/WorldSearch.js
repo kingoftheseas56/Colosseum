@@ -107,6 +107,20 @@ function pickTopMatch(query, all) {
     return all;
 }
 
+// Release years qualify Theatre results; they are not words in a title.
+// Keep numeric titles literal when the complete query already matches one.
+function pickTheatreTopMatch(query, all) {
+    var match = String(query || "").trim().match(/^(.*?)\s*(?:\((19\d{2}|20\d{2})\)|\s+(19\d{2}|20\d{2}))$/);
+    if (!match || !normTitle(match[1]).length
+            || all.some(function(row) { return normTitle(row.title) === normTitle(query); }))
+        return pickTopMatch(query, all);
+    var year = Number(match[2] || match[3]);
+    var matching = all.filter(function(row) {
+        return parseInt(row.data && row.data.releaseInfo, 10) === year;
+    });
+    return pickTopMatch(match[1], matching);
+}
+
 function searchTheatre(query, done) {
     if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
     var q = encodeURIComponent(query.trim());
@@ -125,7 +139,7 @@ function searchTheatre(query, done) {
         var mapLane = function(lane) {
             return lane.map(function(m, i) { var r = mapTheatre(m); r.rank = i; return r; });
         };
-        var all = pickTopMatch(query, mapLane(out.movie).concat(mapLane(out.series)));
+        var all = pickTheatreTopMatch(query, mapLane(out.movie).concat(mapLane(out.series)));
         // Show the list IMMEDIATELY — the old code held every result hostage behind a third,
         // serial /meta/ call for the hero's synopsis. Now the grid paints as soon as both
         // catalogs answer, and the hero enriches in a second done() pass when it lands.
@@ -321,7 +335,7 @@ function searchFor(mode, query, done, catalogEngine, owners) {
         var imdb = owners.imdbCatalog;
         return nativeDelivery(imdb, function() { return imdb.search(q, 40); },
             function() { return imdb.searchState(q, 40); },
-            function(rows) { return pickTopMatch(q, mapNativeTheatre(rows)); }, done);
+            function(rows) { return pickTheatreTopMatch(q, mapNativeTheatre(rows)); }, done);
     }
     if (mode === "Tankoban" && CatalogDelivery.available(owners.malCatalog)
             && typeof owners.malCatalog.searchState === "function")
