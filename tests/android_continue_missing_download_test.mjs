@@ -112,4 +112,32 @@ for (const warm of [false, true]) {
     assert.equal(calls.length, 1, 'Normal detail navigation does not reopen a stale resume sheet');
     checks++;
 }
+// The real deleted-download record was at 88.5%: an explicit Continue intent
+// must survive the player's ordinary near-finished restart heuristic.
+const playerSource = readFileSync(process.argv[3] || new URL('../qml/PlayerPage.qml', import.meta.url), 'utf8');
+const p = { resumePromptMinSec: 30, resumeRestartThreshold: 0.8,
+    normalizeStreamCandidates: () => [], findStreamIndex: () => 0,
+    resolveAdjacentContext: () => ({}), wakeChrome() {} };
+for (const name of ['clearActiveDirectHeaders', 'clearAbLoop', 'cancelSleepTimer',
+    'resetSkipSegments', 'resetTrackAutomation', 'cancelUpNext', 'updateMediaSubtitle',
+    'fetchSubtitles', 'playStreamAt', 'maybeHydrateContext']) p[name] = () => {};
+const playerContext = { root: p, mpv: { duration: 5796.46, pause: false } };
+vm.createContext(playerContext);
+for (const name of ['playTorrent', 'restoreState', 'shouldSkipResumePrompt', 'prepareResumeChoice'])
+    vm.runInContext(production(playerSource, name), playerContext);
+Object.assign(p, playerContext);
+for (const [position, explicit, prompt] of [[5132.649, true, true], [1200, true, true],
+                                         [5132.649, false, false], [1200, false, true]]) {
+    p.playTorrent('hash', 0, 'Night of the Living Dead', 'https://art/tt0063350/img',
+        'movie', 'tt0063350', [], explicit ? { resumePosition: position } : {});
+    p.restoreState({ position });
+    assert.equal(p.prepareResumeChoice(), prompt,
+        'An explicit Continue preserves even late progress; ordinary completion rules remain');
+    if (prompt) assert.equal(p.resumeChoiceSec, position);
+    else assert.equal(p.pendingSeekSec, 0);
+    checks++;
+}
+for (const name of ['playUrl', 'playLocalFile', 'playRemoteUrl'])
+    assert.match(production(playerSource, name), /root\.explicitResumePosition = false/,
+        `${name} cannot inherit an earlier explicit Continue intent`);
 console.log(`ANDROID_CONTINUE_MISSING_DOWNLOAD PASS cases=${checks}`);

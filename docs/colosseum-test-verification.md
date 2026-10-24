@@ -29,8 +29,16 @@ The missing-download and search tests execute production `Main.qml` and
 `WorldSearch.js` function bodies in a JavaScript VM, with no provider or account
 access. The missing-download test covers existing versus deleted local files,
 preserves the saved episode identity and resume position, and opens sources for
-a deleted file; it passes eight cases. Against baseline `Main.qml`, it is red
-because a missing local copy is sent to local playback. The search fixture uses
+a deleted file; it now passes 12 cases. Four additional production-path cases
+exercise `PlayerPage.qml` through `playTorrent`, `restoreState`, and
+`prepareResumeChoice` at 1,200 s and 5,132.649 s of a 5,796.46 s video. Explicit
+Continue retains its resume prompt at 88.5% progress, while ordinary playback
+still follows the existing 80% near-finished restart policy and silently starts
+over at 88.5%. Direct URL, local-file, and remote-URL playback clear the explicit
+Continue intent so it cannot leak to another source. The new near-end cases are
+red against baseline `PlayerPage.qml`; the missing-download path remains red
+against baseline `Main.qml` because a missing local copy is sent to local
+playback. The search fixture uses
 the actual IMDb identities for The Dunes (`tt6910678`, 2021, rating 6.3) and
 Dune Drifter (`tt11835714`). Its native year-filter assertion is red against
 baseline `WorldSearch.js`; the fixed source passes native and legacy year

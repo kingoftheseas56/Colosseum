@@ -261,6 +261,7 @@ Item {
     }
     property real resumeChoiceSec: -1          // the saved position the overlay offers
     property bool resumePromptConsumed: false  // prompt only once per source load
+    property bool explicitResumePosition: false // a Continue source pick keeps its requested position
 
     // --- online subtitles (Harbor-style: torrent streams have no subs, so fetch them) ---
     property string subStreamType: ""     // "movie" | "series" (for the OpenSubtitles query)
@@ -1516,6 +1517,7 @@ Item {
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.explicitResumePosition = Number((playbackContext || ({})).resumePosition) > 0
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
         root.clearActiveDirectHeaders()
@@ -2557,6 +2559,7 @@ Item {
 
 
     function playUrl(url, title) {
+        root.explicitResumePosition = false
         root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
         root.playbackQueueOrderingMode = ""
         root.clearAbLoop()
@@ -2642,6 +2645,7 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.explicitResumePosition = false
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
         var arrivingUrl = DirectSourcePolicy.admitProviderUrl(t.arrivingUrl)
@@ -2710,6 +2714,7 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.explicitResumePosition = false
         var t = target || ({})
         var remoteUrl = String(t.streamUrl || "")
         root.arrivingStreamUrl = ""
@@ -2819,7 +2824,8 @@ Item {
             return false
         root.resumePromptConsumed = true
         root.resumeChoiceSec = root.pendingSeekSec
-        if (mpv.duration > 0 && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
+        if (!root.explicitResumePosition && mpv.duration > 0
+                && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
             root.pendingSeekSec = 0
             root.resumeChoiceSec = -1
             root.resumeChoiceOpen = false
