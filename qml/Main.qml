@@ -928,7 +928,7 @@ Window {
                     && universeLayer.item.atlasTransientOpen === true,
             universeActive: universeLayer.active,
             searchActive: searchLayer.active,
-            worldSearchActive: worldSearchLayer.active,
+            worldSearchActive: worldSearchLayer.active || (worldStack.current === "Vinyl" && win.vinylWorld && win.vinylWorld.searchOpen),
             comicSeriesActive: comicSeriesLayer.active,
             locgPublisherActive: locgPublisherLayer.active,
             comicIndexActive: comicIndexLayer.active,
@@ -2920,6 +2920,7 @@ Window {
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current
+        if (w === "Vinyl" && win.vinylWorld) { win.vinylWorld.enterDiscoverSearch(true, false); return }
         if (w === "Biblio") { searchLayer.active = true; return }
         if (w === "Tankoban") {
             worldSearchLayer.searchMode = "Tankoban"
@@ -2936,6 +2937,7 @@ Window {
         setGuiStallContext("navigate", currentSurface || "Home")
     }
     function closeWorldSearch() {
+        if (win.vinylWorld && win.vinylWorld.searchOpen) win.vinylWorld.closeSearch()
         worldSearchLayer.active = false
         setGuiStallContext("navigate", currentSurface || "Home")
     }

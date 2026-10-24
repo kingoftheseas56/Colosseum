@@ -87,6 +87,7 @@ TestCase {
         property var recent:[]
         function list(scope){return recent;}
         function record(scope,query){recent=[query].concat(recent.filter(function(q){return q!==query;}));revision++;return recent;}
+        function remove(scope,query){recent=recent.filter(function(q){return q!==query;});revision++;return recent;}
     }
     Component { id:clipProbeFactory; Rectangle { width:8; height:8; color:"#ff00ff"; z:1000 } }
     function test_onlineArtistSaveKeyStaysStable() {
@@ -178,7 +179,8 @@ TestCase {
         compare(item("vinylCatalogueMode"),null);
         var top=item("vinylTopBar");
         verify(top!==null);
-        compare(item("vinylLibraryHeader").y,top.y+top.height+24);
+        compare(item("vinylLibraryHeader"),null);
+        compare(world.worldScroll.y,top.y+top.height+38);
         compare(item("vinylAlbumBack").y,top.y+top.height+24);
     }
     function test_asyncImportControlsProgressCancelAndAlbumAwareStatus() {
@@ -256,10 +258,14 @@ TestCase {
         probe.destroy();
         world.worldView.syncPickerPlacement();wait(0);
         world.enterDiscoverSearch(true,false);wait(0);
-        var search=item("vinylSearchInput");
+        tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
+        verify(world.searchPage.artistPicker);
+        var search=item("searchSurfaceInput");
         mouseClick(search,search.width/2,search.height/2);
         tryCompare(search,"activeFocus",true);
-        keyClick(Qt.Key_A);compare(world.worldData.pickerQuery,"a");
+        keyClick(Qt.Key_A);tryCompare(world.worldData,"pickerQuery","a",1000);
+        wait(250);compare(world.searchPage.query,"a");
+        world.searchPage.backRequested();tryVerify(function(){return !world.searchOpen;});
         var done=item("vinylPickerDone");
         var bottom=done.mapToItem(world,0,done.height);
         verify(bottom.y<=world.worldScroll.y+world.worldScroll.height);
@@ -381,17 +387,17 @@ TestCase {
         item("vinylTopBar").accountController=null;
         verify(!item("colosseumTopbarAccountInput").visible);
     }
-    function test_recentSearchMenuKeyboardAndProfileClosure(){
-        seed(2);history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
-        world.enterDiscoverSearch(false,false);wait(0);
-        var input=item("vinylSearchInput");input.forceActiveFocus();keyClick(Qt.Key_Q);keyClick(Qt.Key_A);keyClick(Qt.Key_Return);wait(0);
-        compare(history.recent[0],"qa");var recent=item("vinylRecentSearches");verify(recent.visible);
-        host.width=1024;world.width=1024;wait(0);var point=recent.mapToItem(world,recent.width,recent.height);verify(point.x<=world.width,"Recent recall fits 1024 width");
-        mouseClick(recent);wait(0);var entry=item("vinylRecentSearch_0");verify(entry && entry.visible);compare(entry.text,"qa");
-        keyClick(Qt.Key_Escape);tryCompare(input,"activeFocus",true);
-        keyClick(Qt.Key_A,Qt.ControlModifier);keyClick(Qt.Key_Backspace);compare(world.worldData.query,"");
-        mouseClick(recent);wait(0);mouseClick(entry);tryCompare(input,"text","qa");
-        mouseClick(recent);wait(0);world.worldData.searchHistoryStore=null;wait(0);verify(!recent.visible);verify(!entry.visible);
+    function test_sharedSearchRecentListCanRemoveAndTracksProfileClosure(){
+        seed(2);world.worldData.skipPicker();world.worldView.setTab("library");wait(0);
+        history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
+        item("vinylTopBar").searchClicked();tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
+        var page=world.searchPage,input=item("searchSurfaceInput");
+        input.forceActiveFocus();keyClick(Qt.Key_Q);keyClick(Qt.Key_A);keyClick(Qt.Key_Return);wait(0);
+        tryVerify(function(){return history.recent.length===1 && history.recent[0]==="qa";});
+        compare(page.historyScope(),"vinyl");compare(page.recentCount,1);compare(page.recent[0],"qa");
+        page.removeRecent("qa");tryVerify(function(){return page.recentCount===0;});
+        history.record("vinyl","profile entry");page.loadRecent();compare(page.recentCount,1);
+        world.worldData.searchHistoryStore=null;tryCompare(page,"recentCount",0);
     }
     function test_albumActionsHaveGeometryAndEnqueue_data(){
         return [{tag:"wide",w:1280,h:720},{tag:"narrow",w:1024,h:640}];
@@ -550,21 +556,30 @@ TestCase {
 
     function test_homeDoesNotExposeAnInertLibraryFilter() {
         seed(2);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
-        verify(!item("vinylSearchInput").visible,"Home has no active Library/Discover filter");
-        item("vinylTopBar").searchClicked();wait(0);
-        compare(world.page,"discover");verify(item("vinylSearchInput").visible);verify(item("vinylSearchInput").activeFocus);
+        compare(item("vinylSearchInput"),null,"The prototype inline search input is removed.");
+        var originalQuery=world.worldData.query;
+        item("vinylTopBar").searchClicked();tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
+        compare(world.page,"home");compare(world.worldView.currentTab,"home");
+        var input=item("searchSurfaceInput");verify(input!==null && input.visible && input.activeFocus);
+        world.searchPage.backRequested();tryVerify(function(){return !world.searchOpen;});
+        compare(world.page,"home");compare(world.worldView.currentTab,"home");compare(world.worldData.query,originalQuery);
     }
-    function test_searchDetourReplacesSavedDiscoverView() {
+    function test_searchOverlayPreservesSavedDiscoverView() {
         seed(8);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
         world.worldData.openList("local-albums",false);wait(0);
+        var discoverQuery=world.worldData.query;
         world.worldView.setTab("library");
         world.openAlbum("album-0");source.completed("browse",world.session.browseRequest,record(0),"");
         item("vinylTopBar").searchClicked();wait(0);
-        world.setQuery("remote");world.submitSearch();
-        source.completed("browse",world.session.browseRequest,{albums:[record(0)],artists:[]},"");
-        verify(world.goBack());verify(world.goBack());compare(world.page,"library");
+        tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
+        compare(world.page,"album");compare(world.worldView.currentTab,"library");
+        world.searchPage.query="remote";compare(world.searchPage.query,"remote");
+        compare(world.worldData.query,discoverQuery);verify(!world.worldData.onlineMode);
+        verify(world.goBack());tryVerify(function(){return !world.searchOpen;});compare(world.page,"album");
+        verify(world.goBack());compare(world.page,"library");
         world.worldView.setTab("discover");wait(0);
-        compare(world.worldData.query,"remote");compare(world.worldView.listKey,"");
+        compare(world.worldData.query,discoverQuery);compare(world.worldView.listKey,"local-albums");
+        verify(!world.worldData.onlineMode);
     }
     function test_libraryCarouselOpensCanonicalLibrary() {
         seed(3);world.worldData.skipPicker();world.worldData.openList("library",false);wait(0);
@@ -600,21 +615,23 @@ TestCase {
         world.openAlbum("album-2");source.completed("browse",world.session.browseRequest,record(2),"");
         compare(world.page,"album");
 
-        item("vinylTopBar").searchClicked();wait(0);
-        compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
-        compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
-        verify(world.worldData.onlineMode,"TopBar search enters catalogue mode");
-        world.setQuery("detour query");world.submitSearch();verify(world.session.browsing);
+        var originalOnline=world.worldData.onlineMode,originalQuery=world.worldData.query;
+        item("vinylTopBar").searchClicked();tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
+        compare(world.page,"album");compare(world.worldView.currentTab,"library");
+        compare(world.worldView.listKey,"library");verify(item("searchSurfaceInput").activeFocus);
+        compare(world.worldData.onlineMode,originalOnline);
+        world.searchPage.query="detour query";compare(world.searchPage.query,"detour query");
+        compare(world.worldData.query,originalQuery);
 
-        verify(world.goBack());compare(world.page,"album");
-        verify(!world.session.browsing,"Back cancels in-flight search while restoring the route");
+        verify(world.goBack());tryVerify(function(){return !world.searchOpen;});compare(world.page,"album");
+        compare(world.worldData.onlineMode,originalOnline);compare(world.worldData.query,originalQuery);
         verify(world.goBack());compare(world.page,"library");
         compare(world.worldView.currentTab,"library");compare(world.worldView.listKey,"library");
         tryCompare(world.worldScroll,"contentY",savedY);
         tryVerify(function(){var restored=findChild(item("vinylListPage"),"vinylListCard_2");return restored && restored.activeFocus;},5000,"Back restores list-card focus");
     }
 
-    function test_searchModeDetourRestoresLibraryListAndUsesDiscoverMode() {
+    function test_searchModeOpensSharedPageAndRestoresLibraryList() {
         seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
         world.worldData.openList("library",false);wait(0);
         world.worldScroll.contentY=world.worldView.contentTop+110;wait(0);
@@ -625,15 +642,17 @@ TestCase {
         world.openAlbum("album-1");source.completed("browse",world.session.browseRequest,record(1),"");
         compare(world.page,"album");
 
-        world.enterDiscoverSearch(false,true);wait(0);
-        compare(world.page,"discover");compare(world.worldView.currentTab,"discover");
-        compare(world.worldView.listKey,"");verify(item("vinylSearchInput").activeFocus);
-        compare(world.worldData.onlineMode,false,"The Discover request sets Discover mode without changing hidden Library state");
-        source.cataloguePageVersion=1;
-        world.setQuery("local detour query");world.submitSearch();verify(world.session.browsing);
+        var originalOnline=world.worldData.onlineMode,originalQuery=world.worldData.query;
+        world.enterDiscoverSearch(false,true);tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
+        compare(world.page,"album");compare(world.worldView.currentTab,"library");
+        compare(world.worldView.listKey,"library");verify(item("searchSurfaceInput").activeFocus);
+        compare(world.searchPage.searchMode,"Vinyl");
+        compare(world.worldData.onlineMode,originalOnline,"Opening shared search preserves the existing mode.");
+        world.searchPage.query="local detour query";compare(world.searchPage.query,"local detour query");
+        compare(world.worldData.query,originalQuery);
 
-        verify(world.goBack());compare(world.page,"album");
-        verify(!world.session.browsing,"Back cancels in-flight local search while restoring the route");
+        verify(world.goBack());tryVerify(function(){return !world.searchOpen;});compare(world.page,"album");
+        compare(world.worldData.onlineMode,originalOnline);compare(world.worldData.query,originalQuery);
         verify(world.goBack());compare(world.page,"library");
         compare(world.worldView.currentTab,"library");compare(world.worldView.listKey,"library");
         tryCompare(world.worldScroll,"contentY",savedY);

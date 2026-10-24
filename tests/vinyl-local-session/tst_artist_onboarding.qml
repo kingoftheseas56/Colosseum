@@ -193,11 +193,13 @@ TestCase {
         compare(world.page, "home");
         compare(world.worldView.currentTab, "home");
         verify(world.searchOpen, "The shared top search entry should open artist search in the picker.");
+        verify(world.searchPage !== null && world.searchPage.artistPicker,
+            "Onboarding artist search should use the shared search page in picker mode.");
         compare(findChild(world, "vinylPickerSearch"), null,
             "The picker must not add a second search field.");
-        var sharedSearch = findChild(world, "vinylSearchInput");
+        var sharedSearch = findChild(world, "searchSurfaceInput");
         verify(sharedSearch !== null && sharedSearch.visible,
-            "Artist search should reuse the normal top search field.");
+            "Artist search should reuse the shared search page field.");
 
         sharedSearch.forceActiveFocus();
         typeText("native");
