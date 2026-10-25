@@ -466,6 +466,13 @@ private slots:
     void backgroundLifecycleInvalidatesAndReconstructs();
     void backgroundDownloadKeepsSharedRouteWithoutPlayback();
     void backgroundDownloadCanFinishPreparing();
+    void warmSourceCannotReplacePreparedDownload();
+    void warmSourceCannotFencePendingDownload();
+    void warmSourceRunsAfterDownloadStops();
+    void warmSourceIsPromotedByExplicitDownload();
+    void explicitDownloadSupersedesWarmCompletion();
+    void hiddenWarmSourceIsIgnoredWithDownloadLease();
+    void foregroundDownloadSurvivesLeaseWithdrawalUntilStopped();
     void backgroundDownloadLeaseLossQuiesces();
     void backgroundSharedPrepareKeepsDownload_data();
     void backgroundSharedPrepareKeepsDownload();
@@ -488,6 +495,7 @@ private slots:
 #ifdef COLOSSEUM_ANDROID_NUVIO_BACKEND
     void facadeReflectsEngineUnavailableState();
     void facadeSyncsForegroundBeforeDemand();
+    void facadeWarmSourceIsInvokableAndSyncsForeground();
 #endif
 };
 
@@ -1099,6 +1107,7 @@ void TestNuvioStreamBackend::backgroundDownloadKeepsSharedRouteWithoutPlayback()
     QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
     QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString::fromLatin1(kUrlA));
     backend.stop();
+    backend.stopPrefetch();
     QTRY_VERIFY_WITH_TIMEOUT(fake().stopStreamIds.contains(QStringLiteral("stream-1")), 10000);
 }
 
@@ -1123,6 +1132,172 @@ void TestNuvioStreamBackend::backgroundDownloadCanFinishPreparing() {
     QCOMPARE(ready.count(), 0);
     QCOMPARE(fake().destroyCount, 0);
     QCOMPARE(fetch.at(0).at(0).toString(), QString::fromLatin1(kUrlA));
+}
+
+void TestNuvioStreamBackend::warmSourceCannotReplacePreparedDownload() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(fetch.first().at(0).toString(), QString::fromLatin1(kUrlA));
+
+    QVERIFY(QMetaObject::invokeMethod(&backend, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashB)), Q_ARG(int, 0)));
+    QTest::qWait(300);
+
+    // A card/row warm-up must not retire or replace a route currently serving
+    // an explicit download, even when it asks for another torrent.
+    QCOMPARE(fetch.count(), 1);
+    QCOMPARE(fake().addTorrentCount, 1);
+    QCOMPARE(fake().prepareCount, 1);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+}
+
+void TestNuvioStreamBackend::warmSourceCannotFencePendingDownload() {
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashA);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+
+    nuvio_engine_event held;
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        held = *fake().heldPrepared;
+    }
+    QVERIFY(QMetaObject::invokeMethod(&backend, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashB)), Q_ARG(int, 0)));
+    {
+        std::lock_guard lock(fake().mutex);
+        fake().pushEvent(held);
+        fake().heldPrepared.reset();
+    }
+
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(fetch.first().at(0).toString(), QString::fromLatin1(kUrlA));
+    QCOMPARE(fake().prepareCount, 1);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+}
+
+void TestNuvioStreamBackend::warmSourceRunsAfterDownloadStops() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    backend.stopPrefetch();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 10000);
+
+    QVERIFY(QMetaObject::invokeMethod(&backend, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashB)), Q_ARG(int, 0)));
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 2, 10000);
+    backend.play(kInfoHashB, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QCOMPARE(ready.first().at(0).toString(), QString::fromLatin1(kUrlB));
+    QCOMPARE(fake().prepareCount, 2);
+}
+
+void TestNuvioStreamBackend::warmSourceIsPromotedByExplicitDownload() {
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashB);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashB)), Q_ARG(int, 0)));
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+
+    nuvio_engine_event held;
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        held = *fake().heldPrepared;
+    }
+    backend.prefetch(kInfoHashB, 0);
+    {
+        std::lock_guard lock(fake().mutex);
+        fake().pushEvent(held);
+        fake().heldPrepared.reset();
+    }
+
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(fetch.first().at(0).toString(), QString::fromLatin1(kUrlB));
+    // Explicit download demand inherits the already prepared route.
+    QCOMPARE(fake().prepareCount, 1);
+}
+
+void TestNuvioStreamBackend::explicitDownloadSupersedesWarmCompletion() {
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashB);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashB)), Q_ARG(int, 0)));
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+    nuvio_engine_event staleWarmCompletion;
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        staleWarmCompletion = *fake().heldPrepared;
+    }
+
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(fetch.first().at(0).toString(), QString::fromLatin1(kUrlA));
+    {
+        std::lock_guard lock(fake().mutex);
+        fake().pushEvent(staleWarmCompletion);
+        fake().heldPrepared.reset();
+    }
+    QTest::qWait(300);
+
+    QCOMPARE(fetch.count(), 1);
+    QCOMPARE(fetch.first().at(0).toString(), QString::fromLatin1(kUrlA));
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-2")));
+}
+
+void TestNuvioStreamBackend::hiddenWarmSourceIsIgnoredWithDownloadLease() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    backend.setForeground(false);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashA)), Q_ARG(int, 0)));
+    QTest::qWait(300);
+
+    // An OS download lease keeps explicit download work alive, but must never
+    // turn hidden speculative card browsing into torrent/network activity.
+    QCOMPARE(fake().createCount, 0);
+    QCOMPARE(fake().addTorrentCount, 0);
+    QCOMPARE(fake().prepareCount, 0);
+}
+
+void TestNuvioStreamBackend::foregroundDownloadSurvivesLeaseWithdrawalUntilStopped() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, false)));
+    QTest::qWait(300);
+    QCOMPARE(fetch.count(), 1);
+    QCOMPARE(fetch.first().at(0).toString(), QString::fromLatin1(kUrlA));
+    QCOMPARE(fake().prepareCount, 1);
+    QCOMPARE(fake().destroyCount, 0);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+
+    // Main explicitly drops download demand when the final transfer ends.
+    backend.stopPrefetch();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 10000);
+    QVERIFY(fake().stopStreamIds.contains(QStringLiteral("stream-1")));
 }
 
 void TestNuvioStreamBackend::backgroundDownloadLeaseLossQuiesces() {
@@ -1197,6 +1372,7 @@ void TestNuvioStreamBackend::completedDownloadRetiresOnlyDownloadOwnership() {
         Qt::DirectConnection, Q_ARG(bool, true)));
     QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
         Qt::DirectConnection, Q_ARG(bool, false)));
+    backend.stopPrefetch(); // The download itself has completed while foreground.
     QTRY_VERIFY_WITH_TIMEOUT(fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashB)), 10000);
     QVERIFY(!fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashA)));
     QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
@@ -1228,6 +1404,7 @@ void TestNuvioStreamBackend::finalDownloadCompletionReleasesIdleEngine() {
     QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
     QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
         Qt::DirectConnection, Q_ARG(bool, false)));
+    backend.stopPrefetch(); // Completing a download explicitly releases its demand.
     QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 1000);
     QCOMPARE(fake().createCount, 1);
 }
@@ -1404,6 +1581,19 @@ void TestNuvioStreamBackend::facadeSyncsForegroundBeforeDemand() {
     QCOMPARE(probes, 1);
     server.prefetch(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
     QCOMPARE(probes, 2);
+}
+
+void TestNuvioStreamBackend::facadeWarmSourceIsInvokableAndSyncsForeground() {
+    StreamServer server;
+    int probes = 0;
+    server.setForegroundProbe([&probes] { ++probes; return true; });
+    QSignalSpy errors(&server, &StreamServer::streamError);
+    QVERIFY(QMetaObject::invokeMethod(&server, "warmSource", Qt::DirectConnection,
+        Q_ARG(QString, QString::fromLatin1(kInfoHashA)), Q_ARG(int, 0)));
+    QCOMPARE(probes, 1);
+    // Speculative calls remain silent when the optional Android engine is
+    // unavailable; unlike explicit download prefetch they are not an error.
+    QCOMPARE(errors.count(), 0);
 }
 #endif
 

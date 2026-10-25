@@ -237,7 +237,7 @@ Item {
             if (!h.length) continue;
             if (h === sheet.warmedHash) return;         // already warmed this one
             sheet.warmedHash = h;
-            Stream.prefetch(h, row.fileIdx || 0);
+            Stream.warmSource(h, row.fileIdx || 0);
             return;
         }
     }

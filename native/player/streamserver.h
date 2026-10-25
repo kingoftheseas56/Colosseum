@@ -77,6 +77,7 @@ public:
     // streamReady, so the kept-alive player page never hijacks a download's url
     // into mpv. (PlayerPage.qml loads EVERY streamReady it hears.)
     Q_INVOKABLE void prefetch(const QString &infoHash, int fileIdx);
+    Q_INVOKABLE void warmSource(const QString &infoHash, int fileIdx);
 
     // Bring the engine up BEFORE anything is played. It used to spawn lazily on the first play(), so
     // every session paid a cold start at the worst possible moment -- the instant Play was pressed. A

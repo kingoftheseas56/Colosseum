@@ -342,6 +342,11 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx) {
     m_backend->prefetch(infoHash, fileIdx);
 }
 
+void StreamServer::warmSource(const QString &infoHash, int fileIdx) {
+    if (m_foregroundProbe) setForeground(m_foregroundProbe());
+    if (m_backend) m_backend->warmSource(infoHash, fileIdx);
+}
+
 void StreamServer::warmUp() {
     // Deliberately lazy: never starts torrent networking at app startup.
 }
@@ -448,6 +453,11 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx)
     Q_UNUSED(infoHash)
     Q_UNUSED(fileIdx)
     emit streamError(kUnavailableMessage);
+}
+
+void StreamServer::warmSource(const QString &infoHash, int fileIdx)
+{
+    prefetch(infoHash, fileIdx);
 }
 
 void StreamServer::warmUp()

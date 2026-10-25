@@ -345,6 +345,11 @@ void StreamServer::play(const QString &infoHash, int fileIdx)
     ensureStarted();
 }
 
+void StreamServer::warmSource(const QString &infoHash, int fileIdx)
+{
+    prefetch(infoHash, fileIdx);
+}
+
 void StreamServer::prefetch(const QString &infoHash, int fileIdx)
 {
     if (infoHash.isEmpty()) {

@@ -283,6 +283,7 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
     std::atomic<quint64> m_fetchGeneration{0};
     std::atomic<bool> m_foreground{true};
     std::atomic<bool> m_backgroundDownloadsActive{false};
+    std::atomic<bool> m_downloadDemandActive{false};
     std::atomic<quint64> m_epoch{0};
 
     ActiveStream m_active;              // foreground route (m_stateMutex)
@@ -426,10 +427,21 @@ void NuvioStreamBackend::verifyIsolation() {
 }
 
 void NuvioStreamBackend::prefetch(const QString &infoHash, int fileIdx) {
+    requestPrefetch(infoHash, fileIdx, true);
+}
+
+void NuvioStreamBackend::warmSource(const QString &infoHash, int fileIdx) {
+    if (!available()) return;
+    if (!m_state->m_foreground.load() || m_state->m_downloadDemandActive.load()) return;
+    requestPrefetch(infoHash, fileIdx, false);
+}
+
+void NuvioStreamBackend::requestPrefetch(const QString &infoHash, int fileIdx, bool download) {
     if (!available()) {
         emit streamError(QStringLiteral("nuvio engine backend is unavailable"));
         return;
     }
+    if (download) m_state->m_downloadDemandActive = true;
     WorkerState::Task task;
     task.kind = WorkerState::TaskKind::Demand;
     task.generation = ++m_state->m_fetchGeneration;
@@ -513,21 +525,20 @@ void NuvioStreamBackend::setForeground(bool foreground) {
 void NuvioStreamBackend::setBackgroundDownloadsActive(bool active) {
     if (!available()) return;
     if (m_state->m_backgroundDownloadsActive.exchange(active) == active) return;
-    if (active) return; // Granting permission is not a networking demand.
+    // OS lifetime and explicit download ownership are independent. Losing the
+    // background host cannot stop a transfer while its Activity is foreground.
+    if (active || m_state->m_foreground.load()) return;
     ++m_state->m_fetchGeneration;
     WorkerState::Task task;
-    if (m_state->m_foreground.load()) {
-        task.kind = WorkerState::TaskKind::StopPrefetch;
-    } else {
-        ++m_state->m_epoch;
-        ++m_state->m_generation;
-        task.kind = WorkerState::TaskKind::Quiesce;
-    }
+    ++m_state->m_epoch;
+    ++m_state->m_generation;
+    task.kind = WorkerState::TaskKind::Quiesce;
     task.epoch = m_state->m_epoch.load();
     m_state->enqueueTask(std::move(task));
 }
 
 void NuvioStreamBackend::stopPrefetch() {
+    m_state->m_downloadDemandActive = false;
     if (!available()) return;
     ++m_state->m_fetchGeneration;
     WorkerState::Task task;
