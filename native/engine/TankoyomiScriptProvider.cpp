@@ -469,8 +469,7 @@ TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
         return;
     }
     if (m_language == QLatin1String("es")
-        && (m_providerId == QLatin1String("mangasin")
-            || m_providerId == QLatin1String("lectorxd"))) {
+        && m_providerId == QLatin1String("mangasin")) {
         m_deviceMode = true;
         m_workerMode = false;
         m_addonStore = new TankoyomiAddonStore(m_workerBase, this);

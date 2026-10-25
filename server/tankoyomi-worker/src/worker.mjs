@@ -13,8 +13,7 @@ const REQUEST_BODY_TIMEOUT_MS = 10_000;
 const ALLOWED_METHODS = new Set(['searchSeries', 'getChapters', 'getPages']);
 const ADDON_KEY_ID = 'tankoyomi-addon-2026-10';
 const ADDON_PROVIDERS = Object.freeze({
-  mangasin: Object.freeze(['m440.in']),
-  lectorxd: Object.freeze(['lectorxd.com'])
+  mangasin: Object.freeze(['m440.in'])
 });
 const ADDON_PAYLOAD_FIELDS = Object.freeze([
   'contractVersion', 'addonId', 'language', 'providerId', 'revision',
@@ -427,7 +426,7 @@ export function createWorker({ manifest, providers = {}, addonEnvelopes = {}, fe
       return jsonResponse({ ...manifest, contractVersion: CONTRACT_VERSION });
     }
 
-    const addonMatch = /^\/addons\/v1\/es\/(mangasin|lectorxd)\.json$/.exec(url.pathname);
+    const addonMatch = /^\/addons\/v1\/es\/(mangasin)\.json$/.exec(url.pathname);
     if (addonMatch) {
       if (request.method !== 'GET') return errorResponse(new HttpError(405, 'Method not allowed'));
       const [, providerId] = addonMatch;

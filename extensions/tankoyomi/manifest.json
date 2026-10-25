@@ -1,6 +1,6 @@
 {
   "id": "colosseum.well.tankoyomi",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "name": "Tankoyomi",
   "description": "Language-aware manga chapter source router for Tankoban Chapter Mode.",
   "type": "tankoyomi",
@@ -83,17 +83,6 @@
           "enabled": false,
           "allowedHosts": [
             "m440.in"
-          ],
-          "pageAccessPolicy": "public-https"
-        },
-        {
-          "id": "lectorxd",
-          "name": "LectorXD",
-          "entry": "languages/es/lectorxd.js",
-          "priority": 4,
-          "enabled": false,
-          "allowedHosts": [
-            "lectorxd.com"
           ],
           "pageAccessPolicy": "public-https"
         }

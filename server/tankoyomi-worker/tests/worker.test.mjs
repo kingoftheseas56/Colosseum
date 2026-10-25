@@ -80,6 +80,15 @@ test('production bundle imports every manifest provider, including disabled regi
         assert.equal(typeof provider[method], 'function', `${language.code}/${entry.id}.${method}`);
     }
   }
+  const spanish = productionManifest.languages.find(language => language.code === 'es');
+  assert.ok(spanish, 'Spanish remains installed');
+  assert.equal(spanish.providers.find(entry => entry.id === 'mangasin')?.enabled, false,
+    'MangaSin remains disabled by default');
+  assert.ok(productionProviders['es/mangasin'], 'opt-in MangaSin is available in the production bundle');
+  assert.equal(spanish.providers.some(entry => entry.id === 'lectorxd'), false,
+    'LectorXD is absent from the production manifest');
+  assert.equal(productionProviders['es/lectorxd'], undefined,
+    'LectorXD is absent from the production bundle');
 });
 
 test('registered disabled provider runs through the complete JSON handler and constrained fetch context', async () => {

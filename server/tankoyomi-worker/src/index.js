@@ -4,7 +4,6 @@ import weebcentral from '../../../extensions/tankoyomi/languages/en/weebcentral.
 import zonatmo from '../../../extensions/tankoyomi/languages/es/zonatmo.js';
 import niadd from '../../../extensions/tankoyomi/languages/es/niadd.js';
 import mangasin from '../../../extensions/tankoyomi/languages/es/mangasin.js';
-import lectorxd from '../../../extensions/tankoyomi/languages/es/lectorxd.js';
 import taiyo from '../../../extensions/tankoyomi/languages/pt/taiyo.js';
 import mangaOnline from '../../../extensions/tankoyomi/languages/pt/manga-online.js';
 import mangaNight from '../../../extensions/tankoyomi/languages/pt/manga-night.js';
@@ -19,7 +18,6 @@ const providers = {
   'es/zonatmo': zonatmo,
   'es/niadd': niadd,
   'es/mangasin': mangasin,
-  'es/lectorxd': lectorxd,
   'pt/taiyo': taiyo,
   'pt/manga-online': mangaOnline,
   'pt/manga-night': mangaNight,

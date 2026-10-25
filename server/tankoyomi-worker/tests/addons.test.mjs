@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWorker } from '../src/worker.mjs';
-import productionWorker from '../src/index.js';
+import productionWorker, {
+  manifest as productionManifest,
+  providers as productionProviders
+} from '../src/index.js';
 
 const SIGNING_PREFIX = Buffer.from('Colosseum Tankoyomi addon v1\n', 'utf8');
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -52,65 +55,60 @@ function testWorker(addonEnvelopes, fetchImpl) {
   });
 }
 
-test('fixed Spanish addon routes return client-verifiable signed envelopes without source-site requests', async () => {
+test('MangaSin route returns a client-verifiable signed envelope without a source-site request', async () => {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const sourceCalls = [];
-  const envelopes = {};
-  const scriptSources = {};
-  for (const providerId of Object.keys(PROVIDERS)) {
-    const sourceBytes = Buffer.from(`// fixture for ${providerId}\nexport default {};\n`, 'utf8');
-    scriptSources[providerId] = sourceBytes;
-    envelopes[providerId] = signedEnvelope(providerId, privateKey, sourceBytes, 7);
-  }
+  const providerId = 'mangasin';
+  const sourceBytes = Buffer.from('// fixture for mangasin\nexport default {};\n', 'utf8');
+  const envelopeFixture = signedEnvelope(providerId, privateKey, sourceBytes, 2);
+  const envelopes = { mangasin: envelopeFixture };
   const worker = testWorker(envelopes, async (...args) => {
     sourceCalls.push(args);
     throw new Error('Addon delivery must not request the source site');
   });
 
-  for (const providerId of Object.keys(PROVIDERS)) {
-    const response = await worker.fetch(new Request(
-      `https://worker.example/addons/v1/es/${providerId}.json`
-    ));
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get('content-type'), 'application/json');
-    const envelope = await response.json();
-    assert.deepEqual(envelope, envelopes[providerId]);
-    assert.equal(envelope.formatVersion, 1);
-    assert.equal(envelope.keyId, 'tankoyomi-addon-2026-10');
+  const response = await worker.fetch(new Request(
+    'https://worker.example/addons/v1/es/mangasin.json'
+  ));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/json');
+  const envelope = await response.json();
+  assert.deepEqual(envelope, envelopeFixture);
+  assert.equal(envelope.formatVersion, 1);
+  assert.equal(envelope.keyId, 'tankoyomi-addon-2026-10');
 
-    const payloadBytes = Buffer.from(envelope.payload, 'base64');
-    assert.equal(payloadBytes.toString('base64'), envelope.payload, 'payload Base64 is canonical');
-    assert.equal(verify(
-      null,
-      Buffer.concat([SIGNING_PREFIX, payloadBytes]),
-      publicKey,
-      Buffer.from(envelope.signature, 'base64')
-    ), true, `${providerId} signature verifies`);
+  const payloadBytes = Buffer.from(envelope.payload, 'base64');
+  assert.equal(payloadBytes.toString('base64'), envelope.payload, 'payload Base64 is canonical');
+  assert.equal(verify(
+    null,
+    Buffer.concat([SIGNING_PREFIX, payloadBytes]),
+    publicKey,
+    Buffer.from(envelope.signature, 'base64')
+  ), true, 'MangaSin signature verifies');
 
-    const payload = JSON.parse(payloadBytes.toString('utf8'));
-    assert.equal(payload.contractVersion, 1);
-    assert.equal(payload.addonId, 'colosseum.well.tankoyomi');
-    assert.equal(payload.language, 'es');
-    assert.equal(payload.providerId, providerId);
-    assert.equal(payload.revision, 7);
-    assert.deepEqual(payload.allowedHosts, PROVIDERS[providerId].allowedHosts);
-    const scriptBytes = Buffer.from(payload.scriptBase64, 'base64');
-    assert.equal(payload.scriptSha256, createHash('sha256').update(scriptBytes).digest('hex'));
-    assert.deepEqual(scriptBytes, scriptSources[providerId]);
-  }
+  const payload = JSON.parse(payloadBytes.toString('utf8'));
+  assert.equal(payload.contractVersion, 1);
+  assert.equal(payload.addonId, 'colosseum.well.tankoyomi');
+  assert.equal(payload.language, 'es');
+  assert.equal(payload.providerId, providerId);
+  assert.equal(payload.revision, 2);
+  assert.deepEqual(payload.allowedHosts, PROVIDERS[providerId].allowedHosts);
+  const scriptBytes = Buffer.from(payload.scriptBase64, 'base64');
+  assert.equal(payload.scriptSha256, createHash('sha256').update(scriptBytes).digest('hex'));
+  assert.deepEqual(scriptBytes, sourceBytes);
   assert.deepEqual(sourceCalls, []);
 });
 
-test('addon routing accepts only the two fixed Spanish paths and GET', async () => {
+test('addon routing accepts only the MangaSin Spanish path and GET', async () => {
   const { privateKey } = generateKeyPairSync('ed25519');
-  const envelopes = Object.fromEntries(Object.keys(PROVIDERS).map(providerId => [
-    providerId,
-    signedEnvelope(providerId, privateKey, Buffer.from('fixture source'))
-  ]));
+  const envelopes = {
+    mangasin: signedEnvelope('mangasin', privateKey, Buffer.from('fixture source'))
+  };
   const worker = testWorker(envelopes, async () => { throw new Error('No upstream calls expected'); });
   const unknownPaths = [
     '/addons/v1/es/other.json',
     '/addons/v1/en/mangasin.json',
+    '/addons/v1/es/lectorxd.json',
     '/addons/v1/es/mangasin.json/',
     '/addons/v1/es/%6dangasin.json',
     '/addons/v1/es/Mangasin.json'
@@ -133,13 +131,44 @@ test('missing published addon artifacts fail closed without fetching provider pa
     throw new Error('Must not fall back to a source-site request');
   });
   const response = await worker.fetch(new Request(
-    'https://worker.example/addons/v1/es/lectorxd.json'
+    'https://worker.example/addons/v1/es/mangasin.json'
   ));
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), {
     contractVersion: 1,
     error: 'Signed addon artifact is unavailable'
   });
+  assert.deepEqual(sourceCalls, []);
+});
+
+test('LectorXD addon and metadata routes return 404 despite an injected obsolete envelope', async () => {
+  const { privateKey } = generateKeyPairSync('ed25519');
+  const obsoleteEnvelope = signedEnvelope('lectorxd', privateKey, Buffer.from('obsolete fixture source'));
+  const sourceCalls = [];
+  const worker = createWorker({
+    manifest: productionManifest,
+    providers: productionProviders,
+    addonEnvelopes: { lectorxd: obsoleteEnvelope },
+    fetchImpl: async (...args) => {
+      sourceCalls.push(args);
+      throw new Error('LectorXD must never issue upstream requests');
+    }
+  });
+
+  const addonResponse = await worker.fetch(new Request(
+    'https://worker.example/addons/v1/es/lectorxd.json'
+  ));
+  assert.equal(addonResponse.status, 404);
+
+  const metadataResponse = await worker.fetch(new Request(
+    'https://worker.example/v1/es/lectorxd/searchSeries',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: 'One Piece' })
+    }
+  ));
+  assert.equal(metadataResponse.status, 404);
   assert.deepEqual(sourceCalls, []);
 });
 
@@ -155,7 +184,7 @@ test('production addon artifacts verify against the native pin and contain check
   });
   const wrongPublicKey = generateKeyPairSync('ed25519').publicKey;
 
-  for (const providerId of Object.keys(PROVIDERS)) {
+  for (const providerId of ['mangasin']) {
     const productionResponse = await productionWorker.fetch(new Request(
       `https://worker.example/addons/v1/es/${providerId}.json`
     ));
@@ -200,7 +229,7 @@ test('production addon artifacts verify against the native pin and contain check
   }
 });
 
-test('offline signer covers the exact checked-in source for both supported providers', async t => {
+test('offline signer preserves signing for active and parked provider sources', async t => {
   const passphrase = 'fixture only signing passphrase';
   const { privateKey, publicKey } = generateKeyPairSync('ed25519', {
     privateKeyEncoding: {
